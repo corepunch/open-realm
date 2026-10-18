@@ -907,6 +907,9 @@ static uint32_t ParseWeaponTargetMask(cstring_t text) {
     return mask;
 }
 
+/* Raw parsing is shared by targeted-as and requested masks. */
+uint32_t G_ParseTargetMask(cstring_t text) { return ParseWeaponTargetMask(text); }
+
 static void NormalizeWeaponTargetMasks(UnitWeapons_t *rows, uint32_t count) {
     if (!rows) return;
     FOR_LOOP(i, count) {
@@ -2662,6 +2665,48 @@ int32_t G_UnitClassification(uint32_t id) {
         type = d ? d->unitClassification : NULL;
     }
     return type ? atoi(type) : 0;
+}
+
+/* Original1f89c0: public UnitAddType/RemoveType accept exactly nine IDs. */
+uint32_t G_UnitTypeClassificationFlag(uint32_t type) {
+    switch(type) {
+    case 9:return WC3_UNIT_CLASS_GIANT;
+    case 10:return WC3_UNIT_CLASS_SUMMONED;
+    case 14:return WC3_UNIT_CLASS_UNDEAD;
+    case 15:return WC3_UNIT_CLASS_MECHANICAL;
+    case 16:return WC3_UNIT_CLASS_PEON;
+    case 17:return WC3_UNIT_CLASS_SAPPER;
+    case 18:return WC3_UNIT_CLASS_TOWNHALL;
+    case 19:return WC3_UNIT_CLASS_ANCIENT;
+    case 20:return WC3_UNIT_CLASS_TAUREN;
+    default:return 0;
+    }
+}
+
+/*684340's twelve authored names feed profile+5c, then liveUnit248.
+ * Construction/rebind installs this value; load-time table binding must not. */
+uint32_t G_UnitClassificationFlagsFromRows(UnitBalance_t const *balance,UnitData_t const *data) {
+    static struct {cstring_t name;uint32_t flag;} const names[]={
+        {"giant",WC3_UNIT_CLASS_GIANT},{"undead",WC3_UNIT_CLASS_UNDEAD},
+        {"summoned",WC3_UNIT_CLASS_SUMMONED},{"mechanical",WC3_UNIT_CLASS_MECHANICAL},
+        {"peon",WC3_UNIT_CLASS_PEON},{"sapper",WC3_UNIT_CLASS_SAPPER},
+        {"townhall",WC3_UNIT_CLASS_TOWNHALL},{"ancient",WC3_UNIT_CLASS_ANCIENT},
+        {"neutral",WC3_UNIT_CLASS_NEUTRAL},{"ward",WC3_UNIT_CLASS_WARD},
+        {"standon",WC3_UNIT_CLASS_STANDON},{"tauren",WC3_UNIT_CLASS_TAUREN},
+    };
+    cstring_t text=balance ? balance->type : NULL;
+    if(!text || !*text)text=data ? data->unitClassification : NULL;
+    if(!text || !*text || *text=='_' || *text=='-')return 0;
+    uint32_t flags=0;
+    while(*text) {
+        text+=strspn(text," ,\t-");
+        size_t length=strcspn(text," ,\t-");
+        if(!length)break;
+        char token[16];size_t copy=MIN(length,sizeof(token)-1);
+        memcpy(token,text,copy);token[copy]=0;text+=length;
+        FOR_LOOP(i,sizeof(names)/sizeof(names[0]))if(!strcasecmp(token,names[i].name)){flags|=names[i].flag;break;}
+    }
+    return flags;
 }
 
 /* Cast timings moved from UnitData (ROC) to UnitWeapons (TFT). */

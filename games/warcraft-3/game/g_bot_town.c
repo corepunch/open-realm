@@ -93,10 +93,7 @@ static uint32_t G_BotSpotForUnit(edict_t *unit,bool resource) {
 }
 
 bool G_BotUnitIsWorker(edict_t const *unit) {
-    cstring_t list=unit->data.UnitBalance ? unit->data.UnitBalance->type : NULL;
-    if(!list || !*list)list=unit->data.UnitData ? unit->data.UnitData->unitClassification : NULL;
-    if(list){PARSE_LIST(list,item,parse_segment)if(!strcasecmp(item,"peon"))return true;}
-    return false;
+    return unit && (unit->unit_classification&WC3_UNIT_CLASS_PEON)!=0;
 }
 
 static uint32_t G_BotSpotForOwnedUnit(bot_t const *bot,edict_t *unit) {
@@ -195,6 +192,12 @@ void G_BotWithdrawTownUnit(edict_t *unit,bool removed) {
             if(candidate && candidate->members[player])bot->town_spots[write++]=bot->town_spots[i];
         }
         while(write<BOT_TOWN_SPOTS)bot->town_spots[write++]=0;
+    }
+    /* Native699960 retires the old Unit AI-record via9ce090 before
+     * invalidating its identity. Suicide policy belongs to that incarnation. */
+    if(unit->ai_town_player) {
+        unit->bot_suicide_active=false;
+        unit->bot_suicide_player=0;
     }
     unit->ai_town_spot=unit->ai_town_player=0;
     botTownSpot_t *spot=removed ? G_BotSpot(unit->ai_anchor_spot) : NULL;

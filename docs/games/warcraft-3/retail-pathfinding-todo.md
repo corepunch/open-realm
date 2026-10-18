@@ -8,61 +8,91 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Execution order for the remaining 30 (2026-10-18)
 
-The count remains **306/336** until an entire existing leaf meets its written
-acceptance criteria. This plan adds no TODOs and changes no completion boxes.
+**Baseline: 306/336 complete, 30 open.** Morph382 is committed as
+`c415f758`; Captain376 is integrated by this delivery. Moon381 remains a
+private integration candidate.
+Their passing subsets are implementation progress, not whole-leaf closures.
+This plan adds no TODO IDs and changes no completion boxes.
 
-1. Integrate the three current patches before expanding their research: Morph382
-   (native, Python, strict parity and exact CI gates green), Moon381 (admission,
-   perimeter and regeneration green; scalar damage/ManaSpend consumer pending),
-   and Captain376 (Town registration work green privately; Suicide/query and live
-   classification composition pending). Save Ghidra findings and mapper changes
-   with each verified engine delivery. Private green results are not commits.
-2. Finish the finite entry-point, reachable-branch, field and arithmetic inventories
-   (BASE-01.4, BASE-03.1, BASE-03.2, NUM-01.2), then join them to evidence and
-   existing owners (E2E-05.1). Every unknown gets a concrete existing owner and
-   reproducer; do not create replacement umbrella tasks. Inventory closure does
-   not imply the owned behavior has been implemented.
-3. Use three continuing implementation lanes. Target/order lane completes the42
-   factory-caller inventory, including Inventory pickup/drop, Couple, Militia and
-   Locust parameter boundaries, then Harvest/Build/ability/queued ownership
-   (TARGET-01.2; ORDER-01.12/01.13/01.16/02.2). Morph/separation lane completes
-   the five remaining configured concrete families, Mount/base routing and the
-   direct-producer/count-composition ledger (SEP-01.2). Captain/group lane completes
-   composed moving actor/roster journeys, retreat/combat and native saved
-   continuations, then join/leave, availability and persistent group storage
-   (GROUP-01.2/03.2/03.4/03.4.7.3/04.6).
-4. In parallel with integration, finish the remaining public numeric, placement
-   and movement domains: BASE-02.3, FOOT-04.2, NUM-01.12, NUM-02.3, NUM-03.2,
-   MOVE-01.1. Preserve real operand aliases, exact commits/cell crossings,
-   water/bridge/support and exceptional-input outcomes; helper-only tests do not
-   establish public producer reachability.
-5. After the owning implementations are accepted, close the remaining discrepancy
-   ledger (E2E-05.2), freeze the replacement contracts (E2E-06.1), run same-seed
-   repeats and the minimized boundary corpus (E2E-03.1/03.2), then run the four
-   READY gates with a fresh full corpus and specification/interface audit.
+The remaining work has three measurable parts: **5 inventory/audit leaves,
+17 behavior leaves, and 8 final acceptance leaves**. Existing partial evidence
+must be reused; a new capture is required only for an identified missing contract.
 
-Execution is limited to three implementation lanes and one integration owner.
-Each lane finishes its current delivery before opening another investigation;
-the integration owner reviews, runs acceptance gates and commits it. The first
-integration milestone is Morph382, followed by the Moon381 and Captain376
-compositions as their remaining regressions pass. Full acceptance suites run on
-frozen candidates; focused regressions cover intervening changes.
+### Milestone 1: integrate the current deliveries
 
-After these deliveries, each lane records a finite acceptance checklist for its
-existing parent leaf and works that checklist to closure. Reports give the commit,
-the before/after open count and the next specific missing acceptance case. If a
-parent remains open, report that explicitly. New evidence alone does not count as
-a completed behavior or justify expanding the lane's scope.
+Captain376 now passes its eight public classification-consumer regressions after
+the four proven live-classification readers were implemented. The focused gate
+is 53 tests/3,330 assertions per edition; source, strict retail, adjacent, save
+and CI evidence accompanies the integrated delivery. Moon's next gate
+is the scalar damage/MANA callback contract, including retained detached owners;
+its failing regressions must pass before integrating its consumer behavior.
+Morph382 is already committed and must not be repeated as pending work.
+
+These commits do **not** automatically close GROUP, TARGET or SEP parents. Freeze
+source while acceptance readers run. Save the verified Ghidra annotations and
+MapPathfinding.java updates with each delivery. Run focused/affected checks per
+change; reserve broad repository sweeps for batch checkpoints or a material new
+risk. Record the exact CI command's result separately from pathfinding parity.
+
+### Milestone 2: freeze the remaining scope and close the inventories
+
+The integration owner exports the finite public entry-point, reachable-branch,
+field read/write and arithmetic inventories: BASE-01.4, BASE-03.1, BASE-03.2 and
+NUM-01.2. Join every row to evidence and an existing behavior owner (E2E-05.1).
+Use explicit matrix rows, not new TODO leaves. Each row must state its public
+producer, expected contract, current evidence, missing test/fix and acceptance
+command. Once those five inventories satisfy their written criteria, the open
+count becomes **25**; their closure must not imply that owned behavior is done.
+
+This is the scope boundary: additional discoveries must be assigned to one of
+the existing rows/owners and identified as a required dependency or deferred
+adjacent work. Do not keep extending a delivery with unrelated discoveries.
+
+### Milestone 3: close the 17 behavior leaves in three fixed lanes
+
+| Owner | Existing leaves | Required outcome |
+| --- | --- | --- |
+| Target/order agent | TARGET-01.2; ORDER-01.12,01.13,01.16,02.2 | Complete the factory/caller and range-boundary matrix, then Harvest, ability, Build and queued/internal ownership lifetimes. |
+| Captain/group agent | GROUP-01.2,03.2,03.4,03.4.7.3,04.6 | Complete producer/guard matrices, composed moving Captain/roster journeys, attachment inverses and persistent group storage. |
+| Morph/separation agent | SEP-01.2 | Complete remaining configured families, Mount/base routing and direct-producer/count compositions. |
+| Integration owner, between deliveries | BASE-02.3; FOOT-04.2; NUM-01.12,02.3,03.2; MOVE-01.1 | Finish public input domains, support/goal cases, reachable aliases, exact trajectories, exceptional inputs and authored movement parameters. |
+
+Each agent supplies a finite checklist for its existing parent leaves and
+finishes one whole leaf before starting another after the current deliveries.
+A checklist row closes only with the public producer and applicable rejection,
+inverse/removal/reuse and cold-save cases covered. Start with the smallest
+complete remaining matrix, not another broad research campaign. The integration
+owner serializes overlapping source changes and commits accepted results.
+
+The observable milestone is **25 -> 8 open** as these seventeen leaves close.
+Report each actual intermediate decrease; do not wait for the entire batch.
+
+### Milestone 4: run the eight final acceptance leaves
+
+Resolve the joined discrepancy ledger (E2E-05.2), freeze the replacement contracts
+(E2E-06.1), run same-seed repeats and the minimized fixed-seed boundary corpus
+(E2E-03.1/03.2), then run READY-01.1,02.1,03.1,04.1 against fresh outputs.
+The final result is **8 -> 0 open**, with zero unexplained in-scope differences.
+Final gates depend on the behavior owners; checking them early cannot substitute
+for completing their prerequisites.
+
+### Completion and reporting rule
 
 A behavior leaf requires retail observations and observer controls, a genuine
 failing engine regression before its fix, matching intermediate/final state,
-applicable inverse/removal/reuse and cold-save coverage, saved Ghidra/mapper
-progress, appropriate test gates and an integrated commit. Research discoveries
-remain within existing owners. Progress reports distinguish integrated commits,
-whole leaves closed and the exact remaining failing gate. No unmeasured date
-estimate substitutes for these exit criteria.
+applicable lifetime/save coverage, saved Ghidra/mapper progress, appropriate
+passing gates and an integrated commit. Proven unreachability can dispose of a
+row only with evidence. A partial patch never checks off its parent.
+
+Every delivery reports: **commit; whole leaves closed; open count before/after;
+next exact failing case or missing acceptance row**. If the count stays at30,
+say so explicitly and explain the finite blocker. No date estimate is justified
+until the remaining matrices are frozen; test counts and research volume do not
+substitute for leaf closure.
 
 ## Progress
+
+Captain 376 integrates Town preferred-primary ownership and the public SuicideUnit producer, typed core/point admission, raw target masks, mutable classifications and AI-record/publisher lifetimes. Save 217 rejects 216 before loading the changed meaning. Strict acceptance: 53 tests / 3330 assertions per edition; 7801 instruction guards, 16 data guards, 28 observed captures and 12 unique controls across 14 family/control comparisons. Full moving Captain journeys, remaining help/transport consumers and retail save/load stay in the existing leaf. [Evidence](retail-pathfinding-captain376.md).
 
 Metamorphosis382 implements concrete AEme availability and typed BEme identity,
 independent primary/common timers, natural/public inverse, alias isolation and
@@ -2187,7 +2217,7 @@ and the wider mixed cancellation/reclamation control:
 
 - [x] **GROUP-03.4.7.2.2.1** Preserve exact source in one-point exhausted fine reconstruction, consume the retained intermediate coarse waypoint without reducing retry, and stop translation for native status2 independently of heading error. [Payoff70](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff) authenticates counter1933's701/700 search/source point/adaptive7→2/retry6 and counter1996's2→0 explicit stop. Public GoHome matches7933 motion commits,327 virtual commits,812 shared footprints and7310 saved suffix commits through30s. Both earlier references, fresh strict capture checks and saved Ghidra consumer comments remain exact.
 - [x] **GROUP-03.4.7.2.2.2** Extend Frida group/footprint observation beyond the authored30-second marker and compose the full later private retry translation with actual engine/save continuations. [Payoff89](retail-pathfinding-engine.md#extended-captain-travel-ends-in-a-retained-visible-follow-owner) repeats10,986 commits/865 shared footprints and exact group states through120 seconds, with27,703 saved suffix commits and stable ownership at5/10/25/50ms. Corrected acceptance premise: natural task reclamation is not expected under these unchanged inputs. Original16c390 retains the arrived private Follow owner while group bit1 is set and its target remains visible; two captures and the engine preserve that standing task without inventing cleanup. Target visibility loss and unrelated subsequent orders remain TARGET/ORDER. The primary-clock verifier now consumes the original scalar deadline rather than assuming six steps forever; production already uses that deadline. Source/map pins, O0/O2, fresh strict corpus, both full suites and saved Ghidra gate/ABI evidence pass.
-- [ ] **GROUP-03.4.7.3** Compose autonomous occupied SetCaptainHome, empty/larger roster defaults, retreat and other public captain goal policies with moving actor/physical roster lifetimes. Near-home and explicit GoHome initial travel do not establish these producers; preserve diagnostics and add actual public-frame/save regressions for each independently recovered policy. Payoff159 integrates non-combat home/removal decisions, separate retreat bits, CaptainAttack/goal dispatch, speed defaults and saved periodic phase; full composed motion/combat and retail-save evidence remain open. See [Captain policy](retail-pathfinding-captain-policy.md). Payoff160 adds the ordinary retained-point speed multiplier and exact range-entry refresh with repeated public controls and engine save/inverse regressions; wider target/count/trajectory compositions remain open. Payoff161 removes the arbitrary thirteen-member engine limit with complete24/25 retail repeats/control, retained twelve-row batches, constant-time ordinary quorum counts and O(N log N) save duplicate validation. Failing-first actual large-roster admission/cold-save/removal/replacement regressions pass; full target/combat/special-counter and default-home compositions remain open. See [larger Captain rosters](retail-pathfinding-captain-storage.md#larger-rosters-and-constant-time-quorum-payoff161). Captain358 integrates combat contact, separate active hostile-source routing, source removal and signed mana/save inverses; [acquisition, broader target policies and cross-owner subscriptions](retail-pathfinding-captain-policy.md#retained-request-versus-hostile-source-route-payoff358-continuation) remain in this existing leaf. Captain205 implements independent d0014 acquisition, saved requests and scalar rebase; remaining scan domains, candidate/neutral/event policies and cross-owner subscriptions stay in this existing leaf. Payoff363 implements mixed Move/Attack/Captain per-event target FIFO and synchronous source inverses with complete RemoveUnit/owner-transfer/KillUnit repeats/control (2718 markers,438 native records), failing-first Classic/TFT regressions, nested mutation and Save208 history. Inventory/Missile ordering and broader Captain policies/trajectories/retail-save remain in this existing leaf. See [typed target event ownership](retail-pathfinding-target-events.md). Captain368 implements retained-point Clear and local living-source withdrawal; separate selection, wider role policy and journeys remain in this leaf. Captain369 adds deferred selection, pending save and primary-loss rearm; Suicide publication, random structure destinations, transport and Town preferred-primary override remain in this leaf. Captain373 adds Suicide publication, exact strategic regions and script-world/invisibility ownership; transport, SuicidePlayerUnits, Town preferred-primary and full journeys remain in this leaf. Captain378 preserves role-specific target-event masks, early death registry delivery and saved event ranks; wider Town/Captain policy remains in this leaf.
+- [ ] **GROUP-03.4.7.3** Compose autonomous occupied SetCaptainHome, empty/larger roster defaults, retreat and other public captain goal policies with moving actor/physical roster lifetimes. Near-home and explicit GoHome initial travel do not establish these producers; preserve diagnostics and add actual public-frame/save regressions for each independently recovered policy. Payoff159 integrates non-combat home/removal decisions, separate retreat bits, CaptainAttack/goal dispatch, speed defaults and saved periodic phase; full composed motion/combat and retail-save evidence remain open. See [Captain policy](retail-pathfinding-captain-policy.md). Payoff160 adds the ordinary retained-point speed multiplier and exact range-entry refresh with repeated public controls and engine save/inverse regressions; wider target/count/trajectory compositions remain open. Payoff161 removes the arbitrary thirteen-member engine limit with complete24/25 retail repeats/control, retained twelve-row batches, constant-time ordinary quorum counts and O(N log N) save duplicate validation. Failing-first actual large-roster admission/cold-save/removal/replacement regressions pass; full target/combat/special-counter and default-home compositions remain open. See [larger Captain rosters](retail-pathfinding-captain-storage.md#larger-rosters-and-constant-time-quorum-payoff161). Captain358 integrates combat contact, separate active hostile-source routing, source removal and signed mana/save inverses; [acquisition, broader target policies and cross-owner subscriptions](retail-pathfinding-captain-policy.md#retained-request-versus-hostile-source-route-payoff358-continuation) remain in this existing leaf. Captain205 implements independent d0014 acquisition, saved requests and scalar rebase; remaining scan domains, candidate/neutral/event policies and cross-owner subscriptions stay in this existing leaf. Payoff363 implements mixed Move/Attack/Captain per-event target FIFO and synchronous source inverses with complete RemoveUnit/owner-transfer/KillUnit repeats/control (2718 markers,438 native records), failing-first Classic/TFT regressions, nested mutation and Save208 history. Inventory/Missile ordering and broader Captain policies/trajectories/retail-save remain in this existing leaf. See [typed target event ownership](retail-pathfinding-target-events.md). Captain368 implements retained-point Clear and local living-source withdrawal; separate selection, wider role policy and journeys remain in this leaf. Captain369 adds deferred selection, pending save and primary-loss rearm; Suicide publication, random structure destinations, transport and Town preferred-primary override remain in this leaf. Captain373 adds Suicide publication, exact strategic regions and script-world/invisibility ownership; transport, SuicidePlayerUnits, Town preferred-primary and full journeys remain in this leaf. Captain378 preserves role-specific target-event masks, early death registry delivery and saved event ranks; wider Town/Captain policy remains in this leaf. Captain 376 integrates preferred-primary and public SuicideUnit ownership, raw masks and live classification with saved retained listeners; 53 tests / 3330 assertions per edition. Composed journeys, remaining help/transport and retail saves retain this existing leaf.
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
 

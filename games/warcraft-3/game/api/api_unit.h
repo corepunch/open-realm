@@ -684,15 +684,17 @@ uint32_t UnitDamageTarget(jass_t *j) {
 uint32_t UnitAddType(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t *whichUnitType = jass_checkhandle(j, 2, "unittype");
-    if (!whichUnit || !whichUnitType || *whichUnitType >= 32) return jass_pushboolean(j, 0);
-    whichUnit->script_unit_types |= (1u << *whichUnitType);
+    uint32_t const flag=whichUnitType ? G_UnitTypeClassificationFlag(*whichUnitType) : 0;
+    if (!whichUnit || !flag) return jass_pushboolean(j, 0);
+    whichUnit->unit_classification |= flag;
     return jass_pushboolean(j, 1);
 }
 uint32_t UnitRemoveType(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t *whichUnitType = jass_checkhandle(j, 2, "unittype");
-    if (!whichUnit || !whichUnitType || *whichUnitType >= 32) return jass_pushboolean(j, 0);
-    whichUnit->script_unit_types &= ~(1u << *whichUnitType);
+    uint32_t const flag=whichUnitType ? G_UnitTypeClassificationFlag(*whichUnitType) : 0;
+    if (!whichUnit || !flag) return jass_pushboolean(j, 0);
+    whichUnit->unit_classification &= ~flag;
     return jass_pushboolean(j, 1);
 }
 uint32_t UnitCountBuffsEx(jass_t *j) {
@@ -1081,8 +1083,8 @@ uint32_t IsUnitType(jass_t *j) {
     if (!whichUnit || !whichUnitType) return jass_pushboolean(j, 0);
     if (*whichUnitType == WC3_UNIT_TYPE_STRUCTURE)
         return jass_pushboolean(j, G_UnitIsStructure(whichUnit));
-    if (*whichUnitType < 32 && (whichUnit->script_unit_types & (1u << *whichUnitType)))
-        return jass_pushboolean(j, 1);
+    uint32_t const flag=G_UnitTypeClassificationFlag(*whichUnitType);
+    if(flag)return jass_pushboolean(j,(whichUnit->unit_classification&flag)!=0);
     if (*whichUnitType == WC3_UNIT_TYPE_GROUND)
         return jass_pushboolean(j, !(whichUnit->aiflags & AI_FLYING));
     if (*whichUnitType == 0) /* UNIT_TYPE_HERO */
@@ -1097,11 +1099,6 @@ uint32_t IsUnitType(jass_t *j) {
         return jass_pushboolean(j, whichUnit->stunned);
     if (*whichUnitType == 3) /* UNIT_TYPE_FLYING */
         return jass_pushboolean(j, whichUnit->aiflags & AI_FLYING);
-    if (*whichUnitType == 10) /* UNIT_TYPE_SUMMONED */
-        return jass_pushboolean(j, (whichUnit->aiflags&AI_SUMMONED) || whichUnit->summon_ability != 0);
-    if (*whichUnitType == 14) /* UNIT_TYPE_UNDEAD */
-        return jass_pushboolean(j, whichUnit->data.UnitData &&
-            WC3_RaceFromString(whichUnit->data.UnitData->race) == RACE_UNDEAD);
     return jass_pushboolean(j, 0);
 }
 uint32_t IsUnit(jass_t *j) {

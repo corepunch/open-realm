@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 216; /* ConcreteBEme identity, primary expiry and pausedAEme lifetime. Provisional next version; rebase at integration. */
+static uint32_t const save_version = 217; /* Typed Morph owners, Captain registry and live classification. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1287,6 +1287,8 @@ field_t edict_fields[] = {
     F(edict_s, class_seq, F_INT, 2),
     F(edict_s, ai_town_spot, F_INT),
     F(edict_s, ai_town_player, F_INT),
+    F(edict_s, bot_suicide_active, F_INT),
+    F(edict_s, bot_suicide_player, F_INT),
     F(edict_s, ai_anchor_spot, F_INT),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_fade.origin.time, F_FLOAT),
@@ -4935,6 +4937,40 @@ TEST(wc3_save, rejects_version_77_after_cinematic_portrait_format_change) {
     T_ASSERT(!G_GetSaveMap(previous_filename, map, sizeof(map)));
     T_ASSERT(!ReadGame(previous_filename));
     remove(filename); remove(previous_filename);
+}
+
+TEST(wc3_save, captain376_rejects_version215_before_town_registration_restore) {
+    cstring_t current=Test_TempPath("save-captain376-current.bin");
+    cstring_t previous=Test_TempPath("save-captain376-v215.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    T_ASSERT(WriteGame(current));FILE *file=fopen(current,"rb");T_NOT_NULL(file);
+    if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,215,header.edict_size));
+    unit->user_data=376;
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
+    T_EQ(unit->user_data,376);T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
+    remove(current);remove(previous);
+}
+
+TEST(wc3_save, rejects_version_216_before_captain_registry_and_live_classification) {
+    cstring_t current=Test_TempPath("save-captain217-current.bin");
+    cstring_t previous=Test_TempPath("save-captain217-v216.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    T_ASSERT(WriteGame(current));FILE *file=fopen(current,"rb");T_NOT_NULL(file);
+    if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,216,header.edict_size));
+    unit->user_data=217;
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
+    T_EQ(unit->user_data,217);T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
+    remove(current);remove(previous);
 }
 
 TEST(wc3_save, target378_rejects_version_213_before_captain_role_masks) {

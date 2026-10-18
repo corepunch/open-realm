@@ -871,7 +871,10 @@ TEST(wc3_order_lifecycle, group338_town_matches_original_candidate_priority_word
                                   row->rawcode>>8,row->rawcode);
         target->defense_type=row->defense;
         target->health.value=wc3_float(row->life);target->mana.value=wc3_float(row->mana);
-        if(row->summoned)target->aiflags|=AI_SUMMONED;
+        /* Replay the captured live Unit248 inputs, independently of timed life. */
+        target->unit_classification&=~(WC3_UNIT_CLASS_PEON|WC3_UNIT_CLASS_SUMMONED);
+        if(row->worker)target->unit_classification|=WC3_UNIT_CLASS_PEON;
+        if(row->summoned)target->unit_classification|=WC3_UNIT_CLASS_SUMMONED;
         if(row->illusion)target->aiflags|=AI_ILLUSION;
         if(!row->mobile)T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','m','o','v')));
         if(!row->armed)T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','a','t','k')));
@@ -2897,6 +2900,126 @@ TEST(wc3_order_lifecycle, group367_sleep_paused_refresh_keeps_owner_and_rearms_p
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
     }
     reset_entities();setup_test_world();
+}
+
+
+/* Both native49d680 and607950 read live Unit248.4, independently of
+ * creation-time summon ownership. Exercise the real public mutable type. */
+TEST(wc3_order_lifecycle, captain376_public_summoned_type_changes_town_priority) {
+    reset_entities();setup_test_world();level.setup.difficulty=2;
+    edict_t *unit=review_order_unit(0,0),*target=review_order_unit(600,1);
+    unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+    level.ai_owned_players|=1;G_BotUnitReady(unit);level.bots[0].mode=BOT_CAMPAIGN;
+    edict_t *old=review_order_unit(1800,1);order_attack(unit,old);
+    G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+    uint64_t ordinary=G_TestAttackTargetPriority(unit,target);
+    T_ASSERT((ordinary>>32)&0x10000000u);
+    T_ASSERT(!(target->aiflags&AI_SUMMONED));
+    T_ASSERT(run_test_jass(
+        "globals\nunit classificationCandidate\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "local group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,600,0,1,null)\n"
+        "set classificationCandidate=FirstOfGroup(g)\n"
+        "call BJassAssert(classificationCandidate!=null,\"real priority candidate\")\n"
+        "call BJassAssert(UnitAddType(classificationCandidate,ConvertUnitType(10)),\"add summoned\")\n"
+        "call BJassAssert(IsUnitType(classificationCandidate,ConvertUnitType(10)),\"live summoned\")\n"
+        "call DestroyGroup(g)\nendfunction\n"
+        "function removeSummoned takes nothing returns nothing\n"
+        "call BJassAssert(UnitRemoveType(classificationCandidate,ConvertUnitType(10)),\"remove summoned\")\n"
+        "call BJassAssert(not IsUnitType(classificationCandidate,ConvertUnitType(10)),\"live summoned removed\")\n"
+        "endfunction\n"));
+    T_ASSERT(target->unit_classification&WC3_UNIT_CLASS_SUMMONED);
+    T_ASSERT(!(target->aiflags&AI_SUMMONED));
+    uint64_t summoned=G_TestAttackTargetPriority(unit,target);
+    T_EQ(summoned,ordinary&~(UINT64_C(0x10000000)<<32));
+    target->aiflags|=AI_ILLUSION;
+    T_EQ(G_TestAttackTargetPriority(unit,target),ordinary);
+    target->aiflags&=~AI_ILLUSION;
+    jass_callbyname(level.vm,"removeSummoned",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(G_TestAttackTargetPriority(unit,target),ordinary);
+    reset_entities();setup_test_world();
+}
+
+
+TEST(wc3_order_lifecycle, captain376_timed_life_type_removal_restores_town_priority) {
+    reset_entities();setup_test_world();level.setup.difficulty=2;
+    edict_t *unit=review_order_unit(0,0),*target=review_order_unit(600,1);
+    unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+    level.ai_owned_players|=1;G_BotUnitReady(unit);level.bots[0].mode=BOT_CAMPAIGN;
+    edict_t *old=review_order_unit(1800,1);order_attack(unit,old);
+    G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+    uint64_t ordinary=G_TestAttackTargetPriority(unit,target);
+    T_ASSERT((ordinary>>32)&0x10000000u);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local group g=CreateGroup()\nlocal unit u\n"
+        "call GroupEnumUnitsInRange(g,600,0,1,null)\nset u=FirstOfGroup(g)\n"
+        "call BJassAssert(u!=null,\"real priority candidate\")\n"
+        "call UnitApplyTimedLife(u,'BTLF',100)\n"
+        "call BJassAssert(IsUnitType(u,ConvertUnitType(10)),\"timed life summons\")\n"
+        "call BJassAssert(UnitRemoveType(u,ConvertUnitType(10)),\"remove summoned\")\n"
+        "call BJassAssert(not IsUnitType(u,ConvertUnitType(10)),\"live flag removed\")\n"
+        "call DestroyGroup(g)\nendfunction\n"));
+    T_ASSERT(S_UnitHasTimedLife(target));
+    T_ASSERT(target->aiflags&AI_SUMMONED);
+    T_ASSERT(!(target->unit_classification&WC3_UNIT_CLASS_SUMMONED));
+    T_EQ(G_TestAttackTargetPriority(unit,target),ordinary);
+    T_ASSERT(S_UnitHasTimedLife(target));
+    reset_entities();setup_test_world();
+}
+
+static void captain376_public_worker_change(edict_t *unit,bool remove) {
+    char script[1600];
+    snprintf(script,sizeof(script),
+        "function main takes nothing returns nothing\n"
+        "local group g=CreateGroup()\nlocal unit u\n"
+        "call GroupEnumUnitsInRange(g,%g,%g,1,null)\nset u=FirstOfGroup(g)\n"
+        "call BJassAssert(u!=null,\"real worker candidate\")\n"
+        "call BJassAssert(UnitAddType(u,ConvertUnitType(16)),\"public add peon\")\n"
+        "call BJassAssert(IsUnitType(u,ConvertUnitType(16)),\"live peon added\")\n"
+        "%s"
+        "call DestroyGroup(g)\nendfunction\n",unit->s.origin2.x,unit->s.origin2.y,
+        remove ? "call BJassAssert(UnitRemoveType(u,ConvertUnitType(16)),\"public remove peon\")\n"
+                 "call BJassAssert(not IsUnitType(u,ConvertUnitType(16)),\"live peon removed\")\n" : "");
+    T_ASSERT(run_test_jass(script));
+    T_EQ(!!(unit->unit_classification&WC3_UNIT_CLASS_PEON),!remove);
+}
+TEST(wc3_order_lifecycle, captain376_public_worker_type_changes_counterattack_priority) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0),*target=review_order_unit(600,1);
+    G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+    uint64_t ordinary=G_TestAttackTargetPriority(unit,target);
+    T_ASSERT((uint32_t)ordinary&0x08000000u);
+    captain376_public_worker_change(target,false);
+    T_EQ(G_TestAttackTargetPriority(unit,target),ordinary&~UINT64_C(0x08000000));
+    captain376_public_worker_change(target,true);
+    T_EQ(G_TestAttackTargetPriority(unit,target),ordinary);
+    reset_entities();setup_test_world();
+}
+static void captain376_public_worker_town_selection(bool remove) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    level.ai_owned_players|=1;
+    edict_t *oldest=review_order_unit(0,0),*newest=review_order_unit(600,0);
+    G_BotUnitReady(oldest);G_BotUnitReady(newest);
+    T_ASSERT(oldest->aiflags&AI_TOWN_OWNED);T_ASSERT(newest->aiflags&AI_TOWN_OWNED);
+    T_ASSERT(oldest->own_seq<newest->own_seq);
+    T_EQ(level.bots[0].town_spots[0],0u);
+    G_PublishMoveSpatialObject(oldest);G_PublishMoveSpatialObject(newest);
+    captain376_public_worker_change(newest,remove);
+    G_BotStopGathering(&game.clients[0].ps);
+    uint32_t index=level.bots[0].town_spots[0];T_NE(index,0u);
+    T_ASSERT(index<=ARRAY_COUNT(level.ai_town_spots));
+    if(index && index<=ARRAY_COUNT(level.ai_town_spots))
+        T_EQ(level.ai_town_spots[index-1].building.unit,remove ? oldest : newest);
+    G_BotStop(0);reset_entities();setup_test_world();
+}
+TEST(wc3_order_lifecycle, captain376_public_worker_type_changes_initial_town) {
+    captain376_public_worker_town_selection(false);
+}
+TEST(wc3_order_lifecycle, captain376_public_worker_removal_restores_oldest_town) {
+    captain376_public_worker_town_selection(true);
 }
 
 #endif

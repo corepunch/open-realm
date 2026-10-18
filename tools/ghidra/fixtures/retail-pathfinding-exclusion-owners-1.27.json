@@ -327,7 +327,8 @@
     "oracle-morph380",
     "oracle-waygate377",
     "oracle-target-tokens",
-    "oracle-morph382"
+    "oracle-morph382",
+    "oracle-captain376-preferred-suicide"
   ],
   "entries": [
     {
@@ -7340,6 +7341,18 @@
           "task": "SEP-01.2",
           "disposition": "evidence-boundary",
           "rationale": "Concrete382 availability/lifetime evidence does not complete the existing broader separation behavior and restoration/evidence boundaries."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain376-preferred-suicide",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Complete moving Captain engagement, retreat and arrival journeys; remaining nonstructure/allied help and transport consumers; actual retail midjourney save/load remain in existing GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "The unchanged existing Captain leaf retains composed journeys, remaining help/transport and retail save/load; this producer chunk does not close them."
         }
       ]
     }

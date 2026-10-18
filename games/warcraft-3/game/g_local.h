@@ -343,7 +343,7 @@ enum {
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
     AI_TOWN_OWNED = 1 << 13, /* Retail unit5c.4; AI enrollment, independent of script VM. */
-    AI_SUMMONED = 1 << 14, /* Retail unit248.4; independent of the creating ability. */
+    AI_SUMMONED = 1 << 14, /* Legacy timed-life marker; live type uses unit_classification. */
     AI_SUMMON_EXPLODES_ON_DEATH = 1 << 15, /* spirit/beast summon magical death effect, no corpse */
     AI_CORPSE_DECAY_SUSPENDED = 1 << 16, /* script canceled decay; resume starts a new bone phase */
     AI_SCRIPT_EXPLODED = 1 << 17, /* Scripted explosion independent of summon/corpse owners. */
@@ -439,6 +439,24 @@ enum {
     WC3_TARGET_FLAG_DEBRIS     = 256u,
     WC3_TARGET_FLAG_DECORATION = 512u,
     WC3_TARGET_FLAG_BRIDGE     = 1024u,
+    WC3_TARGET_FLAG_HIDDEN     = 1u << 11,
+    WC3_TARGET_FLAG_SELF       = 1u << 12,
+    WC3_TARGET_FLAG_PLAYER     = 1u << 13,
+    WC3_TARGET_FLAG_ALLY       = 1u << 14,
+    WC3_TARGET_FLAG_NEUTRAL    = 1u << 15,
+    WC3_TARGET_FLAG_ENEMY      = 1u << 16,
+    WC3_TARGET_FLAG_VULNERABLE = 1u << 20,
+    WC3_TARGET_FLAG_INVULNERABLE = 1u << 21,
+    WC3_TARGET_FLAG_HERO       = 1u << 22,
+    WC3_TARGET_FLAG_NONHERO    = 1u << 23,
+    WC3_TARGET_FLAG_ALIVE      = 1u << 24,
+    WC3_TARGET_FLAG_DEAD       = 1u << 25,
+    WC3_TARGET_FLAG_ORGANIC    = 1u << 26,
+    WC3_TARGET_FLAG_MECHANICAL = 1u << 27,
+    WC3_TARGET_FLAG_NONSAPPER  = 1u << 28,
+    WC3_TARGET_FLAG_SAPPER     = 1u << 29,
+    WC3_TARGET_FLAG_NONANCIENT = 1u << 30,
+    WC3_TARGET_FLAG_ANCIENT    = 1u << 31,
 };
 
 typedef enum {
@@ -899,9 +917,13 @@ typedef struct {
     uint32_t owner_context; /* Owning ability interprets this retained queue payload. */
 } unitOrder_t;
 
-enum { UNIT_ORDER_AI_IMMEDIATE=851974, UNIT_ORDER_CONTEXT_AI=MAKEFOURCC('A','I','0','6') };
+enum { UNIT_ORDER_AI_IMMEDIATE=851974,
+    UNIT_ORDER_AI_SUICIDE=851982, UNIT_ORDER_CONTEXT_AI=MAKEFOURCC('A','I','0','6') };
 bool G_IsAIImmediateOrder(unitOrder_t const *);
 bool G_AdmitAIImmediateOrder(edict_t *,bool);
+bool G_AdmitAISuicideOrder(edict_t *,bool);
+bool G_AdmitAIAttackPointOrder(edict_t *,vec2_t const *);
+void G_BotExecuteSuicide(edict_t *);
 void G_BotAppendAIStop(edict_t *);
 void G_BotExecuteAIStop(edict_t *);
 bool G_BotAIStopTaskActive(edict_t const *);
@@ -1732,6 +1754,18 @@ typedef struct {
 #define UNIT_BALANCE_BUILDING 0x1 // bit; current rooted/building mode; immutable unit-type metadata remains separate
 #define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
 #define UNIT_BALANCE_GHOST_INVISIBLE 0x4 // bit; Agho persistent invisibility; detection reveals without breaking it
+/* Native authored classification tablece5fa0; mutable handle mapping1f89c0. */
+enum {
+    WC3_UNIT_CLASS_GIANT=0x1u, WC3_UNIT_CLASS_UNDEAD=0x2u,
+    WC3_UNIT_CLASS_SUMMONED=0x4u, WC3_UNIT_CLASS_MECHANICAL=0x8u,
+    WC3_UNIT_CLASS_PEON=0x10u, WC3_UNIT_CLASS_SAPPER=0x20u,
+    WC3_UNIT_CLASS_TOWNHALL=0x40u, WC3_UNIT_CLASS_ANCIENT=0x80u,
+    WC3_UNIT_CLASS_NEUTRAL=0x100u, WC3_UNIT_CLASS_WARD=0x200u,
+    WC3_UNIT_CLASS_STANDON=0x400u, WC3_UNIT_CLASS_TAUREN=0x800u,
+};
+uint32_t G_UnitTypeClassificationFlag(uint32_t);
+uint32_t G_UnitClassificationFlagsFromRows(UnitBalance_t const *,UnitData_t const *);
+
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_GROUND 4 // handle value; authored ground movement class; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
@@ -2316,6 +2350,8 @@ struct edict_s {
     uint64_t class_seq; /* Immutable CUnit class insertion; owner transfers do not reorder queries. */
     uint32_t ai_guard_handle; /* Derived guard slot/player; rebuilt from saved posts. */
     uint32_t ai_town_spot, ai_town_player, ai_anchor_spot; /* Map-owned CTownSpot indexes; zero is absent. */
+    bool bot_suicide_active; /* Native AI-record28 bit10, independent of gameplay aiflags. */
+    int32_t bot_suicide_player; /* Native AI-record54 target policy. */
     uint32_t variation;
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
@@ -2418,7 +2454,7 @@ struct edict_s {
     bool target_loss_transient; /* Blink's synchronous validation window; never saved. */
     bool construction_held; /* Construction owns absence independently of scripted pause. */
     bool script_world_hidden; /* ShowUnit retirement, independent of gameplay invisibility. */
-    uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
+    uint32_t unit_classification; /* Live Unit248 word; authored profile plus public mutations. */
     sleep_t *sleep;
     channel_t *channel;
     struct edictChaos_s {
@@ -2997,6 +3033,9 @@ typedef struct {
     botMode_t mode;
     uint32_t flags;
     bool town_initialized; /* Town policy survives independent AI script startup. */
+    botCaptainTarget_t town_preferred; /* Native Town+164; independent of Captain+108. */
+    abilityPrimaryTimer_t town_request; /* Native Town d01c1, two seconds from construction. */
+    bool town_help_latch; /* Native Town+2d0 bit2, consumed before replacement ranking. */
     uint32_t town_spots[BOT_TOWN_SPOTS];
     int32_t replacement_count;
     uint32_t hero_id;
@@ -3270,6 +3309,9 @@ void G_SetClientModal(edict_t *player, uint32_t modal, bool open);
 void G_SetQuestDialogOpen(edict_t *player, bool open);
 TARGTYPE G_GetTargetType(cstring_t);
 uint32_t G_TargetFlagForType(TARGTYPE);
+uint32_t G_ParseTargetMask(cstring_t);
+bool S_AttackQueryTargetMask(edict_t const *,uint32_t *);
+bool S_UnitMatchesTargetMask(edict_t const *,uint32_t,edict_t const *);
 cstring_t G_LevelString(cstring_t);
 uint32_t G_PickHeroProperName(uint32_t type);
 cstring_t G_HeroProperName(edict_t const *, char *, size_t);
@@ -4205,11 +4247,17 @@ void S_UnitTargetRemoved(edict_t *);
 void S_UnitTargetRemovedCleanup(edict_t *);
 /* g_target_events.c: each concrete callback has an independent FIFO rank
  * for each target event; pointers and derived links are never saved. */
-typedef enum { TARGET_OWNER_MOVE=1, TARGET_OWNER_ATTACK, TARGET_OWNER_CAPTAIN } targetSubscriberKind_t;
+typedef enum { TARGET_OWNER_MOVE=1, TARGET_OWNER_ATTACK, TARGET_OWNER_CAPTAIN, TARGET_OWNER_TOWN } targetSubscriberKind_t;
 void G_ResetTargetSubscriptions(void);
 void G_ClearTargetSubscriptionOwner(targetSubscriberKind_t,void *);
+void G_ClearTargetSubscriptionsForTarget(edict_t *);
 void G_SetUnitTargetSubscription(targetSubscriberKind_t,edict_t *,edict_t *);
 void G_AddCaptainTargetSubscription(botCaptain_t *,edict_t *);
+void G_AddCaptainRetainedTargetSubscription(botCaptain_t *,edict_t *);
+void G_SetTownTargetSubscription(bot_t *,edict_t *);
+void G_RemoveTownTargetSubscription(bot_t *,edict_t *);
+void G_BotTownTargetEvent(bot_t *,edict_t *);
+void G_BotTownHelpRecipient(edict_t *,edict_t *,edict_t *);
 void G_RemoveCaptainTargetSubscription(botCaptain_t *,edict_t *);
 void G_RefreshCaptainTargetSubscriptions(botCaptain_t *);
 void G_DispatchTargetSubscriptions(edict_t *,abilityMsg_t);

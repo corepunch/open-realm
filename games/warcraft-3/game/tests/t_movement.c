@@ -14623,7 +14623,11 @@ TEST(wc3_movement, source233_birth_and_flight_rebind_choose_enabled_member) {
     FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','g','r','y'))units[ent->s.origin2.x==128 ? 0 : 1]=ent;
     T_NOT_NULL(units[0]);T_NOT_NULL(units[1]);if(!units[0]||!units[1])goto source233_cleanup;
     T_ASSERT(!units[0]->movement.adaptive_disabled);T_ASSERT(!units[1]->movement.adaptive_disabled);
+    /* Same-type refresh is a native no-op; reach a real flying rebind. */
+    T_ASSERT(G_TransformUnitType(units[0],MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(!(units[0]->aiflags&AI_FLYING));
     T_ASSERT(G_TransformUnitType(units[0],MAKEFOURCC('h','g','r','y')));
+    T_ASSERT(units[0]->aiflags&AI_FLYING);
     T_ASSERT(units[0]->movement.adaptive_disabled);T_ASSERT(!units[1]->movement.adaptive_disabled);
     vec2_t goal={512,512};
     groupPointOrder_t order={.count=2,.point=&goal,.order="move",.order_id=G_OrderId("move")};
@@ -14686,7 +14690,11 @@ TEST(wc3_movement, disabled234_flight_rebind_group_caches_and_saves_route) {
         "set a=CreateUnit(Player(0),'hgry',128,512,0)\nendfunction\n"));
     edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','g','r','y'))unit=ent;
     T_NOT_NULL(unit);if(!unit)goto disabled234_cleanup;
-    T_ASSERT(G_TransformUnitType(unit,MAKEFOURCC('h','g','r','y')));T_ASSERT(unit->movement.adaptive_disabled);
+    /* Use a genuine type transition, preserving the original flying profile. */
+    T_ASSERT(G_TransformUnitType(unit,MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(!(unit->aiflags&AI_FLYING));
+    T_ASSERT(G_TransformUnitType(unit,MAKEFOURCC('h','g','r','y')));
+    T_ASSERT(unit->aiflags&AI_FLYING);T_ASSERT(unit->movement.adaptive_disabled);
     vec2_t goal={1536,512};groupPointOrder_t request={.count=1,.units={{unit,unit->spawn_time}},
         .point=&goal,.order="move",.order_id=G_OrderId("move")};
     T_ASSERT(G_IssueGroupPointOrder(&request));moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
@@ -20279,6 +20287,10 @@ TEST(wc3_movement, completion195_blocked_member_retries_before_terminal_scan) {
 /* ORDER346 retail MapC: failed AI Move admits board, the flyer loads the
  * passenger and drops it across the barrier before guard return takes over. */
 static void order346_ferry_scenario(uint32_t mode) {
+    bool timed_summoned=mode==130;
+    bool public_summoned=mode==8 || (mode>=128 && mode<=130);
+    bool remove_public_summoned=mode==129 || timed_summoned;
+    if(public_summoned)mode=remove_public_summoned ? 0 : 8;
     bool removed_load=mode>=104 && mode<=111;
     if(removed_load)mode-=8;
     G_BotStop(0);reset_entities();setup_test_world();
@@ -20319,7 +20331,27 @@ static void order346_ferry_scenario(uint32_t mode) {
         T_EQ(S_CargoCapacity(transport),3);
         if(mode==4)transport->health.value*=.5f;
         if(mode==5)transport->s.player=1;
-        if(mode==8)unit->aiflags|=AI_SUMMONED;
+        if(public_summoned) {
+            char script[1800];
+            snprintf(script,sizeof(script),
+                "function main takes nothing returns nothing\n"
+                "local group g=CreateGroup()\nlocal unit u\n"
+                "call GroupEnumUnitsInRange(g,272,304,1,null)\nset u=FirstOfGroup(g)\n"
+                "call BJassAssert(u!=null,\"real ferry passenger\")\n"
+                "%s"
+                "call BJassAssert(IsUnitType(u,ConvertUnitType(10)),\"summoned passenger\")\n"
+                "%s"
+                "call DestroyGroup(g)\nendfunction\n",
+                timed_summoned ? "call UnitApplyTimedLife(u,'BTLF',100)\n" :
+                "call BJassAssert(UnitAddType(u,ConvertUnitType(10)),\"add summoned\")\n",
+                remove_public_summoned ?
+                "call BJassAssert(UnitRemoveType(u,ConvertUnitType(10)),\"remove summoned\")\n"
+                "call BJassAssert(not IsUnitType(u,ConvertUnitType(10)),\"ordinary passenger restored\")\n" : "");
+            T_ASSERT(run_test_jass(script));
+            T_EQ(!!(unit->aiflags&AI_SUMMONED),timed_summoned);
+            if(timed_summoned)T_ASSERT(S_UnitHasTimedLife(unit));
+            T_EQ(!!(unit->unit_classification&WC3_UNIT_CLASS_SUMMONED),!remove_public_summoned);
+        }
         vec2_t goal={mode==7 ? 1008 : 1600,1040};
         if(mode>=96 && mode<=103) {
             bool near=mode>=100,ai=mode==98 || mode==99 || mode==101 || mode==103;
@@ -20894,6 +20926,11 @@ static void order346_ferry_scenario(uint32_t mode) {
         }
     }
 cleanup:
+    if(timed_summoned && unit) {
+        T_ASSERT(S_UnitHasTimedLife(unit));
+        T_ASSERT(unit->health.value>0);
+        T_ASSERT(!(unit->unit_classification&WC3_UNIT_CLASS_SUMMONED));
+    }
     G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),load_available);
     G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','d','r','o'),drop_available);
     G_BotStop(0);G_FowShutdown();reset_entities();setup_test_world();
@@ -29379,5 +29416,10 @@ static void target356_journey(bool step) {
 }
 TEST(wc3_movement, target356_public_move_target_complete_delay_journey) {target356_journey(false);}
 TEST(wc3_movement, target356_public_stepped_target_complete_delay_journey) {target356_journey(true);}
+
+
+TEST(wc3_movement, captain376_public_summoned_type_rejects_ferry) {order346_ferry_scenario(128);}
+TEST(wc3_movement, captain376_public_summoned_removal_restores_ferry) {order346_ferry_scenario(129);}
+TEST(wc3_movement, captain376_timed_life_public_summoned_removal_restores_ferry) {order346_ferry_scenario(130);}
 
 #endif

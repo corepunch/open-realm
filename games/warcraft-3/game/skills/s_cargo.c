@@ -1413,7 +1413,8 @@ static bool cargo_drop_destination_matches(edict_t const *unit,vec2_t const *poi
 static edict_t *cargo_select_ferry(edict_t *unit,vec2_t const *point,edict_t *retiring) {
     /*607950 returns an Adro source before capacity and candidate filtering. */
     if(cargo_actor_ability_alias(unit,MAKEFOURCC('A','d','r','o')))return unit;
-    if(unit->aiflags&(AI_SUMMONED|AI_ILLUSION))return NULL;
+    if((unit->unit_classification&WC3_UNIT_CLASS_SUMMONED) ||
+       (unit->aiflags&AI_ILLUSION))return NULL;
     int32_t needed=unit->data.UnitData->cargoSize;
     if(needed<=0)return NULL;
     edict_t *best=NULL;float distance=FLT_MAX;

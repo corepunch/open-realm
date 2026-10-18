@@ -699,6 +699,7 @@ static void unit_construct_stats(unitConstruction_t *construction) {
     UnitData_t const *d = construction->captured.UnitData;
     UnitUI_t const *ui = construction->captured.UnitUI;
     UnitWeapons_t const *w = construction->captured.UnitWeapons;
+    self->unit_classification=G_UnitClassificationFlagsFromRows(b,d);
     if (ui->occluderHeight > 0) {
         self->s.flags |= EF_FOW_BLOCKER;
         G_FowMarkBlockersDirty();

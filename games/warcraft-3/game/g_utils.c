@@ -169,6 +169,7 @@ void G_FreeEdict(edict_t *ent) {
     G_SetEntitySelectionMask(ent, 0);
     /* A removal callback can request this already-retired identity again. */
     G_CancelDeferredFree(ent);
+    G_ClearTargetSubscriptionsForTarget(ent);
     memset(ent, 0, sizeof(*ent));
     /* Removal callbacks can consume the earlier notification while still live. */
     if (had_aura) S_MarkAuraSource(ent);

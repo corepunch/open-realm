@@ -126,6 +126,7 @@ static moveRepulseQuery_t *repulse_query;
 #ifdef BZ_TESTS
 static void (*move_test_repulse_pair)(edict_t const *,edict_t const *,wc3RepulsePair_t const *,wc3Repulse_t const *,wc3Random_t);
 static void (*move_test_repulse_endpoint)(edict_t const *,float const [2],bool,bool);
+static void (*move_test_point_approach)(edict_t const *,float,abilityProc_t);
 static uint64_t move_test_repulse_unlink_visits;
 static void (*move_test_repulse_count_observer)(edict_t const *);
 #endif
@@ -6154,6 +6155,9 @@ static void move_group_seed_route(moveGroup_t *group) {
 }
 
 static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
+#ifdef BZ_TESTS
+    if(move_test_point_approach)move_test_point_approach(actor,range,actor->currentmove ? actor->currentmove->proc : NULL);
+#endif
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=move_point_fine(home); group->age=UINT32_MAX; group->radius=S_MoveCollisionRadius(actor);

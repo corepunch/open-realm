@@ -432,6 +432,12 @@ static void attack_call_for_help(edict_t *victim,edict_t *source) {
         float reach=wc3_add(radius,wc3_div(MAX(1,unit->collision),32));
         if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(reach,reach))continue;
         S_UnitAllyCombatAlert(unit,victim,source);
+        /* Native66e9e0 publishes Town help only at this real recipient
+         * frontier. The separate pre-damage self alert does not reach it. */
+        if(unit->inuse && unit->spawn_time==member.birth && !G_IsDeferredFree(unit) &&
+           source->inuse && source->spawn_time==source_birth && !G_IsDeferredFree(source) &&
+           victim->inuse && victim->spawn_time==victim_birth && !G_IsDeferredFree(victim))
+            G_BotTownHelpRecipient(unit,victim,source);
     }
     query->next=attack_help_queries;attack_help_queries=query;
     /*66e9c5: notify the victim's Captain after the recipient traversal.
@@ -487,6 +493,98 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
         if (state->attack_prevention[2] && state->attack_prevention[2] <= INT32_MAX && special) return false;
     }
     return true;
+}
+
+/*498790 constructs token29 from the attached Attack object, independently
+ * of its execution availability and of ordinary Attack target validation. */
+bool S_AttackQueryTargetMask(edict_t const *attacker,uint32_t *mask) {
+    *mask=0;
+    if(!G_ActorHasAbilityCode(attacker,MAKEFOURCC('A','a','t','k')))return false;
+    bool contributed=false;
+    bool const retained=attacker->attack_target && attacker->attack_target->inuse &&
+        attacker->attack_target->spawn_time==attacker->attack_target_spawn_time;
+    FOR_LOOP(slot,2) {
+        if(!S_UnitAttackSlotEnabled(attacker,slot))continue;
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        uint32_t const raw=profile->targetsAllowed;
+        if(raw==WC3_TARGET_FLAG_NONE)continue;
+        if(retained && (profile->weapon<WPN_INSTANT || profile->weapon>WPN_MLINE ||
+           raw==WC3_TARGET_FLAG_TREE || raw==WC3_TARGET_FLAG_WALL || raw==WC3_TARGET_FLAG_DEBRIS))continue;
+        *mask|=raw;contributed=true;
+    }
+    if(contributed && !*mask)*mask=0xfdd1f00eu;
+    return true;
+}
+
+/*6a9ef0: zero is an unspecified group, not a request to exclude everyone. */
+static uint32_t attack_query_normalize_mask(uint32_t mask) {
+    if(!(mask&0x03000000u))mask|=WC3_TARGET_FLAG_ALIVE;
+    if(!(mask&0x0001f000u))mask|=0x0001f000u;
+    if(!(mask&0xc0000000u))mask|=0xc0000000u;
+    if(!(mask&0x0c000000u))mask|=0x0c000000u;
+    if(!(mask&0x30000000u))mask|=0x30000000u;
+    if(!(mask&0x000007feu))mask|=0x0000000eu;
+    if(!(mask&0x00c00000u))mask|=0x00c00000u;
+    if(!(mask&0x00300000u))mask|=WC3_TARGET_FLAG_VULNERABLE;
+    return mask;
+}
+
+/*48e1a0/519730: only the enabled concrete ResistantSkin owner contributes.
+ * Hero identity itself is a separate target fact, not this ability guard. */
+static bool attack_query_resistant_skin(edict_t const *unit) {
+#define QUERY_SKIN(code_) do { \
+    uint32_t const code=(code_); \
+    abilityitem_t const item=S_AbilityItem(code); \
+    if(code && item.ability && item.ability->proc==CAbilityResistantSkin && \
+       G_ActorHasAbilityCode(unit,code) && !S_AbilityExecutionDisabled(unit,code) && \
+       G_IsUnitAbilityAvailable(unit,code) && G_AbilityRequirementsSatisfied(unit,code))return true; \
+} while(0)
+    uint32_t count;uint32_t const *codes=G_UnitAbilityCodes(unit->data.UnitAbilities,&count);
+    FOR_LOOP(i,count)QUERY_SKIN(codes[i]);
+    FOR_LOOP(i,ARRAY_COUNT(unit->abilities.added))QUERY_SKIN(unit->abilities.added[i]);
+    FOR_LOOP(i,MAX_HERO_ABILITIES)if(unit->heroabilities[i].level)QUERY_SKIN(unit->heroabilities[i].code);
+#undef QUERY_SKIN
+    return false;
+}
+
+/*6ae980 and6a8170 are query facts/constraints. Detection, fog, Cyclone,
+ * Ethereal and Attack execution policy belong to their independent owners. */
+bool S_UnitMatchesTargetMask(edict_t const *target,uint32_t raw,edict_t const *source) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) || target->destructable ||
+       target->targtype==TARG_ITEM)return false;
+    bool const hidden=target->script_world_hidden ||
+        ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
+    if(hidden && !(raw&WC3_TARGET_FLAG_HIDDEN))return false;
+    uint32_t categories=target->data.UnitData && target->data.UnitData->targetType ?
+        G_ParseTargetMask(target->data.UnitData->targetType)&0x1eu : G_TargetFlagForType(target->targtype);
+    if(S_AncientHasRootAbility(target))categories=G_TargetFlagForType(G_UnitTargetType(target));
+    uint32_t facts=categories | (M_IsDead((edict_t *)target) ? WC3_TARGET_FLAG_DEAD : WC3_TARGET_FLAG_ALIVE) |
+        (G_UnitIsInvulnerable(target) ? WC3_TARGET_FLAG_INVULNERABLE : WC3_TARGET_FLAG_VULNERABLE) |
+        ((target->unit_classification&WC3_UNIT_CLASS_MECHANICAL) ? WC3_TARGET_FLAG_MECHANICAL : WC3_TARGET_FLAG_ORGANIC) |
+        ((target->unit_classification&WC3_UNIT_CLASS_SAPPER) ? WC3_TARGET_FLAG_SAPPER : WC3_TARGET_FLAG_NONSAPPER) |
+        ((target->unit_classification&WC3_UNIT_CLASS_ANCIENT) ? WC3_TARGET_FLAG_ANCIENT : WC3_TARGET_FLAG_NONANCIENT);
+    uint8_t const first=(uint8_t)target->class_id;
+    facts|=first>='A' && first<='Z' ? WC3_TARGET_FLAG_HERO : WC3_TARGET_FLAG_NONHERO;
+    if(((facts|raw)&WC3_TARGET_FLAG_NONE) || !(facts&0x7feu))return false;
+    uint32_t const mask=attack_query_normalize_mask(raw),common=facts&mask;
+    if(!(common&0x7feu) || !(common&0x03000000u) || !(common&0x00300000u))return false;
+    if(!(facts&0x1eu))return true;
+    if(!(common&0x0c000000u) || !(common&0x00c00000u) ||
+       !(common&0x30000000u) || !(common&0xc0000000u))return false;
+    if(source && (mask&0x1f000u)!=0x1f000u) {
+        uint32_t relation;
+        uint32_t const owner=S_UnitMechanicalCritter(target) ? PLAYER_NEUTRAL_PASSIVE : target->s.player;
+        if(target==source)relation=WC3_TARGET_FLAG_SELF;
+        else if(owner==source->s.player)relation=WC3_TARGET_FLAG_PLAYER;
+        else {
+            if(source->s.player>=MAX_PLAYERS || owner>=MAX_PLAYERS)return false;
+            uint32_t const alliance=level.alliances[source->s.player][owner];
+            relation=!(alliance&(1u<<ALLIANCE_PASSIVE)) ? WC3_TARGET_FLAG_ENEMY :
+                alliance&(1u<<ALLIANCE_SHARED_SPELLS) ? WC3_TARGET_FLAG_ALLY : WC3_TARGET_FLAG_NEUTRAL;
+        }
+        if(!(mask&relation))return false;
+    }
+    return (mask&WC3_TARGET_FLAG_HERO) || !attack_query_resistant_skin(target);
 }
 
 /* Original9d72f0 tests attack damage type, not delivery style or slot admission.
@@ -1950,12 +2048,7 @@ static umove_t attackmove_move_walk = {.animation="walk",.think=ai_attackmove_wa
 /*49d680's ordinary player priority is independent of encounter order. Query
  * just the incoming and retained targets; do not rescan the neighborhood. */
 static bool attack_priority_worker(edict_t const *unit) {
-    cstring_t list=unit->data.UnitBalance ? unit->data.UnitBalance->type : NULL;
-    if(!list || !*list)list=unit->data.UnitData ? unit->data.UnitData->unitClassification : NULL;
-    if(list) {
-        PARSE_LIST(list,item,parse_segment)if(!strcasecmp(item,"peon"))return true;
-    }
-    return false;
+    return unit && (unit->unit_classification&WC3_UNIT_CLASS_PEON)!=0;
 }
 
 /*495880/4959a0: evaluate collateral around the candidate's predicted world
@@ -2085,7 +2178,7 @@ static uint64_t attack_town_priority(edict_t const *unit,edict_t const *target,
         float multiplier=game.constants.combatConstantsLoaded ? game.constants.damageBonus[damage][armor] : g_default_damage_table[damage][armor];
         if(difficulty>1) {
             if(multiplier>=wc3_float(0x3f333333))high|=0x40000000u;
-            if(!(target->aiflags&AI_SUMMONED) || (target->aiflags&AI_ILLUSION))high|=0x10000000u;
+            if(!(target->unit_classification&WC3_UNIT_CLASS_SUMMONED) || (target->aiflags&AI_ILLUSION))high|=0x10000000u;
         }
         if(melee) {
             if(multiplier>=2)high|=facts->mobile ? 0x00000800u : 0x00040000u;

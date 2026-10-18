@@ -922,6 +922,15 @@ bool G_IsAIImmediateOrder(unitOrder_t const *order) {
         !strcmp(order->order,"aiimmediate");
 }
 
+/* Both core AI commands own an immediate user packet. Their concrete task
+ * dispatch differs; the existing d0006 predicate remains exact for callers. */
+static bool unit_is_ai_core_order(unitOrder_t const *order) {
+    return G_IsAIImmediateOrder(order) ||
+        (order && order->owner_context==UNIT_ORDER_CONTEXT_AI &&
+         order->target_type==UNIT_ORDER_TARGET_NONE && order->order_id==UNIT_ORDER_AI_SUICIDE &&
+         !strcmp(order->order,"aisuicide"));
+}
+
 /*SC2 Raw Unit.orders describes the command currently being executed, while
  *Warcraft's issued-order event state above intentionally remembers the last
  *command the player issued (including Shift-queued commands). Keep those
@@ -1323,6 +1332,17 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     return false;
 }
 
+/* The public point dispatcher and the private AI continuation share the
+ * concrete Attack task. Native AI admission has already selected its owner;
+ * it does not re-enter the public execution/immobility validator. */
+static bool unit_attack_point_now(edict_t *self,vec2_t const *point) {
+    edict_t *waypoint=Waypoint_add(point);
+    if(!waypoint)return false;
+    self->movement.holding_position=false;
+    order_attackmove(self,waypoint);
+    return true;
+}
+
 static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed, uint32_t *owner_head) {
     edict_t *waypoint;
 
@@ -1368,11 +1388,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (strcmp(order,"attack")) return false;
     /*49a980 retains the clicked point; blocked goals reach Move's own
      * partial-endpoint and cannot-path completion rather than admission repair. */
-    waypoint = Waypoint_add(point);
-    if (!waypoint) return false;
-    self->movement.holding_position = false;
-    order_attackmove(self, waypoint);
-    return true;
+    return unit_attack_point_now(self,point);
 }
 
 /* The suspension owner retains execution. Removal/construction keep their
@@ -1586,6 +1602,27 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     }
 }
 
+/* 9ce5b0's typed AI continuation dispatches ordinary d000f directly.
+ * In particular a Freezing Breath tower publishes the point order while its
+ * immobility prevents a physical Move owner. User orders retain their own
+ * validation in G_IssueUnitPointOrder. */
+bool G_AdmitAIAttackPointOrder(edict_t *self,vec2_t const *point) {
+    if(!self || !point || !self->inuse || G_IsDeferredFree(self) || M_IsDead(self))return false;
+    uint32_t birth=self->spawn_time;
+    G_ClearUnitOrderQueue(self);
+    if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return false;
+    if(!G_ActorHasAbilityCode(self,MAKEFOURCC('A','a','t','k')))
+        return S_IssuePointMoveOrder(self,"attack",point,self->s.player,0);
+    if(!unit_attack_point_now(self,point))return false;
+    if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return false;
+    G_CreepGuardExplicitOrder(self);
+    S_UnitAbilityOrderAccepted(self,"attack");
+    if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return false;
+    unit_set_active_order(self,"attack",UNIT_ORDER_TARGET_POINT,point,NULL,self->s.player,0);
+    G_PublishIssuedPointOrder(self,unit_order_event_id("attack"),point,self->s.player,"attack");
+    return true;
+}
+
 /* Resolve again after callbacks: a target can be removed or its edict reused
  * while the immutable queued packet remains on this dispatch's stack. */
 static edict_t *unit_queued_target(unitOrder_t const *queued) {
@@ -1596,14 +1633,15 @@ static edict_t *unit_queued_target(unitOrder_t const *queued) {
 }
 
 static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t const *queued,uint32_t *owner_head) {
-    if(G_IsAIImmediateOrder(queued)) {
+    if(unit_is_ai_core_order(queued)) {
         uint32_t spawn=self->spawn_time;
-        G_BotExecuteAIStop(self);
+        if(queued->order_id==UNIT_ORDER_AI_SUICIDE)G_BotExecuteSuicide(self);
+        else G_BotExecuteAIStop(self);
         /* The activated AI head advances only after its internal scope returned. */
         if(self->inuse && self->spawn_time==spawn && !G_IsDeferredFree(self) && !M_IsDead(self) &&
            self->movement.repulse.disable_depth<=0 && !S_UnitOrderExecutionHeld(self) &&
            !G_UnitHasActiveOrder(self) &&
-           (!self->current_order_id || self->current_order_id==UNIT_ORDER_AI_IMMEDIATE)) {
+           (!self->current_order_id || self->current_order_id==queued->order_id)) {
             self->current_order_id=0;
             G_UnitStartNextQueuedOrder(self);
         }
@@ -1638,7 +1676,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
 
     if (!self || M_IsDead(self) || (G_IsDeferredFree(self) || self->construction_held) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
-        if (queued.owner_context && !G_IsAIImmediateOrder(&queued)) {
+        if (queued.owner_context && !unit_is_ai_core_order(&queued)) {
             queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START);
             if (result!=QUEUED_ORDER_UNHANDLED) {
                 if(result==QUEUED_ORDER_STARTED)S_UnitAbilityOrderAccepted(self,queued.order);
@@ -1646,7 +1684,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
             }
             continue;
         }
-        if(G_IsAIImmediateOrder(&queued) && G_UnitHasActiveOrder(self)) {
+        if(unit_is_ai_core_order(&queued) && G_UnitHasActiveOrder(self)) {
             /* The previous internal task has completed before this user-head advance. */
             uint32_t birth=self->spawn_time;
             S_ClearUnitOrderReferences(self);
@@ -1656,7 +1694,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
             unit_setmove(self,&unit_move_order_boundary);
             if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return true;
         }
-        if(selected_ai)*selected_ai=G_IsAIImmediateOrder(&queued);
+        if(selected_ai)*selected_ai=unit_is_ai_core_order(&queued);
         if(!queued.order_id)queued.order_id=unit_order_event_id(queued.order);
         uint32_t const spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
         self->current_order_id=queued.order_id;
@@ -1712,7 +1750,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
 
 /*6802f0 replaces;693450 appends. Both create the same saved immediate
  * packet and share issued notification, nested replacement and activation. */
-bool G_AdmitAIImmediateOrder(edict_t *self,bool replace) {
+static bool unit_admit_ai_core_order(edict_t *self,bool replace,uint32_t code,cstring_t name) {
     if(!self || !self->inuse || M_IsDead(self))return false;
     uint32_t spawn=self->spawn_time;
     bool held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
@@ -1740,16 +1778,24 @@ bool G_AdmitAIImmediateOrder(edict_t *self,bool replace) {
         }
     }
     if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
-    unitOrder_t order={.target_type=UNIT_ORDER_TARGET_NONE,.order_id=UNIT_ORDER_AI_IMMEDIATE,
+    unitOrder_t order={.target_type=UNIT_ORDER_TARGET_NONE,.order_id=code,
         .issuer_player=self->s.player,.owner_context=UNIT_ORDER_CONTEXT_AI};
-    snprintf(order.order,sizeof(order.order),"aiimmediate");
+    snprintf(order.order,sizeof(order.order),"%s",name);
     if(self->order_queue.count>=unit_user_queue_limit(self))return false;
     if(!G_AppendUnitOrder(self,&order))return false;
     held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
     if(!held && !G_UnitHasActiveOrder(self) && !G_BotAIStopTaskActive(self))
         return G_UnitStartNextQueuedOrder(self);
-    if(!self->current_order_id)self->current_order_id=UNIT_ORDER_AI_IMMEDIATE;
+    if(!self->current_order_id)self->current_order_id=code;
     return true;
+}
+
+bool G_AdmitAIImmediateOrder(edict_t *self,bool replace) {
+    return unit_admit_ai_core_order(self,replace,UNIT_ORDER_AI_IMMEDIATE,"aiimmediate");
+}
+
+bool G_AdmitAISuicideOrder(edict_t *self,bool replace) {
+    return unit_admit_ai_core_order(self,replace,UNIT_ORDER_AI_SUICIDE,"aisuicide");
 }
 
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target) {
@@ -1797,6 +1843,8 @@ bool G_IssueGroupPointOrder(groupPointOrder_t const *request) {
  * use this instead of CreateUnit/RemoveUnit so JASS handles, selection, and
  * trigger references keep pointing at the same unit. */
 bool G_TransformUnitType(edict_t *unit, uint32_t type) {
+    /* Native670950 returns before callbacks/profile replacement for this type. */
+    if (unit && type && unit->class_id==type) return true;
     gameClient_t *client;
     float health_ratio, mana_ratio, temporary_armor, temporary_health, temporary_mana;
     float temporary_attack1, temporary_attack2;

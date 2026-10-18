@@ -357,4 +357,133 @@ TEST(wc3_movement,target378_death_registry_precedes_old_order_and_physical_cance
     }
 }
 
+/* Registry codec validation, separate from the public Town/Captain behavior
+ * regressions. Every negative starts from the same accepted concrete owners. */
+TEST(wc3_save, target376_rejects_retained_flags_and_invalid_concrete_owners) {
+    botCaptain_t *captain=Target378CaptainWorld();
+    edict_t *target=target363_kernel_target,*actor=captain->home_actor;
+    game.clients[0].mapplayer=level.mapinfo->players;
+    game.clients[0].jass.controller=1;
+    G_BotInitPlayers();
+    bot_t *town=level.bots;
+    T_ASSERT(town->town_initialized);
+    G_AddCaptainRetainedTargetSubscription(captain,target);
+    town->town_preferred=(botCaptainTarget_t){target,target->spawn_time};
+    G_SetTownTargetSubscription(town,target);
+    /* Bind only the Attack registry contract; no gameplay chase is asserted. */
+    edict_t *attack=G_Spawn();
+    attack->attack_target=target;attack->attack_target_spawn_time=target->spawn_time;
+    G_SetUnitTargetSubscription(TARGET_OWNER_ATTACK,attack,target);
+    T_ASSERT(G_ValidateTargetSubscriptions());
+    FILE *pristine=tmpfile();T_NOT_NULL(pristine);
+    if(!pristine)goto target376_codec_cleanup;
+    if(!G_WriteTargetSubscriptions(pristine)){T_ASSERT(false);fclose(pristine);goto target376_codec_cleanup;}
+    /* A cleared weak preferred does not retire its concrete registration. */
+    botCaptainTarget_t current=town->town_preferred;
+    town->town_preferred=(botCaptainTarget_t){0};
+    G_SetTownTargetSubscription(town,NULL);
+    T_ASSERT(G_ValidateTargetSubscriptions());
+    FILE *orphan=tmpfile();T_NOT_NULL(orphan);
+    if(orphan) {
+        T_ASSERT(G_WriteTargetSubscriptions(orphan));rewind(orphan);
+        T_ASSERT(G_ReadTargetSubscriptions(orphan));fclose(orphan);
+    }
+    town->town_preferred=current;
+    rewind(pristine);
+    uint64_t sequence;uint32_t count;
+    T_EQ(fread(&sequence,sizeof(sequence),1,pristine),1u);
+    T_EQ(fread(&count,sizeof(count),1,pristine),1u);
+    targetSubscriptionRecord_t *original=gi.MemAlloc(count*sizeof(*original));
+    targetSubscriptionRecord_t *records=gi.MemAlloc(count*sizeof(*records));
+    T_EQ(fread(original,sizeof(*original),count,pristine),count);
+    FOR_LOOP(which,9) {
+        memcpy(records,original,count*sizeof(*records));
+        uint32_t kind=which==1 ? TARGET_OWNER_MOVE : which==2 ? TARGET_OWNER_ATTACK :
+            which==3 || which>=5 ? TARGET_OWNER_TOWN : TARGET_OWNER_CAPTAIN;
+        uint32_t chosen=UINT32_MAX;
+        FOR_LOOP(i,count)if(records[i].kind==kind && records[i].mask==1){chosen=i;break;}
+        T_ASSERT(chosen!=UINT32_MAX);if(chosen==UINT32_MAX)continue;
+        T_ASSERT(target_subscription_record_valid(records+chosen));
+        botCaptainTarget_t preferred=town->town_preferred;
+        bool initialized=town->town_initialized;
+        if(which==0)records[chosen].retained=2;
+        else if(which==1 || which==2)records[chosen].retained=1;
+        else if(which==3)records[chosen].retained=2;
+        else if(which==4)captain->home_actor=NULL;
+        else if(which==5)records[chosen].owner=MAX_PLAYERS+1;
+        else if(which==6)records[chosen].target_birth++;
+        else if(which==7)town->town_initialized=false;
+        else town->town_preferred.birth++;
+        FILE *bad=tmpfile();T_NOT_NULL(bad);
+        if(bad) {
+            T_EQ(fwrite(&sequence,sizeof(sequence),1,bad),1u);
+            T_EQ(fwrite(&count,sizeof(count),1,bad),1u);
+            T_EQ(fwrite(records,sizeof(*records),count,bad),count);rewind(bad);
+            T_ASSERT(!G_ReadTargetSubscriptions(bad));fclose(bad);
+        }
+        captain->home_actor=actor;town->town_preferred=preferred;town->town_initialized=initialized;
+        rewind(pristine);T_ASSERT(G_ReadTargetSubscriptions(pristine));
+    }
+    gi.MemFree(records);gi.MemFree(original);fclose(pristine);
+target376_codec_cleanup:
+    G_BotStop(0);reset_entities();setup_test_world();
+}
+
+/* Publisher destruction releases its remaining event nodes without a second
+ * semantic Lost. Check the real deferred-release drain and storage reuse. */
+static edict_t *target376_publisher;
+static uint32_t target376_town_visits;
+static void Target376PublisherVisit(targetSubscriberKind_t kind,void *owner,edict_t *source) {
+    if(kind==TARGET_OWNER_TOWN && owner==level.bots && source==target376_publisher)
+        target376_town_visits++;
+}
+TEST(wc3_save, target376_retained_town_publisher_release_and_reuse) {
+    FOR_LOOP(saved,2) {
+        level.time=level.pathing_msec=level.pathing_phase=level.framenum=0;
+        level.pathing_due=level.pathing_owner_clock_valid=level.timer_clock_valid=false;
+        level.pathing_clock=(wc3Clock_t){0,0,300};
+        Target363KernelWorld();
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+        game.clients[0].mapplayer=level.mapinfo->players;game.clients[0].jass.controller=1;
+        G_BotInitPlayers();T_ASSERT(level.bots[0].town_initialized);
+        target376_publisher=target363_kernel_target;
+        uint32_t index=target376_publisher-g_edicts,birth=target376_publisher->spawn_time;
+        level.bots[0].town_preferred=(botCaptainTarget_t){target376_publisher,birth};
+        G_SetTownTargetSubscription(level.bots,target376_publisher);
+        T_ASSERT(G_ValidateTargetSubscriptions());
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        target376_town_visits=0;target363_test_visit=Target376PublisherVisit;
+        G_DeferFreeEdict(target376_publisher);
+        T_ASSERT(target376_publisher->inuse);T_ASSERT(G_IsDeferredFree(target376_publisher));
+        T_NULL(level.bots[0].town_preferred.unit);T_EQ(target376_town_visits,1u);
+        T_ASSERT(G_ValidateTargetSubscriptions()); /* The retained publisher is still alive. */
+        cstring_t pending=Test_TempPath("target376-publisher-pending.bin");
+        cstring_t released=Test_TempPath("target376-publisher-released.bin");
+        if(saved) {
+            bool wrote=WriteGame(pending);T_ASSERT(wrote);
+            if(wrote)T_ASSERT(ReadGame(pending));
+            target376_publisher=g_edicts+index;
+            T_ASSERT(target376_publisher->inuse);T_ASSERT(G_IsDeferredFree(target376_publisher));
+        }
+        for(unsigned step=0;step<100 && target376_publisher->inuse;step++) {
+            level.time+=5;globals.RunFrame();
+        }
+        T_ASSERT(!target376_publisher->inuse);T_EQ(target376_town_visits,1u);
+        T_ASSERT(G_ValidateTargetSubscriptions());
+        bool wrote=WriteGame(released);T_ASSERT(wrote);
+        if(wrote)T_ASSERT(ReadGame(released));
+        level.time+=2000; /* Actual allocator quarantine, not forced free-list writes. */
+        edict_t *replacement=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){1800,1800},0);
+        T_ASSERT(replacement==g_edicts+index);T_NOT_NULL(replacement);
+        if(replacement) {
+            T_ASSERT(replacement->spawn_time!=birth);
+            S_UnitTargetOwnerChanged(replacement);
+            T_EQ(target376_town_visits,1u);T_ASSERT(G_ValidateTargetSubscriptions());
+        }
+        target363_test_visit=NULL;remove(pending);remove(released);
+        G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    }
+}
+
 #endif

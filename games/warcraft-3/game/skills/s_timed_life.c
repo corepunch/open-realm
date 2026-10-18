@@ -128,6 +128,7 @@ void S_ApplyTimedLife(edict_t *unit,uint32_t code,float duration) {
     }
     life->next=timed_life_heads[unit-g_edicts];timed_life_heads[unit-g_edicts]=life;
     unit->aiflags|=AI_SUMMONED;
+    unit->unit_classification|=WC3_UNIT_CLASS_SUMMONED;
     if(life->code==MAKEFOURCC('B','U','a','n') || life->code==MAKEFOURCC('B','F','i','g') ||
        life->code==MAKEFOURCC('B','H','w','e'))unit->aiflags|=AI_CORPSE_NO_DECAY;
     G_SetUnitFoodUsed(unit,0);G_InvalidateUnitInfoPanel(unit);

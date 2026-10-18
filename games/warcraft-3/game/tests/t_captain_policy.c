@@ -1087,4 +1087,1120 @@ TEST(wc3_bot, captain_strategic373_show_invisibility_inverse_and_saved_query) {
  G_SetSLKRows("AbilityData",old);free_slk_rows(rows);remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
 }
 
+/* External draft. Append to t_captain_policy.c only in an isolated reviewed
+ * snapshot. No Captain/Town identities or target subscriptions are seeded.
+ * Native positive family: 610 public markers. Clear family: 611 markers. */
+static void Captain376Step(unsigned milliseconds) {
+    for(unsigned elapsed=0;elapsed<milliseconds;elapsed+=5) {
+        level.time+=5;globals.RunFrame();
+    }
+}
+
+static wc3Clock_t Captain376World(void) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    level.time=level.pathing_msec=level.pathing_phase=0;
+    level.pathing_due=level.pathing_owner_clock_valid=level.timer_clock_valid=false;
+    static uint8_t cells[64*64];memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=level.mapinfo->players;
+    game.clients[0].jass.controller=1;
+    wc3Clock_t town_constructed=G_TimerQueryClock(NULL);
+    G_BotInitPlayers(); /* Actual Town creation, with no intervening frame. */
+    return town_constructed;
+}
+
+/* The native old-B owner callback remains registered after Home clears its
+ * role and a later Captain periodic owner retains C. Observe the concrete
+ * registry visit without modifying its normal callback or manufacturing roles. */
+static botCaptain_t *captain376_visit_owner;
+static edict_t *captain376_visit_source;
+static uint32_t captain376_old_source_visits,captain376_old_town_visits;
+static uint32_t captain376_old_visit_order[2],captain376_old_visit_count;
+static void Captain376RetainedVisit(targetSubscriberKind_t kind,void *owner,edict_t *source) {
+    if(source!=captain376_visit_source)return;
+    /* Kind4 is the forthcoming concrete Town owner; the regression compiles
+     * against the unchanged earlier production enum to record a real red. */
+    bool town=(uint32_t)kind==4 && owner==level.bots;
+    bool captain=kind==TARGET_OWNER_CAPTAIN && owner==captain376_visit_owner;
+    if(town)captain376_old_town_visits++;
+    if(captain)captain376_old_source_visits++;
+    if(town || captain) {
+        if(captain376_old_visit_count<2)captain376_old_visit_order[captain376_old_visit_count]=kind;
+        captain376_old_visit_count++;
+    }
+}
+
+/* A singleton requested-player candidate makes the recovered four-pass
+ * selector deterministic without seeding its selected identity or RNG. */
+static edict_t const *captain376_point_source;
+static abilityProc_t captain376_point_owner;
+static uint32_t captain376_point_birth,captain376_point_range,captain376_point_calls;
+static void Captain376PointApproach(edict_t const *unit,float range,abilityProc_t owner) {
+    if((owner!=CAbilityAttack && owner!=CAbilityMove) || unit->s.player!=0)return;
+    captain376_point_owner=owner;captain376_point_source=unit;captain376_point_birth=unit->spawn_time;
+    captain376_point_range=wc3_float_bits(range);captain376_point_calls++;
+}
+
+static void Captain376AssertSuicidePoint(botCaptain_t *captain,edict_t **members,edict_t *target) {
+    edict_t *selected=NULL;
+    FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor) {
+        T_NULL(selected);selected=members[i];
+    }
+    T_NOT_NULL(selected);if(!selected)return;
+    T_EQ(target->s.player,1);T_ASSERT(target->inuse && !M_IsDead(target));
+    T_EQ(selected->current_order_id,851983u);
+    T_NOT_NULL(selected->currentmove);
+    if(selected->currentmove)T_EQ(selected->currentmove->proc,CAbilityAttack);
+    T_NOT_NULL(selected->movement.attackmove_waypoint);
+    if(selected->movement.attackmove_waypoint) {
+        T_EQ(wc3_float_bits(selected->movement.attackmove_waypoint->s.origin2.x),wc3_float_bits(target->s.origin2.x));
+        T_EQ(wc3_float_bits(selected->movement.attackmove_waypoint->s.origin2.y),wc3_float_bits(target->s.origin2.y));
+    }
+    moveGroup_t *group=move_unit_group(selected);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->count,1u);T_EQ(group->receiver,selected);
+        T_EQ(group->receiver_spawn,selected->spawn_time);
+        T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);
+        T_EQ(group->complete,S_AttackMoveComplete);T_NULL(group->target);
+        /* Raw d016b range is world-space zero; the physical group retains
+         * its independently recovered minimum fine-cell arrival gate. */
+        T_ASSERT(captain376_point_calls>0);T_EQ(captain376_point_source,selected);
+        T_EQ(captain376_point_birth,selected->spawn_time);T_EQ(captain376_point_range,0u);T_EQ(captain376_point_owner,CAbilityAttack);
+        T_EQ(wc3_float_bits(group->members[0].arrival_range),0x3efae148u);
+    }
+}
+
+/* Native O routes d000f through Move when the Attack object is absent. */
+static void Captain376AssertSuicideMove(botCaptain_t *captain,edict_t **members,edict_t *target) {
+    edict_t *selected=NULL;
+    FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor){T_NULL(selected);selected=members[i];}
+    T_NOT_NULL(selected);if(!selected)return;
+    T_ASSERT(!G_ActorHasAbilityCode(selected,MAKEFOURCC('A','a','t','k')));
+    T_EQ(selected->current_order_id,851983u);T_NOT_NULL(selected->currentmove);
+    if(selected->currentmove)T_EQ(selected->currentmove->proc,CAbilityMove);
+    T_NULL(selected->movement.attackmove_waypoint);T_NOT_NULL(selected->goalentity);
+    if(selected->goalentity){T_EQ(wc3_float_bits(selected->goalentity->s.origin2.x),wc3_float_bits(target->s.origin2.x));T_EQ(wc3_float_bits(selected->goalentity->s.origin2.y),wc3_float_bits(target->s.origin2.y));}
+    moveGroup_t *group=move_unit_group(selected);T_NOT_NULL(group);
+    if(group){
+        T_EQ(group->count,1u);T_EQ(group->members[0].unit,selected);
+        T_NULL(group->receiver);T_EQ(group->owner_ability,0u);T_NULL(group->complete);T_NULL(group->target);
+        T_ASSERT(captain376_point_calls>0);T_EQ(captain376_point_source,selected);T_EQ(captain376_point_birth,selected->spawn_time);
+        T_EQ(captain376_point_owner,CAbilityMove);T_EQ(captain376_point_range,0u);
+        T_EQ(wc3_float_bits(group->members[0].arrival_range),0x3efae148u);
+    }
+}
+
+static void Captain376PublicTownClear(bool cold,unsigned inverse) {
+    wc3Clock_t town_constructed=Captain376World();
+    slkTestData_t *query_data=NULL,*old_query_data=NULL;
+    /* The minimal MPQ omits UnitWeapons entirely. Restore the literal retail
+     * Footman row before construction so Attack owns a real acquisition timer.
+     * Intrinsic Move/Attack are derived from these real authored fields. */
+    slkTestData_t *data=parse_slk_string(
+        "ID;PWXL;N;E\n"
+        "C;X1;Y1;K\"unitID\"\n"
+        "C;X2;Y1;K\"sort\"\n"
+        "C;X3;Y1;K\"comment(s)\"\n"
+        "C;X4;Y1;K\"race\"\n"
+        "C;X5;Y1;K\"prio\"\n"
+        "C;X6;Y1;K\"threat\"\n"
+        "C;X7;Y1;K\"valid\"\n"
+        "C;X8;Y1;K\"deathType\"\n"
+        "C;X9;Y1;K\"death\"\n"
+        "C;X10;Y1;K\"canSleep\"\n"
+        "C;X11;Y1;K\"cargoSize\"\n"
+        "C;X12;Y1;K\"movetp\"\n"
+        "C;X13;Y1;K\"moveHeight\"\n"
+        "C;X14;Y1;K\"moveFloor\"\n"
+        "C;X15;Y1;K\"turnRate\"\n"
+        "C;X16;Y1;K\"propWin\"\n"
+        "C;X17;Y1;K\"orientInterp\"\n"
+        "C;X18;Y1;K\"formation\"\n"
+        "C;X19;Y1;K\"targType\"\n"
+        "C;X20;Y1;K\"pathTex\"\n"
+        "C;X21;Y1;K\"fatLOS\"\n"
+        "C;X22;Y1;K\"points\"\n"
+        "C;X23;Y1;K\"buffType\"\n"
+        "C;X24;Y1;K\"buffRadius\"\n"
+        "C;X25;Y1;K\"nameCount\"\n"
+        "C;X26;Y1;K\"canFlee\"\n"
+        "C;X27;Y1;K\"requireWaterRadius\"\n"
+        "C;X28;Y1;K\"isBuildOn\"\n"
+        "C;X29;Y1;K\"canBuildOn\"\n"
+        "C;X30;Y1;K\"InBeta\"\n"
+        "C;X31;Y1;K\"version\"\n"
+        "C;X1;Y2;K\"hfoo\"\n"
+        "C;X2;Y2;K\"a2\"\n"
+        "C;X3;Y2;K\"Footman\"\n"
+        "C;X4;Y2;K\"human\"\n"
+        "C;X5;Y2;K6\n"
+        "C;X6;Y2;K1\n"
+        "C;X7;Y2;K1\n"
+        "C;X8;Y2;K3\n"
+        "C;X9;Y2;K3.04\n"
+        "C;X10;Y2;K0\n"
+        "C;X11;Y2;K1\n"
+        "C;X12;Y2;K\"foot\"\n"
+        "C;X13;Y2;K0\n"
+        "C;X14;Y2;K0\n"
+        "C;X15;Y2;K0.6\n"
+        "C;X16;Y2;K60\n"
+        "C;X17;Y2;K0\n"
+        "C;X18;Y2;K0\n"
+        "C;X19;Y2;K\"ground\"\n"
+        "C;X20;Y2;K\"_\"\n"
+        "C;X21;Y2;K0\n"
+        "C;X22;Y2;K100\n"
+        "C;X23;Y2;K\"_\"\n"
+        "C;X24;Y2;K\"-\"\n"
+        "C;X25;Y2;K\"-\"\n"
+        "C;X26;Y2;K1\n"
+        "C;X27;Y2;K0\n"
+        "C;X28;Y2;K0\n"
+        "C;X29;Y2;K0\n"
+        "C;X30;Y2;K1\n"
+        "C;X31;Y2;K0\n"
+        "C;X1;Y3;K\"htow\"\n"
+        "C;X2;Y3;K\"a3\"\n"
+        "C;X3;Y3;K\"TownHall\"\n"
+        "C;X4;Y3;K\"human\"\n"
+        "C;X5;Y3;K6\n"
+        "C;X6;Y3;K1\n"
+        "C;X7;Y3;K1\n"
+        "C;X8;Y3;K2\n"
+        "C;X9;Y3;K3.17\n"
+        "C;X10;Y3;K0\n"
+        "C;X11;Y3;K\"-\"\n"
+        "C;X12;Y3;K\"_\"\n"
+        "C;X13;Y3;K0\n"
+        "C;X14;Y3;K0\n"
+        "C;X15;Y3;K\"-\"\n"
+        "C;X16;Y3;K60\n"
+        "C;X17;Y3;K0\n"
+        "C;X18;Y3;K0\n"
+        "C;X19;Y3;K\"structure\"\n"
+        "C;X20;Y3;K\"PathTextures\\16x16Simple.tga\"\n"
+        "C;X21;Y3;K0\n"
+        "C;X22;Y3;K100\n"
+        "C;X23;Y3;K\"townhall\"\n"
+        "C;X24;Y3;K8\n"
+        "C;X25;Y3;K\"-\"\n"
+        "C;X26;Y3;K1\n"
+        "C;X27;Y3;K0\n"
+        "C;X28;Y3;K0\n"
+        "C;X29;Y3;K0\n"
+        "C;X30;Y3;K1\n"
+        "C;X31;Y3;K0\n"
+        "C;X1;Y4;K\"Hpal\"\nC;X12;Y4;K\"foot\"\nC;X15;Y4;K0.5\nC;X16;Y4;K60\nC;X19;Y4;K\"ground\"\nC;X20;Y4;K\"_\"\n"
+        "E\n");
+    slkTestData_t *old_data=G_SetSLKRows("UnitData",data);
+    slkTestData_t *weapons=parse_slk_string(
+        "ID;PWXL;N;E\n"
+        "C;X1;Y1;K\"unitWeapID\"\n"
+        "C;X2;Y1;K\"sortWeap\"\n"
+        "C;X3;Y1;K\"sort2\"\n"
+        "C;X4;Y1;K\"comment(s)\"\n"
+        "C;X5;Y1;K\"weapsOn\"\n"
+        "C;X6;Y1;K\"acquire\"\n"
+        "C;X7;Y1;K\"minRange\"\n"
+        "C;X8;Y1;K\"castpt\"\n"
+        "C;X9;Y1;K\"castbsw\"\n"
+        "C;X10;Y1;K\"launchX\"\n"
+        "C;X11;Y1;K\"launchY\"\n"
+        "C;X12;Y1;K\"launchZ\"\n"
+        "C;X13;Y1;K\"launchSwimZ\"\n"
+        "C;X14;Y1;K\"impactZ\"\n"
+        "C;X15;Y1;K\"impactSwimZ\"\n"
+        "C;X16;Y1;K\"weapType1\"\n"
+        "C;X17;Y1;K\"targs1\"\n"
+        "C;X18;Y1;K\"showUI1\"\n"
+        "C;X19;Y1;K\"rangeN1\"\n"
+        "C;X20;Y1;K\"RngTst\"\n"
+        "C;X21;Y1;K\"RngBuff1\"\n"
+        "C;X22;Y1;K\"atkType1\"\n"
+        "C;X23;Y1;K\"weapTp1\"\n"
+        "C;X24;Y1;K\"cool1\"\n"
+        "C;X25;Y1;K\"mincool1\"\n"
+        "C;X26;Y1;K\"dice1\"\n"
+        "C;X27;Y1;K\"sides1\"\n"
+        "C;X28;Y1;K\"dmgplus1\"\n"
+        "C;X29;Y1;K\"dmgUp1\"\n"
+        "C;X30;Y1;K\"mindmg1\"\n"
+        "C;X31;Y1;K\"avgdmg1\"\n"
+        "C;X32;Y1;K\"maxdmg1\"\n"
+        "C;X33;Y1;K\"dmgpt1\"\n"
+        "C;X34;Y1;K\"backSw1\"\n"
+        "C;X35;Y1;K\"Farea1\"\n"
+        "C;X36;Y1;K\"Harea1\"\n"
+        "C;X37;Y1;K\"Qarea1\"\n"
+        "C;X38;Y1;K\"Hfact1\"\n"
+        "C;X39;Y1;K\"Qfact1\"\n"
+        "C;X40;Y1;K\"splashTargs1\"\n"
+        "C;X41;Y1;K\"targCount1\"\n"
+        "C;X42;Y1;K\"damageLoss1\"\n"
+        "C;X43;Y1;K\"spillDist1\"\n"
+        "C;X44;Y1;K\"spillRadius1\"\n"
+        "C;X45;Y1;K\"DmgUpg\"\n"
+        "C;X46;Y1;K\"dmod1\"\n"
+        "C;X47;Y1;K\"DPS\"\n"
+        "C;X48;Y1;K\"weapType2\"\n"
+        "C;X49;Y1;K\"targs2\"\n"
+        "C;X50;Y1;K\"showUI2\"\n"
+        "C;X51;Y1;K\"rangeN2\"\n"
+        "C;X52;Y1;K\"RngTst2\"\n"
+        "C;X53;Y1;K\"RngBuff2\"\n"
+        "C;X54;Y1;K\"atkType2\"\n"
+        "C;X55;Y1;K\"weapTp2\"\n"
+        "C;X56;Y1;K\"cool2\"\n"
+        "C;X57;Y1;K\"mincool2\"\n"
+        "C;X58;Y1;K\"dice2\"\n"
+        "C;X59;Y1;K\"sides2\"\n"
+        "C;X60;Y1;K\"dmgplus2\"\n"
+        "C;X61;Y1;K\"dmgUp2\"\n"
+        "C;X62;Y1;K\"mindmg2\"\n"
+        "C;X63;Y1;K\"avgdmg2\"\n"
+        "C;X64;Y1;K\"maxdmg2\"\n"
+        "C;X65;Y1;K\"dmgpt2\"\n"
+        "C;X66;Y1;K\"backSw2\"\n"
+        "C;X67;Y1;K\"Farea2\"\n"
+        "C;X68;Y1;K\"Harea2\"\n"
+        "C;X69;Y1;K\"Qarea2\"\n"
+        "C;X70;Y1;K\"Hfact2\"\n"
+        "C;X71;Y1;K\"Qfact2\"\n"
+        "C;X72;Y1;K\"splashTargs2\"\n"
+        "C;X73;Y1;K\"targCount2\"\n"
+        "C;X74;Y1;K\"damageLoss2\"\n"
+        "C;X75;Y1;K\"spillDist2\"\n"
+        "C;X76;Y1;K\"spillRadius2\"\n"
+        "C;X77;Y1;K\"InBeta\"\n"
+        "C;X1;Y2;K\"hfoo\"\n"
+        "C;X2;Y2;K\"a2\"\n"
+        "C;X3;Y2;K\"me1\"\n"
+        "C;X4;Y2;K\"Footman\"\n"
+        "C;X5;Y2;K1\n"
+        "C;X6;Y2;K500\n"
+        "C;X7;Y2;K\"-\"\n"
+        "C;X8;Y2;K0.3\n"
+        "C;X9;Y2;K0.51\n"
+        "C;X10;Y2;K0\n"
+        "C;X11;Y2;K0\n"
+        "C;X12;Y2;K60\n"
+        "C;X13;Y2;K0\n"
+        "C;X14;Y2;K60\n"
+        "C;X15;Y2;K0\n"
+        "C;X16;Y2;K\"MetalMediumSlice\"\n"
+        "C;X17;Y2;K\"ground,structure,debris,item,ward\"\n"
+        "C;X18;Y2;K1\n"
+        "C;X19;Y2;K90\n"
+        "C;X20;Y2;K\"-\"\n"
+        "C;X21;Y2;K250\n"
+        "C;X22;Y2;K\"normal\"\n"
+        "C;X23;Y2;K\"normal\"\n"
+        "C;X24;Y2;K1.35\n"
+        "C;X25;Y2;K\"-\"\n"
+        "C;X26;Y2;K1\n"
+        "C;X27;Y2;K2\n"
+        "C;X28;Y2;K11\n"
+        "C;X29;Y2;K\"-\"\n"
+        "C;X30;Y2;K12\n"
+        "C;X31;Y2;K12.5\n"
+        "C;X32;Y2;K13\n"
+        "C;X33;Y2;K0.5\n"
+        "C;X34;Y2;K0.5\n"
+        "C;X35;Y2;K\" - \"\n"
+        "C;X36;Y2;K\" - \"\n"
+        "C;X37;Y2;K\" - \"\n"
+        "C;X38;Y2;K\"-\"\n"
+        "C;X39;Y2;K\"-\"\n"
+        "C;X40;Y2;K\"_\"\n"
+        "C;X41;Y2;K1\n"
+        "C;X42;Y2;K0\n"
+        "C;X43;Y2;K0\n"
+        "C;X44;Y2;K0\n"
+        "C;X45;Y2;K\"-\"\n"
+        "C;X46;Y2;K\"-\"\n"
+        "C;X47;Y2;K9.25925925925926\n"
+        "C;X48;Y2;K\"_\"\n"
+        "C;X49;Y2;K\"_\"\n"
+        "C;X50;Y2;K1\n"
+        "C;X51;Y2;K\"-\"\n"
+        "C;X52;Y2;K\"-\"\n"
+        "C;X53;Y2;K\"-\"\n"
+        "C;X54;Y2;K\"normal\"\n"
+        "C;X55;Y2;K\"_\"\n"
+        "C;X56;Y2;K\"-\"\n"
+        "C;X57;Y2;K\"-\"\n"
+        "C;X58;Y2;K\"-\"\n"
+        "C;X59;Y2;K\"-\"\n"
+        "C;X60;Y2;K\"-\"\n"
+        "C;X61;Y2;K\"-\"\n"
+        "C;X62;Y2;K\" - \"\n"
+        "C;X63;Y2;K\"-\"\n"
+        "C;X64;Y2;K\" - \"\n"
+        "C;X65;Y2;K\"-\"\n"
+        "C;X66;Y2;K\"-\"\n"
+        "C;X67;Y2;K\"-\"\n"
+        "C;X68;Y2;K\"-\"\n"
+        "C;X69;Y2;K\"-\"\n"
+        "C;X70;Y2;K\"-\"\n"
+        "C;X71;Y2;K\"-\"\n"
+        "C;X72;Y2;K\"_\"\n"
+        "C;X73;Y2;K1\n"
+        "C;X74;Y2;K0\n"
+        "C;X75;Y2;K0\n"
+        "C;X76;Y2;K0\n"
+        "C;X77;Y2;K1\n"
+        "E\n");
+    slkTestData_t *old_weapons=G_SetSLKRows("UnitWeapons",weapons);
+    FOR_LOOP(p,4) {
+        ((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;
+    }
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass(
+        "globals\nunit preferred376Town\nunit preferred376Source\nunit preferred376CandidateUnit\ninteger preferred376Reaction=0\nendglobals\n"
+        "function preferred376Attack takes nothing returns nothing\n"
+        "set preferred376Source=CreateUnit(Player(1),'hfoo',1100.,700.,0.)\n"
+        "call SetUnitUserData(preferred376Source,375)\n"
+        "if IssueTargetOrder(preferred376Source,\"attack\",preferred376Town) then\n"
+        "call SetUnitUserData(preferred376Source,376)\nendif\n"
+        "if UnitDamageTarget(preferred376Source,preferred376Town,1.,true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_NORMAL,WEAPON_TYPE_WHOKNOWS) then\n"
+        "call SetUnitUserData(preferred376Town,378)\nendif\nendfunction\n"
+        "function preferred376Candidate takes nothing returns nothing\n"
+        "set preferred376CandidateUnit=CreateUnit(Player(1),'hfoo',200.0,1800.0,0.0)\n"
+        "call PauseUnit(preferred376CandidateUnit,true)\n"
+        "call SetUnitUserData(preferred376CandidateUnit,379)\n"
+        "endfunction\n"
+        "function preferred376DamageCandidate takes nothing returns nothing\n"
+        "if UnitDamageTarget(preferred376CandidateUnit,preferred376Town,1.0,true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_NORMAL,WEAPON_TYPE_WHOKNOWS) then\n"
+        "call SetUnitUserData(preferred376CandidateUnit,380)\n"
+        "endif\n"
+        "endfunction\n"
+        "function preferred376MoveCandidate takes nothing returns nothing\n"
+        "call SetUnitPosition(preferred376CandidateUnit,100.0,1800.0)\n"
+        "endfunction\n"
+        "function preferred376DamageB takes nothing returns nothing\n"
+        "if UnitDamageTarget(preferred376Source,preferred376Town,1.0,true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_NORMAL,WEAPON_TYPE_WHOKNOWS) then\n"
+        "call SetUnitUserData(preferred376Source,381)\n"
+        "endif\n"
+        "endfunction\n"
+        "function preferred376FindQuery takes nothing returns nothing\n"
+        "if GetUnitUserData(GetEnumUnit())==382 then\nset preferred376CandidateUnit=GetEnumUnit()\nendif\nendfunction\n"
+        "function preferred376QueryWindWalk takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsOfPlayer(g,Player(1),null)\ncall ForGroup(g,function preferred376FindQuery)\ncall DestroyGroup(g)\n"
+        "call UnitAddAbility(preferred376CandidateUnit,'AOwk')\ncall SetUnitState(preferred376CandidateUnit,UNIT_STATE_MANA,100.)\n"
+        "if IssueImmediateOrder(preferred376CandidateUnit,\"windwalk\") then\ncall SetUnitUserData(preferred376CandidateUnit,383)\nendif\nendfunction\n"
+        "function preferred376HideQuery takes nothing returns nothing\ncall ShowUnit(preferred376CandidateUnit,false)\nendfunction\n"
+        "function preferred376RemoveAttackEach takes nothing returns nothing\n"
+        "if GetUnitTypeId(GetEnumUnit())=='hfoo' then\ncall UnitRemoveAbility(GetEnumUnit(),'Aatk')\nendif\nendfunction\n"
+        "function preferred376RemoveQueryAttack takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsOfPlayer(g,Player(0),null)\ncall ForGroup(g,function preferred376RemoveAttackEach)\ncall DestroyGroup(g)\nendfunction\n"
+        "function preferred376Issued takes nothing returns nothing\n"
+        "if (preferred376Reaction==3 and GetIssuedOrderId()==851982) or (preferred376Reaction==4 and GetIssuedOrderId()==851983) then\n"
+        "if IssuePointOrder(GetTriggerUnit(),\"move\",1600.,1700.) then\ncall SetUnitUserData(preferred376Town,911+preferred376Reaction)\n"
+        "else\ncall SetUnitUserData(preferred376Town,1911+preferred376Reaction)\nendif\nreturn\nendif\n"
+        "if (preferred376Reaction==1 and GetIssuedOrderId()==851982) or (preferred376Reaction==2 and GetIssuedOrderId()==851983) then\n"
+        "call SetUnitUserData(preferred376Town,911+preferred376Reaction)\n"
+        "call RemoveUnit(GetTriggerUnit())\nreturn\nendif\n"
+        "if GetIssuedOrderId()==851982 or GetIssuedOrderId()==851972 then\n"
+        "call SetUnitUserData(GetTriggerUnit(),GetUnitUserData(GetTriggerUnit())*10+GetIssuedOrderId()-851970)\nendif\nendfunction\n"
+        "function preferred376ObserveSuicideOrders takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerAddAction(t,function preferred376Issued)\nendfunction\n"
+        "function preferred376RemoveImmediate takes nothing returns nothing\nset preferred376Reaction=1\ncall preferred376ObserveSuicideOrders()\nendfunction\n"
+        "function preferred376RemovePoint takes nothing returns nothing\nset preferred376Reaction=2\ncall preferred376ObserveSuicideOrders()\nendfunction\n"
+        "function preferred376ReplaceImmediate takes nothing returns nothing\nset preferred376Reaction=3\ncall preferred376ObserveSuicideOrders()\nendfunction\n"
+        "function preferred376ReplacePoint takes nothing returns nothing\nset preferred376Reaction=4\ncall preferred376ObserveSuicideOrders()\nendfunction\n"
+        "function preferred376Allied takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==16\n"
+        "call SetPlayerAlliance(Player(0),Player(i),ALLIANCE_PASSIVE,true)\nset i=i+1\nendloop\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set preferred376Town=CreateUnit(Player(0),'htow',1400.,700.,0.)\n"
+        "endfunction\n"));
+    char mode_source[]=
+        "function preferred376Campaign takes nothing returns nothing\ncall SetCampaignAI()\nendfunction\n"
+        "function preferred376Melee takes nothing returns nothing\ncall SetMeleeAI()\nendfunction\n"
+        "function preferred376SuicideTown takes nothing returns nothing\ncall SuicideUnitEx(1,'htow',1)\nendfunction\n"
+        "function preferred376SuicideMember takes nothing returns nothing\ncall SuicideUnitEx(1,'hfoo',1)\nendfunction\n"
+        "function preferred376UnpauseEach takes nothing returns nothing\n"
+        "if GetUnitTypeId(GetEnumUnit())=='hfoo' then\ncall PauseUnit(GetEnumUnit(),false)\nendif\nendfunction\n"
+        "function preferred376SuicideNoTarget takes nothing returns nothing\ncall SuicideUnitEx(1,'hfoo',15)\nendfunction\n"
+        "function preferred376StopEach takes nothing returns nothing\n"
+        "if GetUnitTypeId(GetEnumUnit())=='hfoo' then\n"
+        "call SetUnitUserData(GetEnumUnit(),375)\n"
+        "if IssueImmediateOrder(GetEnumUnit(),\"stop\") then\ncall SetUnitUserData(GetEnumUnit(),376)\nendif\nendif\nendfunction\n"
+        "function preferred376PrepareMembers takes nothing returns nothing\n"
+        "local group g=CreateGroup()\ncall GroupEnumUnitsOfPlayer(g,GetAiPlayer(),null)\n"
+        "call ForGroup(g,function preferred376UnpauseEach)\ncall DestroyGroup(g)\nendfunction\n"
+        "function preferred376StopMembers takes nothing returns nothing\n"
+        "local group g=CreateGroup()\ncall GroupEnumUnitsOfPlayer(g,GetAiPlayer(),null)\n"
+        "call ForGroup(g,function preferred376StopEach)\ncall DestroyGroup(g)\nendfunction\n";
+    T_ASSERT(jass_dobuffer(level.bots[0].vm,mode_source));
+    /* Retain separate Town and Captain constructor phases through real API. */
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    Captain376Step(250);G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,256,1024);
+    edict_t *members[6];
+    FOR_LOOP(i,6) {
+        members[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),
+            &(vec2_t){256+80*(i%4),256+80*(i/4)},0);
+        T_ASSERT(members[i] && members[i]->inuse);
+        T_ASSERT(G_ActorHasAbilityCode(members[i],MAKEFOURCC('A','m','o','v')));
+        T_ASSERT(G_ActorHasAbilityCode(members[i],MAKEFOURCC('A','a','t','k')));
+        T_ASSERT(members[i]->attack_scan.active);T_EQ(members[i]->targtype,TARG_GROUND);
+        T_EQ(wc3_float_bits(S_AttackProfileRead(members[i],0)->range),wc3_float_bits(90));
+        T_EQ(wc3_float_bits(members[i]->runtime.acquisition_range),wc3_float_bits(500));
+        members[i]->mana.value=100;members[i]->mana.max_value=200;
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *selected=unit_create(1,(inverse>=15 && inverse<=17) ? MAKEFOURCC('H','p','a','l') : MAKEFOURCC('h','f','o','o'),&(vec2_t){1400,1500},0);
+    T_ASSERT(selected && selected->inuse);S_SetUnitPaused(selected,true);
+    player->rdflags|=RDF_NOFOG;
+    G_BotCaptainVsPlayer(player,&game.clients[1].ps);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    for(unsigned elapsed=0;elapsed<10000 && captain->follow.unit!=selected;elapsed+=5)
+        Captain376Step(5);
+    /* These setup assertions must pass before the preferred-primary behavior
+     * is classified. The public selection/periodic owners produce both roles. */
+    T_EQ(captain->target.unit,selected);T_EQ(captain->follow.unit,selected);
+    FOR_LOOP(i,6)S_SetUnitPaused(members[i],true);
+    jass_callbyname(level.vm,"preferred376Attack",false);
+    edict_t *preferred=NULL,*town=NULL;
+    FILTER_EDICTS(e,e->inuse) {
+        if(e->user_data==375 || e->user_data==376)preferred=e;
+        if(e->user_data==378)town=e;
+    }
+    T_ASSERT(preferred && town);
+    if(!preferred || !town) {G_BotStop(0);level.started=false;reset_entities();
+    G_SetSLKRows("UnitData",old_data);free_slk_rows(data);
+    G_SetSLKRows("UnitWeapons",old_weapons);free_slk_rows(weapons);
+    setup_test_world();return;}
+    T_EQ(preferred->user_data,376); /* Independent accepted attack marker. */
+    T_EQ(town->user_data,378); /* Independent accepted damage marker. */
+    T_ASSERT(preferred->health.value>0 && town->health.value>0);
+    T_ASSERT(town->aiflags&AI_TOWN_OWNED);
+    Captain376Step(1500); /* Exercise real weapon/help delivery and its latch. */
+    T_EQ(captain->target.unit,selected);T_EQ(captain->follow.unit,selected);
+    /* Missing Town publication is a behavior failure, separate from setup. */
+    T_EQ(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit,preferred);
+    if(inverse==1 || inverse==2) {
+        jass_t *vm=level.bots[0].vm;
+        if(inverse==17) {
+            jass_callbyname(level.vm,"preferred376RemoveQueryAttack",false);
+            FOR_LOOP(i,6)T_ASSERT(!G_ActorHasAbilityCode(members[i],MAKEFOURCC('A','a','t','k')));
+        }
+        if(inverse==12 || inverse==13)jass_callbyname(level.vm,inverse==12 ? "preferred376RemoveImmediate" : "preferred376RemovePoint",false);
+        if(inverse==18 || inverse==19)jass_callbyname(level.vm,inverse==18 ? "preferred376ReplaceImmediate" : "preferred376ReplacePoint",false);
+        jasscoroutine_t *command=jass_startcoroutinebynameforplayer(vm,"preferred376Campaign",player);
+        T_NOT_NULL(command);if(command)jass_resume(vm,command);
+        T_EQ(level.bots[0].mode,BOT_CAMPAIGN);
+        if(inverse==2) {
+            command=jass_startcoroutinebynameforplayer(vm,"preferred376Melee",player);
+            T_NOT_NULL(command);if(command)jass_resume(vm,command);
+            T_EQ(level.bots[0].mode,BOT_MELEE);
+        }
+    } else if(inverse==3) {
+        G_SetUnitPlayer(preferred,3);T_EQ(preferred->s.player,3);
+        T_ASSERT(preferred->health.value>0);
+        T_NULL(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit);
+    } else if(inverse==4) {
+        S_SetUnitPaused(preferred,true);
+        botCaptain_t *defense=level.bots[0].captains+BOT_CAPTAIN_DEFENSE;
+        wc3Clock_t now=G_TimerQueryClock(NULL);
+        T_EQ(now.epoch,town_constructed.epoch);
+        /* Native Town initializer passes Math_IntegerTwo. Derive the next
+         * deadline from the captured constructor frontier, not global zero. */
+        float period=2;
+        float cycle=floorf(wc3_sub(now.time,town_constructed.time)/period)+1;
+        float town_due=wc3_add(town_constructed.time,wc3_mul(cycle,period));
+        while(G_TimerQueryClock(NULL).time<wc3_sub(town_due,.05f))Captain376Step(5);
+        now=G_TimerQueryClock(NULL);
+        wc3Clock_t captain_due=defense->update_due;
+        T_ASSERT(now.time<town_due);
+        T_EQ(captain_due.epoch,now.epoch);T_ASSERT(captain_due.time>town_due);
+        T_EQ(preferred->s.player,1);T_ASSERT(preferred->health.value>0);
+        G_BotSetCaptainHome(player,2,100,1800);
+        T_NULL(defense->follow.unit);
+        while(G_TimerQueryClock(NULL).time<town_due)Captain376Step(5);
+        now=G_TimerQueryClock(NULL);
+        T_ASSERT(now.time>=town_due && now.time<captain_due.time);
+        T_NULL(defense->follow.unit);
+        T_EQ(preferred->s.player,1);T_ASSERT(preferred->health.value>0);
+    }
+    edict_t *replacement=NULL;
+    if(inverse>=5 && inverse<=7) {
+        S_SetUnitPaused(preferred,true);T_ASSERT(G_UnitHasWorldPresence(preferred));
+        jass_callbyname(level.vm,"preferred376Candidate",false);
+        FILTER_EDICTS(e,e->inuse && e->user_data==379)replacement=e;
+        T_NOT_NULL(replacement);
+        if(!replacement)goto preferred376_cleanup;
+        T_EQ(replacement->s.player,1);T_ASSERT(replacement->health.value>0);
+        wc3Clock_t now=G_TimerQueryClock(NULL);
+        T_EQ(now.epoch,town_constructed.epoch);
+        float cycle=floorf(wc3_sub(now.time,town_constructed.time)/2)+1;
+        float town_due=wc3_add(town_constructed.time,wc3_mul(cycle,2));
+        if(town->combat_help.active) {
+            T_EQ(town->combat_help.deadline.epoch,now.epoch);
+            if(town->combat_help.deadline.time>=wc3_add(town_due,.05f))town_due=wc3_add(town_due,2);
+        }
+        while(G_TimerQueryClock(NULL).time<wc3_add(town_due,.05f))Captain376Step(5);
+        T_ASSERT(!town->combat_help.active);
+        if(inverse==5) {
+            jass_callbyname(level.vm,"preferred376DamageB",false);
+            T_EQ(preferred->user_data,381);T_ASSERT(town->combat_help.active);
+            Captain376Step(600); /* After the real .5-second help suppression,
+                                  before the following two-second Town owner. */
+            T_ASSERT(!town->combat_help.active);
+            T_ASSERT(G_TimerQueryClock(NULL).time<wc3_add(town_due,2));
+        } else if(inverse==7) {
+            T_ASSERT(G_TimerQueryClock(NULL).time<level.bots[0].captains[BOT_CAPTAIN_DEFENSE].update_due.time);
+            jass_callbyname(level.vm,"preferred376MoveCandidate",false);
+            G_BotSetCaptainHome(player,2,100,1800);
+            T_NULL(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit);
+        }
+        jass_callbyname(level.vm,"preferred376DamageCandidate",false);
+        T_EQ(replacement->user_data,380);T_ASSERT(town->health.value>0);
+        if(inverse==7) {
+            /* Retail accepts the new request during damage, then publishes
+             * follow on the next independent Captain periodic owner visit. */
+            botCaptain_t *defense=level.bots[0].captains+BOT_CAPTAIN_DEFENSE;
+            wc3Clock_t next=defense->update_due;
+            T_EQ(next.epoch,G_TimerQueryClock(NULL).epoch);
+            T_ASSERT(next.time>G_TimerQueryClock(NULL).time);
+            T_ASSERT(next.time<wc3_add(town_due,2));
+            while(G_TimerQueryClock(NULL).time<next.time)Captain376Step(5);
+            T_ASSERT(preferred->health.value>0 && replacement->health.value>0);
+            T_EQ(defense->follow.unit,replacement);
+            T_NULL(defense->target.unit);T_NULL(defense->backup.unit);
+            T_EQ(ARRAY_COUNT(defense->units),0u);
+            if(cold) {
+                uint32_t ai=selected-g_edicts,bi=preferred-g_edicts,ci=replacement-g_edicts;
+                cstring_t file=Test_TempPath("wc3-captain-preferred376-registration.bin");
+                T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+                selected=g_edicts+ai;preferred=g_edicts+bi;replacement=g_edicts+ci;
+                captain=level.bots[0].captains;defense=captain+BOT_CAPTAIN_DEFENSE;
+                T_EQ(defense->follow.unit,replacement);
+                T_ASSERT(preferred->inuse && preferred->health.value>0);
+                T_EQ(preferred->s.player,1);
+            }
+            captain376_visit_owner=defense;captain376_visit_source=preferred;
+            captain376_old_source_visits=captain376_old_town_visits=captain376_old_visit_count=0;
+            memset(captain376_old_visit_order,0,sizeof(captain376_old_visit_order));
+            target363_test_visit=Captain376RetainedVisit;
+            G_SetUnitPlayer(preferred,3);target363_test_visit=NULL;
+            T_EQ(preferred->s.player,3);T_EQ(captain376_old_source_visits,1u);
+            T_EQ(captain376_old_town_visits,1u);T_EQ(captain376_old_visit_count,2u);
+            T_EQ(captain376_old_visit_order[0],4u);
+            T_EQ(captain376_old_visit_order[1],(uint32_t)TARGET_OWNER_CAPTAIN);
+            T_ASSERT(G_ValidateTargetSubscriptions());
+            captain376_visit_owner=NULL;captain376_visit_source=NULL;
+            T_EQ(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit,replacement);
+        } else T_EQ(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit,preferred);
+    }
+    if(inverse>=8) {
+        /* Native SuicideUnitEx operates on the Town-owned pool; it does
+         * not enroll the selected unit into the assault Captain. */
+        S_SetUnitPaused(preferred,true);
+        G_SetUnitPlayer(preferred,3);T_EQ(preferred->s.player,3);
+        T_NULL(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit);
+        T_EQ(ARRAY_COUNT(captain->units),6u);
+        jass_t *vm=level.bots[0].vm;
+        if(inverse>=15 && inverse<=17) {
+            char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\nC;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataA1\"\nC;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K1\nC;Y2;X4;K75\nC;Y2;X5;K5\nC;Y2;X6;K20\nC;Y2;X7;K20\nC;Y2;X8;K0.1\nE\n";
+            query_data=parse_slk_string(data);old_query_data=G_SetSLKRows("AbilityData",query_data);
+            selected->user_data=382;
+            S_SetUnitPaused(selected,false);Captain376Step(20);
+            T_ASSERT(!selected->paused);T_EQ(selected->targtype,TARG_GROUND);
+            T_ASSERT(selected->mana.max_value>=100);
+            jass_callbyname(level.vm,"preferred376QueryWindWalk",false);
+            T_EQ(selected->user_data,383);
+            Captain376Step(200);S_SetUnitPaused(selected,true);
+            T_ASSERT(S_UnitHasTemporaryInvisibility(selected,NULL));
+            T_ASSERT(S_UnitIsInvisibleToPlayer(selected,0));
+            T_ASSERT(G_UnitHasWorldPresence(selected));
+            if(inverse==16) {
+                jass_callbyname(level.vm,"preferred376HideQuery",false);
+                T_ASSERT(!G_UnitHasWorldPresence(selected));
+                T_ASSERT(S_UnitHasTemporaryInvisibility(selected,NULL));
+                jass_callbyname(level.vm,"preferred376Allied",false);
+                FOR_LOOP(i,MAX_PLAYERS)T_ASSERT(G_PlayerTreatsPlayerAsAlly(0,i));
+            }
+        }
+        if(inverse==9 || (inverse>=11 && inverse<=13) || inverse>=15) {
+            jasscoroutine_t *prepare=jass_startcoroutinebynameforplayer(vm,"preferred376PrepareMembers",player);
+            T_NOT_NULL(prepare);if(prepare)jass_resume(vm,prepare);
+            /* Retail D unpauses before the immediate Stop/selection frontier.
+             * The engine's existing Pause owner releases physical ownership at
+             * two scheduled 5 ms boundaries; no Captain periodic may intervene. */
+            wc3Clock_t captain_due=captain->update_due;
+            T_ASSERT(wc3_add(G_TimerQueryClock(NULL).time,.02f)<captain_due.time);
+            Captain376Step(20);
+            T_EQ(captain->update_due.time,captain_due.time);
+            jasscoroutine_t *stop=jass_startcoroutinebynameforplayer(vm,"preferred376StopMembers",player);
+            T_NOT_NULL(stop);if(stop)jass_resume(vm,stop);
+            FOR_LOOP(i,6) {
+                T_EQ(members[i]->user_data,376);
+                T_ASSERT(!members[i]->paused);
+                T_ASSERT(!G_UnitHasActiveOrder(members[i]));
+                T_EQ(G_UnitQueuedOrderCount(members[i]),0u);
+            }
+            T_EQ(ARRAY_COUNT(captain->units),6u);
+        }
+        uint32_t ids[6],queues[6],groups[6];umove_t const *moves[6];
+        FOR_LOOP(i,6) {
+            ids[i]=members[i]->current_order_id;queues[i]=G_UnitQueuedOrderCount(members[i]);
+            groups[i]=members[i]->movement.group_id;moves[i]=members[i]->currentmove;
+        }
+        if(inverse==11) {
+            jass_callbyname(level.vm,"preferred376Allied",false);
+            FOR_LOOP(i,MAX_PLAYERS)T_ASSERT(G_PlayerTreatsPlayerAsAlly(0,i));
+            jass_callbyname(level.vm,"preferred376ObserveSuicideOrders",false);
+        }
+        if(inverse==17) {
+            jass_callbyname(level.vm,"preferred376RemoveQueryAttack",false);
+            FOR_LOOP(i,6)T_ASSERT(!G_ActorHasAbilityCode(members[i],MAKEFOURCC('A','a','t','k')));
+        }
+        if(inverse==12 || inverse==13)jass_callbyname(level.vm,inverse==12 ? "preferred376RemoveImmediate" : "preferred376RemovePoint",false);
+        if(inverse==18 || inverse==19)jass_callbyname(level.vm,inverse==18 ? "preferred376ReplaceImmediate" : "preferred376ReplacePoint",false);
+        captain376_point_source=NULL;captain376_point_calls=0;
+        move_test_point_approach=Captain376PointApproach;
+        jasscoroutine_t *command=jass_startcoroutinebynameforplayer(vm,
+            (inverse==8 || inverse==14) ? "preferred376SuicideTown" : inverse==11 ? "preferred376SuicideNoTarget" : "preferred376SuicideMember",player);
+        T_NOT_NULL(command);if(command)jass_resume(vm,command);
+        move_test_point_approach=NULL;
+        T_ASSERT(town->inuse && town->health.value>0 && G_UnitHasWorldPresence(town));
+        if(inverse==10) {
+            /* The accepted diagnostic B shows action8/held members are
+             * ineligible: no d000e admission, role or queue mutation. */
+            T_EQ(ARRAY_COUNT(captain->units),6u);
+            FOR_LOOP(i,6) {
+                T_ASSERT(members[i]->paused);
+                T_EQ(members[i]->current_order_id,ids[i]);
+                T_EQ(G_UnitQueuedOrderCount(members[i]),queues[i]);
+                T_EQ(members[i]->movement.group_id,groups[i]);
+                T_EQ(members[i]->currentmove,moves[i]);
+            }
+        } else {
+            T_EQ(ARRAY_COUNT(captain->units),(inverse==9 || (inverse>=11 && inverse<=13) || inverse>=15) ? 5u : 6u);
+            uint32_t detached=0;
+            FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor)detached++;
+            T_EQ(detached,(inverse==9 || (inverse>=11 && inverse<=13) || inverse>=15) ? 1u : 0u);
+        }
+        if(inverse==18 || inverse==19) {
+            T_EQ(town->user_data,inverse==18 ? 914 : 915);
+            edict_t *detached=NULL;
+            FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor)detached=members[i];
+            T_NOT_NULL(detached);
+            if(detached) {
+                T_ASSERT(detached->inuse && !G_IsDeferredFree(detached));
+                T_EQ(detached->current_order_id,851986u);
+                T_NOT_NULL(detached->currentmove);
+                if(detached->currentmove)T_EQ(detached->currentmove->proc,CAbilityMove);
+                T_EQ(G_UnitQueuedOrderCount(detached),0u);
+                T_NULL(detached->movement.attackmove_waypoint);
+                vec2_t point={0,0};T_ASSERT(G_GetIssuedOrderPoint(detached,&point));
+                T_EQ(wc3_float_bits(point.x),wc3_float_bits(1600.0f));
+                T_EQ(wc3_float_bits(point.y),wc3_float_bits(1700.0f));
+                moveGroup_t *group=move_unit_group(detached);T_NOT_NULL(group);
+                if(group) {
+                    vec2_t expected=move_point_fine(&(vec2_t){1600,1700});
+                    T_EQ(group->count,1u);T_NULL(group->target);
+                    T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(expected.x));
+                    T_EQ(wc3_float_bits(group->goal.y),wc3_float_bits(expected.y));
+                }
+            }
+            T_ASSERT(G_ValidateTargetSubscriptions());
+            goto preferred376_cleanup;
+        }
+        if(inverse==12 || inverse==13) {
+            T_EQ(town->user_data,inverse==12 ? 912 : 913);
+            edict_t *detached=NULL;
+            FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor)detached=members[i];
+            T_NOT_NULL(detached);
+            if(detached) {
+                T_ASSERT(detached->inuse && G_IsDeferredFree(detached));
+                T_EQ(detached->current_order_id,0u);T_EQ(detached->movement.group_id,0u);
+                T_NULL(detached->currentmove);T_EQ(G_UnitQueuedOrderCount(detached),0u);
+                uint32_t slot=detached-g_edicts,birth=detached->spawn_time;
+                cstring_t pending_file=Test_TempPath("wc3-captain376-removed-pending.bin");
+                T_ASSERT(WriteGame(pending_file));T_ASSERT(ReadGame(pending_file));remove(pending_file);
+                detached=g_edicts+slot;captain=level.bots[0].captains;
+                T_ASSERT(detached->inuse && detached->spawn_time==birth && G_IsDeferredFree(detached));
+                T_EQ(detached->current_order_id,0u);T_EQ(detached->movement.group_id,0u);
+                T_NULL(detached->currentmove);T_EQ(G_UnitQueuedOrderCount(detached),0u);
+                Captain376Step(5); /* Actual deferred storage owner releases the cache. */
+                T_ASSERT(!detached->inuse);T_NULL(detached->movement.attackmove_waypoint);
+            }
+            T_ASSERT(G_ValidateTargetSubscriptions());
+            goto preferred376_cleanup;
+        }
+        if(inverse==16) {
+            edict_t *detached=NULL;
+            FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor)detached=members[i];
+            T_NOT_NULL(detached);
+            if(detached) {
+                T_EQ(detached->current_order_id,0u);T_EQ(G_UnitQueuedOrderCount(detached),0u);
+                T_EQ(detached->movement.group_id,0u);T_NULL(detached->movement.attackmove_waypoint);
+            }
+            goto preferred376_cleanup;
+        }
+        if(inverse==11) {
+            edict_t *detached=NULL;
+            FOR_LOOP(i,6)if(members[i]->movement.captain_home.roster_actor!=captain->home_actor)detached=members[i];
+            T_NOT_NULL(detached);
+            if(detached) {
+                /* Initial Stop acceptance marker376, then d000e event12,
+                 * then ordinary Stop event2: no synthetic notification. */
+                T_EQ(detached->user_data,37722);
+                T_EQ(detached->current_order_id,0u);T_ASSERT(!G_UnitHasActiveOrder(detached));
+                T_EQ(G_UnitQueuedOrderCount(detached),0u);T_EQ(detached->movement.group_id,0u);
+                T_NULL(detached->movement.attackmove_waypoint);
+            }
+            goto preferred376_cleanup;
+        }
+        if(inverse==9 || inverse==15)Captain376AssertSuicidePoint(captain,members,selected);
+        if(inverse==17)Captain376AssertSuicideMove(captain,members,selected);
+        if(cold) {
+            uint32_t a=selected-g_edicts,b=preferred-g_edicts,t=town-g_edicts,mi[6];
+            FOR_LOOP(i,6)mi[i]=members[i]-g_edicts;
+            cstring_t file=Test_TempPath("wc3-captain376-suicide.bin");
+            T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+            selected=g_edicts+a;preferred=g_edicts+b;town=g_edicts+t;captain=level.bots[0].captains;
+            FOR_LOOP(i,6)members[i]=g_edicts+mi[i];
+            T_EQ(ARRAY_COUNT(captain->units),(inverse==9 || (inverse>=11 && inverse<=13) || inverse>=15) ? 5u : 6u);
+            T_ASSERT(town->inuse && town->health.value>0);
+            if(inverse==9 || inverse==15)Captain376AssertSuicidePoint(captain,members,selected);
+        if(inverse==17)Captain376AssertSuicideMove(captain,members,selected);
+        }
+        if(inverse==8 || inverse==14) {
+            /* New damage is real, hostile and past both suppression and
+             * the next independent Town rearm; the helper's AI-record bit
+             * must exclude the recipient before consuming that latch. */
+            G_SetUnitPlayer(preferred,1);T_EQ(preferred->s.player,1);
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            T_EQ(now.epoch,town_constructed.epoch);
+            float cycle=floorf(wc3_sub(now.time,town_constructed.time)/2)+1;
+            float due=wc3_add(town_constructed.time,wc3_mul(cycle,2));
+            if(town->combat_help.active && town->combat_help.deadline.time>=wc3_add(due,.05f))due=wc3_add(due,2);
+            while(G_TimerQueryClock(NULL).time<wc3_add(due,.05f))Captain376Step(5);
+            T_ASSERT(!town->combat_help.active);
+            float health=town->health.value;
+            jass_callbyname(level.vm,"preferred376DamageB",false);
+            T_EQ(preferred->user_data,381);T_ASSERT(town->health.value<health);
+            wc3Clock_t next=level.bots[0].captains[BOT_CAPTAIN_DEFENSE].update_due;
+            T_EQ(next.epoch,G_TimerQueryClock(NULL).epoch);
+            while(G_TimerQueryClock(NULL).time<next.time)Captain376Step(5);
+            T_NULL(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit);
+            if(inverse==14) {
+                /* Keep the preceding positive Suicide exclusion intact. The
+                 * public owner round trip retires the actual owned AI record,
+                 * not the edict. Returning creates a fresh default record. */
+                T_EQ(town->ai_town_player,1u);
+                uint32_t const birth=town->spawn_time;
+                G_SetUnitPlayer(town,3);
+                T_EQ(town->s.player,3u);T_EQ(town->ai_town_player,0u);
+                G_SetUnitPlayer(town,0);
+                T_EQ(town->s.player,0u);T_EQ(town->ai_town_player,1u);
+                T_EQ(town->spawn_time,birth);T_ASSERT(town->health.value>0);
+                T_ASSERT(G_ValidateTargetSubscriptions());
+                now=G_TimerQueryClock(NULL);
+                T_EQ(now.epoch,town_constructed.epoch);
+                cycle=floorf(wc3_sub(now.time,town_constructed.time)/2)+1;
+                due=wc3_add(town_constructed.time,wc3_mul(cycle,2));
+                if(town->combat_help.active && town->combat_help.deadline.time>=wc3_add(due,.05f))due=wc3_add(due,2);
+                while(G_TimerQueryClock(NULL).time<wc3_add(due,.05f))Captain376Step(5);
+                T_ASSERT(!town->combat_help.active);
+                health=town->health.value;
+                jass_callbyname(level.vm,"preferred376DamageB",false);
+                T_EQ(preferred->user_data,381);T_ASSERT(town->health.value<health);
+                next=level.bots[0].captains[BOT_CAPTAIN_DEFENSE].update_due;
+                T_EQ(next.epoch,G_TimerQueryClock(NULL).epoch);
+                while(G_TimerQueryClock(NULL).time<next.time)Captain376Step(5);
+                T_EQ(level.bots[0].captains[BOT_CAPTAIN_DEFENSE].follow.unit,preferred);
+            }
+        }
+    }
+    if(cold && inverse<7) {
+        uint32_t selected_index=selected-g_edicts,preferred_index=preferred-g_edicts;
+        cstring_t file=Test_TempPath("wc3-captain-preferred376.bin");
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+        captain=level.bots[0].captains;
+        selected=g_edicts+selected_index;preferred=g_edicts+preferred_index;
+        T_EQ(captain->target.unit,selected);T_EQ(captain->follow.unit,selected);
+        T_ASSERT(preferred->inuse && preferred->health.value>0);
+    }
+    vec2_t point=inverse==7 ? replacement->s.origin2 :
+        (inverse==1 || inverse==3 || inverse==4 || (inverse>=8 && inverse<=13) || inverse>=15) ? selected->s.origin2 : preferred->s.origin2;
+    T_ASSERT(wc3_float_bits(preferred->s.origin2.x)!=wc3_float_bits(selected->s.origin2.x) ||
+             wc3_float_bits(preferred->s.origin2.y)!=wc3_float_bits(selected->s.origin2.y));
+    uint32_t count=ARRAY_COUNT(captain->units);T_EQ(count,(inverse==9 || (inverse>=11 && inverse<=13) || inverse>=15) ? 5u : 6u);
+    G_BotClearCaptainTargets(player);
+    T_NULL(captain->target.unit);T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);
+    T_EQ(ARRAY_COUNT(captain->units),count);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(point.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(point.y));
+    T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(point.x));
+    T_EQ(wc3_float_bits(captain->active_goal.y),wc3_float_bits(point.y));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+preferred376_cleanup:
+    move_test_point_approach=NULL;
+    G_BotStop(0);level.started=false;reset_entities();
+    if(query_data){G_SetSLKRows("AbilityData",old_query_data);free_slk_rows(query_data);}
+    G_SetSLKRows("UnitData",old_data);free_slk_rows(data);
+    G_SetSLKRows("UnitWeapons",old_weapons);free_slk_rows(weapons);
+    setup_test_world();
+}
+
+TEST(wc3_bot, captain_preferred376_public_town_attack_changes_clear_goal) {
+    Captain376PublicTownClear(false,0);
+}
+TEST(wc3_bot, captain_preferred376_public_town_attack_saved_clear_goal) {
+    Captain376PublicTownClear(true,0);
+}
+
+TEST(wc3_bot, captain_preferred376_campaign_clear_uses_selected) {Captain376PublicTownClear(false,1);}
+TEST(wc3_bot, captain_preferred376_melee_inverse_restores_town_goal) {Captain376PublicTownClear(false,2);}
+TEST(wc3_bot, captain_preferred376_living_owner_withdrawal_restores_selected) {Captain376PublicTownClear(false,3);}
+TEST(wc3_bot, captain_preferred376_defense_home_maintenance_restores_selected) {Captain376PublicTownClear(false,4);}
+
+TEST(wc3_bot, captain_preferred376_consumed_latch_rejects_new_source) {Captain376PublicTownClear(false,5);}
+TEST(wc3_bot, captain_preferred376_farther_source_does_not_replace) {Captain376PublicTownClear(false,6);}
+TEST(wc3_bot, captain_preferred376_closer_source_replaces_and_ignores_old_owner) {Captain376PublicTownClear(false,7);}
+
+TEST(wc3_bot, captain_preferred376_saved_replacement_retains_old_registration) {Captain376PublicTownClear(true,7);}
+
+TEST(wc3_bot,captain_preferred376_suicide_town_excludes_help) {Captain376PublicTownClear(false,8);}
+TEST(wc3_bot,captain_preferred376_saved_suicide_town_excludes_help) {Captain376PublicTownClear(true,8);}
+TEST(wc3_bot,captain_preferred376_suicide_detaches_one_idle_member) {Captain376PublicTownClear(false,9);}
+TEST(wc3_bot,captain_preferred376_saved_suicide_detaches_one_idle_member) {Captain376PublicTownClear(true,9);}
+TEST(wc3_bot,captain_preferred376_suicide_rejects_paused_members_without_orders) {Captain376PublicTownClear(false,10);}
+
+TEST(wc3_bot,captain_preferred376_suicide_no_target_publishes_ordinary_stop) {Captain376PublicTownClear(false,11);}
+
+TEST(wc3_bot,captain_preferred376_suicide_immediate_callback_removes_source) {Captain376PublicTownClear(false,12);}
+TEST(wc3_bot,captain_preferred376_suicide_point_callback_removes_source) {Captain376PublicTownClear(false,13);}
+
+TEST(wc3_bot,captain_preferred376_suicide_record_owner_roundtrip_restores_help) {Captain376PublicTownClear(false,14);}
+TEST(wc3_bot,captain_preferred376_saved_suicide_record_owner_roundtrip_restores_help) {Captain376PublicTownClear(true,14);}
+
+TEST(wc3_bot,captain_preferred376_suicide_query_selects_undetected_windwalk) {Captain376PublicTownClear(false,15);}
+TEST(wc3_bot,captain_preferred376_suicide_query_excludes_script_hidden_windwalk) {Captain376PublicTownClear(false,16);}
+TEST(wc3_bot,captain_preferred376_suicide_query_without_attack_owner_selects_windwalk) {Captain376PublicTownClear(false,17);}
+
+TEST(wc3_bot,captain_preferred376_suicide_immediate_callback_move_wins) {Captain376PublicTownClear(false,18);}
+TEST(wc3_bot,captain_preferred376_suicide_point_callback_move_wins) {Captain376PublicTownClear(false,19);}
+
+/* Public worker admission cases: native Peasant gold approach is action 5;
+ * native Acolyte haunted-mine approach is action 6. Minimal MPQ data is
+ * authored before actual CreateUnit; no current move/AI state is seeded. */
+static void Captain376WorkerSuicide(unsigned policy) {
+    Captain376World();
+    slkTestData_t *rows[6],*old[6];
+    rows[0]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitID\"\nC;X2;Y1;K\"movetp\"\nC;X3;Y1;K\"targType\"\nC;X4;Y1;K\"turnRate\"\nC;X5;Y1;K\"propWin\"\nC;X6;Y1;K\"valid\"\nC;X7;Y1;K\"deathType\"\nC;X1;Y2;K\"hpea\"\nC;X2;Y2;K\"foot\"\nC;X3;Y2;K\"ground\"\nC;X4;Y2;K0.6\nC;X5;Y2;K60\nC;X6;Y2;K1\nC;X7;Y2;K3\nC;X1;Y3;K\"uaco\"\nC;X2;Y3;K\"foot\"\nC;X3;Y3;K\"ground\"\nC;X4;Y3;K0.6\nC;X5;Y3;K60\nC;X6;Y3;K1\nC;X7;Y3;K3\nC;X1;Y4;K\"hfoo\"\nC;X2;Y4;K\"foot\"\nC;X3;Y4;K\"ground\"\nC;X4;Y4;K0.6\nC;X5;Y4;K60\nC;X6;Y4;K1\nC;X7;Y4;K3\nC;X1;Y5;K\"ngol\"\nC;X2;Y5;K\"none\"\nC;X3;Y5;K\"structure\"\nC;X4;Y5;K0.6\nC;X5;Y5;K60\nC;X6;Y5;K1\nC;X7;Y5;K3\nC;X1;Y6;K\"ugol\"\nC;X2;Y6;K\"none\"\nC;X3;Y6;K\"structure\"\nC;X4;Y6;K0.6\nC;X5;Y6;K60\nC;X6;Y6;K1\nC;X7;Y6;K3\nE\n");old[0]=G_SetSLKRows("UnitData",rows[0]);
+    rows[1]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitBalanceID\"\nC;X2;Y1;K\"realHP\"\nC;X3;Y1;K\"spd\"\nC;X4;Y1;K\"type\"\nC;X1;Y2;K\"hpea\"\nC;X2;Y2;K250\nC;X3;Y2;K270\nC;X4;Y2;K\"peon\"\nC;X1;Y3;K\"uaco\"\nC;X2;Y3;K220\nC;X3;Y3;K220\nC;X4;Y3;K\"peon\"\nC;X1;Y4;K\"hfoo\"\nC;X2;Y4;K420\nC;X3;Y4;K270\nC;X4;Y4;K\"\"\nC;X1;Y5;K\"ngol\"\nC;X2;Y5;K12500\nC;X3;Y5;K0\nC;X4;Y5;K\"mechanical\"\nC;X1;Y6;K\"ugol\"\nC;X2;Y6;K950\nC;X3;Y6;K0\nC;X4;Y6;K\"mechanical\"\nE\n");old[1]=G_SetSLKRows("UnitBalance",rows[1]);
+    rows[2]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitWeapID\"\nC;X2;Y1;K\"weapsOn\"\nC;X3;Y1;K\"acquire\"\nC;X4;Y1;K\"weapType1\"\nC;X5;Y1;K\"weapTp1\"\nC;X6;Y1;K\"atkType1\"\nC;X7;Y1;K\"targs1\"\nC;X8;Y1;K\"rangeN1\"\nC;X9;Y1;K\"dmgpt1\"\nC;X10;Y1;K\"cool1\"\nC;X11;Y1;K\"dice1\"\nC;X12;Y1;K\"sides1\"\nC;X13;Y1;K\"dmgplus1\"\nC;X1;Y2;K\"hpea\"\nC;X2;Y2;K1\nC;X3;Y2;K500\nC;X4;Y2;K\"normal\"\nC;X5;Y2;K\"normal\"\nC;X6;Y2;K\"normal\"\nC;X7;Y2;K\"ground,structure,debris,item,ward\"\nC;X8;Y2;K100\nC;X9;Y2;K0.3\nC;X10;Y2;K2\nC;X11;Y2;K1\nC;X12;Y2;K2\nC;X13;Y2;K5\nC;X1;Y3;K\"uaco\"\nC;X2;Y3;K1\nC;X3;Y3;K500\nC;X4;Y3;K\"normal\"\nC;X5;Y3;K\"normal\"\nC;X6;Y3;K\"normal\"\nC;X7;Y3;K\"ground,structure,debris,item,ward\"\nC;X8;Y3;K100\nC;X9;Y3;K0.3\nC;X10;Y3;K2\nC;X11;Y3;K1\nC;X12;Y3;K2\nC;X13;Y3;K5\nC;X1;Y4;K\"hfoo\"\nC;X2;Y4;K1\nC;X3;Y4;K500\nC;X4;Y4;K\"normal\"\nC;X5;Y4;K\"normal\"\nC;X6;Y4;K\"normal\"\nC;X7;Y4;K\"ground,structure,debris,item,ward\"\nC;X8;Y4;K100\nC;X9;Y4;K0.3\nC;X10;Y4;K2\nC;X11;Y4;K1\nC;X12;Y4;K2\nC;X13;Y4;K5\nE\n");old[2]=G_SetSLKRows("UnitWeapons",rows[2]);
+    rows[3]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitAbilID\"\nC;X2;Y1;K\"abilList\"\nC;X1;Y2;K\"hpea\"\nC;X2;Y2;K\"Ahar\"\nC;X1;Y3;K\"uaco\"\nC;X2;Y3;K\"Aaha\"\nC;X1;Y4;K\"hfoo\"\nC;X2;Y4;K\"\"\nC;X1;Y5;K\"ngol\"\nC;X2;Y5;K\"Agld\"\nC;X1;Y6;K\"ugol\"\nC;X2;Y6;K\"Abgm\"\nE\n");old[3]=G_SetSLKRows("UnitAbilities",rows[3]);
+    rows[4]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitUIID\"\nC;X2;Y1;K\"file\"\nC;X3;Y1;K\"modelScale\"\nC;X4;Y1;K\"scale\"\nC;X1;Y2;K\"hpea\"\nC;X2;Y2;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y2;K1\nC;X4;Y2;K1\nC;X1;Y3;K\"uaco\"\nC;X2;Y3;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y3;K1\nC;X4;Y3;K1\nC;X1;Y4;K\"hfoo\"\nC;X2;Y4;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y4;K1\nC;X4;Y4;K1\nC;X1;Y5;K\"ngol\"\nC;X2;Y5;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y5;K1\nC;X4;Y5;K1\nC;X1;Y6;K\"ugol\"\nC;X2;Y6;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y6;K1\nC;X4;Y6;K1\nE\n");old[4]=G_SetSLKRows("UnitUI",rows[4]);
+    rows[5]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;Y1;K\"code\"\nC;X3;Y1;K\"levels\"\nC;X4;Y1;K\"Rng1\"\nC;X5;Y1;K\"DataA1\"\nC;X6;Y1;K\"DataB1\"\nC;X7;Y1;K\"DataC1\"\nC;X8;Y1;K\"DataD1\"\nC;X9;Y1;K\"Dur1\"\nC;X1;Y2;K\"Ahar\"\nC;X2;Y2;K\"Ahar\"\nC;X3;Y2;K1\nC;X4;Y2;K64\nC;X5;Y2;K10\nC;X6;Y2;K1\nC;X7;Y2;K0\nC;X8;Y2;K0\nC;X9;Y2;K1\nC;X1;Y3;K\"Aaha\"\nC;X2;Y3;K\"Aaha\"\nC;X3;Y3;K1\nC;X4;Y3;K64\nC;X5;Y3;K0\nC;X6;Y3;K0\nC;X7;Y3;K0\nC;X8;Y3;K0\nC;X9;Y3;K0\nC;X1;Y4;K\"Agld\"\nC;X2;Y4;K\"Agld\"\nC;X3;Y4;K1\nC;X4;Y4;K0\nC;X5;Y4;K12500\nC;X6;Y4;K1\nC;X7;Y4;K5\nC;X8;Y4;K0\nC;X9;Y4;K0\nC;X1;Y5;K\"Abgm\"\nC;X2;Y5;K\"Abgm\"\nC;X3;Y5;K1\nC;X4;Y5;K0\nC;X5;Y5;K10\nC;X6;Y5;K1\nC;X7;Y5;K5\nC;X8;Y5;K200\nC;X9;Y5;K0\nE\n");old[5]=G_SetSLKRows("AbilityData",rows[5]);
+    player_t *player=&game.clients[0].ps;
+    ((mapInfo_t *)level.mapinfo)->players[1].used=true;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+    game.clients[1].mapplayer=level.mapinfo->players+1;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    char script[2048];
+    int n=snprintf(script,sizeof(script),
+        "globals\nunit worker376Source\nunit worker376Mine\nunit worker376Enemy\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set worker376Mine=CreateUnit(Player(15),'ngol',1024.,1024.,0.)\n"
+        "call SetResourceAmount(worker376Mine,10000)\n%s"
+        "set worker376Enemy=CreateUnit(Player(1),'hfoo',1600.,1400.,0.)\ncall PauseUnit(worker376Enemy,true)\n"
+        "set worker376Source=CreateUnit(Player(0),'%s',512.,1024.,0.)\n"
+        "call SetUnitUserData(worker376Source,375)\n"
+        "if IssueTargetOrder(worker376Source,\"harvest\",worker376Mine) then\ncall SetUnitUserData(worker376Source,376)\nendif\nendfunction\n",
+        policy==1 ? "set worker376Mine=CreateBlightedGoldmine(Player(0),1024.,1024.,0.)\n" : "",
+        policy==1 ? "uaco" : "hpea");
+    T_ASSERT(n>0 && (size_t)n<sizeof(script));T_ASSERT(run_test_jass(script));
+    edict_t *worker=NULL,*enemy=NULL;
+    FILTER_EDICTS(unit,unit->inuse) {
+        if(unit->user_data==375 || unit->user_data==376)worker=unit;
+        if(unit->s.player==1 && unit->class_id==MAKEFOURCC('h','f','o','o'))enemy=unit;
+    }
+    T_NOT_NULL(worker);T_NOT_NULL(enemy);if(!worker || !enemy)goto cleanup376worker;
+    T_ASSERT(worker->health.max_value>0 && worker->health.value>0);T_EQ(worker->targtype,TARG_GROUND);
+    T_EQ(worker->user_data,376);T_EQ(worker->ai_town_player,1u);
+    T_ASSERT(G_ActorHasAbilityCode(worker,MAKEFOURCC('A','m','o','v')));
+    T_ASSERT(G_ActorHasAbilityCode(worker,MAKEFOURCC('A','a','t','k')));
+    T_NOT_NULL(worker->currentmove);
+    if(worker->currentmove)T_EQ(worker->currentmove->proc,policy==1 ? CAbilityAcolyteHarvest : CAbilityGoldMine);
+    T_EQ(ARRAY_COUNT(level.bots[0].captains[0].units),0u);
+    uint32_t old_order=worker->current_order_id;
+    if(policy==2){S_SetUnitPaused(worker,true);T_ASSERT(worker->paused);T_EQ(worker->movement.pause_phase,UNIT_PAUSE_SUSPENDED);T_ASSERT(S_UnitOrderExecutionHeld(worker));old_order=worker->current_order_id;}
+    char command[160];
+    n=snprintf(command,sizeof(command),"function worker376Suicide takes nothing returns nothing\ncall SuicideUnitEx(1,'%s',1)\nendfunction\n",policy==1 ? "uaco" : "hpea");
+    T_ASSERT(n>0 && (size_t)n<sizeof(command));T_ASSERT(jass_dobuffer(level.bots[0].vm,command));
+    jasscoroutine_t *call=jass_startcoroutinebynameforplayer(level.bots[0].vm,"worker376Suicide",player);
+    T_NOT_NULL(call);if(call)jass_resume(level.bots[0].vm,call);
+    T_EQ(ARRAY_COUNT(level.bots[0].captains[0].units),0u);
+    if(policy==2) {
+        T_ASSERT(worker->paused);T_EQ(worker->current_order_id,old_order);
+    } else {
+        T_EQ(worker->current_order_id,851983u);T_NOT_NULL(worker->currentmove);
+        if(worker->currentmove)T_EQ(worker->currentmove->proc,CAbilityAttack);
+        T_NOT_NULL(worker->movement.attackmove_waypoint);
+        if(worker->movement.attackmove_waypoint) {
+            T_EQ(wc3_float_bits(worker->movement.attackmove_waypoint->s.origin2.x),wc3_float_bits(enemy->s.origin2.x));
+            T_EQ(wc3_float_bits(worker->movement.attackmove_waypoint->s.origin2.y),wc3_float_bits(enemy->s.origin2.y));
+        }
+        moveGroup_t *group=move_unit_group(worker);T_NOT_NULL(group);
+        if(group){T_EQ(group->count,1u);T_EQ(group->receiver,worker);T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);}
+    }
+cleanup376worker:
+    G_BotStop(0);level.started=false;reset_entities();
+    G_SetSLKRows("UnitData",old[0]);free_slk_rows(rows[0]);
+    G_SetSLKRows("UnitBalance",old[1]);free_slk_rows(rows[1]);
+    G_SetSLKRows("UnitWeapons",old[2]);free_slk_rows(rows[2]);
+    G_SetSLKRows("UnitAbilities",old[3]);free_slk_rows(rows[3]);
+    G_SetSLKRows("UnitUI",old[4]);free_slk_rows(rows[4]);
+    G_SetSLKRows("AbilityData",old[5]);free_slk_rows(rows[5]);
+    setup_test_world();
+}
+TEST(wc3_bot,captain_preferred376_suicide_worker_gold_approach) {Captain376WorkerSuicide(0);}
+TEST(wc3_bot,captain_preferred376_suicide_worker_acolyte_approach) {Captain376WorkerSuicide(1);}
+TEST(wc3_bot,captain_preferred376_suicide_worker_pause_rejects_admission) {Captain376WorkerSuicide(2);}
+
+/* AA retail matrix: the public classification mutation controls the actual
+ * SuicideUnitEx target query. A singleton requested-player candidate excludes
+ * random selection; outgoing alliances exclude all fallback candidates. */
+static void Captain376SuicideClass(unsigned policy) {
+    Captain376World();
+    slkTestData_t *rows[5],*old[5];
+    rows[0]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitID\"\nC;X2;Y1;K\"movetp\"\nC;X3;Y1;K\"targType\"\nC;X4;Y1;K\"turnRate\"\nC;X5;Y1;K\"propWin\"\nC;X6;Y1;K\"valid\"\nC;X7;Y1;K\"deathType\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K\"foot\"\nC;X3;Y2;K\"ground\"\nC;X4;Y2;K0.6\nC;X5;Y2;K60\nC;X6;Y2;K1\nC;X7;Y2;K3\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K\"foot\"\nC;X3;Y3;K\"ground\"\nC;X4;Y3;K0.6\nC;X5;Y3;K60\nC;X6;Y3;K1\nC;X7;Y3;K3\nE\n");old[0]=G_SetSLKRows("UnitData",rows[0]);
+    rows[1]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitBalanceID\"\nC;X2;Y1;K\"realHP\"\nC;X3;Y1;K\"spd\"\nC;X4;Y1;K\"type\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K420\nC;X3;Y2;K270\nC;X4;Y2;K\"\"\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K1000\nC;X3;Y3;K270\nC;X4;Y3;K\"\"\nE\n");old[1]=G_SetSLKRows("UnitBalance",rows[1]);
+    rows[2]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitWeapID\"\nC;X2;Y1;K\"weapsOn\"\nC;X3;Y1;K\"acquire\"\nC;X4;Y1;K\"weapType1\"\nC;X5;Y1;K\"weapTp1\"\nC;X6;Y1;K\"atkType1\"\nC;X7;Y1;K\"targs1\"\nC;X8;Y1;K\"rangeN1\"\nC;X9;Y1;K\"dmgpt1\"\nC;X10;Y1;K\"cool1\"\nC;X11;Y1;K\"dice1\"\nC;X12;Y1;K\"sides1\"\nC;X13;Y1;K\"dmgplus1\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K1\nC;X3;Y2;K500\nC;X4;Y2;K\"normal\"\nC;X5;Y2;K\"normal\"\nC;X6;Y2;K\"normal\"\nC;X7;Y2;K\"ground,organic,nonsapper,nonancient\"\nC;X8;Y2;K100\nC;X9;Y2;K0.3\nC;X10;Y2;K2\nC;X11;Y2;K1\nC;X12;Y2;K2\nC;X13;Y2;K5\nE\n");old[2]=G_SetSLKRows("UnitWeapons",rows[2]);
+    rows[3]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitAbilID\"\nC;X2;Y1;K\"abilList\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K\"\"\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K\"\"\nE\n");old[3]=G_SetSLKRows("UnitAbilities",rows[3]);
+    rows[4]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitUIID\"\nC;X2;Y1;K\"file\"\nC;X3;Y1;K\"modelScale\"\nC;X4;Y1;K\"scale\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y2;K1\nC;X4;Y2;K1\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y3;K1\nC;X4;Y3;K1\nE\n");old[4]=G_SetSLKRows("UnitUI",rows[4]);
+    player_t *player=&game.clients[0].ps;
+    ((mapInfo_t *)level.mapinfo)->players[1].used=true;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+    game.clients[1].mapplayer=level.mapinfo->players+1;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    unsigned type=(unsigned[]){15,17,19}[policy/2];bool remove=(policy&1)!=0;
+    char script[2048];
+    int n=snprintf(script,sizeof(script),
+        "globals\nunit class376Source\nunit class376Target\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==16\ncall SetPlayerAlliance(Player(0),Player(i),ALLIANCE_PASSIVE,true)\nset i=i+1\nendloop\n"
+        "set class376Target=CreateUnit(Player(1),'Hpal',1600.,1400.,0.)\ncall PauseUnit(class376Target,true)\n"
+        "set class376Source=CreateUnit(Player(0),'hfoo',512.,1024.,0.)\n"
+        "if IssueImmediateOrder(class376Source,\"stop\") then\ncall SetUnitUserData(class376Source,376)\nendif\n"
+        "if UnitAddType(class376Target,ConvertUnitType(%u)) then\ncall SetUnitUserData(class376Target,384)\nendif\n%s"
+        "endfunction\n",type,remove ? (type==15 ? "if UnitRemoveType(class376Target,ConvertUnitType(15)) then\ncall SetUnitUserData(class376Target,385)\nendif\n" : type==17 ? "if UnitRemoveType(class376Target,ConvertUnitType(17)) then\ncall SetUnitUserData(class376Target,385)\nendif\n" : "if UnitRemoveType(class376Target,ConvertUnitType(19)) then\ncall SetUnitUserData(class376Target,385)\nendif\n") : "");
+    T_ASSERT(n>0 && (size_t)n<sizeof(script));T_ASSERT(run_test_jass(script));
+    edict_t *source=NULL,*target=NULL;
+    FILTER_EDICTS(unit,unit->inuse) {
+        if(unit->class_id==MAKEFOURCC('h','f','o','o'))source=unit;
+        if(unit->class_id==MAKEFOURCC('H','p','a','l'))target=unit;
+    }
+    T_NOT_NULL(source);T_NOT_NULL(target);if(!source || !target)goto cleanup376class;
+    T_EQ(source->user_data,376);T_EQ(source->ai_town_player,1u);
+    T_ASSERT(source->health.value>0 && target->health.value>0);
+    T_ASSERT(G_ActorHasAbilityCode(source,MAKEFOURCC('A','m','o','v')));
+    T_ASSERT(G_ActorHasAbilityCode(source,MAKEFOURCC('A','a','t','k')));
+    T_EQ(S_AttackProfileRead(source,0)->targetsAllowed,0x54000002u);
+    T_ASSERT(!G_UnitHasActiveOrder(source));T_EQ(G_UnitQueuedOrderCount(source),0u);
+    T_ASSERT(G_UnitHasWorldPresence(target));T_EQ(target->targtype,TARG_GROUND);
+    T_EQ(target->user_data,remove ? 385 : 384);
+    FOR_LOOP(i,MAX_PLAYERS)T_ASSERT(G_PlayerTreatsPlayerAsAlly(0,i));
+    char command[]="function class376Suicide takes nothing returns nothing\ncall SuicideUnitEx(1,'hfoo',1)\nendfunction\n";
+    T_ASSERT(jass_dobuffer(level.bots[0].vm,command));
+    jasscoroutine_t *call=jass_startcoroutinebynameforplayer(level.bots[0].vm,"class376Suicide",player);
+    T_NOT_NULL(call);if(call)jass_resume(level.bots[0].vm,call);
+    T_EQ(ARRAY_COUNT(level.bots[0].captains[0].units),0u);
+    if(remove) {
+        T_EQ(source->current_order_id,851983u);T_NOT_NULL(source->movement.attackmove_waypoint);
+        if(source->movement.attackmove_waypoint){T_EQ(wc3_float_bits(source->movement.attackmove_waypoint->s.origin2.x),wc3_float_bits(target->s.origin2.x));T_EQ(wc3_float_bits(source->movement.attackmove_waypoint->s.origin2.y),wc3_float_bits(target->s.origin2.y));}
+        moveGroup_t *group=move_unit_group(source);T_NOT_NULL(group);
+        if(group){T_EQ(group->count,1u);T_EQ(group->receiver,source);T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);}
+    } else {T_EQ(source->current_order_id,0u);T_EQ(G_UnitQueuedOrderCount(source),0u);T_EQ(source->movement.group_id,0u);T_NULL(source->movement.attackmove_waypoint);}
+    T_ASSERT(G_ValidateTargetSubscriptions());
+cleanup376class:
+    G_BotStop(0);level.started=false;reset_entities();
+    G_SetSLKRows("UnitData",old[0]);free_slk_rows(rows[0]);
+    G_SetSLKRows("UnitBalance",old[1]);free_slk_rows(rows[1]);
+    G_SetSLKRows("UnitWeapons",old[2]);free_slk_rows(rows[2]);
+    G_SetSLKRows("UnitAbilities",old[3]);free_slk_rows(rows[3]);
+    G_SetSLKRows("UnitUI",old[4]);free_slk_rows(rows[4]);
+    setup_test_world();
+}
+TEST(wc3_bot,captain_preferred376_suicide_class_mechanical_excludes) {Captain376SuicideClass(0);}
+TEST(wc3_bot,captain_preferred376_suicide_class_mechanical_remove_restores) {Captain376SuicideClass(1);}
+TEST(wc3_bot,captain_preferred376_suicide_class_sapper_excludes) {Captain376SuicideClass(2);}
+TEST(wc3_bot,captain_preferred376_suicide_class_sapper_remove_restores) {Captain376SuicideClass(3);}
+TEST(wc3_bot,captain_preferred376_suicide_class_ancient_excludes) {Captain376SuicideClass(4);}
+TEST(wc3_bot,captain_preferred376_suicide_class_ancient_remove_restores) {Captain376SuicideClass(5);}
+
+/* Retail S: a real Freezing Breath hit raises execution 3c while leaving
+ * admission 40 unchanged. The immobile source still admits d000e and d000f. */
+TEST(wc3_bot,captain_preferred376_suicide_query_execution_disabled_tower) {
+    Captain376World();slkTestData_t *rows[6],*old[6];
+    rows[0]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitID\"\nC;X2;Y1;K\"movetp\"\nC;X3;Y1;K\"targType\"\nC;X4;Y1;K\"turnRate\"\nC;X5;Y1;K\"propWin\"\nC;X6;Y1;K\"valid\"\nC;X7;Y1;K\"deathType\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K\"foot\"\nC;X3;Y2;K\"ground\"\nC;X4;Y2;K0.6\nC;X5;Y2;K60\nC;X6;Y2;K1\nC;X7;Y2;K3\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K\"foot\"\nC;X3;Y3;K\"ground\"\nC;X4;Y3;K0.6\nC;X5;Y3;K60\nC;X6;Y3;K1\nC;X7;Y3;K3\nC;X1;Y4;K\"hgtw\"\nC;X2;Y4;K\"none\"\nC;X3;Y4;K\"structure\"\nC;X4;Y4;K0.6\nC;X5;Y4;K60\nC;X6;Y4;K1\nC;X7;Y4;K3\nE\n");old[0]=G_SetSLKRows("UnitData",rows[0]);
+    rows[1]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitBalanceID\"\nC;X2;Y1;K\"realHP\"\nC;X3;Y1;K\"spd\"\nC;X4;Y1;K\"isbldg\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K420\nC;X3;Y2;K270\nC;X4;Y2;K0\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K1000\nC;X3;Y3;K270\nC;X4;Y3;K0\nC;X1;Y4;K\"hgtw\"\nC;X2;Y4;K1000\nC;X3;Y4;K0\nC;X4;Y4;K1\nE\n");old[1]=G_SetSLKRows("UnitBalance",rows[1]);
+    rows[2]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitWeapID\"\nC;X2;Y1;K\"weapsOn\"\nC;X3;Y1;K\"acquire\"\nC;X4;Y1;K\"weapType1\"\nC;X5;Y1;K\"weapTp1\"\nC;X6;Y1;K\"atkType1\"\nC;X7;Y1;K\"targs1\"\nC;X8;Y1;K\"rangeN1\"\nC;X9;Y1;K\"dmgpt1\"\nC;X10;Y1;K\"cool1\"\nC;X11;Y1;K\"dice1\"\nC;X12;Y1;K\"sides1\"\nC;X13;Y1;K\"dmgplus1\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K1\nC;X3;Y2;K500\nC;X4;Y2;K\"normal\"\nC;X5;Y2;K\"normal\"\nC;X6;Y2;K\"normal\"\nC;X7;Y2;K\"ground,air,structure\"\nC;X8;Y2;K100\nC;X9;Y2;K0.3\nC;X10;Y2;K2\nC;X11;Y2;K1\nC;X12;Y2;K2\nC;X13;Y2;K5\nC;X1;Y3;K\"hgtw\"\nC;X2;Y3;K1\nC;X3;Y3;K500\nC;X4;Y3;K\"normal\"\nC;X5;Y3;K\"normal\"\nC;X6;Y3;K\"normal\"\nC;X7;Y3;K\"ground,air,structure\"\nC;X8;Y3;K100\nC;X9;Y3;K0.3\nC;X10;Y3;K2\nC;X11;Y3;K1\nC;X12;Y3;K2\nC;X13;Y3;K5\nE\n");old[2]=G_SetSLKRows("UnitWeapons",rows[2]);
+    rows[3]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitAbilID\"\nC;X2;Y1;K\"abilList\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K\"Afrz\"\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K\"\"\nC;X1;Y4;K\"hgtw\"\nC;X2;Y4;K\"\"\nE\n");old[3]=G_SetSLKRows("UnitAbilities",rows[3]);
+    rows[4]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"unitUIID\"\nC;X2;Y1;K\"file\"\nC;X3;Y1;K\"modelScale\"\nC;X4;Y1;K\"scale\"\nC;X1;Y2;K\"hfoo\"\nC;X2;Y2;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y2;K1\nC;X4;Y2;K1\nC;X1;Y3;K\"Hpal\"\nC;X2;Y3;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y3;K1\nC;X4;Y3;K1\nC;X1;Y4;K\"hgtw\"\nC;X2;Y4;K\"Units\\\\Creeps\\\\Medivh\\\\Medivh.mdx\"\nC;X3;Y4;K1\nC;X4;Y4;K1\nE\n");old[4]=G_SetSLKRows("UnitUI",rows[4]);
+    rows[5]=parse_slk_string("ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;Y1;K\"code\"\nC;X3;Y1;K\"levels\"\nC;X4;Y1;K\"Dur1\"\nC;X5;Y1;K\"HeroDur1\"\nC;X6;Y1;K\"BuffID1\"\nC;X7;Y1;K\"targs1\"\nC;X8;Y1;K\"Area1\"\nC;X1;Y2;K\"Afrz\"\nC;X2;Y2;K\"Afrz\"\nC;X3;Y2;K1\nC;X4;Y2;K5\nC;X5;Y2;K5\nC;X6;Y2;K\"Bfrz\"\nC;X7;Y2;K\"structure,enemy\"\nC;X8;Y2;K100\nE\n");old[5]=G_SetSLKRows("AbilityData",rows[5]);
+    player_t *player=&game.clients[0].ps;
+    FOR_LOOP(i,3){((mapInfo_t *)level.mapinfo)->players[i].used=true;((mapInfo_t *)level.mapinfo)->players[i].playerType=kPlayerTypeHuman;game.clients[i].mapplayer=level.mapinfo->players+i;}
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass(
+        "globals\nunit disabled376Source\nendglobals\n"
+        "function disabled376Issued takes nothing returns nothing\n"
+        "if GetIssuedOrderId()==851982 or GetIssuedOrderId()==851983 then\n"
+        "call SetUnitUserData(GetTriggerUnit(),GetUnitUserData(GetTriggerUnit())*10+GetIssuedOrderId()-851970)\nendif\nendfunction\n"
+        "function disabled376Observe takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerAddAction(t,function disabled376Issued)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set disabled376Source=CreateUnit(Player(0),'hgtw',512.,1024.,0.)\n"
+        "call SetUnitUserData(CreateUnit(Player(1),'Hpal',1600.,1400.,0.),381)\n"
+        "call SetUnitUserData(CreateUnit(Player(2),'hfoo',800.,1024.,0.),382)\nendfunction\n"));
+    edict_t *source=NULL,*target=NULL,*caster=NULL;
+    FILTER_EDICTS(unit,unit->inuse){if(unit->class_id==MAKEFOURCC('h','g','t','w'))source=unit;if(unit->user_data==381)target=unit;if(unit->user_data==382)caster=unit;}
+    T_NOT_NULL(source);T_NOT_NULL(target);T_NOT_NULL(caster);if(!source || !target || !caster)goto cleanup376disabled;
+    T_EQ(source->ai_town_player,1u);T_ASSERT(G_UnitIsStructure(source));T_ASSERT(source->aiflags&AI_IMMOBILE);
+    T_ASSERT(G_ActorHasAbilityCode(source,MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(G_ActorHasAbilityCode(caster,MAKEFOURCC('A','f','r','z')));
+    S_ResolveAttackHit(caster,source,1);
+    T_ASSERT(S_UnitHasStatus(source,MAKEFOURCC('B','f','r','z')));
+    T_ASSERT(S_AbilityExecutionDisabled(source,MAKEFOURCC('A','a','t','k')));
+    bool counted=false;for(unitAbilityDisable_t const *a=source->ability_disables;a;a=a->next)if(a->code==MAKEFOURCC('A','a','t','k')){counted=true;T_ASSERT(a->depth>0);T_EQ(a->order_depth,0);}
+    T_ASSERT(counted);
+    char stop_script[]="function disabled376Stop takes nothing returns nothing\nif IssueImmediateOrder(disabled376Source,\"stop\") then\ncall SetUnitUserData(disabled376Source,376)\nendif\nendfunction\n";
+    T_ASSERT(jass_dobuffer(level.vm,stop_script));
+    jass_callbyname(level.vm,"disabled376Stop",false);T_EQ(source->user_data,376);T_ASSERT(!G_UnitHasActiveOrder(source));
+    jass_callbyname(level.vm,"disabled376Observe",false);
+    char command[]="function disabled376Suicide takes nothing returns nothing\ncall SuicideUnitEx(1,'hgtw',1)\nendfunction\n";
+    T_ASSERT(jass_dobuffer(level.bots[0].vm,command));
+    jasscoroutine_t *call=jass_startcoroutinebynameforplayer(level.bots[0].vm,"disabled376Suicide",player);T_NOT_NULL(call);if(call)jass_resume(level.bots[0].vm,call);
+    T_EQ(source->user_data,37733); /* 376 -> 3772 -> 37733 through real events. */
+    T_EQ(ARRAY_COUNT(level.bots[0].captains[0].units),0u);
+    T_NULL(move_unit_group(source)); /* Immobile d000f is not a moving owner. */
+    T_ASSERT(S_AbilityExecutionDisabled(source,MAKEFOURCC('A','a','t','k')));
+cleanup376disabled:
+    G_BotStop(0);level.started=false;reset_entities();
+    G_SetSLKRows("UnitData",old[0]);free_slk_rows(rows[0]);
+    G_SetSLKRows("UnitBalance",old[1]);free_slk_rows(rows[1]);
+    G_SetSLKRows("UnitWeapons",old[2]);free_slk_rows(rows[2]);
+    G_SetSLKRows("UnitAbilities",old[3]);free_slk_rows(rows[3]);
+    G_SetSLKRows("UnitUI",old[4]);free_slk_rows(rows[4]);
+    G_SetSLKRows("AbilityData",old[5]);free_slk_rows(rows[5]);
+    setup_test_world();
+}
+
 #endif

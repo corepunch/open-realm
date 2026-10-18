@@ -902,7 +902,7 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     currentplayer = saved_currentplayer;
 }
 
-TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
+TEST(wc3_api, undead_race_and_public_unit_classification) {
     edict_t *undead = NULL;
     UnitData_t undead_data = { .id = MAKEFOURCC('u','g','h','o'), .race = "undead" };
 
@@ -922,6 +922,7 @@ TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set raceSubject = CreateUnit(Player(0), 'ugho', 0.0, 0.0, 0.0)\n"
+        "  call BJassAssert(UnitAddType(raceSubject, ConvertUnitType(14)), \"explicit live classification\")\n"
         "endfunction\n"));
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('u','g','h','o')) {
@@ -1988,7 +1989,7 @@ TEST(wc3_api, unit_type_ground_uses_authored_foot_movement) {
     T_NOT_NULL(gryphon);
     if (footman) {
         T_STREQ(footman->data.UnitData->moveTypeName, "foot");
-        T_ASSERT(!(footman->script_unit_types & (1u << 4)));
+        T_EQ(G_UnitTypeClassificationFlag(WC3_UNIT_TYPE_GROUND),0);
         T_ASSERT(!(footman->aiflags & AI_FLYING));
     }
     if (gryphon) {
