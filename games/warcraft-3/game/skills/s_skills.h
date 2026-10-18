@@ -87,6 +87,7 @@ void S_ScheduleMorphExpiration(edict_t *,float duration);
 bool S_HoldMorphAnimation(edict_t *);
 BZ_ABILITY_PROC(CAbilityAttack);
 BZ_ABILITY_PROC(CAbilityAttackScan);
+BZ_ABILITY_PROC(CAbilityCaptainSelection);
 BZ_ABILITY_PROC(CAbilityTimedLife);
 void S_ApplyTimedLife(edict_t *,uint32_t,float);
 void S_PauseTimedLife(edict_t *,bool);

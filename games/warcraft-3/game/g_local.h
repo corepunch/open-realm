@@ -2205,6 +2205,7 @@ struct edict_s {
     uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     uint32_t class_id;
     uint64_t own_seq; /* Current owned-pool insertion order; independent of edict address. */
+    uint64_t class_seq; /* Immutable CUnit class insertion; owner transfers do not reorder queries. */
     uint32_t ai_guard_handle; /* Derived guard slot/player; rebuilt from saved posts. */
     uint32_t ai_town_spot, ai_town_player, ai_anchor_spot; /* Map-owned CTownSpot indexes; zero is absent. */
     uint32_t variation;
@@ -2762,7 +2763,7 @@ typedef enum {
     BOT_CAPTAIN_IDLE,
     BOT_CAPTAIN_FORMING,
     BOT_CAPTAIN_ACTIVE,
-    BOT_CAPTAIN_RETREATING,
+    BOT_CAPTAIN_TARGETED, /* Native state3; retreat itself is policy_flags.bit2. */
 } botCaptainState_t;
 
 enum {
@@ -2775,6 +2776,15 @@ typedef struct {
     edict_t *unit;
     uint32_t birth;
 } botCaptainTarget_t;
+
+typedef struct {
+    abilityPrimaryTimer_t request; /* Native +98 d01c2; distinct from +84 periodic. */
+    ARRAY(botCaptainTarget_t, pending);
+    uint32_t pending_first, pending_capacity;
+    botCaptainTarget_t best[12];
+    uint32_t scores[12], player;
+    bool initialized;
+} botCaptainSelection_t;
 
 typedef struct {
     ARRAY(edict_t *, units);
@@ -2792,6 +2802,7 @@ typedef struct {
     int32_t strength_count; /* Nativec0 roster deltas, not a health sum. */
     uint32_t policy_flags; /* Native6c: retreat2 and target-strength-ready1000. */
     wc3Clock_t update_due; /* Native repeating d01c1, one second from actor creation. */
+    botCaptainSelection_t selection;
     vec2_t position; /* Compatibility logical TeleportCaptain position; physical tasks remain Move-owned. */
     bool position_valid;
     botCaptainState_t state;
@@ -4729,8 +4740,10 @@ typedef struct {
     edict_t const *actor, *source, *target;
     vec2_t from, to;
     uint32_t budget;
+    uint8_t coarse_mask; /* Zero uses actor policy; native selection supplies its own lane. */
 } moveOwnerDistance_t;
 uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *,uint32_t *);
+void S_UnitPredictedWorldPosition(edict_t const *,vec2_t *);
 bool G_FindCargoShorePair(edict_t const *,edict_t const *,vec2_t *,vec2_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);

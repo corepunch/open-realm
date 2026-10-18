@@ -765,5 +765,137 @@ TEST(wc3_bot, captain_clear368_follow_inverse_and_saved_point) {
     remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
 }
 
+/* Native1357 Begin retains the current point and waits for d01c2. Clear in
+ * the same callback cancels only this selection owner, leaving periodic work. */
+TEST(wc3_bot, captain_selection369_immediate_clear_preserves_pending_point) {
+    CaptainPolicyWorld();
+    FOR_LOOP(p,2) {
+        ((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;
+    }
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *members[6];
+    FOR_LOOP(i,6) {
+        members[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),256+80*(i/4)},0);
+        members[i]->mana.value=100;members[i]->mana.max_value=200;
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *target=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1600,1024},0);
+    target->targtype=TARG_GROUND;S_SetUnitPaused(target,true);gi.LinkEntity(target);
+    uint32_t flags=player->rdflags;player->rdflags|=RDF_NOFOG;
+    T_ASSERT(target->inuse && target->health.value>0);
+    T_ASSERT(G_FowPlayerCanHoverEntity(0,target));
+    vec2_t point={256,1600};G_BotCaptainAttack(player,&point);
+    wc3Clock_t periodic=captain->update_due;
+    G_BotCaptainVsPlayer(player,&game.clients[1].ps);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(point.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(point.y));
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);T_NULL(captain->target.unit);
+    FOR_LOOP(i,6)T_ASSERT(members[i]->attack_target!=target);
+    G_BotClearCaptainTargets(player);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,24) {level.time+=5;globals.RunFrame();}
+    T_NULL(captain->target.unit);T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(point.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(point.y));
+    T_EQ(wc3_float_bits(captain->update_due.time),wc3_float_bits(periodic.time));
+    T_EQ(captain->update_due.epoch,periodic.epoch);
+    player->rdflags=flags;G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+/* Reachable native bucket2 becomes primary/state3 only after the independently
+ * scheduled .1-second owner fires; publication is a Captain point request. */
+TEST(wc3_bot, captain_selection369_reachable_target_is_deferred_primary) {
+    CaptainPolicyWorld();
+    FOR_LOOP(p,2) {
+        ((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;
+    }
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *members[6];
+    FOR_LOOP(i,6) {
+        members[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),256+80*(i/4)},0);
+        members[i]->mana.value=100;members[i]->mana.max_value=200;
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *target=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1600,1024},0);
+    target->targtype=TARG_GROUND;S_SetUnitPaused(target,true);gi.LinkEntity(target);
+    uint32_t flags=player->rdflags;player->rdflags|=RDF_NOFOG;
+    T_ASSERT(target->inuse && target->health.value>0);
+    T_ASSERT(G_FowPlayerCanHoverEntity(0,target));
+    vec2_t point={256,1600};G_BotCaptainAttack(player,&point);
+    G_BotCaptainVsPlayer(player,&game.clients[1].ps);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(point.x));T_NULL(captain->target.unit);
+    T_ASSERT(captain->selection.request.active);
+    T_EQ(ARRAY_COUNT(captain->selection.pending),1);
+    T_EQ(captain->selection.pending[0].unit,target);
+    abilityPrimaryTimer_t pending=captain->selection.request;
+    uint64_t class_order=target->class_seq;
+    G_SetUnitPlayer(target,2);G_SetUnitPlayer(target,1);
+    T_EQ(target->class_seq,class_order);T_ASSERT(target->own_seq>class_order);
+    cstring_t file=Test_TempPath("wc3-captain-selection369.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_ASSERT(captain->selection.request.active);
+    T_EQ(captain->selection.request.sequence,pending.sequence);
+    T_EQ(wc3_float_bits(captain->selection.request.deadline.time),wc3_float_bits(pending.deadline.time));
+    T_EQ(captain->selection.request.deadline.epoch,pending.deadline.epoch);
+    T_EQ(ARRAY_COUNT(captain->selection.pending),1);
+    T_EQ(captain->selection.pending[0].unit,target);T_EQ(target->class_seq,class_order);
+    remove(file);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,24) {level.time+=5;globals.RunFrame();}
+    T_EQ(captain->target.unit,target);T_EQ(captain->target.birth,target->spawn_time);
+    /* Native state3 represents a selected primary; retreat remains flags.bit2. */
+    T_EQ(captain->state,(botCaptainState_t)3);T_ASSERT(!G_BotCaptainRetreating(player));
+    T_ASSERT(captain->policy_flags&4);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(target->s.origin2.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(target->s.origin2.y));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    FOR_LOOP(i,6)T_ASSERT(members[i]->attack_target!=target);
+    player->rdflags=flags;G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+
+/* Repeated307-marker native RemoveUnit/control: primary inverse rearms at1424,
+ * retains selected state3, then the empty query expires independently at1427. */
+TEST(wc3_bot, captain_selection369_selected_primary_loss_rearms_query) {
+    CaptainPolicyWorld();
+    FOR_LOOP(p,2) {((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;}
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    FOR_LOOP(i,6) {edict_t *u=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),256+80*(i/4)},0);u->mana.value=100;u->mana.max_value=200;}
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *target=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1600,1024},0);
+    S_SetUnitPaused(target,true);gi.LinkEntity(target);
+    G_BotCaptainAttack(player,&(vec2_t){256,1600});
+    G_BotCaptainVsPlayer(player,&game.clients[1].ps);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,24){level.time+=5;globals.RunFrame();}
+    T_EQ(captain->target.unit,target);T_EQ(captain->state,BOT_CAPTAIN_TARGETED);
+    T_ASSERT(!captain->selection.request.active);
+    uint32_t previous=captain->selection.request.sequence;
+    wc3Clock_t periodic=captain->update_due,now=G_TimerQueryClock(NULL);
+    G_FreeEdict(target);
+    T_NULL(captain->target.unit);T_EQ(captain->state,BOT_CAPTAIN_TARGETED);
+    T_ASSERT(captain->selection.request.active);
+    T_ASSERT(captain->selection.request.sequence>previous);
+    T_EQ(wc3_float_bits(captain->selection.request.deadline.time),wc3_float_bits(wc3_add(now.time,wc3_float(0x3dcccccd))));
+    T_EQ(captain->selection.player,1);T_ASSERT(captain->policy_flags&4);
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_REQUEST_RESTORED);
+    T_EQ(wc3_float_bits(captain->update_due.time),wc3_float_bits(periodic.time));T_EQ(captain->update_due.epoch,periodic.epoch);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
 
 #endif

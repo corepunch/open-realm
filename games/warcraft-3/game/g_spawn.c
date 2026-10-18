@@ -476,6 +476,7 @@ edict_t *G_Spawn(void) {
 void G_UnitOwnerInsert(edict_t *unit) {
     if (level.next_unit_seq==UINT64_MAX) gi.error("WC3 unit owned-pool sequence exhausted\n");
     unit->own_seq=++level.next_unit_seq;
+    if(!unit->class_seq)unit->class_seq=unit->own_seq;
 }
 
 /* Confirm a candidate variation resolves through the authoritative VFS. */

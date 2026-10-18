@@ -42,6 +42,7 @@ static ability_t abilitylist[] = {
     { "attackscan", CAbilityAttackScan, AB_INNATE | AB_TYPE_INIT }, /* Constructor-only Attack request. */
     { "BTLF", CAbilityTimedLife, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { "spellcast", CAbilitySpellCast, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
+    { "captainselection", CAbilityCaptainSelection, AB_PRIMARY_TIMER },
     { "morphtransition", CAbilityMorphTransition, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER | AB_UPDATE | AB_TYPE_UPDATE },
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND | AB_PRIMARY_TIMER | AB_ENGINE_EVENTS, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner

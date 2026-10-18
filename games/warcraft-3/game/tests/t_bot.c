@@ -952,7 +952,7 @@ TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
     bot->captains[BOT_CAPTAIN_ATTACK].full = true;
     bot->captains[BOT_CAPTAIN_ATTACK].home.x = 128;
-    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
+    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_TARGETED;
     bot->captains[BOT_CAPTAIN_DEFENSE].full = true;
     bot->captains[BOT_CAPTAIN_DEFENSE].goal.y = 256;
 
@@ -1028,7 +1028,7 @@ TEST(wc3_bot, captain_retreating_reads_attack_policy_bit_independently_of_state)
 
     bot->player = player;
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
-    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
+    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_TARGETED;
     T_ASSERT(!G_BotCaptainRetreating(player));
 
     bot->captains[BOT_CAPTAIN_ATTACK].policy_flags = BOT_CAPTAIN_RETREAT_FLAG;
@@ -2392,28 +2392,46 @@ TEST(wc3_bot, captain_goal_query_uses_move_owned_actor) {
     G_BotCreateCaptains(player);
 }
 
-TEST(wc3_bot, captain_targeting_selects_one_visible_group_objective) {
-    player_t *player = &game.clients[2].ps;
-    player_t *enemy_player = &game.clients[3].ps;
-    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
-    edict_t *a, *b, *enemy_a, *enemy_b;
-    uint32_t rdflags = player->rdflags;
-    reset_entities();
-    memset(level.bots + 2, 0, sizeof(level.bots[2]));
-    a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 128, 2, NULL);
-    b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 640, 128, 2, NULL);
-    enemy_a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 96, 128, 3, NULL);
-    enemy_b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 608, 128, 3, NULL);
-    enemy_a->svflags |= SVF_MONSTER;
-    enemy_b->svflags |= SVF_MONSTER;
-    T_ASSERT(G_BotAddAssault(player, 2, a->class_id));
-    player->rdflags |= RDF_NOFOG; /* isolate target-scoring from fog fixture */
-    G_BotCaptainVsUnits(player, enemy_player);
-    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-    T_FEQ(captain->goal.x, enemy_a->s.origin2.x, 0.01f);
-    T_ASSERT(a->goalentity == enemy_a && b->goalentity == enemy_a);
-    player->rdflags = rdflags;
-    G_BotCreateCaptains(player);
+/* Retail369 replaces the former immediate nearest-member heuristic: query
+ * order is reverse class birth, while distance is from the Captain actor. */
+TEST(wc3_bot, captain_targeting_selects_one_deferred_group_objective) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    static uint8_t cells[64*64];memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.timer_clock_valid=false;
+    FOR_LOOP(p,4) {
+        ((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;
+    }
+    player_t *player=&game.clients[2].ps,*enemy_player=&game.clients[3].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,128,128);
+    edict_t *a=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,256},0);
+    edict_t *b=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){640,256},0);
+    edict_t *enemy_a=unit_create(3,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,128},0);
+    edict_t *enemy_b=unit_create(3,MAKEFOURCC('h','f','o','o'),&(vec2_t){896,128},0);
+    S_SetUnitPaused(enemy_a,true);S_SetUnitPaused(enemy_b,true);
+    T_ASSERT(G_BotAddAssault(player,2,a->class_id));
+    botCaptain_t *captain=level.bots[2].captains;
+    vec2_t retained={128,1024};G_BotCaptainAttack(player,&retained);
+    G_BotCaptainVsPlayer(player,enemy_player);
+    T_EQ(captain->goal.x,retained.x);T_EQ(captain->goal.y,retained.y);
+    T_NULL(captain->target.unit);T_ASSERT(captain->selection.request.active);
+    T_EQ(ARRAY_COUNT(captain->selection.pending),2);
+    T_EQ(captain->selection.pending[0].unit,enemy_b);
+    T_EQ(captain->selection.pending[1].unit,enemy_a);
+    level.pathing_clock.time=wc3_float(0x3dcccccd);
+    CAbilityCaptainSelection(NULL,A_PRIMARY_TIMER,NULL);
+    T_EQ(ARRAY_COUNT(captain->selection.pending),1);T_NULL(captain->target.unit);
+    T_EQ(captain->goal.x,retained.x);T_ASSERT(captain->selection.request.active);
+    level.pathing_clock.time=wc3_add(level.pathing_clock.time,wc3_float(0x3dcccccd));
+    CAbilityCaptainSelection(NULL,A_PRIMARY_TIMER,NULL);
+    T_EQ(captain->target.unit,enemy_a);T_EQ(captain->state,BOT_CAPTAIN_TARGETED);
+    T_EQ(captain->goal.x,enemy_a->s.origin2.x);T_EQ(captain->goal.y,enemy_a->s.origin2.y);
+    T_ASSERT(!captain->selection.request.active);
+    T_ASSERT(a->attack_target!=enemy_a);T_ASSERT(b->attack_target!=enemy_a);
+    G_BotStop(2);reset_entities();setup_test_world();
 }
 
 

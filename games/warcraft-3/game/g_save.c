@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 208; /* Per-event mixed-owner target subscription ranks. */
+static uint32_t const save_version = 209; /* Captain deferred selection owners and immutable unit class order. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1260,6 +1260,7 @@ field_t edict_fields[] = {
     F(edict_s, build_preview, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spawn_time, F_INT),
     F(edict_s, own_seq, F_INT, 2),
+    F(edict_s, class_seq, F_INT, 2),
     F(edict_s, ai_town_spot, F_INT),
     F(edict_s, ai_town_player, F_INT),
     F(edict_s, ai_anchor_spot, F_INT),
@@ -3227,11 +3228,16 @@ static bool ValidOwnedUnits(void) {
             if (unit->svflags&SVF_MONSTER) valid=false;
             continue;
         }
-        if (unit->own_seq>level.next_unit_seq || unit->s.player>=MAX_PLAYERS) valid=false;
+        if (unit->own_seq>level.next_unit_seq || unit->s.player>=MAX_PLAYERS ||
+            !unit->class_seq || unit->class_seq>unit->own_seq) valid=false;
         seq[count++]=unit->own_seq;
     }
     qsort(seq,count,sizeof(*seq),CompareOwnerSequence);
     FOR_LOOP(i,count) if (i && seq[i]==seq[i-1]) valid=false;
+    count=0;
+    FILTER_EDICTS(unit,unit->inuse && unit->own_seq)seq[count++]=unit->class_seq;
+    qsort(seq,count,sizeof(*seq),CompareOwnerSequence);
+    FOR_LOOP(i,count)if(i && seq[i]==seq[i-1])valid=false;
     gi.MemFree(seq);
     return valid;
 }

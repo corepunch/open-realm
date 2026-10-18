@@ -880,7 +880,7 @@ uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *input,uint32_t *work) {
     vec2_t const *from=&input->from,*to=&input->to;
     if(work)*work=0;
     if (!pathmap.width || !pathmap.height) return UINT32_MAX;
-    unsigned lane=0;uint8_t mask=S_UnitMoveCoarseMask(actor);
+    unsigned lane=0;uint8_t mask=input->coarse_mask ? input->coarse_mask : S_UnitMoveCoarseMask(actor);
     while (lane<4 && move_acc_masks[lane]!=mask) lane++;
     if (lane==4) gi.error("Captain: unsupported coarse mask %02x",mask);
     move_acc_prepare();move_acc_enable_gates();move_spatial_sync();

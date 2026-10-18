@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Captain368, the inventory has **592 entries**: **311** oracle contracts
-(including variants) supplied by **239** distinct verifier scripts, **121**
+As of Captain369, the inventory has **593 entries**: **312** oracle contracts
+(including variants) supplied by **240** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Captain368
-inventory has592 entries:311 oracle contracts supplied by239 distinct verifier
+identity, source versions and frozen input hashes. The current Captain369
+inventory has593 entries:312 oracle contracts supplied by240 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2413,3 +2413,7 @@ Captain policy/motion remain within existing GROUP-03.4.7.3.
 Captain368 registers the synchronous ClearCaptainTargets retained-point and living-source
 inverse. Its strict gate passes2 tests/50 assertions per edition, with551 original
 guards and684 public markers. Separate selection and the wider Captain leaf remain open.
+
+Captain369 registers independent deferred target selection, pending cold save and primary-loss
+restore/rearm. Its strict gate passes3 tests/72 assertions per edition, with3740 original
+guards and1533 public markers. Wider Captain policy remains in the existing leaf.

@@ -232,6 +232,7 @@ static void G_BotClearCaptains(bot_t *bot) {
         G_ClearTargetSubscriptionOwner(TARGET_OWNER_CAPTAIN,bot->captains+i);
         S_ReleaseCaptainHomeActor(bot->captains[i].home_actor);
         gi.MemFree(bot->captains[i].units_storage ? bot->captains[i].units_storage : bot->captains[i].units);
+        gi.MemFree(bot->captains[i].selection.pending);
         memset(bot->captains + i, 0, sizeof(bot->captains[i]));
     }
 }
@@ -1080,7 +1081,7 @@ static bool G_BotReevaluateCaptain(bot_t *bot,botCaptain_t *captain) {
     if (!go_home) return false;
     captain->target=captain->follow=captain->backup=(botCaptainTarget_t){0};
     G_RefreshCaptainTargetSubscriptions(captain);
-    if (captain->state==BOT_CAPTAIN_RETREATING) captain->state=BOT_CAPTAIN_ACTIVE;
+    if (captain->state==BOT_CAPTAIN_TARGETED) captain->state=BOT_CAPTAIN_ACTIVE;
     if (count) captain->policy_flags|=BOT_CAPTAIN_RETREAT_FLAG;
     S_CaptainGoHome(captain);
     return true;
@@ -1271,6 +1272,20 @@ static void G_BotWithdrawCaptainUnit(edict_t *unit,bool removed) {
     }
 }
 
+static void G_BotBeginSelection(bot_t *,botCaptain_t *,uint32_t,bool,bool);
+
+/*9d2700 copies the remaining follow identity into primary, restores its
+ * request and rearms the saved query only for selected state3 without a source. */
+static void G_BotRecoverCaptainPrimary(bot_t *bot,botCaptain_t *captain) {
+    edict_t *target=G_BotCaptainTarget(&captain->follow);
+    captain->target=G_BotCaptainIdentity(target);
+    S_CaptainTargetMove(captain,target,true,200);
+    captain->policy_flags|=BOT_CAPTAIN_REQUEST_RESTORED;
+    if(captain->state==BOT_CAPTAIN_TARGETED && !target)
+        G_BotBeginSelection(bot,captain,captain->selection.player,
+            (captain->policy_flags&0x80u)!=0,(captain->policy_flags&4u)!=0);
+}
+
 /*9d7760 is one concrete callback in the target's shared event registry.
  * It removes this Captain's subscription before recovery can nest another
  * publication. Roster membership and retained roles share that callback. */
@@ -1281,7 +1296,6 @@ void G_BotCaptainTargetEvent(botCaptain_t *captain,edict_t *unit) {
         if(captain==level.bots[p].captains+c)bot=level.bots+p;
     if(!bot)return;
     G_RemoveCaptainTargetSubscription(captain,unit);
-    bool retained=captain->target.unit==unit && captain->target.birth==unit->spawn_time;
     /*9d7850..7878 privately admits d0006 for members whose current Attack
      * retains this target. Admission retires the old head before AI Stop. */
     uint32_t count=ARRAY_COUNT(captain->units);
@@ -1302,10 +1316,11 @@ void G_BotCaptainTargetEvent(botCaptain_t *captain,edict_t *unit) {
         break;
     }
     G_BotReevaluateCaptain(bot,captain);
+    bool retained=captain->target.unit==unit && captain->target.birth==unit->spawn_time;
     if(captain->follow.unit==unit) {
         captain->follow=captain->backup;captain->backup=(botCaptainTarget_t){0};
         if(retained) {
-            captain->target=(botCaptainTarget_t){0};
+            G_BotRecoverCaptainPrimary(bot,captain);
             if(ARRAY_COUNT(captain->units)<3)S_CaptainGoHome(captain);
         } else {
             edict_t *next=G_BotCaptainTarget(&captain->follow);
@@ -1318,7 +1333,7 @@ void G_BotCaptainTargetEvent(botCaptain_t *captain,edict_t *unit) {
     } else if(captain->backup.unit==unit) {
         captain->backup=(botCaptainTarget_t){0};
         if(retained)captain->target=captain->follow;
-    } else if(retained)captain->target=(botCaptainTarget_t){0};
+    } else if(retained)G_BotRecoverCaptainPrimary(bot,captain);
     G_RefreshCaptainTargetSubscriptions(captain);
 }
 
@@ -1470,6 +1485,9 @@ typedef struct {
     float request_range;
     uint32_t actor,count,home_set,full,state,policy_flags,point_order;
     int32_t strength_count;
+    abilityPrimaryTimer_t selection_request;
+    uint32_t selection_player,selection_initialized,selection_count;
+    uint32_t selection_best[12],selection_birth[12],selection_scores[12];
 } botCaptainSave_t;
 
 typedef struct {
@@ -1549,11 +1567,29 @@ bool G_WriteCaptainState(FILE *file) {
                 .update_due=captain->update_due,.request_range=captain->request_range,.policy_flags=captain->policy_flags,.strength_count=captain->strength_count,
                 .actor=captain->home_actor ? (uint32_t)(captain->home_actor-g_edicts)+1 : 0,
                 .count=ARRAY_COUNT(captain->units),.home_set=captain->home_set,.full=captain->full,.state=captain->state};
+            botCaptainSelection_t const *selection=&captain->selection;
+            record.selection_request=selection->request;
+            record.selection_player=selection->player;record.selection_initialized=selection->initialized;
+            record.selection_count=ARRAY_COUNT(selection->pending);
+            if(record.selection_count && (!selection->pending || selection->pending_first>selection->pending_capacity ||
+                record.selection_count>selection->pending_capacity-selection->pending_first))return false;
+            FOR_LOOP(i,12) {
+                botCaptainTarget_t ref=selection->best[i];
+                if(ref.unit && (ref.unit<g_edicts || ref.unit>=g_edicts+globals.num_edicts))return false;
+                record.selection_best[i]=ref.unit ? (uint32_t)(ref.unit-g_edicts)+1 : 0;
+                record.selection_birth[i]=ref.birth;record.selection_scores[i]=selection->scores[i];
+            }
             if (record.count>globals.num_edicts || (record.count && !captain->units) ||
                 (record.actor && (record.actor>globals.num_edicts || !captain->home_actor->inuse))) return false;
             FOR_LOOP(t,3)if(record.target[t] && (record.target[t]>globals.num_edicts ||
                 !g_edicts[record.target[t]-1].inuse || g_edicts[record.target[t]-1].spawn_time!=record.target_birth[t]))return false;
             if (fwrite(&record,sizeof(record),1,file)!=1) return false;
+            FOR_LOOP(i,record.selection_count) {
+                botCaptainTarget_t ref=selection->pending[selection->pending_first+i];
+                if(!ref.unit || ref.unit<g_edicts || ref.unit>=g_edicts+globals.num_edicts)return false;
+                uint32_t words[]={(uint32_t)(ref.unit-g_edicts)+1,ref.birth};
+                if(fwrite(words,sizeof(words),1,file)!=1)return false;
+            }
             FOR_LOOP(i,record.count) {
                 edict_t const *unit=captain->units[i];
                 if (!unit || unit<g_edicts || unit>=g_edicts+globals.num_edicts || !unit->inuse) return false;
@@ -1579,7 +1615,7 @@ bool G_ReadCaptainState(FILE *file) {
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptainSave_t record;
             if (fread(&record,sizeof(record),1,file)!=1 || record.count>globals.num_edicts ||
-                record.actor>globals.num_edicts || record.home_set>1 || record.full>1 || record.position_valid>1 || record.state>BOT_CAPTAIN_RETREATING ||
+                record.actor>globals.num_edicts || record.home_set>1 || record.full>1 || record.position_valid>1 || record.state>BOT_CAPTAIN_TARGETED ||
                 !isfinite(record.active_goal.x) || !isfinite(record.active_goal.y) ||
                 !isfinite(record.position.x) || !isfinite(record.position.y) ||
                 !isfinite(record.home.x) || !isfinite(record.home.y) || !isfinite(record.goal.x) || !isfinite(record.goal.y) ||
@@ -1587,7 +1623,15 @@ bool G_ReadCaptainState(FILE *file) {
                 !isfinite(record.update_due.time) || !isfinite(record.update_due.span) || record.update_due.span<0 ||
                 !isfinite(record.request_range) || record.request_range<0 ||
                 (record.point_order && record.point_order!=851986u && record.point_order!=851988u) ||
-                (record.policy_flags&~(BOT_CAPTAIN_RETREAT_FLAG|BOT_CAPTAIN_STRENGTH_READY|BOT_CAPTAIN_REQUEST_RESTORED))) return false;
+                record.selection_initialized>1 || record.selection_player>=MAX_PLAYERS ||
+                record.selection_count>MAX_ENTITIES*MAX_ENTITIES ||
+                !isfinite(record.selection_request.deadline.time) || !isfinite(record.selection_request.deadline.span) ||
+                record.selection_request.deadline.span<0 ||
+                (record.selection_request.active && (!record.selection_initialized || !record.selection_request.sequence ||
+                    record.selection_request.sequence>level.timer_sequence)) ||
+                (record.policy_flags&~(BOT_CAPTAIN_RETREAT_FLAG|BOT_CAPTAIN_STRENGTH_READY|BOT_CAPTAIN_REQUEST_RESTORED|0x8384u))) return false;
+            FOR_LOOP(i,12)if(record.selection_best[i]>globals.num_edicts ||
+                (!record.selection_best[i] && record.selection_birth[i]) || record.selection_scores[i]>999999)return false;
             FOR_LOOP(t,3)if(record.target[t]>globals.num_edicts || (!record.target[t] && record.target_birth[t]) ||
                 (record.target[t] && (!g_edicts[record.target[t]-1].inuse ||
                  g_edicts[record.target[t]-1].spawn_time!=record.target_birth[t])))return false;
@@ -1598,6 +1642,7 @@ bool G_ReadCaptainState(FILE *file) {
             /* Old arrays are process-owned, but old actor addresses already
              * denote restored edicts here. Do not retire those new actors. */
             gi.MemFree(captain->units_storage ? captain->units_storage : captain->units);
+            gi.MemFree(captain->selection.pending);
             *captain=(botCaptain_t){.home=record.home,.goal=record.goal,.position=record.position,
                 .active_goal=record.active_goal,
                 .target={record.target[0] ? g_edicts+record.target[0]-1 : NULL,record.target_birth[0]},
@@ -1606,6 +1651,22 @@ bool G_ReadCaptainState(FILE *file) {
                 .position_valid=record.position_valid,.created=record.created,.point_order=record.point_order,
                 .update_due=record.update_due,.request_range=record.request_range,.policy_flags=record.policy_flags,.strength_count=record.strength_count,
                 .home_actor=actor,.home_set=record.home_set,.full=record.full,.state=record.state};
+            botCaptainSelection_t *selection=&captain->selection;
+            selection->request=record.selection_request;selection->player=record.selection_player;
+            selection->initialized=record.selection_initialized;
+            FOR_LOOP(i,12) {
+                selection->best[i]=(botCaptainTarget_t){record.selection_best[i] ? g_edicts+record.selection_best[i]-1 : NULL,record.selection_birth[i]};
+                selection->scores[i]=record.selection_scores[i];
+            }
+            if(record.selection_count) {
+                selection->pending=gi.MemAlloc(record.selection_count*sizeof(*selection->pending));
+                selection->pending_capacity=ARRAY_COUNT(selection->pending)=record.selection_count;
+            }
+            FOR_LOOP(i,record.selection_count) {
+                uint32_t words[2];
+                if(fread(words,sizeof(words),1,file)!=1 || !words[0] || words[0]>globals.num_edicts)return false;
+                selection->pending[i]=(botCaptainTarget_t){g_edicts+words[0]-1,words[1]};
+            }
             if (record.count) {
                 uint32_t capacity=32;
                 while (capacity<record.count) capacity*=2;
@@ -1992,6 +2053,7 @@ void G_BotCaptainAttack(player_t *player,vec2_t const *point) {
     bot_t *bot=player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
     botCaptain_t *captain=bot->captains+BOT_CAPTAIN_ATTACK;
+    captain->selection.request.active=false;
     captain->state=BOT_CAPTAIN_ACTIVE;
     captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
     captain->position_valid=false;
@@ -2077,6 +2139,7 @@ void G_BotClearCaptainTargets(player_t *player) {
     G_BotCaptainTargetEvent(captain,G_BotCaptainTarget(&captain->backup));
     G_BotCaptainTargetEvent(captain,G_BotCaptainTarget(&captain->follow));
     G_BotCaptainTargetEvent(captain,G_BotCaptainTarget(&captain->target));
+    captain->selection.request.active=false;
 }
 
 void G_BotResetCaptainLocs(player_t *player) {
@@ -2267,54 +2330,153 @@ bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
     return true;
 }
 
-/* BZ_COMPAT_GUESS: VsUnits targets enemy units only; VsPlayer also
- * targets buildings. Select ONE visible enemy as captain objective, rather
- * than repeatedly overwriting the shared goal with each soldier's target.
- * G_FowPlayerCanHoverEntity requires CURRENT visibility for structures as
- * well as units (CanSeeEntity deliberately includes explored buildings). */
-static void G_BotCaptainVsTarget(player_t *player, player_t *enemy, bool units_only) {
-    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    botCaptain_t *captain;
-    edict_t *best = NULL;
-    float best_distance = 0.0f;
-    bool any = false;
-    if (!bot || !enemy) return;
-    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
-    FILTER_EDICTS(candidate, G_BotUnitAlive(candidate) &&
-        candidate->s.player == PLAYER_NUM(enemy) &&
-        ((candidate->svflags & SVF_MONSTER) || G_UnitIsStructure(candidate)) &&
-        (!units_only || !G_UnitIsStructure(candidate)) &&
-        !(candidate->svflags & SVF_NOCLIENT) &&
-        !S_UnitIsHiddenFromPlayer(candidate, PLAYER_NUM(player)) &&
-        G_FowPlayerCanHoverEntity(PLAYER_NUM(player), candidate)) {
-        FOR_EACH_ARRAY(edict_t *, member, captain->units) {
-            float distance;
-            if (!G_BotUnitAlive(*member)) continue;
-            distance = Vector2_distance(&(*member)->s.origin2, &candidate->s.origin2);
-            if (!best || distance < best_distance) {
-                best = candidate;
-                best_distance = distance;
+/*9d7240/9cf8a0: query the global CUnit class list in reverse birth order.
+ * Pending nodes survive cancellation and a subsequent Begin appends to them. */
+static int G_BotSelectionBirthCompare(void const *a,void const *b) {
+    edict_t const *x=*(edict_t *const *)a,*y=*(edict_t *const *)b;
+    return (x->class_seq<y->class_seq)-(x->class_seq>y->class_seq);
+}
+
+static void G_BotBeginSelection(bot_t *bot,botCaptain_t *captain,uint32_t player,bool suicide,bool player_only) {
+    botCaptainSelection_t *selection=&captain->selection;
+    selection->initialized=true;selection->player=player;
+    captain->policy_flags=(captain->policy_flags&~0x84u)|(suicide ? 0x80u : 0)|(player_only ? 4u : 0);
+    FOR_LOOP(i,12){selection->best[i]=(botCaptainTarget_t){0};selection->scores[i]=999999;}
+    uint32_t own=(uint32_t)(bot-level.bots),count=0;
+    edict_t **units=gi.MemAlloc(globals.num_edicts*sizeof(*units));
+    FILTER_EDICTS(unit,G_BotUnitAlive(unit) && !G_IsDeferredFree(unit) && unit->class_seq &&
+        ((unit->svflags&SVF_MONSTER) || G_UnitIsStructure(unit))) {
+        if(player_only ? unit->s.player!=player : G_PlayerTreatsPlayerAsAlly(own,unit->s.player))continue;
+        units[count++]=unit;
+    }
+    qsort(units,count,sizeof(*units),G_BotSelectionBirthCompare);
+    uint32_t retained=ARRAY_COUNT(selection->pending),needed=retained+count;
+    if(needed>selection->pending_capacity || selection->pending_first) {
+        uint32_t capacity=MAX(32u,selection->pending_capacity);
+        while(capacity<needed)capacity*=2;
+        botCaptainTarget_t *pending=gi.MemAlloc(capacity*sizeof(*pending));
+        if(retained)memcpy(pending,selection->pending+selection->pending_first,retained*sizeof(*pending));
+        gi.MemFree(selection->pending);selection->pending=pending;
+        selection->pending_capacity=capacity;selection->pending_first=0;
+    }
+    FOR_LOOP(i,count)selection->pending[retained+i]=G_BotCaptainIdentity(units[i]);
+    ARRAY_COUNT(selection->pending)=needed;gi.MemFree(units);
+    wc3Clock_t now=G_TimerQueryClock(NULL);now.time=wc3_add(now.time,wc3_float(0x3dcccccd));
+    selection->request=(abilityPrimaryTimer_t){.deadline=now,.sequence=++level.timer_sequence,.active=true};
+}
+
+static bool G_BotSelectionTownHall(edict_t const *unit) {
+    if(unit->class_id==MAKEFOURCC('u','g','o','l'))return true;
+    cstring_t types=unit->data.UnitBalance ? unit->data.UnitBalance->type : NULL;
+    if(!types || !*types)types=unit->data.UnitData ? unit->data.UnitData->unitClassification : NULL;
+    if(types){PARSE_LIST(types,type,parse_segment)if(!strcasecmp(type,"TownHall"))return true;}
+    return false;
+}
+
+/*9d5e00 spends one eligible candidate per tick. Invalidated identities and
+ * script-hidden/invulnerable candidates consume no eligible work budget. */
+static void G_BotSelectionTick(bot_t *bot,botCaptain_t *captain) {
+    botCaptainSelection_t *selection=&captain->selection;
+    uint32_t own=(uint32_t)(bot-level.bots);
+    while(ARRAY_COUNT(selection->pending)) {
+        botCaptainTarget_t ref=selection->pending[selection->pending_first++];
+        ARRAY_COUNT(selection->pending)--;
+        edict_t *unit=G_BotCaptainTarget(&ref),*actor=captain->home_actor;
+        if(!unit || unit->invulnerable || (unit->svflags&SVF_NOCLIENT) ||
+           !G_FowPlayerCanQueryUnit(own,unit,UNIT_VISIBILITY_IGNORE_FOG))continue;
+        uint32_t bucket=(unit->s.player==selection->player ? 0u : 6u)+
+            (G_BotSelectionTownHall(unit) ? 0u : G_UnitIsStructure(unit) ? 1u : 2u);
+        uint32_t score=UINT32_MAX;
+        if(actor && actor->inuse) {
+            vec2_t from,to;S_UnitPredictedWorldPosition(actor,&from);S_UnitPredictedWorldPosition(unit,&to);
+            moveOwnerDistance_t input={.actor=actor,.source=actor,.target=unit,.from=from,.to=to,.budget=5000,
+                .coarse_mask=(captain->policy_flags&0x8000u) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE};
+            score=G_MoveOwnerDistance(&input,NULL);
+            if(score==UINT32_MAX) {
+                bucket+=3;
+                float x=wc3_mul(wc3_sub(from.x,to.x),0.03125f),y=wc3_mul(wc3_sub(from.y,to.y),0.03125f);
+                score=wc3_int_bits(wc3_float_bits(wc3_add(wc3_mul(x,x),wc3_mul(y,y))));
             }
+        } else bucket+=3;
+        if(score<selection->scores[bucket]){selection->scores[bucket]=score;selection->best[bucket]=ref;}
+        break;
+    }
+    if(ARRAY_COUNT(selection->pending)) {
+        selection->request.deadline.time=wc3_add(selection->request.deadline.time,wc3_float(0x3dcccccd));
+        selection->request.sequence=++level.timer_sequence;
+        return;
+    }
+    selection->pending_first=0;selection->request.active=false;
+    bool alternative=wc3_random_range(level.purpose_random+13,3)!=0;
+    static uint8_t const order[2][2][6]={{{2,1,0,8,7,6},{2,0,1,8,6,7}},{{1,0,2,7,6,8},{0,1,2,6,7,8}}};
+    edict_t *chosen=NULL;
+    bool unreachable=false;
+    FOR_LOOP(i,6) {
+        uint32_t bucket=order[(captain->policy_flags&0x80u)!=0][alternative][i];
+        if(captain->policy_flags&0x300u)chosen=G_BotCaptainTarget(selection->best+bucket+3);
+        if(chosen){unreachable=true;break;}
+        chosen=G_BotCaptainTarget(selection->best+bucket);
+        if(chosen)break;
+    }
+    if(!chosen)return;
+    captain->state=BOT_CAPTAIN_TARGETED;captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
+    captain->target=G_BotCaptainIdentity(chosen);G_RefreshCaptainTargetSubscriptions(captain);
+    vec2_t point;S_UnitPredictedWorldPosition(chosen,&point);
+    if((!unreachable || (captain->policy_flags&0x100u)) && bot->stage_valid &&
+       fabsf(wc3_sub(bot->stage.x,-1))>=wc3_float(0x38d1b717))point=bot->stage;
+    captain->position_valid=false;S_CaptainPointMove(captain,&point,200);
+}
+
+static botCaptain_t *G_BotNextSelection(bot_t **owner) {
+    botCaptain_t *best=NULL;
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+        botCaptain_t *captain=level.bots[p].captains+c;
+        abilityPrimaryTimer_t *timer=&captain->selection.request;
+        if(!timer->active)continue;
+        if(!best || timer->deadline.time<best->selection.request.deadline.time ||
+            (timer->deadline.time==best->selection.request.deadline.time && timer->sequence<best->selection.request.sequence)) {
+            best=captain;if(owner)*owner=level.bots+p;
         }
     }
-    if (!best) return; /* Retain previous orders/goal when no valid target is visible. */
-    captain->position_valid = false;
-    captain->goal = best->s.origin2;
-    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
-        if (!G_BotUnitAlive(*member)) continue;
-        order_attack(*member, best);
-        any = true;
+    return best;
+}
+
+BZ_ABILITY_PROC(CAbilityCaptainSelection) {
+    (void)ent;
+    bot_t *bot=NULL;botCaptain_t *captain;
+    switch(msg) {
+    case A_PRIMARY_TIMER_NEXT:
+        if(!call || !call->primary_timer || !(captain=G_BotNextSelection(NULL)))return false;
+        *call->primary_timer=(abilityTimerRequest_t){captain->selection.request.deadline,
+            captain->selection.request.sequence,CAbilityCaptainSelection};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if((captain=G_BotNextSelection(&bot)))G_BotSelectionTick(bot,captain);
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+            abilityPrimaryTimer_t *timer=&level.bots[p].captains[c].selection.request;
+            if(timer->active){timer->deadline.time=wc3_sub(timer->deadline.time,call->clock_span);timer->deadline.epoch++;}
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        if(!level.scheduled_frame)while((captain=G_BotNextSelection(&bot))) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(captain->selection.request.deadline.time>now.time)break;
+            G_BotSelectionTick(bot,captain);
+        }
+        return true;
+    case A_TIMERS_RESET:case A_TIMERS_REBUILD:return true;
+    default:return false;
     }
-    if (any) captain->state = BOT_CAPTAIN_ACTIVE;
 }
 
-void G_BotCaptainVsPlayer(player_t *player, player_t *enemy) {
-    G_BotCaptainVsTarget(player, enemy, false);
+static void G_BotCaptainVsTarget(player_t *player,player_t *enemy,bool player_only) {
+    bot_t *bot=player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if(bot && enemy)G_BotBeginSelection(bot,bot->captains+BOT_CAPTAIN_ATTACK,PLAYER_NUM(enemy),false,player_only);
 }
 
-void G_BotCaptainVsUnits(player_t *player, player_t *enemy) {
-    G_BotCaptainVsTarget(player, enemy, true);
-}
+void G_BotCaptainVsPlayer(player_t *player,player_t *enemy) {G_BotCaptainVsTarget(player,enemy,true);}
+void G_BotCaptainVsUnits(player_t *player,player_t *enemy) {G_BotCaptainVsTarget(player,enemy,false);}
 
 /* MergeUnits reports whether the requested fused count already stands as live,
  * completed, owned units. Automatic a+b->make merge orders are not implemented

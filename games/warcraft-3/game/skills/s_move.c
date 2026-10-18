@@ -2294,6 +2294,12 @@ static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
     *entry=(movePoseCache_t){.unit=self,.key=key,.pose=*pose,.valid=true};
 }
 
+/* Shared native bridge position for AI distance owners; retains Move's exact prediction. */
+void S_UnitPredictedWorldPosition(edict_t const *unit,vec2_t *point) {
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    *point=(vec2_t){pose.world[0],pose.world[1]};
+}
+
 /* Admitted Move publishes nonzero requested speed with its committed velocity;
  * turn/retry stops clear both components. Native c0 excludes moving repulsors. */
 static bool move_repulse_moving(edict_t const *unit) {

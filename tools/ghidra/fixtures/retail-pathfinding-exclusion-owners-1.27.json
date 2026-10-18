@@ -313,7 +313,8 @@
     "oracle-phoenix365",
     "oracle-burrow366",
     "oracle-target363",
-    "oracle-captain368-clear"
+    "oracle-captain368-clear",
+    "oracle-captain369-selection"
   ],
   "entries": [
     {
@@ -7058,6 +7059,18 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "Separate target selection and full Captain policy remain in the original existing leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain369-selection",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Suicide publication, random structure destination, transport, Town preferred-primary override and full journeys remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "Random structure destinations, transport, Suicide publication and Town primary override remain in the original existing leaf."
         }
       ]
     }
