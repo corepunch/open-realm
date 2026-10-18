@@ -311,7 +311,8 @@
     "oracle-group359",
     "oracle-captain358-acquire",
     "oracle-phoenix365",
-    "oracle-burrow366"
+    "oracle-burrow366",
+    "oracle-target363"
   ],
   "entries": [
     {
@@ -7032,6 +7033,18 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "The original separation producer leaf retains Mount reachability, other common Morph producers and combined counted-owner replay; this oracle covers the complete scoped Burrow behavior."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-target363",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Inventory/Missile engine callback ordering, other Captain policies, complete trajectories and retail-save remain existing GROUP-03.4.7.3 and BASE/E2E scope.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "The existing Captain composition leaf retains Inventory/Missile engine ordering, wider Captain policies and complete motion; this oracle certifies typed Move/Attack/Captain subscription ownership only."
         }
       ]
     }

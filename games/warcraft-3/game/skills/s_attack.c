@@ -95,6 +95,7 @@ static void attack_set_target(edict_t *unit,edict_t *target) {
     if(target && level.next_attack_target_sequence==UINT64_MAX)gi.error("Attack: exhausted target subscription sequence");
     unit->attack_target_sequence=target ? ++level.next_attack_target_sequence : 0;
     if(id && other)attack_target_link(id,other);
+    G_SetUnitTargetSubscription(TARGET_OWNER_ATTACK,unit,target);
 }
 
 static int attack_target_compare(void const *a,void const *b) {
@@ -155,22 +156,29 @@ static void attack_deliver_target_event(edict_t *target,bool owner_changed) {
         edict_t *unit=g_edicts+delivery[i].index;
         if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
            unit->attack_target_sequence!=delivery[i].sequence || unit->attack_target!=target)continue;
-#ifdef BZ_TESTS
-        attack_target_visits++;
-        if(attack_test_target_lost)attack_test_target_lost(unit);
-        if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
-           unit->attack_target_sequence!=delivery[i].sequence || unit->attack_target!=target)continue;
-#endif
-        if(owner_changed) {
-            /*49b160: only current-target subscribers receive this event. A
-             * rejected alternative alone never subscribes to owner changes. */
-            if(unit->attack_alternative==target &&
-               unit->attack_alternative_spawn_time==target->spawn_time)
-                attack_set_alternative(unit,NULL);
-            if(!G_PlayerTreatsPlayerAsAlly(target->s.player,unit->s.player))continue;
-        }
-        attack_target_lost(unit,target,owner_changed);
+        S_DeliverAttackTargetEvent(unit,target,owner_changed ? A_TARGET_OWNER_CHANGED : A_TARGET_LOST);
     }
+}
+
+void S_DeliverAttackTargetEvent(edict_t *unit,edict_t *target,abilityMsg_t message) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || unit->attack_target!=target ||
+       unit->attack_target_spawn_time!=target->spawn_time)return;
+#ifdef BZ_TESTS
+    uint64_t sequence=unit->attack_target_sequence;
+    uint32_t birth=unit->spawn_time;
+    attack_target_visits++;
+    if(attack_test_target_lost)attack_test_target_lost(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       unit->attack_target_sequence!=sequence || unit->attack_target!=target)return;
+#endif
+    bool owner_changed=message==A_TARGET_OWNER_CHANGED;
+    if(owner_changed) {
+        /*49b160 only current-target subscribers observe owner change. */
+        if(unit->attack_alternative==target && unit->attack_alternative_spawn_time==target->spawn_time)
+            attack_set_alternative(unit,NULL);
+        if(!G_PlayerTreatsPlayerAsAlly(target->s.player,unit->s.player))return;
+    }
+    attack_target_lost(unit,target,owner_changed);
 }
 
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
@@ -2478,7 +2486,10 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         return false;
     case A_TARGET_OWNER_CHANGED:
     case A_TARGET_LOST:
-        if(call && call->lost_target)attack_deliver_target_event(call->lost_target,msg==A_TARGET_OWNER_CHANGED);
+        if(call && call->lost_target) {
+            if(ent)S_DeliverAttackTargetEvent(ent,call->lost_target,msg);
+            else attack_deliver_target_event(call->lost_target,msg==A_TARGET_OWNER_CHANGED);
+        }
         return false;
     case A_MOVE_LEAVE:
         attack_acquire_ensure(ent);

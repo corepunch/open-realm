@@ -88,6 +88,7 @@ void reset_entities(void) {
      * Responsive-policy tests opt in after resetting their world. */
     level.move_fine_responsive=false;
     S_ResetAbilityTimers();
+    G_ResetTargetSubscriptions();
     G_ClearMoveSpatial();
     M_ResetMoveMembers();
     uint32_t cap = globals.max_edicts;
@@ -175,6 +176,7 @@ void setup_test_world(void) {
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
     S_ResetAbilityTimers();
+    G_ResetTargetSubscriptions();
     /* Physical Move owners also retain process-local links. Release them
      * before wiping level; otherwise the next frame follows orphaned owners. */
     S_ClearMoveGroups();

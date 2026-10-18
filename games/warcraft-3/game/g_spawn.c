@@ -885,6 +885,7 @@ void G_ReleaseLevel(void) {
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     S_ResetAbilityTimers();
+    G_ResetTargetSubscriptions();
     G_ClearMoveSpatial();
     M_ResetMoveMembers();
     G_ResetSelectionIndex();

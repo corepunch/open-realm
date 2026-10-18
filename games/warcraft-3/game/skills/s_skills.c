@@ -1549,8 +1549,7 @@ void S_UnitAllyCombatAlert(edict_t *unit,edict_t *victim,edict_t *source) {
 /* The target publishes its state first. Each intrinsic owner maintains its
  * own subscriptions rather than discovering followers by scanning scenery. */
 void S_UnitTargetLost(edict_t *target) {
-    abilityCall_t call={.lost_target=target};
-    unit_dispatch_engine_event_abilities(NULL,A_TARGET_LOST,&call);
+    G_DispatchTargetSubscriptions(target,A_TARGET_LOST);
 }
 
 void S_UnitTargetAvailable(edict_t *target) {
@@ -1559,8 +1558,7 @@ void S_UnitTargetAvailable(edict_t *target) {
 }
 
 void S_UnitTargetOwnerChanged(edict_t *target) {
-    abilityCall_t call={.lost_target=target};
-    unit_dispatch_engine_event_abilities(NULL,A_TARGET_OWNER_CHANGED,&call);
+    G_DispatchTargetSubscriptions(target,A_TARGET_OWNER_CHANGED);
 }
 
 /* Notify active behavior owners after semantic removal, before deferred memory reclamation. */

@@ -3844,6 +3844,7 @@ void S_SetFollowTarget(edict_t *unit,edict_t *target) {
     if(target && level.next_follow_sequence==UINT64_MAX)gi.error("Move: exhausted Follow subscription sequence");
     unit->movement.follow_sequence=target ? ++level.next_follow_sequence : 0;
     if(id && other)move_follow_link(id,other);
+    G_SetUnitTargetSubscription(TARGET_OWNER_MOVE,unit,target);
 }
 
 static int move_follow_compare(void const *a,void const *b) {
@@ -3901,14 +3902,24 @@ static void move_follow_target_event(edict_t *target,abilityMsg_t message) {
         edict_t *unit=g_edicts+delivery[i].index;
         if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
            unit->movement.follow_sequence!=delivery[i].sequence || unit->movement.follow_target!=target)continue;
-#ifdef BZ_TESTS
-        if(message==A_TARGET_LOST) {
-            move_follow_visits++;
-            if(move_test_target_lost)move_test_target_lost(unit);
-        }
-#endif
-        abilityCall_t call={.lost_target=target};CAbilityMove(unit,message,&call);
+        S_DeliverMoveTargetEvent(unit,target,message);
     }
+}
+
+void S_DeliverMoveTargetEvent(edict_t *unit,edict_t *target,abilityMsg_t message) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || unit->movement.follow_target!=target ||
+       unit->movement.follow_target_spawn_time!=target->spawn_time)return;
+#ifdef BZ_TESTS
+    uint64_t sequence=unit->movement.follow_sequence;
+    uint32_t birth=unit->spawn_time;
+    if(message==A_TARGET_LOST) {
+        move_follow_visits++;
+        if(move_test_target_lost)move_test_target_lost(unit);
+    }
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       unit->movement.follow_sequence!=sequence || unit->movement.follow_target!=target)return;
+#endif
+    abilityCall_t call={.lost_target=target};CAbilityMove(unit,message,&call);
 }
 
 static void waypoint_update_owner(uint32_t index) {

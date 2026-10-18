@@ -4028,6 +4028,23 @@ bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *, uint32_t);
 bool S_UnitHasAbilityFlags(edict_t const *, uint32_t);
 void S_ClearUnitEventPlans(void);
 void S_UnitTargetRemoved(edict_t *);
+/* g_target_events.c: each concrete callback has an independent FIFO rank
+ * for each target event; pointers and derived links are never saved. */
+typedef enum { TARGET_OWNER_MOVE=1, TARGET_OWNER_ATTACK, TARGET_OWNER_CAPTAIN } targetSubscriberKind_t;
+void G_ResetTargetSubscriptions(void);
+void G_ClearTargetSubscriptionOwner(targetSubscriberKind_t,void *);
+void G_SetUnitTargetSubscription(targetSubscriberKind_t,edict_t *,edict_t *);
+void G_AddCaptainTargetSubscription(botCaptain_t *,edict_t *);
+void G_RemoveCaptainTargetSubscription(botCaptain_t *,edict_t *);
+void G_RefreshCaptainTargetSubscriptions(botCaptain_t *);
+void G_DispatchTargetSubscriptions(edict_t *,abilityMsg_t);
+bool G_ValidateTargetSubscriptions(void);
+bool G_WriteTargetSubscriptions(FILE *);
+bool G_ReadTargetSubscriptions(FILE *);
+void G_BotCaptainTargetEvent(botCaptain_t *,edict_t *);
+void S_DeliverMoveTargetEvent(edict_t *,edict_t *,abilityMsg_t);
+void S_DeliverAttackTargetEvent(edict_t *,edict_t *,abilityMsg_t);
+
 void S_UnitTargetLost(edict_t *);
 void S_UnitTargetOwnerChanged(edict_t *);
 void S_UnitTargetAvailable(edict_t *);

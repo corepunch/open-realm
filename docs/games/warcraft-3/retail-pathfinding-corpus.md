@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Burrow366, the inventory has **590 entries**: **309** oracle contracts
-(including variants) supplied by **237** distinct verifier scripts, **121**
+As of Target363, the inventory has **591 entries**: **310** oracle contracts
+(including variants) supplied by **238** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -73,7 +73,7 @@ or silently upgrade the existing evidence.
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
 identity, source versions and frozen input hashes. The current Captain205
-inventory has590 entries:309 oracle contracts supplied by237 distinct verifier
+inventory has591 entries:310 oracle contracts supplied by238 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2403,3 +2403,9 @@ Burrow366 registers four reconstructed maps,12 complete captures,15 scenes,995
 public markers and1,943 native events. The strict oracle verifies1,407 guards
 and24 production tests/4,373 assertions per edition;74 evidence-integrity checks
 protect the decoder. Mount, common Morph and combined owner replay retain SEP-01.2.
+
+Target363 registers nine complete RemoveUnit/owner-transfer/KillUnit captures,
+2,718 public markers and438 native synchronous records. Its1,233 original
+guards and11 integrity tests protect typed mixed-owner FIFO evidence;22 engine
+tests/970 assertions pass per edition. Inventory/Missile ordering and wider
+Captain policy/motion remain within existing GROUP-03.4.7.3.

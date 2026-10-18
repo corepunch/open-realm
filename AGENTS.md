@@ -126,6 +126,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 retail pathfinding: fine/adaptive-grid A*, hierarchy and footprint evidence, Ghidra/Frida map, cinematic experiments | [docs/games/warcraft-3/retail-pathfinding.md](docs/games/warcraft-3/retail-pathfinding.md) |
 | WC3 numerical movement integration, exact C/retail comparisons, scripted turn/window gates, repeat captures | [docs/games/warcraft-3/retail-pathfinding-engine.md](docs/games/warcraft-3/retail-pathfinding-engine.md) |
 | WC3 retail pathfinding corpus, strict fresh-report runner, known adaptive differences and archive provenance limits | [docs/games/warcraft-3/retail-pathfinding-corpus.md](docs/games/warcraft-3/retail-pathfinding-corpus.md) |
+| WC3 mixed Move/Attack/Captain target-event FIFO, nested mutation and saved per-event ownership | [docs/games/warcraft-3/retail-pathfinding-target-events.md](docs/games/warcraft-3/retail-pathfinding-target-events.md) |
 | WC3 Way Gates, JASS destination/activation state, explicit Smart traversal, portal-routing gap | [docs/games/warcraft-3/way-gates.md](docs/games/warcraft-3/way-gates.md) |
 | WC3 long-journey retail parity: probe maps on real maps, batched Frida tracer, diplomacy/targs/group-order rules found by journeys | [docs/games/warcraft-3/retail-journey-parity.md](docs/games/warcraft-3/retail-journey-parity.md) |
 | WC3 unit altitude, `moveHeight`, water/bridge support surfaces, fly-height natives, projectile impact Z | [docs/games/warcraft-3/unit-altitude.md](docs/games/warcraft-3/unit-altitude.md) |

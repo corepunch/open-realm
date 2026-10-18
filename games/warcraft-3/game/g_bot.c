@@ -229,6 +229,7 @@ static void G_BotAdmitUnit(edict_t *,bool);
 
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        G_ClearTargetSubscriptionOwner(TARGET_OWNER_CAPTAIN,bot->captains+i);
         S_ReleaseCaptainHomeActor(bot->captains[i].home_actor);
         gi.MemFree(bot->captains[i].units_storage ? bot->captains[i].units_storage : bot->captains[i].units);
         memset(bot->captains + i, 0, sizeof(bot->captains[i]));
@@ -1078,6 +1079,7 @@ static bool G_BotReevaluateCaptain(bot_t *bot,botCaptain_t *captain) {
     }
     if (!go_home) return false;
     captain->target=captain->follow=captain->backup=(botCaptainTarget_t){0};
+    G_RefreshCaptainTargetSubscriptions(captain);
     if (captain->state==BOT_CAPTAIN_RETREATING) captain->state=BOT_CAPTAIN_ACTIVE;
     if (count) captain->policy_flags|=BOT_CAPTAIN_RETREAT_FLAG;
     S_CaptainGoHome(captain);
@@ -1103,6 +1105,7 @@ static bool G_BotCaptainArmed(edict_t const *unit) {
 static void G_BotCaptainRotateFollow(botCaptain_t *captain,edict_t *source) {
     captain->backup=captain->follow;
     captain->follow=G_BotCaptainIdentity(source);
+    G_RefreshCaptainTargetSubscriptions(captain);
     S_CaptainTargetMove(captain,source,false,200);
 }
 
@@ -1128,7 +1131,10 @@ static void G_BotCaptainEngageSource(botCaptain_t *captain,edict_t *source) {
     }
     if(source==G_BotCaptainTarget(&captain->backup))return;
     if(follow && G_ActorHasAbilityCode(follow,MAKEFOURCC('A','a','t','k'))) {
-        if(!G_BotCaptainTarget(&captain->backup))captain->backup=G_BotCaptainIdentity(source);
+        if(!G_BotCaptainTarget(&captain->backup)) {
+            captain->backup=G_BotCaptainIdentity(source);
+            G_RefreshCaptainTargetSubscriptions(captain);
+        }
         return;
     }
     G_BotCaptainRotateFollow(captain,source);
@@ -1258,39 +1264,72 @@ static void G_BotWithdrawCaptainUnit(edict_t *unit,bool removed) {
                 (ARRAY_COUNT(captain->units)-i-1)*sizeof(*captain->units));
             ARRAY_COUNT(captain->units)--;
             if (G_BotCaptainStrengthMember(level.bots+p,unit)) captain->strength_count--;
+            G_RefreshCaptainTargetSubscriptions(captain);
             if (removed) G_BotReevaluateCaptain(level.bots+p,captain);
             break;
         }
     }
 }
 
-/*9d7760 also subscribes non-roster sources. Removal reevaluates before
- * promoting the backup identity and restoring the retained point request. */
-static void G_BotCaptainSourceRemoved(edict_t *unit) {
-    FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
-        botCaptain_t *captain=level.bots[p].captains+c;
-        bool follow=captain->follow.unit==unit && captain->follow.birth==unit->spawn_time;
-        bool backup=captain->backup.unit==unit && captain->backup.birth==unit->spawn_time;
-        bool retained=captain->target.unit==unit && captain->target.birth==unit->spawn_time;
-        if(!follow && !backup && !retained)continue;
-        G_BotReevaluateCaptain(level.bots+p,captain);
-        if(captain->follow.unit==unit) {
-            captain->follow=captain->backup;captain->backup=(botCaptainTarget_t){0};
-            if(retained) {
-                captain->target=(botCaptainTarget_t){0};
-                if(ARRAY_COUNT(captain->units)<3)S_CaptainGoHome(captain);
-            } else {
-                edict_t *next=G_BotCaptainTarget(&captain->follow);
-                if(next)S_CaptainTargetMove(captain,next,false,200);
-                else {
-                    S_CaptainTargetMove(captain,G_BotCaptainTarget(&captain->target),true,200);
-                    captain->policy_flags|=BOT_CAPTAIN_REQUEST_RESTORED;
-                }
+/*9d7760 is one concrete callback in the target's shared event registry.
+ * It removes this Captain's subscription before recovery can nest another
+ * publication. Roster membership and retained roles share that callback. */
+void G_BotCaptainTargetEvent(botCaptain_t *captain,edict_t *unit) {
+    if(!captain || !unit)return;
+    bot_t *bot=NULL;
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(c,BOT_CAPTAIN_COUNT)
+        if(captain==level.bots[p].captains+c)bot=level.bots+p;
+    if(!bot)return;
+    G_RemoveCaptainTargetSubscription(captain,unit);
+    bool retained=captain->target.unit==unit && captain->target.birth==unit->spawn_time;
+    /*9d7850..7878 privately admits d0006 for members whose current Attack
+     * retains this target. Admission retires the old head before AI Stop. */
+    uint32_t count=ARRAY_COUNT(captain->units);
+    struct {edict_t *unit;uint32_t birth;} *members=gi.MemAlloc(MAX(1,count)*sizeof(*members));
+    FOR_LOOP(i,count)members[i]=(typeof(*members)){captain->units[i],captain->units[i]->spawn_time};
+    FOR_LOOP(i,count) {
+        edict_t *member=members[i].unit;
+        if(!member->inuse || G_IsDeferredFree(member) || member->spawn_time!=members[i].birth ||
+           member->attack_target!=unit || member->attack_target_spawn_time!=unit->spawn_time)continue;
+        order_stop_cleanup(member);G_BotDispatchAIStop(member);
+    }
+    gi.MemFree(members);
+    FOR_LOOP(i,ARRAY_COUNT(captain->units))if(captain->units[i]==unit) {
+        memmove(captain->units+i,captain->units+i+1,(ARRAY_COUNT(captain->units)-i-1)*sizeof(*captain->units));
+        ARRAY_COUNT(captain->units)--;
+        if(G_BotCaptainStrengthMember(bot,unit))captain->strength_count--;
+        S_DetachCaptainUnit(unit);
+        break;
+    }
+    G_BotReevaluateCaptain(bot,captain);
+    if(captain->follow.unit==unit) {
+        captain->follow=captain->backup;captain->backup=(botCaptainTarget_t){0};
+        if(retained) {
+            captain->target=(botCaptainTarget_t){0};
+            if(ARRAY_COUNT(captain->units)<3)S_CaptainGoHome(captain);
+        } else {
+            edict_t *next=G_BotCaptainTarget(&captain->follow);
+            if(next)S_CaptainTargetMove(captain,next,false,200);
+            else {
+                S_CaptainTargetMove(captain,G_BotCaptainTarget(&captain->target),true,200);
+                captain->policy_flags|=BOT_CAPTAIN_REQUEST_RESTORED;
             }
-        } else if(captain->backup.unit==unit) {
-            captain->backup=(botCaptainTarget_t){0};
-            if(retained)captain->target=captain->follow;
-        } else if(retained)captain->target=(botCaptainTarget_t){0};
+        }
+    } else if(captain->backup.unit==unit) {
+        captain->backup=(botCaptainTarget_t){0};
+        if(retained)captain->target=captain->follow;
+    } else if(retained)captain->target=(botCaptainTarget_t){0};
+    G_RefreshCaptainTargetSubscriptions(captain);
+}
+
+/* Deferred destruction remains an idempotent fallback for direct engine
+ * removal paths. Public TargetLost/owner/death already dispatch synchronously. */
+static void G_BotCaptainSourceRemoved(edict_t *unit) {
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+        botCaptain_t *captain=level.bots[p].captains+c;
+        if((captain->follow.unit==unit && captain->follow.birth==unit->spawn_time) ||
+           (captain->backup.unit==unit && captain->backup.birth==unit->spawn_time) ||
+           (captain->target.unit==unit && captain->target.birth==unit->spawn_time))G_BotCaptainTargetEvent(captain,unit);
     }
 }
 
@@ -1333,6 +1372,7 @@ static void G_BotCaptainAdd(bot_t const *bot,botCaptain_t *captain, edict_t *uni
     }
     *--captain->units=unit;
     ARRAY_COUNT(captain->units)=count+1;
+    G_AddCaptainTargetSubscription(captain,unit);
     if (G_BotCaptainStrengthMember(bot,unit)) captain->strength_count++;
 }
 

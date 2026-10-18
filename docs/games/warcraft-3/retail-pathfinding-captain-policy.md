@@ -579,6 +579,13 @@ no-damage Captain acquisition and saved inverse, incompatible-version rejection,
 and the existing scalar rebase regression. Both editions pass all 46 assertions.
 The evidence validator also rejects missing rebase coverage.
 
+Payoff363 composes Move, Attack and Captain target callbacks in the common
+per-event registration history, including synchronous public source removal,
+owner transfer and death. Native whole-transaction repeats/control and saved
+engine ownership are documented in
+[mixed target event ownership](retail-pathfinding-target-events.md).
+The broader policy and trajectory scope of GROUP-03.4.7.3 remains open.
+
 ## Independent timers and older construction/teleport regressions
 
 The Save206 full-suite checkpoint exposed four older fixtures that consumed the

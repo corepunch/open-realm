@@ -168,3 +168,21 @@ Ghidra comments at9d1040,9d27c0,9d9020 and9d4c20 were saved and mirrored in
 default homes and complete retreat/callback composition remain open under
 GROUP-03.4.7.3. Recruitment and withdrawal indexing still require work; this
 change does not establish the4096-unit frame budget.
+
+## Shared event registry allocation accounting (Payoff363)
+
+Captain recruitment now also owns three typed target-event registrations for
+each actual roster member. The original Payoff157 roster-only32KiB observer
+budget therefore records an expected allocation assertion failure at256 members:
+12 allocations/126,720 bytes, while all retained-order assertions pass. The
+historical four-allocation/3,840-byte result above describes the earlier roster
+storage alone.
+
+The allocation test now observes independent128/256 recruitment worlds and
+bounds total growth below the quadratic ratio, allocation-call growth and total
+bytes per real owner. Its640-byte/recruit allowance follows geometric allocation
+volume for the three event nodes, hash table and roster; it still rejects the
+original per-recruit whole-roster allocation. See
+[mixed target event ownership](retail-pathfinding-target-events.md) for lifecycle,
+nested mutation and checkpoint coverage. This is allocation accounting, not a
+new fixed subscriber capacity.

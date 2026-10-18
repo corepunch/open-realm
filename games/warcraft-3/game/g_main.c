@@ -749,6 +749,7 @@ static void G_ShutdownGame(void) {
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     S_ResetAbilityTimers();
+    G_ResetTargetSubscriptions();
     G_ClearMoveSpatial();
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);

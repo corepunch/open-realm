@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 207; /* Burrow sources and form availability survive detach and cold save. */
+static uint32_t const save_version = 208; /* Per-event mixed-owner target subscription ranks. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -3481,6 +3481,7 @@ bool WriteGame(cstring_t filename) {
     }
     if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
     if (!G_WriteCaptainState(f)) { fprintf(stderr,"WC3 SaveGame: failed at logical Captain state\n"); goto done; }
+    if (!G_WriteTargetSubscriptions(f)) { fprintf(stderr,"WC3 SaveGame: invalid target event registry\n"); goto done; }
     if (!S_WriteSpellCasts(f)) { fprintf(stderr,"WC3 SaveGame: failed at spell cast records\n"); goto done; }
     if (!S_WriteTimedLives(f)) { fprintf(stderr,"WC3 SaveGame: failed at timed-life records\n"); goto done; }
     if (!S_WriteFlightSupport(f)) { fprintf(stderr,"WC3 SaveGame: failed at flight support\n"); goto done; }
@@ -3719,6 +3720,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!G_ReadCaptainState(f)) { fprintf(stderr,"WC3 LoadGame: failed at logical Captain state\n"); fclose(f); return false; }
+    if (!G_ReadTargetSubscriptions(f)) { fprintf(stderr,"WC3 LoadGame: invalid target event registry\n"); fclose(f); return false; }
     if (!S_ReadSpellCasts(f)) { fprintf(stderr,"WC3 LoadGame: failed at spell cast records\n"); fclose(f); return false; }
     if (!S_ReadTimedLives(f)) { fprintf(stderr,"WC3 LoadGame: failed at timed-life records\n"); fclose(f); return false; }
     if (!S_RestoreMoveRepulsors()) { fprintf(stderr,"WC3 LoadGame: invalid repulsor owner links\n"); fclose(f); return false; }
