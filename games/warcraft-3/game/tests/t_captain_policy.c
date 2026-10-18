@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "../g_local.h"
 #include "../skills/s_skills.h"
+#include "jass/jass.h"
 #include "shared/test.h"
 extern void reset_entities(void),setup_test_world(void);
 extern bool run_test_jass(cstring_t);
@@ -896,6 +897,194 @@ TEST(wc3_bot, captain_selection369_selected_primary_loss_rearms_query) {
     T_ASSERT(captain->policy_flags&BOT_CAPTAIN_REQUEST_RESTORED);
     T_EQ(wc3_float_bits(captain->update_due.time),wc3_float_bits(periodic.time));T_EQ(captain->update_due.epoch,periodic.epoch);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+/* Native repeated SuicidePlayer selects a deferred structure primary through
+ * the same .1-second selection owner, with policy bit80 and no member orders.
+ * The external immutable78838 baseline records exactly four behavior failures
+ * in both editions; this ordinary fixture preserves the public producer. */
+TEST(wc3_bot, captain_strategic373_suicide_selects_deferred_structure_primary) {
+    CaptainPolicyWorld();
+    FOR_LOOP(p,2) {((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;}
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *members[6];
+    FOR_LOOP(i,6) {members[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),256+80*(i/4)},0);members[i]->mana.value=100;members[i]->mana.max_value=200;}
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *ordinary=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){704,512},0);
+    edict_t *building=unit_create(1,MAKEFOURCC('h','b','a','r'),&(vec2_t){800,512},0);
+    S_SetUnitPaused(ordinary,true);S_SetUnitPaused(building,true);gi.LinkEntity(ordinary);gi.LinkEntity(building);
+    T_ASSERT(G_UnitIsStructure(building));T_ASSERT(!G_UnitIsStructure(ordinary));
+    uint32_t visibility=player->rdflags;player->rdflags|=RDF_NOFOG;
+    G_BotCaptainAttack(player,&(vec2_t){256,0});
+    T_ASSERT(G_BotSuicidePlayer(player,1,false));
+    T_ASSERT(captain->selection.request.active);T_ASSERT(captain->policy_flags&0x80);
+    T_NULL(captain->target.unit);T_EQ(captain->goal.x,256);T_EQ(captain->goal.y,0);
+    FOR_LOOP(i,6)T_ASSERT(members[i]->attack_target!=ordinary && members[i]->attack_target!=building);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,50){level.time+=5;globals.RunFrame();}
+    T_EQ(captain->target.unit,building);T_EQ(captain->state,BOT_CAPTAIN_TARGETED);
+    T_ASSERT(!G_BotCaptainRetreating(player));T_ASSERT(!captain->selection.request.active);
+    player->rdflags=visibility;G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+/* Added only after the ordinary Suicide producer baseline is recorded.
+ * All inputs and complete outputs come from two retail observations/control. */
+#include "../../common/wc3_ai_regions.h"
+#include "retail_captain369_regions.h"
+TEST(wc3_bot, captain_regions373_native_grid_graph_rng_and_destination) {
+    wc3AiRegions_t *regions=gi.MemAlloc(sizeof(*regions));
+    uint8_t classes[6800],grid[65536];uint32_t count=0;
+    for(uint32_t i=0;i<sizeof(captain369_class_runs)/sizeof(uint32_t);i+=2) {
+        memset(classes+count,captain369_class_runs[i+1],captain369_class_runs[i]);
+        count+=captain369_class_runs[i];
+    }
+    T_EQ(count,6800);
+    T_ASSERT(wc3_ai_regions_build(regions,100,68,classes));
+    float origin[2]={-7168,-3072};
+    for(uint32_t i=0;i<6;i+=2) {
+        float point[2]={wc3_float(captain369_structure_positions[i]),wc3_float(captain369_structure_positions[i+1])};
+        wc3_ai_regions_mark(regions,point,origin,4);
+    }
+    wc3_ai_regions_expand_marks(regions);
+    T_EQ(regions->count,67);
+    T_EQ(memcmp(regions->nodes,captain369_node_words,sizeof(captain369_node_words)),0);
+    count=0;
+    for(uint32_t i=0;i<sizeof(captain369_grid_runs)/sizeof(uint32_t);i+=2) {
+        memset(grid+count,captain369_grid_runs[i+1],captain369_grid_runs[i]);
+        count+=captain369_grid_runs[i];
+    }
+    T_EQ(count,65536);T_EQ(memcmp(regions->grid,grid,sizeof(grid)),0);
+    float actor[2]={wc3_float(captain369_actor_position[0]),wc3_float(captain369_actor_position[1])};
+    uint32_t nearest=wc3_ai_region_nearest(regions,actor,origin,4);T_EQ(nearest,6);
+    float point[2]={wc3_float(captain369_initial_point[0]),wc3_float(captain369_initial_point[1])};
+    wc3_ai_regions_filter(regions,nearest,point,origin,4);
+    T_EQ(regions->eligible_count,2);T_EQ(regions->near_count,2);
+    T_EQ(regions->eligible[0],3);T_EQ(regions->eligible[1],8);
+    T_EQ(regions->near[0],3);T_EQ(regions->near[1],8);
+    T_EQ(memcmp(regions->nodes,captain369_filtered_words,sizeof(captain369_filtered_words)),0);
+    wc3Random_t random={2851754017u,1215875280u};
+    T_EQ(wc3_random_range(&random,3),0);
+    T_EQ(random.sum,809192828u);T_EQ(random.index,1147973812u);
+    T_ASSERT(wc3_ai_regions_roll(regions,&random,origin,4,point));
+    T_EQ(random.sum,2186210856u);T_EQ(random.index,1080072344u);
+    T_EQ(wc3_float_bits(point[0]),3306160128u);T_EQ(wc3_float_bits(point[1]),1132462080u);
+    gi.MemFree(regions);
+}
+
+/* Replay the captured selection-publication boundary through the production
+ * timer, cached hierarchy and structure query. This is not a full-map journey:
+ * candidate ranking is restored at its captured bucket boundary, while all
+ * region inputs, actual structure/Captain positions and RNG state are native. */
+static void CaptainRegions373PublicationReplay(bool hidden_sources) {
+    CaptainPolicyWorld();
+    static uint8_t terrain[384*256];memset(terrain,0,sizeof(terrain));
+    CM_SetupTestWorldBounds(&(box2_t){{-7168,-3072},{5120,5120}});
+    CM_SetupTestPathmap(384,256,terrain);
+    FOR_LOOP(p,2) {((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;}
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    uint32_t types[3]={MAKEFOURCC('u','g','o','l'),MAKEFOURCC('h','b','a','r'),MAKEFOURCC('h','t','o','w')};
+    edict_t *structures[3];
+    FOR_LOOP(i,3) {
+        vec2_t position={wc3_float(captain369_structure_positions[i*2]),wc3_float(captain369_structure_positions[i*2+1])};
+        structures[i]=unit_create(1,types[i],&position,0);
+        S_SetUnitPaused(structures[i],true);S_PlaceUnitPosition(structures[i],&position);
+        T_ASSERT(G_UnitIsStructure(structures[i]));
+        if(hidden_sources){G_SetEntityHidden(structures[i],true);T_ASSERT(structures[i]->s.renderfx&RF_HIDDEN);}
+    }
+    botCaptain_t *captain=level.bots[0].captains;
+    vec2_t actor={wc3_float(captain369_actor_position[0]),wc3_float(captain369_actor_position[1])};
+    S_PlaceUnitPosition(captain->home_actor,&actor);
+    vec2_t actual;S_UnitPredictedWorldPosition(captain->home_actor,&actual);
+    T_EQ(wc3_float_bits(actual.x),captain369_actor_position[0]);
+    T_EQ(wc3_float_bits(actual.y),captain369_actor_position[1]);
+    T_ASSERT(level.bots[0].flags&BOT_RANDOM_PATHS);
+    T_ASSERT(G_BotSuicidePlayer(player,1,false));
+    T_ASSERT(captain->selection.request.active);
+    ARRAY_COUNT(captain->selection.pending)=0;captain->selection.pending_first=0;
+    captain->selection.best[1]=(botCaptainTarget_t){structures[1],structures[1]->spawn_time};
+    captain->selection.scores[1]=0;
+    uint32_t size=G_GetMoveAdaptiveStateSize();uint8_t *cache=gi.MemAlloc(size);
+    T_ASSERT(G_GetMoveAdaptiveState(cache,size));
+    point2_t first=G_GetMoveAdaptiveMapSize(0),second=G_GetMoveAdaptiveMapSize(1);
+    T_EQ(second.x,100);T_EQ(second.y,68);
+    uint32_t offset=first.x*first.y*4,count=0;
+    for(uint32_t i=0;i<sizeof(captain369_class_runs)/sizeof(uint32_t);i+=2) {
+        memset(cache+offset+count,captain369_class_runs[i+1],captain369_class_runs[i]);
+        count+=captain369_class_runs[i];
+    }
+    T_EQ(count,6800);T_ASSERT(G_SetMoveAdaptiveState(cache,size));gi.MemFree(cache);
+    level.purpose_random[13]=(wc3Random_t){2851754017u,1215875280u};
+    T_ASSERT(CAbilityCaptainSelection(NULL,A_PRIMARY_TIMER_FIRE,NULL));
+    T_EQ(captain->target.unit,structures[1]);T_EQ(captain->state,BOT_CAPTAIN_TARGETED);
+    /* Generic WidgetQuery excludes world-retired sources (Unit5c bit8).
+     * With no source marks the consumer retains the building point and spends
+     * no second random draw. Ranking still consumes its first purpose13 draw. */
+    T_EQ(wc3_float_bits(captain->goal.x),hidden_sources?3301965824u:3306160128u);
+    T_EQ(wc3_float_bits(captain->goal.y),hidden_sources?3292528640u:1132462080u);
+    T_EQ(level.purpose_random[13].sum,hidden_sources?809192828u:2186210856u);
+    T_EQ(level.purpose_random[13].index,hidden_sources?1147973812u:1080072344u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_regions373_native_cache_rng_reaches_publication) {
+    CaptainRegions373PublicationReplay(false);
+}
+TEST(wc3_bot, captain_regions373_hidden_structures_do_not_mark_destinations) {
+    CaptainRegions373PublicationReplay(true);
+}
+
+/* Proper pre-port external query/ownership regressions use447 ABI guards;
+ * normal compiled versions retain public ShowUnit and actual Wind Walk cast. */
+TEST(wc3_bot, captain_strategic373_query_omits_script_hidden_structures) {
+ CaptainPolicyWorld();
+ T_ASSERT(G_BotStart(&game.clients[0].ps,"test_idle.ai",BOT_MELEE));
+ FOR_LOOP(i,3){edict_t *u=unit_create(1,MAKEFOURCC('h','b','a','r'),&(vec2_t){704+128*i,512},0);T_ASSERT(G_UnitIsStructure(u));G_SetEntityHidden(u,true);T_ASSERT(u->s.renderfx&RF_HIDDEN);}
+ T_ASSERT(G_BotSuicidePlayer(&game.clients[0].ps,1,false));botCaptain_t *captain=level.bots[0].captains;
+ T_ASSERT(captain->selection.request.active);T_EQ(ARRAY_COUNT(captain->selection.pending),0);
+ G_BotStop(0);reset_entities();setup_test_world();
+}
+
+static void Captain373QueryCount(uint32_t expected) {
+ player_t *player=&game.clients[0].ps;G_BotCreateCaptains(player);
+ T_ASSERT(G_BotSuicidePlayer(player,1,false));T_ASSERT(level.bots[0].captains[0].selection.request.active);
+ T_EQ(ARRAY_COUNT(level.bots[0].captains[0].selection.pending),expected);
+}
+static void Captain373Call(cstring_t name) {jass_callbyname(level.vm,name,true);jass_runevents(level.vm);}
+TEST(wc3_bot, captain_strategic373_show_invisibility_inverse_and_saved_query) {
+ CaptainPolicyWorld();
+ const char slk[]="ID;PWXL;N;EBB;Y2;X9\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\nC;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataC1\"\nC;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"75\"\nC;Y2;X5;K\"5\"\nC;Y2;X6;K\"20\"\nC;Y2;X7;K\"20\"\nC;Y2;X8;K\"0.1\"\nC;Y2;X9;K\"40\"\nE\n";
+ slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+ T_ASSERT(G_BotStart(&game.clients[0].ps,"test_idle.ai",BOT_MELEE));
+ T_ASSERT(run_test_jass(
+ "globals\nunit captain373Target=null\nendglobals\n"
+ "function hideTarget takes nothing returns nothing\ncall ShowUnit(captain373Target,false)\nendfunction\n"
+ "function showTarget takes nothing returns nothing\ncall ShowUnit(captain373Target,true)\nendfunction\n"
+ "function clearInvisibility takes nothing returns nothing\ncall UnitRemoveAbility(captain373Target,'BOwk')\nendfunction\n"
+ "function castTarget takes nothing returns nothing\ncall BJassAssert(IssueImmediateOrder(captain373Target,\"windwalk\"),\"windwalk accepted\")\nendfunction\n"
+ "function main takes nothing returns nothing\nset captain373Target=CreateUnit(Player(1),'Hpal',704.0,512.0,0.0)\n"
+ "call UnitAddAbility(captain373Target,'AOwk')\ncall SetUnitState(captain373Target,UNIT_STATE_MANA,100.0)\nendfunction\n"));
+ edict_t *hero=NULL;FILTER_EDICTS(unit,unit->inuse&&unit->class_id==MAKEFOURCC('H','p','a','l')&&unit->s.player==1)hero=unit;
+ T_NOT_NULL(hero);if(!hero)return;
+ level.started=level.scriptsConfigured=level.scriptsStarted=true;FOR_LOOP(i,200){level.time+=5;globals.RunFrame();}
+ T_EQ(G_UnitAbilityLevel(hero,MAKEFOURCC('A','O','w','k')),1);Captain373Call("castTarget");FOR_LOOP(i,400){level.time+=5;globals.RunFrame();}
+ T_ASSERT(S_UnitHasTemporaryInvisibility(hero,NULL));T_ASSERT(hero->s.renderfx&RF_HIDDEN);
+ Captain373QueryCount(1);
+ Captain373Call("hideTarget");T_ASSERT(S_UnitHasTemporaryInvisibility(hero,NULL));T_ASSERT(hero->s.renderfx&RF_HIDDEN);T_EQ(S_MoveTargetStatus(level.bots[0].captains[0].home_actor,hero),MOVE_TARGET_HIDDEN);T_ASSERT(S_UnitIsHiddenFromPlayer(hero,1));Captain373QueryCount(0);
+ cstring_t file=Test_TempPath("captain373-invisible-hidden.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+ T_ASSERT(S_UnitHasTemporaryInvisibility(hero,NULL));T_ASSERT(hero->s.renderfx&RF_HIDDEN);T_EQ(S_MoveTargetStatus(level.bots[0].captains[0].home_actor,hero),MOVE_TARGET_HIDDEN);Captain373QueryCount(0);
+ Captain373Call("showTarget");T_ASSERT(S_UnitHasTemporaryInvisibility(hero,NULL));T_ASSERT(hero->s.renderfx&RF_HIDDEN);Captain373QueryCount(1);
+ Captain373Call("hideTarget");Captain373Call("clearInvisibility");T_ASSERT(!S_UnitHasTemporaryInvisibility(hero,NULL));T_ASSERT(hero->s.renderfx&RF_HIDDEN);T_EQ(S_MoveTargetStatus(level.bots[0].captains[0].home_actor,hero),MOVE_TARGET_HIDDEN);Captain373QueryCount(0);
+ Captain373Call("showTarget");T_ASSERT(!(hero->s.renderfx&RF_HIDDEN));Captain373QueryCount(1);
+ G_SetSLKRows("AbilityData",old);free_slk_rows(rows);remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
 }
 
 #endif

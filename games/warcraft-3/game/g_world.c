@@ -900,6 +900,16 @@ uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *input,uint32_t *work) {
     return result;
 }
 
+/*9b6620/9b7080 consume the existing adaptive ground level1 map. Do not
+ * regenerate it from terrain or clear retained hierarchy markers here. */
+bool G_MoveStrategicMap(moveStrategicMap_t *map) {
+    if(!map || !pathmap.width || !pathmap.height)return false;
+    move_acc_prepare();
+    wc3AccMap_t const *cached=move_acc.maps+1;
+    *map=(moveStrategicMap_t){cached->width,cached->height,move_acc_classes[0][1],move_geometry()->bounds.min};
+    return true;
+}
+
 /*59ca0 Float/ground shore query. The amphibious route only selects a
  * crossing; independent ground/water lanes retain the two approach points. */
 static bool move_shore_clear(unsigned lane,wc3FineVector_t point) {

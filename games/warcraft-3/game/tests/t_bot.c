@@ -1313,12 +1313,15 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     T_ASSERT(!G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), true));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 
+    vec2_t retained=bot->captains[BOT_CAPTAIN_ATTACK].goal;
     T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), false));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
-    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, 256, 0.001f);
-    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 128, 0.001f);
-    T_EQ(first->goalentity, enemy);
-    T_EQ(second->goalentity, enemy);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x,retained.x);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y,retained.y);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].selection.request.active);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].policy_flags&0x80);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].selection.player,1);
+    T_ASSERT(first->goalentity!=enemy);T_ASSERT(second->goalentity!=enemy);
     T_ASSERT(enemy != NULL);
 
     G_BotInitAssault(&game.clients[2].ps);
@@ -1327,7 +1330,7 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 }
 
-TEST(wc3_bot, suicide_player_skips_nearest_hidden_target_for_visible_enemy) {
+TEST(wc3_bot, suicide_player_preserves_member_orders_while_selection_is_pending) {
     bot_t *bot = level.bots + 2;
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
     uint32_t const type = MAKEFOURCC('h','f','o','o');
@@ -1347,13 +1350,17 @@ TEST(wc3_bot, suicide_player_skips_nearest_hidden_target_for_visible_enemy) {
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 1, type));
 
     T_ASSERT(S_UnitIsHiddenFromPlayer(hidden, 2));
-    /* Keep the hidden unit nearer so the regression fails if selection ignores visibility. */
+    /* Selection admission retains both candidates; the timer owns visibility
+     * checks and publication. Immediate member orders must remain intact. */
     T_ASSERT(Vector2_distance(&unit->s.origin2, &hidden->s.origin2) <
              Vector2_distance(&unit->s.origin2, &visible->s.origin2));
     T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, 1, false));
 
-    T_EQ(unit->goalentity, visible);
-    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].selection.request.active);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].selection.player,1);
+    T_NULL(bot->captains[BOT_CAPTAIN_ATTACK].target.unit);
+    T_ASSERT(unit->goalentity!=visible);
+    T_ASSERT(!unit->currentmove || unit->currentmove->proc!=CAbilityAttack);
 }
 
 TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
@@ -1373,7 +1380,9 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
-    T_EQ(unit->goalentity, enemy);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].selection.request.active);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].selection.player,1);
+    T_ASSERT(unit->goalentity!=enemy);
     T_ASSERT(enemy != NULL);
 }
 

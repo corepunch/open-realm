@@ -41,10 +41,19 @@ bool G_UnitIsWorldActive(edict_t const *ent) {
     return ent && ent->inuse && !ent->construction_held && !(ent->aiflags & AI_SOUL_TRAPPED);
 }
 
+/* Native WidgetQuery excludes world-retired and loaded units separately from
+ * invisibility. Retain each existing physical owner; RF_HIDDEN alone also
+ * represents gameplay concealment and cannot establish world retirement. */
+bool G_UnitHasWorldPresence(edict_t const *ent) {
+    if(!G_UnitIsWorldActive(ent) || G_IsDeferredFree(ent) || ent->script_world_hidden)return false;
+    if((ent->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(ent))return false;
+    return !S_GoldMineWorkerIsInside(ent) && !S_CargoTransportForUnit(ent);
+}
+
 /* Hidden actors leave fine occupancy; showing them is a new publication.
  * Queue this at the owner so same-tick queries never need a world scan. */
 void G_SetEntityHidden(edict_t *ent, bool hidden) {
-    if(hidden)ent->s.renderfx|=RF_HIDDEN;
+    if(hidden || ent->script_world_hidden)ent->s.renderfx|=RF_HIDDEN;
     else ent->s.renderfx&=~RF_HIDDEN;
     G_MarkMoveSpatialObject(ent);
 }

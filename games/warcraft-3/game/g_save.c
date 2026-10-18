@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 211; /* Independent Sleep suspension and primary-clock owners. */
+static uint32_t const save_version = 212; /* Scripted world retirement independent of invisibility. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1230,6 +1230,7 @@ field_t edict_fields[] = {
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, target_loss_transient, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction_held, F_INT),
+    F(edict_s, script_world_hidden, F_INT),
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, rally, F_IGNORE, 0, FIELD_RUNTIME),

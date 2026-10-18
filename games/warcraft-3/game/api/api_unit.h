@@ -182,13 +182,19 @@ uint32_t ShowUnit(jass_t *j) {
         return 0;
     }
     if (show && !G_UnitIsWorldActive(whichUnit)) return 0;
-    was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
+    was_hidden = !G_UnitHasWorldPresence(whichUnit);
+    /*688300 returns when already world-absent. Invisible-only actors remain
+     * physically present even when their presentation already uses RF_HIDDEN. */
+    if(!show && was_hidden)return 0;
+    whichUnit->script_world_hidden=!show;
     if (show) {
-        G_SetEntityHidden(whichUnit,false);
+        bool concealed=S_UnitUsesInvisibilityRenderFlag(whichUnit) ||
+            S_UnitHasTemporaryInvisibility(whichUnit,NULL);
+        G_SetEntityHidden(whichUnit,concealed);
     } else {
         G_SetEntityHidden(whichUnit,true);
     }
-    is_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
+    is_hidden = !G_UnitHasWorldPresence(whichUnit);
     G_MarkMoveSpatialObject(whichUnit);
     if (was_hidden != is_hidden) {
         /* Original688300 publishes world retirement before synchronous

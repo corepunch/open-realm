@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "316 executable original/evidence contracts;597 total entries; provenance and limitations remain per-entry.",
+  "scope": "317 executable original/evidence contracts;598 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56819,6 +56819,70 @@
       "exclusions": [
         "Complete ground firing polls, swing/projectile/stat numerics, broader target/ability producer inventory and retail save-file compatibility remain existing TARGET-01.2, ORDER-01.10 and BASE/E2E scope."
       ]
+    },
+    {
+      "id": "oracle-captain373-strategic",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain373_strategic.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain373-strategic.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "instructions": {
+          "equal": 3611
+        },
+        "captures": {
+          "equal": 7
+        },
+        "controls": {
+          "equal": 3
+        },
+        "public_markers": {
+          "equal": 1050
+        },
+        "input_words": {
+          "equal": 13600
+        },
+        "grid_bytes": {
+          "equal": 65536
+        },
+        "node_words": {
+          "equal": 1072
+        },
+        "random_draws": {
+          "equal": 2
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 6,
+              "assertions": 139
+            },
+            "tft": {
+              "tests": 6,
+              "assertions": 139
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SuicidePlayer deferred publication; exact native strategic-region kernel and production cached-hierarchy/publication-boundary replay; physical ShowUnit retirement versus active WindWalk invisibility, owner inverse and cold save. Native query flags/notification chronology retain actual public producer proof. Candidate ranking is restored at the captured graph boundary; complete same-map journeys, transport, SuicidePlayerUnits and Town preferred-primary remain outside this gate in GROUP-03.4.7.3.",
+      "exclusions": [
+        "Complete same-map journeys, transport, SuicidePlayerUnits, Town preferred-primary override and wider flag100/200 branches remain GROUP-03.4.7.3."
+      ]
     }
   ],
   "fixtures": [
@@ -57717,7 +57781,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d6800a80e38f568e8ee69ed6b890488b8c6b5a0c285e91777d8413f456be58d6"
+      "sha256": "ec8e0c8fee5747cc488994d48306b190bf7c21e9f40fecd8347fd81232fe04dd"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58573,7 +58637,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "03619a0d5df5a4d07f08e6ba536dfb54ef1ad5cf1aecab5a0aa18580784ebb28"
+      "sha256": "47386294fc56865cdd9b06c32e85ff9dbe0ff015c0ad7a95f87fd3f61f0b9ae1"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -59005,11 +59069,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "e5eeb50156eb98e67ca1b90fa0986fcc7c9282aecd59055804305785de8aeb43"
+      "sha256": "55f47c8d65f438fa719a79b3e4c7ac6de1fb3ad03362332cdc9780332fa4741e"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "7f207b3b6dd8af15963e157992e575dd5212bfb1180046336e75a172cd54587e"
+      "sha256": "ccb840b9221543c2aafa1bc06e83048c0df9e2244088e6653deb2f34c45f6deb"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -59017,7 +59081,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "e5a1af75e3bf029757dcf4a737ef467163cb645f0e2479e8d1cf94b5d6a19f6e"
+      "sha256": "32a89544ff1bb472900f9b7ee24f139e1785aec112e751825f39f7c362ded99c"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -59509,7 +59573,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e608ff10a9a934712e52b03af49b42899d356d528d354d02bed43b9b8de40d28"
+      "sha256": "984441e93b68cac818f53a124ade7f0d548666204a9860be901a446dfbfedb6c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59525,7 +59589,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "0a44c6986d4f8e0e40c1983efe7850b31ad5c6759136bef16ff0c7d9ebe84bb5"
+      "sha256": "8c52f45a9fce76ec7ac8ac496099b51fb83198f6237342abe9e9bca6595151fc"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59585,7 +59649,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
-      "sha256": "efa14f8fbd437b536b84d9a9c108c864f8318bba0e169be567c24ba98f1e1812"
+      "sha256": "5c1e2eeea13a3fb13477f70c3f35e077ea279acb57022a73482c9a7035230bf5"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
@@ -59645,7 +59709,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "e9f9520c283f4eaec4dcf4f8b4d133f1a2a72760fcece7f80c7375a6108665f3"
+      "sha256": "c116b122a687d19972a690f1efd2330c6450fcf056d58b6917766c73cd56c575"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -59657,7 +59721,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
-      "sha256": "4ab4d74ba5fa9e41c9789395a3df6243af50c3b24289ff550f200f605789deeb"
+      "sha256": "9793fa77a54736ee66bd2655b2488e72a2bc2bb0781977c2b5621abe75afab2b"
     },
     {
       "path": "tools/frida/research/attack_help153_probe.j",
@@ -59897,7 +59961,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "f747e9937eb41274fd966836607317448ab0dc747576a4162880041eb66d61a8"
+      "sha256": "672934e65d0eec4dd0fdd00693412750bb635194cf6f199d53c24e30ca43eefb"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -60817,7 +60881,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "305fd48cb4495c8eeb359ad278c33dce9c2a78f7447efbee4b2c0ec5b8950c82"
+      "sha256": "c7974279b22aac2c9610eb707fec0a5fe95616b769841488011d6ed0dc4e2c2e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -64525,7 +64589,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "cb602b7fe66fff74c3224c35af9a53f988e912bc652d50a2916ad717b1639349"
+      "sha256": "800a8ca17200054f1c5b47e825127d8e9fc479c895f0953beef24b62d0c95705"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -66381,7 +66445,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "66f0ae812f165c745e7be3abfda2cd3829bfb200cdd2700bbe2790d61909deac"
+      "sha256": "20925388775387903f4fd5694037b8b7d45da14db890f83bf70f61579d70775c"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -68098,6 +68162,118 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_target371_ground.py",
       "sha256": "c093677ab35cb0c8250f9204d7b2ca279d58efd5b3b36b5b35665a78535cc71b"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-captain-strategic-regions.md",
+      "sha256": "92fa60217bf0528b57e75ddc84bd4ccf13df2daa38cdda32db5f64f89eed6b2a"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_ai_regions.h",
+      "sha256": "b95bb01bfdeb8956ab838bb2eb7c1e49a89c6ca8d6c4f8a2eb2dfd52fa43658f"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_captain369_regions.h",
+      "sha256": "d2c22d9690b237a48f4b92c0f6519d309930bf5f4ee779fcfe3e33a0b99c5bcf"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain373_strategic.py",
+      "sha256": "b08fc3fb9260401200f51fe9269dd003e803585ae9611b666c9aa3c538d98e0d"
+    },
+    {
+      "path": "tools/frida/research/captain369_regions_input_observer.js",
+      "sha256": "8f48ee3d6badbffaed6eb4d8d9cd0bd4efa8e61286ef9205c995728f0dd0305f"
+    },
+    {
+      "path": "tools/frida/research/captain369_regions_observer.js",
+      "sha256": "ad82423572ccc0b18412c0f575d5df82ec8a06d9dfc5053cfc219bd77ac63bc2"
+    },
+    {
+      "path": "tools/frida/research/captain373_coexistence_make_map.py",
+      "sha256": "bab93d9886589535ee359dc5fb871e8d82eb5a988b4e31f84fb2eeddaaae961e"
+    },
+    {
+      "path": "tools/frida/research/captain373_coexistence_notify_observer.js",
+      "sha256": "204b2cdaebe081f97a95f791177db4b8612d9e8f8bb5ddb5219a27b53efa22bb"
+    },
+    {
+      "path": "tools/frida/research/captain373_coexistence_observer.js",
+      "sha256": "01bd4158ce410f51bd397b6f924cb9bd5ecdbd9d0bbe2da89d772f1be739ed79"
+    },
+    {
+      "path": "tools/frida/research/captain373_coexistence_probe.ai",
+      "sha256": "6700904ba2eae691ac88852b0a02f305cb1c4c6ebf58eb7f684db9d84c1709f9"
+    },
+    {
+      "path": "tools/frida/research/captain373_coexistence_probe.j",
+      "sha256": "6385c4e734a3ca2c1fcdc83e496c6b2abb09343c638eadea2730777d9cfd6a4c"
+    },
+    {
+      "path": "tools/frida/research/captain373_sources_make_map.py",
+      "sha256": "777e42bcc123525961499cc30d035babae7925d4c38a549d0f7da3cb1883a488"
+    },
+    {
+      "path": "tools/frida/research/captain373_sources_observer.js",
+      "sha256": "02587e2023ce4c2c8007f192d8b8e4c75ec6969484b576e912e456d0a3715b89"
+    },
+    {
+      "path": "tools/frida/research/captain373_sources_probe.ai",
+      "sha256": "6700904ba2eae691ac88852b0a02f305cb1c4c6ebf58eb7f684db9d84c1709f9"
+    },
+    {
+      "path": "tools/frida/research/captain373_sources_probe.j",
+      "sha256": "6385c4e734a3ca2c1fcdc83e496c6b2abb09343c638eadea2730777d9cfd6a4c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain369-regions-1.27.json.gz",
+      "sha256": "546908578b57e603994b7845c95df16d85cc0936e4e26635a23f8c0daece3ace"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain373-strategic-1.27.json",
+      "sha256": "e7fc59099d7c42b99a3e0cc07dff6d09bca6002ae5e16a133c477843e19e6e16"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain373-strategic-1.27.json.gz",
+      "sha256": "ca21bb10f9860f683111c6dfcc1a7115f47527f5944e17687da5d0c49994b69d"
+    },
+    {
+      "path": "tools/ghidra/research/Captain369ExportRegionTables.java",
+      "sha256": "c3d5c455873d90aee5edfb29e50533aa8547da733b8a3aa2a584bebcf1717367"
+    },
+    {
+      "path": "tools/ghidra/research/Captain369StrategicRegionsEvidence.java",
+      "sha256": "1e0f4daed5d2e5d2dc6aa7f0d318abc3abda1c9d96fc7c55497545f318ebaaf8"
+    },
+    {
+      "path": "tools/ghidra/research/Captain373WorldQueryEvidence.java",
+      "sha256": "c1eff0eecaf22bc057c5d122080f0f339ce9d3dedbaf55301e75a229f7f821aa"
+    },
+    {
+      "path": "tools/ghidra/research/captain369_regions_c_model.c",
+      "sha256": "b0faec4cf6ab813029c803a47541f1bdfb996e6f8700a1ab038ba73dcddb2a4c"
+    },
+    {
+      "path": "tools/ghidra/research/captain369_regions_c_model.py",
+      "sha256": "5a587ef40fb4c7847378100c39b2aa68c1a68519253febe5f54d6bd14e49baea"
+    },
+    {
+      "path": "tools/ghidra/research/captain369_regions_model.py",
+      "sha256": "185ab536c11f426343a31ee4b6c94216e7d96cfbc671663e92735f003c93066d"
+    },
+    {
+      "path": "tools/ghidra/research/emit_captain369_regions_test.py",
+      "sha256": "b6b81fa982d733d3cedc0456f4b7edd5c94509cf5078d39960fa2998975a4761"
+    },
+    {
+      "path": "tools/ghidra/research/freeze_captain369_regions.py",
+      "sha256": "5ba169ad8fb2bd9a4c9eb940eafb5e568cc86780b2fe48bdda6a922cdc6adb95"
+    },
+    {
+      "path": "tools/ghidra/research/freeze_captain373_strategic.py",
+      "sha256": "f8caed51a1eb766e115a31e98971482545cb7bbbe4a17d2660fe0793892f8f83"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain373_strategic.py",
+      "sha256": "f9750eaba9b69a54c89066f6649247d3965022083fcc6ae1878122e9e5deb43d"
     }
   ]
 }

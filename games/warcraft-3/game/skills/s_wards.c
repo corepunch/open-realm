@@ -600,7 +600,7 @@ bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player) {
 /* Script-hidden units are absent from ordinary targeting. RF_HIDDEN also backs
  * player-local invisibility, so retain its detector-aware target policy. */
 bool S_UnitIsHiddenFromPlayer(edict_t const *unit, uint32_t player) {
-	if (!unit || !unit->inuse) return true;
+	if (!unit || !unit->inuse || unit->script_world_hidden) return true;
 	if ((unit->s.renderfx & RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(unit)) return true;
 	return S_UnitIsInvisibleToPlayer(unit, player);
 }

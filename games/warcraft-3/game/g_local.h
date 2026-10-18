@@ -2321,6 +2321,7 @@ struct edict_s {
     bool timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
     bool target_loss_transient; /* Blink's synchronous validation window; never saved. */
     bool construction_held; /* Construction owns absence independently of scripted pause. */
+    bool script_world_hidden; /* ShowUnit retirement, independent of gameplay invisibility. */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     sleep_t *sleep;
     channel_t *channel;
@@ -4555,6 +4556,7 @@ void T_Damage(edict_t *, edict_t *, int);
 
 // g_utils.c
 bool G_UnitIsWorldActive(edict_t const *);
+bool G_UnitHasWorldPresence(edict_t const *);
 void G_FreeEdict(edict_t *);
 bool G_EntityHasStaticPathing(edict_t const *);
 void G_DeferFreeEdict(edict_t *);
@@ -4763,6 +4765,9 @@ typedef struct {
     uint8_t coarse_mask; /* Zero uses actor policy; native selection supplies its own lane. */
 } moveOwnerDistance_t;
 uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *,uint32_t *);
+/* Borrowed cached ground level1 classes; valid until hierarchy release/reallocation. */
+typedef struct {uint32_t width,height;uint8_t const *classes;vec2_t origin;} moveStrategicMap_t;
+bool G_MoveStrategicMap(moveStrategicMap_t *);
 void S_UnitPredictedWorldPosition(edict_t const *,vec2_t *);
 bool G_FindCargoShorePair(edict_t const *,edict_t const *,vec2_t *,vec2_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);

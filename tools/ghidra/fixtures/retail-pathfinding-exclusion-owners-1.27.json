@@ -318,7 +318,8 @@
     "oracle-target371",
     "oracle-group367",
     "oracle-morph372",
-    "oracle-target371-ground"
+    "oracle-target371-ground",
+    "oracle-captain373-strategic"
   ],
   "entries": [
     {
@@ -7151,6 +7152,18 @@
           "task": "TARGET-01.2",
           "disposition": "behavior",
           "rationale": "The existing TARGET-01.2 and ORDER-01.10 leaves retain wider producer coverage and complete firing/poll numerics; this admission chunk does not close them."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain373-strategic",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Complete same-map journeys, transport, SuicidePlayerUnits, Town preferred-primary override and wider flag100/200 branches remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "Transport, SuicidePlayerUnits, Town preferred-primary and complete journeys remain in the original existing leaf."
         }
       ]
     }

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Ground371, the inventory has **597 entries**: **316** oracle contracts
-(including variants) supplied by **244** distinct verifier scripts, **121**
+As of Captain373, the inventory has **598 entries**: **317** oracle contracts
+(including variants) supplied by **245** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Captain369
-inventory has595 entries:314 oracle contracts supplied by242 distinct verifier
+identity, source versions and frozen input hashes. The current Captain373
+inventory has598 entries:317 oracle contracts supplied by245 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2438,3 +2438,8 @@ Ground371 registers selected-range physical admission, artillery minimum rejecti
 intrinsic immobile completion and blocked human/computer recovery. Strict acceptance: classic: 43 tests/11838 assertions; tft: 43 tests/11838 assertions.
 Original guards: 2757; public markers: 5928.
 Wider producer inventory and complete firing polls remain in existing leaves.
+
+Captain373 registers deferred SuicidePlayer, exact strategic-region inputs and cached-ground
+publication-boundary replay, plus Save212 physical world absence versus invisibility.
+Its strict gate passes6 tests/139 assertions each edition with3611 original guards,
+7 observations/3 controls and1050 public markers. Wider Captain policy stays in its existing leaf.

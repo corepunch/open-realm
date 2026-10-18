@@ -4824,7 +4824,7 @@ static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
 moveTargetResult_t S_MoveTargetStatus(edict_t const *self, edict_t const *target) {
     if (!target || !target->inuse || (!target->movement.captain_actor_type && M_IsDead(target)))
         return MOVE_TARGET_LOST;
-    bool hidden=G_IsDeferredFree(target) || !G_UnitIsWorldActive(target) ||
+    bool hidden=target->script_world_hidden || G_IsDeferredFree(target) || !G_UnitIsWorldActive(target) ||
         ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
     if (!(target->svflags&SVF_MONSTER)) return hidden ? MOVE_TARGET_HIDDEN : MOVE_TARGET_VALID;
     if (hidden && !target->target_loss_transient)

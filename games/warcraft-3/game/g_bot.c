@@ -2,6 +2,7 @@
 #include "jass/jass.h"
 #include "skills/s_skills.h"
 #include "wc3_pathing_coordinates.h"
+#include "wc3_ai_regions.h"
 #include <stdarg.h>
 
 #define BOT_GROUP_FLEE_HOME_RADIUS 128.0f // world units; upstream compatibility tolerance for logical Captain queries without a physical actor
@@ -2341,24 +2342,14 @@ bool G_BotSuicideUnits(player_t *player, int32_t qty, uint32_t class_id, int32_t
     return accepted;
 }
 
-/* SuicidePlayer launches the formed assault captain at the named player and
- * reports whether the wave left. check_full holds the wave until the roster
- * reaches its requested size; without it an under-strength captain still
- * attacks so campaign scripts never stall on a missing full house. */
+/*9cc850 admits a selection request whenever the Captain exists; only the
+ * caller's optional full check gates it. Units receive no immediate order. */
 bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
-    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    botCaptain_t *captain;
-    bool any = false;
-    if (!bot) return false;
-    captain = bot->captains + BOT_CAPTAIN_ATTACK;
-    if (captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) return false;
-    FOR_EACH_ARRAY(edict_t *, member, captain->units) if (G_BotUnitAlive(*member)) { any = true; break; }
-    if (!any) return false;
-    if (check_full && !G_BotCaptainIsFull(player)) return false;
-    FOR_EACH_ARRAY(edict_t *, member, captain->units)
-        if (G_BotUnitAlive(*member)) G_BotOrderAssaultMember(bot, *member, (int32_t)target);
-    captain->state = BOT_CAPTAIN_ACTIVE;
-    if (bot->stage_valid) captain->goal = bot->stage;
+    bot_t *bot=player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if(!bot)return false;
+    botCaptain_t *captain=bot->captains+BOT_CAPTAIN_ATTACK;
+    if(!captain->home_actor || !captain->home_actor->inuse || (check_full && !captain->full))return false;
+    G_BotBeginSelection(bot,captain,target,true,false);
     return true;
 }
 
@@ -2376,9 +2367,10 @@ static void G_BotBeginSelection(bot_t *bot,botCaptain_t *captain,uint32_t player
     FOR_LOOP(i,12){selection->best[i]=(botCaptainTarget_t){0};selection->scores[i]=999999;}
     uint32_t own=(uint32_t)(bot-level.bots),count=0;
     edict_t **units=gi.MemAlloc(globals.num_edicts*sizeof(*units));
-    FILTER_EDICTS(unit,G_BotUnitAlive(unit) && !G_IsDeferredFree(unit) && unit->class_seq &&
-        ((unit->svflags&SVF_MONSTER) || G_UnitIsStructure(unit))) {
-        if(player_only ? unit->s.player!=player : G_PlayerTreatsPlayerAsAlly(own,unit->s.player))continue;
+    FILTER_EDICTS(unit,G_BotUnitAlive(unit) && unit->class_seq &&
+        ((unit->svflags&SVF_MONSTER) || G_UnitIsStructure(unit)) &&
+        !(player_only ? unit->s.player!=player : G_PlayerTreatsPlayerAsAlly(own,unit->s.player)) &&
+        G_UnitHasWorldPresence(unit)) {
         units[count++]=unit;
     }
     qsort(units,count,sizeof(*units),G_BotSelectionBirthCompare);
@@ -2405,6 +2397,31 @@ static bool G_BotSelectionTownHall(edict_t const *unit) {
     return false;
 }
 
+/*9b8690 constructs a temporary strategic graph from the retained level1
+ * ground classes, marks the requested player's structures, and spends one
+ * additional purpose13 draw only when an eligible destination exists. */
+static void G_BotRandomStructurePoint(botCaptain_t const *captain,uint32_t player,vec2_t *point) {
+    moveStrategicMap_t map;
+    if(!G_MoveStrategicMap(&map))return;
+    wc3AiRegions_t *regions=gi.MemAlloc(sizeof(*regions));
+    if(wc3_ai_regions_build(regions,map.width,map.height,map.classes)) {
+        float const origin[2]={map.origin.x,map.origin.y};
+        FILTER_EDICTS(unit,G_BotUnitAlive(unit) && unit->class_seq && unit->s.player==player &&
+            G_UnitIsStructure(unit) && G_UnitHasWorldPresence(unit)) {
+            vec2_t position;S_UnitPredictedWorldPosition(unit,&position);
+            float const xy[2]={position.x,position.y};wc3_ai_regions_mark(regions,xy,origin,4);
+        }
+        wc3_ai_regions_expand_marks(regions);
+        vec2_t position;S_UnitPredictedWorldPosition(captain->home_actor,&position);
+        float const actor[2]={position.x,position.y};float destination[2]={point->x,point->y};
+        uint32_t nearest=wc3_ai_region_nearest(regions,actor,origin,4);
+        wc3_ai_regions_filter(regions,nearest,destination,origin,4);
+        if(wc3_ai_regions_roll(regions,level.purpose_random+13,origin,4,destination))
+            *point=(vec2_t){destination[0],destination[1]};
+    }
+    gi.MemFree(regions);
+}
+
 /*9d5e00 spends one eligible candidate per tick. Invalidated identities and
  * script-hidden/invulnerable candidates consume no eligible work budget. */
 static void G_BotSelectionTick(bot_t *bot,botCaptain_t *captain) {
@@ -2414,7 +2431,7 @@ static void G_BotSelectionTick(bot_t *bot,botCaptain_t *captain) {
         botCaptainTarget_t ref=selection->pending[selection->pending_first++];
         ARRAY_COUNT(selection->pending)--;
         edict_t *unit=G_BotCaptainTarget(&ref),*actor=captain->home_actor;
-        if(!unit || unit->invulnerable || (unit->svflags&SVF_NOCLIENT) ||
+        if(!G_UnitHasWorldPresence(unit) || unit->invulnerable || (unit->svflags&SVF_NOCLIENT) ||
            !G_FowPlayerCanQueryUnit(own,unit,UNIT_VISIBILITY_IGNORE_FOG))continue;
         uint32_t bucket=(unit->s.player==selection->player ? 0u : 6u)+
             (G_BotSelectionTownHall(unit) ? 0u : G_UnitIsStructure(unit) ? 1u : 2u);
@@ -2454,8 +2471,11 @@ static void G_BotSelectionTick(bot_t *bot,botCaptain_t *captain) {
     captain->state=BOT_CAPTAIN_TARGETED;captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
     captain->target=G_BotCaptainIdentity(chosen);G_RefreshCaptainTargetSubscriptions(captain);
     vec2_t point;S_UnitPredictedWorldPosition(chosen,&point);
-    if((!unreachable || (captain->policy_flags&0x100u)) && bot->stage_valid &&
-       fabsf(wc3_sub(bot->stage.x,-1))>=wc3_float(0x38d1b717))point=bot->stage;
+    if(!unreachable || (captain->policy_flags&0x100u)) {
+        if(bot->stage_valid && fabsf(wc3_sub(bot->stage.x,-1))>=wc3_float(0x38d1b717))point=bot->stage;
+        else if((bot->flags&BOT_RANDOM_PATHS) && G_UnitIsStructure(chosen))
+            G_BotRandomStructurePoint(captain,selection->player,&point);
+    }
     captain->position_valid=false;S_CaptainPointMove(captain,&point,200);
 }
 
@@ -2928,7 +2948,7 @@ void G_BotInitPlayers(void) {
     }
     FOR_LOOP(i,MAX_PLAYERS) if ((level.ai_owned_players&(1u<<i)) && !level.bots[i].town_initialized) {
         level.bots[i].town_initialized=true;
-        if (i!=PLAYER_NEUTRAL_AGGRESSIVE) level.bots[i].flags|=BOT_GROUP_TIMED_LIFE|BOT_GUARD_NEW_UNITS;
+        if (i!=PLAYER_NEUTRAL_AGGRESSIVE) level.bots[i].flags|=BOT_GROUP_TIMED_LIFE|BOT_GUARD_NEW_UNITS|BOT_RANDOM_PATHS;
     }
     /* OpenRealm loads preplaced units before config. Publish the configured
      * membership before main can observe those units; no owned sequence changes. */
@@ -3033,7 +3053,7 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
     G_BotTraceClearWaits(playernum);
     if (!bot->town_initialized) {
         bot->town_initialized=true;
-        if (playernum!=PLAYER_NEUTRAL_AGGRESSIVE) bot->flags|=BOT_GROUP_TIMED_LIFE|BOT_GUARD_NEW_UNITS;
+        if (playernum!=PLAYER_NEUTRAL_AGGRESSIVE) bot->flags|=BOT_GROUP_TIMED_LIFE|BOT_GUARD_NEW_UNITS|BOT_RANDOM_PATHS;
     }
     /* AI VMs can start before map spawning, which previously left the shared JASS allocator unset. */
     G_InitJassHost();
