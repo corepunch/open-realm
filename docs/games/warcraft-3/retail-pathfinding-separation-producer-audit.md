@@ -54,5 +54,11 @@ per edition, including330 Phoenix assertions;14 evidence-integrity checks pass.
 A malformed RoC test column caused18 diagnostic timing failures and was
 corrected to rank1 Data12/Data13; the original behavior and engine code were
 unchanged by that fixture correction.
-Burrow366 retains the existing incomplete
-invisibility/state boundary rather than treating category-only parity as closure.
+Burrow366 now implements counted invisibility, active-form availability,
+initial-alternate aliases, retained base-detach owners and callback/early-detach
+ordering. Four maps retain12 complete captures,15 scenes,995 public markers and
+1,943 native events. Saved Ghidra annotations and1,407 guards protect the static
+contract;74 integrity checks pass. The final private Save207 strict run passes
+24 tests/4,373 assertions per edition after genuine missing-behavior regressions.
+Mount reachability, other common Morph producers and combined owner replay
+remain within SEP-01.2. [Burrow evidence](retail-pathfinding-burrow366.md).

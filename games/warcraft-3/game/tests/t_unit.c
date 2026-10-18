@@ -3890,4 +3890,187 @@ TEST(wc3_unit, phoenix365_fatal_admission_retains_live_identity_and_saved_rebirt
     }
 }
 
+/* Burrow366: original forward/initial-alternate attachment publishes114 and
+ * hidden state; reverse removes that source before the delayed type rebind. */
+TEST(wc3_unit, burrow366_hidden_owner_survives_stop_pause_and_cold_save) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned initial=0;initial<2;initial++)for(unsigned saved=0;saved<2;saved++)for(unsigned action=0;action<3;action++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char text[1200];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ab66\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey("Ab66"),base=FS_SLKKey("hpea"),alt=FS_SLKKey("hfoo");
+        edict_t *unit=alloc_test_unit(initial ? alt : base,64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        uint32_t slot=unit-g_edicts;
+        if(!initial) {
+            T_ASSERT(unit_issueimmediateorder(unit,"burrow"));T_ASSERT(!S_UnitHasInvisibilityState(unit));
+            if(action==0)T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            if(action==1) {S_SetUnitPaused(unit,true);T_ASSERT(!S_UnitExecutionPaused(unit));}
+            if(saved) {cstring_t path=Test_TempPath("burrow366-pending.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;}
+            morph330_advance(1.375f);
+        }
+        T_EQ(unit->class_id,alt);T_EQ(S_UnitMoveCategory(unit),0xc8);T_ASSERT(S_UnitHasInvisibilityState(unit));
+        T_EQ(S_UnitExecutionPaused(unit),action==1&&!initial);
+        if(saved) {cstring_t path=Test_TempPath("burrow366-held.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;T_ASSERT(S_UnitHasInvisibilityState(unit));}
+        if(action==1&&!initial) {S_SetUnitPaused(unit,false);morph330_advance(1.5f);S_RunMoveTimers();}
+        level.pathing_clock.time=2;
+        if(action==2) {
+            T_ASSERT(G_ActorRemoveSkill(unit,code));T_EQ(unit->class_id,base);T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        } else {
+            T_ASSERT(unit_issueimmediateorder(unit,"unburrow"));T_EQ(unit->class_id,alt);
+            T_EQ(S_UnitMoveCategory(unit),0xca);T_ASSERT(!S_UnitHasInvisibilityState(unit));
+            if(action==0)T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            if(saved) {cstring_t path=Test_TempPath("burrow366-reverse.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;}
+            morph330_advance(2.375f);T_EQ(unit->class_id,base);T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        }
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+
+/* Native Burrow's41c=true runs the common active-form availability owner:
+ * preserve Move/Attack/Morph, suspend Apiv until reverse completion. */
+TEST(wc3_unit, burrow366_active_form_suspends_passives_until_reverse_completion) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned saved=0;saved<2;saved++)for(unsigned late=0;late<2;late++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char text[1800];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ab66\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.625\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey("Ab66"),apiv=FS_SLKKey("Apiv");
+        edict_t *unit=alloc_test_unit(FS_SLKKey("hpea"),64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        if(!late) {T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(G_ActorSetSkillPermanent(unit,apiv,true));T_ASSERT(unit->permanent_invisibility_fade.request.active);}
+        T_ASSERT(unit_issueimmediateorder(unit,"burrow"));morph330_advance(1.375f);
+        if(late) {T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(G_ActorSetSkillPermanent(unit,apiv,true));}
+        T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        T_ASSERT(!S_PermanentInvisibilityActive(unit));T_ASSERT(S_UnitHasInvisibilityState(unit));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,code));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','m','o','v')));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')));
+        uint32_t slot=unit-g_edicts;
+        if(saved) {cstring_t path=Test_TempPath("burrow366-passive.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));T_ASSERT(!unit->permanent_invisibility_fade.request.active);}
+        level.pathing_clock.time=2;T_ASSERT(unit_issueimmediateorder(unit,"unburrow"));
+        T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+        morph330_advance(2.374f);T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+        morph330_advance(2.375f);T_ASSERT(!S_AbilityExecutionDisabled(unit,apiv));
+        T_ASSERT(unit->permanent_invisibility_fade.request.active);T_FEQ(unit->permanent_invisibility_fade.origin.time,2.375f,.000001f);
+        morph330_advance(3.05f);T_ASSERT(S_PermanentInvisibilityActive(unit));
+        T_ASSERT(G_ActorRemoveSkill(unit,apiv));T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+/* Original initial-alternate aliases each own114. Detaching the first
+ * rebinds base; detaching the second from base does not run subtype inverse. */
+TEST(wc3_unit, burrow366_alias_detach_from_base_retains_other_invisibility_source) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned frontier=0;frontier<3;frontier++)for(unsigned initial=0;initial<2;initial++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char text[1600];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ab61\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y3;K\"Ab62\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y4;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.375\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        uint32_t first=FS_SLKKey("Ab61"),second=FS_SLKKey("Ab62"),base=FS_SLKKey("hpea"),alt=FS_SLKKey("hfoo");
+        edict_t *unit=alloc_test_unit(initial ? alt : base,64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};uint32_t slot=unit-g_edicts;
+        T_ASSERT(G_ActorAddSkill(unit,first));T_ASSERT(G_ActorSetSkillPermanent(unit,first,true));
+        T_ASSERT(G_ActorAddSkill(unit,second));T_ASSERT(G_ActorSetSkillPermanent(unit,second,true));
+        if(!initial) {T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(unit_issueimmediateorder(unit,"burrow"));morph330_advance(1.375f);}
+        T_EQ(unit->class_id,alt);T_EQ(S_UnitMoveCategory(unit),0xc8);T_ASSERT(S_UnitHasInvisibilityState(unit));
+        for(unsigned phase=0;phase<3;phase++) {
+            if(phase==1) {
+                if(!initial) {level.pathing_clock.time=2;T_ASSERT(unit_issueimmediateorder(unit,"unburrow"));morph330_advance(2.375f);}
+                T_ASSERT(G_ActorRemoveSkill(unit,first));T_ASSERT(G_ActorHasAbilityCode(unit,second));}
+            if(phase==2) {T_ASSERT(G_ActorRemoveSkill(unit,second));T_ASSERT(!G_ActorHasAbilityCode(unit,first));T_ASSERT(!G_ActorHasAbilityCode(unit,second));}
+            if(phase==frontier) {cstring_t path=Test_TempPath("burrow366-alias.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;}
+            T_EQ(unit->class_id,phase ? base : alt);T_EQ(S_UnitHasInvisibilityState(unit),initial || phase==0);
+            T_EQ(S_UnitMoveCategory(unit),phase ? 0xca : 0xc8);T_EQ(unit->movement.repulse.disable_depth,0);
+        }
+        /* Native late Apiv inherits the retained Morph contribution only in
+         * the initial-alternate/detach-from-base scene. */
+        uint32_t apiv=FS_SLKKey("Apiv");level.pathing_clock.time=3;
+        T_ASSERT(G_ActorAddSkill(unit,apiv));T_EQ(S_AbilityExecutionDisabled(unit,apiv),initial);
+        T_EQ(unit->permanent_invisibility_fade.request.active,!initial);
+        morph330_advance(3.5f);T_EQ(S_PermanentInvisibilityActive(unit),!initial);
+        T_ASSERT(G_ActorRemoveSkill(unit,apiv));T_EQ(S_UnitHasInvisibilityState(unit),initial);
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+static unsigned burrow366_suspend_count,burrow366_premature_hidden;
+static intptr_t burrow366_observe_suspend(edict_t *unit,abilityMsg_t msg,abilityCall_t const *call) {
+    if(msg==A_UNIT_SUSPEND) {
+        burrow366_suspend_count++;
+        if(S_UnitIsBurrowed(unit))burrow366_premature_hidden++;
+    }
+    return CAbilityPermanentInvisibility(unit,msg,call);
+}
+
+/*54eb80 suspends old passive sources before subtype40c acquires Burrow114. */
+TEST(wc3_unit, burrow366_passive_suspend_precedes_subtype_publication) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned initial=0;initial<2;initial++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char text[1400];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ab66\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        ability_t *passive=(ability_t *)FindAbilityByClassname("Apiv");abilityProc_t original=passive->proc;
+        passive->proc=burrow366_observe_suspend;
+        edict_t *unit=alloc_test_unit(FS_SLKKey(initial ? "hfoo" : "hpea"),64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Apiv")));T_ASSERT(G_ActorSetSkillPermanent(unit,FS_SLKKey("Apiv"),true));
+        T_ASSERT(S_PermanentInvisibilityActive(unit));T_ASSERT(!S_UnitIsBurrowed(unit));
+        burrow366_suspend_count=burrow366_premature_hidden=0;
+        T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Ab66")));T_ASSERT(G_ActorSetSkillPermanent(unit,FS_SLKKey("Ab66"),true));
+        if(!initial) {T_ASSERT(unit_issueimmediateorder(unit,"burrow"));morph330_advance(1.375f);}
+        T_EQ(burrow366_suspend_count,1);T_EQ(burrow366_premature_hidden,0);
+        T_ASSERT(S_UnitIsBurrowed(unit));T_ASSERT(!S_PermanentInvisibilityActive(unit));
+        passive->proc=original;
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+/* Native detach completes a pending forward before its synchronous inverse;
+ * the subtype source acquired by that completion must be released as well. */
+TEST(wc3_unit, burrow366_early_detach_completes_forward_then_releases_subtype) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned reverse=0;reverse<2;reverse++)for(unsigned saved=0;saved<2;saved++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char text[1400];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ab66\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.375\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey("Ab66"),apiv=FS_SLKKey("Apiv"),base=FS_SLKKey("hpea");
+        edict_t *unit=alloc_test_unit(FS_SLKKey(reverse ? "hfoo" : "hpea"),64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        T_ASSERT(unit_issueimmediateorder(unit,reverse ? "unburrow" : "burrow"));T_ASSERT(unit->morph->transition.active);
+        level.pathing_clock.time=1.125f;uint32_t slot=unit-g_edicts;
+        if(saved) {cstring_t path=Test_TempPath("burrow366-detach.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;}
+        T_ASSERT(G_ActorRemoveSkill(unit,code));T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,0);
+        T_ASSERT(!unit->morph->transition.active);T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(!G_ActorHasAbilityCode(unit,code));
+        T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(!S_AbilityExecutionDisabled(unit,apiv));T_ASSERT(unit->permanent_invisibility_fade.request.active);
+        T_ASSERT(G_ActorRemoveSkill(unit,apiv));T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
 #endif /* BZ_TESTS */

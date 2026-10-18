@@ -825,6 +825,8 @@ typedef struct unitAbilityDisable_s {
     uint32_t code, references, exclusive_inventory;
     int32_t depth, order_depth;
     bool pause_owned, retire_owned, exclusive_owned, linked;
+    bool burrow_initialized, burrow_owned; /* Attachment source; aggregate survives a base-form detach. */
+    bool morph_owned; /* Alternate-form all-owner availability contribution. */
     bool ethereal_initialized, ethereal_owned; /* Attachment lifetime, independent of type refresh. */
 } unitAbilityDisable_t;
 
@@ -1070,6 +1072,7 @@ typedef enum {
     A_ORDER_RESUME, /* Retained head reactivation: the owner publishes its notification. */
     A_SPELL_APPROACH_RANGE, /* Spell query: ability-specific distance for the shared approach behavior. */
     A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
+    A_UNIT_RESUME, /* Execution contribution returned to nonpositive; owner restarts its policy. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -2016,6 +2019,7 @@ typedef struct {
     uint32_t category_clear, category_set; /* Concrete morph owner's fine occupancy publication. */
     bool reverse, deferred_rebind, animation_held;
     bool death_intercepted; /* Phoenix retains the living identity until egg completion. */
+    int32_t burrow_invisibility_depth; /* Native114 aggregate, including retained detached sources. */
 } morph_t;
 
 typedef struct {
@@ -3820,6 +3824,9 @@ void S_AcquireBuffAbilityDisables(edict_t *,bool orders);
 void S_ReleaseBuffAbilityDisables(edict_t *,bool orders);
 bool S_AbilityExecutionDisabled(edict_t const *,uint32_t);
 void S_AcquireExclusiveAbilityDisables(edict_t *,uint32_t);
+void S_SetMorphAbilityDisables(edict_t *,uint32_t,bool);
+bool S_InitializeBurrowAbility(edict_t *,uint32_t);
+void S_SetBurrowInvisibilityContribution(edict_t *,uint32_t,bool);
 void S_AcquireItemAbilityDisables(edict_t *,uint32_t);
 bool S_ReleaseItemAbilityDisables(edict_t *,uint32_t);
 bool S_ReleaseExclusiveAbilityDisables(edict_t *,uint32_t);

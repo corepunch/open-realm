@@ -1782,6 +1782,12 @@ uint32_t S_TestMoveBonusMessages(bool reset) {
 }
 #endif
 
+typedef struct abilityAttachContext_s {
+    struct abilityAttachContext_s *previous;
+    edict_t *unit; uint32_t code;
+} abilityAttachContext_t;
+static abilityAttachContext_t *ability_attaching;
+
 static unitAbilityDisable_t *ability_disable_owner(edict_t *ent,uint32_t code) {
     for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
         if(state->code==code)return state;
@@ -1828,6 +1834,21 @@ static intptr_t ability_disable_add(edict_t *ent,unitAbilityDisable_t *state,
     }
     if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth+1);
     ability_disable_release(state);return result;
+}
+
+/*40bb00 subtracts the order counter before execution and refreshes only the
+ * positive-to-nonpositive crossing. Retain the owner across nested callbacks. */
+static void ability_disable_subtract(edict_t *ent,unitAbilityDisable_t *state,bool orders) {
+    state->references++;
+    if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
+    int32_t before=state->depth;
+    state->depth=(int32_t)((uint32_t)before-1);
+    abilityitem_t item=S_AbilityItem(state->code);
+    if(before>0 && state->depth<=0 && item.ability && item.ability->proc &&
+       known_unit_ability_receives(item,A_UNIT_RESUME)) {
+        abilityCall_t call={.item=&item};item.ability->proc(ent,A_UNIT_RESUME,&call);
+    }
+    ability_disable_release(state);
 }
 
 /* An unresolved authored rawcode has no attached procedure or mutable owner. */
@@ -1884,7 +1905,7 @@ static void ability_disables_acquire(edict_t *ent,bool scripted,bool orders) {
          * inherit the unit contribution but are not revisited by this walk. */
         unitAbilityDisable_t *next=state->next;
         if(next)next->references++;
-        if(state->linked) {
+        if(state->linked && !(ability_attaching && ability_attaching->unit==ent && ability_attaching->code==state->code)) {
             if(scripted)state->pause_owned=ent->ability_pause_depth>0;
             abilityitem_t item=S_AbilityItem(state->code);
             ability_disable_add(ent,state,&item,orders,false);
@@ -1905,10 +1926,64 @@ static void ability_disables_release(edict_t *ent,bool scripted,bool orders) {
     /* Original48c8c0 visits every owner, including ones the interrupted
      * outer add has not reached. Their temporary negative counts cancel when
      * that outer walk continues.40bb00 subtracts40 before3c. */
-    for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next) {
-        if(scripted)state->pause_owned=ent->ability_pause_depth>0;
-        if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
-        state->depth=(int32_t)((uint32_t)state->depth-1);
+    uint32_t const spawn=ent->spawn_time;
+    unitAbilityDisable_t *state=ent->ability_disables;
+    if(state)state->references++;
+    while(state) {
+        unitAbilityDisable_t *next=state->next;if(next)next->references++;
+        if(state->linked) {
+            if(scripted)state->pause_owned=ent->ability_pause_depth>0;
+            ability_disable_subtract(ent,state,orders);
+        }
+        ability_disable_release(state);
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent)) {
+            if(next)ability_disable_release(next);
+            return;
+        }
+        state=next;
+    }
+}
+
+/* Each attached Burrow owns its subtype source. Native detach from base
+ * skips the inverse; unlinking that record deliberately retains Unit114. */
+bool S_InitializeBurrowAbility(edict_t *ent,uint32_t code) {
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
+    if(owner->burrow_initialized)return false;
+    owner->burrow_initialized=true;return true;
+}
+void S_SetBurrowInvisibilityContribution(edict_t *ent,uint32_t code,bool held) {
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
+    if(owner->burrow_owned==held)return;
+    owner->burrow_owned=held;
+    assert(ent->morph);
+    ent->morph->burrow_invisibility_depth=(int32_t)((uint32_t)ent->morph->burrow_invisibility_depth+(held ? 1u : UINT32_MAX));
+}
+
+/*54eb80/54cb50 exempt the current Morph, Move, Attack, Hero and Inventory
+ * owners from the alternate-form whole-unit contribution. Construction's
+ * current attachment is added to the all-owner aggregate only after A_ENABLE. */
+static bool morph_availability_exception(unitAbilityDisable_t const *state,uint32_t code) {
+    abilityitem_t item=S_AbilityItem(state->code);
+    return state->code==code || state->code==MAKEFOURCC('A','H','e','r') ||
+        (item.ability && (item.ability->proc==CAbilityMove || item.ability->proc==CAbilityAttack ||
+                            item.ability->proc==CAbilityInventory));
+}
+void S_SetMorphAbilityDisables(edict_t *ent,uint32_t code,bool held) {
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
+    if(owner->morph_owned==held)return;
+    owner->morph_owned=held;
+    if(held) {
+        for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
+            if(morph_availability_exception(state,code))ability_disable_subtract(ent,state,true);
+        ability_disables_acquire(ent,false,true);
+    } else {
+        ability_disables_release(ent,false,true);
+        for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
+            if(morph_availability_exception(state,code)) {
+                abilityitem_t item=S_AbilityItem(state->code);ability_disable_add(ent,state,&item,true,false);
+            }
     }
 }
 
@@ -2155,7 +2230,10 @@ void S_EnableAbility(edict_t *ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) {
+        abilityAttachContext_t attaching={.previous=ability_attaching,.unit=ent,.code=code};
+        ability_attaching=&attaching;
         S_AbilityMessage(ent, A_ENABLE, &call);
+        ability_attaching=attaching.previous;
         /*48b4c0 applies existing disable contributions to a newly attached
          * owner; it does not wait for the next pause transition. */
         if(ent->ability_disables || ent->ability_pause_depth || ent->ability_exclusive_depth || ent->ability_disable_depth) {

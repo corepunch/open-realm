@@ -310,7 +310,8 @@
     "oracle-alternate364",
     "oracle-group359",
     "oracle-captain358-acquire",
-    "oracle-phoenix365"
+    "oracle-phoenix365",
+    "oracle-burrow366"
   ],
   "entries": [
     {
@@ -7019,6 +7020,18 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "Remaining Burrow, Mount, common Morph availability and counted-owner replay retain the original separation producer leaf; this oracle covers Phoenix fatal admission and typed lifecycle."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-burrow366",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Mount reachability, other common Morph producers and counted-owner composition/replay remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "The original separation producer leaf retains Mount reachability, other common Morph producers and combined counted-owner replay; this oracle covers the complete scoped Burrow behavior."
         }
       ]
     }

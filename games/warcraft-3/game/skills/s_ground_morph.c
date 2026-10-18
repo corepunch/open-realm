@@ -11,7 +11,11 @@ static umove_t ground_morph_reverse={"morph alternate",NULL,ground_morph_animati
 static bool ground_morph_is_burrow(abilityitem_t const *item) {
     return item && item->ability && !strcmp(item->ability->classname,"Abur");
 }
+bool S_UnitIsBurrowed(edict_t const *unit) {
+    return unit && unit->inuse && unit->morph && unit->morph->burrow_invisibility_depth>0;
+}
 static void ground_morph_category(edict_t *unit,uint32_t code,bool hidden) {
+    bool before=S_UnitHasInvisibilityState(unit);
     if(!unit->morph) {
         if(!hidden)return;
         unit->morph=G_AllocMorph();assert(unit->morph);
@@ -21,9 +25,13 @@ static void ground_morph_category(edict_t *unit,uint32_t code,bool hidden) {
     }
     /*4ba8d0 changes occupancy only: hide clears2, inverse sets2; stock
      * Burrow keeps the building-blocker bit8 and leaves its query untouched. */
+    S_SetBurrowInvisibilityContribution(unit,code,hidden);
     unit->morph->category_clear=hidden ? 2 : 0;
     unit->morph->category_set=hidden ? 8 : 10;
     gi.LinkEntity(unit);
+    bool after=S_UnitHasInvisibilityState(unit);
+    if(!before && after)S_UnitTargetLost(unit);
+    else if(before && !after)S_UnitTargetAvailable(unit);
 }
 static bool ground_morph_begin(edict_t *unit,abilityitem_t const *item,bool reverse) {
     uint32_t code=item->code;
@@ -35,9 +43,11 @@ static bool ground_morph_begin(edict_t *unit,abilityitem_t const *item,bool reve
     order_stop_cleanup(unit);
     unit_setmove(unit,reverse ? &ground_morph_reverse : &ground_morph_forward);
     unit->current_order_id=data->dur==0 ? 0 : G_OrderId(item->ability->orders[reverse ? 1 : 0]);
+    /*4c85b0 removes114 and republishes occupancy before the reverse hold. */
+    bool burrow_reverse=reverse && ground_morph_is_burrow(item);
+    if(burrow_reverse)ground_morph_category(unit,code,false);
     S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
-    /* The collision inverse precedes the delayed reverse type rebind. */
-    if(reverse && ground_morph_is_burrow(item))ground_morph_category(unit,code,false);
+    if(burrow_reverse) {unit->morph->category_clear=0;unit->morph->category_set=10;}
     return true;
 }
 
@@ -48,7 +58,7 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
     switch(msg) {
     case A_UNIT_EVENT_MASK:
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_UNIT_INIT,
-            A_UNIT_TYPE_CHANGED,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+            A_UNIT_TYPE_CHANGED,A_ENABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
     case A_ORDER: {
         if(!ent || !call->order)return false;
         abilityAliasRef_t ref=S_ResolveAbilityAlias(ent,FS_SLKKey(call->item->ability->classname));
@@ -66,32 +76,42 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
             !(ent->morph && ent->morph->transition.active);
     case A_EXECUTE:return ground_morph_begin(ent,call->item,ent->class_id==data->unitID);
     case A_TOGGLE_ON:return ent && ent->class_id==data->unitID;
-    case A_UNIT_INIT:case A_UNIT_TYPE_CHANGED:
+    case A_ENABLE:case A_UNIT_INIT:case A_UNIT_TYPE_CHANGED:
         /*55d380's initial-alternate fast path has no transition hold, but
          *552120 still owns the authored lifetime. An existing owner identifies
          *type refresh, so its request and serial are retained. */
-        if(ent && ent->class_id==data->unitID && (!ent->morph || ent->morph->code!=code)) {
+        bool initialize=ent && ent->class_id==data->unitID && (!ent->morph || ent->morph->code!=code);
+        if(ent && ground_morph_is_burrow(call->item))
+            initialize=S_InitializeBurrowAbility(ent,code) && ent->class_id==data->unitID;
+        if(initialize) {
             if(!ent->morph)ent->morph=G_AllocMorph();
             assert(ent->morph);
             ent->morph->code=code;ent->morph->base_type=data->data[0].id;ent->morph->target_type=data->unitID;
             S_ScheduleMorphExpiration(ent,data->heroDur);
         }
         if(ent && ground_morph_is_burrow(call->item)) {
-            if(ent->class_id==data->unitID)ground_morph_category(ent,code,true);
-            else if(ent->morph && ent->morph->code==code) {
+            if(initialize) {S_SetMorphAbilityDisables(ent,code,true);ground_morph_category(ent,code,true);}
+            else if(ent->class_id!=data->unitID && ent->morph && ent->morph->code==code) {
                 ent->morph->category_clear=0;ent->morph->category_set=0;gi.LinkEntity(ent);
             }
         }
         return true;
     case A_MORPH_COMPLETE:
         if(ground_morph_is_burrow(call->item)) {
-            if(!call->enabled)ground_morph_category(ent,code,true);
-            else {ent->morph->category_clear=0;ent->morph->category_set=0;gi.LinkEntity(ent);}
+            if(!call->enabled) {S_SetMorphAbilityDisables(ent,code,true);ground_morph_category(ent,code,true);}
+            else S_SetMorphAbilityDisables(ent,code,false);
+            if(call->enabled) {ent->morph->category_clear=0;ent->morph->category_set=0;gi.LinkEntity(ent);}
         }
         if(!call->enabled)S_ScheduleMorphExpiration(ent,data->heroDur);
         unit_stand(ent);return true;
     case A_MORPH_EXPIRE:return ground_morph_begin(ent,call->item,true);
     case A_DISABLE:
+        /* Common detach finishes its pending form before subtype inverse. */
+        if(ground_morph_is_burrow(call->item))S_CompleteMorphDetachTransition(ent,code);
+        if(ground_morph_is_burrow(call->item) && ent && ent->class_id==data->unitID)
+            S_SetMorphAbilityDisables(ent,code,false);
+        if(ground_morph_is_burrow(call->item) && ent && ent->morph && ent->class_id==data->unitID)
+            ground_morph_category(ent,code,false);
         S_RemoveMorphAbility(ent,code);gi.LinkEntity(ent);return true;
     default:return CAbilitySimpleSpell(ent,msg,call);
     }

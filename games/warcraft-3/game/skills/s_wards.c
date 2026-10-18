@@ -394,7 +394,7 @@ bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t con
 }
 
 bool S_UnitHasInvisibilityState(edict_t const *unit) {
-	return S_PermanentInvisibilityActive(unit) || S_GhostActive(unit) ||
+	return S_UnitIsBurrowed(unit) || S_PermanentInvisibilityActive(unit) || S_GhostActive(unit) ||
 	       S_ShadowMeldActive(unit) || S_UnitUsesInvisibilityRenderFlag(unit);
 }
 
@@ -492,10 +492,10 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
         if(ent || !call)return UNIT_INIT_UNKNOWN;
         return G_UnitHasAuthoredAbility(call->unit_type,ID_APIV) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE);
-    case A_UNIT_INIT:case A_ENABLE:case A_LEVEL_CHANGED:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_UNIT_SUSPEND,A_UNIT_RESUME);
+    case A_UNIT_INIT:case A_ENABLE:case A_LEVEL_CHANGED:case A_UNIT_RESUME:
         S_PermanentInvisibilityInitialize(ent);return true;
-    case A_DISABLE:case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+    case A_DISABLE:case A_UNIT_REMOVING:case A_UNIT_REMOVE:case A_UNIT_SUSPEND:
         if(ent)invisibility_clear(ent);
         return true;
     case A_TIMERS_RESET:

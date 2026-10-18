@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 206; /* Phoenix interception retains a living identity at zero life. */
+static uint32_t const save_version = 207; /* Burrow sources and form availability survive detach and cold save. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -863,6 +863,7 @@ static field_t const morph_fields[] = {
     TF(morph_t, deferred_rebind, F_INT),
     TF(morph_t, animation_held, F_INT),
     TF(morph_t, death_intercepted, F_INT),
+    TF(morph_t, burrow_invisibility_depth, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -2945,7 +2946,7 @@ typedef struct {
 typedef struct {
     uint32_t code,exclusive_inventory;
     int32_t depth,order_depth;
-    bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned;
+    bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned,morph_owned,burrow_initialized,burrow_owned;
 } savedAbilityDisable_t;
 
 static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
@@ -2956,7 +2957,7 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned};
+        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -2973,7 +2974,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
             if(s->code==saved.code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
         state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
-        state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;
+        state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;state->morph_owned=saved.morph_owned;state->burrow_initialized=saved.burrow_initialized;state->burrow_owned=saved.burrow_owned;
         state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->exclusive_owned=saved.exclusive_owned;state->exclusive_inventory=saved.exclusive_inventory;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
     return true;

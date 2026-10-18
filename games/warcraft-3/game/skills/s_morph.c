@@ -70,6 +70,7 @@ void S_BeginMorphTransition(edict_t *unit,uint32_t code,uint32_t base,uint32_t t
     morph_timer_remove(unit);
     wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
     *unit->morph=(morph_t){.code=code,.base_type=base,.target_type=target,.reverse=reverse,.deferred_rebind=deferred,
+        .burrow_invisibility_depth=unit->morph->burrow_invisibility_depth,
         .transition={.deadline=now,.sequence=++level.timer_sequence,.active=true}};
     /* Native d01c4 accepts literal zero: public return precedes delivery at
      * the same primary clock. It is not the generic JASS timer minimum. */
@@ -95,6 +96,14 @@ static void morph_timer_fire(edict_t *unit) {
     morph_timer_remove(unit);
     abilityCall_t call={.item=&item};
     S_AbilityMessage(unit,A_MORPH_EXPIRE,&call);
+}
+
+/* Subtypes must invert the source acquired by a forced forward completion
+ * before base restoration.55bca0/4d8880 perform those as separate stages. */
+void S_CompleteMorphDetachTransition(edict_t *unit,uint32_t code) {
+    if(!unit || M_IsDead(unit) || G_IsDeferredFree(unit))return;
+    if(unit->morph && unit->morph->code==code && unit->morph->transition.active && !morph_is_permanent(unit,code))
+        morph_transition_finish(unit);
 }
 
 /* Removal completes the live transition before its immediate reverse. Death
