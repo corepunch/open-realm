@@ -113,5 +113,5 @@ in the executable and its stride must agree with the library. During this invest
 the initial stale binary crashed there; `make openwarcraft3` rebuilt it and both menu
 captures then ran successfully.
 
-See also [UI flow](architecture/ui-flow.md), [MDX events](mdx-event-objects.md), and
+See also [MDX material composition](mdx-materials.md), [UI flow](architecture/ui-flow.md), [MDX events](mdx-event-objects.md), and
 [environmental fog](environmental-fog.md).

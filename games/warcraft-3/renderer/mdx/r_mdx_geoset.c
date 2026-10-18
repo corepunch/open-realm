@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MDLX_STACK_DRAW_ORDER 64
+#define MDLX_STACK_DRAW_ORDER 64 // layers; cover typical models without a per-draw heap allocation
 texture_t const *MDLX_GetTexture(mdxModel_t const *model,
                                  uint32_t teamID,
                                  uint32_t textureID,
@@ -122,7 +122,7 @@ typedef struct mdxGeosetDrawOrder_s {
     mdxGeoset_t const *geoset;
     mdxMaterial_t const *material;
     int priority;
-    uint32_t order;
+    uint32_t layer, order;
 } mdxGeosetDrawOrder_t;
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
@@ -140,6 +140,12 @@ static int MDLX_CompareGeosetDrawOrder(void const *a, void const *b) {
     if (lhs->priority != rhs->priority) {
         return lhs->priority < rhs->priority ? -1 : 1;
     }
+    /* Alpha-blended bases precede additive overlays at the same priority. File order
+     * alone let ShimmeringPortal's final white disk cover its textured layers. */
+    BLEND_MODE left = lhs->material->layers[lhs->layer].blendMode;
+    BLEND_MODE right = rhs->material->layers[rhs->layer].blendMode;
+    if (left != right)
+        return left < right ? -1 : 1;
     if (lhs->order != rhs->order) {
         return lhs->order < rhs->order ? -1 : 1;
     }
@@ -328,7 +334,8 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              bool forceUnshaded,
                              uint32_t frame,
                              vec4_t const *tint,
-                             bool blendedPass)
+                             bool blendedPass,
+                             int drawLayer)
 {
     bool force_two_sided = model && !model->cameras;
     modelProg_t *shader = mdlx.shader;
@@ -352,7 +359,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
         float alpha;
 
-        if (MDLX_IsBlendedLayer(layer) != blendedPass) {
+        if ((drawLayer >= 0 && layerID != (uint32_t)drawLayer) || MDLX_IsBlendedLayer(layer) != blendedPass) {
             continue;
         }
         R_Call(glEnable, GL_DEPTH_TEST);
@@ -595,39 +602,39 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
         BYTE2FLOAT(color.b), BYTE2FLOAT(color.a)
     };
     bool const translucent_instance = tint.w < 1.0f - EPSILON;
-    uint32_t geosetCount = 0;
+    uint32_t layerCount = 0;
     uint32_t drawCount = 0;
     mdxGeosetDrawOrder_t stackDrawOrder[MDLX_STACK_DRAW_ORDER];
     mdxGeosetDrawOrder_t *drawOrder;
 
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         mdxMaterial_t const *material;
-        geosetCount++;
         if (!MDLX_IsGeosetVisible(model, geoset, entity->frame)) {
             continue;
         }
         material = MDLX_GetMaterialAtIndex(geoset, model);
+        if (material) layerCount += material->num_layers;
         if (MDLX_RenderPhaseIncludesPass(tr.render_phase, false, translucent_instance) &&
             MDLX_MaterialHasPass(material, false)) {
-            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, false);
+            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, false, -1);
         }
     }
 
-    if (geosetCount == 0 ||
+    if (layerCount == 0 ||
         !MDLX_RenderPhaseIncludesPass(tr.render_phase, true, translucent_instance)) {
         return;
     }
 
-    drawOrder = geosetCount <= MDLX_STACK_DRAW_ORDER ?
+    drawOrder = layerCount <= MDLX_STACK_DRAW_ORDER ?
                 stackDrawOrder :
-                ri.MemAlloc(sizeof(*drawOrder) * geosetCount);
+                ri.MemAlloc(sizeof(*drawOrder) * layerCount);
     if (!drawOrder) {
         FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
             mdxMaterial_t const *material = MDLX_GetMaterialAtIndex(geoset, model);
             if (MDLX_IsGeosetVisible(model, geoset, entity->frame) &&
                 MDLX_MaterialHasPass(material, true))
             {
-                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true);
+                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true, -1);
             }
         }
         return;
@@ -641,13 +648,14 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
         if (!MDLX_MaterialHasPass(material, true)) {
             continue;
         }
-        drawOrder[drawCount] = (mdxGeosetDrawOrder_t) {
-            .geoset = geoset,
-            .material = material,
-            .priority = material ? material->priority : 0,
-            .order = drawCount,
-        };
-        drawCount++;
+        FOR_LOOP(layer, material->num_layers) {
+            if (!MDLX_IsBlendedLayer(&material->layers[layer])) continue;
+            drawOrder[drawCount] = (mdxGeosetDrawOrder_t) {
+                .geoset = geoset, .material = material, .priority = material->priority,
+                .layer = layer, .order = drawCount,
+            };
+            drawCount++;
+        }
     }
 
     if (drawCount > 1) {
@@ -656,7 +664,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
 
     FOR_LOOP(i, drawCount) {
         mdxGeoset_t const *geoset = drawOrder[i].geoset;
-        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true);
+        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true, drawOrder[i].layer);
     }
 
     if (drawOrder != stackDrawOrder) {
