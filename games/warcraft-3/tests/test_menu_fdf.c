@@ -3786,6 +3786,57 @@ TEST(menu_fdf, campaign_backdrops_play_birth_before_stand) {
     mi = saved;
 }
 
+TEST(menu_fdf, campaign_backdrops_use_authored_fog_and_reset_between_scenes) {
+    cstring_t files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf",
+        "UI\\FrameDef\\Glue\\CampaignMenu.fdf",
+        "UI\\FrameDef\\Glue\\MapListBox.fdf",
+    };
+    menuImport_t saved = mi;
+    bool saved_expansion = test_fs_expansion;
+
+    FOR_LOOP(edition, 2) {
+        test_glue_setup();
+        load_ui_files(files, sizeof(files) / sizeof(files[0]));
+        mi.GetRenderer = test_get_renderer;
+        mi.MemAlloc = test_ui_mem_alloc;
+        mi.MemFree = test_ui_mem_free;
+        test_fs_expansion = edition != 0;
+        T_ASSERT(singlePlayerMenuScreen.load());
+        singlePlayerMenuScreen.init();
+        SinglePlayerMenu_ShowCampaign();
+        if (!edition) {
+            SinglePlayerMenu_LaunchCampaign("Tutorial");
+            singlePlayerMenuScreen.draw();
+            T_ASSERT(captured_glue_view.fogEnable);
+            T_FEQ(captured_glue_view.fogStart, 17, .001f);
+            T_FEQ(captured_glue_view.fogEnd, 2017, .001f);
+            T_FEQ(captured_glue_view.fogColor.x, 3 / 255.0f, .001f);
+            T_FEQ(captured_glue_view.fogColor.y, 53 / 255.0f, .001f);
+            T_FEQ(captured_glue_view.fogColor.z, 79 / 255.0f, .001f);
+            T_ASSERT(!(captured_glue_view.rdflags & RDF_NOFOG));
+        }
+        SinglePlayerMenu_LaunchCampaign("Human");
+        singlePlayerMenuScreen.draw();
+        T_ASSERT(captured_glue_view.fogEnable);
+        T_FEQ(captured_glue_view.fogStart, edition ? 23 : 19, .001f);
+        T_FEQ(captured_glue_view.fogEnd, edition ? 9023 : 9019, .001f);
+        T_FEQ(captured_glue_view.fogColor.z, (edition ? 57 : 55) / 255.0f, .001f);
+        SinglePlayerMenu_LaunchCampaign("Orc");
+        singlePlayerMenuScreen.draw();
+        T_ASSERT(!captured_glue_view.fogEnable);
+        SinglePlayerMenu_LaunchCampaign("Human");
+        singlePlayerMenuScreen.draw();
+        T_ASSERT(captured_glue_view.fogEnable);
+        T_FEQ(captured_glue_view.fogStart, edition ? 23 : 19, .001f);
+        singlePlayerMenuScreen.shutdown();
+    }
+    test_fs_expansion = saved_expansion;
+    mi = saved;
+}
+
 static char const *utf16le_src_ascii;
 static int utf16le_fs_read(cstring_t file_name, void **buf) {
     char const *src = utf16le_src_ascii;

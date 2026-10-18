@@ -6,7 +6,9 @@
 #include "../menu_screen.h"
 #include "../generated/single_player_menu.h"
 #include "common/campaign_progress.h"
+#include "common/stb_slk.h"
 #include "common/difficulty.h"
+#include <math.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -59,7 +61,9 @@ typedef struct {
     UINAME header;
     UINAME name;
     UINAME background;
-    bool default_open;
+    bool default_open, fog_set;
+    float fog_style, fog_start, fog_end;
+    color32_t fog_color;
     singlePlayerMission_t missions[SINGLE_PLAYER_MAX_MISSIONS];
     uint32_t num_missions;
     singlePlayerCinematic_t cinematics[SINGLE_PLAYER_CINEMATIC_COUNT];
@@ -80,6 +84,10 @@ static singlePlayerCampaignField_t const campaign_fields[] = {
     CAMPAIGN_FIELD("Background", background, BZ_FIELD_CHAR_ARRAY),
     CAMPAIGN_FIELD("Cursor", race, BZ_FIELD_U32),
     CAMPAIGN_FIELD("DefaultOpen", default_open, BZ_FIELD_BOOL),
+    CAMPAIGN_FIELD("BackgroundFogStyle", fog_style, BZ_FIELD_FLOAT),
+    CAMPAIGN_FIELD("BackgroundFogStart", fog_start, BZ_FIELD_FLOAT),
+    CAMPAIGN_FIELD("BackgroundFogEnd", fog_end, BZ_FIELD_FLOAT),
+    CAMPAIGN_FIELD("BackgroundFogColor", fog_color, BZ_FIELD_COLOR32_ARGB),
 };
 
 static cstring_t const solo_lft[] = {
@@ -220,6 +228,7 @@ static singlePlayerCampaign_t *SinglePlayer_EnsureCampaign(cstring_t key) {
     memset(campaign, 0, sizeof(*campaign));
     snprintf(campaign->key, sizeof(campaign->key), "%s", key);
     campaign->race = kPlayerRaceNone;
+    campaign->fog_style = -1;
     return campaign;
 }
 
@@ -369,9 +378,16 @@ static bool SinglePlayer_ParseCampaignField(singlePlayerCampaign_t *campaign, cs
         } else if (field->type == BZ_FIELD_U32) {
             uint32_t const number = value ? (uint32_t)atoi(value) : 0;
             memcpy(dst, &number, MIN(field->size, sizeof(number)));
+        } else if (field->type == BZ_FIELD_FLOAT) {
+            *(float *)dst = value ? strtof(value, NULL) : 0;
+        } else if (field->type == BZ_FIELD_COLOR32_ARGB) {
+            unsigned a, r, g, b;
+            if (value && sscanf(value, "%u,%u,%u,%u", &a, &r, &g, &b) == 4)
+                *(color32_t *)dst = (color32_t){BZ_CLAMP_U8(r), BZ_CLAMP_U8(g), BZ_CLAMP_U8(b), BZ_CLAMP_U8(a)};
         } else {
             fprintf(stderr, "CampaignStrings: unsupported scalar type %u for '%s'\n", (unsigned)field->type, key);
         }
+        if (!strncmp(field->name, "BackgroundFog", 13)) campaign->fog_set = true;
         return true;
     }
     return false;
@@ -406,8 +422,25 @@ static bool SinglePlayer_ParseLegacyCinematic(singlePlayerCampaign_t *campaign, 
 
 /* Later CampaignStrings name the war3skins backdrop explicitly; 1.00 relies on the <Key>Backdrop skin entry. */
 static void SinglePlayer_FinalizeLegacyCampaigns(void) {
+    stbIniCache_t ini = {0};
+    void *buffer = NULL;
+    if (mi.FS_ReadFile("UI\\MiscData.txt", &buffer) > 0 && buffer) {
+        Stb_IniCacheLoadBuffer(&ini, buffer);
+        mi.FS_FreeFile(buffer);
+    }
     FOR_LOOP(i, campaign_count) {
         singlePlayerCampaign_t *campaign = &campaigns[i];
+        /* RoC 1.00 keeps these in <Campaign>ZFog; later CampaignStrings owns explicit overrides. */
+        if (!campaign->fog_set) {
+            UINAME section;
+            snprintf(section, sizeof(section), "%.*sZFog", (int)sizeof(section) - 5, campaign->key);
+            FOR_LOOP(j, sizeof(campaign_fields) / sizeof(campaign_fields[0])) {
+                cstring_t key = campaign_fields[j].name;
+                if (strncmp(key, "BackgroundFog", 13)) continue;
+                cstring_t value = Stb_IniCacheFind(&ini, section, key + 13);
+                if (value) SinglePlayer_ParseCampaignField(campaign, key, (string_t)value);
+            }
+        }
         if (!campaign->background[0]) {
             UINAME key;
             strlcpy(key, campaign->key, sizeof(key));
@@ -422,6 +455,7 @@ static void SinglePlayer_FinalizeLegacyCampaigns(void) {
                 strlcpy(cinematic->header, legacy_cinematic_labels[j], sizeof(cinematic->header));
         }
     }
+    Stb_IniCacheFree(&ini);
 }
 
 static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, char *key, char *value) {
@@ -691,7 +725,16 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
         viewdef.viewport = (rect_t){0, 0, 1, 1};
         viewdef.time = scene_time;
         viewdef.deltaTime = delta_time;
-        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+        singlePlayerCampaign_t const *campaign = selected_campaign_index < campaign_count
+            ? &campaigns[selected_campaign_index] : SinglePlayer_DefaultCampaign();
+        if (campaign) {
+            viewdef.fogEnable = campaign->fog_style == 0 && isfinite(campaign->fog_start) &&
+                isfinite(campaign->fog_end) && campaign->fog_end > campaign->fog_start;
+            viewdef.fogStart = campaign->fog_start;
+            viewdef.fogEnd = campaign->fog_end;
+            viewdef.fogColor = (vec3_t){BYTE2FLOAT(campaign->fog_color.r), BYTE2FLOAT(campaign->fog_color.g), BYTE2FLOAT(campaign->fog_color.b)};
+        }
+        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL |
                           RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES;
         viewdef.num_entities = 1;
         viewdef.entities = &entity;
