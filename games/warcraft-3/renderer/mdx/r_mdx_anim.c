@@ -276,9 +276,22 @@ mat4_t const *R_GetNodeGlobalMatrix(mdxModel_t const *model, mat4_t const *model
                 *global_matrix = tmp2;
             }
             
+            /* Projection rows retain camera right/up even for authored cameras and camera roll.
+             * MDX billboard quads lie in YZ, with their normal along +X. */
+            mat4_t const *vp = &tr.viewDef.viewProjectionMatrix;
+            vec3_t right = {vp->v[0], vp->v[4], vp->v[8]};
+            vec3_t up = {vp->v[1], vp->v[5], vp->v[9]};
+            Vector3_normalize(&right);
+            Vector3_normalize(&up);
+            vec3_t front = Vector3_cross(&right, &up);
             Matrix4_identity(&tmp1);
-            Matrix4_rotate(&tmp1, &(vec3_t){30,0,90}, ROTATE_XYZ);
+            FOR_LOOP(i, 3) {
+                tmp1.m[i][0] = ((float *)&front)[i];
+                tmp1.m[i][1] = ((float *)&right)[i];
+                tmp1.m[i][2] = ((float *)&up)[i];
+            }
             Matrix4_multiply(&tmp1, model_matrix, &tmp2);
+            FOR_LOOP(i, 3) Vector3_normalize((vec3_t *)tmp2.m[i]);
 
             quaternion_t viewrot = Quaternion_fromMatrix(&tmp2);
             viewrot = Quaternion_unm(&viewrot);

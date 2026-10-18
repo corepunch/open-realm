@@ -115,3 +115,33 @@ captures then ran successfully.
 
 See also [UI flow](architecture/ui-flow.md), [MDX events](mdx-event-objects.md), and
 [environmental fog](environmental-fog.md).
+
+## Camera-facing MDX billboard geometry (issue 640)
+
+The RoC Orc sun is model geometry, not a particle emitter or a replacement sky.
+`OrcCampaign3D.mdx` geosets 21/22 use Yellow_Glow/Yellow_Star additive layers
+on root billboard nodes 1–5. Their quads lie in the model YZ plane. The previous
+`R_GetNodeGlobalMatrix` implementation used a fixed `(30,0,90)` camera rotation,
+introduced in May 2026. Under the authored campaign camera it turned those quads
+almost edge-on, rendering the sun as a narrow diagonal streak.
+
+Billboard orientation now comes from the active view-projection matrix: normalize
+its right/up rows, obtain the front normal from their cross product, then map
+MDX +X/+Y/+Z to front/right/up. Remove entity scale before quaternion extraction.
+The existing pivot-preserving parent rotation cancellation and authored local
+animation remain in place. This works for world, authored model and rolled cameras
+without adding fields to renderer or network contracts.
+
+`renderer_model.mdx_billboard_faces_actual_camera_and_preserves_pivot` drives
+`MDLX_BindBoneMatrices` for three camera directions, camera roll, rotated/scaled
+entities and nonzero pivots. It failed with the fixed camera and also detected
+the need to normalize scaled entity axes. The visual property is checked with:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -vid_hidden 1 +ui_skip_transitions 1 +menu_game +menu_single_player_campaign_orc +screenshot 30 +com_frame_limit 45
+```
+
+The bounded local capture restores the circular sun. This same path also renders
+parented Night Elf eye and pendant glows; those require child-hierarchy coverage
+in addition to the root-bone sun case. Fog is independently owned by campaign
+menu data; see the campaign fog section when comparing background contrast.

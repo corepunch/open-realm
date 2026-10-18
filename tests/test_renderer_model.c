@@ -3261,3 +3261,44 @@ TEST(renderer_shader, commandbutton_supports_generic_radial_shade) {
     T_NOT_NULL(strstr(sd_commandbutton.FragmentBody, "u_radialShade"));
     T_NOT_NULL(strstr(sd_commandbutton.FragmentBody, "atan(radial.x, -radial.y)"));
 }
+
+/* The campaign sun is an authored YZ quad on a root billboard bone. */
+TEST(renderer_model, mdx_billboard_faces_actual_camera_and_preserves_pivot) {
+    mdxNode_t node = { .node_id = 0, .parent_id = UINT32_MAX, .flags = MDLXNODE_Billboarded };
+    vec3_t pivot = {13, 29, 41};
+    mdxModel_t model = { .num_nodes = 1, .node_list = {&node}, .num_pivots = 1, .pivots = &pivot };
+    mat4_t transform, view, proj;
+    viewDef_t saved = tr.viewDef;
+    vec3_t eyes[] = {{400, 700, 200}, {-600, 100, 350}, {200, -500, 80}};
+    model.nodes[0] = &node;
+    Matrix4_perspective(&proj, 43, 1.4f, 1, 5000);
+    FOR_LOOP(i, 3) {
+        vec3_t dir = Vector3_unm(&eyes[i]), up = {0, 0, 1};
+        up = Vector3_rotateAroundAxis(&up, &dir, i * .27f);
+        Matrix4_lookAt(&view, &eyes[i], &dir, &up);
+        Matrix4_multiply(&proj, &view, &tr.viewDef.viewProjectionMatrix);
+        Matrix4_identity(&transform);
+        Matrix4_rotate(&transform, &(vec3_t){0, 0, i * 37.0f}, ROTATE_XYZ);
+        float scale = 1 + i * .5f;
+        Matrix4_scale(&transform, &(vec3_t){scale, scale, scale});
+        MDLX_BindBoneMatrices(&model, &transform, 0, 0);
+        mat4_t world;
+        Matrix4_multiply(&transform, &node_matrices[0], &world);
+        vec3_t normal = {world.v[0], world.v[1], world.v[2]};
+        Vector3_normalize(&normal);
+        vec3_t expected = eyes[i];
+        Vector3_normalize(&expected);
+        T_FEQ(Vector3_dot(&normal, &expected), 1, .0001f);
+        vec3_t right = {world.v[4], world.v[5], world.v[6]}, camright = {view.v[0], view.v[4], view.v[8]};
+        vec3_t top = {world.v[8], world.v[9], world.v[10]}, camup = {view.v[1], view.v[5], view.v[9]};
+        Vector3_normalize(&right); Vector3_normalize(&top);
+        T_FEQ(Vector3_dot(&right, &camright), 1, .0001f);
+        T_FEQ(Vector3_dot(&top, &camup), 1, .0001f);
+        vec3_t actual = Matrix4_multiply_vector3(&world, &pivot);
+        vec3_t before = Matrix4_multiply_vector3(&transform, &pivot);
+        T_FEQ(actual.x, before.x, .001f);
+        T_FEQ(actual.y, before.y, .001f);
+        T_FEQ(actual.z, before.z, .001f);
+    }
+    tr.viewDef = saved;
+}
