@@ -8,7 +8,7 @@ tag with the intended commit. Credit commit/merged-PR authors by GitHub login,
 link the relevant PRs, and describe observable changes rather than copying commit
 subjects. Check network and save versions separately.
 
-Published releases trigger [release.yml](../.github/workflows/release.yml).
+Published releases trigger [release.yml](https://github.com/corepunch/open-realm/blob/main/.github/workflows/release.yml).
 The native Linux, macOS Intel and Windows jobs build optimized EOS-enabled
 packages and run EOS session regressions. The Flatpak build passes its bundle
 and installer scripts to a separate publication job. See

@@ -16,7 +16,7 @@ down `-Z`, so `CL_GameDefaultCamera` and `SC2_ViewAngles` store `pitch - 90` on 
 TRaynor01's first camera object is a close cinematic (pitch 8.6, dist 4.95); using it as the default aims along the ground.
 Native yaw retains the authored StartGame value (Mar Sara `179.9584`), but the view-matrix adapter must publish
 `yaw - 180`. Copying native yaw directly put the TRaynor01 camera on the opposite side of the bridge from the retail
-reference. `SC2_CameraFromEuler` reverses this conversion for manual input. See [coordinates and camera angles](../../../AXIS.md).
+reference. `SC2_CameraFromEuler` reverses this conversion for manual input. See [coordinates and camera angles](https://github.com/corepunch/open-realm/blob/main/AXIS.md).
 Do not rotate map coordinates or flip the light's X component to compensate for a camera convention.
 
 Diagnostic workflow:

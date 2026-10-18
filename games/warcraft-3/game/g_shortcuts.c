@@ -24,7 +24,7 @@ static bool G_ShortcutIsControlledMonster(gameClient_t *client, edict_t const *e
         G_UnitCanControl(client, ent);
 }
 
-static bool G_UnitHasWorkerShortcutCapability(edict_t const *ent) {
+bool G_UnitIsWorker(edict_t const *ent) {
     cstring_t builds;
 
     if (!ent || !ent->data.UnitProfile) return false;
@@ -52,7 +52,7 @@ bool G_UnitIsIdleWorker(edict_t const *ent) {
         strcmp(ent->currentmove->animation, "stand")) {
         return false;
     }
-    return G_UnitHasWorkerShortcutCapability(ent);
+    return G_UnitIsWorker(ent);
 }
 
 bool G_UnitShowsIdleWorkerShortcut(gameClient_t *client, edict_t const *ent) {
@@ -73,7 +73,7 @@ void G_InvalidateUnitShortcutsForUnit(edict_t *ent) {
      * they cannot trigger an unnecessary full shortcut-roster rebuild. */
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) return;
     if ((!ent->data.UnitBalance || !G_UnitIsHero(ent)) &&
-        !G_UnitHasWorkerShortcutCapability(ent)) return;
+        !G_UnitIsWorker(ent)) return;
 
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;

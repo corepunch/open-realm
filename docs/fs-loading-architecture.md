@@ -4,7 +4,7 @@ MPQ sector method `0x08` (PKWARE DCL) is decoded through vendored Mark Adler `bl
 output and error propagation. See [dependency provenance](vendored-dependencies.md#pkware-dcl-decoder-vendorblast)
 and `make test-mpq-compression`. Retail listfiles and patch campaign tables can use this method;
 without it, campaign enumeration can appear incomplete even when direct reads of some maps work.
-The [parity launcher](../tools/parity/README.md#catalog-generation) generates its searchable campaign
+The [parity launcher](https://github.com/corepunch/open-realm/blob/main/tools/parity/README.md#catalog-generation) generates its searchable campaign
 catalog from these archives and optional loose-map metadata, without C map-name tables.
 
 ## Stack overview

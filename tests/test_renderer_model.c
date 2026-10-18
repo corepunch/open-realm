@@ -315,7 +315,8 @@ void R_TestSetTextureLoadResult(texture_t *texture) { texture_load_result = text
 model_t *R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
-    if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
+    if (fail_load || (fail_scoped_load &&
+        (strstr(last_model_load, ".w3m\\") || strstr(last_model_load, ".w3x\\")))) return NULL;
     if (use_production_model_loader && strstr(last_model_load, "TestUI\\Models\\quad_sprite.mdx"))
         return R_TestProductionLoadModel(filename);
     model_t *model = test_alloc(sizeof(model_t));
@@ -453,6 +454,101 @@ TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_i
     T_FEQ(value.y, authored.y, 0.001f);
     T_FEQ(value.z, authored.z, 0.001f);
     T_FEQ(value.w, authored.w, 0.001f);
+}
+
+TEST(renderer_model, mdx_global_sequence_holds_per_entity_and_resumes_without_jumping) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
+    renderEntity_t entity = { .number = MAX_GAME_ENTITIES - 1, .generation = 0x574333u };
+    mdxKeyFrame_t *first = (mdxKeyFrame_t *)track->values;
+    mdxKeyFrame_t *last = (mdxKeyFrame_t *)((uint8_t *)track->values + sizeof(int) + sizeof(float));
+    uint32_t const old_time = tr.viewDef.time;
+    float const values[2] = { 0.0f, 10.0f };
+    float value = 0.0f;
+    mdxAnimationTimeScope_t scope;
+
+    track->keyframeCount = 2;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = 0;
+    first->time = 0;
+    last->time = 1000;
+    memcpy(first->data, &values[0], sizeof(values[0]));
+    memcpy(last->data, &values[1], sizeof(values[1]));
+
+    tr.viewDef.time = 400;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 4.0f, 0.001f);
+
+    entity.flags |= RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 800;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 8.0f, 0.001f);
+
+    tr.viewDef.time = 900;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 8.0f, 0.001f);
+
+    entity.flags &= ~RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 1200;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 8.0f, 0.001f); /* no phase jump on resume */
+
+    tr.viewDef.time = 1300;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 9.0f, 0.001f);
+    tr.viewDef.time = old_time;
+}
+
+TEST(renderer_model, mdx_global_sequence_pause_transitions_can_be_observed_while_culled) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
+    renderEntity_t entity = { .number = MAX_GAME_ENTITIES - 2, .generation = 0x574334u };
+    mdxKeyFrame_t *first = (mdxKeyFrame_t *)track->values;
+    mdxKeyFrame_t *last = (mdxKeyFrame_t *)((uint8_t *)track->values + sizeof(int) + sizeof(float));
+    mdxAnimationTimeScope_t scope;
+    uint32_t const old_time = tr.viewDef.time;
+    float values[2] = { 0.0f, 10.0f }, value = 0.0f;
+
+    track->keyframeCount = 2;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = 0;
+    first->time = 0; last->time = 1000;
+    memcpy(first->data, &values[0], sizeof(values[0]));
+    memcpy(last->data, &values[1], sizeof(values[1]));
+
+    tr.viewDef.time = 100;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 1.0f, 0.001f);
+    entity.flags |= RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 300;
+    MDLX_UpdateEntityAnimationPause(&entity); /* model is outside the frustum */
+    entity.flags &= ~RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 700;
+    MDLX_UpdateEntityAnimationPause(&entity); /* still culled */
+    tr.viewDef.time = 900;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 5.0f, 0.001f); /* 400 ms held interval removed */
+    tr.viewDef.time = old_time;
 }
 
 TEST(renderer_model, mdx_sequence_zero_clock_wraps_with_render_time) {
@@ -618,6 +714,65 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
     T_FEQ(emitted[0].org.y, pivot.y, 0.00001f);
     T_FEQ(emitted[0].size[0] * emitted[0].size_value_scale, 0.01f, 0.0001f);
     T_FEQ(emitted[1].tail.z, 0.006f, 0.00001f);
+    tr.viewDef = saved;
+}
+
+/* A gate's non-looping Open sequence must not indefinitely respawn PRE2
+ * particles after it holds its final frame. Looping Stand effects still work. */
+TEST(renderer_model, mdx_one_shot_emitter_stops_only_after_final_frame_is_held) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1,
+        .EmissionRate = 50, .Speed = 1, .Alpha = {255, 255, 255},
+        .ParticleScaling = {1, 1, 1}, .SegmentColor = {1,1,1, 1,1,1, 1,1,1},
+        .Rows = 1, .Columns = 1 };
+    mdxSequence_t sequences[2] = {
+        { .name = "Open", .interval = {100, 500}, .flags = 1 },
+        { .name = "Stand", .interval = {500, 900}, .flags = 0 },
+    };
+    mdxModel_t model = { .emitters = &emitter, .sequences = sequences, .num_sequences = 2 };
+    renderEntity_t entity = { .frame = 499, .oldframe = 499 };
+    viewDef_t saved = tr.viewDef;
+    mat4_t matrix;
+
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    tr.viewDef.deltaTime = 20;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 0); /* Open has ended */
+
+    entity.oldframe = 450; /* transitional sample still permits its final burst */
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 1);
+
+    entity.oldframe = entity.frame = 899; /* Stand is looping, despite a held sample */
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 2);
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_paused_worker_construction_does_not_spawn_particles) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1,
+        .EmissionRate = 50, .Speed = 1, .Alpha = {255, 255, 255},
+        .ParticleScaling = {1, 1, 1}, .SegmentColor = {1,1,1, 1,1,1, 1,1,1},
+        .Rows = 1, .Columns = 1 };
+    mdxSequence_t sequence = { .name = "Birth", .interval = {100, 2000}, .flags = 1 };
+    mdxModel_t model = { .emitters = &emitter, .sequences = &sequence, .num_sequences = 1 };
+    renderEntity_t entity = { .frame = 900, .oldframe = 900,
+                               .flags = RF_BUILDING | RF_MDX_EMISSION_PAUSED };
+    viewDef_t saved = tr.viewDef;
+    mat4_t matrix;
+
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    tr.viewDef.deltaTime = 20;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 0);
+
+    entity.flags &= ~RF_MDX_EMISSION_PAUSED;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 1); /* worker resumed: same Birth frame can emit again */
+    entity.flags |= RF_MDX_EMISSION_PAUSED;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 1);
     tr.viewDef = saved;
 }
 
@@ -1161,6 +1316,81 @@ TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
     T_ASSERT(!MDLX_EventObjectId(&event, "SND", id, sizeof(id)));
 }
 
+TEST(renderer_model, mdx_parented_eye_and_pendant_billboards_face_camera_without_losing_animated_pivots) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(quaternion_t))] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = {100, 1001} };
+    uint8_t scales[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    mdxKeyTrack_t *scale = (mdxKeyTrack_t *)scales;
+    mdxNode_t parent = { .node_id = 0, .parent_id = UINT32_MAX, .rotation = track, .scale = scale };
+    mdxNode_t eyes = { .node_id = 1, .parent_id = 0, .flags = MDLXNODE_Billboarded };
+    mdxNode_t charm = { .node_id = 2, .parent_id = 0, .flags = MDLXNODE_Billboarded };
+    vec3_t pivots[] = {{1, 2, 3}, {3, 5, 7}, {4, 1, 2}};
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1, .pivots = pivots, .num_pivots = 3 };
+    mat4_t entity, proj, view, world;
+    viewDef_t saved = tr.viewDef;
+    uint32_t stride = sizeof(int) + sizeof(quaternion_t);
+
+    track->keyframeCount = 2; track->datatype = TDATA_FLOAT4;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * stride);
+        quaternion_t rot = Quaternion_fromEuler(&(vec3_t){i ? 31 : -19, i ? 12 : 7, i ? 41 : -23}, ROTATE_XYZ);
+        key->time = i ? 900 : 100; memcpy(key->data, &rot, sizeof(rot));
+    }
+    model.nodes[0] = model.node_list[0] = &parent;
+    model.nodes[1] = model.node_list[1] = &eyes;
+    model.nodes[2] = model.node_list[2] = &charm; model.num_nodes = 3;
+    Matrix4_identity(&entity); Matrix4_rotate(&entity, &(vec3_t){0, 0, 17}, ROTATE_XYZ);
+    Matrix4_translate(&entity, &(vec3_t){3, 4, 5});
+    Matrix4_perspective(&proj, 45, 1.7f, 1, 1000);
+    scale->keyframeCount = 1; scale->datatype = TDATA_FLOAT3;
+    scale->linetype = TRACK_NO_INTERP; scale->globalSeqId = UINT32_MAX;
+    ((mdxKeyFrame_t *)scale->values)->time = 100;
+    float factors[] = {1, 1.01f, 2.3f};
+    FOR_LOOP(scl, 3) {
+        vec3_t factor = {factors[scl], factors[scl], factors[scl]};
+        memcpy(((mdxKeyFrame_t *)scale->values)->data, &factor, sizeof(factor));
+        FOR_LOOP(cam, 2) {
+            vec3_t dir = {-1, -0.2f, -0.3f}, up = cam ? (vec3_t){0, 1, 1} : (vec3_t){0, 0, 1};
+            vec3_t front, right;
+            Vector3_normalize(&dir); front = Vector3_unm(&dir);
+            right = Vector3_cross(&up, &front); Vector3_normalize(&right);
+            up = Vector3_cross(&front, &right); Vector3_normalize(&up);
+            Matrix4_lookAt(&view, &(vec3_t){10, 20, 30}, &dir, &up);
+            Matrix4_multiply(&proj, &view, &tr.viewDef.viewProjectionMatrix);
+            FOR_LOOP(pose, 3) {
+                uint32_t time = 100 + pose * 400;
+                MDLX_BindBoneMatrices(&model, &entity, time, time);
+                FOR_LOOP(child, 2) {
+                    uint32_t id = child + 1;
+                    vec3_t pivot = Matrix4_multiply_vector3(&node_matrices[0], &pivots[id]);
+                    vec3_t expect = Matrix4_multiply_vector3(&entity, &pivot), actual;
+                    Matrix4_multiply(&entity, &node_matrices[id], &world);
+                    actual = Matrix4_multiply_vector3(&world, &pivots[id]);
+                    T_FEQ(actual.x, expect.x, 0.001f); T_FEQ(actual.y, expect.y, 0.001f);
+                    T_FEQ(actual.z, expect.z, 0.001f);
+                    vec3_t normal = {world.v[0], world.v[1], world.v[2]};
+                    vec3_t width = {world.v[4], world.v[5], world.v[6]};
+                    vec3_t height = {world.v[8], world.v[9], world.v[10]};
+                    T_FEQ(Vector3_len(&normal), factors[scl], 0.001f);
+                    T_FEQ(Vector3_len(&width), factors[scl], 0.001f);
+                    T_FEQ(Vector3_len(&height), factors[scl], 0.001f);
+                    Vector3_normalize(&normal); Vector3_normalize(&width); Vector3_normalize(&height);
+                    T_FEQ(Vector3_distance(&normal, &front), 0, 0.0001f);
+                    T_FEQ(Vector3_distance(&width, &right), 0, 0.0001f);
+                    T_FEQ(Vector3_distance(&height, &up), 0, 0.0001f);
+                }
+            }
+        }
+    }
+    /* The unflagged sibling still follows parent animation rather than facing the camera. */
+    eyes.flags = 0;
+    MDLX_BindBoneMatrices(&model, &entity, 500, 500);
+    FOR_LOOP(i, 16) T_FEQ(node_matrices[1].v[i], node_matrices[0].v[i], 0.001f);
+    tr.viewDef = saved;
+}
+
 TEST(renderer_model, mdx_event_world_transform_uses_event_pivot) {
     mdxEvent_t event = { 0 };
     vec3_t pivots[] = { { 4.0f, 5.0f, 6.0f } };
@@ -1254,6 +1484,66 @@ TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
     first = R_LoadRegisteredModel("Units\\Human\\Footman\\Footman.mdx");
     T_STREQ(last_model_load, "Units\\Human\\Footman\\Footman.mdx");
     R_ReleaseRegisteredModel(first);
+}
+
+/* ScoreScreen.fdf references an MDX whose textures use stock path names.
+ * Map imports must win for both the model and each parchment BLP; changing
+ * maps must not continue looking inside the previous map's archive. */
+TEST(renderer_model, score_screen_background_map_model_override_and_fallback) {
+    static cstring_t const background =
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\ScoreScreen-Background.mdx";
+    model_t *model;
+
+    reset_registry();
+    R_RegisterMapAssets("Maps\\Custom\\ScoreOverride.w3x");
+    model = R_LoadRegisteredModel(background);
+    T_STREQ(last_model_load,
+        "Maps\\Custom\\ScoreOverride.w3x\\UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\ScoreScreen-Background.mdx");
+    R_ReleaseRegisteredModel(model);
+
+    /* A map without a replacement must still load the original model. */
+    R_RegisterMapAssets("Maps\\Custom\\StockScore.w3x");
+    fail_scoped_load = true;
+    model = R_LoadRegisteredModel(background);
+    T_STREQ(last_model_load, background);
+    R_ReleaseRegisteredModel(model);
+
+    /* Leaving the match also drops the map-specific lookup prefix. */
+    R_RegisterMapAssets(NULL);
+    fail_scoped_load = false;
+    model = R_LoadRegisteredModel(background);
+    T_STREQ(last_model_load, background);
+    R_ReleaseRegisteredModel(model);
+}
+
+TEST(renderer_model, score_screen_background_blp_paths_prefer_current_map) {
+    static cstring_t const textures[] = {
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-L1.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-L2.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-R1.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-R2.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-sort4.blp",
+    };
+    assetCandidates_t paths;
+
+    R_SetMapAssetScope("Maps\\Custom\\ScoreOverride.w3x");
+    FOR_LOOP(i, sizeof(textures) / sizeof(textures[0])) {
+        char expected[MAX_PATHLEN];
+        snprintf(expected, sizeof(expected), "Maps\\Custom\\ScoreOverride.w3x\\%s", textures[i]);
+        R_AssetCandidates(textures[i], &paths);
+        T_ASSERT(paths.scoped);
+        T_ASSERT(paths.count >= 2);
+        T_STREQ(paths.path[0], expected);
+        T_STREQ(paths.path[paths.count - 1], textures[i]);
+    }
+    R_SetMapAssetScope("Maps\\Custom\\Another.w3x");
+    R_AssetCandidates(textures[0], &paths);
+    T_STREQ(paths.path[0],
+        "Maps\\Custom\\Another.w3x\\UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-L1.blp");
+    R_SetMapAssetScope(NULL);
+    R_AssetCandidates(textures[0], &paths);
+    T_ASSERT(!paths.scoped);
+    T_STREQ(paths.path[paths.count - 1], textures[0]);
 }
 
 TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {
@@ -2047,7 +2337,43 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #undef _W3M_RegisterMap
 void _W3M_RegisterMap(char const *map) { (void)map; }
 
-/* NightElfX04 (55,42) has a mid-ramp corner, but its neighbouring LHBA mesh extends west, not east. */
+/* Load binary W3E through the production parser, including its computed midpoint pass. */
+static war3map_t *test_ramp_map(cstring_t path) {
+    handle_t archive, nested;
+    void *data = NULL;
+    uint32_t size = 0;
+    war3map_t *map;
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &archive));
+    T_ASSERT(test_mpq_read(archive, path, &data, &size));
+    T_ASSERT(SFileOpenArchiveFromMemory(data, size, 0, &nested));
+    map = FileReadWar3Map(nested);
+    SFileCloseArchive(nested); SFileCloseArchive(archive); free(data);
+    return map;
+}
+
+TEST(renderer_terrain, nightelfx04_restored_ground_has_no_raised_high_ramp_corner) {
+    texture_t tex = { .width = 256, .height = 256 };
+    static const struct { int cellx, highx, highy, lowx, lowy; float highz; } cases[] = {
+        {2, 2,3, 1,3, 772}, /* Original (55,43), raw height 8723, level 7. */
+        {8, 9,2, 9,1, 673}, /* Original (61,34), raw height 8324, level 7. */
+    };
+    reset_registry(); ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    war3map_t *map = test_ramp_map("Maps/FrozenThrone/Campaign/NightElfX04.w3x");
+    tr.world = map;
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        T_EQ(GetWar3MapVertex(map, cases[i].highx, cases[i].highy)->cliffVariation, 0);
+        T_EQ(GetWar3MapVertex(map, cases[i].lowx, cases[i].lowy)->cliffVariation, 1);
+        T_FEQ(R_GetVertexPosition(map, cases[i].highx, cases[i].highy, true).z, cases[i].highz, 0.001f);
+        ground_current_vertex = ground_vertex_buffer;
+        R_MakeTile(map, cases[i].cellx, 2, 0, &tex);
+        T_EQ(ground_current_vertex - ground_vertex_buffer, 6);
+        T_ASSERT(R_TileAcceptsSplat(map, cases[i].cellx, 2));
+    }
+    ground_current_vertex = NULL; tr.world = NULL; R_FreeWar3Map(map);
+}
+
+/* Historical midpoint markers reproduce #615 ground ownership independently of the corrected #642 loader.
+ * NightElfX04 (55,42)'s neighbouring LHBA mesh extends west, not east. */
 TEST(renderer_terrain, nightelfx04_uncovered_ramp_corner_keeps_ground_and_splats) {
     war3mapVertex_t verts[16] = {0};
     war3map_t map = { .width = 4, .height = 4, .vertices = verts };
@@ -2623,6 +2949,41 @@ TEST(renderer_terrain, cliff_weld_context_does_not_upload_discarded_layers) {
     T_EQ(cliff_bake.num_vertices, 0);
 
     cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
+}
+
+TEST(renderer_terrain, human03_high_ramp_endpoint_joins_ground_without_a_false_midpoint) {
+    texture_t tex = { .width = 256, .height = 256 };
+    /* The LHBA model's native high and middle endpoints, rotated by the production baker. */
+    vec3_t pos[] = {{-128,256,128}, {-128,128,64}, {0,256,128}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos,
+        .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
+    cliffData_t cliff = { .cliff = 0, .rampModelDir = "CliffTrans", .cliffModelDir = "Cliffs" };
+    reset_registry(); ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    war3map_t *map = test_ramp_map("Maps/Campaign/Human03.w3m");
+    tr.world = map; cliff_model = &mdx;
+    /* The transposed crop exercises the north/south classification independently. */
+    T_EQ(GetWar3MapVertex(map, 9, 2)->cliffVariation, 1);
+    T_EQ(GetWar3MapVertex(map, 9, 3)->cliffVariation, 0);
+    T_FEQ(R_GetVertexPosition(map, 9, 3, true).z, 147, 0.001f);
+    T_EQ(GetWar3MapVertex(map, 2, 3)->cliffVariation, 1); /* Low corner at the true midpoint. */
+    T_EQ(GetWar3MapVertex(map, 3, 3)->cliffVariation, 0); /* High corner remains on its plateau. */
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeTile(map, 3, 2, 0, &tex);
+    T_EQ(ground_current_vertex - ground_vertex_buffer, 6);
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(map, 2, 2, &cliff);
+    T_STREQ(last_model_load, "Doodads\\Terrain\\CliffTrans\\CliffTransLHBA0.mdx");
+    T_EQ(cliff_bake.num_vertices, 3);
+    T_FEQ(cliff_bake.vertices[0].position.z, 147, 0.001f);
+    T_FEQ(R_GetVertexPosition(map, 3, 3, true).z, cliff_bake.vertices[0].position.z, 0.001f);
+    T_FEQ(R_GetVertexPosition(map, 2, 3, true).z, cliff_bake.vertices[1].position.z, 0.001f);
+    T_FEQ(ground_vertex_buffer[5].position.z, cliff_bake.vertices[0].position.z, 0.001f);
+    T_ASSERT(!R_TileHasGround(map, 1, 2)); /* The genuine low ramp cell remains mesh-owned. */
+    ground_current_vertex = NULL; cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache(); R_FinishCliffs(); R_FreeWar3Map(map);
 }
 
 TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {
@@ -3222,4 +3583,45 @@ TEST(renderer_backdrop, authored_tile_size_keeps_inset_icons_centered) {
 TEST(renderer_shader, commandbutton_supports_generic_radial_shade) {
     T_NOT_NULL(strstr(sd_commandbutton.FragmentBody, "u_radialShade"));
     T_NOT_NULL(strstr(sd_commandbutton.FragmentBody, "atan(radial.x, -radial.y)"));
+}
+
+/* The campaign sun is an authored YZ quad on a root billboard bone. */
+TEST(renderer_model, mdx_billboard_faces_actual_camera_and_preserves_pivot) {
+    mdxNode_t node = { .node_id = 0, .parent_id = UINT32_MAX, .flags = MDLXNODE_Billboarded };
+    vec3_t pivot = {13, 29, 41};
+    mdxModel_t model = { .num_nodes = 1, .node_list = {&node}, .num_pivots = 1, .pivots = &pivot };
+    mat4_t transform, view, proj;
+    viewDef_t saved = tr.viewDef;
+    vec3_t eyes[] = {{400, 700, 200}, {-600, 100, 350}, {200, -500, 80}};
+    model.nodes[0] = &node;
+    Matrix4_perspective(&proj, 43, 1.4f, 1, 5000);
+    FOR_LOOP(i, 3) {
+        vec3_t dir = Vector3_unm(&eyes[i]), up = {0, 0, 1};
+        up = Vector3_rotateAroundAxis(&up, &dir, i * .27f);
+        Matrix4_lookAt(&view, &eyes[i], &dir, &up);
+        Matrix4_multiply(&proj, &view, &tr.viewDef.viewProjectionMatrix);
+        Matrix4_identity(&transform);
+        Matrix4_rotate(&transform, &(vec3_t){0, 0, i * 37.0f}, ROTATE_XYZ);
+        float scale = 1 + i * .5f;
+        Matrix4_scale(&transform, &(vec3_t){scale, scale, scale});
+        MDLX_BindBoneMatrices(&model, &transform, 0, 0);
+        mat4_t world;
+        Matrix4_multiply(&transform, &node_matrices[0], &world);
+        vec3_t normal = {world.v[0], world.v[1], world.v[2]};
+        Vector3_normalize(&normal);
+        vec3_t expected = eyes[i];
+        Vector3_normalize(&expected);
+        T_FEQ(Vector3_dot(&normal, &expected), 1, .0001f);
+        vec3_t right = {world.v[4], world.v[5], world.v[6]}, camright = {view.v[0], view.v[4], view.v[8]};
+        vec3_t top = {world.v[8], world.v[9], world.v[10]}, camup = {view.v[1], view.v[5], view.v[9]};
+        Vector3_normalize(&right); Vector3_normalize(&top);
+        T_FEQ(Vector3_dot(&right, &camright), 1, .0001f);
+        T_FEQ(Vector3_dot(&top, &camup), 1, .0001f);
+        vec3_t actual = Matrix4_multiply_vector3(&world, &pivot);
+        vec3_t before = Matrix4_multiply_vector3(&transform, &pivot);
+        T_FEQ(actual.x, before.x, .001f);
+        T_FEQ(actual.y, before.y, .001f);
+        T_FEQ(actual.z, before.z, .001f);
+    }
+    tr.viewDef = saved;
 }

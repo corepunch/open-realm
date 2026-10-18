@@ -149,6 +149,7 @@ void SCR_BeginLoadingPlaque(void) {
 }
 
 void SCR_EndLoadingPlaque(void) {
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     cls.disable_screen = 0;
 }
 
@@ -198,9 +199,17 @@ void SCR_DrawScreenField(uint32_t msec) {
         else if (CL_MenuActive()) menu.Refresh(cl.time);
         break;
     case ca_active:
-        V_RenderView();
-        if (Cvar_Integer("r_hud", 1)) {
-            SCR_DrawLayout();
+        if (CL_WindowPresentationActive()) {
+            /* Presentation replaces the world view instead of drawing over
+             * the last terrain frame. Keep mandatory navigation visible even
+             * when the user has disabled the normal HUD with r_hud 0. */
+            size2_t const size = re.GetWindowSize();
+            rect_t const screen = { 0, 0, size.width, size.height };
+            re.DrawFill(&screen, MAKE(color32_t, 0, 0, 0, 255));
+            CL_WindowDraw();
+        } else {
+            V_RenderView();
+            if (Cvar_Integer("r_hud", 1)) SCR_DrawLayout();
         }
         break;
     }
@@ -226,6 +235,7 @@ void SCR_UpdateLoadingPlaque(void) {
     if (Cvar_Integer("r_norefresh", 0)) return;
     if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
     SCR_DrawScreenField(0);
+    Sys_UpdateLoadingPresentation(true, cl.loading_progress, cl.layout[LAYER_LOADING] != NULL);
 }
 
 void SCR_UpdateScreen(uint32_t msec) {
@@ -870,6 +880,11 @@ void SCR_LayoutUpdateBuildQueue(uiFrame_t const *frame, rect_t const *screen) {
     }
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
+        if (item->flags & UI_BUILDQUEUE_ITEM_PAUSED) {
+            if (buildtimer) buildtimer->value = MAX(0, MIN(item->progress, 1));
+            if (firstitem) firstitem->tex.index = item->image;
+            break;
+        }
         if (cl.time < item->endtime) {
             float dur  = item->endtime - item->starttime;
             float elap = cl.time > item->starttime ? (float)(cl.time - item->starttime) : 0;
@@ -1044,7 +1059,8 @@ void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
         snprintf(phased_anim, sizeof(phased_anim), "%.*s@%.6f", (int)base_len, anim, phase);
         anim = phased_anim;
     }
-    re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y, .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
+    re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y,
+        .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
 }
 
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
@@ -1520,7 +1536,8 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_TEXTURE &&
-            f->flags.type != FT_SIMPLESTATUSBAR)
+            f->flags.type != FT_SIMPLESTATUSBAR &&
+            !(f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY)))
             SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
@@ -1536,6 +1553,16 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && (f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
+    }
+    /* Paint captions after the sprite, rightmost first. The rank belongs to
+     * high flag bits, never frame.stat (which changes the label's text). */
+    for (int rank = 3; rank >= 0; --rank) {
+        FOR_LOOP(i, SCR_NumFrames()) {
+            uiFrame_t const *f = SCR_Frame(i);
+            if (f && f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY) &&
+                (int)((f->flagsvalue & UIFLAG_TEXT_RANK_MASK) >> UIFLAG_TEXT_RANK_SHIFT) == rank)
+                SCR_LayoutDrawFrame(f);
+        }
     }
 }
 

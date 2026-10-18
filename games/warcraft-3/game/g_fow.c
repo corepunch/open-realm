@@ -472,6 +472,19 @@ static bool G_FowReady(void) {
     return level.fow.width > 0 && level.fow.height > 0;
 }
 
+/* Item Reveal Entire Map is a temporary, player-local sight source. Its
+ * deadline lives in map state so save/load preserves the remaining duration. */
+void G_FowRevealEntireMapTimed(uint32_t player, float duration) {
+    uint32_t until;
+    if (player >= MAX_PLAYERS || !(duration > 0.0f)) return;
+    until = G_Time() + (uint32_t)(duration * 1000.0f);
+    if (until > level.fow.omniscience_until[player])
+        level.fow.omniscience_until[player] = until;
+    if (G_FowReady())
+        G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
+                          &level.fow.bounds);
+}
+
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner) {
     if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
         return false;
@@ -1806,7 +1819,7 @@ bool G_WriteFowState(FILE *file) {
         }
         if(fwrite(&connected,1,1,file)!=1 || fwrite(data,1,cells,file)!=cells) {ok=false;break;}
     }
-    gi.MemFree(data);return ok;
+    gi.MemFree(data);return ok && fwrite(level.fow.omniscience_until,sizeof(level.fow.omniscience_until),1,file)==1;
 }
 
 bool G_ReadFowState(FILE *file) {
@@ -1840,7 +1853,7 @@ bool G_ReadFowState(FILE *file) {
         }
         if(!ok)break;
     }
-    gi.MemFree(data);return ok;
+    gi.MemFree(data);return ok && fread(level.fow.omniscience_until,sizeof(level.fow.omniscience_until),1,file)==1;
 }
 
 /* Mark a player grid as consumed before its first authoritative update. */
@@ -1971,6 +1984,13 @@ void G_FowUpdate(void) {
                             &ent->s.origin2, ent->collision);
     }
 
+    /* Glyph vision is bounded in simulation time and does not leak to other
+     * players. Apply after the per-frame visibility grid has been rebuilt. */
+    FOR_LOOP(player, MAX_PLAYERS) {
+        if (level.fow.omniscience_until[player] > G_Time() && (viewers & (1u << player)))
+            G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
+                              &level.fow.bounds);
+    }
     G_FowApplyModifiers(viewers);
 }
 
@@ -2034,6 +2054,23 @@ void G_RunShowMapCheats(void) {
             G_FowSetCellState(&level.fow.players[player],cell,WC3_FOG_STATE_MASKED);
         fow_sight_valid=0;
     }
+}
+
+/* External observations use this same authoritative grid when retiring a
+ * remembered building after its last observed location becomes visible. */
+bool G_FowPointIsVisible(uint32_t player, vec2_t const *point) {
+    uint32_t x, y;
+    fowPlayerGrid_t const *grid;
+    if (!point || player >= MAX_PLAYERS) return false;
+    if (!G_FowReady() || G_FowPlayerFogDisabled(player)) return true;
+    x = G_FowWorldToCellX(point->x);
+    y = G_FowWorldToCellY(point->y);
+    if (x == FOW_INVALID_CELL || y == FOW_INVALID_CELL) return false;
+    grid = &level.fow.players[player];
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast) return G_FowPackedAt(grid->packed_visible, grid, x, y);
+#endif
+    return grid->visible && grid->visible[y * level.fow.width + x] != 0;
 }
 
 /* Hover information is interactive gameplay state, so unlike explored

@@ -3,56 +3,156 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenRealm — Browser foundation</title>
+<title>OpenRealm</title>
 <style>
 body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; margin: 0; }
 main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
 button, input { margin: .3rem; }
 progress { width: 100%; }
-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
-#game-container { position: relative; }
-#game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2;
+canvas { display: block; max-width: 100%; background: #000; }
+/* Keep controls in a stacking context above the engine canvas, including when
+ * Emscripten changes canvas dimensions or applies its own canvas styles. */
+#game-container[hidden] { display: none; }
+#game-container { position: relative; width: 100%; max-width: 100%; isolation: isolate; }
+#early-map-loading { position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #0b1220; color: #dce6f2; text-align: center; pointer-events: none;
+  font: 500 1rem system-ui, sans-serif; }
+#early-map-loading[hidden] { display: none; }
+#early-map-loading .spinner { width: 2rem; height: 2rem; margin-bottom: 1rem;
+  border: 3px solid #394c65; border-top-color: #e0eaf7; border-radius: 50%;
+  animation: early-map-spin 1s linear infinite; }
+@keyframes early-map-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #early-map-loading .spinner { animation: none; } }
+/* Keep the windowed canvas height tied to the viewport rather than a fixed
+ * aspect ratio, so ordinary browser resizes can cross the game's UI aspect
+ * threshold. SDL may set inline dimensions, so the CSS box takes precedence;
+ * the renderer separately syncs the worker-owned backing pixels. */
+#game-container:not(:fullscreen) > canvas:not(:fullscreen) {
+  width: 100% !important;
+  height: min(65dvh, 75vw, 620px) !important;
+  min-height: 240px;
+  aspect-ratio: auto !important;
+}
+#game-container > canvas { position: relative; z-index: 0; }
+#game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
+  visibility: visible; opacity: 1; pointer-events: auto;
   display: flex; gap: .5rem; }
 #game-controls button { margin: 0; min-width: 2.8rem; min-height: 2.8rem;
   padding: .45rem .7rem; border: 1px solid #9baec7; border-radius: .4rem;
   background: rgba(11, 18, 32, .85); color: #fff; font: 600 14px system-ui, sans-serif;
   cursor: pointer; touch-action: manipulation; }
 #game-controls button:hover, #game-controls button:focus-visible { background: #304969; }
-#game-container:fullscreen { width: 100%; height: 100%; background: #000; }
-#game-container:fullscreen canvas { width: 100%; height: 100%; aspect-ratio: auto; }
+#game-container:fullscreen { width: 100%; height: 100%; background: #000; outline: none; }
+#game-container:fullscreen::backdrop { background: #000; }
+/* SDL may assign inline element sizes. In fullscreen the CSS display size
+ * must remain the fullscreen viewport; backing pixels are synced by the
+ * Emscripten renderer on its worker, not by these style rules. */
+#game-container:fullscreen canvas {
+  width: 100% !important; height: 100% !important; aspect-ratio: auto;
+  background: #000; border: 0; outline: 0;
+}
 #game-container:fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
   right: max(.65rem, env(safe-area-inset-right)); }
 #status { margin: 1rem 0; }
+#browser-unsupported { padding: 1rem; border: 1px solid #b84b4b; border-radius: .4rem; }
+#page-content[hidden], #browser-unsupported[hidden] { display: none; }
+#play-game-row { display: flex; justify-content: center; margin: .9rem 0; }
+#play-game { margin: .3rem; padding: .8rem 2.4rem; border: 1px solid #16803c;
+  border-radius: .4rem; background: #16803c; color: #fff; font: 700 1.25rem system-ui, sans-serif;
+  cursor: pointer; }
+#play-game:hover, #play-game:focus-visible { background: #116b32; }
+#install-data.has-selection { border-color: #16803c; background: #16803c; color: #fff; }
+#install-data.has-selection:hover, #install-data.has-selection:focus-visible { background: #116b32; }
 </style>
 </head>
 <body>
 <main>
-<h1>OpenRealm browser foundation</h1>
+<section id="browser-unsupported" role="alert" hidden>
+  <h1>Browser not supported</h1>
+  <p id="browser-unsupported-message">OpenRealm requires WebGL 2 and OffscreenCanvas support.</p>
+</section>
+<div id="page-content" hidden>
+<h1>OpenRealm</h1>
 <p id="status" role="status">Checking browser-local Warcraft III data…</p>
-<section aria-labelledby="data-heading">
-<h2 id="data-heading">Local Warcraft III data (experimental)</h2>
-<p>Select MPQ, W3M or W3X files. They are copied into browser-local OPFS; they are not uploaded.</p>
-<input id="game-files" type="file" accept=".mpq,.w3m,.w3x" multiple aria-label="Game data files">
-<button id="install-data" type="button">Import files</button>
+<details id="data-panel">
+<summary id="data-heading">Local Warcraft III data (experimental)</summary>
+<ul>
+  <li>MPQ files from Warcraft III version 1.29 are the most tested</li>
+  <li>When importing files it is possible to select multiple</li>
+  <li>Select standalone MPQ/W3M/W3X files from a local installation (e.g. Warcraft III - Legacy TFT 1.29 installed by Battle.Net)</li>
+  <li>OR</li>
+  <li>Select a Reign of Chaos ISO, optionally with a Frozen Throne ISO. Selecting RoC and TFT together installs both editions.</li>
+  <li>Reforged is not supported</li>
+  <li>Demo files are not yet supported</li>
+  <li>Files are stored locally in your browser; nothing is uploaded</li>
+</ul>
+<input id="game-files" type="file" accept=".iso,.mpq,.w3m,.w3x" multiple aria-label="Warcraft III ISO images and game data files">
+<p id="selection-summary">No files selected.</p>
+<button id="install-data" type="button">Import selected files</button>
 <button id="cancel-install" type="button" disabled>Cancel</button>
 <button id="remove-data" type="button">Remove local data</button>
-<progress id="install-progress" max="1" value="0"></progress>
-<p id="data-status" role="status">Checking local storage…</p>
+<progress id="install-progress" max="1" value="0" aria-label="Game data import progress"></progress>
+<div id="play-game-row"><button id="play-game" type="button" hidden>Play Game</button></div>
+
+  <p id="data-status" role="status">Checking local storage…</p>
+<p id="installation-edition" role="note" hidden></p>
+<div id="discovered-files" hidden>
+<h3>Detected game files</h3>
+<ul id="archive-list"></ul>
+</div>
+</details>
+
+<section aria-labelledby="mode-heading">
+  <h2 id="mode-heading">Game edition</h2>
+  <label for="game-edition">Launch mode</label>
+  <select id="game-edition" disabled aria-label="Warcraft III game edition">
+    <option value="roc">Reign of Chaos</option>
+    <option value="tft">The Frozen Throne</option>
+  </select>
+  <p>Changing edition restarts the browser game. The Frozen Throne requires War3x.mpq.</p>
 </section>
-<div id="game-container">
+<div id="game-container" hidden>
   <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+  <div id="early-map-loading" hidden role="status" aria-live="polite">
+    <span class="spinner" aria-hidden="true"></span>Preparing map…
+  </div>
   <div id="game-controls" aria-label="Game controls">
     <button id="game-escape" type="button" aria-label="Send Escape to game" title="Escape / skip cinematic">Esc</button>
     <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
   </div>
 </div>
 <p>Experimental OpenRealm browser runtime. Imported archives are read directly from OPFS through WasmFS. Engine compatibility is experimental.</p>
+</div>
 </main>
 <script>
+var webglProbe = document.createElement('canvas');
+var browserCapable = !!(webglProbe.getContext('webgl2') &&
+  typeof OffscreenCanvas !== 'undefined' &&
+  HTMLCanvasElement.prototype.transferControlToOffscreen);
+var pageContent = document.getElementById('page-content');
+var browserUnsupported = document.getElementById('browser-unsupported');
+var browserUnsupportedMessage = document.getElementById('browser-unsupported-message');
+if (!browserCapable) {
+  browserUnsupported.hidden = false;
+} else if (!window.openrealmPagesReady && window.crossOriginIsolated) {
+  pageContent.hidden = false;
+}
+if (browserCapable && window.openrealmPagesReady) {
+  window.openrealmPagesReady.then(function (ready) {
+    if (ready) {
+      pageContent.hidden = false;
+      return;
+    }
+    browserUnsupportedMessage.textContent =
+      'Cross-origin isolation could not be enabled. The game controls are unavailable.';
+    browserUnsupported.hidden = false;
+  });
+}
 var Module = {
   canvas: document.getElementById('canvas'),
   setStatus: function (message) {
-    document.getElementById('status').textContent = message || 'WebGL 2 probe running';
+    document.getElementById('status').textContent = message || 'WebGL 2 ready';
   },
   onAbort: function (reason) {
     document.getElementById('status').textContent = 'WebAssembly aborted: ' + reason;
@@ -61,9 +161,21 @@ var Module = {
 window.addEventListener('error', function (event) {
   document.getElementById('status').textContent = 'Error: ' + event.message;
 });
+/* The game canvas stays absent from layout until archive validation succeeds. */
+window.openrealmGamePresentation = function (state) {
+  document.getElementById('game-container').hidden = state !== 'playing';
+};
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
 var gameFullscreen = document.getElementById('game-fullscreen');
+/* Prefer fullscreening the wrapper so game controls stay with the canvas. */
+if (gameCanvas.requestFullscreen && gameContainer.requestFullscreen) {
+  try {
+    gameCanvas.requestFullscreen = function (options) {
+      return gameContainer.requestFullscreen(options);
+    };
+  } catch (_) { /* The page fullscreen button requests the wrapper directly. */ }
+}
 function sendGameEscape() {
   gameCanvas.focus();
   for (var i = 0; i < 2; ++i) {
@@ -84,7 +196,7 @@ document.getElementById('game-escape').addEventListener('click', function (event
 });
 gameFullscreen.addEventListener('click', function (event) {
   event.stopPropagation();
-  if (document.fullscreenElement === gameContainer) {
+  if (document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas) {
     document.exitFullscreen().catch(function () {});
   } else if (gameContainer.requestFullscreen) {
     gameContainer.requestFullscreen().catch(function (error) {
@@ -93,10 +205,14 @@ gameFullscreen.addEventListener('click', function (event) {
   }
 });
 document.addEventListener('fullscreenchange', function () {
-  var active = document.fullscreenElement === gameContainer;
+  var active = document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas;
   gameFullscreen.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
   gameFullscreen.title = active ? 'Exit fullscreen' : 'Toggle fullscreen';
-  window.dispatchEvent(new Event('resize'));
+  if (window.openrealmRequestFullscreenResize) {
+    window.openrealmRequestFullscreenResize();
+  } else {
+    window.dispatchEvent(new Event('resize'));
+  }
 });
 /* AudioContext is created from the first user gesture for browser autoplay policy.
  * The engine worker supplies shared WASM pointers once S_Init has run. */
@@ -143,16 +259,25 @@ window.openrealmAudioDetach = function () {
   }
 };
 window.openrealmStartEngine = function (arguments_) {
-  if (typeof OffscreenCanvas === 'undefined' ||
-      !HTMLCanvasElement.prototype.transferControlToOffscreen) {
+  // GitHub Pages must reload under its game-scoped Service Worker before
+  // pthreads start so the navigation receives COOP/COEP headers.
+  if (window.openrealmPagesReady) {
+    return window.openrealmPagesReady.then(function (ready) {
+      return ready ? openrealmStartIsolatedEngine(arguments_) : false;
+    });
+  }
+  return Promise.resolve(openrealmStartIsolatedEngine(arguments_));
+};
+function openrealmStartIsolatedEngine(arguments_) {
+  if (!browserCapable) {
     document.getElementById('status').textContent =
-      'WebGL requires OffscreenCanvas support for the game worker.';
-    return;
+      'WebGL 2 and OffscreenCanvas support are required to run OpenRealm.';
+    return false;
   }
   if (!window.crossOriginIsolated) {
     document.getElementById('status').textContent =
       'The engine requires COOP/COEP cross-origin isolation.';
-    return;
+    return false;
   }
   Module.arguments = arguments_;
   var script = document.createElement('script');
@@ -161,9 +286,18 @@ window.openrealmStartEngine = function (arguments_) {
     document.getElementById('status').textContent = 'Could not load the OpenRealm engine.';
   };
   document.body.appendChild(script);
+  return true;
 };
 </script>
+<script src="browser-keyboard.js"></script>
+<script>
+openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
+</script>
+<script src="fullscreen-resize.js"></script>
+<script src="early-map-loading.js"></script>
 <script src="installer.js"></script>
+<script src="mpq-header.js"></script>
+<script src="pages-isolation.js"></script>
 <script src="filesystem-bridge.js"></script>
 <template id="engine-script">{{{ SCRIPT }}}</template>
 </body>

@@ -19,8 +19,12 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |
 | UI canvas: window geometry, stretch/expand/centered policies, widescreen console chrome, resize settling, `ui_canvas` class command | [docs/architecture/ui-canvas.md](docs/architecture/ui-canvas.md) |
+| Web browser fullscreen and post-layout canvas resize synchronization | [docs/platform/browser-fullscreen.md](docs/platform/browser-fullscreen.md) |
 | Shared GL/ES shader generation, typed submission and lifetime | [docs/architecture/shared-shaders.md](docs/architecture/shared-shaders.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Browser ISO 9660/Joliet sector reader, limits, test command, integration boundary | [docs/platform/browser-iso9660.md](docs/platform/browser-iso9660.md) |
+| Building, serving, importing game data, and running the experimental browser engine | [docs/platform/browser-run.md](docs/platform/browser-run.md) |
+| Browser static hosting on GitHub Pages, Service Worker isolation and example | [docs/platform/browser-github-pages.md](docs/platform/browser-github-pages.md) |
 | GitHub release publication, contributor notes, platform artifacts and verification | [docs/releasing.md](docs/releasing.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, ability_audit, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
@@ -41,9 +45,11 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [architecture/sound.md](architecture/sound.md) |
 | WC3 retail audio admission, Ghidra/r2 setup, recovered structures and parity gaps | [docs/games/warcraft-3/audio-retail-analysis.md](docs/games/warcraft-3/audio-retail-analysis.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
+| WC3 MDX material filter ordering, layered composition and HumanX03Secret portal | [docs/games/warcraft-3/mdx-materials.md](docs/games/warcraft-3/mdx-materials.md) |
 | WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
 | WC3 custom doodad `.w3d` models, animation ownership and Rexxar Forcewall presentation | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
+| WC3 optional SC2API Raw agent transport, observations, actions and stepping | [docs/games/warcraft-3/sc2api-agent-interface.md](docs/games/warcraft-3/sc2api-agent-interface.md) |
 | WC3 critter wandering (`Awan`): idle scheduling, Move ownership events, flee, building clearance, save fields, scheduler-path tests | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 group Attack, target chase, collision range, and remaining combat-movement gaps | [docs/games/warcraft-3/group-attack-chase-gaps.md](docs/games/warcraft-3/group-attack-chase-gaps.md) |
@@ -57,18 +63,20 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
 | WC3 Team Resources HUD, multiboard sharing and advanced shared-control permission boundary | [docs/games/warcraft-3/team-resources.md](docs/games/warcraft-3/team-resources.md) |
 | WC3 multiboard/texttag JASS registries, single visible board, suppression, HUD limitations | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |
-| WC3 campaign map bulk runtime audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
+| WC3 campaign map bulk runtime and static difficulty-source audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
 | WC3 DotA custom-map playability, protected-MPQ load, hashtable demand | [docs/games/warcraft-3/dota-map-playability.md](docs/games/warcraft-3/dota-map-playability.md) |
 | WC3 JASS group handle lifecycle, DestroyGroup slot reuse, save/load identity | [docs/games/warcraft-3/jass-groups.md](docs/games/warcraft-3/jass-groups.md) |
 | WC3 campaign game cache, persisted Hero progression, `StoreUnit`/`RestoreUnit` | [docs/games/warcraft-3/campaign-game-cache.md](docs/games/warcraft-3/campaign-game-cache.md) |
 | WC3 Human09 cinematic lifecycle, selection/region diagnostics, and campaign failure evidence | [docs/games/warcraft-3/human09-cinematic-lifecycle.md](docs/games/warcraft-3/human09-cinematic-lifecycle.md) |
-| WC3 campaign/mission unlock persistence, retail `.w3p` distinction, selector visibility | [docs/games/warcraft-3/campaign-progress.md](docs/games/warcraft-3/campaign-progress.md) |
+| WC3 campaign unlocks, completed-difficulty tracking, ORCP migration, selector visibility | [docs/games/warcraft-3/campaign-progress.md](docs/games/warcraft-3/campaign-progress.md) |
+| WC3 difficulty preference, fresh-map initialization and JASS difficulty state | [docs/games/warcraft-3/game-difficulty.md](docs/games/warcraft-3/game-difficulty.md) |
 | WC3 sparse edict state: direct pointer access, allocation, release and persistence | [docs/games/warcraft-3/pooled-entity-state.md](docs/games/warcraft-3/pooled-entity-state.md) |
 | WC3 game save/load format, Hero walk diagnostic, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 ground tile atlas layout, nested `<tileset>.mpq` texture layer, Water.slk water height/tint/animation | [docs/games/warcraft-3/terrain-tiles-and-water.md](docs/games/warcraft-3/terrain-tiles-and-water.md) |
 | WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
+| WC3 runtime water tint, `SetWaterBaseColor`, scene configstring and W3M water-layer shader multiply | [docs/games/warcraft-3/water-base-color.md](docs/games/warcraft-3/water-base-color.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |
 | WC3 invisibility causes, detector integration, Wind Walk/Ghost/item invisibility, Ghost Visible/Burrow compatibility policy | [docs/games/warcraft-3/invisibility.md](docs/games/warcraft-3/invisibility.md) |
@@ -77,6 +85,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Neutral Hostile camp assistance, creep guard leash, scripted guard controls and persistence | [docs/games/warcraft-3/neutral-creep-guard.md](docs/games/warcraft-3/neutral-creep-guard.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
 | WC3 aura target masks, RoC rank columns, source pattern vs recipient glow | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
+| RoC aura RTTI registrations and hardcoded `AHad`→`BHad` mapping evidence | [docs/games/warcraft-3/roc-aura-registrations.md](docs/games/warcraft-3/roc-aura-registrations.md) |
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
 | WC3 Barkskin modal autocast, authored armor status, expiry/death inverse | [docs/games/warcraft-3/barkskin.md](docs/games/warcraft-3/barkskin.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
@@ -180,7 +189,6 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 client UI lifecycle, glue Birth/Stand/Death transitions, single-player campaign/mission/custom-game flow | [docs/games/warcraft-3/architecture/ui-flow.md](docs/games/warcraft-3/architecture/ui-flow.md) |
 | WC3 main-menu transparent layers, MenuZFog, #620/#621 regression history and visual checks | [docs/games/warcraft-3/main-menu-rendering.md](docs/games/warcraft-3/main-menu-rendering.md) |
 | WC3 campaign loading lifecycle, texture references, unused FDF art, cliff transitions | [docs/games/warcraft-3/loading-and-assets.md](docs/games/warcraft-3/loading-and-assets.md) |
-| WC3 retail executable version reporting for data diagnostics | [docs/games/warcraft-3/data-version-reporting.md](docs/games/warcraft-3/data-version-reporting.md) |
 | WC3 perf hot spots: MDX bone/geoset setup, shadow batching, client/server entity scans | [docs/games/warcraft-3/performance.md](docs/games/warcraft-3/performance.md) |
 | WC3 RAM profiling: MDX buffer overhead, FDF pools, texture residency, loopback budgets | [docs/games/warcraft-3/memory.md](docs/games/warcraft-3/memory.md) |
 | SC2 dropped-unit selection/control, shared WC3 routing, M3 picking and selection rings | [docs/games/starcraft-2/selection-and-control.md](docs/games/starcraft-2/selection-and-control.md) |
@@ -545,7 +553,8 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 
 ## Browser platform
 
-The opt-in Emscripten/WebGL 2 foundation target and its current limitations are
-recorded in [Browser platform](docs/platform/browser.md). The smoke test is not
-a Warcraft III runtime. Keep browser adapters outside the universal client and
-game simulation modules.
+Browser engine build/run steps and current limitations are recorded in
+[Browser run guide](docs/platform/browser-run.md) and
+[Browser platform](docs/platform/browser.md). The foundation smoke test is not
+the Warcraft III runtime. Keep browser adapters outside the universal client
+and game simulation modules.

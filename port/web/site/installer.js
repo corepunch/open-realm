@@ -4,51 +4,185 @@
   const fileInput = document.getElementById('game-files');
   const install = document.getElementById('install-data');
   const cancel = document.getElementById('cancel-install');
+  const play = document.getElementById('play-game');
   const remove = document.getElementById('remove-data');
   const status = document.getElementById('data-status');
   const progress = document.getElementById('install-progress');
-  if (!navigator.storage?.getDirectory || !window.Worker) {
-    status.textContent = 'OPFS and Web Workers are required to install files in this browser.';
+  const selection = document.getElementById('selection-summary');
+  const discovered = document.getElementById('discovered-files');
+  const archives = document.getElementById('archive-list');
+  const editionNotice = document.getElementById('installation-edition');
+  const dataPanel = document.getElementById('data-panel');
+  if (!navigator.storage?.getDirectory || !window.Worker || !navigator.locks?.request) {
+    status.textContent = 'OPFS, Web Workers and Web Locks are required to install files safely in this browser.';
     install.disabled = true;
+    fileInput.disabled = true;
+    remove.disabled = true;
     return;
   }
+  // Reloading ends the Emscripten game worker and releases its generation lease.
+  // On the next load, delete before starting any new game worker.
+  const REMOVE_ON_RELOAD = 'openrealm-wc3-remove-after-reload';
+  const pendingRemoval = sessionStorage.getItem(REMOVE_ON_RELOAD) === '1';
   const worker = new Worker('install-worker.js');
-  let busy = false;
-  function setBusy(value) {
-    busy = value;
-    install.disabled = value;
-    cancel.disabled = !value;
-    remove.disabled = value;
+  let operation = null;
+  let warnings = [];
+  let playable = false;
+  const sizeLabel = bytes => {
+    if (bytes < 1024) return bytes + ' B';
+    const unit = bytes < 1024 * 1024 ? 'KiB' : bytes < 1024 ** 3 ? 'MiB' : 'GiB';
+    const divisor = unit === 'KiB' ? 1024 : unit === 'MiB' ? 1024 ** 2 : 1024 ** 3;
+    return (bytes / divisor).toFixed(1) + ' ' + unit;
+  };
+  function setOperation(value) {
+    operation = value;
+    const busy = value !== null;
+    fileInput.disabled = busy;
+    install.disabled = busy;
+    install.classList.toggle('has-selection', value !== 'import' && !!(fileInput.files && fileInput.files.length));
+    cancel.disabled = value !== 'import';
+    remove.disabled = busy;
+    if (play) play.disabled = busy || !playable;
+  }
+  function updatePlayable(manifest) {
+    playable = !!(manifest && Array.isArray(manifest.files) &&
+      manifest.files.some(file => file && typeof file.name === 'string' &&
+        file.name.toLowerCase() === 'war3.mpq') &&
+      (manifest.edition === undefined || manifest.edition === 'retail' || manifest.edition === 'demo'));
+    if (play) {
+      play.hidden = !playable;
+      play.disabled = operation !== null || !playable;
+    }
+  }
+  function clearDiscovery() {
+    archives.replaceChildren();
+    discovered.hidden = true;
+  }
+  function showEdition(manifest) {
+    if (!editionNotice) return;
+    const isDemo = manifest && manifest.edition === 'demo';
+    editionNotice.hidden = !isDemo;
+    editionNotice.textContent = isDemo
+      ? 'Warcraft III Demo — limited demo content only, not the full Reign of Chaos or Frozen Throne game.'
+      : '';
+  }
+  function showSelection() {
+    const files = Array.from(fileInput.files || []);
+    install.classList.toggle('has-selection', files.length > 0);
+    const isos = files.filter(file => /\.iso$/i.test(file.name)).length;
+    const direct = files.length - isos;
+    selection.textContent = files.length
+      ? `Selected ${isos} ISO image(s) and ${direct} standalone archive/map file(s). ` +
+        'The selected files will replace the active installation.'
+      : 'No files selected.';
   }
   worker.onmessage = ({data}) => {
-    if (data.type === 'progress') {
+    if (data.type === 'notice' && operation === 'import') {
+      warnings.push(data.message);
+      status.textContent = data.message;
+    } else if (data.type === 'phase' && operation === 'import') {
+      if (data.phase === 'scanning') status.textContent = 'Scanning ISO: ' + data.source;
+      else if (data.phase === 'extracting') status.textContent = 'Extracting supported maps from Setup.mpq…';
+      else if (data.phase === 'validating') status.textContent = 'Validating game archives…';
+      else if (data.phase === 'storage') status.textContent = 'Checking available browser storage…';
+      else if (data.phase === 'copying') status.textContent = 'Copying detected game archives…';
+      else if (data.phase === 'committing') status.textContent = 'Saving installation manifest…';
+    } else if (data.type === 'discovered' && operation === 'import') {
+      // Names come from the selected ISO: never parse them as HTML.
+      clearDiscovery();
+      for (const file of data.files) {
+        const item = document.createElement('li');
+        item.textContent = `${file.name} (${sizeLabel(file.size)}) — ${file.source}`;
+        archives.appendChild(item);
+      }
+      discovered.hidden = false;
+      status.textContent = `Found ${data.files.length} game file(s), ${sizeLabel(data.bytes)} to copy.`;
+    } else if (data.type === 'progress' && operation === 'import') {
       progress.value = data.total ? data.copied / data.total : 0;
-      status.textContent = 'Copying ' + data.file + ': ' + Math.round(100*progress.value) + '%';
-    } else if (data.type === 'done') {
-      setBusy(false);
-      status.textContent = 'Stored ' + data.manifest.files.length + ' files locally (' + data.manifest.bytes + ' bytes). Restart this page to use the installed data with the experimental engine.';
+      const fileNumber = data.index ? ` (${data.index}/${data.count})` : '';
+      status.textContent = `Copying ${data.file}${fileNumber}: ` +
+        `${sizeLabel(data.copied)} / ${sizeLabel(data.total)} (${Math.round(100 * progress.value)}%).`;
+    } else if (data.type === 'done' && operation === 'import') {
+      setOperation(null);
+      progress.value = 1;
+      showEdition(data.manifest);
+      updatePlayable(data.manifest);
+      status.textContent = (data.manifest.edition === 'demo'
+        ? 'Warcraft III Demo installed (limited content). ' :
+        data.manifest.completeness === 'partial-expansion'
+        ? 'Partial Frozen Throne installation: expansion localization archives are missing. ' : '') +
+        `Stored ${data.manifest.files.length} game file(s) locally ` +
+        `(${sizeLabel(data.manifest.bytes)}). Reload this page to use the new data.` +
+        (warnings.length ? ' Note: ' + warnings.join(' | ') : '');
       fileInput.value = '';
+      showSelection();
     } else if (data.type === 'list') {
-      const m = data.manifest;
-      status.textContent = m ? ('Local files: '+m.files.map(f=>f.name).join(', ')) : 'No game data installed.';
-      setBusy(false);
+      if (operation === 'remove' && pendingRemoval) {
+        sessionStorage.removeItem(REMOVE_ON_RELOAD);
+      }
+      if (operation === 'import') return; // Ignore a delayed initial list response.
+      setOperation(null);
+      const manifest = data.manifest;
+      showEdition(manifest);
+      updatePlayable(manifest);
+      if (dataPanel) dataPanel.open = !manifest;
+      status.textContent = manifest
+        ? (manifest.edition === 'demo' ? 'Warcraft III Demo installed (limited content). ' :
+            manifest.completeness === 'partial-expansion' ? 'Partial expansion installation. ' : '') +
+          'Local files: ' + manifest.files.map(file => file.name).join(', ')
+        : 'No game data installed.';
+      if (!manifest) clearDiscovery();
     } else if (data.type === 'error') {
-      setBusy(false);
-      status.textContent = 'Import error: ' + data.message;
+      if (pendingRemoval) sessionStorage.removeItem(REMOVE_ON_RELOAD);
+      setOperation(null);
+      status.textContent = data.message === 'Import cancelled'
+        ? 'Import cancelled. Previous installed data (if any) was retained.'
+        : 'Import error: ' + data.message;
     }
   };
-  worker.onerror = () => { setBusy(false); status.textContent = 'Game-data worker failed.'; };
-  install.addEventListener('click',()=>{
-    if(busy) return;
-    const files=Array.from(fileInput.files || []);
-    if(!files.length){status.textContent='Choose game archive files first.';return;}
-    setBusy(true); progress.value=0;
-    worker.postMessage({type:'import',files});
+  worker.onerror = () => {
+    if (pendingRemoval) sessionStorage.removeItem(REMOVE_ON_RELOAD);
+    setOperation(null);
+    status.textContent = 'Game-data worker failed. Reload the page before retrying.';
+  };
+  fileInput.addEventListener('change', showSelection);
+  install.addEventListener('click', () => {
+    if (operation) return;
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) { status.textContent = 'Choose Warcraft III ISO or game archive files first.'; return; }
+    clearDiscovery();
+    warnings = [];
+    progress.removeAttribute('value'); // Unknown copy size while discs are scanned.
+    setOperation('import');
+    status.textContent = 'Inspecting selected game files…';
+    worker.postMessage({type:'import', files});
   });
-  cancel.addEventListener('click',()=>worker.postMessage({type:'cancel'}));
-  remove.addEventListener('click',()=>{
-    if(!confirm('Delete all imported Warcraft III files from this browser?')) return;
-    setBusy(true); worker.postMessage({type:'remove'});
+  cancel.addEventListener('click', () => {
+    if (operation !== 'import') return;
+    cancel.disabled = true;
+    status.textContent = 'Cancelling import…';
+    worker.postMessage({type:'cancel'});
   });
-  worker.postMessage({type:'list'});
+  remove.addEventListener('click', () => {
+    if (operation || !confirm('Delete all imported Warcraft III files from this browser?')) return;
+    // A running game holds an OPFS Web Lock in this tab. Reload to shut it
+    // down, then remove from the fresh page without starting the engine.
+    try { sessionStorage.setItem(REMOVE_ON_RELOAD, '1'); }
+    catch (error) { status.textContent = 'Cannot prepare safe removal: ' + error.message; return; }
+    setOperation('remove');
+    status.textContent = 'Stopping game before removing local data…';
+    window.location.reload();
+  });
+  if (play) play.addEventListener('click', () => {
+    if (!playable || operation) return;
+    window.location.reload();
+  });
+  showSelection();
+  if (pendingRemoval) {
+    setOperation('remove');
+    status.textContent = 'Game stopped. Removing local Warcraft III data…';
+    worker.postMessage({type:'remove'});
+  } else {
+    worker.postMessage({type:'list'});
+  }
 })();

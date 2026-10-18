@@ -1,6 +1,6 @@
 # Discord notifications
 
-[Discord Notify](../.github/workflows/discord-notify.yml) posts concise webhook embeds for
+[Discord Notify](https://github.com/corepunch/open-realm/blob/main/.github/workflows/discord-notify.yml) posts concise webhook embeds for
 new PRs and published releases. PRs use `pull_request_target`, types `opened` and
 `ready_for_review`. Draft PRs post only when marked ready; bot PRs never post.
 Releases use `release`, type `published`, including published prereleases. Draft
@@ -52,4 +52,4 @@ and existing PR cards. They require Bash/jq and never post to Discord. `CI`
 runs them on the same Ubuntu runner type used for delivery. No game build is
 needed for this workflow change.
 
-See [Contributing](../CONTRIBUTING.md) for repository validation conventions.
+See [Contributing](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md) for repository validation conventions.

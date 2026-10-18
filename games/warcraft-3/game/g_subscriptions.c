@@ -206,6 +206,8 @@ bool G_NextTriggerRelease(wc3Clock_t *deadline, uint32_t *sequence) {
 }
 
 void G_ReleaseEvent(event_t *event) {
+    for(uint32_t n=level.events.read;n<level.events.write;n++)
+        if(level.events.queue[n%MAX_EVENT_QUEUE].responseTo==event)level.events.queue[n%MAX_EVENT_QUEUE].responseTo=NULL;
     uint32_t slot=event-level.events.handlers;
     if(!event->inuse)return;
     if(event->handle_generation==EVENT_HANDLE_GENERATION_MAX)event->generation_exhausted=true;

@@ -112,7 +112,11 @@ void reset_entities(void) {
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
-    FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
+    FOR_LOOP(i, game.max_clients) {
+        g_edicts[i].s.number = i;
+        g_edicts[i].client = &game.clients[i];
+        game.clients[i].ps.number = i;
+    }
     gi.ClearWorld();
 }
 
@@ -185,6 +189,7 @@ static void reset_test_state(void) {
     G_ResetUnitAbilityCodes();
     G_ResetSpawnCache();
     S_ResetWaygateCache();
+    G_TestResetScoreTransition();
     G_ResetDeferredFrees();
     UI_TestResetInfoPanelIconCache();
     G_ResetSelectionSoundState();

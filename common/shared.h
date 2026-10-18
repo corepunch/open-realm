@@ -204,6 +204,8 @@ enum {
     FLAG(RF_ALLIED, 25),         /* recipient-relative ally; prioritize after the local player's units */
     FLAG(RF_SELECTION_CIRCLE_ON_WATER, 26), /* draw this entity's ground overlays over supported water */
     FLAG(RF_GROUND_SURFACE_SUPPORT, 27), /* WC3 renderer found a walkable destructable under this entity */
+    FLAG(RF_MDX_EMISSION_PAUSED, 28), /* renderer: do not spawn particles while entity emission is paused */
+    FLAG(RF_MDX_ANIMATION_PAUSED, 29), /* renderer: freeze MDX global-sequence tracks for this entity */
 };
 
 enum {
@@ -228,6 +230,8 @@ enum {
     FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
     FLAG(EF_ALLIED, 17),          /* recipient-relative alliance, distinct from neutral relationship */
     FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
+    FLAG(EF_MDX_EMISSION_PAUSED, 19), /* suppress new MDX particles while authored entity animation is held */
+    FLAG(EF_MDX_ANIMATION_PAUSED, 20), /* hold MDX global-sequence tracks while authored entity animation is held */
 };
 
 enum {
@@ -294,6 +298,8 @@ enum {
     /* Generic scene-distance fog: "style start end density r g b".  Style 0 disables;
      * positive styles currently share the renderer's linear start/end path. */
     CS_SCENE_FOG = 13,
+    /* Generic scene water tint: "r g b a" as normalized floats. Empty means neutral white. */
+    CS_SCENE_WATER_COLOR = 14,
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,
@@ -524,11 +530,13 @@ typedef enum {
 #define UI_WINDOW_UNIQUE  (1u << 2) // flag bit; keeps one instance per class; used by singleton inventory and journal windows
 #define UI_WINDOW_NO_PAUSE (1u << 3) // flag bit; modal input capture without acquiring the client-owned simulation pause
 #define UI_WINDOW_NO_ESCAPE (1u << 4) // flag bit; Escape is consumed without dismissing the window; used by mandatory result/decision windows
+#define UI_WINDOW_PRESENTATION (1u << 5) // replaces gameplay world/HUD and other windows while active; client owns generic render isolation
 #define MAX_LAYOUT_LAYERS 17
 _Static_assert(LAYER_GAME_3 < MAX_LAYOUT_LAYERS, "every UILAYOUTLAYER needs a client layout slot");
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
 #define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
 #define UI_WINDOW_CLOSE_COMMAND_PREFIX "close_window_command " // client action prefix; forwards suffix then closes the owning window
+#define UI_WINDOW_BLACKOUT_COMMAND_PREFIX "blackout_window_command " // forwards suffix and blanks a presentation window while retaining its world-covering modal
 #define UI_WINDOW_DISCONNECT_ACTION "disconnect_game" // client action; leaves the current server/map and returns to the front-end
 #define UI_WINDOW_QUIT_ACTION "quit_application" // client action; exits the application after an explicit local click
 /* Server-authored controls name the client cvar they edit: "<prefix><cvar>". Checkbox rows store 0/1, slider
@@ -1053,6 +1061,11 @@ typedef enum {
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 #define UIFLAG_SPRITE_OVERLAY (1 << 16) // flag bit; draws an authored sprite after the containing layout artwork
+#define UIFLAG_TEXT_OVERLAY (1u << 21) // FT_TEXT: late caption pass after overlay sprites
+/* Only FT_TEXT with UIFLAG_TEXT_OVERLAY interprets these bits as paint rank.
+ * Do not use frame.stat: it binds live player stats and replaces authored text. */
+#define UIFLAG_TEXT_RANK_SHIFT 22
+#define UIFLAG_TEXT_RANK_MASK (3u << UIFLAG_TEXT_RANK_SHIFT)
 #define UIFLAG_TEXTURE_OVERLAY (1 << 19) // flag bit; draws a texture after the containing layout artwork
 #define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
@@ -1065,7 +1078,8 @@ typedef enum {
     (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
-     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFRAME_DISABLED)
+     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op \
+     UIFLAG_TEXT_RANK_MASK op UIFRAME_DISABLED)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 
@@ -1171,9 +1185,13 @@ typedef uint16_t RESOURCE;
 
 typedef struct {
     uint16_t image;
+    uint16_t flags;
     uint32_t starttime;
     uint32_t endtime;
+    float progress; /* normalized authoritative progress; used directly when paused */
 } uiBuildQueueItem_t;
+
+#define UI_BUILDQUEUE_ITEM_PAUSED (1u << 0)
 
 #define UI_MULTISELECT_ITEM_FOCUSED (1u << 0)
 

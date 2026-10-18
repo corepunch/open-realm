@@ -649,3 +649,22 @@ non-lethal chops, and both sides of the immobility contract. The in-engine fixtu
 ## Unit-kill bounty
 
 A unit death may award gold/lumber to the killer's owner when the victim's owner has `PLAYERSTATE_GIVES_BOUNTY` enabled (Neutral Hostile defaults to enabled). `UnitBalance` provides `bountyplus`/`bountydice`/`bountysides` and their lumber counterparts; each die is rolled separately. This path is independent of Hero XP eligibility and does not reward friendly kills, self-kills, unattributed deaths or illusions. Bounty is credited in full, bypassing the upkeep income rate (retail upkeep taxes only mined gold; see `bounty_clamps_to_resource_cap_and_bypasses_upkeep` in `t_combat.c`), clamps stored 16-bit resources, and emits recipient-local `Bounty`/`LumberBounty` labels, plus the GoldCredit effect for positive gold awards. See [resource-gain-text.md](resource-gain-text.md). Transmute's `allowBounty` field and special kill-replacement semantics still need a retail-confirmed follow-up.
+
+### Human Construction Birth Emission
+
+Human construction progress is driven by Peasants executing the active Repair
+work move. A Peasant walking toward a site does not advance construction.
+The game publishes emission-pause and animation-pause flags on the unfinished
+building while no live, unpaused Peasant is actually working. The MDX renderer
+suppresses **new** particles for that entity; existing particles finish their
+lifetimes. It also freezes that entity's global-sequence tracks, including
+tracks on construction models such as the Farm's moving saw. The renderer
+removes paused time from the entity's global-sequence clock on resume, so the
+track continues from the same phase. When a worker begins work the flags clear,
+and they set again when the final worker moves away, stops, dies, or is paused.
+More than one working Peasant keeps emission and animation active until the
+last one stops. Completion/cancellation clears the temporary rendering state.
+
+Non-looping doodad and destructable sequences independently stop emitting PRE2
+particles on their final held frame, without requiring gameplay-specific gate
+IDs or disabling particle emitters on legitimate looping animations.

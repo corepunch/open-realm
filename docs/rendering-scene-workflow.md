@@ -5,7 +5,7 @@ For campaign loading and asset diagnostics, see [WC3 loading and assets](games/w
 These launch commands are for visual or platform properties that automated tests and diagnostic tools cannot yet verify.
 For gameplay functionality, first reproduce the situation in tests using production entry points, fixtures, and deterministic
 simulation time. Extend the test harness before starting another game session, and do not repeat a scene once its behavior
-is covered by a regression test. See [test-first verification](../CONTRIBUTING.md#test-first-behavior-verification).
+is covered by a regression test. See [test-first verification](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md#test-first-behavior-verification).
 
 Use these commands to launch a selected game's UI or model scene without entering a full gameplay session. Build the target first, then pass the scene command as a late `+` command.
 

@@ -42,6 +42,8 @@ def main():
     parser.add_argument("--check", action="store_true", help="validate/generate sources without invoking Emscripten")
     parser.add_argument("--debug", action="store_true",
                         help="build an unoptimized, DWARF-symbolized browser engine for runtime failures")
+    parser.add_argument("--compat-workarounds", type=int, choices=(0, 1), default=1,
+                        help="enable compatibility workarounds (default: 1)")
     args = parser.parse_args()
     if args.debug and args.out == "build/web/engine":
         args.out = "build/web/engine-debug"
@@ -74,7 +76,7 @@ def main():
         "wc3_common": sources(wc3 + "/common", exclude=("world_w3.c",)),
         "engine": sources("client", "server", "common", "sound",
                           exclude=("stb_vorbis.c", "sv_routing.c")) +
-                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c"],
+                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c", ROOT / "port/web/src/web_loading.c"],
     }
     # Source collection is deliberately scoped to the known native modules.
     # Never accidentally compile fixture tests or a second platform main().
@@ -93,6 +95,7 @@ def main():
              "-I" + wc3 + "/game/api", "-I" + wc3 + "/game/skills",
              "-DWC3", "-DUSE_FOGOFWAR", '-DBZ_GAME="warcraft-3"',
              "-DBZ_GL_ES3", "-DBZ_MSAA_SAMPLES=0",
+             "-DBZ_COMPAT_WORKAROUNDS=" + str(args.compat_workarounds),
              "-sUSE_SDL=2", "-sUSE_ZLIB=1", "-pthread"]
     objects = []
     for name, files in module_sources.items():
@@ -137,6 +140,8 @@ def main():
          # Transfer the canvas to that thread; do not proxy synchronous GL calls
          # back to the browser thread (which can deadlock during initialization).
          "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
+         # SDK 4.0.21 treats GROWABLE_ARRAYBUFFERS as an experimental boolean;
+         # the old value 2 aborts linking. Use the default memory-growth path.
          "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=2" if args.debug else "-sASSERTIONS=1",
@@ -147,9 +152,12 @@ def main():
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
          "--embed-file", str(wc3_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
-    for name in ("installer.js", "install-worker.js", "filesystem-bridge.js", "audio-worklet.js"):
+    for name in ("browser-keyboard.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
+    shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
     print("Experimental static engine build emitted to", out)
+    # Pages loads this only from its game path; other hosting may ignore it.
+    shutil.copy2(ROOT / "port/web/site/pages-isolation.js", out / "pages-isolation.js")
     print("OPFS archives mounted through WasmFS; native engine link/runtime remains experimental.")
 
 

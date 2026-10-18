@@ -25,7 +25,7 @@ The client interpolates both complete focus samples, slerps their Euler-derived 
 `Matrix4_fromViewQuat` camera. The WoW-only height override in `Matrix4_getCameraMatrix` is gone. Scripts, terrain
 height, actor movement, camera target tracking, and lens defaults remain game-owned. WoW's legacy wrapped pitch
 is converted inside its game module; the client speaks canonical Euler degrees only. Native angle origins and inverse
-input mappings are documented in [coordinates and camera angles](../../AXIS.md).
+input mappings are documented in [coordinates and camera angles](https://github.com/corepunch/open-realm/blob/main/AXIS.md).
 
 ## Controller API and protocol
 

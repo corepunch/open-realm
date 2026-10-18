@@ -207,7 +207,16 @@ static bool HeroReviveMisc(cstring_t key, float *out) {
 
 bool G_UnitCanReviveHeroes(edict_t const *altar) {
     cstring_t revive = altar && altar->data.UnitProfile ? altar->data.UnitProfile->revive : NULL;
-    return revive && *revive && atoi(revive) != 0;
+    /* Reforged exposes this capability through UnitProfile.Revive. RoC 1.0
+     * authors it as the Arev passive in UnitAbilities. Keep that legacy data
+     * fallback opt-in with the compatibility workarounds. */
+    if (revive && *revive && atoi(revive) != 0) return true;
+#if BZ_COMPAT_WORKAROUNDS
+    /* Use actor lookup so script-added/removed Arev follows runtime semantics. */
+    return G_ActorHasSkill(altar, "Arev");
+#else
+    return false;
+#endif
 }
 
 bool G_HeroCanBeRevivedAt(edict_t const *altar, edict_t const *hero) {
@@ -274,6 +283,24 @@ uint32_t G_ProductionQueueCount(edict_t *producer) {
         if (ProductionNext(item) == item) break;
     }
     return count;
+}
+
+/* Read the same FIFO traversed by Train and the production HUD. No queue
+ * pointers or internal entity layout escape the game module. */
+bool G_GetProductionQueueOrder(edict_t *producer, uint32_t index, uint32_t *ability_id, float *progress) {
+    edict_t *item = producer ? producer->build : NULL;
+    if (index >= MAX_BUILD_QUEUE || !ability_id || !progress) return false;
+    for (uint32_t i = 0; item && i < index; i++) item = ProductionNext(item);
+    if (!item || !item->training || (item->revival && item->revival->reviving)) return false;
+    *ability_id = item->research ? item->research->upgrade : item->class_id;
+    *progress = 0.0f;
+    if (!index) {
+        if (item->research && item->research->duration > 0)
+            *progress = item->research->progress / item->research->duration;
+        else if (item->health.max_value > 0) *progress = item->health.value / item->health.max_value;
+    }
+    *progress = MAX(0.0f, MIN(1.0f, *progress));
+    return *ability_id != 0;
 }
 
 static void RefreshReviveUI(edict_t *altar) {
@@ -447,6 +474,7 @@ void ai_train_build(edict_t *ent) {
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
             G_QueueReadySound(completed);
             G_SendOwnerMinimapAlert(completed);
+            G_PlayerScoreUnitTrained(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
             G_BotUnitReady(completed);
             G_ApplyRallyOrder(ent, completed);

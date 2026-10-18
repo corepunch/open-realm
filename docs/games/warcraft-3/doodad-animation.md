@@ -22,7 +22,7 @@ JASS SetDoodadAnimation*
     -> assign the sequence and begin at its authored first frame
     -> advance it through the normal server animation clock
     -> looping sequence: wrap to the authored start
-    -> non-looping sequence: hold the authored final frame
+    -> non-looping sequence: hold the authored final frame and stop spawning new PRE2 particles (existing particles drain normally)
 ```
 
 `animRandom=false` uses the ordinary first matching sequence.  `animRandom=true` chooses among numbered MDX variants that share the same logical animation sync point.

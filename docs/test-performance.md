@@ -85,7 +85,7 @@ In [PR #585's CI run](https://github.com/corepunch/open-realm/actions/runs/37364
 after about 15 minutes with empty step lists. Each reported `The job was not acquired by Runner of type hosted even after
 multiple attempts`. This identifies hosted-runner acquisition failure before checkout, compilation, or tests; rerun CI to
 obtain code validation. The accompanying Ubuntu migration notices were notices, not the failure. The EOS job was intentionally
-skipped by the fork-PR condition in `.github/workflows/c-cpp.yml`. See [CI build environment](../CONTRIBUTING.md#build-and-linking).
+skipped by the fork-PR condition in `.github/workflows/c-cpp.yml`. See [CI build environment](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md#build-and-linking).
 
 ### Local suite timing
 
@@ -451,3 +451,23 @@ are retained under
 The portable bundle preserves all six owned captures and source/map inputs.
 No probe remains live. Upstream/main is already an ancestor after a fresh fetch;
 no merge or push is needed. No new TODOs.
+
+### Upstream synchronization, 2026-10-18
+
+The pathfinding branch integrates upstream/main at `8853d069c`, retaining the
+verified physical-owner order/arrival contracts and deferred trigger release.
+Save format213 combines the pathfinding layout with upstream score attribution,
+item overrides, campaign difficulty and timed Omniscience deadlines. Completed
+fog planes retain their existing snapshot contract; timed deadlines now persist
+beside them. Optional SC2API order observation uses the sparse queue capacity.
+
+Production game and test-runner builds pass. Thirty-four focused Classic/TFT
+runs pass108 tests/10644 assertions, covering score, item pools, difficulty,
+trigger retirement, visibility, explosions, construction, path distance, Ground
+and Captain behavior. The complete Ground verifier additionally passes43 tests/
+11838 assertions per edition with2757 original guards; Captain passes6/139 per
+edition with3611 guards. Core, server networking, commands, menu and JASS header
+dependency checks pass. The fixture inventory contains all13 committed maps;
+uncommitted generated Morph maps were preserved outside the clean fixture pack.
+This integration check is not a new full-suite checkpoint; the previously
+recorded Captain subscription and paused-removal failures remain separate work.

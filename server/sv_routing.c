@@ -986,6 +986,14 @@ static pathMapCell_t const *terrain_cell_at(vec2_t const *location) {
     return &pathmap.terrain[x + y * pathmap.width];
 }
 
+bool CM_GetTerrainPathingFlagsAt(vec2_t const *location, uint8_t *flags) {
+    pathMapCell_t const *cell = terrain_cell_at(location);
+    if (flags) *flags = 0;
+    if (!cell || !flags) return false;
+    memcpy(flags, cell, sizeof(*flags));
+    return true;
+}
+
 bool CM_TerrainPointIsWalkable(vec2_t const *location) {
     pathMapCell_t const *cell = terrain_cell_at(location);
     return cell ? !cell->nowalk : true;
@@ -1153,6 +1161,117 @@ bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
         }
     }
     return false;
+}
+
+/*Synchronous point-to-point distance query for external/tool callers.  It
+ *uses the same immutable static pathing, footprint expansion and diagonal
+ *corner rule as unit routing, but never touches the resumable heatmap job.
+ *Return zero when either endpoint is illegal or no route exists, matching
+ *SC2 RequestQueryPathing semantics. */
+static float path_query_distance(vec2_t const *from, vec2_t const *target, float radius, uint8_t blocked_flags) {
+    vec2_t na, nb;
+    uint32_t heap_count = 0, cells;
+    int sx, sy, tx, ty, radius_cells;
+
+    if (!from || !target) return 0.0f;
+    if (!pathmap.width || !pathmap.height || !pathmap.original || !pathmap.pathnodes || !pathmap.pathheap)
+        return Vector2_distance(from, target);
+
+    blocked_flags = normalize_blocked_flags(blocked_flags);
+    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    na = CM_GetNormalizedMapPosition(from->x, from->y);
+    nb = CM_GetNormalizedMapPosition(target->x, target->y);
+    sx = (int)floorf(na.x *pathmap.width);
+    sy = (int)floorf(na.y *pathmap.height);
+    tx = (int)floorf(nb.x *pathmap.width);
+    ty = (int)floorf(nb.y *pathmap.height);
+    if (!is_pathable_node_original_for_radius_cells_flags(sx, sy, radius_cells, blocked_flags) ||
+        !is_pathable_node_original_for_radius_cells_flags(tx, ty, radius_cells, blocked_flags))
+        return 0.0f;
+
+    if (CM_LineIsPathableForRadiusFlags(from, target, radius, blocked_flags))
+        return Vector2_distance(from, target);
+
+    cells = pathmap.width *pathmap.height;
+    if (++path_search_stamp == 0) {
+        FOR_LOOP(i, cells) pathmap.pathnodes[i].stamp = 0;
+        path_search_stamp = 1;
+    }
+
+    uint32_t const start_index = (uint32_t)sx + (uint32_t)sy *pathmap.width;
+    uint32_t const target_index = (uint32_t)tx + (uint32_t)ty *pathmap.width;
+    pathNode_t *node = &pathmap.pathnodes[start_index];
+    *node = (pathNode_t){ .parent = -1, .f = path_octile(sx, sy, tx, ty),
+                         .g = 0, .heap_pos = 0, .stamp = path_search_stamp };
+    pathmap.pathheap[heap_count++] = start_index;
+
+    while (heap_count) {
+        uint32_t const current = path_heap_pop(&heap_count);
+        int const cx = (int)(current % pathmap.width), cy = (int)(current / pathmap.width);
+        node = &pathmap.pathnodes[current];
+        node->closed = true;
+        if (current == target_index) {
+            return ((float)node->g / 10.0f) *pathmap_cell_world_size();
+        }
+        FOR_LOOP(dir, 8) {
+            int const nx = cx + dx[dir], ny = cy + dy[dir];
+            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, radius_cells, blocked_flags)) continue;
+            if (dir >= 4) {
+                bool const side_x = path_ok(nx, cy, radius_cells, blocked_flags);
+                bool const side_y = path_ok(cx, ny, radius_cells, blocked_flags);
+                if (!(side_x && side_y)) continue;
+            }
+            uint32_t const next = (uint32_t)nx + (uint32_t)ny *pathmap.width;
+            pathNode_t *next_node = &pathmap.pathnodes[next];
+            int const next_g = node->g + gv[dir];
+            if (next_node->stamp == path_search_stamp && (next_node->closed || next_g >= next_node->g)) continue;
+            if (next_node->stamp != path_search_stamp)
+                *next_node = (pathNode_t){ .heap_pos = -1, .stamp = path_search_stamp };
+            next_node->parent = (int)current;
+            next_node->g = next_g;
+            next_node->f = next_g + path_octile(nx, ny, tx, ty);
+            if (next_node->heap_pos < 0) {
+                next_node->heap_pos = (int)heap_count;
+                pathmap.pathheap[heap_count++] = next;
+                path_heap_up(heap_count - 1);
+            } else {
+                path_heap_up((uint32_t)next_node->heap_pos);
+            }
+        }
+    }
+    return 0.0f;
+}
+
+float CM_PathDistanceForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius, uint8_t blocked_flags) {
+    pathNode_t *saved_nodes = pathmap.pathnodes;
+    uint32_t *saved_heap = pathmap.pathheap;
+    uint32_t const saved_stamp = path_search_stamp;
+    uint32_t const cells = pathmap.width * pathmap.height;
+    pathNode_t *nodes;
+    uint32_t *heap;
+    float distance;
+
+    if (!from || !target || !isfinite(from->x) || !isfinite(from->y) ||
+        !isfinite(target->x) || !isfinite(target->y) || !isfinite(radius) || radius < 0.0f ||
+        !cells || !pathmap.original) return 0.0f;
+    nodes = MemAlloc((size_t)cells * sizeof(*nodes));
+    heap = MemAlloc((size_t)cells * sizeof(*heap));
+    if (!nodes || !heap) {
+        if (nodes) MemFree(nodes);
+        if (heap) MemFree(heap);
+        return 0.0f;
+    }
+    memset(nodes, 0, (size_t)cells * sizeof(*nodes));
+    pathmap.pathnodes = nodes;
+    pathmap.pathheap = heap;
+    path_search_stamp = 0;
+    distance = path_query_distance(from, target, radius, blocked_flags);
+    pathmap.pathnodes = saved_nodes;
+    pathmap.pathheap = saved_heap;
+    path_search_stamp = saved_stamp;
+    MemFree(nodes);
+    MemFree(heap);
+    return distance;
 }
 
 bool CM_FindDirectApproachPointForRadius(vec2_t const *from, vec2_t const *target,

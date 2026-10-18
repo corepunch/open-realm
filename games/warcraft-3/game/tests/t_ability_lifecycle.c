@@ -1434,4 +1434,48 @@ TEST(wc3_ability_lifecycle, physical_statuses_resist_magical_dispels) {
     }
 }
 
+
+/* JASS removal must respect explicit polarity/resistance and retain
+ * unclassified and lifetime-owning statuses. */
+TEST(wc3_ability_lifecycle, jass_removebuffs_filters_classified_statuses) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *positive = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bixx", .level = 1, .duration = 5.0f,
+        .buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL
+    });
+    heroabilitystatus_t *negative = unit_applystatus(unit, &(status_application_t){
+        .buff = "Biyy", .level = 1, .duration = 5.0f,
+        .buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL
+    });
+    heroabilitystatus_t *unknown = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bizz", .level = 1, .duration = 5.0f
+    });
+    T_NOT_NULL(positive); T_NOT_NULL(negative); T_NOT_NULL(unknown);
+    if (!positive || !negative || !unknown) return;
+    unit_removebuffs(unit, true, true, true, false, false, false, false);
+    T_EQ(positive->level, 0);
+    T_ASSERT(negative->level != 0);
+    T_ASSERT(unknown->level != 0);
+    unit_removebuffs(unit, false, true, false, true, false, false, false);
+    T_EQ(negative->level, 0);
+    T_ASSERT(unknown->level != 0);
+}
+
+TEST(wc3_ability_lifecycle, jass_removebuffs_preserves_undispellable_and_mixed_records) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *protected = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bi01", .level = 1, .duration = 7.0f,
+        .buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_UNDISPELLABLE
+    });
+    heroabilitystatus_t *mixed = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bi02", .level = 1, .duration = 7.0f,
+        .buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL
+    });
+    T_NOT_NULL(protected); T_NOT_NULL(mixed);
+    if (!protected || !mixed) return;
+    unit_removebuffs(unit, true, true, true, true, false, false, false);
+    T_ASSERT(protected->level != 0);
+    T_ASSERT(mixed->level != 0);
+}
+
 #endif

@@ -1,11 +1,15 @@
 site_name: OpenWarcraft3
-site_url: https://corepunch.github.io/openwarcraft3/
+site_url: https://corepunch.github.io/open-realm/
 site_description: Open-source Warcraft III implementation using SDL2, running on Linux and macOS.
 site_author: corepunch
-repo_url: https://github.com/corepunch/openwarcraft3
-repo_name: corepunch/openwarcraft3
+repo_url: https://github.com/corepunch/open-realm
+repo_name: corepunch/open-realm
 edit_uri: edit/main/docs/
 docs_dir: docs
+
+validation:
+  links:
+    anchors: warn
 
 theme:
   name: material
@@ -29,7 +33,7 @@ nav:
       - File Formats:
         - 'Map (W3M/W3X)': games/warcraft-3/file-formats/map.md
         - 'Model (MDX)': games/warcraft-3/file-formats/mdx.md
-        - 'SLK Spreadsheet': games/warcraft-3/file-formats/slk.md
+        - 'SLK Spreadsheet': https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/file-formats/slk.md
         - 'UI Frame Definition (FDF)': games/warcraft-3/file-formats/fdf.md
       - Detailed File Notes:
         - Overview: games/warcraft-3/file-docs/readme.md
@@ -52,7 +56,7 @@ nav:
         - Cinematics: games/warcraft-3/cinematics.md
         - Timer Dialogs And Mission Countdowns: games/warcraft-3/timer-dialogs.md
         - Leaderboards And Counted Objective HUDs: games/warcraft-3/leaderboards.md
-        - Sounds: games/warcraft-3/sounds.md
+        - Sounds: https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/sounds.md
     - World of Warcraft:
       - Overview: games/world-of-warcraft/readme.md
       - Data Loading: games/world-of-warcraft/data-loading.md
@@ -94,7 +98,7 @@ nav:
     - Network: architecture/network.md
     - Runtime Modules and Cvars: architecture/runtime.md
     - UI System: architecture/ui-system.md
-    - Sound: architecture/sound.md
+    - Sound: https://github.com/corepunch/open-realm/blob/main/architecture/sound.md
     - Fog of War Algorithms: architecture/fog-of-war-algorithms.md
   - Build And Packaging:
     - Build And Renderer Platforms: build-and-renderer-platforms.md

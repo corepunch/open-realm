@@ -12,6 +12,52 @@ typedef struct {
     gameCommandButton_t *button;
 } commandCooldownParams_t;
 
+/* Focused diagnostics for the worker repair command card.  This is opt-in
+ * because command buttons are rebuilt frequently while a unit is selected. */
+static bool G_RepairCommandDebugEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_repair_command_debug", "0")) != 0;
+}
+
+static bool G_IsRepairCommandDebugUnit(edict_t const *ent) {
+    cstring_t id;
+    if (!ent) return false;
+    id = GetClassName(ent->class_id);
+    return id && (!strcmp(id, "hpea") || !strcmp(id, "opeo") ||
+                  !strcmp(id, "ewsp") || !strcmp(id, "uaco"));
+}
+
+static bool G_IsRepairDiagnosticRawcode(cstring_t rawcode);
+
+static void G_RepairCommandTrace(edict_t const *ent, cstring_t rawcode, cstring_t stage,
+                                 ability_t const *ability, bool eligible, bool emitted) {
+    if (!G_RepairCommandDebugEnabled() || !G_IsRepairCommandDebugUnit(ent)) return;
+    fprintf(stderr,
+            "WC3_REPAIR_BUTTON unit=%ld id=%.4s rawcode=%.4s stage=%s handler=%s flags=0x%x eligible=%d emitted=%d\n",
+            (long)(ent - g_edicts), GetClassName(ent->class_id), rawcode ? rawcode : "----",
+            stage ? stage : "?", ability && ability->classname ? ability->classname : "<unresolved>",
+            ability ? ability->flags : 0, eligible ? 1 : 0, emitted ? 1 : 0);
+}
+
+static void G_RepairAbilityDataTrace(edict_t const *ent, cstring_t rawcode) {
+    AbilityData_t const *data;
+    if (!G_RepairCommandDebugEnabled() || !G_IsRepairCommandDebugUnit(ent) || !G_IsRepairDiagnosticRawcode(rawcode)) return;
+    data = G_AbilityDataName(rawcode);
+    fprintf(stderr,
+            "WC3_REPAIR_BUTTON unit=%ld id=%.4s rawcode=%.4s ability_data=id=%.4s code=%.4s uberAlias=%.4s resolved=%s\n",
+            (long)(ent - g_edicts), GetClassName(ent->class_id), rawcode,
+            data && data->id ? GetClassName(data->id) : "----",
+            data && data->code ? GetClassName(data->code) : "----",
+            data && data->uberAlias ? GetClassName(data->uberAlias) : "----",
+            FindAbilityForCommand(rawcode) && FindAbilityForCommand(rawcode)->classname ?
+                FindAbilityForCommand(rawcode)->classname : "<unresolved>");
+}
+
+static bool G_IsRepairDiagnosticRawcode(cstring_t rawcode) {
+    return rawcode && strlen(rawcode) == 4 &&
+           (!strcmp(rawcode, "Ahrp") || !strcmp(rawcode, "Arep") ||
+            !strcmp(rawcode, "Aren") || !strcmp(rawcode, "Auns"));
+}
+
 static void G_SetCommandCooldown(commandCooldownParams_t const *params) {
     abilityCooldownWindow_t window;
     if (!params || !params->button) return;
@@ -224,6 +270,17 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     }
     item = MAKE(abilityitem_t, .code = ability_code, .ability = ability);
     toggle_on = G_CommandButtonToggleOn(ent, &item, research, toggle_state);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC's Human repair command is Ahrp, with Arep as its AbilityData code
+     * alias. Its presentation is authored under Arep in CommonAbilityFunc.txt,
+     * while the requested command remains Ahrp. An authored Ahrp presentation
+     * takes precedence when present. */
+    if ((!FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research)) ||
+         !*FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research))) &&
+        !strcmp(code, "Ahrp") && !strcmp(base_code, "Arep")) {
+        art_code = base_code;
+    }
+#endif
     art = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNART) : NULL, toggle_on);
@@ -406,23 +463,44 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     bool researched;
     bool research_visible;
 
+    if (G_IsRepairDiagnosticRawcode(code)) {
+        G_RepairAbilityDataTrace(ent, code);
+        G_RepairCommandTrace(ent, code, "consider", ability, S_AbilityHasCommand(ability), false);
+    }
     if (!S_AbilityHasCommand(ability) || !G_AncientAbilityVisible(ent, ability) ||
-        strlen(code) != 4 || *count >= max_buttons) return;
+        strlen(code) != 4 || *count >= max_buttons) {
+        if (G_IsRepairDiagnosticRawcode(code))
+            G_RepairCommandTrace(ent, code, "filtered-command-or-capability", ability,
+                                 S_AbilityHasCommand(ability) && G_AncientAbilityVisible(ent, ability), false);
+        return;
+    }
     memcpy(&rawcode, code, sizeof(rawcode));
-    if (!G_IsUnitAbilityAvailable(ent, rawcode)) return;
+    if (!G_IsUnitAbilityAvailable(ent, rawcode)) {
+        if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-unavailable", ability, false, false);
+        return;
+    }
     /* Entangle Gold Mine becomes hidden/permanent per unit while the resulting
      * mine exists. Keep the authored command unavailable for that overlay lifetime. */
     if (ability->proc == CAbilityEntangle && S_EntangleCommandHidden(ent, rawcode)) return;
     researched = G_UnitAbilityResearchAvailable(ent, rawcode);
     research_visible = G_UnitAbilityResearchVisible(ent, rawcode);
-    if (!research_visible) return;
+    if (!research_visible) {
+        if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-research-visibility", ability, false, false);
+        return;
+    }
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
     if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || !ent->cargo || ent->cargo->count == 0)) return;
-    if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
+    if (G_HasCommandRawcode(buttons, *count, rawcode)) {
+        if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-duplicate", ability, true, false);
+        return;
+    }
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
+    if (G_IsRepairDiagnosticRawcode(code)) {
+        G_RepairCommandTrace(ent, code, "added", ability, true, *count > idx);
+    }
     if (*count > idx) {
         if (!researched) buttons[idx].disabled = 1;
         G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = rawcode, .level = 0, .button = &buttons[idx] });
@@ -579,6 +657,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             char ability_code[5] = {0};
             if (strlen(abil) != 4) continue;
             memcpy(ability_code, abil, 4);
+            if (G_IsRepairDiagnosticRawcode(ability_code)) {
+                ability_t const *resolved = FindAbilityForCommand(ability_code);
+                G_RepairAbilityDataTrace(ent, ability_code);
+                G_RepairCommandTrace(ent, ability_code, "authored-list", resolved,
+                                     resolved && S_AbilityHasCommand(resolved), false);
+            }
             if (G_IsImplementedAbility(ability_code) && G_ActorHasSkill(ent, ability_code))
                 G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, ability_code);
         }
@@ -789,6 +873,17 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
                 if ((build->revival && build->revival->reviving) && duration > 0) {
                     progress = build->revival->progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
+                } else if (build->construction && build->construction->type == CONSTRUCTION_HUMAN && duration > 0) {
+                    progress = build->construction->progress / (float)duration;
+                    progress = MAX(0, MIN(progress, 1));
+                    bool working = false;
+                    FOR_LOOP(worker_index, globals.num_edicts) {
+                        if (S_RepairWorkerAdvancingHumanConstruction(&g_edicts[worker_index], build)) {
+                            working = true;
+                            break;
+                        }
+                    }
+                    if (!working) queue[count].flags |= UI_BUILDQUEUE_ITEM_PAUSED;
                 } else if (build->health.max_value > 0) {
                     progress = build->health.value / build->health.max_value;
                     progress = MAX(0, MIN(progress, 1));
@@ -813,6 +908,17 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
             queue[count].starttime = cursor;
             queue[count].endtime = cursor;
         }
+        queue[count].progress = MAX(0.0f, MIN(progress, 1.0f));
+#ifdef WC3_DEBUG_BUILD
+        if (count == 0 && build->construction && build->construction->type == CONSTRUCTION_HUMAN) {
+            fprintf(stderr, "WC3_BUILD queue-progress producer=%ld building=%ld id=%.4s construction_paused=%u progress=%.1f health=%.1f/%.1f fraction=%.4f duration_ms=%u queue_start=%u queue_end=%u frame=%u\n",
+                    (long)(ent - g_edicts), (long)(build - g_edicts),
+                    (cstring_t)&build->class_id, build->construction->paused,
+                    build->construction->progress, build->health.value,
+                    build->health.max_value, progress, duration,
+                    queue[count].starttime, queue[count].endtime, build->s.frame);
+        }
+#endif
         count++;
         if (((build->revival && build->revival->reviving) && build->revival->queue_next == build) ||
             (!(build->revival && build->revival->reviving) && build->build == build)) {

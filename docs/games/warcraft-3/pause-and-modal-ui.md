@@ -144,6 +144,6 @@ Build and test:
 ## See Also
 
 - [UI Flow](architecture/ui-flow.md)
-- [JASS Native Coverage](jass-native-coverage.md)
+- [JASS Native Coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md)
 - [Triggered Dialogue](triggered-dialogue.md)
 - [Runtime Architecture](../../architecture/runtime.md)

@@ -83,7 +83,7 @@ hero select
 
 The command requires `sv_cheats 1` and refreshes the normal selection events, portrait, command card, and client selection snapshot.
 
-`hero dump` prints a machine-readable `HERO_SAVELOAD snapshot=dump` line for the selected Hero, or the first live Hero owned by the issuing player when nothing is selected. `hero walk [dx dy]` issues an ordinary `move` order from the selected Hero; omitted offsets walk 80 world units along +X. Both require `sv_cheats 1`. The campaign diagnostic `wc3_hero_saveload_audit` uses the same snapshot format without needing a connected client; see [Save/Load](games/warcraft-3/save-load.md#hero-walk--save--load).
+`hero dump` prints a machine-readable `HERO_SAVELOAD snapshot=dump` line for the selected Hero, or the first live Hero owned by the issuing player when nothing is selected. `hero walk [dx dy]` issues an ordinary `move` order from the selected Hero; omitted offsets walk 80 world units along +X. Both require `sv_cheats 1`. The campaign diagnostic `wc3_hero_saveload_audit` uses the same snapshot format without needing a connected client; see [Save/Load](games/warcraft-3/save-load.md#hero-walk-save-load).
 
 The command uses the ordinary Hero XP/level-up path so attribute growth and Hero level events remain authoritative. After leveling, it ensures the Hero has at least one total skill point per Hero level minus already learned Hero ability ranks; existing extra skill points awarded by map scripts are preserved. The command requires `sv_cheats 1` and a selected controllable Hero.
 
@@ -105,9 +105,10 @@ unit health
 unit health <amount>
 unit mana
 unit mana <amount>
+unit kill
 ```
 
-With no amount, the requested current pool is filled independently to each selected unit's current maximum. With an amount, each selected unit is set to that non-negative integer clamped independently to its own current maximum. The commands do not change maximum health/mana. `unit health` affects every selected controllable unit. `unit mana` affects only selected controllable units whose maximum mana is greater than zero; units with no mana pool are skipped without changing their current mana value. Missing or enemy-only selections are rejected.
+With no amount, the requested current pool is filled independently to each selected unit's current maximum. With an amount, each selected unit is set to that non-negative integer clamped independently to its own current maximum. The commands do not change maximum health/mana. `unit health` affects every selected controllable unit. `unit mana` affects only selected controllable units whose maximum mana is greater than zero; units with no mana pool are skipped without changing their current mana value. `unit kill` invokes the ordinary death callback on every selected unit, including enemy units, so normal death events and cleanup still run. Health and mana changes reject missing or enemy-only selections; `unit kill` rejects an empty selection.
 
 For map-start resource testing, `wc3_cheat_starting_resources` is a session-only CVar. Set it before loading the map:
 
@@ -242,12 +243,12 @@ give ability <rawcode>
 give xp <amount>       # hero only
 unit health [amount]
 unit mana [amount]
+unit kill
 god                    # toggle selected player unit invulnerability
 kill                   # kill the selected controllable unit
 ```
 
-`unit health` and `unit mana` operate on the full selected controllable group (including shared-control units), while
-`god` and `kill` continue to resolve the primary controllable selection. Missing/enemy-only selections are rejected.
+`unit health` and `unit mana` operate on the full selected controllable group (including shared-control units); `unit kill` operates on all selected units, including enemies. The singular `god` and `kill` commands continue to resolve the primary controllable selection. Those controllable-unit commands reject missing or enemy-only selections; `unit kill` rejects an empty selection.
 The stat commands fill or set only the current pool, clamped independently to each unit's current maximum; `unit mana`
 skips units whose maximum mana is zero. `god` changes that actor's invulnerability; `kill` clears it and invokes the
 actor's normal `die` callback, preserving death events, food cleanup, corpse/revival state, and deselection. The

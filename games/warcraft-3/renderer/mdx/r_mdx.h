@@ -178,6 +178,11 @@ typedef struct mdxAttachmentPosition_s {
     mat4_t transform;
 } mdxAttachmentPosition_t;
 
+typedef struct {
+    bool previous_valid;
+    uint32_t previous_time;
+} mdxAnimationTimeScope_t;
+
 typedef enum {
     MODELLIGHTTYPE_OMNI = 0x0,
     MODELLIGHTTYPE_DIRECT = 0x1,
@@ -508,6 +513,9 @@ extern mat4_t node_matrices[MDX_MAX_NODES];
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time);
 bool MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, uint32_t key, uint32_t previous_frame, uint32_t current_frame, uint32_t previous_time, uint32_t current_time);
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t output);
+void MDLX_PushEntityAnimationTime(renderEntity_t const *entity, mdxAnimationTimeScope_t *scope);
+void MDLX_PopEntityAnimationTime(mdxAnimationTimeScope_t const *scope);
+void MDLX_UpdateEntityAnimationPause(renderEntity_t const *entity);
 void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, vec3_t *output);
 void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vec3_t *output);
 void MDLX_BindBoneMatrices(mdxModel_t const *model, mat4_t const *model_matrix, uint32_t frame1, uint32_t frame0);

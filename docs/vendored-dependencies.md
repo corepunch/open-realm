@@ -38,5 +38,5 @@ OpenWarcraft compiles its own Lua and XML parser from checked-in sources, matchi
 - GL Shader 1.0.0, extracted from Open Realm and shared with Corepunch Orion UI.
 - Standalone C99 descriptors, profile generation, compilation and cached typed uniforms; MIT license retained.
 - Unity-included once by `renderer/r_shader.c`; update both repositories' complete vendor directory together.
-- See [shared shaders](architecture/shared-shaders.md) and the [module contract](../vendor/gl_shader/README.md).
+- See [shared shaders](architecture/shared-shaders.md) and the [module contract](https://github.com/corepunch/open-realm/blob/main/vendor/gl_shader/README.md).
 - `make test-gl-shader` exercises the shared contract; renderer model/shadow tests exercise integration.

@@ -182,5 +182,5 @@ be judged by script-visible semantics and gameplay outcomes, not presumed source
 - [Building construction](building-construction.md)
 - [Build and repair routing](build-repair-routing.md)
 - [Pathfinding](pathfinding.md)
-- [JASS native coverage](jass-native-coverage.md)
+- [JASS native coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md)
 - [MPQ loading policy](file-docs/mpq.md)

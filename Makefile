@@ -4,8 +4,11 @@ LIB_DIR := build/lib
 SHARE_INSTALL := build/share
 CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/types
 BUILD   ?= debug
+# Keep compatibility workarounds enabled unless explicitly disabled.
+COMPAT_WORKAROUNDS ?= 1
 MSAA    ?= 0
 GL_BACKEND ?= gl
+WC3_REFORGED_COLORS ?= 1
 GLSL      ?= 140
 
 ifeq ($(BUILD),release)
@@ -17,6 +20,10 @@ else ifneq ($(BUILD),debug)
 else
 	CFLAGS += -O0 -g
 endif
+ifeq ($(filter $(COMPAT_WORKAROUNDS),0 1),)
+	$(error COMPAT_WORKAROUNDS must be 0 or 1)
+endif
+CFLAGS += -DBZ_COMPAT_WORKAROUNDS=$(COMPAT_WORKAROUNDS)
 ifeq ($(filter $(MSAA),0 2 4 8),)
 	$(error MSAA must be 0, 2, 4, or 8)
 endif
@@ -34,6 +41,10 @@ else ifeq ($(GL_BACKEND),gl)
 else
 	$(error GL_BACKEND must be gl or gles3)
 endif
+ifeq ($(filter $(WC3_REFORGED_COLORS),0 1),)
+	$(error WC3_REFORGED_COLORS must be 0 or 1)
+endif
+CFLAGS += -DWC3_REFORGED_COLORS=$(WC3_REFORGED_COLORS)
 CFLAGS += -DBZ_MSAA_SAMPLES=$(MSAA)
 ifneq ($(MSAA),0)
 	CFLAGS += -DBZ_USE_MSAA
@@ -59,6 +70,10 @@ ifeq ($(WC3_DEBUG_CANNIBALIZE),1)
 endif
 ifeq ($(WC3_DEBUG_TUTORIAL_FLOW),1)
 	CFLAGS += -DWC3_DEBUG_TUTORIAL_FLOW
+endif
+# Include Warcraft III result/score investigation logging only when requested.
+ifeq ($(WC3_DEBUG_SCORE),1)
+	CFLAGS += -DBZ_WC3_DEBUG_SCORE
 endif
 # ---------------------------------------------------------------------------
 # Platform detection

@@ -143,7 +143,7 @@ plane. Run `make test` for all three, `make test-client-camera` for the focused 
 `build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'client_camera.*' +com_frame_limit 100`.
 
 WoW authors actor Z plus `WOW_CAMERA_EYE_HEIGHT` in its server focus sample; the client does not replace it.
-Native camera angles convert at the game boundary; see [coordinates and camera angles](../../AXIS.md) for the
+Native camera angles convert at the game boundary; see [coordinates and camera angles](https://github.com/corepunch/open-realm/blob/main/AXIS.md) for the
 SC2 azimuth and WoW horizon/heading mappings. The historical `{pitch, roll, yaw}` shorthand describes view Euler
 components, not interchangeable native gameplay angles.
 

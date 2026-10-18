@@ -22,7 +22,7 @@ Loose custom maps are not in that enumerator; see
 Use `make audit-wc3-hero-saveload` to walk the player Hero on every campaign
 map, save, load, and compare origin/abilities/inventory. Parser tests are
 `make test-wc3-hero-saveload-audit`. See
-[Hero walk / save / load](games/warcraft-3/save-load.md#hero-walk--save--load).
+[Hero walk / save / load](games/warcraft-3/save-load.md#hero-walk-save-load).
 
 ## Ability brief (ability_audit)
 

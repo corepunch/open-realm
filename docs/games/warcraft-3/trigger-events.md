@@ -297,6 +297,13 @@ both logical operators in nested calls. Explicit `TriggerEvaluate` may evaluate
 a disabled trigger, while event delivery still suppresses its actions. Event
 evaluation counters advance before the disabled gate. Existing assertions for
 these separate entry points remain intact.
+## Trigger destruction
+
+`DestroyTrigger` retires every live `event_t` registration owned by the trigger
+and clears queued `responseTo` references before those event slots can be reused.
+It disables the map-lifetime trigger object instead of freeing it, so an action
+can destroy its own trigger safely. `DisableTrigger` leaves registrations intact
+so `EnableTrigger` can resume them.
 
 ### Scripted zone save lifecycle
 

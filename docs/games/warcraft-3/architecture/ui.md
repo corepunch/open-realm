@@ -47,7 +47,7 @@ Do not extend the menu ABI to carry HUD state. Extend the generic gameplay prese
 
 `make test` includes menu and gameplay suites plus the mechanical menu-boundary audit. Assets belong in
 `games/warcraft-3/tests/resources-src/` and are packed into the generated test MPQ; tests must not depend on local
-retail installations. See [CONTRIBUTING](../../../../CONTRIBUTING.md).
+retail installations. See [CONTRIBUTING](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md).
 
 - [UI quick reference](ui-quick-reference.md)
 - [Campaign/menu flow](ui-flow.md)

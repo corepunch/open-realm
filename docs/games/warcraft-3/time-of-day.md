@@ -220,7 +220,7 @@ the frozen canonical phase on expiry, and maps without DNC models retain the leg
 
 - [Environment Lighting](../../architecture/environment-lighting.md)
 - [Fog And Cinematics](fog-and-cinematics.md)
-- [JASS Native Coverage](jass-native-coverage.md)
+- [JASS Native Coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md)
 - [HUD Media Lifetime](hud-media.md)
 - [Server-Authored UI Payloads](../../architecture/ui-payloads.md)
 

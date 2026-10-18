@@ -357,6 +357,10 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
     builder->current_order_id = building_id;
     /* Every build entry (player, JASS, queued) retires a previous Stop guard point. */
     S_UnitAbilityOrderAccepted(builder, "build");
+#ifdef WC3_SC2API
+    G_SetActiveUnitOrder(builder, &MAKE(unitOrder_t, .order = "build", .order_id = building_id,
+        .target_type = UNIT_ORDER_TARGET_BUILD, .point = snapped, .issuer_player = builder->s.player));
+#endif
     return true;
 }
 

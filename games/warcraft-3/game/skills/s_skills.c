@@ -177,8 +177,8 @@ static ability_t abilitylist[] = {
     { "Amic", CAbilityMilitiaConvert, AB_COMMAND | AB_SEPARATE_OFF },  /* Call To Arms */
 
     /* ItemAbilityStrings.txt */
-    { "AIsm", CAbilityStrengthMod, AB_ITEM },  /* Item Strength Gain */
-    { "AIam", CAbilityStrengthMod, AB_ITEM },  /* Item Agility Gain */
+    { "AIsm", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Strength Gain */
+    { "AIam", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Agility Gain */
     { "AIat", CAbilityAttackBonus, 0 },  /* Item Damage Bonus */
     { "AIt6", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +6 */
     { "AIt9", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +9 */
@@ -193,17 +193,17 @@ static ability_t abilitylist[] = {
     { "AItn", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +10 */
     { "AItx", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +20 */
     { "AIde", CAbilityDefenseBonus, 0 },  /* Item Armor Bonus */
-    { "AIem", CAbilityExperienceMod, AB_ITEM },  /* Item Experience Gain */
-    { "AIlm", CAbilityLevelMod, AB_ITEM },  /* Item Level Gain */
-    { "AIim", CAbilityStrengthMod, AB_ITEM },  /* Item Intelligence Gain */
-    { "AIxm", CAbilityStrengthMod, AB_ITEM },  /* Item Int/Agi/Str gain */
+    { "AIem", CAbilityExperienceMod, AB_ITEM | AB_POWERUP },  /* Item Experience Gain */
+    { "AIlm", CAbilityLevelMod, AB_ITEM | AB_POWERUP },  /* Item Level Gain */
+    { "AIim", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Intelligence Gain */
+    { "AIxm", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Int/Agi/Str gain */
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
     { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
     { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Skeleton Summon */
-    { "AImi", CAbilityMaxLifeMod, AB_ITEM },  /* Item Permanent Life Gain */
+    { "AImi", CAbilityMaxLifeMod, AB_ITEM | AB_POWERUP },  /* Item Permanent Life Gain */
     { "AIab", CAbilityAttributeBonus, 0 },  /* Item Hero Stat Bonus */
     { "AIml", CAbilityMaxLifeBonus, 0 },  /* Item Life Bonus */
     { "AImm", CAbilityMaxManaBonus, 0 },  /* Item Mana Bonus */
@@ -350,11 +350,11 @@ static ability_t abilitylist[] = {
     { "APmr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Mana */
     { "APmg", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Greater Mana */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
-    // TODO: AIra a_item_restore_aoe  /* Item Area Heal/Mana Regain */
+    { "AIra", CAbilityItemRestoreAoe, AB_ITEM | AB_POWERUP }, /* Item Area Heal/Mana Regain */
     // TODO: AIta a_item_town_portal  /* Item Area Detection */
     // TODO: AIrm a_item_regen_mana  /* Item Mana Regeneration */
     // TODO: AIil a_item_illusion  /* Item Illusions */
-    // TODO: AIdi a_item_dispel_aoe  /* Item Dispel */
+    { "AIdi", CAbilityItemDispelAoe, AB_ITEM | AB_POWERUP },  /* Item Area Dispel / Rune of Dispel Magic */
     { "AIfb", CAbilityAttackBonus, 0 },  /* Item Attack Fire Bonus (orb) */
     { "AIlb", CAbilityAttackBonus, 0 },  /* Item Attack Lightning Bonus (orb) */
     { "AIob", CAbilityAttackBonus, 0 },  /* Item Attack Frost Bonus (orb) */
@@ -383,7 +383,7 @@ static ability_t abilitylist[] = {
     { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
     { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
-    // TODO: AIrv a_item_heal_aoe  /* Item Reveal Entire Map */
+    { "AIrv", CAbilityItemRevealEntireMap, AB_ITEM | AB_POWERUP }, /* Glyph of Omniscience */
     // TODO: AIdc CAbilityItemDefenseAoe  /* Item Chain Dispel */
     // TODO: AIwb a_button  /* Item Web */
     // TODO: AImo a_item_mana_restore_aoe  /* Monster Lure */
@@ -414,7 +414,7 @@ static ability_t abilitylist[] = {
     // TODO: AItb a_button  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */
-    // TODO: AIrb a_item_heal_aoe  /* Rebirth */
+    { "AIrb", CAbilityItemRebirth, AB_ITEM | AB_POWERUP }, /* Rune of Rebirth */
     // TODO: AUds CAbilityMassTeleport  /* Dark Summoning */
     // TODO: AIdd CAbilityItemHeal  /* Defend */
     // TODO: AIsh a_item_town_portal  /* Summon Headhunter */
@@ -522,6 +522,7 @@ static ability_t abilitylist[] = {
     { "Acpf", CAbilityCorporealForm, AB_SPELL, SPELL_TARGET_NONE, corporeal_form_orders },  /* Corporeal Form */
     { "Aetf", CAbilityEtherealForm, AB_SPELL, SPELL_TARGET_NONE, ethereal_form_orders },  /* Ethereal Form */
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
+    { "Aspp", CAbilityItemSpiritLink, AB_ITEM | AB_POWERUP }, /* Rune of Spirit Link (code=Aspl) */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
     { "Acha", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE | AB_PRIMARY_TIMER },  /* Chaos */
@@ -581,7 +582,9 @@ static ability_t abilitylist[] = {
     { "Acri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple */
 
     /* No AbilityStrings source file */
-    // TODO: AIgl a_unknown  /* FortificationGlyph — CAbility [ITEM] other */
+    { "AIgf", CAbilityItemGlyphUpgrade, AB_ITEM | AB_POWERUP }, /* Glyph of Fortification */
+    { "AIgu", CAbilityItemGlyphUpgrade, AB_ITEM | AB_POWERUP }, /* Glyph of Ultravision */
+    { "AIgl", CAbilityItemGlyphUpgrade, AB_ITEM | AB_POWERUP }, /* Legacy Glyph alias */
     // TODO: AIrg a_unknown  /* Potion of Life Regen — CAbility [ITEM] other */
     { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge (Myrmidon) */
     { "AOwd", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Shadow Hunter - Serpent Ward */
@@ -743,6 +746,7 @@ static ability_t abilitylist[] = {
     { "Sbsk", CAbilityPassive, AB_PASSIVE },  /* Berserker Upgrade */
     { "AIcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Cyclone */
     { "AIsw", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentry Ward (item; code=Aeye) */
+    { "APwt", CAbilityItemWatcherWard, AB_ITEM | AB_POWERUP },  /* Rune of the Watcher (code=Aeye) */
     { "AIxs", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-magic Shield */
     { "Amgr", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Moon Glaive (Naisha) */
     { "Asds", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! */

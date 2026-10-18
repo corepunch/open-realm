@@ -10,6 +10,7 @@ type widget           extends agent
 type unit             extends widget
 type destructable     extends widget
 type item             extends widget
+type itempool         extends handle
 type itemtype         extends handle
 type effect           extends agent
 type effecttype       extends handle
@@ -39,6 +40,7 @@ type gamedifficulty  extends handle
 type aidifficulty    extends handle
 type gamespeed       extends handle
 type playerstate     extends handle
+type playerscore     extends handle
 type playerslotstate extends handle
 type playercolor     extends handle
 type camerafield     extends handle
@@ -121,6 +123,7 @@ native ConvertGameDifficulty takes integer i returns gamedifficulty
 native ConvertAIDifficulty   takes integer i returns aidifficulty
 native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
+native ConvertPlayerScore    takes integer i returns playerscore
 native ConvertPlayerSlotState takes integer i returns playerslotstate
 native ConvertPlayerColor    takes integer i returns playercolor
 native ConvertCameraField    takes integer i returns camerafield
@@ -185,6 +188,7 @@ native SetPlayerTechResearched takes player whichPlayer, integer techid, integer
 native GetPlayerTechResearched takes player whichPlayer, integer techid, boolean specificonly returns boolean
 native GetPlayerTechCount      takes player whichPlayer, integer techid, boolean specificonly returns integer
 native SetPlayerOnScoreScreen takes player whichPlayer, boolean flag returns nothing
+native GetPlayerScore        takes player whichPlayer, playerscore whichPlayerScore returns integer
 native GetPlayerState         takes player whichPlayer, playerstate whichPlayerState returns integer
 native GetPlayerSlotState     takes player whichPlayer returns playerslotstate
 native Rect                   takes real minx, real miny, real maxx, real maxy returns rect
@@ -313,6 +317,11 @@ native GetRandomReal            takes real lowBound, real highBound returns real
 constant native ConvertItemType takes integer i returns itemtype
 
 // Item inventory presentation and charge state.
+native CreateItemPool takes nothing returns itempool
+native DestroyItemPool takes itempool whichItemPool returns nothing
+native ItemPoolAddItemType takes itempool whichItemPool, integer itemId, real weight returns nothing
+native ItemPoolRemoveItemType takes itempool whichItemPool, integer itemId returns nothing
+native PlaceRandomItem takes itempool whichItemPool, real x, real y returns item
 native CreateItem               takes integer itemid, real x, real y returns item
 native RemoveItem               takes item whichItem returns nothing
 native GetItemX                 takes item whichItem returns real
@@ -472,6 +481,33 @@ globals
     constant playerstate PLAYER_STATE_GAME_RESULT = ConvertPlayerState(0)
     constant playerstate PLAYER_STATE_RESOURCE_GOLD = ConvertPlayerState(1)
     constant playerstate PLAYER_STATE_RESOURCE_LUMBER = ConvertPlayerState(2)
+    constant playerstate PLAYER_STATE_GOLD_GATHERED = ConvertPlayerState(15)
+    constant playerstate PLAYER_STATE_LUMBER_GATHERED = ConvertPlayerState(16)
+    constant playerscore PLAYER_SCORE_UNITS_TRAINED = ConvertPlayerScore(0)
+    constant playerscore PLAYER_SCORE_UNITS_KILLED = ConvertPlayerScore(1)
+    constant playerscore PLAYER_SCORE_STRUCT_BUILT = ConvertPlayerScore(2)
+    constant playerscore PLAYER_SCORE_STRUCT_RAZED = ConvertPlayerScore(3)
+    constant playerscore PLAYER_SCORE_TECH_PERCENT = ConvertPlayerScore(4)
+    constant playerscore PLAYER_SCORE_FOOD_MAXPROD = ConvertPlayerScore(5)
+    constant playerscore PLAYER_SCORE_FOOD_MAXUSED = ConvertPlayerScore(6)
+    constant playerscore PLAYER_SCORE_HEROES_KILLED = ConvertPlayerScore(7)
+    constant playerscore PLAYER_SCORE_ITEMS_GAINED = ConvertPlayerScore(8)
+    constant playerscore PLAYER_SCORE_MERCS_HIRED = ConvertPlayerScore(9)
+    constant playerscore PLAYER_SCORE_GOLD_MINED_TOTAL = ConvertPlayerScore(10)
+    constant playerscore PLAYER_SCORE_GOLD_MINED_UPKEEP = ConvertPlayerScore(11)
+    constant playerscore PLAYER_SCORE_GOLD_LOST_UPKEEP = ConvertPlayerScore(12)
+    constant playerscore PLAYER_SCORE_GOLD_LOST_TAX = ConvertPlayerScore(13)
+    constant playerscore PLAYER_SCORE_GOLD_GIVEN = ConvertPlayerScore(14)
+    constant playerscore PLAYER_SCORE_GOLD_RECEIVED = ConvertPlayerScore(15)
+    constant playerscore PLAYER_SCORE_LUMBER_TOTAL = ConvertPlayerScore(16)
+    constant playerscore PLAYER_SCORE_LUMBER_LOST_UPKEEP = ConvertPlayerScore(17)
+    constant playerscore PLAYER_SCORE_LUMBER_LOST_TAX = ConvertPlayerScore(18)
+    constant playerscore PLAYER_SCORE_LUMBER_GIVEN = ConvertPlayerScore(19)
+    constant playerscore PLAYER_SCORE_LUMBER_RECEIVED = ConvertPlayerScore(20)
+    constant playerscore PLAYER_SCORE_UNIT_TOTAL = ConvertPlayerScore(21)
+    constant playerscore PLAYER_SCORE_HERO_TOTAL = ConvertPlayerScore(22)
+    constant playerscore PLAYER_SCORE_RESOURCE_TOTAL = ConvertPlayerScore(23)
+    constant playerscore PLAYER_SCORE_TOTAL = ConvertPlayerScore(24)
     constant playerslotstate PLAYER_SLOT_STATE_LEFT = ConvertPlayerSlotState(2)
     constant playercolor PLAYER_COLOR_RED = ConvertPlayerColor(0)
     constant playercolor PLAYER_COLOR_BLUE = ConvertPlayerColor(1)

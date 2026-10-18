@@ -61,7 +61,7 @@ to `Wow_DrawGrass` groups them, builds one `GL_STATIC_DRAW` instance VBO per M2 
 then frees all CPU placement nodes. Subsequent frames submit the resident VBOs without
 any per-instance CPU work. The sampled yaw is radians in `renderEntity_t.angle`; the
 mandatory WoW pose hook and shared `R_GetEntityMatrix` keep native Z upright. The former grass-only matrix and
-`rotation.z` degree interpretation were removed; see [coordinate ownership](../../../AXIS.md#wow-source-spaces-and-ownership).
+`rotation.z` degree interpretation were removed; see [coordinate ownership](https://github.com/corepunch/open-realm/blob/main/AXIS.md#wow-source-spaces-and-ownership).
 
 ### Density formula
 

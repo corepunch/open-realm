@@ -21,8 +21,8 @@ Each row also records the parent type and file offsets of the registration call,
 factory, destruction callback, pool cleanup callback, and RTTI name. `--all-classes`
 exports all **526 static class registrations**, including buffs and other objects.
 The complete saved registries live beside the game:
-[demo (526)](../../../games/warcraft-3/demo-ability-classes.txt) and
-[TFT (1,076 mappings plus four helper RTTI entries)](../../../games/warcraft-3/tft-ability-classes.txt).
+[demo (526)](demo-ability-classes.txt) and
+[TFT (1,076 mappings plus four helper RTTI entries)](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/tft-ability-classes.txt).
 
 This is the September 2002 demo, not TFT or a complete retail ability inventory.
 The demo reader requires SHA-256

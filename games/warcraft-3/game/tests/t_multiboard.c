@@ -586,6 +586,30 @@ TEST(wc3_api, texttag_natives_store_unit_anchor_and_style) {
     currentplayer = saved;
 }
 
+TEST(wc3_api, texttag_world_position_replaces_unit_anchor) {
+    texttag_t *tag;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  texttag tt = null\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set u = CreateUnit(Player(0), 'hfoo', 100.0, 200.0, 0.0)\n"
+        "  set tt = CreateTextTag()\n"
+        "  call SetTextTagText(tt, \"world\", 0.024)\n"
+        "  call SetTextTagPosUnit(tt, u, 40.0)\n"
+        "  call SetTextTagPos(tt, 256.0, -128.0, 60.0)\n"
+        "endfunction\n"));
+    tag = &level.texttags[0];
+    T_ASSERT(tag->inuse);
+    T_ASSERT(tag->has_position);
+    T_NULL(tag->unit);
+    T_FEQ(tag->x, 256.0f, 0.001f);
+    T_FEQ(tag->y, -128.0f, 0.001f);
+    T_FEQ(tag->height_offset, 60.0f, 0.001f);
+}
+
 TEST(wc3_save, texttag_presentation_state_round_trips) {
     PATHSTR filename;
     edict_t *unit;

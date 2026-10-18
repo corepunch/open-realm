@@ -367,6 +367,7 @@ TEST(wc3_rally, training_completion_reads_latest_rally_target) {
 
     T_ASSERT(!trained->training);
     T_ASSERT(!(trained->s.renderfx & RF_HIDDEN));
+    T_EQ(game.clients[0].score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
     T_NOT_NULL(trained->goalentity);
     T_FEQ(trained->goalentity->s.origin2.x, latest.x, 0.01f);
     T_FEQ(trained->goalentity->s.origin2.y, latest.y, 0.01f);

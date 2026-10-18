@@ -121,4 +121,4 @@ The WC3 engine tests cover:
 - zero-padded countdown formatting; and
 - save/load restoration of timer-dialog state and JASS alias identity.
 
-See [JASS Native Coverage](jass-native-coverage.md), [Save/Load](save-load.md), and the engine-wide [UI System](../../architecture/ui-system.md).
+See [JASS Native Coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md), [Save/Load](save-load.md), and the engine-wide [UI System](../../architecture/ui-system.md).

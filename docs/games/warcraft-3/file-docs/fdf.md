@@ -184,6 +184,14 @@ LayerStyle "NOSHADING|IGNORETRACKEVENTS",
 LayerStyle "SETSVIEWPORT",            -- clips visuals to this frame's rect
 ```
 
+The parser now recognises these retail layer styles in `stb_fdf.h`, including
+pipe-separated combinations. `IGNORETRACKEVENTS` is applied to hit testing,
+while `NOSHADING` and `SETSVIEWPORT` are retained on the frame definition for
+renderers that support those behaviours. `UI_EnsureFDF` reports failure when
+an FDF cannot be parsed, instead of caching an incomplete frame tree as loaded.
+This matters for `ScoreScreen.fdf`, which uses `LayerStyle "NOSHADING"` on its
+model layers.
+
 ### Font Actions
 
 ```fdf

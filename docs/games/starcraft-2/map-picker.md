@@ -30,4 +30,4 @@ External loose-map directories are not offered by the picker. A bounded engine l
 
 The installation's Battle.net cache contains hashed `.s2ma` files. At least one observed file was not readable by `mpqtool` as a map archive, so the catalog does not scan that cache as loose maps. An explicit `.s2ma` path can still be passed to the launcher for separate diagnosis.
 
-See also [the parity harness](../../../tools/parity/README.md) and [SC2 map loading](../../fs-loading-architecture.md).
+See also [the parity harness](https://github.com/corepunch/open-realm/blob/main/tools/parity/README.md) and [SC2 map loading](../../fs-loading-architecture.md).

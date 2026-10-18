@@ -178,8 +178,8 @@ asset-to-draw link. It does not establish what `alphaMode=1` or other weather
 rows do. OpenRealm's weather path already multiplies texture and vertex color
 and uses the same
 source-alpha blend factors, but it does not apply the observed `4/255` alpha
-test. In the implementation, [`R_WeatherSpawn`](../../../games/warcraft-3/renderer/r_weather.c)
-selects `BLEND_MODE_BLEND`; the shared [particle shader](../../../renderer/r_particles.c)
+test. In the implementation, [`R_WeatherSpawn`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/renderer/r_weather.c)
+selects `BLEND_MODE_BLEND`; the shared [particle shader](https://github.com/corepunch/open-realm/blob/main/renderer/r_particles.c)
 discards only for its separate alpha-key mode. The missing `4/255` cutoff is a
 confirmed parity gap. The effect of nonzero `alphaMode` values remains
 unverified.
@@ -431,8 +431,8 @@ as the acceptance checks.
 
 ## See Also
 
-- [SLK Spreadsheet Format](../../../games/warcraft-3/file-formats/slk.md)
-- [JASS Native Coverage](../../../games/warcraft-3/jass-native-coverage.md)
+- [SLK Spreadsheet Format](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/file-formats/slk.md)
+- [JASS Native Coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md)
 - [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md)
 - [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md)
 - [Save/Load](save-load.md)

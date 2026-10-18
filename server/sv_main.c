@@ -17,6 +17,10 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+static PATHSTR sv_external_map;
+static bool sv_external_map_pending;
+static bool sv_external_quit_pending;
+
 #define BZ_KEEPALIVE_MSEC 1000 // milliseconds; Quake 2's interval; keeps clients alive while waiting to spawn
 
 bool SV_IsActive(void) {
@@ -35,6 +39,42 @@ static uint64_t media_revision;
 uint64_t SV_MediaRevision(void) { return media_revision; }
 void SV_ResetMediaRevision(void) {
     if (++media_revision == 0) Com_Error(ERR_FATAL, "Server media revision exhausted");
+}
+
+bool SV_HasExternalControl(void) {
+    return ge && ge->ExternalActive && ge->ExternalActive();
+}
+
+bool SV_NeedsFrame(void) {
+    return SV_IsActive() || SV_HasExternalControl();
+}
+
+bool SV_RequestMap(cstring_t map) {
+    PATHSTR resolved;
+
+    if (!map || !*map) return false;
+    if (!Com_ResolveMapArgument(map, resolved, sizeof(resolved))) return false;
+    strlcpy(sv_external_map, resolved, sizeof(sv_external_map));
+    sv_external_map_pending = true;
+    return true;
+}
+
+void SV_RequestQuit(void) {
+    sv_external_quit_pending = true;
+}
+
+static bool SV_ProcessExternalMap(void) {
+    PATHSTR map;
+    bool success;
+
+    if (!sv_external_map_pending) return false;
+    strlcpy(map, sv_external_map, sizeof(map));
+    sv_external_map[0] = '\0';
+    sv_external_map_pending = false;
+    SV_Map(map);
+    success = sv.state == ss_game;
+    if (ge && ge->ExternalMapComplete) ge->ExternalMapComplete(map, success);
+    return true;
 }
 
 /* Store one server-owned configstring and force reliable client resynchronization. */
@@ -378,6 +418,8 @@ static uint32_t SV_FrameInterval(bool consume) {
  * milliseconds since the last call.  Network input remains live while the
  * authoritative simulation is paused. */
 void SV_Frame(uint32_t msec) {
+    uint32_t external_steps = 0, completed_steps = 0;
+    bool external_clock;
     if (Cvar_Integer("online_mode", 0) && SV_IsActive() && !Online_Ready()) {
         fprintf(stderr, "Internet host lost its online session: %s\n", Online_Status());
         SV_Shutdown();
@@ -397,13 +439,41 @@ void SV_Frame(uint32_t msec) {
     SV_ReapZombieClients();
     SV_ReadPackets();
 
+    /*External control is a game-export capability, but simulation advancement
+     *remains server-owned. This poll runs before pause/clock scheduling so a
+     *stepped controller can request work while normal realtime advancement is
+     *suppressed. */
+    if (ge && ge->ExternalFrame) external_steps = ge->ExternalFrame();
+
+    if (SV_ProcessExternalMap()) return;
+    if (sv_external_quit_pending) {
+        sv_external_quit_pending = false;
+        Com_Quit();
+        return;
+    }
+
+    external_clock = ge && ge->ExternalOwnsClock && ge->ExternalOwnsClock();
+    if (external_steps) {
+        if (sv.state == ss_game && !sv.paused) {
+            FOR_LOOP(i, external_steps) {
+                SV_RunGameFrame();
+                completed_steps++;
+                if (sv.paused || !ge || sv_external_map_pending || sv_external_quit_pending ||
+                    (ge->ExternalCanAdvance && !ge->ExternalCanAdvance())) break;
+            }
+        }
+        if (ge && ge->ExternalStepComplete) ge->ExternalStepComplete(completed_steps);
+        if (svs.initialized) SV_SendClientMessages();
+        return;
+    }
+
     if (sv.state == ss_lobby) {
         /* An unchanged lobby previously sent nothing and timed out even its own loopback host. */
         SV_SendClientMessages();
         return;
     }
 
-    if (sv.paused) {
+    if (sv.paused || external_clock) {
         sv.pause_msec += msec;
         if (sv.pause_msec >= FRAMETIME) {
             sv.pause_msec %= FRAMETIME;
@@ -412,7 +482,7 @@ void SV_Frame(uint32_t msec) {
         return;
     }
 
-    if (svs.realtime < sv.next_frame_msec) {
+    if (sv.state != ss_game || svs.realtime < sv.next_frame_msec) {
         return;
     }
 

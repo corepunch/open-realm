@@ -366,7 +366,7 @@ transitions between grass and dirt in Northshire.
 
 MDDF positions are absolute map coordinates, not tile-local coordinates. Both the
 renderer and the game-side interactive-object path use `Wow_ObjectPosition` from `common/wow_coords.h`
-(see [coordinate ownership](../../../AXIS.md#wow-source-spaces-and-ownership)):
+(see [coordinate ownership](https://github.com/corepunch/open-realm/blob/main/AXIS.md#wow-source-spaces-and-ownership)):
 
 ```text
 engine.x = 32 * WOW_ADT_SIZE - mddf.position.z

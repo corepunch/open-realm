@@ -12,6 +12,7 @@
 #include "../../../common/net.h"
 #include "../../../client/client.h"
 #include "server/server.h"
+#include "common/server_api.h"
 
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
@@ -2550,4 +2551,61 @@ TEST(stress_net, mass_spawn_deltas_stay_decodable_over_lossy_modem) {
            (unsigned)UNITS, (unsigned)SECONDS, MODEM_LOSS_PERCENT, (unsigned)sim.frames_received, (unsigned)sim.full_frames,
            (unsigned)sim.server_bytes, (unsigned)sim.lost, (unsigned)sim.dropped_by_netchan);
     sim_end();
+}
+
+/* These engine operations are injected at the executable boundary, as are the
+ * existing loading/filesystem stubs above. Exercise scheduling through SV_Frame. */
+static uint32_t test_external_quits;
+void Com_Quit(void) { test_external_quits++; }
+bool Com_ResolveMapArgument(cstring_t input, string_t output, uint32_t size) {
+    if (!input || !*input || strlen(input) >= size) return false;
+    strlcpy(output, input, size);
+    return true;
+}
+
+static uint32_t test_external_budget, test_external_frames, test_external_completed, test_external_stop;
+static bool test_external_enabled(void) { return true; }
+static uint32_t test_external_poll(void) {
+    uint32_t const budget = test_external_budget;
+    test_external_budget = 0;
+    return budget;
+}
+static void test_external_frame(void) { test_external_frames++; }
+static bool test_external_can_advance(void) { return !test_external_stop || test_external_frames < test_external_stop; }
+static void test_external_complete(uint32_t frames) { test_external_completed = frames; }
+
+TEST(server_net, external_controller_keeps_polling_without_an_initial_map) {
+    reset_server_state(0);
+    T_ASSERT(!SV_NeedsFrame());
+    test_ge.ExternalActive = test_external_enabled;
+    T_ASSERT(SV_NeedsFrame());
+    T_ASSERT(!SV_IsActive());
+}
+
+TEST(server_net, external_step_budget_uses_server_clock_and_stops_at_terminal_state) {
+    reset_server_state(0);
+    svs.initialized = true;
+    sv.state = ss_game;
+    test_ge.ExternalActive = test_external_enabled;
+    test_ge.ExternalOwnsClock = test_external_enabled;
+    test_ge.ExternalFrame = test_external_poll;
+    test_ge.ExternalCanAdvance = test_external_can_advance;
+    test_ge.ExternalStepComplete = test_external_complete;
+    test_ge.RunFrame = test_external_frame;
+    test_external_frames = test_external_completed = test_external_stop = 0;
+    test_external_budget = 5;
+    SV_Frame(0);
+    T_EQ(test_external_frames, 5);
+    T_EQ(test_external_completed, 5);
+    T_EQ(sv.framenum, 5);
+    T_EQ(sv.time, 5 * FRAMETIME);
+    SV_Frame(100000);
+    T_EQ(test_external_frames, 5); /* Wall clock cannot spend an absent budget. */
+    test_external_stop = 8;
+    test_external_budget = 10;
+    SV_Frame(0);
+    T_EQ(test_external_frames, 8);
+    T_EQ(test_external_completed, 3);
+    T_EQ(sv.time, 8 * FRAMETIME);
+    svs.initialized = false;
 }

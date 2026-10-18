@@ -52,7 +52,7 @@ formation assignment, full WC3-style local unit avoidance, full combat parity, a
 M3 unit forward is -Y. The shared renderer applies SC2's mandatory model basis so `angle` remains a gameplay
 heading from +X. Placed objects decode their native mesh rotation through `SC2_PlacementHeading`, preserving
 bridges and scenery; Galaxy `UnitCreate` and `UnitSetFacing` both decode degrees to radians. See
-[coordinates and model transforms](../../../AXIS.md#sc2-authored-placement-and-facing).
+[coordinates and model transforms](https://github.com/corepunch/open-realm/blob/main/AXIS.md#sc2-authored-placement-and-facing).
 
 `R_TraceModel` inverse-transforms the cursor segment into M3 model space and tests
 the authored bounds, returning world-space hit distance. These same bounds serve

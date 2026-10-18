@@ -769,47 +769,41 @@ void spell_run_frame(edict_t *ent) {
     }
 }
 
-/* Shared validation for spell spells: mana, cooldown, and optional range check. */
-static bool spell_validate(edict_t *clent, edict_t *caster, uint32_t code, uint32_t level, edict_t *target, float range) {
-    if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster) || S_UnitIsCycloned(caster)) return false;
+/* Common activation policy used by normal casting and read-only availability
+ * queries. Ignoring cooldown never bypasses mana or gameplay disable states. */
+static bool spell_activation_check(edict_t *clent, edict_t *caster, uint32_t code,
+                                   uint32_t level, bool ignore_cooldown) {
+    if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster) ||
+        S_UnitIsCycloned(caster)) return false;
     if (S_UnitIsSilenced(caster)) {
-        G_ShowCommandErrorText(clent, "Silenced.");
+        if (clent) G_ShowCommandErrorText(clent, "Silenced.");
         return false;
     }
-    if (!S_SpellCooldownReady(caster, code)) {
-        G_ShowCommandErrorKey(clent, "Cooldown", NULL);
+    if (!ignore_cooldown && !S_SpellCooldownReady(caster, code)) {
+        if (clent) G_ShowCommandErrorKey(clent, "Cooldown", NULL);
         return false;
     }
     if (!S_SpellCanPay(caster, code, level)) {
-        G_ShowCommandErrorKey(clent, "Nomana", NULL);
+        if (clent) G_ShowCommandErrorKey(clent, "Nomana", NULL);
         return false;
     }
-    if (range > 0 && target && !S_SpellTargetInRange(caster, target, range))
-        return false;
     return true;
 }
 
-/* Shared validation for point-target spells. */
+bool S_SpellCanActivate(edict_t *caster, uint32_t code, uint32_t level, bool ignore_cooldown) {
+    return spell_activation_check(NULL, caster, code, level, ignore_cooldown);
+}
+
+/* Shared validation for unit-target spells, retaining the normal target/range path. */
+static bool spell_validate(edict_t *clent, edict_t *caster, uint32_t code, uint32_t level, edict_t *target, float range) {
+    if (!spell_activation_check(clent, caster, code, level, false)) return false;
+    return !(range > 0 && target && !S_SpellTargetInRange(caster, target, range));
+}
+
 static bool spell_validate_point(spellPointValidateParams_t const *params) {
-    if (!params || !params->caster || !params->point)
-        return false;
-    if (!S_SpellIsAliveTarget(params->caster) || params->caster->stunned || S_UnitPolymorphed(params->caster) ||
-        S_UnitIsCycloned(params->caster)) return false;
-    if (S_UnitIsSilenced(params->caster)) {
-        G_ShowCommandErrorText(params->clent, "Silenced.");
-        return false;
-    }
-    if (!S_SpellCooldownReady(params->caster, params->code)) {
-        G_ShowCommandErrorKey(params->clent, "Cooldown", NULL);
-        return false;
-    }
-    if (!S_SpellCanPay(params->caster, params->code, params->level)) {
-        G_ShowCommandErrorKey(params->clent, "Nomana", NULL);
-        return false;
-    }
-    if (params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range)
-        return false;
-    return true;
+    if (!params || !params->caster || !params->point ||
+        !spell_activation_check(params->clent, params->caster, params->code, params->level, false)) return false;
+    return !(params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range);
 }
 
 static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);

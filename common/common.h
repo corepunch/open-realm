@@ -202,6 +202,15 @@ BOMStatus PF_TextRemoveBom(string_t buffer);
 
 void Com_Quit(void);
 void Sys_Quit(void);
+#ifdef __EMSCRIPTEN__
+void Sys_UpdateLoadingPresentation(bool active, float progress, bool loading_screen_submitted);
+#else
+static inline void Sys_UpdateLoadingPresentation(bool active, float progress, bool loading_screen_submitted) {
+    (void)active;
+    (void)progress;
+    (void)loading_screen_submitted;
+}
+#endif
 
 handle_t FS_AddArchive(cstring_t filename);
 bool FS_AddDataDirectory(cstring_t dirname);
@@ -258,6 +267,8 @@ void CL_Connect(cstring_t host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(cstring_t mapName);
+bool CL_ControlGroupsSave(cstring_t name);
+void CL_ControlGroupsLoad(cstring_t name);
 void CL_LoadingFrame(void);
 
 void SV_Init(void);
@@ -300,6 +311,8 @@ typedef struct {
 } cmPathJobStatus_t;
 void CM_GetPathJobStatus(cmPathJobStatus_t *status);
 bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);
+bool CM_GetTerrainPathingFlagsAt(vec2_t const *location, uint8_t *flags);
+float CM_PathDistanceForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius, uint8_t blocked_flags);
 bool  CM_ActivateCachedFlow(uint32_t generation);
 bool  CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
 bool  CM_FlowReachedGoal(uint32_t generation, float x, float y);

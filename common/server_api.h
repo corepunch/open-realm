@@ -9,6 +9,8 @@ void SV_InitGameProgs(void);
 void SV_Map(cstring_t mapFilename);
 bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
 bool SV_IsActive(void);
+bool SV_NeedsFrame(void);
+bool SV_HasExternalControl(void);
 void SV_SetPaused(bool paused);
 
 #endif

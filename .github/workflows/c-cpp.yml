@@ -116,6 +116,27 @@ jobs:
       - name: Run unit tests
         run: make test
 
+  sc2api:
+    name: SC2API Raw (${{ matrix.build }}, no protobuf dependency)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/corepunch/open-realm-ci:ubuntu-24.04
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      matrix:
+        build: [debug, release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build optional Raw interface
+        run: make BUILD=${{ matrix.build }} SC2API=1 PROTOBUF=0 openwarcraft3 openwarcraft3-tests
+      - name: Verify adapter, server scheduling and real WebSocket lifecycle
+        run: make BUILD=${{ matrix.build }} SC2API=1 PROTOBUF=0 WC3_PATTERN='wc3_sc2api*' test-wc3-engine test-server-net test-sc2api-transport
+
   build:
     runs-on: ubuntu-latest
     container:

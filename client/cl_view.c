@@ -13,6 +13,11 @@ static struct {
     int num_splat_rects;
 } view_state;
 
+/* cl_debug_entities prints paused construction's render inputs once per second,
+ * even when no entity delta arrives. This distinguishes a moving server frame
+ * from renderer animation that advances with fixed entity frames. */
+static int debug_paused_building_time[MAX_CLIENT_ENTITIES];
+
 static bool world_loaded = false;
 static bool begin_sent = false;
 
@@ -42,6 +47,24 @@ static model_t const *V_ConfigSkyModel(void) {
 /* CS_SCENE_FOG is a generic server-authored distance-fog contract. Games may
  * leave the slot empty. Positive styles share the renderer's linear start/end
  * path until a producer proves and exposes additional equations. */
+/* CS_SCENE_WATER_COLOR is a generic server-authored water tint. Games that
+ * do not publish it keep the neutral white multiplier. */
+static void V_UpdateSceneWaterColor(viewDef_t *view, bool world) {
+    float red = 1.0f, green = 1.0f, blue = 1.0f, alpha = 1.0f;
+
+    if (!view) return;
+    view->waterBaseColor = (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
+    if (!world || !*cl.configstrings[CS_SCENE_WATER_COLOR]) return;
+    if (sscanf(cl.configstrings[CS_SCENE_WATER_COLOR], "%f %f %f %f",
+               &red, &green, &blue, &alpha) != 4) return;
+    view->waterBaseColor = (vec4_t){
+        MAX(0.0f, MIN(1.0f, red)),
+        MAX(0.0f, MIN(1.0f, green)),
+        MAX(0.0f, MIN(1.0f, blue)),
+        MAX(0.0f, MIN(1.0f, alpha)),
+    };
+}
+
 static void V_UpdateSceneFog(viewDef_t *view, bool world) {
     static bool invalid_logged;
     int style = 0;
@@ -80,6 +103,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, bool world) {
     view->terrainLight = (environLight_t){0};
     view->entityLight = (environLight_t){0};
     V_UpdateSceneFog(view, world);
+    V_UpdateSceneWaterColor(view, world);
     if (!world) {
         view->terrainLightModel = NULL;
         view->entityLightModel = NULL;
@@ -308,6 +332,20 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_GROUND_CONFORM) re.flags |= RF_GROUND_CONFORM;
     if (ent->current.flags & EF_GROUND_SURFACE) re.flags |= RF_GROUND_SURFACE;
     if (ent->current.flags & EF_SELECTION_CIRCLE_ON_WATER) re.flags |= RF_SELECTION_CIRCLE_ON_WATER;
+    if (ent->current.flags & EF_MDX_EMISSION_PAUSED) re.flags |= RF_MDX_EMISSION_PAUSED;
+    if (ent->current.flags & EF_MDX_ANIMATION_PAUSED) re.flags |= RF_MDX_ANIMATION_PAUSED;
+    if (Cvar_Integer("cl_debug_entities", 0) &&
+        (ent->current.flags & EF_MDX_EMISSION_PAUSED) &&
+        ent->current.number < MAX_CLIENT_ENTITIES) {
+        int *last = &debug_paused_building_time[ent->current.number];
+        if (!*last || cl.time < *last || cl.time - *last >= 1000) {
+            *last = cl.time;
+            fprintf(stderr, "CL_BUILD paused-render ent=%u model=%u time=%d frame=%u oldframe=%u lerp=%.3f flags=0x%08x\n",
+                    (unsigned)ent->current.number, (unsigned)ent->current.model,
+                    cl.time, re.frame, re.oldframe, cl.viewDef.lerpfrac,
+                    ent->current.flags);
+        }
+    }
     re.radius = ent->current.radius;
     re.ground_offset = ent->current.ground_offset;
     re.ground_snapshot_z = ent->current.origin.z;

@@ -95,7 +95,7 @@ The same idea covers **binary** files: WoW DBC rows are read with a `stbDbcField
 (`{ column, offsetof(struct, field), type, count }`) plus `Stb_DbcParseRows` / `Stb_DbcCacheDecode`, where a
 file-shaped struct mirrors the consumed subset of a row and a per-version dispatch function picks the schema when a
 table's layout shifts across client versions. See
-[`docs/games/world-of-warcraft/dbc-reference.md`](games/world-of-warcraft/dbc-reference.md#reading-a-dbc--the-schema-pattern).
+[`docs/games/world-of-warcraft/dbc-reference.md`](games/world-of-warcraft/dbc-reference.md#reading-a-dbc-the-schema-pattern).
 
 ### Audit targets
 

@@ -258,7 +258,7 @@ version 8/9 peers are rejected by the versioned connection request/reply. Earlie
 `BZ_PROTOCOL_VERSION` but did not negotiate it. Struct layouts and save data
 are unchanged. `net.entity_delta_preserves_radian_headings` covers signed, wrapped, cardinal and arbitrary
 headings; `sc2_control.snapshot_preserves_authored_placement` exercises the codec and renderer together.
-See [coordinate contracts](../../AXIS.md).
+See [coordinate contracts](https://github.com/corepunch/open-realm/blob/main/AXIS.md).
 
 `playerState_t.viewoffset` and `playerState_t.eyeoffset` are generic, game-evaluated transient offsets
 of the look-at target and the derived orbit eye (camera shake). They follow Quake 2's `viewoffset` /

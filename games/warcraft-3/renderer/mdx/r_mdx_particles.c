@@ -91,19 +91,25 @@ static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
     R_EmitParticles(EmissionRate, &emitter->accumulator, tr.viewDef.deltaTime, mdx_spawn_particle, &ctx);
 }
 
+/* Only one-shot animations stop emitting when held on their final frame.
+ * Still emit from idle/Stand loops with equal snapshot frames (e.g. waterfalls
+ * and persistent auras), and during the transition into a final frame. */
+static bool MDLX_OneShotEmitterFinished(renderEntity_t const *entity, mdxModel_t const *model) {
+    mdxSequence_t const *seq;
+
+    if (entity->oldframe != entity->frame) return false;
+    seq = R_FindSequenceAtTime(model, entity->frame);
+    return seq && (seq->flags & 1) && seq->interval[1] > seq->interval[0] &&
+           entity->frame == seq->interval[1] - 1;
+}
+
 void MDLX_RenderParticleEmitters(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *model_matrix) {
-    /*
-     * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
-     * death sequence is advancing oldframe != frame, so the destruction
-     * emitters remain active.  tree_decay1() holds the final frame once the
-     * death sequence finishes; after the next snapshot oldframe == frame.
-     *
-     * Do not keep evaluating/emitting particles indefinitely from that held
-     * final death frame. Existing particles remain in the particle system and
-     * expire normally.
-     */
-    if ((entity->flags & RF_NOT_SELECTABLE) &&
-        entity->oldframe == entity->frame) {
+    /* Paused Human construction is explicitly marked by the game. The older
+     * non-selectable hold also protects dead destructables whose model is
+     * missing a suitable one-shot sequence. Existing particles still drain. */
+    if ((entity->flags & RF_MDX_EMISSION_PAUSED) ||
+        ((entity->flags & RF_NOT_SELECTABLE) && entity->oldframe == entity->frame) ||
+        MDLX_OneShotEmitterFinished(entity, model)) {
         return;
     }
     float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);

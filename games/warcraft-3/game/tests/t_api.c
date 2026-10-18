@@ -947,6 +947,56 @@ TEST(wc3_api, authored_race_names_map_to_jass_race_values) {
     T_EQ(WC3_JassRaceFromString("NAGA"), 11);
 }
 
+TEST(wc3_api, jass_arithmetic_operators_are_left_associative) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  real percent = 0.0\n"
+        "  real subtract = 0.0\n"
+        "  real divide = 0.0\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set percent = 100.0 / 100.0 * 100.0\n"
+        "  set subtract = 10.0 - 3.0 - 2.0\n"
+        "  set divide = 100.0 / 10.0 / 2.0\n"
+        "  call BJassAssert(percent == 100.0, \"percentage expression precedence\")\n"
+        "  call BJassAssert(subtract == 5.0, \"subtraction associativity\")\n"
+        "  call BJassAssert(divide == 5.0, \"division associativity\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, unit_state_natives_map_life_and_mana_fields) {
+    edict_t *unit = NULL;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set u = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(1), 200.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(0), 75.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(3), 100.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(2), 45.0)\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(0)) == 75.0, \"unit life\")\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(1)) == 200.0, \"unit max life\")\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(2)) == 45.0, \"unit mana\")\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(3)) == 100.0, \"unit max mana\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (globals.edicts[i].inuse && globals.edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            globals.edicts[i].s.player == 0) unit = globals.edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        T_FEQ(unit->health.value, 75.0f, 0.001f);
+        T_FEQ(unit->health.max_value, 200.0f, 0.001f);
+        T_FEQ(unit->mana.value, 45.0f, 0.001f);
+        T_FEQ(unit->mana.max_value, 100.0f, 0.001f);
+    }
+}
+
 TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
     edict_t *unit = NULL;
     event_t *registration = NULL;
@@ -1713,6 +1763,9 @@ static char sky_configstring_value[16];
 static uint32_t scene_fog_configstring_calls;
 static uint32_t scene_fog_configstring_index;
 static char scene_fog_configstring_value[MAX_PATHLEN];
+static uint32_t water_color_configstring_calls;
+static uint32_t water_color_configstring_index;
+static char water_color_configstring_value[MAX_PATHLEN];
 
 static int capture_dnc_model_index(cstring_t modelName) {
     (void)modelName;
@@ -1745,6 +1798,12 @@ static void capture_scene_fog_configstring(uint32_t index, cstring_t value) {
     scene_fog_configstring_calls++;
     scene_fog_configstring_index = index;
     snprintf(scene_fog_configstring_value, sizeof(scene_fog_configstring_value), "%s", value ? value : "");
+}
+
+static void capture_water_color_configstring(uint32_t index, cstring_t value) {
+    water_color_configstring_calls++;
+    water_color_configstring_index = index;
+    snprintf(water_color_configstring_value, sizeof(water_color_configstring_value), "%s", value ? value : "");
 }
 
 static void capture_pause(bool paused) { captured_pause = paused; }
@@ -3267,6 +3326,30 @@ TEST(wc3_api, fog253_queries_use_calling_client_policy) {
     G_FowShutdown();reset_entities();setup_test_world();
 }
 
+TEST(wc3_api, glyph_omniscience_visibility_expires_but_exploration_remains) {
+    uint32_t index;
+    uint32_t start;
+    setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    G_FowConnectPlayer(1);
+    index = test_fow_cell(0.0f, 0.0f);
+    start = level.time;
+
+    G_FowRevealEntireMapTimed(0, 1.25f); /* nonstandard authored Dur */
+    T_EQ(level.fow.players[0].visible[index], 1);
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[1].visible[index], 0);
+
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index], 1);
+    level.time = start + 1251;
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index], 0);
+    T_EQ(level.fow.players[0].explored[index], 1);
+    level.time = start;
+}
+
 TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
     fogModifier_t mod = {
         .player = 0,
@@ -3501,6 +3584,35 @@ TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
     T_STREQ(dnc_configstring_value[1], "42");
 
     gi.ModelIndex = old_model_index;
+    gi.configstring = old_configstring;
+}
+
+TEST(wc3_api, set_water_base_color_clamps_and_publishes_rgba) {
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
+    float red = 0.0f, green = 0.0f, blue = 0.0f, alpha = 0.0f;
+
+    water_color_configstring_calls = 0;
+    water_color_configstring_index = 0;
+    water_color_configstring_value[0] = '\0';
+    gi.configstring = capture_water_color_configstring;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetWaterBaseColor(-20, 64, 300, 128)\n"
+        "endfunction\n"));
+
+    T_EQ(level.water_base_color.r, 0);
+    T_EQ(level.water_base_color.g, 64);
+    T_EQ(level.water_base_color.b, 255);
+    T_EQ(level.water_base_color.a, 128);
+    T_EQ(water_color_configstring_calls, 1);
+    T_EQ(water_color_configstring_index, CS_SCENE_WATER_COLOR);
+    T_EQ(sscanf(water_color_configstring_value, "%f %f %f %f", &red, &green, &blue, &alpha), 4);
+    T_FEQ(red, 0.0f, 0.001f);
+    T_FEQ(green, 64.0f / 255.0f, 0.001f);
+    T_FEQ(blue, 1.0f, 0.001f);
+    T_FEQ(alpha, 128.0f / 255.0f, 0.001f);
+
     gi.configstring = old_configstring;
 }
 
@@ -9467,6 +9579,204 @@ TEST(wc3_api, campaign_progress_round_trip_preserves_explicit_false) {
     remove(campaign_progress_test_path);
 }
 
+TEST(wc3_api, campaign_progress_completion_keeps_highest_difficulty) {
+    wc3CampaignProgress_t progress, loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 1);
+    wc3CampaignProgressKey_t other = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_TFT, .campaign = 1, .mission = 1);
+    uint32_t best = UINT32_MAX;
+
+    wc3_campaign_progress_init(&progress);
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&progress, key, &best));
+    T_ASSERT(wc3_campaign_progress_set_mission(&progress, key, false));
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 0));
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 2));
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 1));
+    T_ASSERT(!wc3_campaign_progress_complete_mission(&progress, key, 4));
+    T_ASSERT(wc3_campaign_progress_best_difficulty(&progress, key, &best));
+    T_EQ(best, 2u);
+    T_ASSERT(!wc3_campaign_progress_mission_available(&progress, key));
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&progress, other, &best));
+
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &progress));
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_best_difficulty(&loaded, key, &best));
+    T_EQ(best, 2u);
+    T_ASSERT(!wc3_campaign_progress_mission_available(&loaded, key));
+    remove(campaign_progress_test_path);
+}
+
+static void campaign_progress_test_write_u32(FILE *file, uint32_t number) {
+    uint8_t const bytes[4] = {
+        (uint8_t)number, (uint8_t)(number >> 8),
+        (uint8_t)(number >> 16), (uint8_t)(number >> 24)
+    };
+    fwrite(bytes, 1, sizeof(bytes), file);
+}
+
+TEST(wc3_api, campaign_progress_migrates_v1_without_inventing_completion) {
+    wc3CampaignProgress_t old, loaded, migrated;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 2);
+    FILE *file;
+    uint8_t header[8];
+    uint32_t best;
+
+    wc3_campaign_progress_init(&old);
+    T_ASSERT(wc3_campaign_progress_set_campaign(&old, key, true));
+    T_ASSERT(wc3_campaign_progress_set_mission(&old, key, true));
+    file = fopen(campaign_progress_test_path, "wb");
+    T_NOT_NULL(file);
+    if (!file) return;
+    campaign_progress_test_write_u32(file, MAKEFOURCC('O','R','C','P'));
+    campaign_progress_test_write_u32(file, 1);
+    campaign_progress_test_write_u32(file, WC3_CAMPAIGN_PROGRESS_EDITIONS);
+    campaign_progress_test_write_u32(file, WC3_CAMPAIGN_PROGRESS_CAMPAIGNS);
+    campaign_progress_test_write_u32(file, WC3_CAMPAIGN_PROGRESS_MISSIONS);
+    fwrite(old.tutorial_known, 1, sizeof(old.tutorial_known), file);
+    fwrite(old.tutorial_cleared, 1, sizeof(old.tutorial_cleared), file);
+    fwrite(old.campaign_known, 1, sizeof(old.campaign_known), file);
+    fwrite(old.campaign_available, 1, sizeof(old.campaign_available), file);
+    fwrite(old.mission_known, 1, sizeof(old.mission_known), file);
+    fwrite(old.mission_available, 1, sizeof(old.mission_available), file);
+    T_EQ(fclose(file), 0);
+
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_campaign_available(&loaded, key));
+    T_ASSERT(wc3_campaign_progress_mission_available(&loaded, key));
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&loaded, key, &best));
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &loaded));
+    file = fopen(campaign_progress_test_path, "rb");
+    T_NOT_NULL(file);
+    if (!file) return;
+    T_EQ(fread(header, 1, sizeof(header), file), sizeof(header));
+    T_EQ(header[4], 2);
+    T_EQ(fclose(file), 0);
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &migrated));
+    T_ASSERT(wc3_campaign_progress_mission_available(&migrated, key));
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&migrated, key, &best));
+    remove(campaign_progress_test_path);
+}
+
+TEST(wc3_api, campaign_progress_rejects_invalid_completion_payload) {
+    wc3CampaignProgress_t progress, loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 1);
+    FILE *file;
+    wc3_campaign_progress_init(&progress);
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 2));
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &progress));
+    file = fopen(campaign_progress_test_path, "r+b");
+    T_NOT_NULL(file);
+    if (!file) return;
+    T_EQ(fseek(file, -1, SEEK_END), 0);
+    T_NE(fputc(255, file), EOF);
+    T_EQ(fclose(file), 0);
+    T_ASSERT(!wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(!loaded.mission_completed[key.edition][key.campaign][key.mission]);
+    remove(campaign_progress_test_path);
+}
+
+TEST(wc3_api, campaign_progress_map_resolution_follows_campaign_strings) {
+    static cstring_t const legacy =
+        "[Human]\nMission0=\"Intro\"\nFile0=\"Human01\"\n"
+        "Mission1=\"Blackrock\"\nFile1=\"Human02\"\n"
+        "[Label]\nFile1=\"Human02\"\n";
+    static cstring_t const modern =
+        "[Human]\nMission1=\"Chapter Two\",\"A Dark Covenant\","
+        "\"Maps\\FrozenThrone\\Campaign\\HumanX02.w3x\"\n"
+        "EndCinematic=\"Ending\",\"Movie\",\"HumanXEnd\"\n";
+    wc3CampaignProgressKey_t key;
+
+    T_ASSERT(wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_ROC,
+        "maps/campaign/HUMAN02.W3M", legacy, strlen(legacy), &key));
+    T_EQ(key.edition, WC3_CAMPAIGN_EDITION_ROC);
+    T_EQ(key.campaign, 1u);
+    T_EQ(key.mission, 1u);
+    T_ASSERT(wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_TFT,
+        "Maps/FrozenThrone/Campaign/HumanX02.w3x", modern, strlen(modern), &key));
+    T_EQ(key.edition, WC3_CAMPAIGN_EDITION_TFT);
+    T_EQ(key.campaign, 1u);
+    T_EQ(key.mission, 1u);
+    T_ASSERT(!wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_TFT,
+        "Movies\\HumanXEnd.mpq", modern, strlen(modern), &key));
+    T_ASSERT(!wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_TFT,
+        "Maps/FrozenThrone/Campaign/HumanX02.w3x", legacy, strlen(legacy), &key));
+}
+
+static handle_t campaign_progress_test_read_campaign_strings(cstring_t name, uint32_t *size) {
+    static cstring_t const data =
+        "[Human]\nMission0=\"First\"\nFile0=\"Human01\"\n"
+        "Mission1=\"Second\"\nFile1=\"Human02\"\n";
+    void *copy;
+    if (strcmp(name, "UI\\CampaignStrings.txt")) return NULL;
+    *size = (uint32_t)strlen(data);
+    copy = malloc(*size);
+    if (copy) memcpy(copy, data, *size);
+    return copy;
+}
+
+TEST(wc3_api, campaign_progress_accepted_scripted_victory_records_playable_map) {
+    __typeof__(gi.UserPath) old_user_path = gi.UserPath;
+    __typeof__(gi.CvarString) old_cvar = gi.CvarString;
+    __typeof__(gi.ReadFile) old_read_file = gi.ReadFile;
+    __typeof__(gi.MemFree) old_mem_free = gi.MemFree;
+    gameClient_t *old_clients = game.clients;
+    uint32_t old_max_clients = game.max_clients;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    PATHSTR old_map_path;
+    uint32_t old_difficulty = level.setup.difficulty;
+    gameClient_t human = { 0 };
+    mapInfo_t map = { 0 };
+    wc3CampaignProgress_t loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 1);
+    uint32_t best = UINT32_MAX;
+
+    strlcpy(old_map_path, level.map_path, sizeof(old_map_path));
+    remove(campaign_progress_test_path);
+    G_CampaignProgressResetRuntime();
+    gi.UserPath = campaign_progress_test_user_path;
+    gi.CvarString = campaign_progress_roc_cvar;
+    gi.ReadFile = campaign_progress_test_read_campaign_strings;
+    gi.MemFree = free;
+    game.clients = &human;
+    game.max_clients = 1;
+    human.ps.number = 0;
+    human.connected = true;
+    human.jass.removed = true;
+    human.ps.stats[PLAYERSTATE_GAME_RESULT] = 0;
+    map.players[0].used = true;
+    map.players[0].playerType = kPlayerTypeHuman;
+    level.mapinfo = &map;
+    level.setup.difficulty = 2;
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+
+    T_ASSERT(G_CampaignProgressRecordVictory(0));
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_best_difficulty(&loaded, key, &best));
+    T_EQ(best, 2u);
+    T_ASSERT(!wc3_campaign_progress_mission_available(&loaded, key));
+    human.jass.removed = false;
+    T_ASSERT(!G_CampaignProgressRecordVictory(0));
+    strlcpy(level.map_path, "Maps\\Campaign\\Unknown01.w3m", sizeof(level.map_path));
+    human.jass.removed = true;
+    T_ASSERT(!G_CampaignProgressRecordVictory(0));
+
+    G_CampaignProgressResetRuntime();
+    gi.UserPath = old_user_path;
+    gi.CvarString = old_cvar;
+    gi.ReadFile = old_read_file;
+    gi.MemFree = old_mem_free;
+    game.clients = old_clients;
+    game.max_clients = old_max_clients;
+    level.mapinfo = old_mapinfo;
+    level.setup.difficulty = old_difficulty;
+    strlcpy(level.map_path, old_map_path, sizeof(level.map_path));
+    remove(campaign_progress_test_path);
+}
+
 TEST(wc3_api, campaign_progress_campaign_keys_match_blizzard_offsets) {
     T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "Tutorial"), 0);
     T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "Human"), 1);
@@ -10389,6 +10699,155 @@ TEST(wc3_api, enum_items_in_rect_visits_world_items) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Item filters must receive GetFilterItem, exclude rejected candidates, and
+ * preserve outer item context when the action enumerates recursively. */
+TEST(wc3_api, enum_items_in_rect_filter_and_nested_context) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer udg_Accepted = 0\n"
+        "  integer udg_Filtered = 0\n"
+        "  item udg_Outer = null\n"
+        "  boolean udg_Nested = false\n"
+        "endglobals\n"
+        "function itemFilter takes nothing returns boolean\n"
+        "  set udg_Filtered = udg_Filtered + 1\n"
+        "  call BJassAssert(GetFilterItem() != null, \"filter item must be set\")\n"
+        "  return GetItemTypeId(GetFilterItem()) == 'spro'\n"
+        "endfunction\n"
+        "function innerAction takes nothing returns nothing\n"
+        "  call BJassAssert(GetEnumItem() != null, \"nested item must be set\")\n"
+        "endfunction\n"
+        "function outerAction takes nothing returns nothing\n"
+        "  local item saved = GetEnumItem()\n"
+        "  set udg_Accepted = udg_Accepted + 1\n"
+        "  if not udg_Nested then\n"
+        "    set udg_Nested = true\n"
+        "    call EnumItemsInRect(GetWorldBounds(), null, function innerAction)\n"
+        "    call BJassAssert(GetEnumItem() == saved, \"nested enumeration must restore outer item\")\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call CreateItem('spro', 0.0, 0.0)\n"
+        "  call EnumItemsInRect(GetWorldBounds(), Condition(function itemFilter), function outerAction)\n"
+        "  call BJassAssert(udg_Accepted == 1, \"accepted item must reach action\")\n"
+        "  call BJassAssert(udg_Filtered >= 1, \"item filter must run\")\n"
+        "  call BJassAssert(GetEnumItem() == null, \"enum context must clear after call\")\n"
+        "endfunction\n"));
+}
+
+/* Custom-map drop restrictions: maps decide whether another copy may spawn.
+ * World enumeration deliberately excludes carried items; scripts must count
+ * both populations when enforcing a concurrent global limit. */
+TEST(wc3_api, item_unique_drop_counts_carried_and_world_instances) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit udg_HeroA = null\n"
+        "  unit udg_HeroB = null\n"
+        "  integer udg_WorldCount = 0\n"
+        "endglobals\n"
+        "function countGround takes nothing returns nothing\n"
+        "  if GetItemTypeId(GetEnumItem()) == 'ratf' then\n"
+        "    set udg_WorldCount = udg_WorldCount + 1\n"
+        "  endif\n"
+        "endfunction\n"
+        "function countHero takes unit u returns integer\n"
+        "  local integer slot = 0\n"
+        "  local integer result = 0\n"
+        "  loop\n"
+        "    exitwhen slot >= 6\n"
+        "    if GetItemTypeId(UnitItemInSlot(u, slot)) == 'ratf' then\n"
+        "      set result = result + 1\n"
+        "    endif\n"
+        "    set slot = slot + 1\n"
+        "  endloop\n"
+        "  return result\n"
+        "endfunction\n"
+        "function countExisting takes nothing returns integer\n"
+        "  set udg_WorldCount = 0\n"
+        "  call EnumItemsInRect(GetWorldBounds(), null, function countGround)\n"
+        "  return udg_WorldCount + countHero(udg_HeroA) + countHero(udg_HeroB)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local item carried = CreateItem('ratf', 0.0, 0.0)\n"
+        "  local item ground = CreateItem('ratf', 128.0, 0.0)\n"
+        "  set udg_HeroA = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  set udg_HeroB = CreateUnit(Player(0), 'Hpal', 64.0, 0.0, 0.0)\n"
+        "  call BJassAssert(UnitAddItem(udg_HeroA, carried), \"initial pickup failed\")\n"
+        "  call BJassAssert(countHero(udg_HeroA) == 1, \"carried copy missing\")\n"
+        "  call BJassAssert(countExisting() == 2, \"global count must include ground and carried\")\n"
+        "  call BJassAssert(countExisting() >= 2, \"cap of two should reject another drop\")\n"
+        "  call BJassAssert(UnitAddItem(udg_HeroB, carried), \"transfer failed\")\n"
+        "  call BJassAssert(countHero(udg_HeroA) == 0, \"source must lose item\")\n"
+        "  call BJassAssert(countHero(udg_HeroB) == 1, \"destination must receive item\")\n"
+        "  call BJassAssert(countExisting() == 2, \"transfer must not change global count\")\n"
+        "  call RemoveItem(ground)\n"
+        "  call BJassAssert(countExisting() == 1, \"removal must release a concurrent slot\")\n"
+        "  call RemoveItem(carried)\n"
+        "  call BJassAssert(countExisting() == 0, \"removal of carried item must clear inventory\")\n"
+        "endfunction\n"));
+}
+
+/* Acquisition-trigger scripts see the new item already in the destination's
+ * inventory. Duplicate detection must count copies rather than ask merely
+ * whether the item type is present. */
+TEST(wc3_api, item_duplicate_pickup_counts_new_item_and_existing_copy) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer udg_Pickups = 0\n"
+        "  integer udg_Duplicates = 0\n"
+        "  unit hero = null\n"
+        "  item second = null\n"
+        "endglobals\n"
+        "function onAcquire takes nothing returns nothing\n"
+        "  local unit u = GetTriggerUnit()\n"
+        "  local item picked = GetManipulatedItem()\n"
+        "  local integer slot = 0\n"
+        "  local integer copies = 0\n"
+        "  if GetItemTypeId(picked) != 'ratf' then\n"
+        "    return\n"
+        "  endif\n"
+        "  set udg_Pickups = udg_Pickups + 1\n"
+        "  loop\n"
+        "    exitwhen slot == 6\n"
+        "    if GetItemTypeId(UnitItemInSlot(u, slot)) == 'ratf' then\n"
+        "      set copies = copies + 1\n"
+        "    endif\n"
+        "    set slot = slot + 1\n"
+        "  endloop\n"
+        "  if copies > 1 then\n"
+        "    set udg_Duplicates = udg_Duplicates + 1\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local item first = CreateItem('ratf', 0.0, 0.0)\n"
+        "  set hero = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  set second = CreateItem('ratf', 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_PICKUP_ITEM, null)\n"
+        "  call TriggerAddAction(t, function onAcquire)\n"
+        "  call BJassAssert(UnitAddItem(hero, first), \"first pickup failed\")\n"
+        "endfunction\n"
+        "function pickup_second takes nothing returns nothing\n"
+        "  call BJassAssert(UnitAddItem(hero, second), \"second pickup failed\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(udg_Pickups == 2, \"each acquisition must fire an event\")\n"
+        "  call BJassAssert(udg_Duplicates == 1, \"only second pickup is duplicate\")\n"
+        "endfunction\n"));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    /* Pickup events inspect current inventory when dispatched. Drain the first
+     * acquisition before simulating the next gameplay pickup. */
+    jass_callbyname(level.vm, "pickup_second", true);
+    jass_runevents(level.vm);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", true);
+    jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+}
+
 TEST(wc3_api, create_item_rejects_empty_item_id) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -11215,4 +11674,162 @@ TEST(stress_wc3_power_lifetime, public_timer_worker) {
     T_ASSERT(power350_complete); /* A terminating worker must run the real timers. */
     test_preload_marker=NULL;level.started=false;reset_entities();
 }
+TEST(wc3_api, destroy_trigger_retires_registered_and_queued_events) {
+    uint32_t active_events = 0;
+    uint32_t queued_response_events = 0;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger watched = null\n"
+        "  unit subject = null\n"
+        "  integer hits = 0\n"
+        "endglobals\n"
+        "function on_life takes nothing returns nothing\n"
+        "  set hits = hits + 1\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(hits == 0, \"destroyed trigger fired\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set watched = CreateTrigger()\n"
+        "  set subject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerAddAction(watched, function on_life)\n"
+        "  call TriggerRegisterUnitStateEvent(watched, subject, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call SetWidgetLife(subject, 100.0)\n"
+        "  call SetWidgetLife(subject, 0.0)\n"
+        "  call DestroyTrigger(watched)\n"
+        "endfunction\n"));
+
+    /* Retail trigger destruction retires registrations at its saved release deadline. */
+    wc3Clock_t release;uint32_t serial;
+    T_ASSERT(G_NextTriggerRelease(&release,&serial));
+    level.pathing_clock=release;G_FireTriggerRelease();
+    FOR_EACH_EVENT(event) active_events++;
+    T_EQ(active_events, 0);
+    T_ASSERT(level.events.write > level.events.read);
+    for (uint32_t n = level.events.read; n < level.events.write; n++)
+        if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo) queued_response_events++;
+    T_EQ(queued_response_events, 0);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
+    setup_test_world();
+    level.campaign_menu_race = 0;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call UnitRemoveBuffs(u, true, false)\n"
+        "  call UnitRemoveBuffsEx(u, true, true, true, true, false, false, false)\n"
+        "  call SetUnitExploded(u, true)\n"
+        "  call SetUnitExploded(u, false)\n"
+        "  call SetCampaignMenuRace(ConvertRace(2))\n"
+        "endfunction\n"));
+    T_EQ(level.campaign_menu_race, 2);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(1), 'hpea', 16.0, 16.0, 0.0)\n"
+        "  call BJassAssert(u != null, \"CreateUnit returned null\")\n"
+        "  call BJassAssert(GetWidgetLife(u) > 0.0, \"CreateUnit returned dead unit\")\n"
+        "  call KillUnit(u)\n"
+        "  call BJassAssert(GetWidgetLife(u) <= 0.0, \"scripted explosion preserves death\")\n"
+        "endfunction\n"));
+    /* Invalid and unsupported races retain the previous valid selection. */
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCampaignMenuRace(ConvertRace(5))\n"
+        "  call SetCampaignMenuRace(null)\n"
+        "endfunction\n"));
+    T_EQ(level.campaign_menu_race, 2);
+    level.campaign_menu_race = 0;
+}
+
+/* Saved aliases must share the same mutable pool, including retired-pool state. */
+TEST(wc3_api, item_pool_snapshot_preserves_weights_aliases_and_destruction) {
+    cstring_t filename = Test_TempPath("wc3-item-pool.sav");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " itempool pool = null\n"
+        " itempool alias = null\n"
+        " itempool retired = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set pool = CreateItemPool()\n"
+        " set alias = pool\n"
+        " call BJassAssert(PlaceRandomItem(pool, 0.0, 0.0) == null, \"empty pool spawned\")\n"
+        " call ItemPoolAddItemType(pool, 'ratf', 2.0)\n"
+        " call ItemPoolAddItemType(pool, 'spro', 3.0)\n"
+        " call ItemPoolAddItemType(pool, 'ZZZZ', 100.0)\n"
+        " set retired = CreateItemPool()\n"
+        " call ItemPoolAddItemType(retired, 'ratf', 1.0)\n"
+        " call DestroyItemPool(retired)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " local item picked = null\n"
+        " call BJassAssert(pool != null, \"pool lost on load\")\n"
+        " call BJassAssert(alias == pool, \"pool alias lost on load\")\n"
+        " call ItemPoolRemoveItemType(alias, 'spro')\n"
+        " set picked = PlaceRandomItem(pool, 64.0, 96.0)\n"
+        " call BJassAssert(GetItemTypeId(picked) == 'ratf', \"pool entries or alias lost\")\n"
+        " call BJassAssert(GetItemX(picked) == 64.0, \"pool spawn location lost\")\n"
+        " call ItemPoolRemoveItemType(alias, 'ratf')\n"
+        " call BJassAssert(PlaceRandomItem(pool, 0.0, 0.0) == null, \"invalid type spawned\")\n"
+        " call ItemPoolAddItemType(retired, 'spro', 1.0)\n"
+        " call BJassAssert(PlaceRandomItem(retired, 0.0, 0.0) == null, \"destroyed pool revived\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", true);
+    jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    remove(filename);
+}
+
+/* Removing a location invalidates all variable aliases without changing
+ * the storage of unrelated value handles (such as zero-valued enum races). */
+TEST(wc3_api, remove_location_invalidates_aliases) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local race valueRace = RACE_HUMAN\n"
+        " local location a = Location(128.0, 256.0)\n"
+        " local location b = a\n"
+        " call RemoveLocation(a)\n"
+        " call BJassAssert(GetLocationX(b) == 0.0, \"removed alias must not be readable\")\n"
+        " call MoveLocation(b, 9.0, 9.0)\n"
+        " call BJassAssert(GetLocationY(a) == 0.0, \"removed location stays invalid\")\n"
+        " call RemoveLocation(b)\n"
+        " call RemoveLocation(null)\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, removed_location_global_survives_save_as_null) {
+    cstring_t filename = Test_TempPath("wc3-removed-location.sav");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " location removed = null\n"
+        " location alias = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set removed = Location(2.0, 3.0)\n"
+        " set alias = removed\n"
+        " call RemoveLocation(removed)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " call BJassAssert(GetLocationX(alias) == 0.0, \"removed alias restored invalid\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", true);
+    jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    remove(filename);
+}
+
 #endif /* BZ_TESTS */

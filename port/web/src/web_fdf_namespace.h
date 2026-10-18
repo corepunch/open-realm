@@ -94,6 +94,8 @@
 #define FDF_ParseFramePointType BZ_WEB_FDF_NAME(FDF_ParseFramePointType)
 #define FDF_ParseCornerFlags BZ_WEB_FDF_NAME(FDF_ParseCornerFlags)
 #define FDF_ParseControlStyle BZ_WEB_FDF_NAME(FDF_ParseControlStyle)
+/* LayerStyle's parser is exported by both FDF implementations too. */
+#define FDF_ParseLayerStyle BZ_WEB_FDF_NAME(FDF_ParseLayerStyle)
 #define FDF_ParseTextureFile BZ_WEB_FDF_NAME(FDF_ParseTextureFile)
 #define FDF_ParseModelPath BZ_WEB_FDF_NAME(FDF_ParseModelPath)
 #define Theme_Float BZ_WEB_FDF_NAME(Theme_Float)

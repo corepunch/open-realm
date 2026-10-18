@@ -228,5 +228,5 @@ the former 65,536-slot cap, which retail does not have; `MAX_HASHTABLE_ENTRIES` 
 guards against corrupt saves. The previous linear scan made long-journey probes and
 hashtable-heavy maps quadratic.
 
-See also [Campaign Map Audit](map-audit.md), [JASS Native Coverage](jass-native-coverage.md),
+See also [Campaign Map Audit](map-audit.md), [JASS Native Coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md),
 [WC3 Data Model](../../wc3-data-model.md), and [Loading and Assets](loading-and-assets.md).

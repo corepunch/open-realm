@@ -335,6 +335,16 @@ event_t *G_MakeEvent(EVENTTYPE type) {
     return NULL;
 }
 
+void G_RetireEvent(event_t *event) {
+    if (!event || !event->inuse) return;
+
+    for (uint32_t n = level.events.read; n < level.events.write; n++) {
+        gameEvent_t *queued = &level.events.queue[n % MAX_EVENT_QUEUE];
+        if (queued->responseTo == event) queued->responseTo = NULL;
+    }
+    G_ReleaseEvent(event);
+}
+
 void G_SetEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = subject ? subject->spawn_time : 0;

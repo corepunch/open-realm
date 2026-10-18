@@ -84,7 +84,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 - [Warcraft III Map Format](file-formats/map.md)
 - [Warcraft III MDX Model Format](file-formats/mdx.md)
-- [SLK Spreadsheet Format](../../../games/warcraft-3/file-formats/slk.md)
+- [SLK Spreadsheet Format](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/file-formats/slk.md)
 - [UI Frame Definition File](file-formats/fdf.md)
 
 ### Detailed File Notes
@@ -142,6 +142,10 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.
 - [Campaign Map Audit](map-audit.md): bounded bulk runtime sweeps with per-map errors and retained logs.
 - [Save/Load](save-load.md): versioned game serializer, Hero walk/save/load campaign diagnostic.
+- [JASS location-handle lifecycle](jass-location-lifecycle.md): safe removal, alias invalidation and snapshot treatment.
+- [Score Screen](score-screen.md): authoritative player-score accounting, `GetPlayerScore`, save contract, and remaining retail-FDF/result-transition work.
+- [Score Debug Build](score-debug-build.md): `WC3_DEBUG_SCORE=1` plus runtime cvar, compiled-out logging and regression coverage.
+- [Retail Score Experiments](retail-score-experiments.md): repeatable retail map extraction, passive score tracing, safe repacking, Wine capture, and UnitBalance comparison.
 - [DotA Custom-Map Playability](dota-map-playability.md): protected-MPQ load, hashtable demand, and map-imported object data for DotA 6.83d.
 - [Ability Coverage](architecture/ability-coverage.md)
 - [Flat C Ability System: Flags and Message Procedures](ability-system.md)
@@ -161,7 +165,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Timer Dialogs And Mission Countdowns](timer-dialogs.md)
 - [Leaderboards And Counted Objective HUDs](leaderboards.md)
 - [Hero Revival](hero-revival.md)
-- [Sounds](../../../games/warcraft-3/sounds.md)
+- [Sounds](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/sounds.md)
 - [Music Playback](music.md)
 - [HUD Media Lifetime](hud-media.md)
 - [Campaign Loading And Asset Resolution](loading-and-assets.md)

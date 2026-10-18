@@ -1,5 +1,8 @@
 #include "g_local.h"
 #include "games/warcraft-3/common/wc3_pathing_widget.h"
+#ifdef WC3_SC2API
+#include "sc2api/sc2api_server.h"
+#endif
 
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
 #define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
@@ -359,6 +362,9 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
 
     if (!G_IsDestructable(ent) || ent->destructable->dead) return false;
 
+#ifdef WC3_SC2API
+    if (publish_event) WC3_SC2API_RecordDeath(ent);
+#endif
     ent->destructable->dead = true;
     ent->health.value = 0.0f;
     ent->svflags |= SVF_DEADMONSTER;

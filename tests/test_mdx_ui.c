@@ -349,10 +349,10 @@ TEST(mdx_ui, nonlooping_sprite_holds_authored_endpoint) {
     T_EQ(drawn_frame, 700);
     tr.viewDef.time = 217;
     MDLX_DrawSpriteInstance(&sprite, COLOR32_WHITE);
-    T_EQ(drawn_frame, 717);
+    T_EQ(drawn_frame, 716);
     tr.viewDef.time = 999;
     MDLX_DrawSpriteInstance(&sprite, COLOR32_WHITE);
-    T_EQ(drawn_frame, 717);
+    T_EQ(drawn_frame, 716);
 }
 
 TEST(mdx_ui, held_item_skin_reaches_model_draw_and_clears) {

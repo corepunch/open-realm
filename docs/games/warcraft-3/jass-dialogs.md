@@ -86,3 +86,15 @@ and a single republish after load. The disabled-label
 serialization path and save-version rejection have focused regressions.
 `make test` passed with 46,715 assertions after the audit fixes. Retail visual
 alignment and campaign integration still require user-side game verification.
+
+## Defeat difficulty reduction
+
+`CustomDefeatReduceDifficultyBJ` is the authoritative stock JASS action in a
+script-authored defeat choice dialog: Hard -> Normal, Normal -> Easy, no change
+to default, unpause, and restart. The generic ScriptDialog implementation
+continues to dispatch the authored action (including when the simulation is
+paused) rather than copying it into the UI. For maps without a working authored
+dialog, the native GameResultDialog fallback clones the stock Restart button
+style to expose the localized `GAMEOVER_REDUCE_DIFFICULTY` action. Its command
+checks single-player defeat and uses the existing deferred restart transition;
+the action is hidden on Easy and Insane. See [Difficulty](game-difficulty.md).

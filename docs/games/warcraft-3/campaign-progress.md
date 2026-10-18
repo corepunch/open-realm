@@ -58,12 +58,20 @@ The campaign selector consumes the same file in:
 
 - `games/warcraft-3/menu/screens/single_player.c`
 
-The private file uses the FOURCC `ORCP` magic and version `1`. Its integer header is
+The private file uses the FOURCC `ORCP` magic and version **2**. Its integer header is
 explicit little-endian and the payload stores bounded known/value bits for:
 
 - tutorial-cleared state;
 - campaign availability;
-- mission availability.
+- mission availability;
+- mission completion (`mission_completed`);
+- highest completed difficulty (`mission_best_difficulty`, 0 Easy, 1 Normal, 2 Hard, 3 Insane).
+
+Version-1 progress files are read using the original six arrays; completion data starts
+empty because unlocked missions are not necessarily completed. The next successful
+write upgrades to version 2. Invalid/truncated/trailing data or invalid completion
+bits/difficulty values is rejected before installing the loaded state. This migration
+is intentionally different from versioned in-game saves, which are not migrated.
 
 The separate known bits matter because authored `false` writes must override
 `DefaultOpen`; an explicit lock is not the same state as a fresh profile with no
@@ -129,6 +137,9 @@ before the long ending cinematic finishes. OpenRealm writes both unlocks at that
 point. `ForceCampaignSelectScreen()` only selects the destination for the later
 `EndGame`, so the cinematic can continue while the newly unlocked state is
 already durable.
+
+The campaign difficulty preference is a separate archived cvar, not part of
+`campaign-progress.orcp`; see [Game difficulty](game-difficulty.md).
 
 ## Campaign selector visibility
 
@@ -246,3 +257,42 @@ that every Warcraft III release used one directory:
   `Campaigns.w3p` and `Campaigns.w3v` under
   `%USERPROFILE%\Saved Games\Warcraft III\ProfileN`:
   <https://forum.3ice.hu/viewtopic.php?p=6018>
+
+## Difficulty-specific mission completion
+
+A successful `RemovePlayer(whichPlayer, PLAYER_GAME_RESULT_VICTORY)` executed by
+map JASS records the active difficulty **only** if the result was accepted for a
+connected human player and the active map resolves to a playable campaign
+mission. The developer `win` command uses the lower-level result helper and
+**does not** award completion. The record is saved immediately using the same
+atomic replacement mechanism as authored availability updates.
+
+The resolver uses the active `CampaignFile` skin entry, or the edition's stock
+`UI\CampaignStrings[_exp].txt` fallback, to map the **full** `level.map_path`
+to edition/native campaign/mission indices. The older `FileN` schema constructs
+`Maps\Campaign\<basename>.w3m`; the newer `MissionN` third quoted field
+supplies a full map path. Comparisons ignore case and separator style.
+Cinematics, unknown maps, and maps not present in the active campaign metadata
+never award completion. This avoids deriving mission indices from map basenames.
+
+`wc3_campaign_progress_complete_mission()` does not change availability fields.
+If a mission is completed at higher difficulty after a lower run, the best record
+rises; replaying at Easy never lowers Hard. `mission_completed` is independent
+of the difficulty byte because Easy is numeric zero. ROC and TFT records do not
+share indices. The completed run's **current** difficulty at the accepted JASS
+victory event is recorded, before a subsequent Blizzard.j continuation may
+restore `GetDefaultDifficulty()`. Retail handling of maps that change their
+own difficulty during play still requires direct confirmation.
+
+In the campaign mission list, a completed mission displays its localized best
+difficulty beside its original name, for example `Blackrock & Roll (Hard)`.
+No custom FDF is introduced. The selector still uses the authored mission name,
+button mapping, and visibility rules; a cinematic is never given a completion
+suffix. OpenRealm does not attempt to import retail `.w3p` completion flags.
+
+Regression coverage: `wc3_api.campaign_progress_completion_keeps_highest_difficulty`,
+`wc3_api.campaign_progress_migrates_v1_without_inventing_completion`,
+`wc3_api.campaign_progress_rejects_invalid_completion_payload`,
+`wc3_api.campaign_progress_map_resolution_follows_campaign_strings`,
+`wc3_api.campaign_progress_accepted_scripted_victory_records_playable_map`,
+and the existing `menu_fdf.single_player_screen_loads_*_campaigns` fixtures.

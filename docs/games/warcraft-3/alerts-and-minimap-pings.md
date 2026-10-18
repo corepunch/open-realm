@@ -146,7 +146,7 @@ Recommended runtime checks when testing manually:
 6. Call `SetCameraQuickPosition` with no automatic alert history and verify assignment does not move the camera, then Space recalls it.
 7. Verify a ping in fog does not reveal terrain or units.
 
-See also: [Triggered Dialogue](triggered-dialogue.md), [Cinematics And Camera](cinematics.md), [Sound architecture](../../../architecture/sound.md), and [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md).
+See also: [Triggered Dialogue](triggered-dialogue.md), [Cinematics And Camera](cinematics.md), [Sound architecture](https://github.com/corepunch/open-realm/blob/main/architecture/sound.md), and [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md).
 
 ## Interactive signal cursor
 

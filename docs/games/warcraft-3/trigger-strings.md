@@ -66,6 +66,6 @@ make test-wc3-engine WC3_PATTERN='wc3_slk.*'
 Run the WC3 engine suite in both ROC and TFT modes through the normal
 `make test-wc3-engine` target.
 
-See also [WC3 trigger-string syntax](file-docs/readme.md#trigstr-strings),
+See also [WC3 trigger-string syntax](file-docs/readme.md#trigstr_-strings),
 [loading and asset resolution](loading-and-assets.md), and
 [server-authored UI payloads](../../architecture/ui-payloads.md).

@@ -1,5 +1,8 @@
 #include "g_local.h"
 #include "skills/s_skills.h"
+#ifdef WC3_SC2API
+#include "sc2api/sc2api_server.h"
+#endif
 
 //void unit_die(edict_t *self);
 //void unit_decay2(edict_t *self);
@@ -487,15 +490,33 @@ void G_SpawnSummonMagicalEffect(edict_t *self) {
     }
 }
 
+/* Explode Unit uses the unit's own SpecialArt, not the summoning ability's
+ * BuffID/EffectArt. An absent art field still results in a corpse-free death. */
+static void unit_spawn_script_explosion(edict_t *self) {
+    UnitProfile_t const *profile = self->data.UnitProfile ? self->data.UnitProfile : G_UnitProfile(self->class_id);
+    edict_t *effect;
+    if (!profile || !profile->specialArt || !*profile->specialArt) return;
+    effect = G_SpawnModelEffect(profile->specialArt, &self->s.origin2, NULL, NULL, true);
+    if (effect) {
+        effect->s.origin = self->s.origin;
+        G_InheritUnitTeamColor(effect, self);
+    }
+}
+
 void unit_die(edict_t *self, edict_t *attacker) {
     gameClient_t *owner;
     uint32_t selected_mask;
-    bool summon_explodes;
+    bool summon_explodes, script_explodes;
 
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
     if(S_PhoenixInterceptDeath(self))return;
+#ifdef WC3_SC2API
+    WC3_SC2API_RecordDeath(self);
+#endif
+    G_ClearActiveUnitOrder(self);
     selected_mask = self->selected;
     summon_explodes = (self->aiflags & AI_SUMMON_EXPLODES_ON_DEATH) != 0;
+    script_explodes = (self->aiflags & AI_SCRIPT_EXPLODED) != 0;
 
     CAbilityAvatar(self,A_DEATH,NULL); /* Death must not start a reverse transition. */
     /* A dead polymorphed unit must not later restore as a living unit when its
@@ -548,13 +569,13 @@ void unit_die(edict_t *self, edict_t *attacker) {
     self->aiflags &= ~AI_HOLD_FRAME;
     if(G_ActorHasAbilityCode(self,MAKEFOURCC('A','m','o','v')))
         S_StopUnitMovementWithRecovery(self); /* New death d0144 task cleanup. */
-    unit_setmove(self, summon_explodes ? &unit_move_decay_remove : &unit_move_death);
+    unit_setmove(self, (summon_explodes || script_explodes) ? &unit_move_decay_remove : &unit_move_death);
     /* Warsmash advances the render Death animation after KillUnit even when
      * the simulation unit is paused by a cinematic. Keep the explicit frame
      * override active until the death move reaches its decay transition. */
     self->animation_override = true;
     if (self->animation) self->s.frame = self->animation->interval[0];
-    if (!summon_explodes && G_UnitSoundProfile(self)->death) {
+    if (!summon_explodes && !script_explodes && G_UnitSoundProfile(self)->death) {
         self->sound.world_pending = G_UnitSoundProfile(self)->death;
         self->sound.world_pending_event = EV_DEATH;
     }
@@ -569,6 +590,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
      * the mission win check that counts the player's dying naga. */
+    G_PlayerScoreDeath(self, attacker);
     self->svflags |= SVF_DEADMONSTER;
     G_MarkMoveSpatialObject(self);
     S_UnitAbilityEvent(self,A_UNIT_RETIRE);
@@ -609,11 +631,13 @@ void unit_die(edict_t *self, edict_t *attacker) {
          !(selected_mask & (1u << owner->ps.number))))
         G_InvalidateCommands(owner);
 
-    if (summon_explodes) {
-        /* Death triggers, bounty, food and selection still use ordinary
-         * unit_die semantics. Only presentation and remains differ: no
-         * bloody Death sound/animation, no corpse, no raise/decay window. */
-        G_SpawnSummonMagicalEffect(self);
+    if (summon_explodes || script_explodes) {
+        /* Keep ordinary death events/resources intact, but suppress the corpse
+         * and death animation. Script explosion renders unit SpecialArt; the
+         * summon path retains its separately authored magical effect. Heroes
+         * still pass through unit_decay_think's revivable lifecycle. */
+        if (script_explodes) unit_spawn_script_explosion(self);
+        else G_SpawnSummonMagicalEffect(self);
         self->s.renderfx |= RF_HIDDEN;
         self->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
         self->wait = FRAMETIME / 1000.0f;
@@ -843,6 +867,18 @@ static uint32_t unit_spell_code_for_base(edict_t const *unit, uint32_t base_code
     return G_UnitAbilityLevel(unit, base_code) ? base_code : 0;
 }
 
+uint32_t G_OrderDefinitionCount(void) {
+    return (uint32_t)(sizeof(unit_order_defs) / sizeof(unit_order_defs[0]));
+}
+
+bool G_OrderDefinitionInfo(uint32_t index, uint32_t *id, cstring_t  *name, uint32_t *ability) {
+    if (index >= G_OrderDefinitionCount()) return false;
+    if (id) *id = unit_order_defs[index].id;
+    if (name) *name = unit_order_defs[index].name;
+    if (ability) *ability = unit_order_defs[index].ability;
+    return true;
+}
+
 static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) {
     if (!unit || !order) return 0;
     spellOrderQuery_t query={.order_id=G_OrderId(order)};
@@ -866,8 +902,12 @@ static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) 
 }
 
 static uint32_t issued_order_ids[MAX_ENTITIES];
+static uint32_t issued_order_source_spawn_times[MAX_ENTITIES];
 static vec2_t issued_order_points[MAX_ENTITIES];
 static bool issued_order_point_valid[MAX_ENTITIES];
+static uint32_t issued_order_target_numbers[MAX_ENTITIES];
+static uint32_t issued_order_target_spawn_times[MAX_ENTITIES];
+static bool issued_order_target_valid[MAX_ENTITIES];
 
 bool G_IsAIImmediateOrder(unitOrder_t const *order) {
     return order && order->owner_context==UNIT_ORDER_CONTEXT_AI &&
@@ -875,18 +915,113 @@ bool G_IsAIImmediateOrder(unitOrder_t const *order) {
         !strcmp(order->order,"aiimmediate");
 }
 
+/*SC2 Raw Unit.orders describes the command currently being executed, while
+ *Warcraft's issued-order event state above intentionally remembers the last
+ *command the player issued (including Shift-queued commands). Keep those
+ *contracts separate so observing a queue never changes JASS event semantics. */
 static uint32_t unit_order_event_id(cstring_t order) {
     return G_OrderId(order);
 }
 
+#ifdef WC3_SC2API
+static unitOrder_t active_unit_orders[MAX_ENTITIES];
+static uint32_t active_order_source_spawn_times[MAX_ENTITIES];
+
+static bool unit_active_order_lifetime_valid(edict_t const *self) {
+    return self && self->inuse && self->s.number >= 0 && self->s.number < globals.num_edicts &&
+           globals.edicts + self->s.number == self &&
+           active_order_source_spawn_times[self->s.number] == self->spawn_time;
+}
+
+void G_SetActiveUnitOrder(edict_t *self, unitOrder_t const *order) {
+    if (!self || !order || self->s.number >= MAX_ENTITIES) return;
+    active_unit_orders[self->s.number] = *order;
+    active_order_source_spawn_times[self->s.number] = self->spawn_time;
+}
+
+void G_ClearActiveUnitOrder(edict_t *self) {
+    uint32_t number;
+    if (!self || self->s.number < 0 || self->s.number >= MAX_ENTITIES) return;
+    number = (uint32_t)self->s.number;
+    memset(&active_unit_orders[number], 0, sizeof(active_unit_orders[number]));
+    active_order_source_spawn_times[number] = 0;
+}
+
+static void unit_set_active_order(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
+                                  vec2_t const *point, edict_t *target, uint32_t issuer_player,
+                                  float group_speed) {
+    unitOrder_t *active;
+    uint32_t number;
+    if (!self || !order || self->s.number < 0 || self->s.number >= MAX_ENTITIES) return;
+    number = (uint32_t)self->s.number;
+    active = &active_unit_orders[number];
+    memset(active, 0, sizeof(*active));
+    snprintf(active->order, sizeof(active->order), "%s", order);
+    active->target_type = target_type;
+    active->issuer_player = issuer_player;
+    active->group_speed = group_speed;
+    if (point) active->point = *point;
+    if (target && target->inuse && target->s.number < globals.num_edicts &&
+        globals.edicts + target->s.number == target) {
+        active->target_number = target->s.number;
+        active->target_spawn_time = target->spawn_time;
+    }
+    active_order_source_spawn_times[number] = self->spawn_time;
+}
+
+bool G_GetActiveUnitOrder(edict_t const *self, unitOrder_t *out) {
+    if (out) memset(out, 0, sizeof(*out));
+    if (!out || !unit_active_order_lifetime_valid(self) || !active_unit_orders[self->s.number].order[0])
+        return false;
+    *out = active_unit_orders[self->s.number];
+    return true;
+}
+
+bool G_GetQueuedUnitOrder(edict_t const *self, uint32_t index, unitOrder_t *out) {
+    uint32_t slot;
+    if (out) memset(out, 0, sizeof(*out));
+    if (!self || !out || index >= self->order_queue.count || index >= self->order_queue.capacity) return false;
+    slot = (self->order_queue.head + index) % self->order_queue.capacity;
+    *out = self->order_queue.entries[slot];
+    return out->order[0] != '\0';
+}
+
+
+#else
+void G_ClearActiveUnitOrder(edict_t *self) { (void)self; }
+void G_SetActiveUnitOrder(edict_t *self, unitOrder_t const *order) { (void)self; (void)order; }
+#define unit_set_active_order(...) ((void)0)
+#endif
+
+static bool unit_issued_order_lifetime_valid(edict_t const *self) {
+    return self && self->inuse && self->s.number < globals.num_edicts &&
+           globals.edicts + self->s.number == self &&
+           issued_order_source_spawn_times[self->s.number] == self->spawn_time;
+}
+
+void G_ClearIssuedOrderState(edict_t *self) {
+    uint32_t number;
+
+    if (!self || self->s.number >= MAX_ENTITIES) return;
+    number = self->s.number;
+    issued_order_ids[number] = 0;
+    issued_order_source_spawn_times[number] = 0;
+    issued_order_points[number] = (vec2_t){ 0.0f, 0.0f };
+    issued_order_point_valid[number] = false;
+    issued_order_target_numbers[number] = 0;
+    issued_order_target_spawn_times[number] = 0;
+    issued_order_target_valid[number] = false;
+    G_ClearActiveUnitOrder(self);
+}
+
 uint32_t G_GetIssuedOrderId(edict_t const *self) {
-    if (!self || self->s.number >= MAX_ENTITIES) return 0;
+    if (!unit_issued_order_lifetime_valid(self)) return 0;
     return issued_order_ids[self->s.number];
 }
 
 bool G_GetIssuedOrderPoint(edict_t const *self, vec2_t *point) {
     if (point) *point = (vec2_t){ 0.0f, 0.0f };
-    if (!self || self->s.number >= MAX_ENTITIES || !point ||
+    if (!point || !unit_issued_order_lifetime_valid(self) ||
         !issued_order_point_valid[self->s.number]) return false;
     *point = issued_order_points[self->s.number];
     return true;
@@ -896,11 +1031,27 @@ bool G_GetIssuedOrderPoint(edict_t const *self, vec2_t *point) {
 static void (*unit_issued_point_observer)(edict_t *);
 void G_TestIssuedPointObserver(void (*observer)(edict_t *)) {unit_issued_point_observer=observer;}
 #endif
+edict_t *G_GetIssuedOrderTarget(edict_t const *self) {
+    uint32_t number;
+    edict_t *target;
+
+    if (!unit_issued_order_lifetime_valid(self) ||
+        !issued_order_target_valid[self->s.number]) return NULL;
+    number = issued_order_target_numbers[self->s.number];
+    if (number >= globals.num_edicts) return NULL;
+    target = globals.edicts + number;
+    if (!target->inuse || target->spawn_time != issued_order_target_spawn_times[self->s.number]) {
+        return NULL;
+    }
+    return target;
+}
 
 void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *point,
                                uint32_t issuer_player, cstring_t debug_order) {
     if (!self || self->s.number >= MAX_ENTITIES || !point) return;
     issued_order_ids[self->s.number] = order_id;
+    issued_order_source_spawn_times[self->s.number] = self->spawn_time;
+    issued_order_target_valid[self->s.number] = false;
     issued_order_points[self->s.number] = *point;
     issued_order_point_valid[self->s.number] = true;
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
@@ -922,6 +1073,8 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
                                    uint32_t issuer_player, cstring_t debug_order) {
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
+    issued_order_source_spawn_times[self->s.number] = self->spawn_time;
+    issued_order_target_valid[self->s.number] = false;
     issued_order_point_valid[self->s.number] = false;
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
         .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER,true);
@@ -933,7 +1086,15 @@ void G_PublishIssuedTargetOrder(edict_t *self, cstring_t order,
 
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
+    issued_order_source_spawn_times[self->s.number] = self->spawn_time;
     issued_order_point_valid[self->s.number] = false;
+    issued_order_target_valid[self->s.number] = false;
+    if (target && target->s.number < globals.num_edicts &&
+        globals.edicts + target->s.number == target) {
+        issued_order_target_numbers[self->s.number] = target->s.number;
+        issued_order_target_spawn_times[self->s.number] = target->spawn_time;
+        issued_order_target_valid[self->s.number] = true;
+    }
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_ORDER publish event=TARGET player=%u unit=%u id=%.4s order=\"%s\" order_id=%u target=%u target_id=%.4s\n",
@@ -1296,6 +1457,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             if (accepted) {
                 G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
+                unit_set_active_order(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target, issuer_player, 0.0f);
                 G_PublishIssuedTargetOrder(self, order, target, issuer_player);
             }
             return accepted;
@@ -1323,6 +1485,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         if (accepted) {
             G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
+            unit_set_active_order(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target, issuer_player, 0.0f);
             G_PublishIssuedTargetOrder(self, order, target, issuer_player);
         }
         return accepted;
@@ -1364,6 +1527,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             if (accepted) {
                 G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
+                unit_set_active_order(self, order, UNIT_ORDER_TARGET_POINT, point, NULL, issuer_player, group_speed);
                 G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                           issuer_player, order);
             }
@@ -1403,6 +1567,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         if (accepted) {
             G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
+            unit_set_active_order(self, order, UNIT_ORDER_TARGET_POINT, point, NULL, issuer_player, group_speed);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
@@ -1507,6 +1672,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
         queuedOrderResult_t result=unit_execute_queued_order(self,&queued,&head);
         if(result==QUEUED_ORDER_REPLACED)return true;
         if(result==QUEUED_ORDER_STARTED) {
+            G_SetActiveUnitOrder(self,&queued);
             if(queued.target_type!=UNIT_ORDER_TARGET_NONE)self->current_order_id=head;
             uint32_t const accepted_revision=G_UnitMoveRevision(self);
             S_UnitAbilityOrderAccepted(self,queued.order);
@@ -1525,6 +1691,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
     bool ai=false;
     bool const started = unit_start_next_queued_order(self,&ai);
     if (started && !ai) G_CreepGuardExplicitOrder(self);
+    if(!started)G_ClearActiveUnitOrder(self);
     return started;
 }
 
@@ -1718,6 +1885,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (accepted) {
             G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
+            unit_set_active_order(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, self->s.player, 0.0f);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         }
         return accepted;
@@ -1730,6 +1898,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (accepted) {
             G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
+            unit_set_active_order(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, self->s.player, 0.0f);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         }
         /* A registered order owner also owns rejection. Falling through to
@@ -1757,7 +1926,8 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
             if (accepted) {
                 G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
-                G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+                unit_set_active_order(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, self->s.player, 0.0f);
+            G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             }
             return accepted;
         }
@@ -1813,6 +1983,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     if (G_UnitIsStructure(unit)) CM_BakeStaticObstacles();
     G_ActivateUnitFood(unit);
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FOOD, unit, NULL);
+    G_PlayerScoreUnitTrained(unit); /* immediately entered play, not queued */
     G_BotUnitReady(unit);
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_AI, unit, NULL);
     gi.FrameCheckpoint();
@@ -2484,6 +2655,42 @@ void G_EndUnitStatusQuery(unitStatusQuery_t *query) {
     g_unit_status_query=query->previous;
 }
 
+static uint32_t unit_rawcodefromlisttoken(cstring_t text) {
+    char rawcode[5] = { 0 };
+    uint32_t length = 0;
+
+    if (!text) return 0;
+    while (*text && (isspace((unsigned char)*text) || *text == ',' || *text == ';')) text++;
+    while (text[length] && text[length] != ',' && text[length] != ';' &&
+           !isspace((unsigned char)text[length]) && length < 4) {
+        rawcode[length] = text[length];
+        length++;
+    }
+    return length == 4 ? FS_SLKKey(rawcode) : 0;
+}
+
+uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
+    AbilityData_t const *ability;
+    abilityLevel_t const *row;
+    uint32_t level;
+    uint32_t buff;
+
+    if (!status || !status->level) return 0;
+    if ((status->code & 0xff) == 'B') return status->code;
+    /* Timed statuses use a separate progress-bar presentation. Persistent
+     * Axxx status records (for example Devotion Aura on its caster) have
+     * timestamp == 0 and may resolve through AbilityData.BuffID*. Cooldowns
+     * are stored independently in edict_t::abilitycooldowns. */
+    if (status->timestamp) return 0;
+    ability = G_AbilityData(status->code);
+    if (!ability || !ability->id) return 0;
+    level = MAX(status->level, 1u);
+    row = G_AbilityLevel(status->code, level);
+    buff = unit_rawcodefromlisttoken(row->buffID);
+    if (!buff && level != 1) buff = unit_rawcodefromlisttoken(G_AbilityLevel(status->code, 1)->buffID);
+    return buff;
+}
+
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
 #ifdef BZ_TESTS
     unit_status_queries++;
@@ -2948,6 +3155,18 @@ static uint32_t G_HeroXPRequirement(uint32_t index) {
             100.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula B. */
         double const c = (cText && *cText) ? atof(cText) :
             0.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula C. */
+
+        /* Retail 1.29's stock MiscGame data authors only NeedHeroXP=200,
+         * while the measured level requirements are 200,300,400,... . The
+         * formula fields describe that stock linear progression; applying
+         * B*the absolute table index recursively instead produces
+         * 200,300,500,... and makes scripted level-4 heroes carry 1000 XP.
+         * Keep custom formula tables on the general recurrence below. */
+        if (count == 1 && current == 200 && a == 1.0 && b == 100.0 && c == 0.0) {
+            unsigned long long const stock = 200ull + 100ull * index;
+            return stock > (unsigned long long)UINT32_MAX ? UINT32_MAX : (uint32_t)stock;
+        }
+
         for (uint32_t i = count; i <= index; i++) {
             double next = a * (double)current + b * (double)i + c;
             if (next < 0.0) next = 0.0;
@@ -3019,7 +3238,7 @@ void G_HeroApplyLevel(edict_t *ent, uint32_t level) {
 }
 
 /* Update a hero's accumulated XP, leveling it up if a threshold was crossed. */
-void G_HeroSetXP(edict_t *ent, uint32_t xp) {
+static void G_HeroSetXPInternal(edict_t *ent, uint32_t xp, bool count_score) {
     uint32_t const oldLevel = ent->hero.level;
     uint32_t newLevel;
 
@@ -3029,6 +3248,11 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
     if (xp <= ent->hero.xp) {
         return;
     }
+    BZ_WC3_SCORE_LOG("score hero xp transition owner=%u rawcode=%08x entity=%u old=%u new=%u level=%u credited=%u",
+        ent->s.player, ent->class_id, ent->s.number, ent->hero.xp, xp,
+        ent->hero.level, (unsigned)count_score);
+    if (count_score) G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);
+    else ent->score_level_xp = (uint32_t)MIN((uint64_t)ent->score_level_xp + xp - ent->hero.xp, (uint64_t)INT32_MAX);
     ent->hero.xp = xp;
     newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {
@@ -3043,6 +3267,17 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
             G_BotHeroLevelUp(ent);
         }
     }
+}
+
+void G_HeroSetXP(edict_t *ent, uint32_t xp) {
+    G_HeroSetXPInternal(ent, xp, true);
+}
+
+/* SetHeroLevel is a scripted level assignment, not experience earned in play.
+ * Keep identical hero-level events and skill updates, but do not score the XP
+ * automatically introduced to reach the requested level. */
+void G_HeroSetXPForLevel(edict_t *ent, uint32_t xp) {
+    G_HeroSetXPInternal(ent, xp, false);
 }
 
 /* Adjust only the level-derived fraction of an attribute. The remaining

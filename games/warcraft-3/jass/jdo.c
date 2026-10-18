@@ -1564,7 +1564,11 @@ void jass_setnull(jassVar_t *var) {
         return;
     }
     uintptr_t typeaddr = (uintptr_t)var->type;
-    if ((typeaddr & (sizeof(void *) - 1)) || typeaddr < 4096 || typeaddr >= 0x0000800000000000ULL) {
+    bool invalid_type_address = (typeaddr & (sizeof(void *) - 1)) || typeaddr < 4096;
+#if UINTPTR_MAX > 0x0000800000000000ULL
+    invalid_type_address = invalid_type_address || typeaddr >= 0x0000800000000000ULL;
+#endif
+    if (invalid_type_address) {
         memset(var, 0, sizeof(*var));
         return;
     }
@@ -1845,9 +1849,19 @@ jassFunc_t const *jass_checkcode(jass_t *j, int index) {
     return var->value;
 }
 
+void jass_invalidateownedhandle(jass_t *j, int index, cstring_t type) {
+    jassVar_t *var = jass_stackvalue(j, index);
+    jassType_t const *expected = find_type(j, type);
+    if (!var || !var->value || !var->ref || !var->type || !expected ||
+        !is_handle_convertible(var->type, expected) || !var->ref->size || !var->ref->id) return;
+    /* All copied variables share the same ref. Retain the payload until
+     * the VM releases its owners, so saved aliases cannot become UAFs. */
+    var->ref->invalid = true;
+}
+
 handle_t jass_checkhandle(jass_t *j, int index, cstring_t type) {
     jassVar_t const *var = jass_stackvalue(j, index);
-    if (!var->value) {
+    if (!var->value || (var->ref && var->ref->invalid)) {
         return NULL;
     }
     /* Skip type check for Galaxy — SC2 types are unregistered (type == NULL). */
@@ -2538,11 +2552,12 @@ typedef struct jass_snapshot_handle_s {
     jassref_t *ref;
 } jassSnapshotHandle_t;
 
+/* Item pools contain only inline weights/rawcodes; the VM codec preserves their shared identity. */
 static bool jass_snapshot_ownedhandle(cstring_t type) {
     static cstring_t const types[] = {
         "sound", "camerasetup", "rect", "location", "force", "gamecache", "region", "fogmodifier",
         "version", "itemtype", "attacktype", "damagetype", "weapontype", "soundtype", "pathingtype",
-        "mousebuttontype", "aidifficulty", "playerscore"
+        "mousebuttontype", "aidifficulty", "playerscore", "itempool"
     };
     FOR_LOOP(i, sizeof(types) / sizeof(*types)) if (!strcmp(type, types[i])) return true;
     return false;
@@ -2574,6 +2589,12 @@ static bool jass_snapshot_writehandle(jass_t *j, jassSnapshot_t *snapshot, jassV
     (void)j;
     if (!strcmp(var->type->name, "terraindeformation")) {
         /* Renderer-only effects and their transient handles do not survive save/load. */
+        encoding = JASS_SNAPSHOT_HANDLE_NULL;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
+    }
+    /* Removed VM-owned handles are serialized as null, not as an owned
+     * record with an invalid ID. Enum/value handles are independent. */
+    if (var->ref && var->ref->invalid) {
         encoding = JASS_SNAPSHOT_HANDLE_NULL;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
     }

@@ -153,6 +153,8 @@ void SV_InitGameProgs(void) {
     import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
     import.SetSimulationRate = SV_SetSimulationRate;
+    import.RequestMap = SV_RequestMap;
+    import.RequestQuit = SV_RequestQuit;
     import.ReadFile = FS_ReadFile;
     import.OpenFile = FS_OpenFile;
     import.CloseFile = FS_CloseFile;
@@ -164,6 +166,7 @@ void SV_InitGameProgs(void) {
     import.UnlinkEntity = SV_UnlinkEntity;
     import.BoxEdicts = SV_AreaEdicts;
     import.MenuAction = MenuAction;
+    import.ResolveMap = Com_ResolveMapArgument;
     import.QueueMovie = CL_QueueMovie;
     import.QueueModelCinematic = CL_QueueModelCinematic;
     import.ClearWorld = SV_ClearWorld;
@@ -177,6 +180,7 @@ void SV_InitGameProgs(void) {
     import.CvarString = Cvar_String;
     import.UserPath = FS_UserPath;
     import.SavePath = FS_SavePath;
+    import.ListMaps = FS_ListMaps;
     import.ScriptSavePath = FS_ScriptSavePath;
     import.ScriptCachePath = FS_ScriptCachePath;
     import.ScriptCacheReadPath = FS_ScriptCacheReadPath;
@@ -189,6 +193,7 @@ void SV_InitGameProgs(void) {
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
     import.Milliseconds = SDL_GetTicks;
+    import.SaveLocalClientState = Cvar_Integer("dedicated", 0) ? NULL : CL_ControlGroupsSave;
 
     ge = GetGameAPI(&import);
     ge->Init();

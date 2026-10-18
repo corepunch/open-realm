@@ -584,7 +584,7 @@ The macro forward-declares `AbilityDoom_Execute` and routes `A_EXECUTE` to it. F
 in the registry row. For behavior that needs more messages, use `BZ_ABILITY_PROC` (which supplies `ent`, `msg`,
 and `call`), write the switch directly, and delegate unhandled messages to the TFT parent procedure.
 
-See [Holy Light's complete procedure](../../../games/warcraft-3/game/skills/s_holylight.c) for custom
+See [Holy Light's complete procedure](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/skills/s_holylight.c) for custom
 `A_VALIDATE`/`A_EXECUTE` cases and explicit parent delegation. Read `call`'s union member only inside the
 corresponding message case, handle absent payloads as required, and never retain borrowed payload pointers.
 A handled false result is final; delegate only messages the procedure does not handle.
@@ -607,7 +607,7 @@ BZ_COMMAND_PROC(AbilityCancel) { CMD_CancelCommand(clent); }
 Item use follows `BZ_ITEM_PROC(AbilityItemHeal) { ... }`. It forward-declares
 `BOOL AbilityItemHeal_ItemUse(LPEDICT clent)` and supplies that function header. `A_ITEM_USE` passes the
 procedure's `ent` as `clent`; the body returns whether use succeeded so inventory can consume a charge.
-Other messages return false without running the body. See [item implementations](../../../games/warcraft-3/game/skills/s_item.c)
+Other messages return false without running the body. See [item implementations](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/skills/s_item.c)
 for success and rejection paths. Unlike the command macro, the item macro passes `ent` directly and does not
 select `call->client`. Preserve false returns when the effect cannot apply, such as healing a full-health unit.
 
@@ -890,7 +890,7 @@ Recreate the gameplay situation in automated tests before launching the game. Us
 the real animation and update callbacks, deterministic simulation time, and representative archive fixtures. If the
 intended reproducer is a sequence of player or script actions, test that sequence rather than only the final helper.
 Extend the harness or fixture generator if it cannot yet exercise the path. See the
-[test-first workflow](../../../CONTRIBUTING.md#test-first-behavior-verification).
+[test-first workflow](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md#test-first-behavior-verification).
 
 Each new ability needs focused tests for:
 

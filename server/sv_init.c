@@ -57,8 +57,12 @@ static void SV_SaveGame_f(void) {
         (ge->BeforeSaveGame && !ge->BeforeSaveGame(Cmd_Argv(1))) ||
         !ge->SaveGame(path))
         fprintf(stderr, "save: failed to write %s\n", path);
-    else if (!FS_BindScriptSaveScope(Cmd_Argv(1)))
-        fprintf(stderr, "save: saved game but could not bind campaign zone storage\n");
+    else {
+        if (!Cvar_Integer("dedicated", 0) && !CL_ControlGroupsSave(Cmd_Argv(1)))
+            fprintf(stderr, "save: could not persist local control groups\n");
+        if (!FS_BindScriptSaveScope(Cmd_Argv(1)))
+            fprintf(stderr, "save: saved game but could not bind campaign zone storage\n");
+    }
 }
 
 /* Script saves are authorized by the engine-owned sandbox, not the ordinary
@@ -444,10 +448,16 @@ void SV_Map(cstring_t mapFilename) {
     if (!ge->PrepareMap(mapFilename)) {
         fprintf(stderr, "SV_Map: loading presentation failed for %s\n", mapFilename);
         SV_Shutdown();
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }
-    if (!SV_BuildLoadingScreen()) { SV_Shutdown(); CL_LoadingFrame(); return; }
+    if (!SV_BuildLoadingScreen()) {
+        SV_Shutdown();
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
+        CL_LoadingFrame();
+        return;
+    }
     FOR_LOOP(i, svs.num_clients) {
         client_t *cl = &svs.clients[i];
         /* num_clients spans reusable holes after disconnects; send only to live peers. */
@@ -457,6 +467,7 @@ void SV_Map(cstring_t mapFilename) {
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
         SV_Shutdown();
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }

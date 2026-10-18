@@ -202,8 +202,8 @@ non-admission fidelity gaps and simultaneous-request RNG limits. The server now
 commits What/Pissed progress on client admission and switches portrait talking
 on client start/end receipts.
 
-See also [sound implementation](../../../games/warcraft-3/sounds.md) and
-[entity sound architecture](../../../architecture/sound.md).
+See also [sound implementation](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/sounds.md) and
+[entity sound architecture](https://github.com/corepunch/open-realm/blob/main/architecture/sound.md).
 
 ## Unattended broad-analysis continuation
 
@@ -320,7 +320,7 @@ response progression, first sample starts the portrait, and completion/preemptio
 ends it. It removes the duration-based deadline rather than tuning an estimate.
 The client sends generic request-correlated events; the game retains ownership
 checks and unit/selection lifetime state. See the
-[sound contract](../../../games/warcraft-3/sounds.md#authored-admission-and-response-timing).
+[sound contract](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/sounds.md#authored-admission-and-response-timing).
 This closes the premature state progression gap; it is not a claim of complete
 retail audio parity. In particular, server-side random variant choice can precede
 another unit's outstanding admission receipt for the same label.

@@ -184,4 +184,4 @@ session transitions. Bug fixes must first obtain targeted runtime log evidence p
 claim any runtime bug reproduction. The review itself changed no production code; the subsequent implementation is documented in shared-input.md.
 
 See also: [runtime](runtime.md), [client](client.md), [client windows](client-windows.md), and
-[architecture overview](../../ARCHITECTURE.md).
+[architecture overview](https://github.com/corepunch/open-realm/blob/main/ARCHITECTURE.md).

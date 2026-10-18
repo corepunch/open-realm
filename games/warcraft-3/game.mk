@@ -83,6 +83,14 @@ ifeq ($(EOS),1)
 $(WC3_EOS_RUNTIME): $(EOS_BUILD_CONFIG)
 endif
 
+# Changing optional module flags must invalidate both normal and test libraries.
+WC3_SC2API_BUILD_CONFIG := $(LIB_DIR)/.wc3-sc2api-build-config
+.PHONY: wc3-sc2api-build-config-force
+$(WC3_SC2API_BUILD_CONFIG): wc3-sc2api-build-config-force | $(LIB_DIR)
+	@echo '$(SC2API) $(PROTOBUF) $(WC3_SC2API_CFLAGS) $(WC3_PROTOBUF_LIBS)' > $@.tmp
+	@cmp -s $@.tmp $@ || cp $@.tmp $@
+	@rm -f $@.tmp
+
 # Optional long-form media support (pre-rendered movies and background music).
 # Keep the dependency surface to the five FFmpeg libraries required for container
 # demux, decode, pixel conversion and audio resampling; the default build has no
@@ -97,6 +105,40 @@ endif
 WC3_CFLAGS += -DBZ_FFMPEG $(shell pkg-config --cflags $(FFMPEG_PKGS))
 WC3_FFMPEG_LIBS := $(shell pkg-config --libs $(FFMPEG_PKGS))
 endif
+
+# Optional SC2API compatibility core. This remains game-module-owned: enabling
+# it must not add Warcraft-specific branches to the generic engine/server.
+# Protobuf is an independent opt-in dependency: SC2API=1 builds the internal
+# compatibility/adaptation and wire layers without requiring libprotobuf-c,
+# while PROTOBUF=1 enables optional protobuf tooling/linkage.
+# Default builds probe for neither feature nor dependency.
+SC2API ?= 0
+PROTOBUF ?= 0
+SC2API_PROTO_DIR ?=
+SC2API_PROTO_GEN_DIR := build/generated/wc3-sc2api/protocol
+SC2API_C_GEN_DIR := build/generated/wc3-sc2api/c
+PROTOC_C ?= protoc-c
+WC3_SC2API_CFLAGS :=
+WC3_PROTOBUF_LIBS :=
+
+ifeq ($(filter $(SC2API),0 1),)
+$(error SC2API must be 0 or 1)
+endif
+ifeq ($(filter $(PROTOBUF),0 1),)
+$(error PROTOBUF must be 0 or 1)
+endif
+ifeq ($(SC2API),1)
+WC3_SC2API_CFLAGS += -DWC3_SC2API
+endif
+ifeq ($(PROTOBUF),1)
+PROTOBUF_PKG := libprotobuf-c
+ifeq ($(shell pkg-config --exists $(PROTOBUF_PKG) && echo yes),)
+$(error PROTOBUF=1 requires pkg-config package: $(PROTOBUF_PKG))
+endif
+WC3_SC2API_CFLAGS += -DWC3_PROTOBUF $(shell pkg-config --cflags $(PROTOBUF_PKG))
+WC3_PROTOBUF_LIBS := $(shell pkg-config --libs $(PROTOBUF_PKG))
+endif
+
 ifeq ($(WC3_FOW_PACKED_MASK),1)
 WC3_CFLAGS += -DWC3_FOW_PACKED_MASK
 endif
@@ -125,6 +167,7 @@ ifeq ($(WC3_DEBUG_TIMERDIALOG),1)
 	WC3_CFLAGS += -DWC3_DEBUG_TIMERDIALOG
 endif
 WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION -DSTB_FDF_GLOBALS
+WC3_GAME_CFLAGS := $(WC3_FDF_CFLAGS) $(WC3_SC2API_CFLAGS)
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
 MENU_HEADERS := $(shell find $(WC3_DIR)/menu -name '*.h' | sort) client/menu.h
 
@@ -132,6 +175,7 @@ JASS_LIB     := $(LIB_DIR)/libjass$(LIB_EXT)
 SHEET_LIB    := $(LIB_DIR)/libsheet$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
+$(GAME_LIB): $(WC3_SC2API_BUILD_CONFIG)
 MENU_LIB       := $(LIB_DIR)/libmenu$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
@@ -193,6 +237,7 @@ profile-map: $(BINARY) xctraceprof
 
 # Headless launcher, campaign catalog, and binding-generator checks.
 test-render-harness: fdfbindgen mpqtool
+	python3 tools/test_list_setup_mpq.py
 	python3 tests/test_parity_launcher.py
 	python3 tests/test_parity_maps.py
 	python3 tests/test_fdfbindgen.py
@@ -230,7 +275,7 @@ JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_GAME_DIR)
 $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(JASS_HEADERS) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h $(WC3_DIR)/common/wc3_math.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(SHEET_LIB) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS) -lsheet))
-$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_GAME_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) $(WC3_PROTOBUF_LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
 # The remote client loads collision data before any game imports exist; compile its format reader into the engine.
 $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD,-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c))
@@ -248,9 +293,10 @@ $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME
 # ---------------------------------------------------------------------------
 GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
+$(GAME_WC3_TEST_LIB): $(WC3_SC2API_BUILD_CONFIG)
 $(WC3_TEST_BINARY): tests/online_acceptance.h $(WC3_TEST_DIR)/online_gameplay.h
 
-$(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_GAME_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) $(WC3_PROTOBUF_LIBS) -lm -lz))
 # Canonical order names are included as C data in both unity modules.
 $(GAME_LIB) $(GAME_WC3_TEST_LIB): $(WC3_GAME_DIR)/g_order_names.inc
 
@@ -324,7 +370,7 @@ TEST_JOBS ?= 16
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
 	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
-		test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
+		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-wc3-power-lifetime test-pathfinding-tools test-render-harness test-mpq-compression
 
@@ -340,6 +386,7 @@ $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$
 $(eval $(call test_schema,test-sound,$(LIB_DIR) $(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c client/cl_canvas.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
+$(eval $(call test_schema,test-mdx-geoset,$(SHARED_LIB) $(WC3_DIR)/renderer/mdx/r_mdx_geoset.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_mdx_geoset$(EXE_EXT),tests/test_runner.c tests/test_mdx_geoset.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-texture,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_mdx_texture$(EXE_EXT),tests/test_runner.c tests/test_mdx_texture.c,-lrenderer -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-ui-canvas,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_ui_canvas$(EXE_EXT),tests/test_runner.c tests/test_ui_canvas.c,-lrenderer -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-ui,$(SHARED_LIB) client/tr_public.h $(WC3_DIR)/renderer/mdx/r_mdx.h games/warcraft-3/renderer/mdx/r_mdx_render.c games/warcraft-3/renderer/r_weather.c games/warcraft-3/common/weather.h renderer/r_particles.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable,$(BIN_DIR)/test_mdx_ui$(EXE_EXT),tests/test_runner.c tests/test_mdx_ui.c,-lshared -lm $(LIBS),))
@@ -404,6 +451,12 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@echo "[test-assets] packing tileset-archive fixture MPQ"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/O.mpq pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp "ReplaceableTextures\\Cliff\\Cliff1.blp"
+	@python3 tools/wc3terrainfixturegen.py $(TESTS_RES_DIR)/RampTerrain
+	@mkdir -p $(TESTS_RES_DIR)/Maps/Campaign $(TESTS_RES_DIR)/Maps/FrozenThrone/Campaign
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Campaign/Human03.w3m pack \
+		$(TESTS_RES_DIR)/RampTerrain/Human03/war3map.w3e war3map.w3e
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/FrozenThrone/Campaign/NightElfX04.w3x pack \
+		$(TESTS_RES_DIR)/RampTerrain/NightElfX04/war3map.w3e war3map.w3e
 	@echo "[test-assets] packing tests.mpq"
 	@python3 tools/wc3fixturegen.py $(TESTS_RES_DIR)/TransportMap
 	@set --; for f in $(TESTS_RES_DIR)/TransportMap/*; do \
@@ -411,7 +464,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Transport.w3m pack "$$@"
 	@set --; \
 	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
-		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
+		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*|RampTerrain/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	for f in $$(find $(TESTS_SRC_DIR) -type f | sort); do \
 		rel=$${f#$(TESTS_SRC_DIR)/}; arc=$$rel; \
@@ -460,9 +513,9 @@ download: $(ZIP_FILE)
 $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass \
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass wc3-sc2api-proto \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
-	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
+	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine test-pathfinding-tools download
 
 .PHONY: test-menu-boundary
@@ -482,3 +535,32 @@ $(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_E
 $(eval $(call test_schema,test-gl-shader,$(wildcard vendor/gl_shader/*.[ch]),$(TEST_CFLAGS),$(BIN_DIR)/test_gl_shader$(EXE_EXT),tests/test_runner.c tests/test_gl_shader.c shared/test.c,$(LIBS),))
 
 .PHONY: test-wc3-power-lifetime
+# Prepare a local, generated copy of Blizzard's s2client-proto definitions and
+# append OpenRealm's Warcraft III Race values. This target never downloads
+# dependencies; SC2API_PROTO_DIR must name a local checkout/source export.
+.PHONY: wc3-sc2api-proto
+wc3-sc2api-proto:
+	@if [ "$(PROTOBUF)" != "1" ]; then \
+		echo "wc3-sc2api-proto requires PROTOBUF=1" >&2; exit 1; \
+	fi
+	@if [ -z "$(SC2API_PROTO_DIR)" ]; then \
+		echo "set SC2API_PROTO_DIR to a local Blizzard s2client-proto checkout/export" >&2; exit 1; \
+	fi
+	@if ! command -v "$(PROTOC_C)" >/dev/null 2>&1; then \
+		echo "wc3-sc2api-proto requires $(PROTOC_C)" >&2; exit 1; \
+	fi
+	@python3 tools/prepare_sc2api_proto.py --source "$(SC2API_PROTO_DIR)" --output "$(SC2API_PROTO_GEN_DIR)"
+	@rm -rf "$(SC2API_C_GEN_DIR)"
+	@mkdir -p "$(SC2API_C_GEN_DIR)"
+	@"$(PROTOC_C)" --proto_path="$(SC2API_PROTO_GEN_DIR)" --c_out="$(SC2API_C_GEN_DIR)" \
+		"$(SC2API_PROTO_GEN_DIR)"/s2clientprotocol/*.proto
+	@echo "[wc3-sc2api-proto]"
+
+.PHONY: test-sc2api-transport
+ifeq ($(SC2API),1)
+test-sc2api-transport: $(WC3_TEST_BINARY) test-assets
+	@python3 tests/test_sc2api_transport.py --binary "$(WC3_TEST_BINARY)" --data "$(TESTS_DIR)"
+else
+test-sc2api-transport:
+	@echo "test-sc2api-transport requires SC2API=1" >&2; exit 1
+endif

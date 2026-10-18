@@ -780,9 +780,13 @@ war3map_t *FileReadWar3Map(handle_t archive) {
             war3mapVertex_t const *r = GetWar3MapVertex(map, x+1, y);
             war3mapVertex_t const *t = GetWar3MapVertex(map, x, y-1);
             war3mapVertex_t const *b = GetWar3MapVertex(map, x, y+1);
-            if (l && r && l->ramp && r->ramp && l->level != r->level) {
+            /* Only the low endpoint is lifted to the midpoint. A high corner can also lie
+             * between differently layered ramp neighbours where two ramps meet (Human03). */
+            if (l && r && l->ramp && r->ramp && l->level != r->level &&
+                vert->level == MIN(l->level, r->level)) {
                 vert->cliffVariation = 1;
-            } else if (t && b && t->ramp && b->ramp && t->level != b->level) {
+            } else if (t && b && t->ramp && b->ramp && t->level != b->level &&
+                       vert->level == MIN(t->level, b->level)) {
                 vert->cliffVariation = 1;
             }
 //            printf("%x", GetWar3MapVertex(map, x, y)->level);

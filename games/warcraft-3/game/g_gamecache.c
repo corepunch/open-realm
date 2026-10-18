@@ -676,6 +676,8 @@ edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cst
     unit = SP_SpawnAtLocation(saved->class_id, player, location);
     if (!unit) return NULL;
     unit->s.angle = DEG2RAD(facing);
+    if (G_UnitIsHero(unit)) BZ_WC3_SCORE_LOG("score hero lifecycle event=restore owner=%u rawcode=%08x entity=%u cached_level=%u cached_xp=%u",
+        player, unit->class_id, unit->s.number, saved->hero.level, saved->hero.xp);
 
     if (saved->hero.level) {
         G_HeroApplyLevel(unit, saved->hero.level);

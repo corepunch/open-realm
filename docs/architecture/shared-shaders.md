@@ -1,7 +1,7 @@
 # Shared GL shader module
 
 Open Realm and Orion UI vendor byte-identical GL Shader releases under
-`vendor/gl_shader/`. The [module contract](../../vendor/gl_shader/README.md)
+`vendor/gl_shader/`. The [module contract](https://github.com/corepunch/open-realm/blob/main/vendor/gl_shader/README.md)
 describes GLSL generation, typed storage, profile limits, allocators and release
 synchronization. No game, SDL or engine math types are part of that module.
 

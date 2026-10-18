@@ -12,6 +12,9 @@
 #include <stdlib.h>
 
 #include "../../client/client.h"
+#ifdef BZ_TESTS
+#include "shared/test.h"
+#endif
 
 struct client_state cl;
 struct client_static cls;
@@ -253,3 +256,12 @@ handle_t MemAlloc(long size) {
     return p;
 }
 void MemFree(handle_t p) { free(p); }
+
+#ifdef BZ_TESTS
+/* Standalone clients already resolve every save through Test_TempPath below. */
+cstring_t FS_HomePath(void) { return Test_TempPath("client-home"); }
+void FS_SetHomeDirectory(cstring_t dir) { (void)dir; }
+void FS_SavePath(cstring_t name, string_t out, uint32_t size) {
+    snprintf(out, size, "%s.sav", Test_TempPath(name ? name : "save"));
+}
+#endif

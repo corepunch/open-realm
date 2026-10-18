@@ -29,6 +29,80 @@ WTS_RE = re.compile(r"(?ms)^\s*STRING\s+(\d+)\s*\{\s*(.*?)\s*^\}")
 BROAD_RE = re.compile(
     r"(?:error|failed|missing|invalid|unimplemented|assert|overflow|exhaust|\bfull\b|stopped|"
     r"unreachable|not found|fatal|signal|segmentation|abort|corrupt|cannot)", re.I)
+# These are source-level indicators only. A call does not prove a branch ran,
+# and a map may change difficulty indirectly through its own helper functions.
+DIFFICULTY_NATIVES = (
+    "GetGameDifficulty", "SetGameDifficulty", "GetDefaultDifficulty",
+    "SetDefaultDifficulty", "SetPlayerHandicap", "SetPlayerHandicapXP",
+)
+AI_START_NATIVES = ("StartCampaignAI", "StartMeleeAI", "StartAI")
+AI_DIFFICULTY_HELPERS = ("CampaignAI", "CampaignAttackerEx", "CampaignDefenderEx", "SetReplacements")
+
+
+def mask_jass_comments_and_strings(source: str, mask_strings: bool = True) -> str:
+    """Blank JASS // comments and optionally quoted strings, retaining line positions."""
+    pattern = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*')
+
+    def replace(match: re.Match[str]) -> str:
+        value = match.group()
+        if value.startswith('"') and not mask_strings:
+            return value
+        return " " * len(value)
+
+    return pattern.sub(replace, source)
+
+
+def jass_call_arguments(source: str, start: int) -> str:
+    """Take a balanced argument list, including nested Player(...) expressions."""
+    depth = 1
+    quoted = False
+    escaped = False
+    for pos in range(start, min(len(source), start + 2048)):
+        char = source[pos]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return source[start:pos]
+    return ""  # malformed or dynamic call: never guess the filename
+
+
+def scan_difficulty_source(source: str) -> dict[str, Any]:
+    """Locate relevant calls in JASS/AI text, without pretending to execute scripts."""
+    clean = mask_jass_comments_and_strings(source)
+    lines = clean.splitlines()
+    calls: dict[str, list[int]] = {}
+    for name in (*DIFFICULTY_NATIVES, *AI_START_NATIVES, *AI_DIFFICULTY_HELPERS):
+        regex = re.compile(r"\b" + name + r"\s*\(")
+        hits = [index for index, line in enumerate(lines, 1)
+                if regex.search(line) and not re.match(r"\s*(?:native|function)\b", line)]
+        if hits:
+            calls[name] = hits
+
+    # String literals in StartCampaignAI are data, not executable tokens. Keep
+    # them for script discovery while still masking comments and string content
+    # in the native-call scan above.
+    with_strings = mask_jass_comments_and_strings(source, mask_strings=False)
+    scripts: set[str] = set()
+    for match in re.finditer(r"\b(?:StartCampaignAI|StartMeleeAI|StartAI)\s*\(", clean):
+        # Only read balanced arguments from the corresponding source position;
+        # a filename in the next statement or an unrelated string is not an AI.
+        args = jass_call_arguments(with_strings, match.end())
+        for script in re.findall(r'"([^"\n]+\.ai)"', args, re.I):
+            scripts.add(script.replace("\\", "/"))
+    return {"calls": calls, "ai_scripts": sorted(scripts, key=str.casefold)}
+
+
 FAMILY_MEANINGS = {
     "SIGSEGV": "Process exited on signal 11; an optional serial rerun confirms reproducibility.",
     "PROCESS_EXIT": "Process returned a nonzero exit code other than signal 11.",
@@ -98,6 +172,79 @@ def loose_map_spec(path: Path, data: Path) -> dict[str, str]:
         "path": str(rel).replace("\\", "/"),
         "loose": "1",
     }
+
+
+def read_map_member(item: dict[str, str], mpqtool: Path, member: str) -> bytes:
+    """Read a member from a loose map or a campaign map nested in a retail MPQ."""
+    archive = Path(item["archive"])
+    if item.get("loose"):
+        return run_mpqtool(mpqtool, archive, "cat", member)
+    payload = run_mpqtool(mpqtool, archive, "cat", item["path"])
+    with tempfile.NamedTemporaryFile(prefix="wc3-difficulty-map-", suffix=Path(item["filename"]).suffix) as nested:
+        nested.write(payload)
+        nested.flush()
+        return run_mpqtool(mpqtool, Path(nested.name), "cat", member)
+
+
+def read_campaign_ai_source(script: str, item: dict[str, str], data: Path,
+                            mpqtool: Path) -> str | None:
+    """Read explicitly referenced scripts; absence is unknown, not a gameplay failure."""
+    member = script.replace("/", "\\")
+    if not member.lower().startswith("scripts\\"):
+        member = "Scripts\\" + member
+    # Map-local overrides take precedence over scripts from the mounted game
+    # archives. Preserve that ordering in the source audit as well.
+    try:
+        return read_map_member(item, mpqtool, member).decode(errors="replace")
+    except RuntimeError:
+        pass
+    archives = ([data / "Frozen Throne/War3x.mpq", data / "War3.mpq"]
+                if item["edition"] == "TFT" else [data / "War3.mpq"])
+    for archive in archives:
+        if not archive.is_file():
+            continue
+        try:
+            return run_mpqtool(mpqtool, archive, "cat", member).decode(errors="replace")
+        except RuntimeError:
+            continue
+    return None
+
+
+def difficulty_map_result(item: dict[str, str], data: Path, mpqtool: Path) -> dict[str, Any]:
+    """Build an evidence row; report missing scripts rather than inferring parity."""
+    row: dict[str, Any] = {"edition": item["edition"], "path": item["path"],
+                           "filename": item["filename"], "calls": {}, "ai_scripts": []}
+    try:
+        source = read_map_member(item, mpqtool, "war3map.j").decode(errors="replace")
+        summary = scan_difficulty_source(source)
+        row["calls"] = summary["calls"]
+        for script in summary["ai_scripts"]:
+            ai_source = read_campaign_ai_source(script, item, data, mpqtool)
+            row["ai_scripts"].append({"path": script,
+                                      "found": ai_source is not None,
+                                      "calls": scan_difficulty_source(ai_source)["calls"] if ai_source is not None else {}})
+    except RuntimeError as error:
+        row["error"] = str(error)
+    return row
+
+
+def render_difficulty_markdown(rows: list[dict[str, Any]]) -> str:
+    lines = [
+        "# Warcraft III campaign difficulty source audit", "",
+        "This is a **static inventory**, not evidence that any branch runs or that the",
+        "difficulty-specific waves, triggers, resources or unit counts are correct.",
+        "A mission can use indirect difficulty helpers not detected by this scan.", "",
+        "| Edition | Mission | Map difficulty APIs (line numbers) | Referenced AI scripts | Extraction |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        calls = ", ".join(f"`{name}`: {','.join(map(str, lines_))}"
+                          for name, lines_ in row["calls"].items()) or "none detected"
+        ai = ", ".join(f"`{item['path']}`" + ("" if item["found"] else " (not resolved)")
+                       for item in row["ai_scripts"]) or "none detected"
+        status = "error (see JSON)" if "error" in row else "read"
+        lines.append(f"| {row['edition']} | `{row['filename']}` | {calls} | {ai} | {status} |")
+    return "\n".join(lines) + "\n"
 
 
 def clean_title(text: str) -> str:
@@ -260,7 +407,9 @@ def run_map(item: dict[str, str], index: int, args: argparse.Namespace, log_path
             *(["-tft"] if item["edition"] == "TFT" else []),
             "+dedicated", "1", "+set", "game_port", str(args.port_base + index),
             "+set", "com_fast_forward", "1", "+set", "vid_hidden", "1",
-            "+set", "skip_cutscene", "1", "+map", item["path"],
+            "+set", "skip_cutscene", "1",
+            "+set", "wc3_campaign_difficulty", str(args.campaign_difficulty),
+            "+map", item["path"],
             "+com_frame_limit", str(args.frames),
         ]
         try:
@@ -295,6 +444,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "## Actual bounded campaign-map audit", "",
         f"Audited commit `{report['commit']}` with `build/bin/openwarcraft3`.", "",
+        f"Campaign launch difficulty: **{('Easy', 'Normal', 'Hard')[report.get('campaign_difficulty', 1)]}**.", "",
         f"Each of {len(maps)} retail campaign maps was launched headlessly with `com_fast_forward=1` for "
         f"**{report['frames']} frames / {sim:.0f} simulated {sim_unit}**. Each process used "
         f"an isolated writable home, a unique UDP port, and a {report['timeout_seconds']}s wall timeout. "
@@ -346,6 +496,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--rerun-crashes", action="store_true", help="confirm first-pass crashes serially")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "build/wc3-map-audit")
     parser.add_argument("--fail-on-crash", action="store_true", help="exit nonzero after writing the report")
+    parser.add_argument("--campaign-difficulty", type=int, choices=(0, 1, 2), default=1,
+                        help="campaign preference for bounded runtime audit: 0 Easy, 1 Normal, 2 Hard")
+    parser.add_argument("--difficulty-scan", action="store_true",
+                        help="inventory difficulty calls and AI references without launching maps")
     return parser.parse_args(argv)
 
 
@@ -367,7 +521,8 @@ def main() -> int:
     if args.port_base < 1024 or args.port_base + 1000 >= 65536:
         print("error: port-base must leave room for unique audit ports", file=sys.stderr)
         return 2
-    for tool in (args.mpqtool, args.binary):
+    tools = (args.mpqtool,) if args.difficulty_scan else (args.mpqtool, args.binary)
+    for tool in tools:
         if not tool.is_file():
             print(f"error: executable not found: {tool}", file=sys.stderr)
             return 2
@@ -383,6 +538,13 @@ def main() -> int:
             kind = "loose" if args.loose_map else "campaign"
             raise RuntimeError(f"no {kind} maps matched {args.map!r}")
         args.output_dir.mkdir(parents=True, exist_ok=True)
+        if args.difficulty_scan:
+            rows = [difficulty_map_result(item, args.data, args.mpqtool) for item in maps]
+            (args.output_dir / "difficulty-report.json").write_text(json.dumps(rows, indent=2) + "\n")
+            (args.output_dir / "difficulty-report.md").write_text(render_difficulty_markdown(rows))
+            print(f"wrote {args.output_dir / 'difficulty-report.json'}")
+            print(f"wrote {args.output_dir / 'difficulty-report.md'}")
+            return 1 if any("error" in row for row in rows) else 0
         started = time.monotonic()
         results: list[dict[str, Any] | None] = [None] * len(maps)
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
@@ -423,6 +585,7 @@ def main() -> int:
             "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "frames": args.frames, "simulated_seconds": args.frames / 10,
+            "campaign_difficulty": args.campaign_difficulty,
             "timeout_seconds": args.timeout, "jobs": args.jobs,
             "wall_seconds": round(time.monotonic() - started, 3), "maps": report_maps,
         }

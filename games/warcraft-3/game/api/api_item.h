@@ -26,8 +26,10 @@ uint32_t RemoveItem(jass_t *j) {
     return 0;
 }
 uint32_t GetItemPlayer(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushnullhandle(j, "player");
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    return item && G_IsItem(item) && item->s.player < MAX_PLAYERS
+        ? jass_pushlighthandle(j, G_GetPlayerByNumber(item->s.player), "player")
+        : jass_pushnullhandle(j, "player");
 }
 uint32_t GetItemTypeId(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
@@ -85,8 +87,12 @@ uint32_t SetItemPosition(jass_t *j) {
     return 0;
 }
 uint32_t SetItemDropOnDeath(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    //bool flag = jass_checkboolean(j, 2);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    bool flag = jass_checkboolean(j, 2);
+    if (item && G_IsItem(item)) {
+        item->item->drop_on_death_set = true;
+        item->item->drop_on_death = flag;
+    }
     return 0;
 }
 uint32_t SetItemDroppable(jass_t *j) {
@@ -99,9 +105,15 @@ uint32_t SetItemDroppable(jass_t *j) {
     return 0;
 }
 uint32_t SetItemPlayer(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    //player_t *whichPlayer = jass_checkhandle(j, 2, "player");
-    //bool changeColor = jass_checkboolean(j, 3);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    player_t *player = jass_checkhandle(j, 2, "player");
+    bool changeColor = jass_checkboolean(j, 3);
+    /* Ownership is independent of the item carrier. The changeColor flag
+     * controls presentation only; item visuals do not currently expose a
+     * separate, mutable player-colour override. */
+    (void)changeColor;
+    if (item && G_IsItem(item) && player && PLAYER_NUM(player) < MAX_PLAYERS)
+        item->s.player = PLAYER_NUM(player);
     return 0;
 }
 uint32_t SetItemInvulnerable(jass_t *j) {
@@ -121,26 +133,37 @@ uint32_t GetManipulatedItem(jass_t *j) {
 uint32_t GetOrderTargetItem(jass_t *j) {
     return jass_pushnullhandle(j, "item");
 }
+uint32_t GetFilterItem(jass_t *j) {
+    extern edict_t *currentenumitem;
+    return jass_pushlighthandle(j, currentenumitem, "item");
+}
 uint32_t GetEnumItem(jass_t *j) {
     extern edict_t *currentenumitem;
     return jass_pushlighthandle(j, currentenumitem, "item");
 }
 uint32_t EnumItemsInRect(jass_t *j) {
-    /* Visit every in-world item inside the rect, exposing each as the enum item
-     * (GetEnumItem) while the action runs. Mirrors EnumDestructablesInRect;
-     * the boolexpr filter (arg 2) is ignored for now. */
+    /* The filter and action both observe the candidate item. Preserve the
+     * caller's context across recursive enumerations, including null rects. */
     extern edict_t *currentenumitem;
+    edict_t *previous = currentenumitem;
     box2_t *r = jass_checkhandle(j, 1, "rect");
+    jassFunc_t const *filter = jass_checkhandle(j, 2, "boolexpr");
     jassFunc_t const *actionFunc = jass_checkcode(j, 3);
     if (!r) return 0;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
-        if (G_IsItem(ent) && ent->item->in_world && Box2_containsPoint(r, &ent->s.origin2)) {
+        if (!G_IsItem(ent) || !ent->item->in_world ||
+            !Box2_containsPoint(r, &ent->s.origin2)) continue;
+        currentenumitem = ent;
+        if (jass_evaluateboolexpr(j, filter, ent) && actionFunc) {
+            /* A filter may recursively enumerate other items. */
             currentenumitem = ent;
-            if (actionFunc) { jass_pushfunction(j, actionFunc); jass_call(j, 0); }
+            jass_pushfunction(j, actionFunc);
+            jass_call(j, 0);
         }
+        currentenumitem = previous;
     }
-    currentenumitem = NULL;
+    currentenumitem = previous;
     return 0;
 }
 uint32_t GetItemName(jass_t *j) {

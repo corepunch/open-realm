@@ -89,7 +89,7 @@ for registry metadata. `AB_SPELL`, `AB_COMMAND`, `AB_ITEM`, `AB_UPDATE`, `AB_CHA
 A concrete procedure handles only its own behavior and delegates unhandled messages to its shared parent:
 
 Define it with `BZ_ABILITY_PROC(CAbilityHolyBolt)`, which supplies `ent`, `msg`, and `call`.
-[Holy Light's implementation](../../../games/warcraft-3/game/skills/s_holylight.c) handles `A_VALIDATE` and
+[Holy Light's implementation](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/skills/s_holylight.c) handles `A_VALIDATE` and
 `A_EXECUTE`, reads `call->target` within those cases, and ends its switch with:
 
 ```c

@@ -88,6 +88,8 @@ bool CM_TerrainPointIsSwimmable(vec2_t const *location);
 bool CM_LineIsWalkableForRadius(vec2_t const *a, vec2_t const *b, float radius);
 bool CM_LineIsPathableForRadiusFlags(vec2_t const *a, vec2_t const *b, float radius, uint8_t blocked_flags);
 bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);
+bool CM_GetTerrainPathingFlagsAt(vec2_t const *location, uint8_t *flags);
+float CM_PathDistanceForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius, uint8_t blocked_flags);
 bool CM_FindDirectApproachPointForRadius(vec2_t const *from, vec2_t const *target, float range, float radius, vec2_t *out);
 float CM_PathCellWorldSize(void);
 uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);

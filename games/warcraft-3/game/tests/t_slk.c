@@ -169,9 +169,18 @@ TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
     info.flags = melee_map;
     T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
 
+    /* TFT W3I can use all ones for an unspecified data set.  This must
+     * resolve from the map type rather than implicitly selecting Melee. */
+    info.gameDataSet = UINT32_MAX;
     info.flags = 0;
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_CUSTOM);
+    info.flags = melee_map;
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
+
+    /* Explicit values take precedence over the melee flag. */
     info.gameDataSet = WC3_MAP_GAME_DATA_SET_CUSTOM;
     T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_CUSTOM);
+    info.flags = 0;
     info.gameDataSet = WC3_MAP_GAME_DATA_SET_MELEE;
     T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
     info.gameDataSet = 99;
@@ -194,6 +203,16 @@ TEST(wc3_slk, map_game_data_prefix_tracks_dataset_and_edition) {
     G_MapGameDataPrefix(&params);
     T_STREQ(prefix, "Melee_V0");
     params.version = 1;
+    G_MapGameDataPrefix(&params);
+    T_STREQ(prefix, "Melee_V1");
+
+    /* Regression: an unset TFT marker must select the campaign/custom
+     * overlay instead of falling through a missing Melee_V1 file to root. */
+    info.gameDataSet = UINT32_MAX;
+    info.flags = 0;
+    G_MapGameDataPrefix(&params);
+    T_STREQ(prefix, "Custom_V1");
+    info.flags = melee_map;
     G_MapGameDataPrefix(&params);
     T_STREQ(prefix, "Melee_V1");
 }
@@ -270,6 +289,19 @@ TEST(wc3_slk, ini_cache_handles_carriage_return_only_lines) {
     T_STREQ(Stb_IniCacheFind(&cache, "Data", "First"), "crlf");
     T_STREQ(Stb_IniCacheFind(&cache, "Data", "Second"), "still-crlf");
     Stb_IniCacheFree(&cache);
+}
+
+TEST(wc3_slk, legacy_worldedit_destructable_names_use_compatibility_lookup) {
+    InitUnitData();
+#if BZ_COMPAT_WORKAROUNDS
+    T_STREQ(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOBA"), "Barricade");
+    T_STREQ(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOCS"), "Crates");
+#else
+    T_NULL(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOBA"));
+    T_NULL(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOCS"));
+#endif
+    ShutdownUnitData();
+    InitUnitData(); /* Restore shared tables for later tests in this process. */
 }
 
 /* Map-archive Units\CampaignUnitFunc.txt and war3mapMisc.txt must win over base

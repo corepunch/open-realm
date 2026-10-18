@@ -227,8 +227,19 @@ uint32_t SetUnitState(jass_t *j) {
          * animation, cleanup, and campaign triggers that react to death. */
         if (oldLife > 0.0f && newVal <= 0.0f && !(whichUnit->svflags & SVF_DEADMONSTER) && whichUnit->die)
             whichUnit->die(whichUnit, NULL);
+    } else if (*whichUnitState == WC3_UNIT_STATE_MAX_LIFE) {
+        float const old_max = whichUnit->health.max_value;
+        float const ratio = old_max > 0.0f ? whichUnit->health.value / old_max : 0.0f;
+        whichUnit->health.max_value = MAX(0.0f, newVal);
+        G_SetHealth(whichUnit, MIN(whichUnit->health.max_value, whichUnit->health.max_value * ratio));
+    } else if (*whichUnitState == WC3_UNIT_STATE_MANA) {
+        whichUnit->mana.value = MAX(0.0f, MIN(whichUnit->mana.max_value, newVal));
+    } else if (*whichUnitState == WC3_UNIT_STATE_MAX_MANA) {
+        float const old_max = whichUnit->mana.max_value;
+        float const ratio = old_max > 0.0f ? whichUnit->mana.value / old_max : 0.0f;
+        whichUnit->mana.max_value = MAX(0.0f, newVal);
+        whichUnit->mana.value = whichUnit->mana.max_value * ratio;
     }
-    else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
     return 0;
 }
@@ -240,10 +251,30 @@ uint32_t SetUnitState(jass_t *j) {
 //    return 0;
 //}
 uint32_t GetUnitState(jass_t *j) {
-    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
-    if(whichUnit && whichUnitState && *whichUnitState==WC3_UNIT_STATE_LIFE)G_SampleHealthRegen(whichUnit);
-    float value = whichUnit && whichUnitState ? (&whichUnit->health.value)[*whichUnitState] : 0;
+    handle_t first = jass_checkhandle(j, 1, "unit");
+    handle_t second = jass_checkhandle(j, 2, "unitstate");
+    edict_t *whichUnit = NULL;
+    UNITSTATE *whichUnitState = NULL;
+    float value = 0.0f;
+
+    /* Some retail scripts pass (unitstate, unit) to this native via the
+     * Blizzard GetUnitStateSwap wrapper. Identify live edict handles by
+     * membership before dereferencing either argument as a unit. */
+    FILTER_EDICTS(ent, true) {
+        if ((handle_t)ent == first) whichUnit = ent;
+        if ((handle_t)ent == second) whichUnit = ent;
+    }
+    if (whichUnit == (edict_t *)first) whichUnitState = second;
+    else if (whichUnit == (edict_t *)second) whichUnitState = first;
+
+    if (whichUnit && whichUnitState) {
+        switch (*whichUnitState) {
+        case WC3_UNIT_STATE_LIFE: G_SampleHealthRegen(whichUnit); value = whichUnit->health.value; break;
+        case WC3_UNIT_STATE_MAX_LIFE: value = whichUnit->health.max_value; break;
+        case WC3_UNIT_STATE_MANA: value = whichUnit->mana.value; break;
+        case WC3_UNIT_STATE_MAX_MANA: value = whichUnit->mana.max_value; break;
+        }
+    }
     return jass_pushnumber(j, value);
 }
 uint32_t SetUnitPosition(jass_t *j) {
@@ -277,6 +308,10 @@ uint32_t SetUnitOwner(jass_t *j) {
     if (whichUnit && whichPlayer) {
         uint32_t const previous_player = whichUnit->s.player;
         uint32_t const previous_color = G_GetUnitTeamColor(whichUnit);
+        if (G_UnitIsHero(whichUnit) && previous_player != PLAYER_NUM(whichPlayer))
+            BZ_WC3_SCORE_LOG("score hero lifecycle event=owner_change rawcode=%08x entity=%u from=%u to=%u level=%u xp=%u",
+                whichUnit->class_id, whichUnit->s.number, previous_player,
+                PLAYER_NUM(whichPlayer), whichUnit->hero.level, whichUnit->hero.xp);
         G_SetUnitPlayer(whichUnit, PLAYER_NUM(whichPlayer));
         if (change_color) {
             G_ClearUnitColorOverride(whichUnit);
@@ -513,7 +548,7 @@ uint32_t SetHeroLevelBJ(jass_t *j) {
         G_HeroStripLevels(whichHero, (uint32_t)MIN(remove, (int64_t)UINT32_MAX));
     } else if (newLevel > (int32_t)whichHero->hero.level) {
         uint32_t const target = MIN((uint32_t)newLevel, G_MaxHeroLevel());
-        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
+        G_HeroSetXPForLevel(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
     }
     return 0;
 }
@@ -528,7 +563,7 @@ uint32_t SetHeroLevel(jass_t *j) {
          * identical to ordinary XP gains. */
         uint32_t const target = MIN((uint32_t)level, G_MaxHeroLevel());
         uint32_t const need = G_HeroXPForLevel(target);
-        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, need));
+        G_HeroSetXPForLevel(whichHero, MAX(whichHero->hero.xp, need));
     }
     return 0;
 }
@@ -741,8 +776,12 @@ uint32_t ReviveHeroLoc(jass_t *j) {
         G_ReviveHero(whichHero, location->x, location->y));
 }
 uint32_t SetUnitExploded(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //bool exploded = jass_checkboolean(j, 2);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    bool exploded = jass_checkboolean(j, 2);
+    if (whichUnit && !(whichUnit->svflags & SVF_DEADMONSTER)) {
+        if (exploded) whichUnit->aiflags |= AI_SCRIPT_EXPLODED;
+        else whichUnit->aiflags &= ~AI_SCRIPT_EXPLODED;
+    }
     return 0;
 }
 uint32_t SetUnitInvulnerable(jass_t *j) {

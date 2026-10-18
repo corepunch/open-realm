@@ -2,11 +2,12 @@
 
 ## Build Profiles
 
-The Makefile has four independent build choices:
+The Makefile has five independent build choices:
 
 | Variable | Values | Default | Contract |
 |---|---|---|---|
 | `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2 -fno-semantic-interposition`; debug adds `-O0 -g` |
+| `COMPAT_WORKAROUNDS` | `0`, `1` | `1` | Enables explicitly gated compatibility workarounds, including RoC Entangle data recovery and the `AHad`→`BHad` aura visual mapping described in [Race Mechanics](games/warcraft-3/race-mechanics.md#race-specific-gold-mining) and [Aura Targets And Overlays](games/warcraft-3/aura-targets-and-overlays.md) |
 | `GL_BACKEND` | `gl`, `gles3` | `gl` | Desktop OpenGL 3.1, or Linux OpenGL ES 3.0 |
 | `MSAA` | `0`, `2`, `4`, `8` | `0` | Compile-time default framebuffer sample count |
 | `GLSL` | `120`, `140`, `150` | `140` | GLSL version for descriptor-based shaders (ignored when `GL_BACKEND=gles3`) |
@@ -17,6 +18,10 @@ All configurations currently share `build/`, so clean before changing any build 
 make clean
 make BUILD=release GL_BACKEND=gles3 MSAA=0 openwarcraft3
 ```
+
+Set `COMPAT_WORKAROUNDS=0` to build without the gated compatibility paths. This
+does not disable ordinary old-format support. The variable accepts only `0` or
+`1`; leave it at its default to retain existing behavior.
 
 That is the recommended RG40XX build. Its Mali-G31 hardware supports OpenGL ES 3.2, while Mesa Panfrost exposes OpenGL ES 3.1 on G31. The runtime only requests ES 3.0. Confirm the firmware driver rather than assuming it from the GPU:
 

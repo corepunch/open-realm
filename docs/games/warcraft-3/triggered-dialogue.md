@@ -265,7 +265,7 @@ the transmission itself, and fog state is unchanged.
 
 - [Quest And Message Log UI](quest-and-message-log-ui.md)
 - [Server-Authored UI Payloads](../../architecture/ui-payloads.md)
-- [JASS Native Coverage](jass-native-coverage.md)
+- [JASS Native Coverage](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md)
 
 See also: [Alerts And Minimap Pings](alerts-and-minimap-pings.md).
 

@@ -71,6 +71,8 @@ static bool command_tests_initialized;
 static bool late_command_called;
 static bool save_map_readable;
 static bool load_game_ok;
+static uint32_t control_groups_load_calls;
+static PATHSTR last_control_groups_load;
 static unsigned short last_connect_port;
 
 extern bool cl_screenshot_pending;
@@ -100,6 +102,11 @@ void CL_Connect(cstring_t host, unsigned short port) {
 
 void CL_BeginLoadingMap(cstring_t mapName) {
     snprintf(last_loading_map, sizeof(last_loading_map), "%s", mapName ? mapName : "");
+}
+
+void CL_ControlGroupsLoad(cstring_t name) {
+    control_groups_load_calls++;
+    snprintf(last_control_groups_load, sizeof(last_control_groups_load), "%s", name ? name : "");
 }
 
 void CL_Shutdown(void) {
@@ -137,6 +144,8 @@ static void reset_map_handoff(void) {
     last_sv_map[0] = '\0';
     last_load_name[0] = '\0';
     last_load_map[0] = '\0';
+    control_groups_load_calls = 0;
+    last_control_groups_load[0] = '\0';
     last_connect_host[0] = '\0';
     last_forwarded[0] = '\0';
     late_command_called = false;
@@ -310,6 +319,23 @@ TEST(commands, save_list_returns_newest_sav_basenames_first) {
     remove(older);
     remove(newer);
     remove(ignored);
+}
+
+TEST(commands, save_list_keeps_basenames_containing_spaces) {
+    PATHSTR path;
+    char list[256] = { 0 };
+    FILE *file;
+
+    setup_command_tests();
+    FS_SetHomeDirectory(Test_TempPath("save-space-list-test"));
+    FS_SavePath("Night Elf 04 custom save", path, sizeof(path));
+    remove(path);
+    file = fopen(path, "wb"); T_NOT_NULL(file);
+    if (file) fclose(file);
+    T_EQ(FS_ListSaves(list, sizeof(list)), 1);
+    T_STREQ(list, "Night Elf 04 custom save");
+    T_EQ(list[strlen(list) + 1], '\0');
+    T_ASSERT(FS_DeleteSave("Night Elf 04 custom save"));
 }
 
 TEST(commands, delete_save_removes_named_save_file) {
@@ -606,7 +632,7 @@ TEST(commands, screenshot_optional_delay_counts_rendered_frames) {
 }
 
 typedef struct {
-    uint32_t count;
+    uint32_t count, found;
     bool human02;
     bool orc01;
     bool twin_w3m;
@@ -618,9 +644,24 @@ typedef struct {
     bool pathing_seed_mixed, pathing_seed_fixed, pathing_seed_triad;
 } mapListState_t;
 
+static cstring_t const fixture_maps[] = {
+    "Maps\\Campaign\\Human02.w3m",
+    "Maps\\Campaign\\Human03.w3m",
+    "Maps\\FrozenThrone\\Campaign\\NightElfX04.w3x",
+    "Maps\\Campaign\\Orc01.w3m",
+    "Maps\\Melee\\TwinRivers.w3m",
+    "Maps\\FrozenThrone\\TwinRivers.w3x",
+    "Maps\\MapOverlay.w3x",
+    "Maps\\Transport.w3m",
+    "Maps\\Test\\PathingReload.w3m",
+    "Maps\\Test\\PathingChangeLevel.w3m",
+    "Maps\\Test\\PathingSeedMixed.w3m",
+    "Maps\\Test\\PathingSeedFixed.w3m",
+    "Maps\\Test\\PathingSeedTriad.w3m",
+};
+
 static void count_fixture_map(cstring_t path, void *userData) {
     mapListState_t *state = userData;
-
     state->count++;
     if (!strcmp(path, "Maps\\Campaign\\Human02.w3m")) {
         state->human02 = true;
@@ -645,16 +686,18 @@ static void count_fixture_map(cstring_t path, void *userData) {
     } else if (!strcmp(path, "Maps\\Test\\PathingSeedTriad.w3m")) {
         state->pathing_seed_triad = true;
     }
+    FOR_LOOP(i, sizeof(fixture_maps) / sizeof(fixture_maps[0]))
+        if (!strcmp(path, fixture_maps[i])) state->found |= 1u << i;
 }
 
-/* Nested overlay and loadable transport archives are included in the fixture map list. */
+/* Nested overlay, terrain and loadable transport archives are included in the fixture map list. */
 TEST(commands, fixture_maps_are_listed_from_mpq) {
     mapListState_t state = { 0 };
-
+    uint32_t expected = sizeof(fixture_maps) / sizeof(fixture_maps[0]);
     setup_command_tests();
 
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 11);
-    T_EQ(state.count, 11);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), expected);
+    T_EQ(state.count, expected);
     T_ASSERT(state.human02);
     T_ASSERT(state.orc01);
     T_ASSERT(state.twin_w3m);
@@ -666,6 +709,7 @@ TEST(commands, fixture_maps_are_listed_from_mpq) {
     T_ASSERT(state.pathing_seed_mixed);
     T_ASSERT(state.pathing_seed_fixed);
     T_ASSERT(state.pathing_seed_triad);
+    T_EQ(state.found, (1u << expected) - 1);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {
@@ -726,8 +770,21 @@ TEST(commands, load_command_reloads_saved_map_without_connect) {
     T_STREQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
     T_STREQ(last_load_name, "quick");
     T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
+    T_EQ(control_groups_load_calls, 1);
+    T_STREQ(last_control_groups_load, "quick");
     /* Q2 load reconnects with "new" on the existing slot, not CL_Connect. */
     T_STREQ(last_connect_host, "");
+}
+
+TEST(commands, load_command_accepts_quoted_save_name_with_spaces) {
+    setup_command_tests();
+    reset_map_handoff();
+    Cvar_Set("dedicated", "0"); Cvar_Set("game_port", "28015");
+
+    Cmd_ExecuteString("load \"Night Elf 04 custom save\"");
+
+    T_STREQ(last_load_name, "Night Elf 04 custom save");
+    T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
 }
 
 TEST(commands, load_command_stops_when_save_map_is_unreadable) {

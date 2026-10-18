@@ -21,8 +21,8 @@ uint32_t class_id(cstring_t str) { return *(uint32_t *)str; }
 
 /* Converted enums are owned JASS handles; enum equality compares their uint32_t payload. */
 static uint32_t JassPushEnumHandle(jass_t *j, cstring_t type, int32_t value) {
-    uint32_t *handle = jass_newhandle(j, sizeof(*handle), type);
-    *handle = (uint32_t)value;
+    int32_t *handle = jass_newhandle(j, sizeof(*handle), type);
+    *handle = value;
     return 1;
 }
 
@@ -940,7 +940,11 @@ uint32_t LoadGame(jass_t *j) {
     return 0;
 }
 uint32_t SetCampaignMenuRace(jass_t *j) {
-    //handle_t r = jass_checkhandle(j, 1, "race");
+    int32_t const *race = jass_checkhandle(j, 1, "race");
+    /* Only the four campaign races have a matching registered menu command. */
+    int32_t value = 0;
+    if (race) value = *race;
+    if (race && value >= 1 && value <= 4) level.campaign_menu_race = value;
     return 0;
 }
 static bool creep_camp_filter_state = true;
@@ -1356,29 +1360,93 @@ uint32_t PlaceRandomUnit(jass_t *j) {
     //float facing = jass_checknumber(j, 5);
     return jass_pushnullhandle(j, "unit");
 }
+/* Item pools are JASS-owned handles. Keep entries inline so destroying a pool
+ * or discarding the script VM cannot leak separately allocated entry buffers. */
+#define WC3_ITEM_POOL_MAX_TYPES 256
+
+typedef struct {
+    uint32_t type_id;
+    float weight;
+} jassItemPoolEntry_t;
+
+typedef struct {
+    bool destroyed;
+    uint32_t count;
+    jassItemPoolEntry_t entries[WC3_ITEM_POOL_MAX_TYPES];
+} jassItemPool_t;
+
 uint32_t CreateItemPool(jass_t *j) {
-    return jass_pushnullhandle(j, "itempool");
+    jassItemPool_t *pool = jass_newhandle(j, sizeof(*pool), "itempool");
+    if (!pool) return 1; /* jass_newhandle already pushed the handle */
+    memset(pool, 0, sizeof(*pool));
+    return 1;
 }
 uint32_t DestroyItemPool(jass_t *j) {
-    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
+    jassItemPool_t *pool = jass_checkhandle(j, 1, "itempool");
+    if (pool) {
+        pool->destroyed = true;
+        pool->count = 0;
+    }
     return 0;
 }
 uint32_t ItemPoolAddItemType(jass_t *j) {
-    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
-    //int32_t itemId = jass_checkinteger(j, 2);
-    //float weight = jass_checknumber(j, 3);
+    jassItemPool_t *pool = jass_checkhandle(j, 1, "itempool");
+    uint32_t type_id = (uint32_t)jass_checkinteger(j, 2);
+    float weight = jass_checknumber(j, 3);
+    uint32_t i;
+    if (!pool || pool->destroyed || !type_id || !isfinite(weight) || weight <= 0)
+        return 0;
+    for (i = 0; i < pool->count; ++i) {
+        if (pool->entries[i].type_id == type_id) {
+            pool->entries[i].weight = weight;
+            return 0;
+        }
+    }
+    if (pool->count < WC3_ITEM_POOL_MAX_TYPES) {
+        pool->entries[pool->count++] = (jassItemPoolEntry_t){ type_id, weight };
+    }
     return 0;
 }
 uint32_t ItemPoolRemoveItemType(jass_t *j) {
-    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
-    //int32_t itemId = jass_checkinteger(j, 2);
+    jassItemPool_t *pool = jass_checkhandle(j, 1, "itempool");
+    uint32_t type_id = (uint32_t)jass_checkinteger(j, 2);
+    uint32_t i;
+    if (!pool || pool->destroyed) return 0;
+    for (i = 0; i < pool->count; ++i) {
+        if (pool->entries[i].type_id == type_id) {
+            memmove(&pool->entries[i], &pool->entries[i + 1],
+                (pool->count - i - 1) * sizeof(pool->entries[0]));
+            --pool->count;
+            return 0;
+        }
+    }
     return 0;
 }
 uint32_t PlaceRandomItem(jass_t *j) {
-    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
-    //float x = jass_checknumber(j, 2);
-    //float y = jass_checknumber(j, 3);
-    return jass_pushnullhandle(j, "item");
+    jassItemPool_t *pool = jass_checkhandle(j, 1, "itempool");
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    double total = 0, roll;
+    uint32_t i, selected = 0;
+    edict_t *item;
+    if (!pool || pool->destroyed) return jass_pushnullhandle(j, "item");
+    for (i = 0; i < pool->count; ++i) {
+        /* Invalid types must not consume probability mass. */
+        ItemData_t const *data = G_ItemData(pool->entries[i].type_id);
+        if (data && data->file) total += pool->entries[i].weight;
+    }
+    if (total <= 0) return jass_pushnullhandle(j, "item");
+    roll = ((double)rand() / ((double)RAND_MAX + 1.0)) * total;
+    for (i = 0; i < pool->count; ++i) {
+        ItemData_t const *data = G_ItemData(pool->entries[i].type_id);
+        if (!data || !data->file) continue;
+        selected = pool->entries[i].type_id;
+        roll -= pool->entries[i].weight;
+        if (roll < 0) break;
+    }
+    if (!selected) return jass_pushnullhandle(j, "item");
+    item = SP_SpawnAtLocation(selected, 0, &MAKE(vec2_t, x, y));
+    return item ? jass_pushlighthandle(j, item, "item") : jass_pushnullhandle(j, "item");
 }
 uint32_t ChooseRandomCreep(jass_t *j) {
     //int32_t level = jass_checkinteger(j, 1);
@@ -1550,10 +1618,12 @@ uint32_t SetTerrainFogEx(jass_t *j) {
     return 0;
 }
 uint32_t SetWaterBaseColor(jass_t *j) {
-    //int32_t red = jass_checkinteger(j, 1);
-    //int32_t green = jass_checkinteger(j, 2);
-    //int32_t blue = jass_checkinteger(j, 3);
-    //int32_t alpha = jass_checkinteger(j, 4);
+    int32_t red = jass_checkinteger(j, 1);
+    int32_t green = jass_checkinteger(j, 2);
+    int32_t blue = jass_checkinteger(j, 3);
+    int32_t alpha = jass_checkinteger(j, 4);
+
+    G_WaterBaseColorSet(red, green, blue, alpha);
     return 0;
 }
 uint32_t SetWaterDeforms(jass_t *j) {

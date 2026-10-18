@@ -7,6 +7,7 @@
 #include "r_weather.h"
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap_render.h"
+#include "games/warcraft-3/common/player_colors.h"
 #include <ctype.h>
 #include <limits.h>
 #include <math.h>
@@ -1133,9 +1134,15 @@ static color32_t R_MinimapAllianceColor(renderEntity_t const *entity) {
     wc3MinimapColorKind_t const kind = R_MinimapColorKind(entity);
     switch (kind) {
     case WC3_MINIMAP_COLOR_SELF_WHITE: return COLOR32_WHITE;
-    case WC3_MINIMAP_COLOR_ENEMY_RED: return MAKE(color32_t, 255, 3, 3, 255);
+    case WC3_MINIMAP_COLOR_ENEMY_RED: {
+        uint32_t rgb = WC3_PlayerColorRGB(0);
+        return MAKE(color32_t, (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255, 255);
+    }
     case WC3_MINIMAP_COLOR_NEUTRAL_BLACK: return MAKE(color32_t, 0, 0, 0, 255);
-    case WC3_MINIMAP_COLOR_ALLY_TEAL: return MAKE(color32_t, 28, 230, 185, 255);
+    case WC3_MINIMAP_COLOR_ALLY_TEAL: {
+        uint32_t rgb = WC3_PlayerColorRGB(2);
+        return MAKE(color32_t, (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255, 255);
+    }
     case WC3_MINIMAP_COLOR_TEAM:
     default:
         return COLOR32_WHITE;

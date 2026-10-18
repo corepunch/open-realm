@@ -58,21 +58,21 @@ map-placed entities.
 
 ## Implementation locations
 
-- [`g_spawn.c`](../../../games/warcraft-3/game/g_spawn.c) owns the post-spawn link
+- [`g_spawn.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/g_spawn.c) owns the post-spawn link
   ordering and the Birth/no-Birth spawn entry points.
-- [`m_unit.c`](../../../games/warcraft-3/game/m_unit.c) owns the JASS `CreateUnit`
+- [`m_unit.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/m_unit.c) owns the JASS `CreateUnit`
   immediate-ready path.
-- [`g_utils.c`](../../../games/warcraft-3/game/g_utils.c) owns deferred edict
-  retirement; [`g_main.c`](../../../games/warcraft-3/game/g_main.c) drains it after
+- [`g_utils.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/g_utils.c) owns deferred edict
+  retirement; [`g_main.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/g_main.c) drains it after
   the frame's entity iteration and collision solve.
-- [`api_group.h`](../../../games/warcraft-3/game/api/api_group.h) keeps deferred
+- [`api_group.h`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/api/api_group.h) keeps deferred
   removals out of JASS unit enumerations while their edicts remain live for the
   rest of the frame.
-- [`g_bot.c`](../../../games/warcraft-3/game/g_bot.c), [`api_ai.h`](../../../games/warcraft-3/game/api/api_ai.h),
-  and [`api_module.c`](../../../games/warcraft-3/game/api/api_module.c) own the
+- [`g_bot.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/g_bot.c), [`api_ai.h`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/api/api_ai.h),
+  and [`api_module.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/api/api_module.c) own the
   `SuicidePlayer` native implementation and registration.
-- [`cl_parse.c`](../../../client/cl_parse.c) seeds entity baseline scale and
-  [`cl_view.c`](../../../client/cl_view.c) protects interpolated render scale so
+- [`cl_parse.c`](https://github.com/corepunch/open-realm/blob/main/client/cl_parse.c) seeds entity baseline scale and
+  [`cl_view.c`](https://github.com/corepunch/open-realm/blob/main/client/cl_view.c) protects interpolated render scale so
   deferred replacement entities retain their normal presentation and picking.
 
 ## Confirmed fixes
@@ -111,11 +111,11 @@ The following evidence is reproducible in the current tree:
   whitespace errors.
 
 The lifecycle regression tests are in
-[`games/warcraft-3/game/tests/t_api.c`](../../../games/warcraft-3/game/tests/t_api.c)
+[`games/warcraft-3/game/tests/t_api.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/tests/t_api.c)
 and
-[`games/warcraft-3/game/tests/t_jass_map.c`](../../../games/warcraft-3/game/tests/t_jass_map.c);
+[`games/warcraft-3/game/tests/t_jass_map.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/tests/t_jass_map.c);
 the AI behavior tests are in
-[`games/warcraft-3/game/tests/t_bot.c`](../../../games/warcraft-3/game/tests/t_bot.c).
+[`games/warcraft-3/game/tests/t_bot.c`](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/game/tests/t_bot.c).
 
 ## Confirmed regressions
 

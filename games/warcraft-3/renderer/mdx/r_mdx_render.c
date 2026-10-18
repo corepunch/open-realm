@@ -1,5 +1,6 @@
 #include "r_mdx.h"
 #include "renderer/r_local.h"
+#include <ctype.h>
 
 //typedef enum {
 //    vertexattr_position,
@@ -123,8 +124,10 @@ static uint32_t R_UISequenceFrame(mdxSequence_t const *seq, cstring_t anim, uint
     seq_len = seq->interval[1] - seq->interval[0];
     if (seq_len == 0) seq_len = 1;
     if (!R_UIAnimationRatio(anim, &ratio)) {
-        /* Retail non-looping sequences retain the inclusive authored endpoint. */
-        if (seq->flags & 1) return seq->interval[0] + MIN(anim_time, seq->interval[1] - seq->interval[0]);
+        /* MDX sequence end is exclusive (R_FindSequenceAtTime). Freezing
+         * a one-shot UI sprite at end makes all animation tracks lose their
+         * sequence context, including geoset visibility. Hold at end - 1. */
+        if (seq->flags & 1) return seq->interval[0] + MIN(anim_time, seq_len - 1);
         return seq->interval[0] + (anim_time % seq_len);
     }
 
@@ -136,35 +139,38 @@ static uint32_t R_UISequenceFrame(mdxSequence_t const *seq, cstring_t anim, uint
 static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, cstring_t anim) {
     mdxSequence_t const *seq = NULL;
     cstring_t sequence = anim;
+    bool const fdf_sprite_coords = anim && anim[0] == '#' && anim[1] == '!';
 
     if (!mdx) {
         return NULL;
     }
-    if (sequence && sequence[0] == '#' && sequence[1] == '!') {
+    if (fdf_sprite_coords) {
         sequence += 2;
     } else if (sequence && sequence[0] == '#') {
         sequence++;
     }
-    if (anim && anim[0] == '#') {
+    if (anim && anim[0] == '#' &&
+        (!fdf_sprite_coords || *sequence == '#' || isdigit((unsigned char)*sequence))) {
+        if (*sequence == '#') sequence++;
         char *end = NULL;
         unsigned long index = strtoul(sequence, &end, 10);
         if (end && (*end == '\0' || *end == '@') && index < (unsigned long)mdx->num_sequences) {
             seq = &mdx->sequences[index];
         }
-    } else if (anim && *anim) {
-        cstring_t ratio = strchr(anim, '@');
+    } else if (sequence && *sequence) {
+        cstring_t ratio = strchr(sequence, '@');
         if (ratio) {
             char sequence_name[sizeof(mdxObjectName_t) + 1];
-            size_t len = (size_t)(ratio - anim);
+            size_t len = (size_t)(ratio - sequence);
 
             if (len >= sizeof(sequence_name)) {
                 len = sizeof(sequence_name) - 1;
             }
-            memcpy(sequence_name, anim, len);
+            memcpy(sequence_name, sequence, len);
             sequence_name[len] = '\0';
             seq = MDLX_FindSequenceByName(mdx, sequence_name);
         } else {
-            seq = MDLX_FindSequenceByName(mdx, anim);
+            seq = MDLX_FindSequenceByName(mdx, sequence);
         }
     }
     if (!seq && mdx->cameras && anim &&

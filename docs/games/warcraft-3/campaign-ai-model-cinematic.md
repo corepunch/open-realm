@@ -143,7 +143,7 @@ Runtime acceptance with retail assets:
    behaviour with an actual retail Warcraft III executable. MRF cape morphs
    are deliberately listed as a known outstanding renderer feature.
 
-Follow [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md)
+Follow [AGENTS.md](https://github.com/corepunch/open-realm/blob/main/AGENTS.md) and [CONTRIBUTING.md](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md)
 for the normal build and test process. Compilation, game execution and unit
 suite testing were intentionally left to the integrator for this patch.
 

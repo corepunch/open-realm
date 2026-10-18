@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 212; /* Scripted world retirement independent of invisibility. */
+static uint32_t const save_version = 213; /* Merge upstream score, item and timed visibility state with pathfinding owners. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -586,6 +586,8 @@ static field_t const random_fields[] = {
 };
 
 static field_t const level_fields[] = {
+    F(level_locals, setup.difficulty, F_INT),
+    F(level_locals, setup.default_difficulty, F_INT),
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
     F(level_locals, setup.random_seed, F_INT),
@@ -656,12 +658,14 @@ static field_t const level_fields[] = {
     F(level_locals, environment_fog.defaults.density, F_FLOAT),
     F(level_locals, environment_fog.defaults.color, F_VECTOR),
     F(level_locals, environment_fog.defaults_valid, F_INT),
+    F(level_locals, water_base_color, F_INT),
     F(level_locals, camera_bounds, F_VECTOR),
     F(level_locals, started, F_INT),
     F(level_locals, scriptsConfigured, F_INT),
     F(level_locals, scriptsStarted, F_INT),
     F(level_locals, ai_owned_players, F_INT),
     F(level_locals, ai_vm_initialized, F_INT),
+    F(level_locals, campaign_menu_race, F_INT),
     F(level_locals, pending_consumed_item_cleanup, F_INT),
     F(level_locals, waypoints.base, F_INT),
     F(level_locals, waypoints.cursor, F_INT),
@@ -787,7 +791,8 @@ static field_t const item_fields[] = {
     TF(item_t, pending_use_carrier_spawn_time, F_INT),
     TF(item_t, pending_use_slot, F_INT),
     TF(item_t, soul_target_spawn_time, F_INT),
-    /* drop_id, user_data / pawnable_* are plain values retained by the raw edict record. */
+    /* drop_id, user_data, item ownership, and death-drop overrides are
+     * plain values retained by the raw edict record. */
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1383,6 +1388,7 @@ field_t edict_fields[] = {
     F(edict_s, attack_profiles, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, attack_overrides, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
+    F(edict_s, score_level_xp, F_INT),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, hero_proper_name, F_INT),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
@@ -3812,6 +3818,7 @@ bool ReadGame(cstring_t filename) {
     /* Configstrings were rebuilt while reloading the map. Re-publish the
      * restored authoritative scene fog before client-side presentation resumes. */
     G_EnvironmentFogPublish();
+    G_WaterBaseColorPublish();
     /* Client-side decoders are presentation state, not part of the save file.
      * Re-emit the restored semantic music state for clients that remained
      * connected across the load. */
@@ -3863,12 +3870,72 @@ TEST(wc3_save, adaptive_publication_rejects_invalid_shape_class_and_truncation) 
     free(before);free(after);reset_entities();setup_test_world();
 }
 
+/* The mission may be temporarily reduced while the campaign/default remains
+ * Hard. A restored save must not consult the current frontend preference or
+ * collapse these two independently script-writable JASS values. */
+TEST(wc3_save, current_and_default_difficulty_round_trip_independently) {
+    cstring_t filename = Test_TempPath("wc3-difficulty-pair-save.bin");
+
+    reset_entities();
+    setup_test_world();
+    level.setup.difficulty = 1; /* Normal after a reduced-difficulty restart */
+    level.setup.default_difficulty = 2; /* Original Hard campaign selection */
+    T_ASSERT(WriteGame(filename));
+
+    level.setup.difficulty = 0;
+    level.setup.default_difficulty = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.difficulty, 1u);
+    T_EQ(level.setup.default_difficulty, 2u);
+
+    /* Neither getter is inferred from the other, including the Insane handle. */
+    level.setup.difficulty = 3;
+    level.setup.default_difficulty = 0;
+    T_ASSERT(WriteGame(filename));
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 1;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.difficulty, 3u);
+    T_EQ(level.setup.default_difficulty, 0u);
+    remove(filename);
+}
+
 TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
     int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);
 
     T_ASSERT(index > 0);
     if (index > 0 && index <= (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0])))
         T_STREQ(save_cfunctions[index - 1].name, "S_SpellTargetApproachThink");
+}
+
+TEST(wc3_save, player_score_state_round_trips) {
+    cstring_t const filename = Test_TempPath("wc3-player-score-save.bin");
+    gameClient_t *client;
+
+    reset_entities();
+    setup_test_world();
+    client = &game.clients[0];
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 7;
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 1234;
+    client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = 73;
+    client->score.experience_gained = 500;
+    client->score.unit_value_produced = 2325;
+    client->jass.on_score_screen_set = true;
+    client->jass.on_score_screen = false;
+    T_ASSERT(WriteGame(filename));
+
+    memset(&client->score, 0, sizeof(client->score));
+    client->jass.on_score_screen_set = false;
+    T_ASSERT(ReadGame(filename));
+    client = &game.clients[0];
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 7);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL], 1234);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 73);
+    T_EQ(client->score.experience_gained, 500);
+    T_EQ(client->score.unit_value_produced, 2325);
+    T_ASSERT(client->jass.on_score_screen_set);
+    T_ASSERT(!client->jass.on_score_screen);
+    remove(filename);
 }
 
 TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {
@@ -4036,6 +4103,38 @@ TEST(wc3_save, missile_attack_projectile_models_are_reregistered_after_load) {
     T_EQ(S_AttackProfileRead(unit, 1)->projectile.model, save_test_model_index(unit->data.UnitProfile->attack[1].art, false));
     G_SetProfileRows(old); free_slk_rows(rows);
     remove(filename);
+}
+
+TEST(wc3_save, fog_exploration_and_completed_visibility_round_trip) {
+    cstring_t const filename = Test_TempPath("wc3-save-fow.bin");
+    uint32_t const index = 0;
+
+    reset_entities();
+    setup_test_world();
+    G_FowInit();
+    T_ASSERT(level.fow.width && level.fow.height);
+    if (!level.fow.width || !level.fow.height) return;
+    level.fow.players[0].explored[index] = 1;
+    level.fow.players[0].visible[index] = 1;
+    G_FowRevealEntireMapTimed(0, 1.25f);
+    T_ASSERT(level.fow.omniscience_until[0] > G_Time());
+    T_ASSERT(WriteGame(filename));
+
+    level.fow.players[0].explored[index] = 0;
+    level.fow.players[0].visible[index] = 1;
+    level.fow.omniscience_until[0] = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(level.fow.players[0].explored[index]);
+    T_ASSERT(level.fow.players[0].visible[index]);
+    T_ASSERT(level.fow.players[0].dirty_visible_rows[0]);
+    T_ASSERT(level.fow.players[0].dirty_explored_rows[0]);
+    T_ASSERT(level.fow.omniscience_until[0] > G_Time());
+#ifdef WC3_FOW_PACKED_MASK
+    T_ASSERT(level.fow.players[0].packed_explored[0] & 1u);
+    T_ASSERT(level.fow.players[0].packed_visible[0] & 1u);
+#endif
+    remove(filename);
+    G_FowShutdown();
 }
 
 static bool write_save_fixture_header(cstring_t source_path, cstring_t output_path, uint32_t version, uint32_t edict_size) {

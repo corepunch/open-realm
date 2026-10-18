@@ -171,7 +171,7 @@ WoW's data defines a **doodad-based system** using actual game asset models:
 ### GroundEffectTexture.dbc / GroundEffectDoodad.dbc
 
 The two 11-DWORD `GroundEffectTexture.dbc` layouts (legacy vs. modern weighted) and the `GroundEffectDoodad.dbc`
-`id/doodad-path/flags` layout are documented in [`docs/dbc-reference.md`](dbc-reference.md#ground-effect--terrain-tables).
+`id/doodad-path/flags` layout are documented in [`docs/dbc-reference.md`](dbc-reference.md#ground-effect-terrain-tables).
 
 ### Placement Algorithm
 

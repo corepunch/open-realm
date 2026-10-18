@@ -85,7 +85,7 @@ make test
 
 These headless fixture tests exercise the same order, callback, interruption, and persistence situations as the campaign.
 If another gameplay failure is reported, extend the reproducer rather than relying on another manual replay. See
-[test-first verification](../../../CONTRIBUTING.md#test-first-behavior-verification).
+[test-first verification](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md#test-first-behavior-verification).
 
 The original live-archive reproducer is retained for an uncovered visual/platform question only; identify that gap before
 using it (repeat with `-tft` if the gap depends on archive variants):

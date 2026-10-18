@@ -213,6 +213,7 @@ static void CL_SendDisconnect(void) {
 static void CL_CancelCinematicSession(void);
 
 static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu) {
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     CL_CancelCinematicSession();
     Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
@@ -542,6 +543,10 @@ static void CL_UICvarSet(cstring_t name, cstring_t value) {
     Cvar_Set(name, value);
 }
 
+static void CL_UICvarRegister(cstring_t name, cstring_t default_value, uint32_t flags) {
+    Cvar_Get(name, default_value, flags);
+}
+
 void CL_SetLoadingProgress(float progress) {
     if (progress < 0.0f) progress = 0.0f;
     if (progress > 1.0f) progress = 1.0f;
@@ -567,6 +572,7 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_connected;
     CL_SetGameplayInput();
+    Sys_UpdateLoadingPresentation(true, cl.loading_progress, false);
     SCR_BeginLoadingPlaque();
     /* New map baselines repopulate the compact active-entity list; drop any
      * stale entries from the previous map before they arrive. */
@@ -884,7 +890,7 @@ execute:
         FS_RestoreScriptSaveScope(pending.arg);
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(map);
-        SV_LoadGame(pending.arg, map);
+        if (SV_LoadGame(pending.arg, map)) CL_ControlGroupsLoad(pending.arg);
         break;
     }
     case CL_MENU_ACTION_SCRIPT_LOAD: {
@@ -1165,6 +1171,7 @@ void CL_Init(void) {
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
+        .Cvar_Register = CL_UICvarRegister,
         .GetConfigString = CL_GetConfigString,
         .LAN_RefreshServers = CL_LANRefreshServers,
         .LAN_NumServers = CL_LANNumServers,
@@ -1496,6 +1503,7 @@ void CL_Connect(cstring_t host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     CL_CancelCinematicSession();
     CL_SuspendMenu();
     cl_menu_life = CL_MENU_UNLOADED;

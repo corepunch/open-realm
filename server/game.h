@@ -61,6 +61,9 @@ struct game_import {
     void (*UnlinkEntity)(edict_t *ent);
     uint32_t (*BoxEdicts)(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
     void (*MenuAction)(cstring_t action, cstring_t arg);
+    /* Resolve the same map identity used by queued map/level actions. The
+     * game may use it to bind transient state to one resolved destination. */
+    bool (*ResolveMap)(cstring_t arg, string_t out, uint32_t out_size);
     /* Queue a client-side movie to interpose the next deferred session action. */
     void (*QueueMovie)(cstring_t path);
     /* JASS PlayModelCinematic: path only, client owns MDX playback/lifecycle. */
@@ -95,6 +98,10 @@ struct game_import {
      * Game time and each RunFrame step remain unchanged. Both values must be
      * positive, with a resulting interval from 1 through INT32_MAX ms. */
     void (*SetSimulationRate)(uint32_t numerator, uint32_t denominator);
+    /*Request a map/session transition without re-entering server teardown from
+     *inside a game callback. The server performs it after the callback returns. */
+    bool (*RequestMap)(cstring_t map);
+    void (*RequestQuit)(void);
     void (*multicast)(vec3_t const *origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
@@ -113,6 +120,8 @@ struct game_import {
     void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size);
     /* Resolve save files under the platform's per-user data directory. */
     void (*SavePath)(cstring_t rel, string_t out, uint32_t out_size);
+    /*Enumerate available map paths through the engine filesystem. */
+    uint32_t (*ListMaps)(void (*callback)(cstring_t path, void *userData), void *userData);
     /* Untrusted JASS save natives are confined to an engine-owned session
      * sandbox. The game cannot choose its root or access manual saves. */
     bool (*ScriptSavePath)(cstring_t name, string_t out, uint32_t out_size);
@@ -133,6 +142,8 @@ struct game_import {
     /* Host clock for session setup only. Store its result before simulation;
      * deterministic gameplay must use the stored setup value or GetTime. */
     uint32_t (*Milliseconds)(void);
+    /* Persist local input conveniences alongside a committed manual save. */
+    bool (*SaveLocalClientState)(cstring_t name);
 };
 
 struct client;
@@ -174,12 +185,23 @@ typedef struct {
     char art[256];
     uint32_t starttime;
     uint32_t endtime;
+    uint16_t flags;
+    float progress;
 } gameQueueItem_t;
 
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
     void (*RunFrame)(void);
+    /*Optional external-controller hooks. The server polls ExternalFrame even
+     *while the simulation clock is externally owned; returned steps are
+     *advanced by the server through the normal RunFrame boundary. */
+    bool (*ExternalActive)(void);
+    bool (*ExternalOwnsClock)(void);
+    uint32_t (*ExternalFrame)(void);
+    bool (*ExternalCanAdvance)(void);
+    void (*ExternalStepComplete)(uint32_t steps);
+    void (*ExternalMapComplete)(cstring_t map, bool success);
     cstring_t (*GetThemeValue)(cstring_t filename);
     void (*ClientCommand)(edict_t *ent, uint32_t argc, cstring_t argv[]);
     void (*ClientInput)(edict_t *ent, inputCmd_t const *cmd);

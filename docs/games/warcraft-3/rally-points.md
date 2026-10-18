@@ -136,4 +136,4 @@ The implementation task that introduced this document intentionally did not comp
 - [economy-and-unit-presentation.md](economy-and-unit-presentation.md) — Smart worker/resource behavior reused by Rally.
 - [hero-revival.md](hero-revival.md) — persistent Hero object and Altar production lifecycle.
 - [building-construction.md](building-construction.md) — production queue and command-card ownership.
-- [jass-native-coverage.md](jass-native-coverage.md) — native registration/conformance rules.
+- [jass-native-coverage.md](https://github.com/corepunch/open-realm/blob/main/games/warcraft-3/jass-native-coverage.md) — native registration/conformance rules.

@@ -397,7 +397,7 @@ static void OpenRealm_Frame(void *argument) {
     uint32_t current_time = SDL_GetTicks();
     uint32_t elapsed = current_time - state->previous_time;
     Online_Frame(elapsed);
-    if (SV_IsActive())
+    if (SV_NeedsFrame())
         SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : elapsed);
     if (!state->dedicated) {
         uint64_t render_start = SDL_GetPerformanceCounter();
@@ -588,11 +588,14 @@ int main(int argc, string_t argv[]) {
 
     if (dedicated) {
         // Dedicated server mode: no client stack, no SDL window.
-        if (!has_map && !run_tests && !run_online_check && !has_load) {
-            fprintf(stderr, "Dedicated server requires +map <map>\n");
-            return 1;
-        }
         SV_Init();
+        if (!has_map && !run_tests && !run_online_check && !has_load) {
+            SV_InitGameProgs();
+            if (!SV_HasExternalControl()) {
+                fprintf(stderr, "Dedicated server requires +map <map> unless an external controller is active\n");
+                return 1;
+            }
+        }
         if (has_map) {
             fprintf(stderr, "Dedicated server starting on map: %s\n", map);
             /* Call SV_Map directly instead of routing through the 'map' command,

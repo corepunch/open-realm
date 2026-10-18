@@ -1,0 +1,3 @@
+[WorldEditStrings]
+WESTRING_DOOD_LOBA=Barricade
+WESTRING_DOOD_LOCS=Crates
