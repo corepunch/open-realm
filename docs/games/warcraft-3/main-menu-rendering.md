@@ -71,6 +71,39 @@ color alpha are not needed by the existing linear RGB fog shader. Other fog styl
 remain unsupported. Additive glow/flare layers retain their material fog policy;
 do not tint every transparent quad toward the fog color.
 
+## Campaign backdrop fog (issue 639)
+
+Campaign scenes use their own fog profile, independently of `MenuZFog`. The
+`SinglePlayer_DrawCampaignBackdrop` path previously set `RDF_NOFOG` and never
+populated the fog contract, leaving the prologue's trees and distant arches bright.
+
+Later `CampaignStrings` files explicitly document and provide `BackgroundFogStyle`,
+`BackgroundFogStart`, `BackgroundFogEnd`, and ARGB-byte `BackgroundFogColor` per
+campaign. The campaign scalar descriptor table reads these values. Original RoC
+1.00 `CampaignStrings` lacks them; its authored profiles live in `UI/MiscData.txt`
+as `[TutorialZFog]`, `[HumanZFog]`, `[OrcZFog]`, etc. Those sections are consumed
+only when the campaign has no explicit fog profile. No numeric defaults are invented.
+The local RoC prologue specifies linear fog from 0 to 2000 with RGB (0,51,77).
+
+The selected campaign supplies the renderer's existing linear start/end/RGB
+contract. Style -1 disables it; other styles or non-finite/inverted distances do
+not enable linear fog. Density and ARGB alpha are unused by that contract, as in
+the main-menu path. Switching campaign or returning to the selector resolves the
+new campaign's profile, so disabled fog cannot retain the previous scene's state.
+
+`menu_fdf.campaign_backdrops_use_authored_fog_and_reset_between_scenes` drives
+production screen loading, selection and drawing with archive fixtures. It fails
+before the fix and covers non-stock RoC Tutorial/Human values, explicit TFT Human
+values, disabled Orc fog, and switching back. `make test-menu`, `make test`, and
+`make openwarcraft3` pass. A bounded local capture confirms blue prologue haze:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -vid_hidden 1 +ui_skip_transitions 1 +menu_game +menu_single_player_campaign_tutorial +screenshot 30 +com_frame_limit 45
+```
+
+Animation phase, data version and aspect ratio vary; the capture is a composition
+check rather than a pixel-identical retail golden.
+
 ## Verification and diagnostics
 
 Tests use fixture archives, not an installed Warcraft data directory:
@@ -115,36 +148,3 @@ captures then ran successfully.
 
 See also [UI flow](architecture/ui-flow.md), [MDX events](mdx-event-objects.md), and
 [environmental fog](environmental-fog.md).
-
-## Campaign backdrop fog (issue 639)
-
-Campaign scenes use their own fog profile, independently of `MenuZFog`. The
-`SinglePlayer_DrawCampaignBackdrop` path previously set `RDF_NOFOG` and never
-populated the fog contract, leaving the prologue's trees and distant arches bright.
-
-Later `CampaignStrings` files explicitly document and provide `BackgroundFogStyle`,
-`BackgroundFogStart`, `BackgroundFogEnd`, and ARGB-byte `BackgroundFogColor` per
-campaign. The campaign scalar descriptor table reads these values. Original RoC
-1.00 `CampaignStrings` lacks them; its authored profiles live in `UI/MiscData.txt`
-as `[TutorialZFog]`, `[HumanZFog]`, `[OrcZFog]`, etc. Those sections are consumed
-only when the campaign has no explicit fog profile. No numeric defaults are invented.
-The local RoC prologue specifies linear fog from 0 to 2000 with RGB (0,51,77).
-
-The selected campaign supplies the renderer's existing linear start/end/RGB
-contract. Style -1 disables it; other styles or non-finite/inverted distances do
-not enable linear fog. Density and ARGB alpha are unused by that contract, as in
-the main-menu path. Switching campaign or returning to the selector resolves the
-new campaign's profile, so disabled fog cannot retain the previous scene's state.
-
-`menu_fdf.campaign_backdrops_use_authored_fog_and_reset_between_scenes` drives
-production screen loading, selection and drawing with archive fixtures. It fails
-before the fix and covers non-stock RoC Tutorial/Human values, explicit TFT Human
-values, disabled Orc fog, and switching back. `make test-menu`, `make test`, and
-`make openwarcraft3` pass. A bounded local capture confirms blue prologue haze:
-
-```sh
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -vid_hidden 1 +ui_skip_transitions 1 +menu_game +menu_single_player_campaign_tutorial +screenshot 30 +com_frame_limit 45
-```
-
-Animation phase, data version and aspect ratio vary; the capture is a composition
-check rather than a pixel-identical retail golden.
