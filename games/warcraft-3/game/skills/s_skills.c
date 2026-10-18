@@ -367,7 +367,7 @@ static ability_t abilitylist[] = {
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
     // TODO: AIcf CAbilityImmolation  /* Item Immolation */
-    { "AIzb", CAbilityAttackBonus, 0 },  /* Item Freeze Damage Bonus (orb) */
+    { "AIzb", CAbilityFreezeDamageBonus, AB_STATUS_POLICY },  /* Item Freeze Damage Bonus (orb) */
     // TODO: Arel a_aura_regen_life  /* Item Life Regeneration */
     { "Aami", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-Magic Shell Instant */
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
@@ -566,7 +566,7 @@ static ability_t abilitylist[] = {
     { "Apts", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE },  /* Disease Cloud */
     { "Afrb", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Breath */
     { "Afra", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Frost Attack */
-    { "Afrz", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Freezing Breath */
+    { "Afrz", CAbilityFreezingBreath, AB_PASSIVE | AB_STATUS_POLICY },  /* Freezing Breath */
     { "Arai", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead */
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
@@ -1870,9 +1870,9 @@ bool S_InitializeEtherealAbility(edict_t *ent,uint32_t code,bool held) {
     S_SetEtherealAbility(ent,code,held);return true;
 }
 
-static void ability_disables_acquire(edict_t *ent,bool scripted) {
+static void ability_disables_acquire(edict_t *ent,bool scripted,bool orders) {
     ability_disable_prepare(ent);
-    int32_t *depth=scripted ? &ent->ability_pause_depth : &ent->ability_exclusive_depth;
+    int32_t *depth=!orders ? &ent->ability_disable_depth : scripted ? &ent->ability_pause_depth : &ent->ability_exclusive_depth;
     *depth=(int32_t)((uint32_t)*depth+1);
     uint32_t const spawn=ent->spawn_time;
     unitAbilityDisable_t *state=ent->ability_disables;
@@ -1885,7 +1885,7 @@ static void ability_disables_acquire(edict_t *ent,bool scripted) {
         if(state->linked) {
             if(scripted)state->pause_owned=ent->ability_pause_depth>0;
             abilityitem_t item=S_AbilityItem(state->code);
-            ability_disable_add(ent,state,&item,true,false);
+            ability_disable_add(ent,state,&item,orders,false);
         }
         ability_disable_release(state);
         if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent)) {
@@ -1896,8 +1896,8 @@ static void ability_disables_acquire(edict_t *ent,bool scripted) {
     }
 }
 
-static void ability_disables_release(edict_t *ent,bool scripted) {
-    int32_t *depth=scripted ? &ent->ability_pause_depth : &ent->ability_exclusive_depth;
+static void ability_disables_release(edict_t *ent,bool scripted,bool orders) {
+    int32_t *depth=!orders ? &ent->ability_disable_depth : scripted ? &ent->ability_pause_depth : &ent->ability_exclusive_depth;
     if(!*depth)return;
     *depth=(int32_t)((uint32_t)*depth-1);
     /* Original48c8c0 visits every owner, including ones the interrupted
@@ -1905,13 +1905,23 @@ static void ability_disables_release(edict_t *ent,bool scripted) {
      * that outer walk continues.40bb00 subtracts40 before3c. */
     for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next) {
         if(scripted)state->pause_owned=ent->ability_pause_depth>0;
-        state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
+        if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
         state->depth=(int32_t)((uint32_t)state->depth-1);
     }
 }
 
-void S_AcquireScriptedAbilityDisables(edict_t *ent) {ability_disables_acquire(ent,true);}
-void S_ReleaseScriptedAbilityDisables(edict_t *ent) {ability_disables_release(ent,true);}
+/* Native530570 selects Unit1c4 for Freeze and Unit1b8 for Freezing Breath.
+ * Both update each attached execution owner; only the first affects orders. */
+void S_AcquireBuffAbilityDisables(edict_t *ent,bool orders) {ability_disables_acquire(ent,false,orders);}
+void S_ReleaseBuffAbilityDisables(edict_t *ent,bool orders) {ability_disables_release(ent,false,orders);}
+bool S_AbilityExecutionDisabled(edict_t const *ent,uint32_t code) {
+    for(unitAbilityDisable_t const *owner=ent ? ent->ability_disables : NULL;owner;owner=owner->next)
+        if(owner->code==code)return owner->depth>0;
+    return false;
+}
+
+void S_AcquireScriptedAbilityDisables(edict_t *ent) {ability_disables_acquire(ent,true,true);}
+void S_ReleaseScriptedAbilityDisables(edict_t *ent) {ability_disables_release(ent,true,true);}
 
 /* Exclusive casts leave their own execution enabled but disable its new orders.
  * Preserve the retail pre-decrement/all-owner walk/trailing order-store sequence:
@@ -1922,7 +1932,7 @@ void S_AcquireExclusiveAbilityDisables(edict_t *ent,uint32_t code) {
     owner->exclusive_owned=true;
     owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
     owner->depth=(int32_t)((uint32_t)owner->depth-1);
-    ability_disables_acquire(ent,false);
+    ability_disables_acquire(ent,false,true);
     owner->order_depth=(int32_t)((uint32_t)owner->order_depth+1);
     ability_disable_release(owner);
 }
@@ -1933,7 +1943,7 @@ bool S_ReleaseExclusiveAbilityDisables(edict_t *ent,uint32_t code) {
     if(!owner || !owner->exclusive_owned)return false;
     owner->references++;owner->exclusive_owned=false;
     owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
-    ability_disables_release(ent,false);
+    ability_disables_release(ent,false,true);
     abilityitem_t item=S_AbilityItem(code);
     ability_disable_add(ent,owner,&item,true,false);
     ability_disable_release(owner);return true;
@@ -1960,7 +1970,7 @@ void S_AcquireItemAbilityDisables(edict_t *ent,uint32_t code) {
     owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
     pack->depth=(int32_t)((uint32_t)pack->depth-1);
     pack->order_depth=(int32_t)((uint32_t)pack->order_depth-1);
-    ability_disables_acquire(ent,false);
+    ability_disables_acquire(ent,false,true);
     S_AcquireUnitSeparationSuppression(ent);
     ability_disable_release(pack);ability_disable_release(owner);
 }
@@ -1975,7 +1985,7 @@ bool S_ReleaseItemAbilityDisables(edict_t *ent,uint32_t code) {
     S_UnitTargetAvailable(ent);
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     S_ReleaseUnitSeparationSuppression(ent);
-    ability_disables_release(ent,false);
+    ability_disables_release(ent,false,true);
     unitAbilityDisable_t *pack=ent->ability_disables;
     while(pack && pack->code!=inventory)pack=pack->next;
     if(pack) {abilityitem_t item=S_AbilityItem(inventory);ability_disable_add(ent,pack,&item,true,false);}
@@ -1994,7 +2004,7 @@ void S_RestoreRetiredAbilityDisables(edict_t *ent) {
 }
 
 bool S_UnitOrderDisabled(edict_t const *ent,cstring_t order) {
-    if(!S_UnitOrdersPaused(ent) && ent->ability_exclusive_depth<=0)return false;
+    if(!S_UnitOrdersPaused(ent) && ent->ability_exclusive_depth<=0 && ent->ability_disable_depth<=0)return false;
     ability_t const *owner=FindAbilityByOrder(order);
     for(unitAbilityDisable_t const *state=ent->ability_disables;state;state=state->next) {
         abilityitem_t item=S_AbilityItem(state->code);
@@ -2146,12 +2156,13 @@ void S_EnableAbility(edict_t *ent, uint32_t code) {
         S_AbilityMessage(ent, A_ENABLE, &call);
         /*48b4c0 applies existing disable contributions to a newly attached
          * owner; it does not wait for the next pause transition. */
-        if(ent->ability_disables || ent->ability_pause_depth || ent->ability_exclusive_depth) {
+        if(ent->ability_disables || ent->ability_pause_depth || ent->ability_exclusive_depth || ent->ability_disable_depth) {
             unitAbilityDisable_t *state=ability_disable_owner(ent,code);
             if(ent->ability_pause_depth) {
                 state->pause_owned=true;
                 ability_disable_add(ent,state,&item,true,false);
             }
+            for(int32_t i=0;i<ent->ability_disable_depth;i++)ability_disable_add(ent,state,&item,false,false);
             int32_t exclusive=ent->ability_exclusive_depth;
             for(int32_t i=0;i<exclusive;i++)ability_disable_add(ent,state,&item,true,false);
         }

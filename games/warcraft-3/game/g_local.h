@@ -1715,7 +1715,8 @@ typedef enum {
     WC3_STATUS_STATE_MAGIC_IMMUNE  = 1u << 4,
     WC3_STATUS_STATE_INVULNERABLE  = 1u << 5,
     WC3_STATUS_STATE_ETHEREAL      = 1u << 6,
-    WC3_STATUS_STATE_MAGIC_LEASH   = 1u << 7
+    WC3_STATUS_STATE_MAGIC_LEASH   = 1u << 7,
+    WC3_STATUS_STATE_FROZEN        = 1u << 8
 } wc3_status_state_t;
 
 /* Status-owned numeric contributions.  The shared resolver performs only
@@ -2314,6 +2315,7 @@ struct edict_s {
     unitOrderQueue_t order_queue;
     unitAbilityDisable_t *ability_disables; /* Lazy ordered availability owners; ordinary units allocate none. */
     int32_t ability_pause_depth; /* Script-owned portion of Unit1c4. */
+    int32_t ability_disable_depth; /* Unit1b8: non-order buff availability contributions. */
     int32_t ability_exclusive_depth; /* Cast-owned portion; each inverse releases only its own source. */
     unitAbilityOrder_t *ability_orders; /* Sparse forced commands beneath the suspended user head. */
     uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
@@ -3812,6 +3814,9 @@ void S_ClearAbilityDisables(edict_t *);
 void S_RestoreRetiredAbilityDisables(edict_t *);
 void S_ReleaseScriptedAbilityDisables(edict_t *);
 void S_AcquireScriptedAbilityDisables(edict_t *);
+void S_AcquireBuffAbilityDisables(edict_t *,bool orders);
+void S_ReleaseBuffAbilityDisables(edict_t *,bool orders);
+bool S_AbilityExecutionDisabled(edict_t const *,uint32_t);
 void S_AcquireExclusiveAbilityDisables(edict_t *,uint32_t);
 void S_AcquireItemAbilityDisables(edict_t *,uint32_t);
 bool S_ReleaseItemAbilityDisables(edict_t *,uint32_t);

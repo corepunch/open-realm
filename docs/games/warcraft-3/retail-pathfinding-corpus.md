@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Alternate364, the inventory has **586 entries**: **305** oracle contracts
-(including variants) supplied by **233** distinct verifier scripts, **121**
+As of Group359, the inventory has **587 entries**: **306** oracle contracts
+(including variants) supplied by **234** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2382,3 +2382,7 @@ Alternate364 registers immediate subtype publication at initial alternate attach
 positive form lifetime and saved inverse ownership. Six matching retail captures
 preserve1,703 native events and839 public markers, guarded by614 instructions
 and14 rejection checks. Other producers remain within SEP-01.2.
+
+Group359 registers distinct Freeze-family counter, order and lethal-hit lifetimes,
+source admission and the complete724-class inventory. The inventory now has
+587 entries and306 original/evidence contracts from234 verifier scripts.

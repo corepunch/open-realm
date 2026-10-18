@@ -623,6 +623,8 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 }
 
 static bool can_attack(edict_t const *ent) {
+    /* Native weapon reactions require the attached Attack execution owner. */
+    if(S_AbilityExecutionDisabled(ent,MAKEFOURCC('A','a','t','k')))return false;
     if (unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
         S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
@@ -904,6 +906,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
+    S_OrbOnHit(attacker,target,true);
     T_Damage(target, attacker, damage);
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
@@ -922,7 +925,8 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     S_BlackArrowDeath(attacker, target);
     S_MoonGlaiveAttack(attacker, target, damage);
     S_SlowPoisonOnHit(attacker, target);
-    S_OrbOnHit(attacker, target);
+    S_OrbOnHit(attacker,target,false);
+    S_FreezingBreathOnHit(attacker, target);
     S_PoisonOnHit(attacker, target);
     G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
     if (target->inuse) {
@@ -2043,6 +2047,7 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
        !S_AttackCanTarget(unit,target))return 0;
     bool armed=G_ActorHasAbilityCode(target,MAKEFOURCC('A','a','t','k')) &&
         attack_mask_has_weapon(target,attack_order_mask(target)) && !target->paused &&
+        !S_AbilityExecutionDisabled(target,MAKEFOURCC('A','a','t','k')) &&
         !S_UnitIsCycloned(target) && !S_UnitIsEntanglingRooted(target) &&
         S_HumanAttackPriorityEnabled(target) && S_CargoAttacksEnabled(target);
     edict_t const *victim=armed ? target->attack_target : NULL;

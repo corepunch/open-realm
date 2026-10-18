@@ -21785,3 +21785,15 @@ The strict complete mask/visibility/retained-cohort audit passes109 tests and
 2,026,927 assertions per Classic/TFT edition,28,880 original gate cases,1,434
 instruction guards and17 evidence tests. Captain/missile owner and general route
 geometry contracts keep their existing leaves; no child TODO is created.
+
+## Freeze-family execution and hit lifecycle (Group359)
+
+[Freeze and Freezing Breath](retail-pathfinding-freeze.md) now retain distinct
+counted execution/order contributions, source requirements, timed and saved
+inverses, and proper existing-head retirement. Freeze attaches before weapon
+damage, allowing ordinary death cleanup to release it on lethal hits; disabled
+Attack owners cannot execute reactive attacks. Genuine regressions preceded
+each fix. Nine completed retail captures preserve2,209 native events and162
+public markers, with808 whole-function instruction guards and a complete724
+primary-CAbility-vtable inventory. Ghidra is saved and readback matches. Other
+concrete Stun/SleepStun producers and acquisition guards remain GROUP-03.2.

@@ -549,7 +549,7 @@ void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target);
 void S_PoisonOnHit(edict_t *attacker, edict_t *target);
 float S_SlowPoisonMoveReduction(edict_t const *unit);
 float S_SlowPoisonAttackReduction(edict_t const *unit);
-void S_OrbOnHit(edict_t *attacker, edict_t *target);
+void S_OrbOnHit(edict_t *attacker, edict_t *target,bool before_damage);
 float S_BarkskinArmorBonus(edict_t const *unit);
 float S_ManaFlareArmorBonus(edict_t const *unit);
 
@@ -676,5 +676,11 @@ void S_SpellEndChannel(edict_t *thinker);
  * receive validation and execution messages through the registry row. */
 void spell_cmd(edict_t *clent);
 void spell_run_frame(edict_t *ent);
+
+/* Counted Freeze-family status owner; applying subclasses select order disabling. */
+BZ_ABILITY_PROC(CAbilityFreezeDamageBonus);
+BZ_ABILITY_PROC(CAbilityFreezingBreath);
+void S_FreezingBreathOnHit(edict_t *,edict_t *);
+heroabilitystatus_t *S_ApplyFreezeStatus(edict_t *,edict_t *,uint32_t,uint32_t,cstring_t,float,bool);
 
 #endif

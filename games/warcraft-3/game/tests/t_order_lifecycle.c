@@ -438,6 +438,156 @@ TEST(wc3_order_lifecycle, group355_retained_minimum_range_priority_and_public_re
     reset_entities();setup_test_world();
 }
 
+/* Retail359: Freeze's Stun owner disables attached abilities; its true v188
+ * never bypasses the candidate's disabled Attack. Test the real hit path. */
+TEST(wc3_order_lifecycle, group359_freeze_hit_disables_orders_priority_and_saved_inverse) {
+    FOR_LOOP(saved,2)FOR_LOOP(timed,2)FOR_LOOP(custom,2) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        char slk[1800];snprintf(slk,sizeof(slk),
+            "ID;PWXL;N;EBB;Y2;X6\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"BuffID1\"\nC;Y1;X6;K\"DataA1\"\n"
+            "C;Y2;X1;K\"AIzb\"\nC;Y2;X2;K\"AIzb\"\nC;Y2;X3;K\"%s\"\nC;Y2;X4;K\"%s\"\n"
+            "C;Y2;X5;K\"%s\"\nC;Y2;X6;K\"9\"\nE\n",timed ? "0.375" : "0",timed ? "0.375" : "0",custom ? "Bz59" : "Bfre");
+        slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *observer=review_order_unit(512,0),*target=review_order_unit(1500,1),*caster=review_order_unit(1700,2);
+        observer->invulnerable=true;target->health.value=target->health.max_value=10000;
+        observer->defense_type=target->defense_type=2;
+        T_ASSERT(G_ActorAddSkill(caster,MAKEFOURCC('A','I','z','b')));
+        if(timed)T_ASSERT(unit_issueorder(target,"move",&(vec2_t){1500,2500}));
+        else T_ASSERT(unit_issuetargetorder(target,"attack",caster));
+        T_ASSERT(target->current_order_id!=0);
+        uint64_t before=G_TestAttackTargetPriority(observer,target);
+        T_ASSERT(before!=0);T_ASSERT(((uint32_t)(before>>32)&0x00400000u)!=0);
+        S_ResolveAttackHit(caster,target,10);
+        uint32_t buff=custom ? MAKEFOURCC('B','z','5','9') : MAKEFOURCC('B','f','r','e');
+        T_ASSERT(S_UnitHasStatus(target,buff));
+        T_ASSERT(S_UnitOrderDisabled(target,"move"));T_ASSERT(S_UnitOrderDisabled(target,"attack"));
+        T_EQ(target->current_order_id,0);
+        T_ASSERT(!unit_issueorder(target,"move",&(vec2_t){1500,2500}));
+        T_EQ(target->current_order_id,0);
+        uint64_t frozen=G_TestAttackTargetPriority(observer,target);
+        T_EQ((uint32_t)(frozen>>32)&0x00400000u,0u);
+        T_EQ((uint32_t)frozen&0x20000000u,0u);T_EQ((uint32_t)frozen&0x00400000u,0u);
+        if(custom) {
+            G_FreeEdict(caster);T_ASSERT(!caster->inuse);
+            T_ASSERT(S_UnitHasStatus(target,buff));
+            T_EQ(G_TestAttackTargetPriority(observer,target),frozen);
+        }
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-group359-freeze.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            reattach_test_weapons(observer);reattach_test_weapons(target);if(caster->inuse)reattach_test_weapons(caster);
+            T_ASSERT(S_UnitOrderDisabled(target,"move"));
+            T_EQ(G_TestAttackTargetPriority(observer,target),frozen);
+        }
+        /* Script pause is an independent owner: buff release cannot resume it. */
+        S_SetUnitPaused(target,true);
+        if(timed) {level.time+=376;unit_updatestatuses(target);}
+        else T_EQ(unit_removebuffs(target,false,true,false,false,false,true,false),1u);
+        T_ASSERT(!S_UnitHasStatus(target,buff));T_ASSERT(S_UnitOrderDisabled(target,"move"));
+        S_SetUnitPaused(target,false);
+        T_ASSERT(!S_UnitOrderDisabled(target,"move"));
+        /* Pause owns its own resumed head; compare restored eligibility,
+         * independently of the Attack head that Freeze correctly retired. */
+        uint64_t restored=G_TestAttackTargetPriority(observer,target);
+        T_EQ((uint32_t)(restored>>32)&0x00400000u,(uint32_t)(before>>32)&0x00400000u);
+        T_EQ((uint32_t)restored&0x20000000u,(uint32_t)before&0x20000000u);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Afrz is a passive structure-hit owner, independently disabling execution
+ * (Unit1b8) while Freeze above disables both execution and new orders (1c4). */
+TEST(wc3_order_lifecycle, group359_freezing_breath_hit_keeps_distinct_disable_owner) {
+    FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        slkTestData_t *rows=parse_slk_string(
+            "ID;PWXL;N;EBB;Y2;X7\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"BuffID1\"\n"
+            "C;Y1;X6;K\"targs1\"\nC;Y1;X7;K\"Area1\"\n"
+            "C;Y2;X1;K\"Afrz\"\nC;Y2;X2;K\"Afrz\"\nC;Y2;X3;K\"5\"\n"
+            "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"Bfrz\"\n"
+            "C;Y2;X6;K\"structure,enemy\"\nC;Y2;X7;K\"100\"\nE\n"),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *caster=review_order_unit(1700,2),*target=review_order_unit(1500,1),*observer=review_order_unit(512,0);
+        target->targtype=TARG_STRUCTURE;target->aiflags|=AI_IMMOBILE;
+        target->s.flags|=EF_BUILDING;target->runtime.flags|=UNIT_BALANCE_BUILDING;
+        target->health.value=target->health.max_value=10000;observer->invulnerable=true;
+        T_ASSERT(G_ActorAddSkill(caster,MAKEFOURCC('A','f','r','z')));
+        abilityitem_t item=S_AbilityItem(MAKEFOURCC('A','f','r','z'));
+        T_ASSERT((item.ability->flags&AB_PASSIVE)!=0);T_ASSERT((item.ability->flags&AB_SPELL)==0);
+        /* Native hit handlers58ff90/590110 reject the source's positive3c
+         * before creating an effect. Exercise that exact weapon-hit owner. */
+        S_AcquireBuffAbilityDisables(caster,false);
+        T_ASSERT(S_AbilityExecutionDisabled(caster,MAKEFOURCC('A','f','r','z')));
+        S_FreezingBreathOnHit(caster,target);
+        T_ASSERT(!S_UnitHasStatus(target,MAKEFOURCC('B','f','r','z')));
+        unit_removebuffs(target,false,true,false,false,false,true,false);
+        S_ReleaseBuffAbilityDisables(caster,false);
+        gameClient_t *owner=G_GetPlayerClientByNumber(caster->s.player);
+        T_NOT_NULL(owner);owner->ps.number=caster->s.player;
+        G_SetPlayerAbilityAvailable(owner,MAKEFOURCC('A','f','r','z'),false);
+        S_FreezingBreathOnHit(caster,target);
+        T_ASSERT(!S_UnitHasStatus(target,MAKEFOURCC('B','f','r','z')));
+        unit_removebuffs(target,false,true,false,false,false,true,false);
+        G_SetPlayerAbilityAvailable(owner,MAKEFOURCC('A','f','r','z'),true);
+        uint32_t tech=MAKEFOURCC('R','u','f','b');
+        int32_t old_tech=G_GetPlayerTechResearchedLevel(owner,tech);
+        unitModification_t requirement={.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data="Rufb"};
+        unitData_t original={.originalUnitID=MAKEFOURCC('A','f','r','z'),.numbeOfModifications=1,.modifications=&requirement};
+        mapInfo_t authored={.num_originalAbilities=1,.originalAbilities=&original};
+        G_SetMapAbilityOverrides(&authored);G_SetPlayerTechResearched(owner,tech,0);
+        T_ASSERT(!G_AbilityRequirementsSatisfied(caster,MAKEFOURCC('A','f','r','z')));
+        S_FreezingBreathOnHit(caster,target);
+        T_ASSERT(!S_UnitHasStatus(target,MAKEFOURCC('B','f','r','z')));
+        unit_removebuffs(target,false,true,false,false,false,true,false);
+        G_SetPlayerTechResearched(owner,tech,1);
+        T_ASSERT(G_AbilityRequirementsSatisfied(caster,MAKEFOURCC('A','f','r','z')));
+        G_SetMapAbilityOverrides(level.mapinfo);
+        S_ResolveAttackHit(caster,target,10);
+        T_ASSERT(S_UnitHasStatus(target,MAKEFOURCC('B','f','r','z')));
+        bool disabled=false;for(unitAbilityDisable_t const *a=target->ability_disables;a;a=a->next)
+            if(a->code==MAKEFOURCC('A','a','t','k')) {T_EQ(a->order_depth,0);disabled=a->depth==1;}
+        T_ASSERT(disabled);
+        uint64_t frozen=G_TestAttackTargetPriority(observer,target);
+        T_EQ((uint32_t)(frozen>>32)&0x00400000u,0u);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-group359-breath.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            reattach_test_weapons(observer);reattach_test_weapons(target);if(caster->inuse)reattach_test_weapons(caster);
+            T_ASSERT(S_UnitHasStatus(target,MAKEFOURCC('B','f','r','z')));
+            T_EQ(G_TestAttackTargetPriority(observer,target),frozen);
+        }
+        T_EQ(unit_removebuffs(target,false,true,false,false,false,true,false),1u);
+        T_ASSERT(!S_UnitHasStatus(target,MAKEFOURCC('B','f','r','z')));
+        T_ASSERT(((uint32_t)(G_TestAttackTargetPriority(observer,target)>>32)&0x00400000u)!=0);
+        G_SetPlayerTechResearched(G_GetPlayerClientByNumber(caster->s.player),tech,old_tech);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* A lethal weapon hit must keep the corpse's completed death ownership. */
+TEST(wc3_order_lifecycle, group359_lethal_freeze_hit_keeps_death_cleanup) {
+    reset_entities();setup_test_world();level.time=1000;
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;EBB;Y2;X5\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AIzb\"\nC;Y2;X2;K\"AIzb\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"Bfre\"\nE\n"),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *caster=review_order_unit(1700,2),*target=review_order_unit(1500,1);
+    target->health.value=1;target->defense_type=2;
+    T_ASSERT(G_ActorAddSkill(caster,MAKEFOURCC('A','I','z','b')));
+    S_ResolveAttackHit(caster,target,10000);
+    T_ASSERT(M_IsDead(target));
+    T_ASSERT(!S_UnitHasStatus(target,MAKEFOURCC('B','f','r','e')));
+    T_EQ(target->ability_disable_depth,0);
+    T_EQ(target->ability_exclusive_depth,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    reset_entities();setup_test_world();
+}
+
 /* Group354 retail: MagicLeashTarget v188 supplies low00400000 while
  * its Attack remains enabled. Pause/Thunder Bolt do not supply that override.
  * Custom BuffID must keep the same gameplay owner and cold-save inverse. */

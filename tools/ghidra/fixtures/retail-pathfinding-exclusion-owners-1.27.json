@@ -307,7 +307,8 @@
     "oracle-submerge360",
     "oracle-crowd361",
     "oracle-mask362",
-    "oracle-alternate364"
+    "oracle-alternate364",
+    "oracle-group359"
   ],
   "entries": [
     {
@@ -6966,6 +6967,32 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "Phoenix, Burrow invisibility, other initial subtypes and counted-owner replay retain the original separation leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group359",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "No full-frame or arbitrary trajectory parity claim.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Concrete remaining override producers retain GROUP-03.2; full-frame and identity/inventory limits remain in the existing complete frozen-contract audit."
+        },
+        {
+          "index": 1,
+          "text": "CBuffSleepStun and CBuffStun public reachability, additional acquisition guards and general GROUP-03.2 remain in that existing leaf.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Concrete remaining override producers retain GROUP-03.2; full-frame and identity/inventory limits remain in the existing complete frozen-contract audit."
+        },
+        {
+          "index": 2,
+          "text": "The class inventory distinguishes primary CAbility descendants from secondary inheritance and unrelated named types.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Concrete remaining override producers retain GROUP-03.2; full-frame and identity/inventory limits remain in the existing complete frozen-contract audit."
         }
       ]
     }

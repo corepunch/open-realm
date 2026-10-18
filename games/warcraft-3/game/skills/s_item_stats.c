@@ -96,8 +96,8 @@ float S_MoveSpeedBonus(edict_t *unit) {
  * Bonus damage rides CAbilityAttackBonus pickup handling via DataA; this owns
  * the on-hit BuffID state next to S_SlowPoisonOnHit. ROC omits BuffID, so the
  * three buffed orbs fall back to their TFT tokens. AIfb/AIlb/AIpb author no
- * buff in either version. Buffs are state-only like Frost Nova's Bfro: no
- * movement/armor consumer reads Bfro/BIcb/Bfre yet. */
+ * buff in either version. Freeze owns counted execution/order suppression;
+ * the other orb statuses retain their existing consumers. */
 #define ID_ORB_FIRE MAKEFOURCC('A', 'I', 'f', 'b')
 #define ID_ORB_LIGHTNING MAKEFOURCC('A', 'I', 'l', 'b')
 #define ID_ORB_FROST MAKEFOURCC('A', 'I', 'o', 'b')
@@ -131,17 +131,20 @@ static void orb_apply(edict_t *attacker, edict_t *target, uint32_t orb, uint32_t
     if (!buff) return;
     level = MAX(1, G_UnitAbilityLevel(attacker, orb));
     seen[(*count)++] = orb;
-    S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
+    if(orb==ID_ORB_FREEZE)S_ApplyFreezeStatus(attacker,target,orb,level,buff,S_SpellHeroDuration(orb,level,target),true);
+    else S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
 }
 
-/* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
- * orb ownership and held orb items; the same orb from both sources applies once. */
-void S_OrbOnHit(edict_t *attacker, edict_t *target) {
+/* Freeze attaches before weapon damage so the lethal hit's death transaction
+ * removes it. Other orb producers retain their post-damage phase. Native and
+ * held-item copies of the same orb contribute once within their owned phase. */
+void S_OrbOnHit(edict_t *attacker, edict_t *target,bool before_damage) {
     uint32_t seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
     FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
-        if (G_UnitAbilityLevel(attacker, orb_codes[o])) orb_apply(attacker, target, orb_codes[o], seen, &count);
+        if ((orb_codes[o]==ID_ORB_FREEZE)==before_damage && G_UnitAbilityLevel(attacker, orb_codes[o]))
+            orb_apply(attacker, target, orb_codes[o], seen, &count);
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t *item = attacker->inventory[i];
@@ -152,7 +155,8 @@ void S_OrbOnHit(edict_t *attacker, edict_t *target) {
         PARSE_LIST(abilities, name, parse_segment) {
             uint32_t code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
             FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
-                if (code && code == orb_codes[o]) orb_apply(attacker, target, code, seen, &count);
+                if (code && code == orb_codes[o] && (code==ID_ORB_FREEZE)==before_damage)
+                    orb_apply(attacker, target, code, seen, &count);
         }
     }
 }

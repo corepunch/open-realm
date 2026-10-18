@@ -829,3 +829,5 @@ remain open. See [ordered spell phases](retail-pathfinding-engine.md#ordered-spe
 
 - [Complete natural target contention](retail-pathfinding-crowd361.md)
 - [Final target producer and mask composition](retail-pathfinding-target-masks362.md)
+
+- [Freeze-family availability, acquisition and lethal-hit cleanup](retail-pathfinding-freeze.md)
