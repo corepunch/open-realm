@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "318 executable original/evidence contracts;599 total entries; provenance and limitations remain per-entry.",
+  "scope": "319 executable original/evidence contracts;600 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56955,6 +56955,65 @@
         "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
         "Two pre-start system exception rows per instrumented capture outside game.dll are retained literally; cause and OS-fault unreachability are not established."
       ]
+    },
+    {
+      "id": "oracle-pause379",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_pause379.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "pause379.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "checks": {
+        "instructions": {
+          "equal": 506
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 108
+        },
+        "paused_observations": {
+          "equal": 4
+        },
+        "owner_snapshots": {
+          "equal": 48
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 45,
+              "assertions": 10755
+            },
+            "tft": {
+              "tests": 45,
+              "assertions": 10755
+            }
+          }
+        }
+      },
+      "scope": "SEP01.2 complete scripted-owner inverse during pending removal; unchangedcontrolled304family+fresh506guards, publicwarm/cold perowner regression andseparatelylabelledfree/reuse protection.",
+      "exclusions": [
+        "Other counted availability producer/acquire families and retail save-file parity remain existing SEP-01.2 scope."
+      ]
     }
   ],
   "fixtures": [
@@ -57853,7 +57912,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "5658d52a168dad54684e57637ee70b3c0ef2dab5b5d395d99ef1ece82204518d"
+      "sha256": "fbec1ac8e0a3c3da43df50be0c4fd3af7d8f63782d956884756c748ae079c59f"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59645,7 +59704,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "7843be270a062255e531898f4cb4db671c3debea85d75331b389a2a2618ebedf"
+      "sha256": "a1f914a0803c63d3c5d19e04363859f10d209237fbaed229ed75cea600e237e1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59661,7 +59720,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "a9265a9dda7d6a4d8fa3f096b236334e5c6a4b3f6498e3f13325dbd12cb19a9c"
+      "sha256": "aecc5dbb42f4754f32dc98ec18247931ee11b18bb4a090068868e79df618aa0d"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59673,7 +59732,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "0f578b2696256ce9fddd6763aba660cb792e4f90b4cf7b939edc3d7fb5423319"
+      "sha256": "a12f5737bb3143b71c738ab62eb774818624fa848121c706ae044373c1a72108"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -64661,7 +64720,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "7d13218f268be68a9977530234ebda3c8ecc05594f80c750d004a54d37443865"
+      "sha256": "e51a65d68d1637566bd1178fc3cd2687f96ca2a7e0d0c13a81699a14828da552"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -66517,7 +66576,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "11608fc48e54543c0de6e3f03f0da3704735e3f18513eb9bf6af555c7284b5a8"
+      "sha256": "deac93015fccd7188d3d8549dc132ed753f736b50c06f1390fcc5cbb6cc87fe4"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -68438,6 +68497,30 @@
     {
       "path": "tools/ghidra/wc3_morph374_lifetimes.py",
       "sha256": "1da7ee271bdf3b00ea2cb1f71f31502e8ea6b78a0b6f3c9cb6cf364f8187f69a"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-pause-owner-release.md",
+      "sha256": "100d40b4672005745c629d5e4eebebb5b33f98baf91d3533adb6c99d5791fc4d"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_pause379.c",
+      "sha256": "6218ad434f635f09641044e78e02739b88d9cf9684ee998f03da43158c9e7529"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_pause379.py",
+      "sha256": "bb2d48b5c9544c32ceca68345cae94e7074ecbb53974e5f4b547530598669518"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-pause379-1.27.json",
+      "sha256": "6b6408b52d3c8db1449a697c9989f7d9e16df109b3f8469d085a1e8b37b5fbd7"
+    },
+    {
+      "path": "tools/ghidra/research/Pause379OwnerReleaseEvidence.java",
+      "sha256": "09005de3cd3edddf352577929292d34ed24fa38d35327605c5a61ce1ec4349e0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_pause379.py",
+      "sha256": "18c53cd364b94c612bd510d15f6a4a83b3bcf9deb8d2fb3fc08c5d206f5e100d"
     }
   ]
 }

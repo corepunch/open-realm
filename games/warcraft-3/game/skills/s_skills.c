@@ -1940,7 +1940,7 @@ static void ability_disables_release(edict_t *ent,bool scripted,bool orders) {
             ability_disable_subtract(ent,state,orders);
         }
         ability_disable_release(state);
-        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent)) {
+        if(!ent->inuse || ent->spawn_time!=spawn) {
             if(next)ability_disable_release(next);
             return;
         }

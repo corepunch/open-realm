@@ -320,7 +320,8 @@
     "oracle-morph372",
     "oracle-target371-ground",
     "oracle-captain373-strategic",
-    "oracle-morph374"
+    "oracle-morph374",
+    "oracle-pause379"
   ],
   "entries": [
     {
@@ -7191,6 +7192,18 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "Scoped Bear/Raven availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-pause379",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Other counted availability producer/acquire families and retail save-file parity remain existing SEP-01.2 scope.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "The existing SEP-01.2 leaf retains other counted availability producers/acquire walks; this inverse chunk does not close them."
         }
       ]
     }

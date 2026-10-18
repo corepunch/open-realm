@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Morph374, the inventory has **599 entries**: **318** oracle contracts
-(including variants) supplied by **246** distinct verifier scripts, **121**
+As of Pause379, the inventory has **600 entries**: **319** oracle contracts
+(including variants) supplied by **247** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -73,7 +73,7 @@ or silently upgrade the existing evidence.
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
 identity, source versions and frozen input hashes. The current Morph374
-inventory has599 entries:318 oracle contracts supplied by246 distinct verifier
+inventory has600 entries:319 oracle contracts supplied by247 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2449,3 +2449,7 @@ type-rebind completion, with initial/late attachment, inverse fades and in-proce
 Strict acceptance: classic: 26 tests/13055 assertions; tft: 26 tests/13055 assertions. Exact lifetime projection retains literal exceptions;
 Mount, other concrete producers and compositions remain in SEP-01.2.
 [Contract and evidence](common-morph-passive-availability.md).
+
+Pause379 registers complete scripted-owner inverse during pending removal. Strict acceptance: classic: 45 tests/10755 assertions; tft: 45 tests/10755 assertions.
+Original guards: 506; controlled public markers: 108.
+Other counted availability producers remain in existing SEP-01.2.
