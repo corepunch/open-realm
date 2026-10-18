@@ -67,6 +67,15 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
     case A_EXECUTE:return ground_morph_begin(ent,call->item,ent->class_id==data->unitID);
     case A_TOGGLE_ON:return ent && ent->class_id==data->unitID;
     case A_UNIT_INIT:case A_UNIT_TYPE_CHANGED:
+        /*55d380's initial-alternate fast path has no transition hold, but
+         *552120 still owns the authored lifetime. An existing owner identifies
+         *type refresh, so its request and serial are retained. */
+        if(ent && ent->class_id==data->unitID && (!ent->morph || ent->morph->code!=code)) {
+            if(!ent->morph)ent->morph=G_AllocMorph();
+            assert(ent->morph);
+            ent->morph->code=code;ent->morph->base_type=data->data[0].id;ent->morph->target_type=data->unitID;
+            S_ScheduleMorphExpiration(ent,data->heroDur);
+        }
         if(ent && ground_morph_is_burrow(call->item)) {
             if(ent->class_id==data->unitID)ground_morph_category(ent,code,true);
             else if(ent->morph && ent->morph->code==code) {
@@ -96,7 +105,15 @@ static intptr_t ethereal_form_message(edict_t *ent,abilityMsg_t msg,abilityCall_
     case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_UNIT_INIT,
         A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
     case A_ENABLE:case A_UNIT_INIT:
-        if(ent)S_InitializeEtherealAbility(ent,call->item->code,corporeal);
+        if(ent && S_InitializeEtherealAbility(ent,call->item->code,corporeal)) {
+            abilityLevel_t const *data=G_AbilityLevel(call->item->code,S_SpellLevel(ent,call->item->code));
+            /*55d380 initial-alternate branch applies subtype40c synchronously,
+             * without a separation transition. */
+            if(ent->class_id==data->unitID) {
+                S_SetEtherealAbility(ent,call->item->code,!corporeal);
+                CAbilityGroundMorph(ent,A_UNIT_INIT,call);
+            }
+        }
         return true;
     case A_MORPH_COMPLETE:
         if(G_ActorHasAbilityCode(ent,call->item->code))

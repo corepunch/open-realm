@@ -1863,10 +1863,11 @@ void S_SetEtherealAbility(edict_t *ent,uint32_t code,bool held) {
     owner->ethereal_owned=held;
     if(held)S_AcquireEthereal(ent);else S_ReleaseEthereal(ent);
 }
-void S_InitializeEtherealAbility(edict_t *ent,uint32_t code,bool held) {
+bool S_InitializeEtherealAbility(edict_t *ent,uint32_t code,bool held) {
     ability_disable_prepare(ent);
     unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
-    if(!owner->ethereal_initialized)S_SetEtherealAbility(ent,code,held);
+    if(owner->ethereal_initialized)return false;
+    S_SetEtherealAbility(ent,code,held);return true;
 }
 
 static void ability_disables_acquire(edict_t *ent,bool scripted) {

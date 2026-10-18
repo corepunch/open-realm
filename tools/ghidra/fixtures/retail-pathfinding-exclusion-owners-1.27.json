@@ -306,7 +306,8 @@
     "oracle-captain358-engagement",
     "oracle-submerge360",
     "oracle-crowd361",
-    "oracle-mask362"
+    "oracle-mask362",
+    "oracle-alternate364"
   ],
   "entries": [
     {
@@ -6953,6 +6954,18 @@
           "task": "E2E-06.1",
           "disposition": "evidence-boundary",
           "rationale": "Carry the bounded supplied-observation/profile/owner scope into the existing replacement contract; companion TARGET-02.1 coverage is complete, and other owners retain existing leaves."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-alternate364",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Phoenix, Burrow invisibility, other subtype initialization and counted-owner composition/replay remain existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Phoenix, Burrow invisibility, other initial subtypes and counted-owner replay retain the original separation leaf."
         }
       ]
     }

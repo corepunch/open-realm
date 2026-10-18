@@ -3679,8 +3679,8 @@ TEST(wc3_unit, ethereal357_forms_keep_counted_state_through_transition_save_and_
             if(action==3) {T_ASSERT(S_UnitExecutionPaused(unit));S_SetUnitPaused(unit,false);
                 morph330_advance(start+.425f);S_RunMoveTimers();T_EQ(unit->movement.repulse.disable_depth,0);}
             if(action==4 && !reverse) {
-                abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);
-                T_ASSERT(pending);if(pending)T_FEQ(request.deadline.time,2.0f,.000001f);
+                bool pending=unit->morph && unit->morph->expiration.active;
+                T_ASSERT(pending);if(pending)T_FEQ(unit->morph->expiration.deadline.time,2.0f,.000001f);
                 morph330_advance(1.999f);T_EQ(unit->class_id,alt);
                 uint32_t slot=unit-g_edicts;cstring_t path=Test_TempPath("ethereal357-lifetime.bin");
                 T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;enemy=g_edicts+enemy_slot;
@@ -3781,6 +3781,62 @@ TEST(wc3_unit, submerge360_zero_duration_rebinds_after_public_return_at_same_clo
     T_EQ(S_UnitMoveCategory(unit),0xca);
     morph330_advance(1);T_EQ(unit->class_id,FS_SLKKey("hpea"));T_EQ(unit->movement.repulse.disable_depth,0);
     reset_entities();restore_submerge_test_data(rows,old,ui,old_ui);
+}
+
+/* Alternate364:55d380 initializes an existing alternate through an immediate
+ * subclass inverse, with no transition contribution or d01c4 request. */
+TEST(wc3_unit, alternate364_attachment_publishes_form_before_first_order_and_cold_save) {
+    for(unsigned family=0;family<3;family++)for(unsigned schema=0;schema<2;schema++)for(unsigned saved=0;saved<3;saved++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        cstring_t parent=family==0 ? "Acpf" : family==1 ? "Aetf" : "ANsu";
+        cstring_t reverse=family==0 ? "uncorporealform" : family==1 ? "unetherealform" : "unsubmerge";
+        char data[1000];snprintf(data,sizeof(data),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Aa64\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K%s\nE\n",
+            schema ? "Data11" : "DataA1",parent,saved==2 ? "0.625" : "0");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        uint8_t water[]={CM_PATHING_UNWALKABLE};CM_SetupTestPathmap(1,1,water);
+        uint32_t code=FS_SLKKey("Aa64"),base=FS_SLKKey("hpea"),alt=FS_SLKKey("hfoo");
+        edict_t *unit=alloc_test_unit(alt,.5f,.5f);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=0,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,code));T_EQ(unit->class_id,alt);
+        T_EQ(unit->current_order_id,0);T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family==1);
+        if(family==2) {T_ASSERT(S_UnitIsSubmerged(unit));T_ASSERT(unit->s.renderfx&RF_HIDDEN);T_EQ(S_UnitMoveCategory(unit),8);}
+        bool pending=unit->morph && unit->morph->expiration.active;T_EQ(pending,saved==2);
+        if(pending)T_FEQ(unit->morph->expiration.deadline.time,.625f,.000001f);
+        uint32_t slot=unit-g_edicts;
+        if(saved) {cstring_t path=Test_TempPath("alternate364-attached.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family==1);
+            if(family==2) {T_ASSERT(S_UnitIsSubmerged(unit));T_EQ(S_UnitMoveCategory(unit),8);}}
+        if(saved==2) {
+            morph330_advance(.624f);T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,0);
+            morph330_advance(.625f);T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family==1);
+            if(family==2) {T_ASSERT(!S_UnitIsSubmerged(unit));T_EQ(S_UnitMoveCategory(unit),0xca);}
+            morph330_advance(.999f);T_EQ(unit->class_id,alt);
+            morph330_advance(1);T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,0);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family==0);
+        } else {
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        bool accepted=unit_issueimmediateorder(unit,reverse);T_ASSERT(accepted);
+        if(accepted) {
+            T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family==1);
+            if(family==2) {T_ASSERT(!S_UnitIsSubmerged(unit));T_EQ(S_UnitMoveCategory(unit),0xca);}
+            morph330_advance(1.374f);T_EQ(unit->class_id,alt);
+            morph330_advance(1.375f);T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,0);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family==0);
+            if(family==2) {T_ASSERT(!S_UnitIsSubmerged(unit));T_EQ(S_UnitMoveCategory(unit),0xca);}
+        }
+        }
+        T_ASSERT(G_ActorRemoveSkill(unit,code));T_EQ(unit->class_id,base);
+        T_ASSERT(!unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL));T_ASSERT(!S_UnitIsSubmerged(unit));
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
 }
 
 #endif /* BZ_TESTS */

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Target362, the inventory has **585 entries**: **304** oracle contracts
-(including variants) supplied by **232** distinct verifier scripts, **121**
+As of Alternate364, the inventory has **586 entries**: **305** oracle contracts
+(including variants) supplied by **233** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -73,7 +73,7 @@ or silently upgrade the existing evidence.
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
 identity, source versions and frozen input hashes. The current Target362
-inventory has585 entries:304 oracle contracts supplied by232 distinct verifier
+inventory has586 entries:305 oracle contracts supplied by233 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2377,3 +2377,8 @@ closing TARGET-02.1 without child TODOs. The inventory has585 entries:304 oracle
 contracts supplied by232 verifier scripts. Both engine editions pass109 directly
 affected tests/2,026,927 assertions;17 integrity checks and saved continuations
 are retained. See [target composition](retail-pathfinding-target-masks362.md).
+
+Alternate364 registers immediate subtype publication at initial alternate attachment,
+positive form lifetime and saved inverse ownership. Six matching retail captures
+preserve1,703 native events and839 public markers, guarded by614 instructions
+and14 rejection checks. Other producers remain within SEP-01.2.

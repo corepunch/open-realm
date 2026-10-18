@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "304 executable original/evidence contracts;585 total entries; provenance and limitations remain per-entry.",
+  "scope": "305 executable original/evidence contracts;586 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56183,6 +56183,52 @@
         "Captain ownership/trajectories remain GROUP-03.4.7.3.",
         "Missile ownership/trajectories remain E2E-06.1."
       ]
+    },
+    {
+      "id": "oracle-alternate364",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_alternate364.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "checks": {
+        "captures": {
+          "equal": 6
+        },
+        "scenes": {
+          "equal": 10
+        },
+        "public_markers": {
+          "equal": 839
+        },
+        "native_events": {
+          "equal": 1703
+        },
+        "instructions": {
+          "equal": 614
+        },
+        "engine": {
+          "nonempty": true
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 initial alternate attachment, synchronous subtype publication, positive authored lifetime and saved reverse ownership.",
+      "exclusions": [
+        "Phoenix, Burrow invisibility, other subtype initialization and counted-owner composition/replay remain existing SEP-01.2."
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "alternate364.json",
+      "expected_exit": 0,
+      "expected_status": "verified"
     }
   ],
   "fixtures": [
@@ -57081,7 +57127,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "935d5f059feb1a7a84cfcf33c86ab161f3bebbc6513eefb8e9a73e450f6df0f3"
+      "sha256": "95a544492449423f0abae619f1ff7f3e51199136dfb3ca338d28aa63d5e083b2"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58381,7 +58427,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "de163ee00d7263dbff77d898caee8da14eaf344cc5880f5853fe1c9a2373e0ac"
+      "sha256": "55cb8937f20389cea33e9522925d49be973965dea0f9835c8d4a35de9372d320"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -58873,7 +58919,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "71347eb81e563fce6ed7c221f1d700a3f3e0783fc2f427070d93697f3fc1fe15"
+      "sha256": "0a38d98c92c5de984bb6ff17a501aeedfb0c954c08088640284d42ced7124377"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58889,7 +58935,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "ad75b859c3662290000ccd3492264cb9b5844e5ebd14fb0f8ec74c04c9f41870"
+      "sha256": "bdc1e0aa4986f6468e74f5a097697e4a48ea9ce3031da4718a7b2752725ad750"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58901,7 +58947,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "18aa5e74959e37370604cc5801aaa4113ceaa51b2615fe45b472be729e64d2ae"
+      "sha256": "3277d5fdf340711da4390317661db0ac4673ace59c8243b5529b509add4a1c93"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -60325,7 +60371,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "5f76ba8ebd7babf7f1b7256a068c547f39cd0f046fe950f867d9ce11dcdcb6f0"
+      "sha256": "a9db13bcc8c8296cac62fd0e914af409245a725b1bc78e85fd66c043f9915ac3"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -63889,7 +63935,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "e058dcc848822533d9948861aad3a641a3ee36745b3c3fc811f7948f40c1f83a"
+      "sha256": "25720704f36847267bbbffc40da43f5163bbe4507c324ef4038cb6a56f4ba651"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -65441,7 +65487,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_ground_morph.c",
-      "sha256": "c79d3ca09724200113a35a9e74bf36658c533a110455d5d6ff033c6984e632bd"
+      "sha256": "0a245415054f8d88a4ba70284ee99106dde6ee2f74a364052eadbf7183c020db"
     },
     {
       "path": "tools/frida/research/morph331_probe.j",
@@ -65745,7 +65791,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "f25d7f0723880e00a30e55b224cfa6ab7af95041a07a75592cd0562daa90699a"
+      "sha256": "196a7f9b7946198d602d524cd364600fd04e5d05344415d8bf119b27b0e68d97"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -66598,6 +66644,54 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_replan.py",
       "sha256": "83e51f0d74b9f9fef511fba2a0b32da6ae820d311a7d91fa24494a3257349005"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-alternate-morph.md",
+      "sha256": "6f3135398c6973ebfd5f1930015f28147a77383f90a4af9ede258912a4fdffee"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_alternate364.py",
+      "sha256": "0bf51528c58adab4227bd56592cfd6c69a8e7760c5c32a2bf19f0d5b31073087"
+    },
+    {
+      "path": "tools/frida/research/alternate364_lifetime_make_map.py",
+      "sha256": "a1a29a965e48082679df238cdd5b4fd442976a4978896bd148b57d5bd630fd4a"
+    },
+    {
+      "path": "tools/frida/research/alternate364_lifetime_probe.j",
+      "sha256": "8147d12ed9cb218dd4ef5b0599b7e91aff3ac537f680e2738cf39b365af5e614"
+    },
+    {
+      "path": "tools/frida/research/alternate364_make_map.py",
+      "sha256": "1e415d620450f596d8935455fe0adb31ddff43d88fcdfbb6a755038189e4abbf"
+    },
+    {
+      "path": "tools/frida/research/alternate364_observer.js",
+      "sha256": "51c9c58f8dbc5e05de024f46be550dc380e35479e5ad326fca587a90e0e27b0f"
+    },
+    {
+      "path": "tools/frida/research/alternate364_probe.j",
+      "sha256": "cc372a468209a6256a92ba9b5364ce6d667f20d10cb9c86e84f04e7f58bdfdaf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-alternate364-1.27.json",
+      "sha256": "3a4745a924d95f7d2b2d676a693e99c61e128becc84274127e0d4111e0056435"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-alternate364-inputs-1.27.json.gz",
+      "sha256": "3789df813c434ff04a88183ec23306e4e743dac857610e45ea2117c412ab9b40"
+    },
+    {
+      "path": "tools/ghidra/research/Alternate364Evidence.java",
+      "sha256": "30932fe033a3e78c5a36bf27cbd81dd7a67a325dbd241a2ccde51b409614fbe4"
+    },
+    {
+      "path": "tools/ghidra/research/alternate364_freeze.py",
+      "sha256": "3e9813405da1570c2b08c839d773588f7d864bb1b40907947e30090616d83e5d"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_alternate364.py",
+      "sha256": "facf014873e8f38f25c6897aeed5987fdbbc0274c998f424d57d92ae98dd23ff"
     }
   ]
 }

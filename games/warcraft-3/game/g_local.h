@@ -3640,7 +3640,7 @@ void unit_refreshstatusflags(edict_t *);
 bool unit_hasstatusstate(edict_t const *, wc3_status_state_t);
 void S_AcquireEthereal(edict_t *);
 void S_ReleaseEthereal(edict_t *);
-void S_InitializeEtherealAbility(edict_t *,uint32_t,bool);
+bool S_InitializeEtherealAbility(edict_t *,uint32_t,bool);
 void S_SetEtherealAbility(edict_t *,uint32_t,bool);
 /* Modifier descriptors belong to live status slots. These APIs do not yet
  * feed combat/movement arithmetic; ability migrations do that in phase 7. */

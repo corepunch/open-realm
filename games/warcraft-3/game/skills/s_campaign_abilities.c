@@ -142,6 +142,9 @@ static bool submerge_validate(edict_t *unit, uint32_t code) {
 
 /*4ba940 changes occupancy c2 while preserving the query and bit8. */
 static void submerge_category(edict_t *unit,bool hidden) {
+    if(!unit->morph && hidden) {
+        unit->morph=G_AllocMorph();assert(unit->morph);
+    }
     if(unit->morph) {
         unit->morph->category_clear=hidden ? 0xc2 : 0;
         unit->morph->category_set=hidden ? 8 : 0xca;
@@ -180,7 +183,16 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
     active = S_UnitIsSubmerged(ent);
     switch (msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_UNIT_INIT,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+    case A_ENABLE:case A_UNIT_INIT: {
+        uint32_t normal,submerged;
+        if(ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged &&
+           (!ent->morph || ent->morph->code!=code)) {
+            CAbilityGroundMorph(ent,A_UNIT_INIT,call);
+            submerge_publish(ent,code,true);
+        }
+        return true;
+    }
     case A_COMMAND: {
         gameClient_t *client;
         uint32_t subgroup_class;
