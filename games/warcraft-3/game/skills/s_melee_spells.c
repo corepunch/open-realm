@@ -160,32 +160,32 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
 
 /* DataA owns the attack-rate bonus as a fraction (0.4 = +40%); DataB owns move speed. */
 float S_BloodlustAttackBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
-    heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
+    heroabilitystatus_t const *status = level ? unit_findstatusclass((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
     return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 1) : 0;
 }
 
 float S_BloodlustMoveBonus(edict_t const *unit) {
-    uint32_t level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
-    heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
+    uint32_t level = G_QueryUnitStatusClassLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
+    heroabilitystatus_t const *status = level ? unit_findstatusclass((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
     return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 2) : 0;
 }
 
 /* DataA owns the armor reduction as a flat amount. */
 float S_FaerieArmorDelta(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'a', 'e'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'f', 'a', 'e'));
     return level ? -S_SpellData(MAKEFOURCC('A', 'f', 'a', 'e'), level, 1) : 0.0f;
 }
 
 /* DataA owns the damage bonus as a fraction (0.25 = +25%). */
 float S_RoarDamageBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'r', 'o', 'a'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'r', 'o', 'a'));
     return level ? S_SpellData(MAKEFOURCC('A', 'r', 'o', 'a'), level, 1) : 0.0f;
 }
 
 /* DataA owns total healing over Dur seconds; tick rate derives from both. */
 float S_RejuvHealRate(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'r', 'e', 'j'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'r', 'e', 'j'));
     float duration;
     if (!level) return 0.0f;
     duration = S_SpellDuration(MAKEFOURCC('A', 'r', 'e', 'j'), level, false);
@@ -235,8 +235,8 @@ BZ_VALIDATED_SPELL_PROC(AbilityUnholyFrenzy, unholy_frenzy_validate, melee_statu
 
 /* TFT BuffID is BUhf; item AIuf authors Buhf. Consumers accept both fourccs. */
 static uint32_t unholy_frenzy_level(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'U', 'h', 'f'));
-    return level ? level : G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'U', 'h', 'f'));
+    return level ? level : G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
 }
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the life drain in HP/second. */
@@ -271,6 +271,6 @@ BZ_ABILITY_PROC(CAbilityCurse) {
 
 /* DataA owns the miss chance as a fraction (0.33 = 33% miss chance). */
 float S_CurseMissChance(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 's'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'c', 'r', 's'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 's'), level, 1) : 0.0f;
 }

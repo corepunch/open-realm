@@ -39,7 +39,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
                   Vector2_distance(&ent->s.origin2, &target->s.origin2) <= row->area) {
         /* Each infector owns its own infection: another source's Bapl must
          * neither suppress this application nor have its pulse phase reset. */
-        heroabilitystatus_t *slot = unit_findstatussource(target, FS_SLKKey(buff), ent);
+        heroabilitystatus_t *slot = unit_findstatussourceclass(target, FS_SLKKey(buff), ent);
         if (slot && slot->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
             slot->source_ability == ability.alias) {
             /* Same-source exposure refreshes lifetime, not the tick deadline.

@@ -2465,6 +2465,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
     }
     if (paused) {
         S_SetSleepClockPaused(self,true);
+        S_SetMetamorphosisClocksPaused(self,true);
         /*697770/688d30 cancel an already-built suspension's end request.
          * They do not admit another point head or retire its retained user. */
         if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
@@ -2515,6 +2516,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         S_ReleaseScriptedAbilityDisables(self);
         self->paused=false;
         S_SetSleepClockPaused(self,false);
+        S_SetMetamorphosisClocksPaused(self,false);
         /* Nested Unpause during notification has not acquired a physical
          * hold. The outer dispatch retires the unconstructed suspension. */
         if(self->movement.pause_phase==UNIT_PAUSE_ADMITTING)return;
@@ -4512,7 +4514,7 @@ static void move_adjust_speed_factor(edict_t *unit,float delta) {
 }
 void S_ApplyMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,float delta) {
     if(!unit || !status || status->move_speed_applied ||
-       !G_UnitAbilityLevel(unit,MAKEFOURCC('A','m','o','v')))return;
+       !G_UnitAbilityClassLevel(unit,MAKEFOURCC('A','m','o','v')))return;
     status->move_speed_delta=delta;status->move_speed_applied=1;
     move_adjust_speed_factor(unit,delta);
 }
@@ -4549,7 +4551,7 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
         ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     speed = wc3_add(speed, bonus);
-    uint32_t level = G_QueryUnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+    uint32_t level = G_QueryUnitStatusClassLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed = wc3_mul(speed, 1.0f + S_UnholyMoveBonus(ent));
     speed = wc3_mul(speed, ent->movement.speed_factor_initialized ? ent->movement.speed_factor : 1);
@@ -5065,7 +5067,7 @@ static void ai_move_walk(edict_t *ent) {
     bool blocked;
     bool point_order;
 
-    if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
+    if (S_UnitIsCycloned(ent) || G_UnitStatusClassLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
         move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
         ent->stand(ent);
@@ -5247,7 +5249,7 @@ bool move_is_active_order_walk(edict_t const *ent) {
 }
 
 bool S_UnitIsEntanglingRooted(edict_t const *unit) {
-    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
+    return unit && G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
 }
 
 /* Move owns translation eligibility. False means the unit cannot change

@@ -27,7 +27,7 @@ void S_MarkEnduranceSource(edict_t const *unit) {
 
 static void endurance_discover(uint32_t index) {
     edict_t *unit = g_edicts + index;
-    bool present = unit->inuse && G_UnitAbilityLevel(unit, ID_ENDURANCE);
+    bool present = unit->inuse && G_UnitAbilityClassLevel(unit, ID_ENDURANCE);
 #ifdef BZ_TESTS
     test_endurance_discovery_visits++;
 #endif
@@ -59,7 +59,7 @@ static abilityLevel_t const *endurance_level(enduranceSource_t const *source,edi
     edict_t *unit=source->unit;
     if(!unit->inuse || unit->spawn_time!=source->spawn || !S_AuraUnitActive(unit) ||
         !S_SpellIsFriend(unit,(edict_t *)target))return NULL;
-    uint32_t rank=G_UnitAbilityLevel(unit,ID_ENDURANCE);
+    uint32_t rank=G_UnitAbilityClassLevel(unit,ID_ENDURANCE);
     if(!rank)return NULL;
     abilityLevel_t const *row=G_AbilityLevel(ID_ENDURANCE,rank);
     return Vector2_distance(&unit->s.origin2,&target->s.origin2)<=row->area ? row : NULL;

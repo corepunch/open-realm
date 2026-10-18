@@ -2556,7 +2556,7 @@ static uint32_t G_BotConversionAbility(edict_t *unit, uint32_t *target_type) {
 #define TRY_CONVERSION_ABILITY(alias_) do { \
         uint32_t const code = (alias_); \
         abilityitem_t const item = S_AbilityItem(code); \
-        uint32_t const level = G_UnitAbilityLevel(unit, code); \
+        uint32_t const level = G_UnitAbilityClassLevel(unit, code); \
         uint32_t const target = level ? S_SpellUnitId(code, level) : 0; \
         if (level && item.ability && item.ability->proc == CAbilityMetamorphosis && \
             item.ability->target_type == SPELL_TARGET_NONE && target && target != unit->class_id) { \
@@ -2898,7 +2898,7 @@ static void G_BotEnrollInitialGuard(edict_t *unit) {
     if(!(bot->flags&BOT_GUARD_NEW_UNITS) || G_BotAssignedGuard(unit) ||
        G_UnitIsStructure(unit) || G_BotUnitIsWorker(unit) ||
        (unit->aiflags&AI_ILLUSION) || (initial>='A' && initial<='Z') ||
-       unit_findstatus(unit,MAKEFOURCC('B','T','L','F')))return;
+       unit_findstatusclass(unit,MAKEFOURCC('B','T','L','F')))return;
     uint32_t resources[]={MAKEFOURCC('A','h','a','r'),MAKEFOURCC('A','a','h','a'),
         MAKEFOURCC('A','h','r','l'),MAKEFOURCC('A','w','h','a')};
     FOR_LOOP(i,4)if(G_BotUnitHasGuardExcludedAbility(unit,resources[i]))return;

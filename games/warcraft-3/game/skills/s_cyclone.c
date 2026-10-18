@@ -5,7 +5,7 @@
 #define BZ_TIMED_LIFE_BUFF MAKEFOURCC('B','T','L','F') // lifecycle marker; dispel must not make a temporary unit permanent
 
 bool S_UnitIsCycloned(edict_t const *unit) {
-    return unit && (G_UnitStatusLevel(unit, BZ_CYCLONE_BUFF) || G_UnitStatusLevel(unit, BZ_CYCLONE_BUFF_EXTRA));
+    return unit && (G_UnitStatusClassLevel(unit, BZ_CYCLONE_BUFF) || G_UnitStatusClassLevel(unit, BZ_CYCLONE_BUFF_EXTRA));
 }
 
 /* BTLF owns temporary-unit lifetime and is never dispellable. Cyclone additionally
@@ -13,7 +13,7 @@ bool S_UnitIsCycloned(edict_t const *unit) {
 bool S_StatusIsUndispellable(heroabilitystatus_t const *status) {
     abilityitem_t item;
     if (!status || !status->level) return false;
-    if (status->code == BZ_TIMED_LIFE_BUFF || status->code == MAKEFOURCC('B','O','w','k')) return true;
+    if (G_UnitStatusClassCode(status) == BZ_TIMED_LIFE_BUFF || G_UnitStatusClassCode(status) == MAKEFOURCC('B','O','w','k')) return true;
     if (!status->data) return false;
     item = S_AbilityItem(status->data);
     if (!item.ability || item.ability->proc != CAbilityCyclone) return false;

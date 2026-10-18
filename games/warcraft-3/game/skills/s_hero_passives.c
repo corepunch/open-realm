@@ -990,11 +990,11 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
     FOR_LOOP(i, G_UnitStatusSlotCount(attacker)) {
         heroabilitystatus_t const *st = attacker->abilstatus + i;
         if (!st->level || (st->timestamp && st->timestamp <= G_Time())) continue;
-        if (st->code == ID_SEARING_ARROWS || G_AbilityCode(st->code) == ID_SEARING_ARROWS) {
-            code = st->code; level = st->level; break;
+        if (G_UnitStatusClassCode(st) == ID_SEARING_ARROWS || G_AbilityCode(G_UnitStatusClassCode(st)) == ID_SEARING_ARROWS) {
+            code = G_UnitStatusClassCode(st); level = st->level; break;
         }
     }
-    if (!level) { level = G_UnitStatusLevel(attacker, ID_POISON_ARROWS); code = ID_POISON_ARROWS; }
+    if (!level) { level = G_UnitStatusClassLevel(attacker, ID_POISON_ARROWS); code = ID_POISON_ARROWS; }
     return level && S_AttackProfileRead(attacker, 0)->weapon == WPN_MISSILE ? damage + (int)S_SpellData(code, level, 1) : damage;
 }
 
@@ -1005,7 +1005,7 @@ static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
 
 static void mana_shield_remove(edict_t *unit, uint32_t buff) {
     FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-        if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff)
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == buff)
             unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
     G_InvalidateUnitInfoPanel(unit);
 }
@@ -1021,7 +1021,7 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
         code = ref.alias ? ref.alias : ID_MANA_SHIELD;
     }
     level = S_SpellLevel(ent, code); buff = mana_shield_buff(code, level);
-    active = buff && G_UnitStatusLevel(ent, buff);
+    active = buff && G_UnitStatusClassLevel(ent, buff);
     switch (msg) {
     case A_TOGGLE_ON: return active;
     case A_EXECUTE:
@@ -1033,7 +1033,7 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
         ref = mana_shield_ability(ent);
         if (!ref.alias) return false;
         code = ref.alias; level = ref.level; buff = mana_shield_buff(code, level);
-        active = buff && G_UnitStatusLevel(ent, buff);
+        active = buff && G_UnitStatusClassLevel(ent, buff);
         if (!strcmp(call->order, "manashieldon")) {
             if (!active && buff && ent->mana.value > 0.0f) unit_addstatus(ent, GetClassName(buff), level);
             return true;
@@ -1055,10 +1055,10 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
 int S_ManaShieldDamage(edict_t *target, int damage) {
     auraAbilityRef_t ref = mana_shield_ability(target);
     uint32_t code = ref.alias ? ref.alias : ID_MANA_SHIELD;
-    uint32_t level = ref.level ? ref.level : G_UnitAbilityLevel(target, ID_MANA_SHIELD);
+    uint32_t level = ref.level ? ref.level : G_UnitAbilityClassLevel(target, ID_MANA_SHIELD);
     uint32_t buff = level ? mana_shield_buff(code, level) : 0;
     float ratio, fraction, absorbed;
-    if (!buff || !G_UnitStatusLevel(target, buff) || damage <= 0 || target->mana.value <= 0.0f) return damage;
+    if (!buff || !G_UnitStatusClassLevel(target, buff) || damage <= 0 || target->mana.value <= 0.0f) return damage;
     ratio = S_SpellData(code, level, 1);
     fraction = MIN(1.0f, MAX(0.0f, S_SpellData(code, level, 2)));
     if (ratio <= 0.0f || fraction <= 0.0f) return damage;
@@ -1078,27 +1078,27 @@ bool S_EvasionRoll(edict_t *target) {
     abilityAliasRef_t ev = S_ResolveAbilityAlias(target, ID_EVASION);
     uint32_t level;
     if (ev.alias && ev.level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
-    level = G_UnitAbilityLevel(target, ID_DRUNKEN_BRAWLER);
+    level = G_UnitAbilityClassLevel(target, ID_DRUNKEN_BRAWLER);
     return level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
 }
 
 int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
-    uint32_t level = G_UnitAbilityLevel(attacker, ID_CRITICAL_STRIKE);
+    uint32_t level = G_UnitAbilityClassLevel(attacker, ID_CRITICAL_STRIKE);
     uint32_t code = ID_CRITICAL_STRIKE;
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
+    if (!level) { level = G_UnitAbilityClassLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
+    if (!level) { level = G_UnitAbilityClassLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
     if (!level || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
     return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
 }
 
 float S_SpikedArmorBonus(edict_t const *unit) {
-    uint32_t level = G_UnitAbilityLevel(unit, ID_SPIKED_CARAPACE);
+    uint32_t level = G_UnitAbilityClassLevel(unit, ID_SPIKED_CARAPACE);
     return level ? S_SpellData(ID_SPIKED_CARAPACE, level, 3) : 0.0f;
 }
 
 float S_SpikedDamageReturn(edict_t const *unit, float damage) {
-    uint32_t code = ID_SPIKED_CARAPACE, level = G_UnitAbilityLevel(unit, code);
-    if (!level) { code = ID_SPIKED_BARRICADES; level = G_UnitAbilityLevel(unit, code); }
+    uint32_t code = ID_SPIKED_CARAPACE, level = G_UnitAbilityClassLevel(unit, code);
+    if (!level) { code = ID_SPIKED_BARRICADES; level = G_UnitAbilityClassLevel(unit, code); }
     if (!level) return 0.0f;
     return MAX(S_SpellData(code, level, 2), damage * S_SpellData(code, level, 1));
 }

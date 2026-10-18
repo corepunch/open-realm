@@ -5,14 +5,14 @@
 
 static void mana_flare_strip(edict_t *unit) {
 	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
+		if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == ID_BMFL)
 			unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
 	G_InvalidateUnitInfoPanel(unit);
 }
 
 static heroabilitystatus_t *mana_flare_status(edict_t *unit) {
 	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
+		if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == ID_BMFL)
 			return unit->abilstatus + i;
 	return NULL;
 }
@@ -26,7 +26,7 @@ static bool mana_flare_can_splash(edict_t *flare, edict_t *primary, edict_t *tar
 }
 
 static int mana_flare_damage(edict_t *flare, edict_t *victim, float cost) {
-	uint32_t level = MAX(1u, G_UnitAbilityLevel(flare, ID_MANA_FLARE));
+	uint32_t level = MAX(1u, G_UnitAbilityClassLevel(flare, ID_MANA_FLARE));
 	bool hero = G_UnitIsHero(victim);
 	float per = S_SpellData(ID_MANA_FLARE, level, hero ? 2 : 1);
 	float cap = S_SpellData(ID_MANA_FLARE, level, hero ? 4 : 3);
@@ -50,13 +50,13 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 		S_SpellApplyTimedStatus(ent, buff, level, S_SpellHeroDuration(code, level, ent));
 		return true;
 	case A_UPDATE:
-		if (ent && ent->channel && ent->channel->code == code && !G_UnitStatusLevel(ent, ID_BMFL))
+		if (ent && ent->channel && ent->channel->code == code && !G_UnitStatusClassLevel(ent, ID_BMFL))
 			S_SpellCancelChannel(ent);
 		return true;
 	case A_CANCEL:
 	case A_DISABLE:
 	case A_UNIT_REMOVE:
-		if (G_UnitStatusLevel(ent, ID_BMFL)) mana_flare_strip(ent);
+		if (G_UnitStatusClassLevel(ent, ID_BMFL)) mana_flare_strip(ent);
 		return true;
 	case A_MOVE_LEAVE:
 		if (ent && ent->channel && ent->channel->code == code) {
@@ -71,7 +71,7 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 
 /* DataE armor while Bmfl is active; ubertip binds armor to DataE. */
 float S_ManaFlareArmorBonus(edict_t const *unit) {
-	uint32_t level = G_UnitStatusLevel(unit, ID_BMFL);
+	uint32_t level = G_UnitStatusClassLevel(unit, ID_BMFL);
 	return level ? S_SpellData(ID_MANA_FLARE, level, 5) : 0.0f;
 }
 
@@ -82,7 +82,7 @@ void S_ManaFlareOnCast(edict_t *caster, uint32_t spell_code, uint32_t spell_leve
 	cost = S_SpellNumber(spell_code, ABILITY_NUMBER_COST, MAX(1u, spell_level));
 	if (cost <= 0.0f) return;
 
-	FILTER_EDICTS(flare, S_SpellIsAliveTarget(flare) && G_UnitStatusLevel(flare, ID_BMFL) &&
+	FILTER_EDICTS(flare, S_SpellIsAliveTarget(flare) && G_UnitStatusClassLevel(flare, ID_BMFL) &&
 				  S_SpellIsEnemy(flare, caster)) {
 		heroabilitystatus_t *st;
 		uint32_t level, now, gate;
@@ -90,7 +90,7 @@ void S_ManaFlareOnCast(edict_t *caster, uint32_t spell_code, uint32_t spell_leve
 		bool mana_only;
 		int damage;
 
-		level = MAX(1u, G_UnitAbilityLevel(flare, ID_MANA_FLARE));
+		level = MAX(1u, G_UnitAbilityClassLevel(flare, ID_MANA_FLARE));
 		area = S_SpellNumber(ID_MANA_FLARE, ABILITY_NUMBER_AREA, level);
 		if (area > 0.0f && Vector2_distance(&flare->s.origin2, &caster->s.origin2) > area) continue;
 		if (!S_SpellAllowsTarget(ID_MANA_FLARE, flare, caster)) continue;

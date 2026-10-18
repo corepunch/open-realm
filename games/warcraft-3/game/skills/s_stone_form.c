@@ -61,7 +61,7 @@ BZ_ABILITY_PROC(CAbilityStoneForm) {
         /* Capture the focused subgroup before casting: takeoff rebinds the
          * first member immediately while landing keeps its source type. */
         FOR_CONTROLLABLE_SELECTED_UNITS(client, unit) {
-            if (unit->class_id != subgroup_class || !G_UnitAbilityLevel(unit, code)) continue;
+            if (unit->class_id != subgroup_class || !G_UnitAbilityClassLevel(unit, code)) continue;
             if (S_CastNoTargetSpell(unit, code)) executed = true;
         }
         if (executed) Get_Commands_f(call->client);

@@ -48,7 +48,7 @@ static void timed_status_debug_dump(edict_t *ent, gameClient_t *viewer, cstring_
                 "WC3_TIMED_STATUS server status slot=%u code=%s level=%u timestamp=%u duration_ms=%u remaining_ms=%ld eligible=%u fraction=%.4f\n",
                 (unsigned)i, code, (unsigned)status->level,
                 (unsigned)status->timestamp, (unsigned)status->duration_ms,
-                (long)remaining, (unsigned)unit_statusshowstimedbar(status->code),
+                (long)remaining, (unsigned)unit_statusshowstimedbar(G_UnitStatusClassCode(status)),
                 unit_statusremainingfraction(status));
     }
 }
@@ -474,7 +474,7 @@ static cstring_t TimedStatusLabel(heroabilitystatus_t const *status) {
     uint32_t buff_code;
     cstring_t tip;
 
-    if (!status || !unit_statusshowstimedbar(status->code)) return NULL;
+    if (!status || !unit_statusshowstimedbar(G_UnitStatusClassCode(status))) return NULL;
     buff_code = G_UnitStatusBuffCode(status);
     if (!buff_code) return NULL;
     tip = StatusBuffField(buff_code, "Bufftip");

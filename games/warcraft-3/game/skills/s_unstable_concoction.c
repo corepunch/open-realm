@@ -11,7 +11,7 @@ static bool unstable_concoction_splash_allows(uint32_t code, edict_t *caster, ed
 }
 
 static void unstable_concoction_explode(edict_t *caster, edict_t *primary, uint32_t code) {
-	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
+	uint32_t level = MAX(1u, G_UnitAbilityClassLevel(caster, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
 	float max_d = S_SpellData(code, level, 5), splash_spent = 0.0f;

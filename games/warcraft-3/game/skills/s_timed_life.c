@@ -94,7 +94,7 @@ uint32_t S_TimedLifeLevel(edict_t const *unit,uint32_t code) {
 }
 bool S_UnitHasTimedLife(edict_t const *unit) {
     timedLife_t **head=TimedLifeHead(unit);
-    return unit && ((head && *head) || G_QueryUnitStatusLevel(unit,MAKEFOURCC('B','T','L','F')));
+    return unit && ((head && *head) || G_QueryUnitStatusClassLevel(unit,MAKEFOURCC('B','T','L','F')));
 }
 void S_ReleaseTimedLives(edict_t *unit) {
     timedLife_t **head=TimedLifeHead(unit);

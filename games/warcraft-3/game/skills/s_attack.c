@@ -940,9 +940,9 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
-    { uint32_t cleave_code = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
+    { uint32_t cleave_code = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
             MAKEFOURCC('A','N','c','a') : MAKEFOURCC('A','C','c','e');
-    uint32_t cleave_level = G_UnitAbilityLevel(attacker, cleave_code);
+    uint32_t cleave_level = G_UnitAbilityClassLevel(attacker, cleave_code);
     if (cleave_level) {
         float radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
         float fraction = S_SpellData(cleave_code, cleave_level, 1);

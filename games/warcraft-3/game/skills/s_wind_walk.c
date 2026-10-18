@@ -9,14 +9,14 @@
 static heroabilitystatus_t *wind_walk_status(edict_t *unit) {
     if (!unit) return NULL;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-        if (unit->abilstatus[i].level && unit->abilstatus[i].code == WW_ID_BOWK)
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == WW_ID_BOWK)
             return unit->abilstatus + i;
     return NULL;
 }
 
 static bool wind_walk_event_status(abilityCall_t const *call) {
     return call && call->status.slot && call->status.slot->level &&
-           call->status.slot->code == WW_ID_BOWK;
+           G_UnitStatusClassCode(call->status.slot) == WW_ID_BOWK;
 }
 
 static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) {

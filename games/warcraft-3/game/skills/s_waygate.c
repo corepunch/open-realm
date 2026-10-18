@@ -81,7 +81,7 @@ static bool waygate_dimensions(edict_t const *gate, float *width, float *height)
     abilityLevel_t const *row;
 
     if (!alias || !width || !height) return false;
-    row = G_AbilityLevel(alias, MAX(1u, G_UnitAbilityLevel(gate, alias)));
+    row = G_AbilityLevel(alias, MAX(1u, G_UnitAbilityClassLevel(gate, alias)));
     if (!row) return false;
     *width = MAX(0.0f, row->data[0].number);  /* Wrp1 / DataA */
     *height = MAX(0.0f, row->data[1].number); /* Wrp2 / DataB */

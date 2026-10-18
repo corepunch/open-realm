@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 215; /* Captain roster subscriptions exclude TargetLost; retained target roles keep it. */
+static uint32_t const save_version = 216; /* ConcreteBEme identity, primary expiry and pausedAEme lifetime. Provisional next version; rebase at integration. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -859,6 +859,8 @@ static field_t const morph_fields[] = {
     TF(morph_t, expiration.deadline.epoch, F_INT),
     TF(morph_t, expiration.deadline.span, F_FLOAT),
     TF(morph_t, expiration.sequence, F_INT),
+    TF(morph_t, expiration_remaining, F_FLOAT),
+    TF(morph_t, expiration_paused, F_INT),
     TF(morph_t, expiration.active, F_INT),
     TF(morph_t, code, F_INT),
     TF(morph_t, base_type, F_INT),
@@ -1183,6 +1185,13 @@ static field_t const channel_fields[] = {
 
 /* Status sources survive saves by entity index; all scalar payload/timing fields remain in the raw record. */
 static field_t const status_fields[] = {
+    TF(heroabilitystatus_t, class_code, F_INT),
+    TF(heroabilitystatus_t, class_timer.deadline.time, F_FLOAT),
+    TF(heroabilitystatus_t, class_timer.deadline.epoch, F_INT),
+    TF(heroabilitystatus_t, class_timer.deadline.span, F_FLOAT),
+    TF(heroabilitystatus_t, class_timer.sequence, F_INT),
+    TF(heroabilitystatus_t, class_timer_remaining, F_FLOAT),
+    TF(heroabilitystatus_t, class_clock_depth, F_INT),
     TF(heroabilitystatus_t, instance_id, F_INT),
     TF(heroabilitystatus_t, stack_policy, F_INT),
     TF(heroabilitystatus_t, move_speed_delta, F_FLOAT),
@@ -2963,7 +2972,7 @@ typedef struct {
 } savedAbilityOrder_t;
 
 typedef struct {
-    uint32_t code,exclusive_inventory;
+    uint32_t code,class_code,exclusive_inventory;
     int32_t depth,order_depth;
     bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned,morph_owned,burrow_initialized,burrow_owned;
 } savedAbilityDisable_t;
@@ -2976,7 +2985,7 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
+        savedAbilityDisable_t saved={.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -2988,11 +2997,14 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
     unitAbilityDisable_t **tail=&ent->ability_disables;
     FOR_LOOP(i,count) {
         savedAbilityDisable_t saved;
-        if(!LoadBytes(f,&saved,sizeof(saved)) || !saved.code || !S_AbilityItem(saved.code).ability)goto failed;
+        if(!LoadBytes(f,&saved,sizeof(saved)) || !saved.code)goto failed;
+        if(saved.class_code) {
+            if(saved.class_code!=MAKEFOURCC('B','E','m','e'))goto failed;
+        } else if(!S_AbilityItem(saved.code).ability)goto failed;
         for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
-            if(s->code==saved.code)goto failed;
+            if(s->code==saved.code && s->class_code==saved.class_code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
-        state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
+        state->code=saved.code;state->class_code=saved.class_code;state->depth=saved.depth;state->order_depth=saved.order_depth;
         state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;state->morph_owned=saved.morph_owned;state->burrow_initialized=saved.burrow_initialized;state->burrow_owned=saved.burrow_owned;
         state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->exclusive_owned=saved.exclusive_owned;state->exclusive_inventory=saved.exclusive_inventory;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
@@ -3736,6 +3748,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!S_ValidateMetamorphosisOwners()) { fprintf(stderr,"WC3 LoadGame: invalid concrete Morph status owners\n"); fclose(f); return false; }
     if (!G_ValidateMovePlacementLevels()) { fprintf(stderr,"WC3 LoadGame: invalid placement handles\n"); fclose(f); return false; }
     FILTER_EDICTS(unit,unit->inuse && unit->order_queue.capacity) {
         if(!unit->order_queue.entries) {

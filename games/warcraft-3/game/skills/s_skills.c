@@ -263,6 +263,7 @@ static ability_t abilitylist[] = {
     { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation */
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
     { "AEme", CAbilityMetamorphosis, AB_SPELL },  /* Metamorphosis */
+    { "BEme", CBuffMetamorphosis, AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },  /* Attached typed buff; no command slot. */
     { "AEer", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots */
     { "Aenr", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots (creep) */
     { "Aenw", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Seaweed */
@@ -1671,7 +1672,7 @@ static bool unit_target_ability_try(edict_t *target, edict_t *issuer, cstring_t 
     if (!target || !issuer || !order || !code || !seen || !seen_count) return false;
     FOR_LOOP(i, *seen_count) if (seen[i] == code) return false;
     if (*seen_count < seen_capacity) seen[(*seen_count)++] = code;
-    if (!G_UnitAbilityLevel(target, code)) return false;
+    if (!G_UnitAbilityClassLevel(target, code)) return false;
     item = S_AbilityItem(code);
     if (!item.ability) return false;
     call = MAKE(abilityCall_t, .item = &item, .target_order = { issuer, order });
@@ -1721,7 +1722,7 @@ bool S_UnitProjectileHit(edict_t *projectile) {
         uint32_t code;
         if (!ability->classname || strlen(ability->classname) != 4) continue;
         code = FS_SLKKey(ability->classname);
-        if (!G_UnitAbilityLevel(target, code)) continue;
+        if (!G_UnitAbilityClassLevel(target, code)) continue;
         item = MAKE(abilityitem_t, .code = code, .ability = ability);
         call = MAKE(abilityCall_t, .item = &item, .projectile = projectile);
         if (S_AbilityMessage(target, A_PROJECTILE_HIT, &call)) return true;
@@ -1800,13 +1801,22 @@ typedef struct abilityAttachContext_s {
 } abilityAttachContext_t;
 static abilityAttachContext_t *ability_attaching;
 
-static unitAbilityDisable_t *ability_disable_owner(edict_t *ent,uint32_t code) {
+static unitAbilityDisable_t *ability_disable_typed_owner(edict_t *ent,uint32_t code,uint32_t class_code) {
     for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
-        if(state->code==code)return state;
+        if(state->code==code && state->class_code==class_code)return state;
     unitAbilityDisable_t *state=calloc(1,sizeof(*state));
     if(!state) {gi.error("Cannot allocate ability availability state");abort();}
-    state->code=code;state->references=1;state->linked=true;state->next=ent->ability_disables;
+    state->code=code;state->class_code=class_code;state->references=1;state->linked=true;state->next=ent->ability_disables;
     ent->ability_disables=state;return state;
+}
+
+static unitAbilityDisable_t *ability_disable_owner(edict_t *ent,uint32_t code) {
+    return ability_disable_typed_owner(ent,code,0);
+}
+static abilityitem_t ability_disable_item(unitAbilityDisable_t const *state) {
+    abilityitem_t item=S_AbilityItem(state->class_code ? state->class_code : state->code);
+    item.code=state->code;
+    return item;
 }
 
 static void ability_disable_release(unitAbilityDisable_t *state) {
@@ -1855,7 +1865,7 @@ static void ability_disable_subtract(edict_t *ent,unitAbilityDisable_t *state,bo
     if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
     int32_t before=state->depth;
     state->depth=(int32_t)((uint32_t)before-1);
-    abilityitem_t item=S_AbilityItem(state->code);
+    abilityitem_t item=ability_disable_item(state);
     if(before>0 && state->depth<=0 && item.ability && item.ability->proc &&
        known_unit_ability_receives(item,A_UNIT_RESUME)) {
         abilityCall_t call={.item=&item};item.ability->proc(ent,A_UNIT_RESUME,&call);
@@ -1888,6 +1898,34 @@ static void ability_disable_prepare(edict_t *ent) {
         if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
 }
 
+void S_AttachStatusAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
+    assert(class_code==MAKEFOURCC('B','E','m','e'));
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_typed_owner(ent,code,class_code);
+    abilityitem_t item=ability_disable_item(owner);
+    if(ent->ability_pause_depth) {
+        owner->pause_owned=true;
+        ability_disable_add(ent,owner,&item,true,false);
+    }
+    for(int32_t i=0;i<ent->ability_disable_depth;i++)ability_disable_add(ent,owner,&item,false,false);
+    for(int32_t i=0;i<ent->ability_exclusive_depth;i++)ability_disable_add(ent,owner,&item,true,false);
+}
+void S_DetachStatusAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
+    for(unitAbilityDisable_t *owner=ent->ability_disables;owner;owner=owner->next)
+        if(owner->code==code && owner->class_code==class_code) {
+            abilityitem_t item=ability_disable_item(owner);
+            owner->references++;
+            ability_disable_add(ent,owner,&item,false,false);
+            ability_disable_unlink(ent,owner);ability_disable_release(owner);return;
+        }
+}
+void S_AdjustAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code,bool add,bool orders) {
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_typed_owner(ent,code,class_code);
+    if(add) {abilityitem_t item=ability_disable_item(owner);ability_disable_add(ent,owner,&item,orders,false);}
+    else ability_disable_subtract(ent,owner,orders);
+}
+
 /* Initialization messages also run during type refresh. Ethereal's counted
  * contribution belongs to this attached ability, and must not be reacquired. */
 void S_SetEtherealAbility(edict_t *ent,uint32_t code,bool held) {
@@ -1917,9 +1955,9 @@ static void ability_disables_acquire(edict_t *ent,bool scripted,bool orders) {
          * inherit the unit contribution but are not revisited by this walk. */
         unitAbilityDisable_t *next=state->next;
         if(next)next->references++;
-        if(state->linked && !(ability_attaching && ability_attaching->unit==ent && ability_attaching->code==state->code)) {
+        if(state->linked && !(ability_attaching && ability_attaching->unit==ent && !state->class_code && ability_attaching->code==state->code)) {
             if(scripted)state->pause_owned=ent->ability_pause_depth>0;
-            abilityitem_t item=S_AbilityItem(state->code);
+            abilityitem_t item=ability_disable_item(state);
             ability_disable_add(ent,state,&item,orders,false);
         }
         ability_disable_release(state);
@@ -1976,8 +2014,8 @@ void S_SetBurrowInvisibilityContribution(edict_t *ent,uint32_t code,bool held) {
  * owners from the alternate-form whole-unit contribution. Construction's
  * current attachment is added to the all-owner aggregate only after A_ENABLE. */
 static bool morph_availability_exception(unitAbilityDisable_t const *state,uint32_t code) {
-    abilityitem_t item=S_AbilityItem(state->code);
-    return state->code==code || state->code==MAKEFOURCC('A','H','e','r') ||
+    abilityitem_t item=ability_disable_item(state);
+    return (!state->class_code && (state->code==code || state->code==MAKEFOURCC('A','H','e','r'))) ||
         (item.ability && (item.ability->proc==CAbilityMove || item.ability->proc==CAbilityAttack ||
                             item.ability->proc==CAbilityInventory));
 }
@@ -1994,7 +2032,7 @@ void S_SetMorphAbilityDisables(edict_t *ent,uint32_t code,bool held) {
         ability_disables_release(ent,false,true);
         for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
             if(morph_availability_exception(state,code)) {
-                abilityitem_t item=S_AbilityItem(state->code);ability_disable_add(ent,state,&item,true,false);
+                abilityitem_t item=ability_disable_item(state);ability_disable_add(ent,state,&item,true,false);
             }
     }
 }
@@ -2005,7 +2043,7 @@ void S_AcquireBuffAbilityDisables(edict_t *ent,bool orders) {ability_disables_ac
 void S_ReleaseBuffAbilityDisables(edict_t *ent,bool orders) {ability_disables_release(ent,false,orders);}
 bool S_AbilityExecutionDisabled(edict_t const *ent,uint32_t code) {
     for(unitAbilityDisable_t const *owner=ent ? ent->ability_disables : NULL;owner;owner=owner->next)
-        if(owner->code==code)return owner->depth>0;
+        if(!owner->class_code && owner->code==code)return owner->depth>0;
     return false;
 }
 
@@ -2028,7 +2066,7 @@ void S_AcquireExclusiveAbilityDisables(edict_t *ent,uint32_t code) {
 
 bool S_ReleaseExclusiveAbilityDisables(edict_t *ent,uint32_t code) {
     unitAbilityDisable_t *owner=ent->ability_disables;
-    while(owner && owner->code!=code)owner=owner->next;
+    while(owner && (owner->class_code || owner->code!=code))owner=owner->next;
     if(!owner || !owner->exclusive_owned)return false;
     owner->references++;owner->exclusive_owned=false;
     owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
@@ -2045,7 +2083,7 @@ void S_AcquireItemAbilityDisables(edict_t *ent,uint32_t code) {
     ability_disable_prepare(ent);
     uint32_t inventory=MAKEFOURCC('A','I','n','v');
     for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
-        if(S_AbilityItem(s->code).ability->proc==CAbilityInventory) {inventory=s->code;break;}
+        if(!s->class_code && S_AbilityItem(s->code).ability->proc==CAbilityInventory) {inventory=s->code;break;}
     unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
     unitAbilityDisable_t *pack=ability_disable_owner(ent,inventory);
     owner->references++;pack->references++;
@@ -2065,7 +2103,7 @@ void S_AcquireItemAbilityDisables(edict_t *ent,uint32_t code) {
 }
 bool S_ReleaseItemAbilityDisables(edict_t *ent,uint32_t code) {
     unitAbilityDisable_t *owner=ent->ability_disables;
-    while(owner && owner->code!=code)owner=owner->next;
+    while(owner && (owner->class_code || owner->code!=code))owner=owner->next;
     if(!owner || !owner->exclusive_owned || !owner->exclusive_inventory)return false;
     owner->references++;owner->exclusive_owned=false;
     uint32_t inventory=owner->exclusive_inventory;owner->exclusive_inventory=0;
@@ -2076,7 +2114,7 @@ bool S_ReleaseItemAbilityDisables(edict_t *ent,uint32_t code) {
     S_ReleaseUnitSeparationSuppression(ent);
     ability_disables_release(ent,false,true);
     unitAbilityDisable_t *pack=ent->ability_disables;
-    while(pack && pack->code!=inventory)pack=pack->next;
+    while(pack && (pack->class_code || pack->code!=inventory))pack=pack->next;
     if(pack) {abilityitem_t item=S_AbilityItem(inventory);ability_disable_add(ent,pack,&item,true,false);}
     abilityitem_t item=S_AbilityItem(code);ability_disable_add(ent,owner,&item,true,false);
     ability_disable_release(owner);return true;
@@ -2096,7 +2134,7 @@ bool S_UnitOrderDisabled(edict_t const *ent,cstring_t order) {
     if(!S_UnitOrdersPaused(ent) && ent->ability_exclusive_depth<=0 && ent->ability_disable_depth<=0)return false;
     ability_t const *owner=FindAbilityByOrder(order);
     for(unitAbilityDisable_t const *state=ent->ability_disables;state;state=state->next) {
-        abilityitem_t item=S_AbilityItem(state->code);
+        abilityitem_t item=ability_disable_item(state);
         /* Submerge's concrete families share one order table but have distinct
          * procedures. Their attached counters must admit the same reverse order. */
         if(!owner || !item.ability || (item.ability->proc!=owner->proc &&
@@ -2272,7 +2310,7 @@ void S_DisableAbility(edict_t *ent, uint32_t code) {
     if(item.ability) {
         ability_disable_prepare(ent);
         unitAbilityDisable_t *state=NULL;
-        for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)if(s->code==code) {state=s;break;}
+        for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)if(!s->class_code && s->code==code) {state=s;break;}
         if(state || known_unit_ability_receives(item,A_UNIT_SUSPEND)) {
             if(!state)state=ability_disable_owner(ent,code);
             state->references++;
@@ -2299,7 +2337,7 @@ bool G_UnitAutocastIsOn(edict_t *ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     return ent && code && ent->autocast_code == code && item.ability && (item.ability->flags & AB_AUTOCAST) &&
-        G_UnitAbilityLevel(ent, code) && S_AbilityMessage(ent, A_AUTOCAST_ON, &call);
+        G_UnitAbilityClassLevel(ent, code) && S_AbilityMessage(ent, A_AUTOCAST_ON, &call);
 }
 
 /* Keeping the alias through the UI and scheduler preserves authored cost, range and effect data. */
@@ -2307,7 +2345,7 @@ bool G_SetUnitAutocast(edict_t *ent, uint32_t code, bool enabled) {
     abilityitem_t item = S_AbilityItem(code), old;
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .enabled = enabled);
     if (!ent || !item.ability || !(item.ability->flags & AB_AUTOCAST) ||
-        (enabled && !G_UnitAbilityLevel(ent, code))) return false;
+        (enabled && !G_UnitAbilityClassLevel(ent, code))) return false;
     old = S_AbilityItem(ent->autocast_code);
     if (!enabled && old.code != code) return true;
     abilityCall_t prev = MAKE(abilityCall_t, .item = &old, .enabled = false);

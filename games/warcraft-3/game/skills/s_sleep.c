@@ -89,7 +89,7 @@ static void sleep_owner_remove(edict_t *unit,heroabilitystatus_t *slot) {
 }
 static heroabilitystatus_t *sleep_owner_apply(edict_t *caster,edict_t *target,uint32_t ability,
         uint32_t rank,unsigned kind,float duration) {
-    heroabilitystatus_t *existing=unit_findstatus(target,kind==SPELL_SLEEP_MAIN ?
+    heroabilitystatus_t *existing=unit_findstatusclass(target,kind==SPELL_SLEEP_MAIN ?
         MAKEFOURCC('B','U','s','l') : MAKEFOURCC('B','U','s','p'));
     if(existing && existing->sleep_kind==kind) {
         /* 531a80 compares the requested duration with the live embedded
@@ -133,8 +133,8 @@ static heroabilitystatus_t *sleep_owner_apply(edict_t *caster,edict_t *target,ui
     return slot;
 }
 void S_SleepDamageWake(edict_t *unit) {
-    if(unit_findstatus(unit,MAKEFOURCC('B','U','s','p')) || unit_findstatus(unit,MAKEFOURCC('B','U','s','t')))return;
-    heroabilitystatus_t *slot=unit_findstatus(unit,MAKEFOURCC('B','U','s','l'));
+    if(unit_findstatusclass(unit,MAKEFOURCC('B','U','s','p')) || unit_findstatusclass(unit,MAKEFOURCC('B','U','s','t')))return;
+    heroabilitystatus_t *slot=unit_findstatusclass(unit,MAKEFOURCC('B','U','s','l'));
     if(!slot)return;
     if(!slot->sleep_kind) {unit_removestatus(unit,slot,STATUS_REMOVE_SCRIPT);return;}
     S_ForgetSleepOwner(unit);

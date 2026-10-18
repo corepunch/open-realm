@@ -469,7 +469,7 @@ void G_SpawnSummonMagicalEffect(edict_t *self) {
 
     if (!self || !self->summon_ability) return;
     level = self->owner && self->owner->inuse
-        ? G_UnitAbilityLevel(self->owner, self->summon_ability) : 0;
+        ? G_UnitAbilityClassLevel(self->owner, self->summon_ability) : 0;
     if (!level) level = 1;
     buff = G_AbilityLevel(self->summon_ability, level)->buffID;
     ability = G_AbilityData(self->summon_ability);
@@ -862,7 +862,7 @@ static uint32_t unit_spell_code_for_base(edict_t const *unit, uint32_t base_code
         uint32_t code = tokens[i].code;
         if (tokens[i].length != 4 || G_AbilityCode(code) != base_code) continue;
         abilityitem_t item = S_AbilityItem(code);
-        if (item.ability && (item.ability->flags & AB_SPELL) && G_UnitAbilityLevel(unit, code)) return code;
+        if (item.ability && (item.ability->flags & AB_SPELL) && G_UnitAbilityClassLevel(unit, code)) return code;
     }
     FOR_LOOP(i, unit->abilities.added_count) {
         uint32_t code = unit->abilities.added[i];
@@ -871,7 +871,7 @@ static uint32_t unit_spell_code_for_base(edict_t const *unit, uint32_t base_code
         item = S_AbilityItem(code);
         if (item.ability && (item.ability->flags & AB_SPELL)) return code;
     }
-    return G_UnitAbilityLevel(unit, base_code) ? base_code : 0;
+    return G_UnitAbilityClassLevel(unit, base_code) ? base_code : 0;
 }
 
 uint32_t G_OrderDefinitionCount(void) {
@@ -895,7 +895,7 @@ static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) 
     if (ordered && (ordered->flags & AB_SPELL) && ordered->classname) {
         uint32_t code = 0;
         memcpy(&code, ordered->classname, MIN(sizeof(code), strlen(ordered->classname)));
-        if (G_UnitAbilityLevel(unit, code) && S_SpellAbilityForCode(code)) return code;
+        if (G_UnitAbilityClassLevel(unit, code) && S_SpellAbilityForCode(code)) return code;
     }
     FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         uint32_t const code = unit_order_defs[i].ability;
@@ -2045,7 +2045,7 @@ static void unit_timed_status_log(cstring_t stage, edict_t const *ent, heroabili
     int32_t remaining;
 
     if (unit_timed_status_debug_level() < 1 || !ent || !status ||
-        !unit_statusshowstimedbar(status->code))
+        !unit_statusshowstimedbar(G_UnitStatusClassCode(status)))
     {
         return;
     }
@@ -2091,7 +2091,7 @@ heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *ent) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (!status->level || !status->timestamp || !status->duration_ms) continue;
-        if (status->timestamp <= now || !unit_statusshowstimedbar(status->code)) continue;
+        if (status->timestamp <= now || !unit_statusshowstimedbar(G_UnitStatusClassCode(status))) continue;
         /* Warsmash owns one timed-status slot; later qualifying buffs replace
          * earlier ones during status population. Preserve that deterministic
          * single-slot behavior using abilstatus[] order. */
@@ -2112,7 +2112,7 @@ float G_UnitArmorValue(edict_t const *ent) {
      * both combat and HUD calculations without adding save-state fields. */
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        if (status->level && status->code == MAKEFOURCC('B', 'd', 'e', 'f')) {
+        if (status->level && G_UnitStatusClassCode(status) == MAKEFOURCC('B', 'd', 'e', 'f')) {
             armor += G_AbilityLevel(MAKEFOURCC('A', 'I', 'd', 'a'), status->level)->data[0].number;
         }
     }
@@ -2128,32 +2128,42 @@ float G_UnitArmorValue(edict_t const *ent) {
  * status's origin ability rawcode, never from the victim's learned abilities
  * (the victim may not own the casting ability). REMOVE arrives while the slot
  * is still valid; the wipe happens after every owner has run. */
-static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg, status_remove_reason_t reason) {
+static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg, status_remove_reason_t reason, heroabilitystatus_t const *removed) {
     abilityitem_t item;
     abilityCall_t call;
     if (!ent || !slot || (!slot->level && msg != A_STATUS_REMOVED) || !ability) return;
     item = S_AbilityItem(ability);
     if (!item.ability || !item.ability->proc) return;
     call = MAKE(abilityCall_t, .item = &item);
-    call.status.slot = slot; call.status.ability = ability; call.status.reason = reason;
+    call.status.slot = slot; call.status.removed = removed; call.status.ability = ability; call.status.reason = reason;
     S_AbilityMessage(ent, msg, &call);
 }
 
 /* Return the live slot so an ability can attach its applying rawcode/source after insertion. */
-heroabilitystatus_t *unit_findstatus(edict_t *ent, uint32_t code) {
-    if (ent) FOR_LOOP(i, G_UnitStatusSlotCount(ent))
-        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code) return ent->abilstatus + i;
-    return NULL;
-}
-
-heroabilitystatus_t *unit_findstatussource(edict_t *ent, uint32_t code, edict_t const *source) {
-    if (ent) FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
-        heroabilitystatus_t *status = ent->abilstatus + i;
-        if (status->level && status->code == code && status->source == source &&
-            (!status->timestamp || status->timestamp > G_Time()) &&
-            (!source || status->source_spawn_time == source->spawn_time)) return status;
+static heroabilitystatus_t *unit_findstatus_key(edict_t *ent,uint32_t code,
+        edict_t const *source,bool by_source,bool by_class) {
+    if(ent)FOR_LOOP(i,G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t *status=ent->abilstatus+i;
+        uint32_t key=by_class ? G_UnitStatusClassCode(status) : status->code;
+        if(!status->level || key!=code)continue;
+        if(by_source && (status->source!=source ||
+            (status->timestamp && status->timestamp<=G_Time()) ||
+            (source && status->source_spawn_time!=source->spawn_time)))continue;
+        return status;
     }
     return NULL;
+}
+heroabilitystatus_t *unit_findstatus(edict_t *ent,uint32_t code) {
+    return unit_findstatus_key(ent,code,NULL,false,false);
+}
+heroabilitystatus_t *unit_findstatussource(edict_t *ent,uint32_t code,edict_t const *source) {
+    return unit_findstatus_key(ent,code,source,true,false);
+}
+heroabilitystatus_t *unit_findstatusclass(edict_t *ent,uint32_t code) {
+    return unit_findstatus_key(ent,code,NULL,false,true);
+}
+heroabilitystatus_t *unit_findstatussourceclass(edict_t *ent,uint32_t code,edict_t const *source) {
+    return unit_findstatus_key(ent,code,source,true,true);
 }
 
 /* Notify active victim statuses before death cleanup can discard their applying state. */
@@ -2161,7 +2171,7 @@ void unit_statusdeath(edict_t *ent) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
-            UnitDispatchStatus(ent, slot, (slot->source_ability ? slot->source_ability : slot->data), A_STATUS_DEATH, STATUS_REMOVE_DEATH);
+            UnitDispatchStatus(ent, slot, (slot->source_ability ? slot->source_ability : slot->data), A_STATUS_DEATH, STATUS_REMOVE_DEATH, NULL);
     }
 }
 
@@ -2211,7 +2221,7 @@ bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
     if (state == WC3_STATUS_STATE_ETHEREAL && ent->ethereal_depth > 0) return true;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        if (!status->level || !((status->state_mask | unit_builtin_status_states(status->code)) & mask)) continue;
+        if (!status->level || !((status->state_mask | unit_builtin_status_states(G_UnitStatusClassCode(status))) & mask)) continue;
         if (!status->timestamp || status->timestamp > G_Time()) return true;
     }
     return false;
@@ -2292,10 +2302,10 @@ void unit_refreshstatusflags(edict_t *ent) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
-        if(status->code==MAKEFOURCC('A','O','a','e'))S_MarkAuraSource(ent);
-        if (((status->state_mask | unit_builtin_status_states(status->code)) & WC3_STATUS_STATE_STUNNED) &&
+        if(G_UnitStatusClassCode(status)==MAKEFOURCC('A','O','a','e'))S_MarkAuraSource(ent);
+        if (((status->state_mask | unit_builtin_status_states(G_UnitStatusClassCode(status))) & WC3_STATUS_STATE_STUNNED) &&
             (!status->timestamp || status->timestamp > G_Time())) stunned = true;
-        UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
+        UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT, NULL);
     }
     ent->stunned = stunned;
 }
@@ -2358,9 +2368,10 @@ static void unit_removestatus_core(edict_t *ent, heroabilitystatus_t *status,
     guard = (status_removal_guard_t){ .entity = ent, .slot = status,
                                     .previous = status_removal_stack };
     status_removal_stack = &guard;
-    S_HumanStatusExpired(ent, status->code, status->level);
+    heroabilitystatus_t const removed = *status;
+    S_HumanStatusExpired(ent, G_UnitStatusClassCode(status), status->level);
     origin = status->source_ability ? status->source_ability : status->data;
-    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason, NULL);
     /* Callback can remove its own TargetArt; this second cleanup is safe and
      * ensures ordinary expiry/dispel/replacement also retires owned visuals. */
     if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
@@ -2375,7 +2386,7 @@ static void unit_removestatus_core(edict_t *ent, heroabilitystatus_t *status,
     if ((status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) && !other_targetart_owner)
         G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
-    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVED, reason);
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVED, reason, &removed);
     status_removal_stack = guard.previous;
     if (reconcile) {
         unit_refreshstatusflags(ent);
@@ -2477,16 +2488,16 @@ void unit_updatestatuses(edict_t *ent) {
             continue;
         }
         if (now >= status->timestamp) {
-            if (unit_status_timedlife(status->code)) {
+            if (unit_status_timedlife(G_UnitStatusClassCode(status))) {
                 kill = true;
             }
-            if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
+            if (G_UnitStatusClassCode(status) == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }
             unit_timed_status_log("expire", ent, status);
             unit_removestatus_deferred(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
-        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
+        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT, NULL);
     }
     if (changed) {
         unit_refreshstatusflags(ent);
@@ -2523,7 +2534,7 @@ wc3_status_apply_check_t unit_status_checkapplication(edict_t const *ent, status
     if (!ent->abilstatus) return WC3_STATUS_APPLY_FREE_SLOT;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        if (status->level && status->code == code &&
+        if (status->level && status->code == code && status->class_code == app->class_code &&
             ((app->stack_policy == WC3_STATUS_STACK_DEFAULT &&
               status->stack_policy == WC3_STATUS_STACK_DEFAULT) ||
              (app->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
@@ -2561,7 +2572,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
 
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
-        if (status->level && status->code == code &&
+        if (status->level && status->code == code && status->class_code == app->class_code &&
             ((app->stack_policy == WC3_STATUS_STACK_DEFAULT &&
               status->stack_policy == WC3_STATUS_STACK_DEFAULT) ||
              (app->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
@@ -2583,8 +2594,9 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
             } else {
                 /* "Replace" (default): the applying owner releases its
                  * contribution before the payload is replaced. */
-                UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE, STATUS_REMOVE_REPLACED);
+                UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE, STATUS_REMOVE_REPLACED, NULL);
                 status->code = code;
+                status->class_code = app->class_code;
                 status->instance_id = ++ent->next_status_instance_id;
                 if (!status->instance_id) status->instance_id = ++ent->next_status_instance_id;
                 status->stack_policy = app->stack_policy;
@@ -2621,6 +2633,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     }
 
     slot->code = code;
+    slot->class_code = app->class_code;
     slot->instance_id = ++ent->next_status_instance_id;
     if (!slot->instance_id) slot->instance_id = ++ent->next_status_instance_id;
     slot->stack_policy = app->stack_policy;
@@ -2707,7 +2720,7 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
     uint32_t buff;
 
     if (!status || !status->level) return 0;
-    if ((status->code & 0xff) == 'B') return status->code;
+    if (status->class_code || (status->code & 0xff) == 'B') return status->code;
     /* Timed statuses use a separate progress-bar presentation. Persistent
      * Axxx status records (for example Devotion Aura on its caster) have
      * timestamp == 0 and may resolve through AbilityData.BuffID*. Cooldowns
@@ -2722,7 +2735,7 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
     return buff;
 }
 
-uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
+static uint32_t unit_status_level(edict_t const *ent,uint32_t code,bool by_class) {
 #ifdef BZ_TESTS
     unit_status_queries++;
 #endif
@@ -2730,7 +2743,7 @@ uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
     if(g_unit_status_query && g_unit_status_query->unit==ent) {
         for(uint32_t slots=g_unit_status_query->slots;slots;slots&=slots-1) {
             heroabilitystatus_t const *status=ent->abilstatus+__builtin_ctz(slots);
-            if(status->level && status->code==code && (!status->timestamp || status->timestamp>G_Time()))
+            if(status->level && (by_class ? G_UnitStatusClassCode(status) : status->code)==code && (!status->timestamp || status->timestamp>G_Time()))
                 return status->level;
         }
         return 0;
@@ -2739,11 +2752,17 @@ uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
 #ifdef BZ_TESTS
         unit_status_slot_visits++;
 #endif
-        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code &&
+        if (ent->abilstatus[i].level && (by_class ? G_UnitStatusClassCode(ent->abilstatus+i) : ent->abilstatus[i].code) == code &&
             (!ent->abilstatus[i].timestamp || ent->abilstatus[i].timestamp > G_Time()))
             return ent->abilstatus[i].level;
     }
     return 0;
+}
+uint32_t G_UnitStatusLevel(edict_t const *ent,uint32_t code) {
+    return unit_status_level(ent,code,false);
+}
+uint32_t G_UnitStatusClassLevel(edict_t const *ent,uint32_t code) {
+    return unit_status_level(ent,code,true);
 }
 
 static heroability_t *G_FindRuntimeAbility(edict_t *ent, uint32_t abilcode) {
@@ -2895,7 +2914,7 @@ bool G_HeroModifySkillPoints(edict_t *ent, int32_t delta) {
     return true;
 }
 
-uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
+static uint32_t unit_ability_level(edict_t const *ent,uint32_t abilcode,bool by_class) {
     uint32_t const timed_level=S_TimedLifeLevel(ent,abilcode);
     if(timed_level)return timed_level;
     uint32_t const hero_level = g_unit_status_query && g_unit_status_query->unit == ent &&
@@ -2904,9 +2923,16 @@ uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
         return hero_level;
     }
     if (!ent || !abilcode) return 0;
-    uint32_t const status_level = G_QueryUnitStatusLevel(ent, abilcode);
+    uint32_t const status_level = by_class ? G_QueryUnitStatusClassLevel(ent,abilcode) :
+        G_QueryUnitStatusLevel(ent,abilcode);
     if (status_level) return status_level;
     return G_ActorHasAbilityCode(ent, abilcode) ? 1 : 0;
+}
+uint32_t G_UnitAbilityLevel(edict_t const *ent,uint32_t abilcode) {
+    return unit_ability_level(ent,abilcode,false);
+}
+uint32_t G_UnitAbilityClassLevel(edict_t const *ent,uint32_t abilcode) {
+    return unit_ability_level(ent,abilcode,true);
 }
 
 /* SetUnitAbilityLevel / IncUnitAbilityLevel: rank lives in heroabilities[].

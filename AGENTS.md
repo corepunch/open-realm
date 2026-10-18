@@ -131,6 +131,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 food/supply ownership, training reservations, provider lifecycle, upkeep income | [docs/games/warcraft-3/food-and-upkeep.md](docs/games/warcraft-3/food-and-upkeep.md) |
 | WC3 Hero death persistence and Altar revival lifecycle | [docs/games/warcraft-3/hero-revival.md](docs/games/warcraft-3/hero-revival.md) |
 | WC3 Rally producer state, Smart handoff, target lifetime, JASS getters | [docs/games/warcraft-3/rally-points.md](docs/games/warcraft-3/rally-points.md) |
+| WC3 Metamorphosis configured availability, typed buff identity, primary clocks and Sleep/Pause ownership | [docs/games/warcraft-3/metamorphosis-availability.md](docs/games/warcraft-3/metamorphosis-availability.md) |
 | WC3 pathfinding, flow fields, collision-sized routing, unreachable lumber targets | [docs/games/warcraft-3/pathfinding.md](docs/games/warcraft-3/pathfinding.md) |
 | WC3 retail pathfinding: fine/adaptive-grid A*, hierarchy and footprint evidence, Ghidra/Frida map, cinematic experiments | [docs/games/warcraft-3/retail-pathfinding.md](docs/games/warcraft-3/retail-pathfinding.md) |
 | WC3 numerical movement integration, exact C/retail comparisons, scripted turn/window gates, repeat captures | [docs/games/warcraft-3/retail-pathfinding-engine.md](docs/games/warcraft-3/retail-pathfinding-engine.md) |

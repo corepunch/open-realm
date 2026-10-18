@@ -32,7 +32,7 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     buff = S_SpellBuffId(code, rank);
     /* Map overrides may omit BuffID; both Incinerate variants use BNic in the TFT profiles. */
     if (!buff || strlen(buff) < 4) buff = "BNic";
-    stacks = G_UnitStatusLevel(target, FS_SLKKey(buff)) + 1;
+    stacks = G_UnitStatusClassLevel(target, FS_SLKKey(buff)) + 1;
     slot = S_SpellApplyTimedStatus(target, buff, stacks, S_SpellDuration(code, rank, false));
     if (!slot) return;
     slot->data = code; slot->source_ability = code; slot->rank = rank;

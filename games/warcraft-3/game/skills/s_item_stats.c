@@ -66,7 +66,7 @@ BZ_ABILITY_PROC(CAbilityMoveSpeedBonus) {
     if (msg == A_ITEM_ADD || msg == A_ITEM_REMOVE) return true;
     if (msg != A_MOVE_SPEED_BONUS) return CAbilityPassive(ent, msg, call);
     if (!ent || !call || !call->item || !call->move_speed_bonus) return false;
-    uint32_t level = call->source_item ? 1 : MAX(1, G_UnitAbilityLevel(ent, call->item->code));
+    uint32_t level = call->source_item ? 1 : MAX(1, G_UnitAbilityClassLevel(ent, call->item->code));
     float bonus = S_SpellData(call->item->code, level, 1);
     *call->move_speed_bonus = wc3_speed_bonus_max(*call->move_speed_bonus, bonus);
     return true;
@@ -129,7 +129,7 @@ static void orb_apply(edict_t *attacker, edict_t *target, uint32_t orb, uint32_t
         if (seen[i] == orb) return;
     buff = orb_buff(orb);
     if (!buff) return;
-    level = MAX(1, G_UnitAbilityLevel(attacker, orb));
+    level = MAX(1, G_UnitAbilityClassLevel(attacker, orb));
     seen[(*count)++] = orb;
     if(orb==ID_ORB_FREEZE)S_ApplyFreezeStatus(attacker,target,orb,level,buff,S_SpellHeroDuration(orb,level,target),true);
     else S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
@@ -143,7 +143,7 @@ void S_OrbOnHit(edict_t *attacker, edict_t *target,bool before_damage) {
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
     FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
-        if ((orb_codes[o]==ID_ORB_FREEZE)==before_damage && G_UnitAbilityLevel(attacker, orb_codes[o]))
+        if ((orb_codes[o]==ID_ORB_FREEZE)==before_damage && G_UnitAbilityClassLevel(attacker, orb_codes[o]))
             orb_apply(attacker, target, orb_codes[o], seen, &count);
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {

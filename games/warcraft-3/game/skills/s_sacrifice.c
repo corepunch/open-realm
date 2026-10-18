@@ -27,8 +27,8 @@ static bool sacrifice_pair(edict_t *caster, edict_t *target, uint32_t ability,
         G_UnitIsHero(*worker) || ((*worker)->s.renderfx & RF_HIDDEN)) return false;
     /* Counterpart abilities identify the two stock endpoints without coupling
      * the behavior to uaco/usap unit rawcodes. */
-    if (!G_UnitAbilityLevel(*pit, ID_SACRIFICE_PIT) ||
-        !G_UnitAbilityLevel(*worker, ID_SACRIFICE_ACOLYTE)) return false;
+    if (!G_UnitAbilityClassLevel(*pit, ID_SACRIFICE_PIT) ||
+        !G_UnitAbilityClassLevel(*worker, ID_SACRIFICE_ACOLYTE)) return false;
     return true;
 }
 

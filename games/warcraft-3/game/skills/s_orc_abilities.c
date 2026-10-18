@@ -144,7 +144,7 @@ void lsh_think(edict_t *thinker) {
     uint32_t level;
     float area, damage;
     if (!carrier || !caster) { G_FreeEdict(thinker); return; }
-    level = G_UnitStatusLevel(carrier, MAKEFOURCC('B', 'l', 's', 'h'));
+    level = G_UnitStatusClassLevel(carrier, MAKEFOURCC('B', 'l', 's', 'h'));
     if (!level || G_Time() >= thinker->spawn_time) { G_FreeEdict(thinker); return; }
     if (thinker->freetime && G_Time() < thinker->freetime) return;
     area = S_SpellNumber(MAKEFOURCC('A', 'l', 's', 'h'), ABILITY_NUMBER_AREA, level);

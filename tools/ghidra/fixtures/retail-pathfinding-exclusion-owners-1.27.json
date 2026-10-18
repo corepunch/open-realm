@@ -325,7 +325,9 @@
     "oracle-captain378-role-masks",
     "oracle-morph375",
     "oracle-morph380",
-    "oracle-waygate377"
+    "oracle-waygate377",
+    "oracle-target-tokens",
+    "oracle-morph382"
   ],
   "entries": [
     {
@@ -7305,6 +7307,39 @@
           "task": "TARGET-01.2",
           "disposition": "behavior",
           "rationale": "The existing TARGET-01.2 leaf retains destination quantization and wider target producer inventory; the Waygate point-task chunk does not close them."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-morph382",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Mount/base routing, the remaining configured concrete Morph families and direct producer/count compositions remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Concrete382 availability/lifetime evidence does not complete the existing broader separation behavior and restoration/evidence boundaries."
+        },
+        {
+          "index": 1,
+          "text": "Health-bonus behavior is outside this concrete availability/lifetime claim and remains owned by SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Concrete382 availability/lifetime evidence does not complete the existing broader separation behavior and restoration/evidence boundaries."
+        },
+        {
+          "index": 2,
+          "text": "Save checks use in-process cold object-graph WriteGame/ReadGame; no cross-build or fresh-process restoration claim.",
+          "task": "SEP-01.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Concrete382 availability/lifetime evidence does not complete the existing broader separation behavior and restoration/evidence boundaries."
+        },
+        {
+          "index": 3,
+          "text": "Pre-start reported system exceptions outside game.dll remain literal; their cause and any instrumentation contribution are unproved.",
+          "task": "SEP-01.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Concrete382 availability/lifetime evidence does not complete the existing broader separation behavior and restoration/evidence boundaries."
         }
       ]
     }

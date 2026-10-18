@@ -474,7 +474,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     /* Mixed masks (for example Death Coil and Siphon Mana) have hostile and
      * friendly branches. The target's actual relationship selects the branch. */
     if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL)) return false;
-    status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
+    status = unit_findstatusclass(target, MAKEFOURCC('B', 'N', 's', 's'));
     if (!status) return false;
     unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
     unit_refreshstatusflags(target);
@@ -616,7 +616,7 @@ void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
     if (!code) return;
     FOR_LOOP(i, G_UnitStatusSlotCount(corpse)) {
         heroabilitystatus_t *status = corpse->abilstatus + i;
-        if (status->level && status->code == code) {
+        if (status->level && G_UnitStatusClassCode(status) == code) {
             unit_removestatus(corpse, status, STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(corpse);
             return;
@@ -1778,11 +1778,11 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
-    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) {
+    if (!caster || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) {
         if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
             fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=missing_caster_ability_or_polymorph caster=%u level=%u polymorphed=%u\n",
                     caster ? (unsigned)caster->s.number : 0u,
-                    caster ? G_UnitAbilityLevel(caster, code) : 0u,
+                    caster ? G_UnitAbilityClassLevel(caster, code) : 0u,
                     caster ? (unsigned)S_UnitPolymorphed(caster) : 0u);
         return false;
     }
@@ -1833,7 +1833,7 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     ability_t const *spell;
     spellTarget_t target;
 
-    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    if (!caster || !point || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_POINT &&
@@ -1862,7 +1862,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
     if (!caster || !unit || !code) return false;
-    if (!G_UnitAbilityLevel(caster, code)) return false;
+    if (!G_UnitAbilityClassLevel(caster, code)) return false;
     if (S_UnitPolymorphed(caster)) return false;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
@@ -2116,7 +2116,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     if (!slot || !slot->level) return;
     rank = slot->rank ? slot->rank : slot->level;
     /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
-    switch (slot->code) {
+    switch (G_UnitStatusClassCode(slot)) {
     case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
     case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
@@ -2125,7 +2125,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     default: return;
     }
     /* Unknown/custom statuses own their descriptors: never erase them. */
-    switch (slot->code) {
+    switch (G_UnitStatusClassCode(slot)) {
     case MAKEFOURCC('B','c','r','i'):
         if (!ability) ability = MAKEFOURCC('A','c','r','i');
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 1));
@@ -2219,7 +2219,7 @@ void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     if (!unit || !code) return;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
-        if (status->level && status->code == code) {
+        if (status->level && G_UnitStatusClassCode(status) == code) {
             unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
             return;
         }
@@ -2233,7 +2233,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
-    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    if (!caster || !unit || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
@@ -2262,7 +2262,7 @@ bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point
     spellTarget_t target;
     spellPointValidateParams_t val;
 
-    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster))
+    if (!caster || !point || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster))
         return false;
     spell = S_SpellAbilityForCode(code);
     item = MAKE(abilityitem_t, .code = code, .ability = spell);

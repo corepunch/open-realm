@@ -77,7 +77,7 @@ static heroabilitystatus_t *submerge_status(edict_t *unit) {
     if (!unit) return NULL;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
-        if (status->level && submerge_base_code(status->code)) return status;
+        if (status->level && submerge_base_code(G_UnitStatusClassCode(status))) return status;
     }
     return NULL;
 }
@@ -86,7 +86,7 @@ bool S_UnitIsSubmerged(edict_t const *unit) {
     if (!unit) return false;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
-        if (status->level && submerge_base_code(status->code)) return true;
+        if (status->level && submerge_base_code(G_UnitStatusClassCode(status))) return true;
     }
     return false;
 }
@@ -109,23 +109,23 @@ static uint32_t submerge_find_code(edict_t const *unit) {
     if (!unit) return 0;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
-        if (status->level && submerge_base_code(status->code)) return status->code;
+        if (status->level && submerge_base_code(G_UnitStatusClassCode(status))) return G_UnitStatusClassCode(status);
     }
     if ((abilities = unit->data.UnitAbilities ? unit->data.UnitAbilities->abilList : NULL)) {
         PARSE_LIST(abilities, token, parse_segment) {
             uint32_t code = 0;
             if (strlen(token) != 4) continue;
             memcpy(&code, token, 4);
-            if (submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+            if (submerge_base_code(code) && G_UnitAbilityClassLevel(unit, code)) return code;
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(unit->abilities.added)) {
         uint32_t const code = unit->abilities.added[i];
-        if (code && submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+        if (code && submerge_base_code(code) && G_UnitAbilityClassLevel(unit, code)) return code;
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         uint32_t const code = unit->heroabilities[i].level ? unit->heroabilities[i].code : 0;
-        if (code && submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+        if (code && submerge_base_code(code) && G_UnitAbilityClassLevel(unit, code)) return code;
     }
     return 0;
 }
@@ -154,7 +154,7 @@ static void submerge_category(edict_t *unit,bool hidden) {
 static void submerge_publish(edict_t *unit,uint32_t code,bool hidden) {
     bool before=S_UnitHasInvisibilityState(unit);
     if(S_UnitIsSubmerged(unit)!=hidden)
-        S_ToggleUnitAbilityStatus(unit,code,MAX(1,G_UnitAbilityLevel(unit,code)));
+        S_ToggleUnitAbilityStatus(unit,code,MAX(1,G_UnitAbilityClassLevel(unit,code)));
     if(hidden)unit->s.renderfx|=RF_HIDDEN;
     else if(!S_UnitHasInvisibilityState(unit))unit->s.renderfx&=~RF_HIDDEN;
     submerge_category(unit,hidden);
@@ -276,7 +276,7 @@ static heroabilitystatus_t *ensnare_status(edict_t *unit) {
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *slot = unit->abilstatus + i;
         if (!slot->level) continue;
-        if (S_StatusIsEnsnare(slot->code))
+        if (S_StatusIsEnsnare(G_UnitStatusClassCode(slot)))
             return slot;
     }
     return NULL;
@@ -351,7 +351,7 @@ bool S_UnitIsEnsnared(edict_t const *unit) {
     /* Ensnare/Web remain distinct from Entangling Roots (which also disarms).
      * They are bound status families, so avoid making ROOTED mean Ensnared. */
     if (unit) FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-        if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
+        if (S_StatusIsEnsnare(G_UnitStatusClassCode(unit->abilstatus+i)) && S_UnitHasStatus(unit, G_UnitStatusClassCode(unit->abilstatus+i))) return true;
     return false;
 }
 
@@ -406,7 +406,7 @@ static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
     /* Web and Ensnare share one height transition: removing either cannot release the other. */
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *slot = unit->abilstatus + i;
-        if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) return;
+        if (slot->level && slot != expiring && S_StatusIsEnsnare(G_UnitStatusClassCode(slot))) return;
     }
     if (ensnare_is_flyer(unit)) {
         adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : (unit->ensnare ? unit->ensnare->adjust : 0.0f);

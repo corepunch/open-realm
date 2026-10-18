@@ -10,7 +10,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImmolation) {
     uint32_t code = spell->code;
 
     FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
-        if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
+        if (caster->abilstatus[i].level && G_UnitStatusClassCode(caster->abilstatus+i) == code) {
             unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;
@@ -29,7 +29,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
     uint32_t code = MAKEFOURCC('c', 'o', 'l', 'd');
 
     FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
-        if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
+        if (caster->abilstatus[i].level && G_UnitStatusClassCode(caster->abilstatus+i) == code) {
             unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;

@@ -56,7 +56,7 @@ int S_AntiMagicShellAbsorb(edict_t *target, int damage) {
     heroabilitystatus_t *slot = NULL;
     if (!target || damage <= 0) return damage;
     FOR_LOOP(i, G_UnitStatusSlotCount(target))
-        if (target->abilstatus[i].level && target->abilstatus[i].code == BZ_AMS_SHIELD &&
+        if (target->abilstatus[i].level && G_UnitStatusClassCode(target->abilstatus+i) == BZ_AMS_SHIELD &&
             (!target->abilstatus[i].timestamp || target->abilstatus[i].timestamp > G_Time())) {
             slot = target->abilstatus + i; break;
         }
@@ -229,7 +229,7 @@ void graveyard_think(edict_t *thinker) {
 
     if (!thinker || !graveyard || M_IsDead(graveyard) ||
         graveyard_is_under_construction(graveyard) ||
-        !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
+        !(level = G_UnitAbilityClassLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
         if (thinker) G_FreeEdict(thinker);
         return;
     }
@@ -253,7 +253,7 @@ static void graveyard_ensure(edict_t *graveyard) {
     /* Agyd is one of the global update procedures. Check ownership before the
      * edict scan; otherwise every updated unit pays for graveyard lookup. */
     if (!graveyard || M_IsDead(graveyard) || graveyard_is_under_construction(graveyard) ||
-        !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) return;
+        !(level = G_UnitAbilityClassLevel(graveyard, ID_GRAVEYARD_CORPSE))) return;
     if (graveyard_find_thinker(graveyard)) return;
     interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);
     if (interval <= 0.0f) return;
@@ -286,7 +286,7 @@ static edict_t *cannibalize_corpse(edict_t *caster, abilityitem_t const *spell) 
     float range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
     edict_t *corpse = NULL;
 
-    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && !G_UnitStatusLevel(unit, spell->code)) {
+    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && !G_UnitStatusClassLevel(unit, spell->code)) {
         vec2_t position;
         float distance;
         if (!S_SpellCorpseTargetPosition(spell->code, caster, unit, &position)) continue;
@@ -323,7 +323,7 @@ static bool cannibalize_corpse_allowed(edict_t *caster, uint32_t code, edict_t *
 
 static bool cannibalize_can_approach(edict_t *caster) {
     return caster && !S_GoldMineWorkerIsInside(caster) && !(caster->aiflags & AI_IMMOBILE) &&
-        !S_UnitIsCycloned(caster) && !G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')) &&
+        !S_UnitIsCycloned(caster) && !G_UnitStatusClassLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')) &&
         !S_UnitIsEnsnared(caster) && !S_PurgeIsImmobilized(caster);
 }
 
@@ -612,7 +612,7 @@ static bool possession_validate(edict_t *caster, spellTarget_t st, abilityitem_t
 static void possession_clear_status(edict_t *ent, uint32_t code) {
     if (!ent) return;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent))
-        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
+        if (ent->abilstatus[i].level && G_UnitStatusClassCode(ent->abilstatus+i) == code)
             unit_removestatus(ent, ent->abilstatus + i, STATUS_REMOVE_TRANSFORM);
 }
 
@@ -621,7 +621,7 @@ static void possession_refresh_stun(edict_t *ent) {
     if (!ent) return;
     ent->stunned = false;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
-        uint32_t c = ent->abilstatus[i].code;
+        uint32_t c = G_UnitStatusClassCode(ent->abilstatus+i);
         if (!ent->abilstatus[i].level) continue;
         if (c == MAKEFOURCC('B', 's', 't', 'u') || c == MAKEFOURCC('B', 'U', 's', 'l') || c == BZ_BPOS)
             ent->stunned = true;
@@ -727,7 +727,7 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
 bool S_PossessionSpellImmune(edict_t const *unit) {
     if (!unit) return false;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-        if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BPOS &&
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == BZ_BPOS &&
             (unit->abilstatus[i].data & BZ_POS_MAGIC_IMMUNE) &&
             (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time()))
             return true;
@@ -739,7 +739,7 @@ int S_PossessionDamageTaken(edict_t *target, int damage) {
     uint32_t milli = 0;
     if (!target || damage <= 0) return damage;
     FOR_LOOP(i, G_UnitStatusSlotCount(target))
-        if (target->abilstatus[i].level && target->abilstatus[i].code == BZ_BPOC &&
+        if (target->abilstatus[i].level && G_UnitStatusClassCode(target->abilstatus+i) == BZ_BPOC &&
             (!target->abilstatus[i].timestamp || target->abilstatus[i].timestamp > G_Time())) {
             milli = target->abilstatus[i].data; break;
         }

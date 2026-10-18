@@ -6,7 +6,70 @@ research before declaring the full faithful OpenRealm replacement. Independently
 verified slices can be integrated earlier; the [scalar/turn integration](retail-pathfinding-engine.md)
 has exact C/live evidence without closing the whole-replacement READY gates.
 
+## Execution order for the remaining 30 (2026-10-18)
+
+The count remains **306/336** until an entire existing leaf meets its written
+acceptance criteria. This plan adds no TODOs and changes no completion boxes.
+
+1. Integrate the three current patches before expanding their research: Morph382
+   (native, Python, strict parity and exact CI gates green), Moon381 (admission,
+   perimeter and regeneration green; scalar damage/ManaSpend consumer pending),
+   and Captain376 (Town registration work green privately; Suicide/query and live
+   classification composition pending). Save Ghidra findings and mapper changes
+   with each verified engine delivery. Private green results are not commits.
+2. Finish the finite entry-point, reachable-branch, field and arithmetic inventories
+   (BASE-01.4, BASE-03.1, BASE-03.2, NUM-01.2), then join them to evidence and
+   existing owners (E2E-05.1). Every unknown gets a concrete existing owner and
+   reproducer; do not create replacement umbrella tasks. Inventory closure does
+   not imply the owned behavior has been implemented.
+3. Use three continuing implementation lanes. Target/order lane completes the42
+   factory-caller inventory, including Inventory pickup/drop, Couple, Militia and
+   Locust parameter boundaries, then Harvest/Build/ability/queued ownership
+   (TARGET-01.2; ORDER-01.12/01.13/01.16/02.2). Morph/separation lane completes
+   the five remaining configured concrete families, Mount/base routing and the
+   direct-producer/count-composition ledger (SEP-01.2). Captain/group lane completes
+   composed moving actor/roster journeys, retreat/combat and native saved
+   continuations, then join/leave, availability and persistent group storage
+   (GROUP-01.2/03.2/03.4/03.4.7.3/04.6).
+4. In parallel with integration, finish the remaining public numeric, placement
+   and movement domains: BASE-02.3, FOOT-04.2, NUM-01.12, NUM-02.3, NUM-03.2,
+   MOVE-01.1. Preserve real operand aliases, exact commits/cell crossings,
+   water/bridge/support and exceptional-input outcomes; helper-only tests do not
+   establish public producer reachability.
+5. After the owning implementations are accepted, close the remaining discrepancy
+   ledger (E2E-05.2), freeze the replacement contracts (E2E-06.1), run same-seed
+   repeats and the minimized boundary corpus (E2E-03.1/03.2), then run the four
+   READY gates with a fresh full corpus and specification/interface audit.
+
+Execution is limited to three implementation lanes and one integration owner.
+Each lane finishes its current delivery before opening another investigation;
+the integration owner reviews, runs acceptance gates and commits it. The first
+integration milestone is Morph382, followed by the Moon381 and Captain376
+compositions as their remaining regressions pass. Full acceptance suites run on
+frozen candidates; focused regressions cover intervening changes.
+
+After these deliveries, each lane records a finite acceptance checklist for its
+existing parent leaf and works that checklist to closure. Reports give the commit,
+the before/after open count and the next specific missing acceptance case. If a
+parent remains open, report that explicitly. New evidence alone does not count as
+a completed behavior or justify expanding the lane's scope.
+
+A behavior leaf requires retail observations and observer controls, a genuine
+failing engine regression before its fix, matching intermediate/final state,
+applicable inverse/removal/reuse and cold-save coverage, saved Ghidra/mapper
+progress, appropriate test gates and an integrated commit. Research discoveries
+remain within existing owners. Progress reports distinguish integrated commits,
+whole leaves closed and the exact remaining failing gate. No unmeasured date
+estimate substitutes for these exit criteria.
+
 ## Progress
+
+Metamorphosis382 implements concrete AEme availability and typed BEme identity,
+independent primary/common timers, natural/public inverse, alias isolation and
+ScriptPause/Sleep composition. The strict retail/engine gate passes39 tests and
+31,842 assertions per edition. Remaining configured forms, Mount/base routing
+and direct producer/count compositions stay within SEP-01.2; **30 tasks remain**.
+[Evidence](metamorphosis-availability.md).
 
 Waygate377 uses per-unit entrance/cached-exit Move point tasks independent of physical cohorts for explicit Warp-target Move and Smart, with live-edge retargeting and warm/cold continuation.
 Strict acceptance: classic: 39 tests/229803 assertions; tft: 39 tests/229803 assertions. Native evidence retains 9838 records, 1333 controlled public markers and 2345 instruction guards. The new cohort family compares every record in its declared public resume-to-cleanup interval; raw startup timing is retained separately.

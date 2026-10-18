@@ -90,6 +90,23 @@ void S_ScheduleMorphExpiration(edict_t *unit,float duration) {
     morph_timer_insert(unit);
 }
 
+/* Only the recovered AEme producer calls this: transitiond01c4 remains live,
+ * while common formd01db freezes independently under Ability48 suspension. */
+void S_SetMorphExpirationPaused(edict_t *unit,bool paused) {
+    if(!unit || !unit->morph || unit->morph->expiration_paused==paused)return;
+    morph_t *state=unit->morph;
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    if(paused) {
+        state->expiration_remaining=state->expiration.active ? MAX(0,wc3_elapsed(&state->expiration.deadline,&now)) : 0;
+        if(state->expiration.active)morph_timer_remove(unit);
+        state->expiration_paused=true;
+    } else {
+        float remaining=state->expiration_remaining;
+        state->expiration_paused=false;state->expiration_remaining=0;
+        if(remaining>0)S_ScheduleMorphExpiration(unit,remaining);
+    }
+}
+
 static void morph_timer_fire(edict_t *unit) {
     if(!unit->morph->expiration.active) {morph_transition_finish(unit);return;}
     abilityitem_t item=S_AbilityItem(unit->morph->code);
@@ -111,6 +128,7 @@ void S_CompleteMorphDetachTransition(edict_t *unit,uint32_t code) {
 void S_RemoveMorphAbility(edict_t *unit,uint32_t code) {
     if(!unit || M_IsDead(unit) || G_IsDeferredFree(unit))return;
     morph_t *state=unit->morph;
+    if(state && state->code==code) {state->expiration_remaining=0;state->expiration_paused=false;}
     if(morph_is_permanent(unit,code)) {
         /*540e30 cancels requests but skips both transition inverse and base
          * restoration for permanent forms. An early removal retains198. */

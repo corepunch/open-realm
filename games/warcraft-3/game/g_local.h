@@ -913,7 +913,7 @@ void order_stop_internal(edict_t *);
  * immediately after the suspended head, before existing successors. */
 typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
-    uint32_t code, references, exclusive_inventory;
+    uint32_t code, class_code, references, exclusive_inventory; /* class0: ordinary authored ability. */
     int32_t depth, order_depth;
     bool pause_owned, retire_owned, exclusive_owned, linked;
     bool burrow_initialized, burrow_owned; /* Attachment source; aggregate survives a base-form detach. */
@@ -1279,7 +1279,7 @@ struct ability_call_s {
         struct { edict_t *source; uint32_t flags; edict_t *victim; } combat_alert;
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
-        struct { heroabilitystatus_t *slot; uint32_t ability; status_remove_reason_t reason; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
+        struct { heroabilitystatus_t *slot; heroabilitystatus_t const *removed; uint32_t ability; status_remove_reason_t reason; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
 };
 
@@ -1863,6 +1863,7 @@ typedef enum {
 
 typedef struct heroabilitystatus_s {
     uint32_t code;
+    uint32_t class_code; /* Concrete producer identity; independent of authored BuffID. */
     uint32_t instance_id; /* generation-safe within the owning edict */
     uint32_t stack_policy;
     uint32_t level;
@@ -1884,12 +1885,16 @@ typedef struct heroabilitystatus_s {
     float sleep_remaining;
     uint32_t sleep_kind;
     bool sleep_clock_paused;
+    abilityPrimaryTimer_t class_timer; /* ConcreteBEme owns an independent primary expiry. */
+    float class_timer_remaining;
+    int32_t class_clock_depth; /* Ability48, independent of execution/order counters. */
 } heroabilitystatus_t;
 
 /* Status application is authoritative for identity and source metadata.  The
  * legacy data payload is intentionally independent of source_ability. */
 typedef struct {
     cstring_t buff;
+    uint32_t class_code; /* Zero preserves ordinary status identity and stacking. */
     uint32_t level;
     float duration;
     uint32_t source_ability;
@@ -2114,6 +2119,8 @@ typedef struct {
 
 typedef struct {
     abilityPrimaryTimer_t transition, expiration;
+    float expiration_remaining; /* AEme paused common-lifetime remainder. */
+    bool expiration_paused;
     uint32_t code, base_type, target_type;
     uint32_t category_clear, category_set; /* Concrete morph owner's fine occupancy publication. */
     bool reverse, deferred_rebind, animation_held;
@@ -3787,6 +3794,8 @@ bool unit_status_can_steal(heroabilitystatus_t const *);
 uint32_t unit_removebuffs(edict_t *, bool, bool, bool, bool, bool, bool, bool);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
 heroabilitystatus_t *unit_findstatussource(edict_t *, uint32_t, edict_t const *);
+heroabilitystatus_t *unit_findstatusclass(edict_t *, uint32_t);
+heroabilitystatus_t *unit_findstatussourceclass(edict_t *, uint32_t, edict_t const *);
 void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);
 void monsoon_think(edict_t *);
@@ -4802,7 +4811,12 @@ bool unit_addstatus(edict_t *, cstring_t, uint32_t);
 bool unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
 wc3_status_apply_check_t unit_status_checkapplication(edict_t const *, status_application_t const *);
 heroabilitystatus_t *unit_applystatus(edict_t *, status_application_t const *);
+/* Raw public identity is independent of the concrete gameplay class. */
+static inline uint32_t G_UnitStatusClassCode(heroabilitystatus_t const *status) {
+    return status ? (status->class_code ? status->class_code : status->code) : 0;
+}
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
+uint32_t G_UnitStatusClassLevel(edict_t const *, uint32_t);
 static inline uint32_t G_UnitStatusSlotCount(edict_t const *unit) {
     return unit && unit->abilstatus ? MAX_UNIT_STATUSES : 0;
 }
@@ -4823,6 +4837,9 @@ static inline bool G_UnitStatusQueryEmpty(edict_t const *unit) {
 static inline uint32_t G_QueryUnitStatusLevel(edict_t const *unit, uint32_t code) {
     return G_UnitStatusQueryEmpty(unit) ? 0 : G_UnitStatusLevel(unit, code);
 }
+static inline uint32_t G_QueryUnitStatusClassLevel(edict_t const *unit, uint32_t code) {
+    return G_UnitStatusQueryEmpty(unit) ? 0 : G_UnitStatusClassLevel(unit, code);
+}
 void G_BeginUnitStatusQuery(edict_t const *,unitStatusQuery_t *);
 void G_EndUnitStatusQuery(unitStatusQuery_t *);
 uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *);
@@ -4831,6 +4848,7 @@ float unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *);
 void unit_learnability(edict_t *, uint32_t);
 uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode);
+uint32_t G_UnitAbilityClassLevel(edict_t const *ent, uint32_t abilcode);
 uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level);
 void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool avail);
 void G_ClearPlayerAbilityAvailability(gameClient_t *client);

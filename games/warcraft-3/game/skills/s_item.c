@@ -330,7 +330,7 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     buff = row ? row->buffID : NULL;
     target = G_GetMainSelectedUnit(clent->client);
     duration = S_SpellHeroDuration(code, 1, target);
-    has_status_slot = buff && strlen(buff) == 4 && unit_findstatus(target, *((uint32_t const *)buff));
+    has_status_slot = buff && strlen(buff) == 4 && unit_findstatusclass(target, *((uint32_t const *)buff));
 
     if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
         return false;
@@ -529,7 +529,7 @@ static uint32_t mechanical_critter_choose(void) {
 bool S_UnitMechanicalCritter(edict_t const *unit) {
     if (unit) FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status = unit->abilstatus+i;
-        if (status->level && status->code == MAKEFOURCC('B','m','e','c') &&
+        if (status->level && G_UnitStatusClassCode(status) == MAKEFOURCC('B','m','e','c') &&
             status->data && G_AbilityCode(status->data) == MAKEFOURCC('A','m','e','c')) return true;
     }
     return false;
@@ -565,7 +565,7 @@ BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
         summon->owner = caster; summon->summon_ability = code;
         G_SpawnAbilityEffectTarget(code,WC3_EFFECT_TARGET,0,summon,NULL,true);
         unit_addtimedstatus(summon,"Bmec",1,S_SpellDuration(code,1,false));
-        heroabilitystatus_t *status = unit_findstatus(summon,MAKEFOURCC('B','m','e','c'));
+        heroabilitystatus_t *status = unit_findstatusclass(summon,MAKEFOURCC('B','m','e','c'));
         if (status) status->data = code;
         G_PublishSummonEvents(caster,summon);
     }
@@ -780,7 +780,7 @@ BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                  S_SpellAllowsAreaTarget(code, caster, target) &&
                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
-        if (G_UnitStatusLevel(target, FS_SLKKey(buff))) continue;
+        if (G_UnitStatusClassLevel(target, FS_SLKKey(buff))) continue;
         /* The shield charge is untimed. Its buff (BNss) owns persistent art,
          * which the shared status lifecycle removes when a spell consumes it. */
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);

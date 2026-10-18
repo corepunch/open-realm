@@ -18,7 +18,7 @@ heroabilitystatus_t *S_ApplyAttackPrevention(edict_t *caster, edict_t *target,
     if (!caster || !target || !spell || !buff || strlen(buff) < 4) return NULL;
     rank = S_SpellLevel(caster, spell->code);
     mask = wc3_int_bits(wc3_float_bits(S_SpellData(spell->code, rank, 1)));
-    slot = unit_findstatus(target, FS_SLKKey(buff));
+    slot = unit_findstatusclass(target, FS_SLKKey(buff));
     /* Public refresh first removes the previous buff object, including its
      * captured mask; never read changed object data to calculate an inverse. */
     if (slot) unit_expirestatus(target, slot);

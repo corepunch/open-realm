@@ -194,8 +194,8 @@ static bool land_mine_is_uprooted_ancient(edict_t const *target) {
 	bool root_capable;
 
 	if (!target || (target->targtype != TARG_STRUCTURE && !G_UnitIsBuilding(target->class_id))) return false;
-	root_capable = G_UnitAbilityLevel(target, ID_AROO) ||
-		G_UnitAbilityLevel(target, ID_ARO1) || G_UnitAbilityLevel(target, ID_ARO2);
+	root_capable = G_UnitAbilityClassLevel(target, ID_AROO) ||
+		G_UnitAbilityClassLevel(target, ID_ARO1) || G_UnitAbilityClassLevel(target, ID_ARO2);
 	return root_capable && target->movetype != MOVETYPE_NONE;
 }
 
@@ -262,7 +262,7 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	float arm, invis, collision;
 	edict_t *thinker;
 
-	if (!mine || !mine->inuse || !code || !(level = G_UnitAbilityLevel(mine, code))) return false;
+	if (!mine || !mine->inuse || !code || !(level = G_UnitAbilityClassLevel(mine, code))) return false;
 	thinker = land_mine_thinker(mine);
 	collision = thinker ? thinker->collision : mine->collision;
 	arm = MAX(0.0f, S_SpellData(code, level, 1));
@@ -306,7 +306,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 	case A_LEVEL_CHANGED:
 		return land_mine_initialize(ent, code);
 	case A_DEATH:
-		if (!(ent && code && G_UnitAbilityLevel(ent, code)) && !land_mine_thinker(ent)) return false;
+		if (!(ent && code && G_UnitAbilityClassLevel(ent, code)) && !land_mine_thinker(ent)) return false;
 		land_mine_remove_thinker(ent);
 		/* Death/explosion presentation must no longer be hidden by the trap's
 		 * live-unit invisibility state. */
@@ -314,7 +314,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 		return true;
 	case A_DISABLE:
 		/* G_ActorRemoveSkill removes the rawcode before dispatching A_DISABLE,
-		 * so cleanup cannot rely on G_UnitAbilityLevel() still finding Amin. */
+		 * so cleanup cannot rely on G_UnitAbilityClassLevel() still finding Amin. */
 		if (!ent) return false;
 		{
 			edict_t *thinker = land_mine_thinker(ent);
@@ -326,7 +326,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 		G_SetEntityHidden(ent,false);
 		return true;
 	case A_UNIT_REMOVE:
-		if (!(ent && code && G_UnitAbilityLevel(ent, code)) && !land_mine_thinker(ent)) return false;
+		if (!(ent && code && G_UnitAbilityClassLevel(ent, code)) && !land_mine_thinker(ent)) return false;
 		land_mine_remove_thinker(ent);
 		return true;
 	default:
@@ -356,14 +356,14 @@ static float unit_detector_range(edict_t const *detector) {
 	};
 	float range = 0.0f;
 	FOR_LOOP(i, sizeof(abilities) / sizeof(*abilities)) {
-		uint32_t level = G_UnitAbilityLevel(detector, abilities[i]);
+		uint32_t level = G_UnitAbilityClassLevel(detector, abilities[i]);
 		if (level) range = MAX(range, S_SpellRange(abilities[i], level));
 	}
 	return range;
 }
 
 static float permanent_invisibility_transition(edict_t const *unit) {
-	uint32_t level = unit ? G_UnitAbilityLevel(unit, ID_APIV) : 0;
+	uint32_t level = unit ? G_UnitAbilityClassLevel(unit, ID_APIV) : 0;
 	return level ? S_SpellDuration(ID_APIV, level, false) : -1.0f;
 }
 
@@ -378,7 +378,7 @@ bool S_PermanentInvisibilityActive(edict_t const *unit) {
 bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status) {
 	abilityitem_t item;
 	if (!status || !status->level) return false;
-	if (status->code == ID_BINV || status->code == ID_BOWK) return true;
+	if (G_UnitStatusClassCode(status) == ID_BINV || G_UnitStatusClassCode(status) == ID_BOWK) return true;
 	if (!status->data) return false;
 	item = S_AbilityItem(status->data);
 	return item.ability && (item.ability->proc == CAbilityInvisibility ||
@@ -559,7 +559,7 @@ bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit) {
 	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
 	if (S_UnitHasTemporaryInvisibility(unit, NULL)) return true;
 	if (S_UnitIsSubmerged(unit)) return true;
-	if (G_UnitAbilityLevel(unit, ID_AMIN)) return true;
+	if (G_UnitAbilityClassLevel(unit, ID_AMIN)) return true;
 	summon = G_AbilityCode(unit->summon_ability);
 	return summon == ID_AEYE || summon == ID_ASTA;
 }

@@ -34,7 +34,7 @@ static uint32_t blight_growth_ability(edict_t *ent) {
 }
 
 static void blight_growth_reset(edict_t *ent, uint32_t code, uint32_t now) {
-    uint32_t const level = code ? MAX(1u, G_UnitAbilityLevel(ent, code)) : 0;
+    uint32_t const level = code ? MAX(1u, G_UnitAbilityClassLevel(ent, code)) : 0;
     float const interval = level ? S_SpellDuration(code, level, false) : 0.0f;
 
     if (!code) { G_FreeBlightGrowth(ent); return; }
@@ -91,7 +91,7 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
      * ticks resume only after the structure is complete. */
     if (ent->construction) return false;
     if (!G_IsUnitAbilityAvailable(ent, code)) return false;
-    level = G_UnitAbilityLevel(ent, code);
+    level = G_UnitAbilityClassLevel(ent, code);
     if (!level) {
         G_FreeBlightGrowth(ent);
         return false;

@@ -30,11 +30,11 @@ static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     return G_AbilityCode(spell->code) == BZ_POLYMORPH ? "Bply" : NULL;
 }
 
-static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitStatusLevel(ent, code) != 0; }
+static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitStatusClassLevel(ent, code) != 0; }
 
 static void human_remove_status(edict_t *ent, uint32_t code) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent))
-        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
+        if (ent->abilstatus[i].level && G_UnitStatusClassCode(ent->abilstatus+i) == code)
             unit_removestatus(ent, ent->abilstatus + i, STATUS_REMOVE_SCRIPT);
 }
 
@@ -82,7 +82,7 @@ bool S_UnitSpellImmune(edict_t const *unit) {
         MAKEFOURCC('A','C','m','2'), MAKEFOURCC('A','C','m','3')
     };
     if (!unit) return false;
-    FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityLevel(unit, passive[i])) return true;
+    FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityClassLevel(unit, passive[i])) return true;
     return unit->spell_immunity_depth>0 || unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
 }
 
@@ -292,7 +292,7 @@ static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem
     buff = human_buff(spell, level);
     if (!buff || strlen(buff) != 4 ||
         S_SpellHeroDuration(spell->code, level, st.entity) <= 0.0f) return false;
-    has_slot = unit_findstatus(st.entity, *((uint32_t const *)buff)) != NULL;
+    has_slot = unit_findstatusclass(st.entity, *((uint32_t const *)buff)) != NULL;
     if (has_slot || !st.entity->abilstatus) return true;
     FOR_LOOP(i, G_UnitStatusSlotCount(st.entity))
         if (!st.entity->abilstatus[i].level) return true;
@@ -485,7 +485,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     /* Negative Morph and below-one speed share Move+80 in retail. Each
      * applying owner retains its inverse across refresh and save/load. */
     if(!st.entity->polymorph->move_group_isolation_applied &&
-       G_UnitAbilityLevel(st.entity,MAKEFOURCC('A','m','o','v'))) {
+       G_UnitAbilityClassLevel(st.entity,MAKEFOURCC('A','m','o','v'))) {
         S_AcquireMoveGroupIsolation(st.entity);
         st.entity->polymorph->move_group_isolation_applied=1;
     }
@@ -710,7 +710,7 @@ static bool defend_set(edict_t *ent, abilityitem_t const *item, bool enabled) {
         human_has_status(ent,item->code) == enabled) return false;
     order_stop_cleanup(ent);
     if (!enabled) {
-        uint32_t rank=G_UnitStatusLevel(ent,item->code);
+        uint32_t rank=G_UnitStatusClassLevel(ent,item->code);
         human_remove_status(ent,item->code);
         S_HumanStatusExpired(ent,item->code,rank);
     } else {
@@ -764,7 +764,7 @@ BZ_ABILITY_PROC(CAbilityDefend) {
     case A_UNIT_RETIRE:
     case A_UNIT_REMOVE:
         if (human_has_status(ent,code)) {
-            uint32_t rank=G_UnitStatusLevel(ent,code);
+            uint32_t rank=G_UnitStatusClassLevel(ent,code);
             human_remove_status(ent,code);
             S_HumanStatusExpired(ent,code,rank);
         }
@@ -989,17 +989,17 @@ float S_HumanMoveFactor(edict_t const *unit) {
     FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status=unit->abilstatus+i;
         if (status->level && (!status->timestamp || status->timestamp>G_Time()) &&
-            G_AbilityCode(status->code)==MAKEFOURCC('A','d','e','f'))
-            factor=wc3_mul(factor,wc3_sub(1,S_SpellData(status->code,status->level,3)));
+            G_AbilityCode(G_UnitStatusClassCode(status))==MAKEFOURCC('A','d','e','f'))
+            factor=wc3_mul(factor,wc3_sub(1,S_SpellData(G_UnitStatusClassCode(status),status->level,3)));
     }
-    if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
+    if ((level = G_QueryUnitStatusClassLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     factor *= 1.0f - S_SlowAuraMoveReduction(unit);
     if (unit_hasstatusstate(unit,WC3_STATUS_STATE_MAGIC_LEASH)) return 0.0f;
     return factor;
 }
 
 float S_DefendAttackReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('A','d','e','f'));
     /* Adef DataD is an attack-speed reduction fraction. Warsmash installs it
      * as a negative ATKSPD non-stacking stat buff while Defend is active. */
     return level ? S_SpellData(MAKEFOURCC('A','d','e','f'), level, 4) : 0.0f;
@@ -1008,12 +1008,12 @@ float S_DefendAttackReduction(edict_t const *unit) {
 float S_HumanArmorBonus(edict_t const *unit) {
     uint32_t level;
     float bonus = 0.0f;
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','i','n','f')))) bonus += S_SpellData(MAKEFOURCC('A','i','n','f'), level, 2);
+    if ((level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B','i','n','f')))) bonus += S_SpellData(MAKEFOURCC('A','i','n','f'), level, 2);
     return bonus;
 }
 
 static int defend_damage_taken(edict_t *target, uint32_t attack_type, int damage) {
-    uint32_t const level = G_UnitStatusLevel(target, MAKEFOURCC('A','d','e','f'));
+    uint32_t const level = G_UnitStatusClassLevel(target, MAKEFOURCC('A','d','e','f'));
     float factor = 1.0f;
     if (!level || damage <= 0) return damage;
     if (attack_type == ATK_PIERCE)
@@ -1036,7 +1036,7 @@ static bool defend_projectile_reaction(edict_t *projectile) {
     if (!projectile || projectile->movetype != MOVETYPE_FLYMISSILE || projectile->currentmove ||
         projectile->projectile_reflected || !(attacker = projectile->owner) || !attacker->inuse ||
         !(target = projectile->goalentity) || !target->inuse ||
-        !(level = G_UnitStatusLevel(target, MAKEFOURCC('A','d','e','f')))) return false;
+        !(level = G_UnitStatusClassLevel(target, MAKEFOURCC('A','d','e','f')))) return false;
     if (game.constants.combatConstantsLoaded && !game.constants.defendDeflection) return false;
 
     attack_type = projectile->projectile_attack_type;
@@ -1081,24 +1081,24 @@ static bool defend_projectile_reaction(edict_t *projectile) {
 
 int S_HumanAttackDamage(edict_t *attacker, edict_t *target, int damage) {
     uint32_t level;
-    if ((level = G_UnitStatusLevel(attacker, MAKEFOURCC('B','i','n','f'))))
+    if ((level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('B','i','n','f'))))
         damage = (int)(damage * (1.0f + S_SpellData(MAKEFOURCC('A','i','n','f'), level, 1)));
     damage = S_FeedbackDamage(attacker, target, damage);
-    if ((level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','s','h'))) && target->defense_type <= 2)
+    if ((level = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','f','s','h'))) && target->defense_type <= 2)
         damage += (int)S_SpellData(MAKEFOURCC('A','f','s','h'), level, 3 + target->defense_type);
     /* Defend Data B scales the defender's own attacks while the stance is
      * active. Data A reduces non-deflected Piercing hits; Data E does the same
      * for Magic/Spells. Projectile deflection itself happens in g_phys.c so a
      * successful shot can keep travelling back to its source. */
-    if ((level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','d','e','f'))))
+    if ((level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('A','d','e','f'))))
         damage = (int)((float)damage * MAX(0.0f, S_SpellData(MAKEFOURCC('A','d','e','f'), level, 2)));
     return defend_damage_taken(target, S_AttackProfileRead(attacker, 0)->type, damage);
 }
 
 void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
-    uint32_t flak = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','l','k'));
-    uint32_t barrage = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','r','o','c'));
-    uint32_t storm = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','s','t','h'));
+    uint32_t flak = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','f','l','k'));
+    uint32_t barrage = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','r','o','c'));
+    uint32_t storm = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','s','t','h'));
     float radius = storm ? S_AttackProfileRead(attacker, 0)->areaSmall : flak ? S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 2) :
                    barrage ? S_SpellNumber(MAKEFOURCC('A','r','o','c'), ABILITY_NUMBER_AREA, barrage) : 0.0f;
     uint32_t count = 0, limit = barrage ? (uint32_t)S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 3) : UINT_MAX;
@@ -1120,7 +1120,7 @@ void S_HumanBreakInvisibility(edict_t *unit) {
     if (!unit) return;
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
-        if (status->level && status->code != MAKEFOURCC('B','O','w','k') &&
+        if (status->level && G_UnitStatusClassCode(status) != MAKEFOURCC('B','O','w','k') &&
             S_UnitStatusIsTemporaryInvisibility(status))
             unit_expirestatus(unit, status);
     }
@@ -1134,7 +1134,7 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
     }
     if (code == MAKEFOURCC('B','i','n','v') &&
-        !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
+        !S_UnitHasTemporaryInvisibility(unit, unit_findstatusclass(unit, code)))
         G_SetEntityHidden(unit,false);
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);

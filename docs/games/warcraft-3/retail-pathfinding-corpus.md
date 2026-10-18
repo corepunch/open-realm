@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of the raw target-token parser, the inventory has **605 entries**: **324** oracle contracts
-(including variants) supplied by **252** distinct verifier scripts, **121**
+As of Metamorphosis382, the inventory has **606 entries**: **325** oracle contracts
+(including variants) supplied by **253** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2480,3 +2480,14 @@ The engine parses the same aliases and high constraint bits, including `_`'s
 raw `fdd1f00e` default. This entry does not certify the broader Captain selector.
 Run `python3 tools/ghidra/verify_wc3_pathing_target_tokens.py --binary /path/to/game.dll`;
 its portable evidence is `fixtures/retail-target-tokens-1.27.json` beside the verifier.
+
+### Concrete Metamorphosis availability and typed buffs (382)
+
+`oracle-morph382` verifies the concrete AEme/BEme availability and primary-clock
+lifetime family: 36 captures, 38 scenes, 3,790 public markers, 8,470 projected
+events, 4,656 native events, 5,271 whole instructions and 35 data ranges.
+All twelve maps rebuild exactly. The engine gate requires 39 tests and 31,842
+assertions in each edition, including aliases, public/natural inverse, Pause/Sleep
+composition, pooled release and in-process cold saves. Remaining Morph families,
+health bonuses and restoration/evidence boundaries stay explicit in SEP-01.2.
+See [the behavior and evidence limits](metamorphosis-availability.md).

@@ -708,7 +708,7 @@ uint32_t UnitCountBuffsEx(jass_t *j) {
     FOR_LOOP(i, G_UnitStatusSlotCount(whichUnit)) {
         heroabilitystatus_t const *s = whichUnit->abilstatus + i;
         if (!s->level) continue;
-        if (timedLife && s->code != MAKEFOURCC('B', 'T', 'L', 'F')) continue;
+        if (timedLife && G_UnitStatusClassCode(s) != MAKEFOURCC('B', 'T', 'L', 'F')) continue;
         count++;
     }
     return jass_pushinteger(j, count);
@@ -722,7 +722,7 @@ uint32_t UnitPauseTimedLife(jass_t *j) {
     now = G_Time();
     FOR_LOOP(i, G_UnitStatusSlotCount(whichUnit)) {
         heroabilitystatus_t *s = whichUnit->abilstatus + i;
-        if (!s->level || s->code != MAKEFOURCC('B', 'T', 'L', 'F')) continue;
+        if (!s->level || G_UnitStatusClassCode(s) != MAKEFOURCC('B', 'T', 'L', 'F')) continue;
         if (flag) {
             s->data = s->timestamp > now ? s->timestamp - now : 0;
             s->timestamp = 0;

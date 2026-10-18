@@ -5,14 +5,14 @@
 static void unsummon_remove_status(edict_t *building) {
     if (!building) return;
     FOR_LOOP(i, G_UnitStatusSlotCount(building)) {
-        if (building->abilstatus[i].level && building->abilstatus[i].code == ID_UNSUMMON_BUFF)
+        if (building->abilstatus[i].level && G_UnitStatusClassCode(building->abilstatus+i) == ID_UNSUMMON_BUFF)
             unit_removestatus(building, building->abilstatus + i, STATUS_REMOVE_SCRIPT);
     }
     G_InvalidateUnitInfoPanel(building);
 }
 
 static void unsummon_add_status(edict_t *building) {
-    if (!building || G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return;
+    if (!building || G_UnitStatusClassLevel(building, ID_UNSUMMON_BUFF)) return;
     unit_addstatus(building, "Buns", 1);
 }
 
@@ -103,7 +103,7 @@ static bool unsummon_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
     (void)spell;
     if (!caster || !building || !S_SpellIsAliveTarget(building) ||
         building->s.player != caster->s.player || !G_UnitIsStructure(building) ||
-        G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
+        G_UnitStatusClassLevel(building, ID_UNSUMMON_BUFF)) return false;
     /* Retail rejects incomplete structures before mana spend; the old path
      * treated every allied building as a valid Unsummon target. */
     if (building->construction) {

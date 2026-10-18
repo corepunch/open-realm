@@ -10,11 +10,11 @@
 static uint32_t shadowmeld_fade_ms(edict_t const *unit);
 
 static bool shadowmeld_has_standard(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_ASHM) != 0;
+    return unit && G_UnitAbilityClassLevel(unit, ID_ASHM) != 0;
 }
 
 static bool shadowmeld_has_akama(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_AHID) != 0;
+    return unit && G_UnitAbilityClassLevel(unit, ID_AHID) != 0;
 }
 
 static bool shadowmeld_has_ability(edict_t const *unit) {
@@ -23,7 +23,7 @@ static bool shadowmeld_has_ability(edict_t const *unit) {
 
 static bool shadowmeld_ability_available(edict_t const *unit, bool akama) {
     uint32_t code = akama ? ID_AHID : ID_ASHM;
-    return unit && G_UnitAbilityLevel(unit, code) != 0 && G_IsUnitAbilityAvailable(unit, code);
+    return unit && G_UnitAbilityClassLevel(unit, code) != 0 && G_IsUnitAbilityAvailable(unit, code);
 }
 
 static bool shadowmeld_any_ability_available(edict_t const *unit) {
@@ -81,7 +81,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
     static uint32_t bad_code, bad_level;
     uint32_t code = shadowmeld_has_standard(unit) ? ID_ASHM :
                     shadowmeld_has_akama(unit) ? ID_AHID : 0;
-    uint32_t level = code ? G_UnitAbilityLevel(unit, code) : 0;
+    uint32_t level = code ? G_UnitAbilityClassLevel(unit, code) : 0;
     float duration = code && level ? S_SpellData(code, level, 1) : 0.0f; /* Shm1 / DataA */
 
     if (!(duration > 0.0f) || !isfinite(duration)) {

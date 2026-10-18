@@ -44,25 +44,25 @@ static bool unit_has_proc_ability(edict_t const *ent, abilityProc_t proc) {
 void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
     uint32_t level, code;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target) || M_IsDead(target)) return;
-    code = G_UnitAbilityLevel(attacker, ID_MIND_ROT) ? ID_MIND_ROT : 0;
+    code = G_UnitAbilityClassLevel(attacker, ID_MIND_ROT) ? ID_MIND_ROT : 0;
     if (code) {
-        level = MAX(1u, G_UnitAbilityLevel(attacker, code));
+        level = MAX(1u, G_UnitAbilityClassLevel(attacker, code));
         target->mana.value = MAX(0.0f, target->mana.value - S_SpellData(code, level, 1));
     }
-    code = G_UnitAbilityLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
+    code = G_UnitAbilityClassLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
     if (code) {
-        level = MAX(1u, G_UnitAbilityLevel(attacker, code));
+        level = MAX(1u, G_UnitAbilityClassLevel(attacker, code));
         S_SpellApplyTimedStatus(target, "Bliq", level, S_SpellHeroDuration(code, level, target));
     }
-    code = G_UnitAbilityLevel(attacker, ID_CORROSIVE_BREATH) ? ID_CORROSIVE_BREATH : 0;
+    code = G_UnitAbilityClassLevel(attacker, ID_CORROSIVE_BREATH) ? ID_CORROSIVE_BREATH : 0;
     if (code) {
-        level = MAX(1u, G_UnitAbilityLevel(attacker, code));
+        level = MAX(1u, G_UnitAbilityClassLevel(attacker, code));
         S_SpellApplyTimedStatus(target, "Bcor", level, S_SpellHeroDuration(code, level, target));
     }
 }
 
 float S_CreepAttackSpeedReduction(edict_t const *unit) {
-    uint32_t level = unit ? G_UnitStatusLevel(unit, BUFF_LIQUID_FIRE) : 0;
+    uint32_t level = unit ? G_UnitStatusClassLevel(unit, BUFF_LIQUID_FIRE) : 0;
     return level ? S_SpellData(ID_LIQUID_FIRE, level, 3) : 0.0f;
 }
 
@@ -153,7 +153,7 @@ static void death_damage_aoe(edict_t *ent, uint32_t code) {
     edict_t *thinker;
 
     if (!ent || !code) return;
-    level = MAX(1u, G_UnitAbilityLevel(ent, code));
+    level = MAX(1u, G_UnitAbilityClassLevel(ent, code));
     delay = S_SpellDuration(code, level, false);
     if (delay <= 0.0f) {
         death_damage_aoe_apply(ent, code, level, &ent->s.origin2);
@@ -269,7 +269,7 @@ BZ_ABILITY_PROC(CAbilitySellUnit) { return CAbilityPassive(ent, msg, call); }
 bool S_UnitIsResistant(edict_t const *unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
 
 int S_OrbAnnihilationDamage(edict_t *attacker, int damage) {
-    uint32_t level = attacker ? G_UnitAbilityLevel(attacker, ID_ORB_ANNIHILATION) : 0;
+    uint32_t level = attacker ? G_UnitAbilityClassLevel(attacker, ID_ORB_ANNIHILATION) : 0;
     return level ? damage + (int)S_SpellData(ID_ORB_ANNIHILATION, level, 1) : damage;
 }
 BZ_ABILITY_PROC(CAbilitySlowAura) { return CAbilityPassive(ent, msg, call); }
@@ -282,7 +282,7 @@ int S_FeedbackDamage(edict_t *attacker, edict_t *target, int damage) {
     size_t i;
     if (!attacker || !target) return damage;
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
-        if ((level = G_UnitAbilityLevel(attacker, codes[i]))) { code = codes[i]; break; }
+        if ((level = G_UnitAbilityClassLevel(attacker, codes[i]))) { code = codes[i]; break; }
     if (!code || target->mana.value <= 0.0f) return damage;
     slot = G_UnitIsHero(target) ? 3 : 1;
     { float drained = MIN(target->mana.value, S_SpellData(code, level, slot));
@@ -297,7 +297,7 @@ int S_HardenedSkinDamage(edict_t *target, int damage) {
     size_t i;
     if (!target || damage <= 0) return damage;
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
-        if ((level = G_UnitAbilityLevel(target, codes[i]))) { code = codes[i]; break; }
+        if ((level = G_UnitAbilityClassLevel(target, codes[i]))) { code = codes[i]; break; }
     if (!code || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
     return MAX((int)S_SpellData(code, level, 2), damage - (int)S_SpellData(code, level, 3));
 }

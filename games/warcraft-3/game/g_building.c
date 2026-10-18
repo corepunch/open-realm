@@ -489,7 +489,7 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             /* Warsmash's rlev contract sets the affected ability to
              * researched-level + 1; removing the tech returns it to level 1.
              * The base/mod numeric columns are not part of this effect. */
-            if (ability_id && G_UnitAbilityLevel(unit, ability_id) &&
+            if (ability_id && G_UnitAbilityClassLevel(unit, ability_id) &&
                 G_UnitSetAbilityLevel(unit, ability_id, new_level > 0 ? new_level + 1 : 1)) {
                 changed = true;
             }
@@ -719,7 +719,7 @@ bool G_BuildingUpgradeActive(edict_t const *building) {
 
 bool G_BuildingIsUnsummoning(edict_t const *building) {
     return building && building->inuse &&
-        G_UnitStatusLevel(building, MAKEFOURCC('B', 'u', 'n', 's')) != 0;
+        G_UnitStatusClassLevel(building, MAKEFOURCC('B', 'u', 'n', 's')) != 0;
 }
 
 static bool G_RelativeBuildingUpgradeCosts(void) {
