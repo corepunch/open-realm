@@ -2399,7 +2399,8 @@ bool S_UnitExecutionPaused(edict_t const *self) {
 /*680320 retains admission at positive Unit198. An absent internal task can
  * still dispatch immediately (691c70), as with an idle Avatar transition. */
 bool S_UnitOrderExecutionHeld(edict_t const *self) {
-    return S_UnitExecutionPaused(self) || (self && self->movement.repulse.disable_depth>0 && G_UnitHasActiveOrder(self));
+    return S_UnitExecutionPaused(self) || (self && self->movement.repulse.disable_depth>0 &&
+        (G_UnitHasActiveOrder(self) || G_BotAIStopTaskActive(self)));
 }
 
 /* Suspension retains its user packet while its physical task is canceled.

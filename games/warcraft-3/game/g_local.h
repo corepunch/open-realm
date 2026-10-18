@@ -817,6 +817,15 @@ typedef struct {
     uint32_t owner_context; /* Owning ability interprets this retained queue payload. */
 } unitOrder_t;
 
+enum { UNIT_ORDER_AI_IMMEDIATE=851974, UNIT_ORDER_CONTEXT_AI=MAKEFOURCC('A','I','0','6') };
+bool G_IsAIImmediateOrder(unitOrder_t const *);
+bool G_AdmitAIImmediateOrder(edict_t *,bool);
+void G_BotAppendAIStop(edict_t *);
+void G_BotExecuteAIStop(edict_t *);
+bool G_BotAIStopTaskActive(edict_t const *);
+void S_ClearUnitOrderReferences(edict_t *);
+void order_stop_internal(edict_t *);
+
 /* Forced ability commands retain their concrete owner independently of the
  * unit's live ability list and the player's Shift queue. New packets insert
  * immediately after the suspended head, before existing successors. */
@@ -4870,6 +4879,7 @@ bool S_CargoOrderLoad(edict_t *, edict_t *);
 bool S_CargoOrderDrop(edict_t *, vec2_t const *);
 bool S_CargoTryFailedMove(edict_t *, vec2_t const *);
 void S_AttackMoveComplete(edict_t *, edict_t *, bool);
+void S_AttackGroundComplete(edict_t *, edict_t *, bool);
 void S_CargoBoardComplete(edict_t *, edict_t *, bool);
 void S_CargoLoadComplete(edict_t *, edict_t *, bool);
 void S_CargoDropComplete(edict_t *, edict_t *, bool);

@@ -8452,15 +8452,33 @@ TEST(wc3_api, group_point_order_ability_ownership) {
         "call BJassAssert(GroupPointOrder(g,\"attack\",640,512),\"Attack batch accepted\")\n"
         "call DestroyGroup(g)\nendfunction\n";
     T_ASSERT(run_test_jass(script));
-    /* Replacement detaches members now; the owner retires at its next visit.
-     * Each Patrol leg is its own physical singleton (5fdff0 d016b point task). */
-    unsigned empty=0;
+    /* Smart/Patrol replacement detaches three obsolete physical owners.
+     * Point Attack admission independently creates one live singleton per unit
+     * (retail49a980); the next owner visit retires only the obsolete owners. */
+    unsigned empty=0,active=0;
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse) {
-        empty++;T_EQ(level.move_groups[i]->count,0);
+        moveGroup_t *group=level.move_groups[i];
+        if(!group->count) {empty++;continue;}
+        active++;T_EQ(group->count,1);
+        T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);
+        T_EQ(group->complete,S_AttackMoveComplete);
+        T_EQ(group->receiver,group->members[0].unit);
+        T_EQ(group->receiver_spawn,group->receiver->spawn_time);
+        T_EQ(group->receiver->movement.group_id,group->id);
+        T_NOT_NULL(group->receiver->movement.attackmove_waypoint);
+        T_FEQ(group->receiver->movement.attackmove_waypoint->s.origin2.x,640,0);
+        T_FEQ(group->receiver->movement.attackmove_waypoint->s.origin2.y,512,0);
     }
-    T_EQ(empty,3);
+    T_EQ(empty,3);T_EQ(active,2);
     S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
-    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+    active=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse) {
+        moveGroup_t *group=level.move_groups[i];active++;
+        T_EQ(group->count,1);T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);
+        T_EQ(group->complete,S_AttackMoveComplete);
+        T_EQ(group->receiver,group->members[0].unit);
+    }
+    T_EQ(active,2);
     unsigned count=0;
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','p','e','a')) {
         count++; T_NOT_NULL(ent->movement.attackmove_waypoint); T_NOT_NULL(ent->currentmove);

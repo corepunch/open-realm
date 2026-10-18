@@ -1052,6 +1052,13 @@ TEST(wc3_order_lifecycle, swing199_explicit_weapons_publish_exemption_before_dam
         /* Walk transitions to the weapon windup at the true range gate. */
         unit->s.origin.x=280;gi.LinkEntity(unit);
         unit->currentmove->think(unit);
+        if(mode==2) {
+            /* Eager Ground admission already owns a physical Move request.
+             * Publish the relocated fine pose and let that owner deliver
+             * arrival at the unchanged primary clock (8), before windup. */
+            S_SetUnitAxisPosition(unit,0,280);
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        }
         T_ASSERT(unit->attack_speed_cap.active);
         T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
         T_ASSERT(unit->wait>0);T_FEQ(target->health.value,target->health.max_value,0);

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Morph372, the inventory has **596 entries**: **315** oracle contracts
-(including variants) supplied by **243** distinct verifier scripts, **121**
+As of Ground371, the inventory has **597 entries**: **316** oracle contracts
+(including variants) supplied by **244** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2433,3 +2433,8 @@ with initially alternate/late attachment and in-process transition save/load.
 Strict acceptance: classic: 26 tests/7250 assertions; tft: 26 tests/7250 assertions. Two pre-start system exceptions remain
 literal in the complete projection; Mount/common Morph compositions stay in SEP-01.2.
 [Contract and evidence](submerge-passive-availability.md).
+
+Ground371 registers selected-range physical admission, artillery minimum rejection,
+intrinsic immobile completion and blocked human/computer recovery. Strict acceptance: classic: 43 tests/11838 assertions; tft: 43 tests/11838 assertions.
+Original guards: 2757; public markers: 5928.
+Wider producer inventory and complete firing polls remain in existing leaves.

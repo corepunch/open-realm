@@ -43,6 +43,10 @@ static void stop_cancel_movement(edict_t *ent) {
     /* A rooted structure has no Move subscriber; mobile Ancients do. */
     if (G_UnitIsStructure(ent)) S_StopUnitMovement(ent);
     else S_StopUnitMovementWithRecovery(ent);
+    S_ClearUnitOrderReferences(ent);
+}
+
+void S_ClearUnitOrderReferences(edict_t *ent) {
     S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);
@@ -111,6 +115,13 @@ bool S_IssueStopOrder(edict_t *ent) {
 void order_stop_cleanup(edict_t *ent) {
     G_ClearUnitOrderQueue(ent);
     order_stop_state(ent, false, false);
+}
+
+/* Internal Stop tasks retain the user chain and deliver the ordinary Stand
+ * ability event. Their Attack-owned d014a policy is separate from the legacy
+ * explicit-Stop guard position, and no public Stop notification is emitted. */
+void order_stop_internal(edict_t *ent) {
+    order_stop_state(ent, true, false);
 }
 
 void order_stop_queued(edict_t *ent) {

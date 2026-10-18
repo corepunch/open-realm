@@ -187,6 +187,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_AttackTargetChaseComplete),
     SAVE_CFUNCTION(S_AttackRecoveryComplete),
     SAVE_CFUNCTION(S_AttackMoveComplete),
+    SAVE_CFUNCTION(S_AttackGroundComplete),
     SAVE_CFUNCTION(S_CargoBoardComplete),
     SAVE_CFUNCTION(S_CargoLoadComplete),
     SAVE_CFUNCTION(S_CargoDropComplete),

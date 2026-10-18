@@ -405,7 +405,14 @@ TEST(wc3_attack_orders, ground_uses_second_weapon_geometry_damage_and_delivery) 
     profile->type=ATK_SIEGE;profile->weapon=WPN_ARTILLERY;profile->range=600;
     profile->damageBase=73;profile->damagePoint=.1f;profile->projectile.speed=900;
     attack_orders_call("ground");
-    actor->currentmove->think(actor);
+    /* Admission now creates the real point owner. Visit that owner before
+     * testing the selected weapon's delivery; a direct command think cannot
+     * complete the shared Move task. The already-in-range point never moves. */
+    moveGroup_t *approach=move_unit_group(actor);T_NOT_NULL(approach);
+    if(approach)T_EQ(wc3_float_bits(approach->members[0].arrival_range),0x7cffffffu);
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    T_NULL(move_unit_group(actor));
+    T_FEQ(actor->s.origin2.x,64,0);T_FEQ(actor->s.origin2.y,64,0);
     T_STREQ(actor->currentmove->animation,"attack range");
     actor->wait=.01f;actor->currentmove->think(actor);
     edict_t *missile=NULL;

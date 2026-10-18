@@ -1305,7 +1305,7 @@ void G_BotCaptainTargetEvent(botCaptain_t *captain,edict_t *unit) {
         edict_t *member=members[i].unit;
         if(!member->inuse || G_IsDeferredFree(member) || member->spawn_time!=members[i].birth ||
            member->attack_target!=unit || member->attack_target_spawn_time!=unit->spawn_time)continue;
-        order_stop_cleanup(member);G_BotDispatchAIStop(member);
+        G_BotDispatchAIStop(member);
     }
     gi.MemFree(members);
     FOR_LOOP(i,ARRAY_COUNT(captain->units))if(captain->units[i]==unit) {
@@ -1395,12 +1395,36 @@ static void G_BotCaptainAdd(bot_t const *bot,botCaptain_t *captain, edict_t *uni
  * Town membership persists independently of a running script. An idle Town unit
  * without a Captain can return to its assigned guard post; a detached/non-Town unit
  * falls back to Stop. Keep acquisition after enrollment, not around enrollment. */
-void G_BotDispatchAIStop(edict_t *unit) {
+typedef struct botAIStopTask_s {
+    edict_t const *unit;
+    uint32_t birth;
+    struct botAIStopTask_s *previous;
+} botAIStopTask_t;
+static botAIStopTask_t *bot_ai_stop_task;
+
+bool G_BotAIStopTaskActive(edict_t const *unit) {
+    if(!unit)return false;
+    for(botAIStopTask_t const *task=bot_ai_stop_task;task;task=task->previous)
+        if(task->unit==unit && task->birth==unit->spawn_time)return true;
+    return false;
+}
+
+/*6802f0 replaces through common admission;693450 appends without canceling
+ * an already retained Captain or Move task. Neither directly executes d0006. */
+void G_BotDispatchAIStop(edict_t *unit) {G_AdmitAIImmediateOrder(unit,true);}
+void G_BotAppendAIStop(edict_t *unit) {G_AdmitAIImmediateOrder(unit,false);}
+
+/*9bd6e0 executes an already notified user head. Its d0194 internal owner is
+ * created after198 acquisition and popped before198 release. The caller's
+ * common task dispatcher advances the user queue only after this returns. */
+void G_BotExecuteAIStop(edict_t *unit) {
     if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit))return;
     uint32_t spawn=unit->spawn_time;
     S_AcquireUnitSeparationSuppression(unit);
+    botAIStopTask_t task={unit,spawn,bot_ai_stop_task};bot_ai_stop_task=&task;
+    bool stop_fallback=false;
     if(!(unit->aiflags&AI_TOWN_OWNED) || unit->s.player>=MAX_PLAYERS) {
-        order_stop_cleanup(unit);
+        stop_fallback=true;
     } else {
         bot_t *bot=level.bots+unit->s.player;
         botCaptain_t *captain=NULL;
@@ -1424,8 +1448,12 @@ void G_BotDispatchAIStop(edict_t *unit) {
             }
         }
     }
-    if(unit->inuse && unit->spawn_time==spawn)
-        S_ReleaseUnitSeparationSuppression(unit);
+    bot_ai_stop_task=task.previous;
+    if(unit->inuse && unit->spawn_time==spawn)S_ReleaseUnitSeparationSuppression(unit);
+    /* The no-Town branch prepends internal Stop cleanup, not a new public
+     * Stop order or user-chain cancellation. Preserve the retained FIFO. */
+    if(stop_fallback && unit->inuse && unit->spawn_time==spawn &&
+       !G_IsDeferredFree(unit) && !M_IsDead(unit))order_stop_internal(unit);
 }
 
 /* Native9ccdb0 observes the Town policy before the new timed-life record is
@@ -1449,8 +1477,9 @@ void G_BotTemporaryUnitReady(edict_t *unit) {
     if(enabled)G_BotCaptainAdd(bot,captain,unit);
     /*6803f0 retires the old owner before693450 dispatches d0006. The
      * counted scope belongs to dispatch, including the disabled-policy exit. */
-    order_stop_cleanup(unit);
-    G_BotDispatchAIStop(unit);
+    uint32_t spawn=unit->spawn_time;
+    S_IssueStopOrder(unit);
+    if(unit->inuse && unit->spawn_time==spawn)G_BotAppendAIStop(unit);
     if(enabled && !captain->home_actor)
         fprintf(stderr,"WC3 AI: unresolved default temporary Captain home player=%u unit=%u\n",unit->s.player,unit->s.number);
 }
@@ -1991,7 +2020,10 @@ static void G_BotReturnAssignedGuard(edict_t *unit,vec2_t const *origin) {
     if(!G_BotUnitAlive(unit) || G_IsDeferredFree(unit) ||
        !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) ||
        !S_UnitCanTranslate(unit) || S_UnitPointInMoveRange(unit,origin,50))return;
+    uint32_t spawn=unit->spawn_time;
     G_IssueUnitPointOrder(unit,"attack",origin,false,unit->s.player,0);
+    /*9c0b00 always appends the next d0006 after the Attack admission. */
+    if(unit->inuse && unit->spawn_time==spawn)G_BotAppendAIStop(unit);
 }
 
 /* A fighting guard keeps its combat target; an idle guard attacks toward home. */
@@ -2874,8 +2906,14 @@ static void G_BotAdmitUnit(edict_t *unit,bool initial_guard) {
     if(level.ai_owned_players&(1u<<unit->s.player))unit->aiflags|=AI_TOWN_OWNED;
     G_BotRegisterTownUnit(unit);
     if(!enrolled && unit->ai_town_player) {
-        if(initial_guard)G_BotEnrollInitialGuard(unit);
-        G_BotDispatchAIStop(unit);
+        /*9c3660 retires the previous order before assigning the initial guard
+         * or Captain. Its final693450 append preserves any newly installed task. */
+        uint32_t spawn=unit->spawn_time;
+        S_IssueStopOrder(unit);
+        if(!unit->inuse || unit->spawn_time!=spawn)return;
+        if(initial_guard && unit->ai_town_player && !G_IsDeferredFree(unit) && !M_IsDead(unit))
+            G_BotEnrollInitialGuard(unit);
+        G_BotAppendAIStop(unit);
     }
 }
 

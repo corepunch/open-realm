@@ -3074,7 +3074,7 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     T_FEQ(attacker->channel->origin.x, point.x, 0.001f);
     T_FEQ(attacker->channel->origin.y, point.y, 0.001f);
     T_NOT_NULL(attacker->currentmove);
-    attacker->currentmove->think(attacker); /* walk state -> attack windup */
+    /* Intrinsic immobility consumes the in-range point during admission. */
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttackGround);
     T_STREQ(attacker->currentmove->animation, "attack range");
     attacker->wait = 0.01f;
@@ -4146,6 +4146,17 @@ TEST(wc3_combat, victory_and_defeat_are_distinct_event_types) {
 #endif /* BZ_TESTS */
 
 #ifdef BZ_TESTS
+/* Ground approaches belong to the physical Move scheduler. Advancing only
+ * the command animation cannot commit their velocity or publish a new pose. */
+static void combat_ground_owner_step(edict_t *unit) {
+    level.time+=FRAMETIME;
+    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+    FOR_LOOP(owner_tick,3) {
+        wc3_clock_advance(&level.pathing_clock,.03f,0);level.pathing_counter++;
+        M_RunScheduledThinks();CM_ProcessPathJobs(4096);M_SamplePoses();
+    }
+}
+
 /* Attack Ground must not translate while movement is locked. Ensnare applied
  * before the order holds the unit at its origin (repro from #476). */
 TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
@@ -4172,21 +4183,26 @@ TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
     edict_t *unit;
     vec2_t point = { 1000, 0 };
     float frozen_x, frozen_y;
-    setup_test_world(); reset_entities(); level.time = 1000;
+    reset_entities(); setup_test_world(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
     S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     S_OrderAttackGround(unit, &point);
-    level.time += FRAMETIME;
-    if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    combat_ground_owner_step(unit);
     frozen_x = unit->s.origin2.x; frozen_y = unit->s.origin2.y;
     T_ASSERT(frozen_x > 0.001f);
     unit_addtimedstatus(unit, "Beng", 1, 12);
     T_ASSERT(S_UnitIsEnsnared(unit));
+    /* Native16c5d0 commits the old velocity at the first stopped owner visit,
+     * then writes zero. Predict that visit's pose before testing the freeze. */
+    wc3_clock_advance(&level.pathing_clock,.03f,0);level.pathing_counter++;
+    S_PublishMovement(unit);
+    frozen_x=unit->s.origin2.x;frozen_y=unit->s.origin2.y;
+    M_RunScheduledThinks();CM_ProcessPathJobs(4096);M_SamplePoses();
+    T_FEQ(unit->s.origin2.x,frozen_x,0);T_FEQ(unit->s.origin2.y,frozen_y,0);
     FOR_LOOP(i, 10) {
-        level.time += FRAMETIME;
-        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+        combat_ground_owner_step(unit);
     }
     T_FEQ(unit->s.origin2.x, frozen_x, 0.001f);
     T_FEQ(unit->s.origin2.y, frozen_y, 0.001f);
@@ -4242,7 +4258,7 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
 TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
     edict_t *unit;
     vec2_t point = { 1000, 0 };
-    setup_test_world(); reset_entities(); level.time = 1000;
+    reset_entities(); setup_test_world(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
     S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
@@ -4258,8 +4274,7 @@ TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
     T_ASSERT(!S_UnitIsEnsnared(unit));
     T_ASSERT(S_UnitCanTranslate(unit));
     FOR_LOOP(i, 10) {
-        level.time += FRAMETIME;
-        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+        combat_ground_owner_step(unit);
     }
     T_ASSERT(unit->s.origin2.x > 0.001f);
 }

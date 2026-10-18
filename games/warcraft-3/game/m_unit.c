@@ -25,6 +25,8 @@ static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
 static void unit_stand_animation_end(edict_t *self);
 static umove_t unit_move_stand = { "stand", ai_stand, unit_stand_animation_end };
 static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand_animation_end };
+/* A replacement gap owns no default Stand/guard/acquisition notification. */
+static umove_t unit_move_order_boundary = { .animation="stand" };
 static void unit_decay_flesh_think(edict_t *self);
 static void unit_begin_bone_decay(edict_t *self);
 static float unit_decay_flesh_duration(edict_t const *self);
@@ -867,6 +869,12 @@ static uint32_t issued_order_ids[MAX_ENTITIES];
 static vec2_t issued_order_points[MAX_ENTITIES];
 static bool issued_order_point_valid[MAX_ENTITIES];
 
+bool G_IsAIImmediateOrder(unitOrder_t const *order) {
+    return order && order->owner_context==UNIT_ORDER_CONTEXT_AI &&
+        order->target_type==UNIT_ORDER_TARGET_NONE && order->order_id==UNIT_ORDER_AI_IMMEDIATE &&
+        !strcmp(order->order,"aiimmediate");
+}
+
 static uint32_t unit_order_event_id(cstring_t order) {
     return G_OrderId(order);
 }
@@ -990,13 +998,18 @@ bool G_PrependUnitOrder(edict_t *self,unitOrder_t const *order) {
     return true;
 }
 
+static uint32_t unit_user_queue_limit(edict_t const *self) {
+    bool executing=G_UnitHasActiveOrder(self) || G_BotAIStopTaskActive(self);
+    return MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || self->construction_held || !executing);
+}
+
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
                       vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
     if (!self || !unit_order_name_valid(order)) return false;
     /*693490 counts the active user head. A suspended head lives in this ring
      * instead, so only an executing head consumes the extra user slot. */
-    uint32_t limit=MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || self->construction_held || !G_UnitHasActiveOrder(self));
+    uint32_t limit=unit_user_queue_limit(self);
     if(self->order_queue.count>=limit)return false;
     unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
                         .order_id=order_id ? order_id : unit_order_event_id(order),.group_speed=group_speed};
@@ -1407,6 +1420,19 @@ static edict_t *unit_queued_target(unitOrder_t const *queued) {
 }
 
 static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t const *queued,uint32_t *owner_head) {
+    if(G_IsAIImmediateOrder(queued)) {
+        uint32_t spawn=self->spawn_time;
+        G_BotExecuteAIStop(self);
+        /* The activated AI head advances only after its internal scope returned. */
+        if(self->inuse && self->spawn_time==spawn && !G_IsDeferredFree(self) && !M_IsDead(self) &&
+           self->movement.repulse.disable_depth<=0 && !S_UnitOrderExecutionHeld(self) &&
+           !G_UnitHasActiveOrder(self) &&
+           (!self->current_order_id || self->current_order_id==UNIT_ORDER_AI_IMMEDIATE)) {
+            self->current_order_id=0;
+            G_UnitStartNextQueuedOrder(self);
+        }
+        return QUEUED_ORDER_REPLACED;
+    }
     if(queued->target_type==UNIT_ORDER_TARGET_POINT)
         return unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed,owner_head) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
     if(queued->target_type==UNIT_ORDER_TARGET_ENTITY) {
@@ -1430,12 +1456,13 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
     return S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
 }
 
-static bool unit_start_next_queued_order(edict_t *self) {
+static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
+    if(selected_ai)*selected_ai=false;
     unitOrder_t queued;
 
     if (!self || M_IsDead(self) || (G_IsDeferredFree(self) || self->construction_held) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
-        if (queued.owner_context) {
+        if (queued.owner_context && !G_IsAIImmediateOrder(&queued)) {
             queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START);
             if (result!=QUEUED_ORDER_UNHANDLED) {
                 if(result==QUEUED_ORDER_STARTED)S_UnitAbilityOrderAccepted(self,queued.order);
@@ -1443,6 +1470,17 @@ static bool unit_start_next_queued_order(edict_t *self) {
             }
             continue;
         }
+        if(G_IsAIImmediateOrder(&queued) && G_UnitHasActiveOrder(self)) {
+            /* The previous internal task has completed before this user-head advance. */
+            uint32_t birth=self->spawn_time;
+            S_ClearUnitOrderReferences(self);
+            if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return true;
+            S_SetMoveGoal(self,&self->goalentity,NULL);
+            if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return true;
+            unit_setmove(self,&unit_move_order_boundary);
+            if(!self->inuse || self->spawn_time!=birth || G_IsDeferredFree(self) || M_IsDead(self))return true;
+        }
+        if(selected_ai)*selected_ai=G_IsAIImmediateOrder(&queued);
         if(!queued.order_id)queued.order_id=unit_order_event_id(queued.order);
         uint32_t const spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
         self->current_order_id=queued.order_id;
@@ -1484,9 +1522,52 @@ static bool unit_start_next_queued_order(edict_t *self) {
 /* A queued order takes creep-guard ownership when it starts, not when it is
  * accepted: until then the running auto-acquired attack stays leashed. */
 bool G_UnitStartNextQueuedOrder(edict_t *self) {
-    bool const started = unit_start_next_queued_order(self);
-    if (started) G_CreepGuardExplicitOrder(self);
+    bool ai=false;
+    bool const started = unit_start_next_queued_order(self,&ai);
+    if (started && !ai) G_CreepGuardExplicitOrder(self);
     return started;
+}
+
+/*6802f0 replaces;693450 appends. Both create the same saved immediate
+ * packet and share issued notification, nested replacement and activation. */
+bool G_AdmitAIImmediateOrder(edict_t *self,bool replace) {
+    if(!self || !self->inuse || M_IsDead(self))return false;
+    uint32_t spawn=self->spawn_time;
+    bool held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
+    if(replace) {
+        G_ClearUnitOrderQueue(self);
+        if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+        held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
+        if(!held && G_UnitHasActiveOrder(self)) {
+            S_SpellCancelChannel(self);
+            if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+            held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
+            if(!held) {
+                if(self->movement.group_id)S_StopUnitMovementWithRecovery(self);
+                if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+                held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
+                if(!held) {
+                    S_ClearUnitOrderReferences(self);
+                    if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+                    S_SetMoveGoal(self,&self->goalentity,NULL);
+                    if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+                    self->current_order_id=0;
+                    unit_setmove(self,&unit_move_order_boundary);
+                }
+            }
+        }
+    }
+    if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+    unitOrder_t order={.target_type=UNIT_ORDER_TARGET_NONE,.order_id=UNIT_ORDER_AI_IMMEDIATE,
+        .issuer_player=self->s.player,.owner_context=UNIT_ORDER_CONTEXT_AI};
+    snprintf(order.order,sizeof(order.order),"aiimmediate");
+    if(self->order_queue.count>=unit_user_queue_limit(self))return false;
+    if(!G_AppendUnitOrder(self,&order))return false;
+    held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
+    if(!held && !G_UnitHasActiveOrder(self) && !G_BotAIStopTaskActive(self))
+        return G_UnitStartNextQueuedOrder(self);
+    if(!self->current_order_id)self->current_order_id=UNIT_ORDER_AI_IMMEDIATE;
+    return true;
 }
 
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target) {

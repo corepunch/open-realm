@@ -8,6 +8,13 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+Ground371 admits selected-range/FLT_MAX physical owners, rejects artillery
+minimum points, consumes immobile point heads synchronously and preserves
+blocked human heads or computer transport/AI guard replacement. Strict acceptance: classic: 43 tests/11838 assertions; tft: 43 tests/11838 assertions.
+Frozen original guards: 2757; public markers: 5928.
+Existing TARGET-01.2 retains wider producer inventory and complete firing polls.
+[Evidence](retail-pathfinding-ground-command-admission.md).
+
 Morph372 adds Submerge active-form passive availability through reverse completion,
 initial alternate/late attachment and detach. In-process save/load preserves
 the existing counted owner. Strict acceptance: classic: 26 tests/7250 assertions; tft: 26 tests/7250 assertions.
@@ -1856,7 +1863,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 ### TARGET-01 — Arrival inputs
 
 - [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
-- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks. Point371: synchronous raw point Attack producer and saved physical owner verified by six native captures,3,216 guards and29 tests/11,306 assertions per edition; Ground and broader producer inventory remain open.
+- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks. Point371: synchronous raw point Attack producer and saved physical owner verified by six native captures,3,216 guards and29 tests/11,306 assertions per edition; Ground and broader producer inventory remain open. Ground371 adds selected-range physical admission, minimum rejection, immobile completion and blocked human/computer recovery; classic: 43 tests/11838 assertions; tft: 43 tests/11838 assertions. Wider producer inventory and complete firing polls remain in this leaf.
 - [x] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands. Payoff185 integrates actual ground Holy Light: authored unbuffered range, nonpersistent physical approach, exact50-row fine motion and retail final public stop; repeated/control producer evidence, non-stock schemas, cancellation and Save146 pass. Target Move retains its distinct configured persistent range. See [spell approaches](retail-pathfinding-engine.md#spell-approaches-capture-a-physical-stopping-range-payoff185). Complete spell timing, perimeter and other target families remain in their existing tasks.
 - [x] **TARGET-01.4** Split ordinary zero-range point Move from01.2: capture actual range publication, predicted-pose predicate and final stop; port them into the owning Move ability. Evidence: [point Move arrival](retail-pathfinding-engine.md#point-move-arrival),2342 complete original/C predicate cases, two identical183-evaluation/commit live witnesses, failing actual-order engine regressions then corrected range/heading gate and previous-velocity final step. Full world/grid/clock phases, other owners and force producers remain01.2/3/NUM-02.3; the rejected first observer capture stays explicit.
 

@@ -1694,7 +1694,7 @@ static float attack_ground_distance(edict_t const *ent) {
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
-    return !ent || attack_ground_distance(ent) > attack_ground_profile(ent)->range;
+    return !ent || !S_UnitPointInMoveRange(ent,&ent->channel->origin,attack_ground_profile(ent)->range);
 }
 
 static bool attack_ground_too_close(edict_t const *ent) {
@@ -1764,27 +1764,61 @@ static void ai_attack_ground_hold(edict_t *ent) {
     else unit_changeangle(ent);
 }
 
-static void ai_attack_ground_walk(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+/* The failed physical task leaves the logical Ground head dormant. In
+ * particular, its next owner visit must not create another point approach. */
+static void ai_attack_ground_failed(edict_t *ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    if (attack_ground_out_of_range(ent)) {
-        if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
-        if (!S_UnitCanTranslate(ent)) return;
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-    } else if (attack_ground_too_close(ent)) {
-        if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
-        if (!S_UnitCanTranslate(ent)) return;
-        attack_retreat_from_target(ent);
-    } else {
-        attack_ground_ranged(ent);
+}
+
+static void attack_ground_begin_approach(edict_t *ent) {
+    if(!ent || !ent->inuse || G_IsDeferredFree(ent) || !ent->channel || !S_UnitCanTranslate(ent))return;
+    if(!S_UnitTargetChaseActive(ent,CAbilityAttackGround)) {
+        float range=attack_ground_profile(ent)->range;
+        if(S_UnitPointInMoveRange(ent,&ent->channel->origin,range))range=FLT_MAX;
+        if(!S_BeginUnitPointApproach(ent,&ent->channel->origin,range,CAbilityAttackGround,S_AttackGroundComplete))
+            S_AttackGroundComplete(ent,ent,false);
     }
 }
 
-static umove_t attack_ground_move_walk = { "walk", ai_attack_ground_walk, NULL, CAbilityAttackGround };
+static void ai_attack_ground_walk(edict_t *ent) {
+    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    if(!S_UnitCanTranslate(ent)) {
+        if(attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) {
+            if(ent->aiflags&AI_IMMOBILE)attack_ground_stop(ent);
+        } else attack_ground_ranged(ent);
+        return;
+    }
+    attack_ground_begin_approach(ent);
+}
+
+static void attack_ground_leave(edict_t *ent) {
+    S_EndUnitTargetChase(ent,CAbilityAttackGround);
+}
+
+static umove_t attack_ground_move_walk = {.animation="walk",.think=ai_attack_ground_walk,.proc=CAbilityAttackGround,
+    .sample_pose=S_PublishMovement,.leave=attack_ground_leave};
 static umove_t attack_ground_move_cooldown = { "stand ready", ai_attack_ground_cooldown, NULL, CAbilityAttackGround };
 static umove_t attack_ground_move_ranged = { "attack range", ai_attack_ground_ranged, attack_ground_cooldown, CAbilityAttackGround };
 static umove_t attack_ground_move_hold = { "stand ready", ai_attack_ground_hold, NULL, CAbilityAttackGround };
+static umove_t attack_ground_move_failed = { "stand ready", ai_attack_ground_failed, NULL, CAbilityAttackGround };
+
+void S_AttackGroundComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || unit->currentmove!=&attack_ground_move_walk)return;
+    if(!arrived && unit->movement.group_id)return;
+    if(!arrived) {
+        vec2_t point=unit->channel->origin;
+        uint32_t spawn=unit->spawn_time;
+        /*603110 recovers the mover without consuming this public head.
+         * The configured computer then tries transport before AI immediate. */
+        S_StopUnitMovementWithRecovery(unit);
+        unit_setmove(unit,&attack_ground_move_failed);
+        if(unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) &&
+           (unit->aiflags&AI_TOWN_OWNED) && !S_CargoTryFailedMove(unit,&point))G_BotDispatchAIStop(unit);
+        return;
+    }
+    attack_ground_ranged(unit);
+}
 
 static void attack_ground_walk(edict_t *ent) {
     unit_setmove(ent, &attack_ground_move_walk);
@@ -1810,11 +1844,20 @@ static void attack_ground_ranged(edict_t *ent) {
     if (G_UnitSoundProfile(ent)->attack) G_PlaySound(NULL, ent, CHAN_WEAPON, G_UnitSoundProfile(ent)->attack, 1.0f, 1.0f, 0.0f);
 }
 
+static bool attack_ground_rejects_minimum(edict_t const *unit,vec2_t const *point) {
+    if(!attack_ground_fires(unit))return false;
+    float minimum=attack_minimum_range(unit),range=attack_ground_profile(unit)->range;
+    float difference=wc3_float(wc3_float_bits(wc3_sub(minimum,range))&0x7fffffffu);
+    return minimum>0 && (minimum<range || difference<wc3_float(0x3a83126f)) &&
+        S_UnitPointInMoveRange(unit,point,minimum);
+}
+
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     edict_t *waypoint;
 
     if (!unit || !point || S_UnitIsEntanglingRooted(unit) || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
         S_UnitPolymorphed(unit)) return false;
+    if(attack_ground_rejects_minimum(unit,point))return false;
     waypoint = Waypoint_add(point);
     if (!waypoint) return false;
     S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
@@ -1827,10 +1870,15 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     S_SpellCancelChannel(unit);
     S_SetMoveGoal(unit, &unit->goalentity, waypoint);
     unit->attack_target_spawn_time = 0;
-    attack_ground_walk(unit);
+    move_reset_progress(unit);
     if (!unit->channel) unit->channel = G_AllocChannel();
     assert(unit->channel);
     unit->channel->origin = *point;
+    attack_ground_walk(unit);
+    attack_ground_begin_approach(unit);
+    /* An intrinsically immobile source consumes the point task during
+     * admission: near holds the Ground head, far completes it immediately. */
+    if(unit->aiflags&AI_IMMOBILE)ai_attack_ground_walk(unit);
     return true;
 }
 
