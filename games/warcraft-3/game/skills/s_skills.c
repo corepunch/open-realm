@@ -2262,6 +2262,7 @@ void S_DisableAbility(edict_t *ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if(item.ability) {
+        ability_disable_prepare(ent);
         unitAbilityDisable_t *state=NULL;
         for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)if(s->code==code) {state=s;break;}
         if(state || known_unit_ability_receives(item,A_UNIT_SUSPEND)) {

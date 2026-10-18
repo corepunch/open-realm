@@ -1799,6 +1799,8 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     /* Keep pathing/lifecycle ownership coherent: morphs may stay within the
      * mobile-unit family or within the building family, but never cross it. */
     if (source_building != target_building) return false;
+    bool retained_apiv=G_ActorHasAbilityCode(unit,MAKEFOURCC('A','p','i','v')) &&
+        !S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','p','i','v'));
     S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGING);
     health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
     mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
@@ -1833,6 +1835,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     unit->temporary_health_bonus = 0.0f;
     unit->temporary_mana_bonus = 0.0f;
     SP_SpawnUnit(unit);
+    S_RefreshRetainedPermanentInvisibility(unit,retained_apiv);
     /* A transformation retains the same handle, owner, and guard post. Do not
      * silently recapture its current position or re-enable a disabled guard. */
     unit->movement.creep_guard_origin = creep_guard_origin;

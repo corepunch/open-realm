@@ -108,11 +108,15 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
     case A_DISABLE:
         /* Common detach finishes its pending form before subtype inverse. */
         if(ground_morph_is_burrow(call->item))S_CompleteMorphDetachTransition(ent,code);
-        if(ground_morph_is_burrow(call->item) && ent && ent->class_id==data->unitID)
-            S_SetMorphAbilityDisables(ent,code,false);
-        if(ground_morph_is_burrow(call->item) && ent && ent->morph && ent->class_id==data->unitID)
-            ground_morph_category(ent,code,false);
-        S_RemoveMorphAbility(ent,code);gi.LinkEntity(ent);return true;
+        {
+            bool release=ground_morph_is_burrow(call->item) && ent && ent->class_id==data->unitID;
+            if(release && ent->morph)ground_morph_category(ent,code,false);
+            /* Type rebind refreshes retained invisibility. Keep the passive
+             * suspended through base restoration, then restart its fade. */
+            S_RemoveMorphAbility(ent,code);
+            if(release)S_SetMorphAbilityDisables(ent,code,false);
+        }
+        gi.LinkEntity(ent);return true;
     default:return CAbilitySimpleSpell(ent,msg,call);
     }
 }

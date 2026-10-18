@@ -247,10 +247,12 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
         /* A pending forward completion can acquire the form owner. Finish
          * it before testing the alternate-type detach inverse. */
         S_CompleteMorphDetachTransition(ent,code);
-        if(ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged)
-            S_SetMorphAbilityDisables(ent,code,false);
+        bool release=ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged;
         if(ent && S_UnitIsSubmerged(ent))submerge_publish(ent,code,false);
-        return CAbilityGroundMorph(ent,msg,call);
+        intptr_t result=CAbilityGroundMorph(ent,msg,call);
+        /* Restore the base while its passive owner is still suspended. */
+        if(release)S_SetMorphAbilityDisables(ent,code,false);
+        return result;
     }
     default:
         return CAbilitySimpleSpell(ent, msg, call);

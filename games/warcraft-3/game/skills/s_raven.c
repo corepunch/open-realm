@@ -171,6 +171,43 @@ static bool morph_form_order(edict_t *unit,bool alternate,bool bear) {
     return true;
 }
 
+/*54c640 reads the integer setting with default0;54eb80 tests the full
+ * result against zero. This policy belongs to ordinary Morph, not Submerge. */
+static bool morph_alternate_disables(void) {
+    cstring_t value=Stb_IniCacheFind(&game.config.misc,"Misc","MorphAlternateDisable");
+    if(!value)return false;
+    if(value[0]=='\'') {
+        uint32_t code=0;
+        for(unsigned i=1;i<=4 && value[i] && value[i]!='\'';i++)code=(code<<8)|(uint8_t)value[i];
+        return code!=0;
+    }
+    return strtol(value,NULL,0)!=0;
+}
+
+static void morph_initialize_availability(edict_t *unit,abilityCall_t const *call) {
+    if(!unit || !call || !call->item || !call->item->code || !morph_alternate_disables())return;
+    uint32_t code=call->item->code;
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
+    if(!data->unitID || unit->class_id!=data->unitID)return;
+    /* Deferred Bear rebind precedes its completion acquire. Raven's takeoff
+     * rebind happens before S_BeginMorphTransition and acquires immediately. */
+    if(unit->morph && unit->morph->code==code && unit->morph->deferred_rebind && !unit->morph->reverse)return;
+    S_SetMorphAbilityDisables(unit,code,true);
+}
+static void morph_complete_availability(edict_t *unit,abilityCall_t const *call) {
+    if(call->enabled)S_SetMorphAbilityDisables(unit,call->item->code,false);
+    else if(morph_alternate_disables())S_SetMorphAbilityDisables(unit,call->item->code,true);
+}
+static void morph_detach_availability(edict_t *unit,abilityCall_t const *call) {
+    uint32_t code=call->item->code;
+    if(!unit || M_IsDead(unit) || G_IsDeferredFree(unit))return;
+    /* Keep permanent-form removal's existing no-inverse contract. */
+    bool permanent=(wc3_int_bits(wc3_float_bits(S_SpellData(code,S_SpellLevel(unit,code),2)))&8)!=0;
+    S_CompleteMorphDetachTransition(unit,code);
+    S_RemoveMorphAbility(unit,code);
+    if(!permanent)S_SetMorphAbilityDisables(unit,code,false);
+}
+
 /* Orders and the command card share the same ability-owned form transition. */
 static bool raven_order(edict_t *unit, cstring_t order) {
     return morph_form_order(unit,!strcmp(order,raven_orders[0]),false);
@@ -188,8 +225,10 @@ static void raven_command(edict_t *ent) {
 
 BZ_ABILITY_PROC(CAbilityRavenForm) {
     switch (msg) {
-    case A_DISABLE:S_RemoveMorphAbility(ent,call->item->code);return true;
+    case A_ENABLE:case A_UNIT_INIT:morph_initialize_availability(ent,call);return true;
+    case A_DISABLE:morph_detach_availability(ent,call);return true;
     case A_MORPH_COMPLETE:
+        morph_complete_availability(ent,call);
         if(call->enabled)raven_reverse_end(ent);else raven_forward_end(ent);return true;
     case A_COMMAND: raven_command(call && call->client ? call->client : ent); return true;
     case A_TOGGLE_ON: return raven_is_on(ent);
@@ -210,8 +249,9 @@ BZ_ABILITY_PROC(CAbilityBearForm) {
                 unit_issueimmediateorder(unit,bear_orders[unit->class_id==form.alternate_type ? 1 : 0]);
         }
         return true;
-    case A_DISABLE:S_RemoveMorphAbility(ent,call->item->code);return true;
-    case A_MORPH_COMPLETE:bear_morph_end(ent);return true;
+    case A_ENABLE:case A_UNIT_INIT:morph_initialize_availability(ent,call);return true;
+    case A_DISABLE:morph_detach_availability(ent,call);return true;
+    case A_MORPH_COMPLETE:morph_complete_availability(ent,call);bear_morph_end(ent);return true;
     default:return false;
     }
 }

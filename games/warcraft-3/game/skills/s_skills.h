@@ -459,6 +459,7 @@ bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 bool S_GhostActive(edict_t const *unit);
 void S_PermanentInvisibilityInitialize(edict_t *unit);
+void S_RefreshRetainedPermanentInvisibility(edict_t *unit,bool retained);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void S_InfernoLand(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point);
 bool S_HoldPosition(edict_t *unit);

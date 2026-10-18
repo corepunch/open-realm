@@ -448,6 +448,11 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a \
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3b war3map.w3b \
 		$(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp "Textures\\minimap_hero.blp"
+	@echo "[test-assets] packing configured Morph fixture MPQs"
+	@for mode in Absent Zero One; do \
+		$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Morph374$$mode.w3x pack \
+			$(TESTS_SRC_DIR)/Morph374/$$mode/war3mapMisc.txt war3mapMisc.txt; \
+	done
 	@echo "[test-assets] packing tileset-archive fixture MPQ"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/O.mpq pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp "ReplaceableTextures\\Cliff\\Cliff1.blp"

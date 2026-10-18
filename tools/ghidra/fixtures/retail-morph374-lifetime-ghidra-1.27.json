@@ -1,0 +1,1275 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved_readback_sha256": "2b6055fbfa0c69b69bcfa9a45c5239bed69d8d8538f546b554724a684650f00d",
+  "functions": {
+    "6f3e3c00": {
+      "name": "FloatModifier_CancelAndClearHandle",
+      "end": "6f3e3c24",
+      "decompiled": "\n/* \n   Morph374 owned-handle lifetime proof: ECX points at Unit128 from66977d,694bd8 and the explicit\n   Unit128 LEA in68b780. If the handle is nonzero, invoke pointee virtual8 cancellation, decrement\n   pointee4 reference count, destroy at zero, then store literalzero to the handle. A later058120\n   allocation can reuse that address after the prior ownership epoch. Preserve aliases among\n   concurrently observed live holders; do not require allocator reuse across dead epochs to repeat.\n    */\n\nvoid __fastcall FloatModifier_CancelAndClearHandle(int *param_1)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  \n  if ((int *)*param_1 != (int *)0x0) {\n    (**(code **)(*(int *)*param_1 + 8))();\n    puVar2 = (undefined4 *)*param_1;\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar1 = puVar2 + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    *param_1 = 0;\n  }\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f52a841",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f52a810"
+        },
+        {
+          "site": "6f52a9bc",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f52a980"
+        },
+        {
+          "site": "6f69d463",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f69d360"
+        },
+        {
+          "site": "6f69d59a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f69d480"
+        },
+        {
+          "site": "6f69cf93",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f69cf20"
+        },
+        {
+          "site": "6f3f4f0e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f3f4f00"
+        },
+        {
+          "site": "6f431eb3",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f431e50"
+        },
+        {
+          "site": "6f436f33",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f436e10"
+        },
+        {
+          "site": "6f4c1ade",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c1ac0"
+        },
+        {
+          "site": "6f4275b9",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4275b0"
+        },
+        {
+          "site": "6f4b8319",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4b8300"
+        },
+        {
+          "site": "6f669783",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6696e0"
+        },
+        {
+          "site": "6f68b7a9",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f68b780"
+        },
+        {
+          "site": "6f694bde",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f694b20"
+        },
+        {
+          "site": "6f4c873b",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c8730"
+        },
+        {
+          "site": "6f4c8b39",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c8b30"
+        },
+        {
+          "site": "6f4edfee",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4edf00"
+        },
+        {
+          "site": "6f4ef445",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4ef400"
+        },
+        {
+          "site": "6f4e4486",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e4480"
+        },
+        {
+          "site": "6f4e96b0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e9650"
+        },
+        {
+          "site": "6f50a549",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f50a540"
+        },
+        {
+          "site": "6f52804e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f528040"
+        },
+        {
+          "site": "6f52cfee",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f52cfe0"
+        },
+        {
+          "site": "6f52d3f3",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f52d3c0"
+        },
+        {
+          "site": "6f531df7",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f531da0"
+        },
+        {
+          "site": "6f5664f7",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f566460"
+        },
+        {
+          "site": "6f5c59da",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5c59a0"
+        },
+        {
+          "site": "6f5f4604",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5f45f0"
+        },
+        {
+          "site": "6f5f45b4",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5f45a0"
+        },
+        {
+          "site": "6f62186e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f621860"
+        },
+        {
+          "site": "6f624095",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f624060"
+        },
+        {
+          "site": "6f631bec",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f631bc0"
+        },
+        {
+          "site": "6f643b69",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f643b60"
+        },
+        {
+          "site": "6f645edc",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f645e70"
+        },
+        {
+          "site": "6f674651",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6744d0"
+        },
+        {
+          "site": "6f674667",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6744d0"
+        },
+        {
+          "site": "6f679a3c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6799d0"
+        },
+        {
+          "site": "6f679a52",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6799d0"
+        },
+        {
+          "site": "6f437375",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f437360"
+        },
+        {
+          "site": "6f42c050",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f42c000"
+        },
+        {
+          "site": "6f42c0b0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f42c060"
+        },
+        {
+          "site": "6f42c110",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f42c0c0"
+        },
+        {
+          "site": "6f4e91c0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e9190"
+        },
+        {
+          "site": "6f4e8e50",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e8e20"
+        },
+        {
+          "site": "6f52805a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f528040"
+        },
+        {
+          "site": "6f6477e0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6477b0"
+        },
+        {
+          "site": "6f647820",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6477f0"
+        }
+      ],
+      "assembly": "6f3e3c00 PUSH ESI\n6f3e3c01 MOV ESI,ECX\n6f3e3c03 MOV ECX,dword ptr [ESI]\n6f3e3c05 TEST ECX,ECX\n6f3e3c07 JZ 0x6f3e3c23\n6f3e3c09 MOV EAX,dword ptr [ECX]\n6f3e3c0b CALL dword ptr [EAX + 0x8]\n6f3e3c0e MOV ECX,dword ptr [ESI]\n6f3e3c10 TEST ECX,ECX\n6f3e3c12 JZ 0x6f3e3c1d\n6f3e3c14 DEC dword ptr [ECX + 0x4]\n6f3e3c17 JNZ 0x6f3e3c1d\n6f3e3c19 MOV EAX,dword ptr [ECX]\n6f3e3c1b CALL dword ptr [EAX]\n6f3e3c1d MOV dword ptr [ESI],0x0\n6f3e3c23 POP ESI\n6f3e3c24 RET\n",
+      "instruction_count": 17
+    },
+    "6f3e3bd0": {
+      "name": "FloatListener_CancelAndClearHandle",
+      "end": "6f3e3bf4",
+      "decompiled": "\n/* \n   Morph374 owned-handle lifetime proof: ECX points at Unit12c through669788/66978e,694be3/694be9\n   and the explicit Unit12c LEA in68b780. Cancels through pointee virtual8, releases pointee4\n   refcount with destructor atzero, and clears the owning handle. Only observed last-holder\n   literalzero retires a canonical pointer token. Other scalar bridge words, stable identities,\n   primary clocks and sequence stay literal. */\n\nvoid __fastcall FloatListener_CancelAndClearHandle(int *param_1)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  \n  if ((int *)*param_1 != (int *)0x0) {\n    (**(code **)(*(int *)*param_1 + 8))();\n    puVar2 = (undefined4 *)*param_1;\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar1 = puVar2 + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    *param_1 = 0;\n  }\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f437369",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f437360"
+        },
+        {
+          "site": "6f4c1ae9",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c1ac0"
+        },
+        {
+          "site": "6f42c7ff",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f42c7f0"
+        },
+        {
+          "site": "6f40760f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f407600"
+        },
+        {
+          "site": "6f419e4f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f419e40"
+        },
+        {
+          "site": "6f422aef",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f422ae0"
+        },
+        {
+          "site": "6f669793",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6696e0"
+        },
+        {
+          "site": "6f68b7b4",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f68b780"
+        },
+        {
+          "site": "6f694bee",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f694b20"
+        },
+        {
+          "site": "6f4c8743",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c8730"
+        },
+        {
+          "site": "6f4c8b44",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c8b30"
+        },
+        {
+          "site": "6f4c9946",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c9820"
+        },
+        {
+          "site": "6f4edff6",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4edf00"
+        },
+        {
+          "site": "6f4ef43a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4ef400"
+        },
+        {
+          "site": "6f4e96bd",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e9650"
+        },
+        {
+          "site": "6f528024",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f527ff0"
+        },
+        {
+          "site": "6f528102",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5280a0"
+        },
+        {
+          "site": "6f6d8256",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6d8250"
+        },
+        {
+          "site": "6f529b67",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f529b10"
+        },
+        {
+          "site": "6f565b62",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f565b30"
+        },
+        {
+          "site": "6f565c22",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f565bf0"
+        },
+        {
+          "site": "6f565ce2",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f565cb0"
+        },
+        {
+          "site": "6f565dc2",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f565d90"
+        },
+        {
+          "site": "6f566502",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f566460"
+        },
+        {
+          "site": "6f631bf7",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f631bc0"
+        },
+        {
+          "site": "6f63ae2e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f63ada0"
+        },
+        {
+          "site": "6f63b10b",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f63b070"
+        },
+        {
+          "site": "6f674626",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6744d0"
+        },
+        {
+          "site": "6f67465c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6744d0"
+        },
+        {
+          "site": "6f679a47",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6799d0"
+        },
+        {
+          "site": "6f4b8325",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4b8300"
+        },
+        {
+          "site": "6f4e448f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e4480"
+        },
+        {
+          "site": "6f6d80f3",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6d80f0"
+        },
+        {
+          "site": "6f52cffa",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f52cfe0"
+        },
+        {
+          "site": "6f5f4610",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5f45f0"
+        },
+        {
+          "site": "6f5f45c0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5f45a0"
+        },
+        {
+          "site": "6f62187a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f621860"
+        }
+      ],
+      "assembly": "6f3e3bd0 PUSH ESI\n6f3e3bd1 MOV ESI,ECX\n6f3e3bd3 MOV ECX,dword ptr [ESI]\n6f3e3bd5 TEST ECX,ECX\n6f3e3bd7 JZ 0x6f3e3bf3\n6f3e3bd9 MOV EAX,dword ptr [ECX]\n6f3e3bdb CALL dword ptr [EAX + 0x8]\n6f3e3bde MOV ECX,dword ptr [ESI]\n6f3e3be0 TEST ECX,ECX\n6f3e3be2 JZ 0x6f3e3bed\n6f3e3be4 DEC dword ptr [ECX + 0x4]\n6f3e3be7 JNZ 0x6f3e3bed\n6f3e3be9 MOV EAX,dword ptr [ECX]\n6f3e3beb CALL dword ptr [EAX]\n6f3e3bed MOV dword ptr [ESI],0x0\n6f3e3bf3 POP ESI\n6f3e3bf4 RET\n",
+      "instruction_count": 17
+    },
+    "6f6696e0": {
+      "name": "Unit_AddInvisibilityContribution",
+      "end": "6f6698c0",
+      "decompiled": "\n/* Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Increment Unit114 counted contributions;\n   only transition0->1 constructs a fade. Zero fade calls68b780 synchronously; nonzero clears128/12c\n   handles, sets Scalar118 near-zero if belowcd53a0, adds reciprocal fade slope and upward1 listener\n   d01d4. Subsequent contributions only679db0. Positive isolated fade consumer words verified\n   separately; overlapping full-owner composition remains open.\n      [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Burrow366: seven public Abur scenes witness zero-fade 0-to1 acquisition, inverse and initial\n   alternate. A concurrent Apiv contribution changes114 from1to2 then backto1 without replacing the\n   existing scalar/fade. Unit114 is distinct from Ethereal158 and suppression198. */\n\nvoid __thiscall\nWC3UnitOrdersPrefix::Unit_AddInvisibilityContribution(WC3UnitOrdersPrefix *this,WC3PathScalar *fade)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  uint uVar3;\n  int iVar4;\n  float *pfVar5;\n  WC3PathScalar *pWVar6;\n  int *piVar7;\n  int *piVar8;\n  WC3PathScalar local_20;\n  undefined4 *local_1c;\n  int *local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  pWVar6 = fade;\n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa55230;\n  local_10 = ExceptionList;\n  uVar3 = DAT_6fce689c ^ (uint)&stack0xfffffffc;\n  ExceptionList = &local_10;\n  iVar4 = this->nInvisibility_contribution_count + 1;\n  this->nInvisibility_contribution_count = iVar4;\n  if (iVar4 != 1) {\n    FUN_6f679db0(uVar3);\n    ExceptionList = local_10;\n    return;\n  }\n  if ((float)*fade == (float)Math_RuntimeZero) {\n    CUnit_RefreshInvisibility(this);\n    ExceptionList = local_10;\n    return;\n  }\n  FUN_6f1acad0(FUN_6f68b730,this,0);\n  FloatModifier_CancelAndClearHandle();\n  local_18 = (int *)&this->field_0x12c;\n  FloatListener_CancelAndClearHandle();\n  ScalarBridge_QueryPredictedClampedValue((uint)&this->field_0x118,(uint)&fade);\n  pfVar5 = (float *)Math_Subtract(&local_20,(WC3PathScalar *)&fade,&Math_RuntimeZero);\n  fade = (WC3PathScalar *)ABS(*pfVar5);\n  if ((float)fade < (float)Math_PublicNearZeroThreshold) {\n    FUN_6f058190(&Math_PublicNearZeroThreshold);\n  }\n  Math_Reciprocal(&local_14,pWVar6);\n  pWVar6 = Math_Add(&local_20,pWVar6,&Math_RuntimeOne);\n  piVar7 = (int *)FUN_6f058120(&fade,&local_14,pWVar6);\n  local_8 = 0;\n  if (*piVar7 != 0) {\n    piVar8 = (int *)(*piVar7 + 4);\n    *piVar8 = *piVar8 + 1;\n  }\n  puVar2 = *(undefined4 **)&this->field_0x128;\n  if (puVar2 != (undefined4 *)0x0) {\n    piVar8 = puVar2 + 1;\n    *piVar8 = *piVar8 + -1;\n    if (*piVar8 == 0) {\n      (**(code **)*puVar2)();\n    }\n  }\n  *(int *)&this->field_0x128 = *piVar7;\n  local_8 = 0xffffffff;\n  if (fade != (WC3PathScalar *)0x0) {\n    pWVar6 = fade + 1;\n    *pWVar6 = *pWVar6 - 1;\n    if (*pWVar6 == 0) {\n      (**(code **)*fade)();\n    }\n  }\n  piVar8 = (int *)ScalarBridge_AddThresholdListener\n                            ((uint)&this->field_0x118,(uint)&local_1c,1,0x6fd3c748,0xd01d4,\n                             (uint)this,0);\n  piVar7 = local_18;\n  local_8 = 1;\n  if (*piVar8 != 0) {\n    piVar1 = (int *)(*piVar8 + 4);\n    *piVar1 = *piVar1 + 1;\n  }\n  puVar2 = (undefined4 *)*local_18;\n  if (puVar2 != (undefined4 *)0x0) {\n    piVar1 = puVar2 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*puVar2)();\n    }\n  }\n  *piVar7 = *piVar8;\n  local_8 = 0xffffffff;\n  if (local_1c != (undefined4 *)0x0) {\n    piVar7 = local_1c + 1;\n    *piVar7 = *piVar7 + -1;\n    if (*piVar7 == 0) {\n      (**(code **)*local_1c)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f4c84a2",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c8480"
+        },
+        {
+          "site": "6f506831",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5067b0"
+        },
+        {
+          "site": "6f5252fe",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5252c0"
+        },
+        {
+          "site": "6f63ce7e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f63ce40"
+        },
+        {
+          "site": "6f5e8416",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5e8400"
+        },
+        {
+          "site": "6f63138a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f631360"
+        },
+        {
+          "site": "6f63c397",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f63c2c0"
+        },
+        {
+          "site": "6f63d4f2",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f63d3d0"
+        },
+        {
+          "site": "6f643f9c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f643f60"
+        }
+      ],
+      "assembly": "6f6696e0 PUSH EBP\n6f6696e1 MOV EBP,ESP\n6f6696e3 PUSH -0x1\n6f6696e5 PUSH 0x6fa55230\n6f6696ea MOV EAX,FS:[0x0]\n6f6696f0 PUSH EAX\n6f6696f1 SUB ESP,0x10\n6f6696f4 PUSH EBX\n6f6696f5 PUSH ESI\n6f6696f6 PUSH EDI\n6f6696f7 MOV EAX,[0x6fce689c]\n6f6696fc XOR EAX,EBP\n6f6696fe PUSH EAX\n6f6696ff LEA EAX,[EBP + -0xc]\n6f669702 MOV FS:[0x0],EAX\n6f669708 MOV ESI,ECX\n6f66970a MOV EAX,dword ptr [ESI + 0x114]\n6f669710 INC EAX\n6f669711 MOV dword ptr [ESI + 0x114],EAX\n6f669717 CMP EAX,0x1\n6f66971a JZ 0x6f669735\n6f66971c CALL 0x6f679db0\n6f669721 MOV ECX,dword ptr [EBP + -0xc]\n6f669724 MOV dword ptr FS:[0x0],ECX\n6f66972b POP ECX\n6f66972c POP EDI\n6f66972d POP ESI\n6f66972e POP EBX\n6f66972f MOV ESP,EBP\n6f669731 POP EBP\n6f669732 RET 0x4\n6f669735 MOV EDI,dword ptr [EBP + 0x8]\n6f669738 MOVSS XMM0,dword ptr [EDI]\n6f66973c UCOMISS XMM0,dword ptr [0x6fd3c744]\n6f669743 LAHF\n6f669744 TEST AH,0x44\n6f669747 JP 0x6f669762\n6f669749 CALL 0x6f68b780\n6f66974e MOV ECX,dword ptr [EBP + -0xc]\n6f669751 MOV dword ptr FS:[0x0],ECX\n6f669758 POP ECX\n6f669759 POP EDI\n6f66975a POP ESI\n6f66975b POP EBX\n6f66975c MOV ESP,EBP\n6f66975e POP EBP\n6f66975f RET 0x4\n6f669762 PUSH ECX\n6f669763 MOV ECX,dword ptr [ESI + 0x28]\n6f669766 MOV EDX,0x6\n6f66976b MOV dword ptr [ESP],0x0\n6f669772 PUSH ESI\n6f669773 PUSH 0x6f68b730\n6f669778 CALL 0x6f1acad0\n6f66977d LEA ECX,[ESI + 0x128]\n6f669783 CALL 0x6f3e3c00\n6f669788 LEA EAX,[ESI + 0x12c]\n6f66978e MOV ECX,EAX\n6f669790 MOV dword ptr [EBP + -0x14],EAX\n6f669793 CALL 0x6f3e3bd0\n6f669798 LEA EAX,[EBP + 0x8]\n6f66979b PUSH EAX\n6f66979c LEA ECX,[ESI + 0x118]\n6f6697a2 CALL 0x6f057fd0\n6f6697a7 PUSH 0x6fd3c744\n6f6697ac LEA EDX,[EBP + 0x8]\n6f6697af LEA ECX,[EBP + -0x1c]\n6f6697b2 CALL 0x6f06fa90\n6f6697b7 MOVSS XMM0,dword ptr [0x6fcd53a0]\n6f6697bf MOV EAX,dword ptr [EAX]\n6f6697c1 AND EAX,0x7fffffff\n6f6697c6 MOV dword ptr [EBP + 0x8],EAX\n6f6697c9 COMISS XMM0,dword ptr [EBP + 0x8]\n6f6697cd JBE 0x6f6697df\n6f6697cf PUSH 0x6fcd53a0\n6f6697d4 LEA ECX,[ESI + 0x118]\n6f6697da CALL 0x6f058190\n6f6697df MOV EDX,EDI\n6f6697e1 LEA ECX,[EBP + -0x10]\n6f6697e4 CALL 0x6f0711e0\n6f6697e9 PUSH 0x6fd3c748\n6f6697ee MOV EDX,EDI\n6f6697f0 LEA ECX,[EBP + -0x1c]\n6f6697f3 CALL 0x6f06fbb0\n6f6697f8 PUSH EAX\n6f6697f9 LEA EAX,[EBP + -0x10]\n6f6697fc PUSH EAX\n6f6697fd LEA EAX,[EBP + 0x8]\n6f669800 PUSH EAX\n6f669801 LEA ECX,[ESI + 0x118]\n6f669807 CALL 0x6f058120\n6f66980c MOV EDI,EAX\n6f66980e MOV ECX,dword ptr [EDI]\n6f669810 MOV dword ptr [EBP + -0x4],0x0\n6f669817 TEST ECX,ECX\n6f669819 JZ 0x6f66981e\n6f66981b INC dword ptr [ECX + 0x4]\n6f66981e MOV ECX,dword ptr [ESI + 0x128]\n6f669824 TEST ECX,ECX\n6f669826 JZ 0x6f669831\n6f669828 DEC dword ptr [ECX + 0x4]\n6f66982b JNZ 0x6f669831\n6f66982d MOV EAX,dword ptr [ECX]\n6f66982f CALL dword ptr [EAX]\n6f669831 MOV ECX,dword ptr [EBP + 0x8]\n6f669834 MOV EAX,dword ptr [EDI]\n6f669836 MOV dword ptr [ESI + 0x128],EAX\n6f66983c MOV dword ptr [EBP + -0x4],0xffffffff\n6f669843 TEST ECX,ECX\n6f669845 JZ 0x6f669850\n6f669847 DEC dword ptr [ECX + 0x4]\n6f66984a JNZ 0x6f669850\n6f66984c MOV EAX,dword ptr [ECX]\n6f66984e CALL dword ptr [EAX]\n6f669850 PUSH 0x0\n6f669852 PUSH ESI\n6f669853 PUSH 0xd01d4\n6f669858 PUSH 0x6fd3c748\n6f66985d PUSH 0x1\n6f66985f LEA EAX,[EBP + -0x18]\n6f669862 PUSH EAX\n6f669863 LEA ECX,[ESI + 0x118]\n6f669869 CALL 0x6f058090\n6f66986e MOV ESI,EAX\n6f669870 MOV ECX,dword ptr [ESI]\n6f669872 MOV dword ptr [EBP + -0x4],0x1\n6f669879 TEST ECX,ECX\n6f66987b JZ 0x6f669880\n6f66987d INC dword ptr [ECX + 0x4]\n6f669880 MOV EDI,dword ptr [EBP + -0x14]\n6f669883 MOV ECX,dword ptr [EDI]\n6f669885 TEST ECX,ECX\n6f669887 JZ 0x6f669892\n6f669889 DEC dword ptr [ECX + 0x4]\n6f66988c JNZ 0x6f669892\n6f66988e MOV EAX,dword ptr [ECX]\n6f669890 CALL dword ptr [EAX]\n6f669892 MOV ECX,dword ptr [EBP + -0x18]\n6f669895 MOV EAX,dword ptr [ESI]\n6f669897 MOV dword ptr [EDI],EAX\n6f669899 MOV dword ptr [EBP + -0x4],0xffffffff\n6f6698a0 TEST ECX,ECX\n6f6698a2 JZ 0x6f6698ad\n6f6698a4 DEC dword ptr [ECX + 0x4]\n6f6698a7 JNZ 0x6f6698ad\n6f6698a9 MOV EAX,dword ptr [ECX]\n6f6698ab CALL dword ptr [EAX]\n6f6698ad MOV ECX,dword ptr [EBP + -0xc]\n6f6698b0 MOV dword ptr FS:[0x0],ECX\n6f6698b7 POP ECX\n6f6698b8 POP EDI\n6f6698b9 POP ESI\n6f6698ba POP EBX\n6f6698bb MOV ESP,EBP\n6f6698bd POP EBP\n6f6698be RET 0x4\n",
+      "instruction_count": 156
+    },
+    "6f694b20": {
+      "name": "Unit_RemoveInvisibilityContribution",
+      "end": "6f694cd8",
+      "decompiled": "\n/* Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Decrement Unit114; only last contribution\n   clears Unit5c01000000 before optional revealed notification. Zero fade refreshes68b780 without\n   TargetLost when114=0. Nonzero removal installs negative slope and downward0 listener. Do not\n   infer inverse TargetLost or automatic Follow resumption.\n      [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Burrow366: zero-fade inverse decrements114; another live source retains the invisibility flag.\n   Last contribution clears5c01000000 and refreshes visibility. Public Stop and Pause do not cancel\n   the authored Burrow transition. */\n\nvoid __thiscall\nWC3UnitOrdersPrefix::Unit_RemoveInvisibilityContribution\n          (WC3UnitOrdersPrefix *this,WC3PathScalar *fade)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  char cVar3;\n  uint uVar4;\n  int iVar5;\n  WC3PathScalar *pWVar6;\n  int *piVar7;\n  int *piVar8;\n  WC3PathScalar local_20;\n  undefined4 *local_1c;\n  int *local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa584c0;\n  local_10 = ExceptionList;\n  uVar4 = DAT_6fce689c ^ (uint)&stack0xfffffffc;\n  ExceptionList = &local_10;\n  iVar5 = this->nInvisibility_contribution_count + -1;\n  this->nInvisibility_contribution_count = iVar5;\n  if (iVar5 < 1) {\n    this->order_admission_flags = this->order_admission_flags & 0xfeffffff;\n    cVar3 = FUN_6f666ff0(uVar4);\n    if (cVar3 != '\\0') {\n      Unit_BroadcastTargetAvailable();\n    }\n    pWVar6 = fade;\n    if ((float)*fade == (float)Math_RuntimeZero) {\n      CUnit_RefreshInvisibility(this);\n      ExceptionList = local_10;\n      return;\n    }\n    FUN_6f1a3180();\n    FUN_6f1acad0(FUN_6f68b730,this,0);\n    FloatModifier_CancelAndClearHandle();\n    local_18 = (int *)&this->field_0x12c;\n    FloatListener_CancelAndClearHandle();\n    Math_Divide(&local_14,&Math_RuntimeMinusOne,pWVar6);\n    pWVar6 = Math_Add(&local_20,pWVar6,&Math_RuntimeOne);\n    piVar7 = (int *)FUN_6f058120(&fade,&local_14,pWVar6);\n    local_8 = 0;\n    if (*piVar7 != 0) {\n      piVar8 = (int *)(*piVar7 + 4);\n      *piVar8 = *piVar8 + 1;\n    }\n    puVar2 = *(undefined4 **)&this->field_0x128;\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar8 = puVar2 + 1;\n      *piVar8 = *piVar8 + -1;\n      if (*piVar8 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    *(int *)&this->field_0x128 = *piVar7;\n    local_8 = 0xffffffff;\n    if (fade != (WC3PathScalar *)0x0) {\n      pWVar6 = fade + 1;\n      *pWVar6 = *pWVar6 - 1;\n      if (*pWVar6 == 0) {\n        (**(code **)*fade)();\n      }\n    }\n    piVar8 = (int *)ScalarBridge_AddThresholdListener\n                              ((uint)&this->field_0x118,(uint)&local_1c,0,0x6fd3c744,0xd01d4,\n                               (uint)this,0);\n    piVar7 = local_18;\n    local_8 = 1;\n    if (*piVar8 != 0) {\n      piVar1 = (int *)(*piVar8 + 4);\n      *piVar1 = *piVar1 + 1;\n    }\n    puVar2 = (undefined4 *)*local_18;\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar1 = puVar2 + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    *piVar7 = *piVar8;\n    local_8 = 0xffffffff;\n    if (local_1c != (undefined4 *)0x0) {\n      piVar7 = local_1c + 1;\n      *piVar7 = *piVar7 + -1;\n      if (*piVar7 == 0) {\n        (**(code **)*local_1c)();\n      }\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f4c85d8",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4c85b0"
+        },
+        {
+          "site": "6f5004b4",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f500480"
+        },
+        {
+          "site": "6f5047c0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f504720"
+        },
+        {
+          "site": "6f5091b7",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f509170"
+        },
+        {
+          "site": "6f6314e9",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6314d0"
+        },
+        {
+          "site": "6f5d94d6",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5d94c0"
+        },
+        {
+          "site": "6f621346",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f621320"
+        },
+        {
+          "site": "6f62e619",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f62e600"
+        },
+        {
+          "site": "6f6318ec",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f631890"
+        },
+        {
+          "site": "6f642633",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f642490"
+        },
+        {
+          "site": "6f643f83",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f643f60"
+        }
+      ],
+      "assembly": "6f694b20 PUSH EBP\n6f694b21 MOV EBP,ESP\n6f694b23 PUSH -0x1\n6f694b25 PUSH 0x6fa584c0\n6f694b2a MOV EAX,FS:[0x0]\n6f694b30 PUSH EAX\n6f694b31 SUB ESP,0x10\n6f694b34 PUSH EBX\n6f694b35 PUSH ESI\n6f694b36 PUSH EDI\n6f694b37 MOV EAX,[0x6fce689c]\n6f694b3c XOR EAX,EBP\n6f694b3e PUSH EAX\n6f694b3f LEA EAX,[EBP + -0xc]\n6f694b42 MOV FS:[0x0],EAX\n6f694b48 MOV ESI,ECX\n6f694b4a MOV EAX,dword ptr [ESI + 0x114]\n6f694b50 DEC EAX\n6f694b51 MOV dword ptr [ESI + 0x114],EAX\n6f694b57 TEST EAX,EAX\n6f694b59 JG 0x6f694cc5\n6f694b5f AND dword ptr [ESI + 0x5c],0xfeffffff\n6f694b66 LEA ECX,[ESI + 0x118]\n6f694b6c MOV EDX,0x6fd3c744\n6f694b71 CALL 0x6f666ff0\n6f694b76 TEST AL,AL\n6f694b78 JZ 0x6f694b81\n6f694b7a MOV ECX,ESI\n6f694b7c CALL 0x6f6510b0\n6f694b81 MOV EBX,dword ptr [EBP + 0x8]\n6f694b84 MOVSS XMM0,dword ptr [EBX]\n6f694b88 UCOMISS XMM0,dword ptr [0x6fd3c744]\n6f694b8f LAHF\n6f694b90 TEST AH,0x44\n6f694b93 JP 0x6f694bb0\n6f694b95 MOV ECX,ESI\n6f694b97 CALL 0x6f68b780\n6f694b9c MOV ECX,dword ptr [EBP + -0xc]\n6f694b9f MOV dword ptr FS:[0x0],ECX\n6f694ba6 POP ECX\n6f694ba7 POP EDI\n6f694ba8 POP ESI\n6f694ba9 POP EBX\n6f694baa MOV ESP,EBP\n6f694bac POP EBP\n6f694bad RET 0x4\n6f694bb0 MOV ECX,dword ptr [ESI + 0x28]\n6f694bb3 MOV EDX,0x1\n6f694bb8 CALL 0x6f1a3180\n6f694bbd PUSH ECX\n6f694bbe MOV ECX,dword ptr [ESI + 0x28]\n6f694bc1 MOV EDX,0x6\n6f694bc6 MOV dword ptr [ESP],0x0\n6f694bcd PUSH ESI\n6f694bce PUSH 0x6f68b730\n6f694bd3 CALL 0x6f1acad0\n6f694bd8 LEA ECX,[ESI + 0x128]\n6f694bde CALL 0x6f3e3c00\n6f694be3 LEA EAX,[ESI + 0x12c]\n6f694be9 MOV ECX,EAX\n6f694beb MOV dword ptr [EBP + -0x14],EAX\n6f694bee CALL 0x6f3e3bd0\n6f694bf3 PUSH EBX\n6f694bf4 MOV EDX,0x6fd3c740\n6f694bf9 LEA ECX,[EBP + -0x10]\n6f694bfc CALL 0x6f06fcd0\n6f694c01 PUSH 0x6fd3c748\n6f694c06 MOV EDX,EBX\n6f694c08 LEA ECX,[EBP + -0x1c]\n6f694c0b CALL 0x6f06fbb0\n6f694c10 PUSH EAX\n6f694c11 LEA EAX,[EBP + -0x10]\n6f694c14 PUSH EAX\n6f694c15 LEA EAX,[EBP + 0x8]\n6f694c18 PUSH EAX\n6f694c19 LEA ECX,[ESI + 0x118]\n6f694c1f CALL 0x6f058120\n6f694c24 MOV EBX,EAX\n6f694c26 MOV ECX,dword ptr [EBX]\n6f694c28 MOV dword ptr [EBP + -0x4],0x0\n6f694c2f TEST ECX,ECX\n6f694c31 JZ 0x6f694c36\n6f694c33 INC dword ptr [ECX + 0x4]\n6f694c36 MOV ECX,dword ptr [ESI + 0x128]\n6f694c3c TEST ECX,ECX\n6f694c3e JZ 0x6f694c49\n6f694c40 DEC dword ptr [ECX + 0x4]\n6f694c43 JNZ 0x6f694c49\n6f694c45 MOV EAX,dword ptr [ECX]\n6f694c47 CALL dword ptr [EAX]\n6f694c49 MOV ECX,dword ptr [EBP + 0x8]\n6f694c4c MOV EAX,dword ptr [EBX]\n6f694c4e MOV dword ptr [ESI + 0x128],EAX\n6f694c54 MOV dword ptr [EBP + -0x4],0xffffffff\n6f694c5b TEST ECX,ECX\n6f694c5d JZ 0x6f694c68\n6f694c5f DEC dword ptr [ECX + 0x4]\n6f694c62 JNZ 0x6f694c68\n6f694c64 MOV EAX,dword ptr [ECX]\n6f694c66 CALL dword ptr [EAX]\n6f694c68 PUSH 0x0\n6f694c6a PUSH ESI\n6f694c6b PUSH 0xd01d4\n6f694c70 PUSH 0x6fd3c744\n6f694c75 PUSH 0x0\n6f694c77 LEA EAX,[EBP + -0x18]\n6f694c7a PUSH EAX\n6f694c7b LEA ECX,[ESI + 0x118]\n6f694c81 CALL 0x6f058090\n6f694c86 MOV ESI,EAX\n6f694c88 MOV ECX,dword ptr [ESI]\n6f694c8a MOV dword ptr [EBP + -0x4],0x1\n6f694c91 TEST ECX,ECX\n6f694c93 JZ 0x6f694c98\n6f694c95 INC dword ptr [ECX + 0x4]\n6f694c98 MOV EDI,dword ptr [EBP + -0x14]\n6f694c9b MOV ECX,dword ptr [EDI]\n6f694c9d TEST ECX,ECX\n6f694c9f JZ 0x6f694caa\n6f694ca1 DEC dword ptr [ECX + 0x4]\n6f694ca4 JNZ 0x6f694caa\n6f694ca6 MOV EAX,dword ptr [ECX]\n6f694ca8 CALL dword ptr [EAX]\n6f694caa MOV ECX,dword ptr [EBP + -0x18]\n6f694cad MOV EAX,dword ptr [ESI]\n6f694caf MOV dword ptr [EDI],EAX\n6f694cb1 MOV dword ptr [EBP + -0x4],0xffffffff\n6f694cb8 TEST ECX,ECX\n6f694cba JZ 0x6f694cc5\n6f694cbc DEC dword ptr [ECX + 0x4]\n6f694cbf JNZ 0x6f694cc5\n6f694cc1 MOV EAX,dword ptr [ECX]\n6f694cc3 CALL dword ptr [EAX]\n6f694cc5 MOV ECX,dword ptr [EBP + -0xc]\n6f694cc8 MOV dword ptr FS:[0x0],ECX\n6f694ccf POP ECX\n6f694cd0 POP EDI\n6f694cd1 POP ESI\n6f694cd2 POP EBX\n6f694cd3 MOV ESP,EBP\n6f694cd5 POP EBP\n6f694cd6 RET 0x4\n",
+      "instruction_count": 142
+    },
+    "6f68b780": {
+      "name": "CUnit_RefreshInvisibility",
+      "end": "6f68b888",
+      "decompiled": "\n/* [TARGET-03.1]\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Payoff168: ECX Unit, plain RET. Read114 contribution count after clearing modifier/listener\n   handles128/12c. Nonzero sets5c01000000 BEFORE651010(Unit,-1,-1), synchronous Follow validation.\n   Zero count does not emit TargetLost. Public Apiv delayed loss: two exact raw observed repeats,\n   scenes3/4/5, cancel undetected neutral but retain own/shared-vision Follow; existing\n   controls/provenance checked.\n      [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nvoid __fastcall CUnit_RefreshInvisibility(WC3UnitOrdersPrefix *unit)\n\n{\n  int iVar1;\n  int iVar2;\n  \n  FUN_6f1acad0(0,0,0);\n  FloatModifier_CancelAndClearHandle();\n  FloatListener_CancelAndClearHandle();\n  if (unit->nInvisibility_contribution_count == 0) {\n    FUN_6f058190(&Math_RuntimeZero);\n    FUN_6f69d240();\n    return;\n  }\n  unit->order_admission_flags = unit->order_admission_flags | 0x1000000;\n  Unit_DispatchTargetLost(unit,-1,-1);\n  FUN_6f679db0();\n  FUN_6f058190(&Math_RuntimeOne);\n  FUN_6f1a3180();\n  iVar1 = (**(code **)((int)unit->vtable + 0x100))(1,4);\n  if (iVar1 == 0) {\n    iVar1 = FUN_6f1e0ea0(*(undefined2 *)(DAT_6fd687a8 + 0x28));\n    iVar2 = FUN_6f2908b0(unit);\n    FUN_6f2928c0(unit,*(undefined1 *)(iVar1 + 0x30),0,1);\n    FUN_6f3763d0(0x116);\n    if (iVar2 != 0) {\n      FUN_6f377190();\n    }\n  }\n  FUN_6f69d240();\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f669749",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6696e0"
+        },
+        {
+          "site": "6f694b97",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f694b20"
+        },
+        {
+          "site": "6f670d54",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f670950"
+        },
+        {
+          "site": "6f6906de",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f690490"
+        }
+      ],
+      "assembly": "6f68b780 PUSH EBP\n6f68b781 MOV EBP,ESP\n6f68b783 PUSH ECX\n6f68b784 PUSH EBX\n6f68b785 PUSH ECX\n6f68b786 MOV EBX,ECX\n6f68b788 MOV dword ptr [ESP],0x0\n6f68b78f PUSH 0x0\n6f68b791 PUSH 0x0\n6f68b793 MOV EDX,0x6\n6f68b798 MOV dword ptr [EBP + -0x4],EBX\n6f68b79b MOV ECX,dword ptr [EBX + 0x28]\n6f68b79e CALL 0x6f1acad0\n6f68b7a3 LEA ECX,[EBX + 0x128]\n6f68b7a9 CALL 0x6f3e3c00\n6f68b7ae LEA ECX,[EBX + 0x12c]\n6f68b7b4 CALL 0x6f3e3bd0\n6f68b7b9 CMP dword ptr [EBX + 0x114],0x0\n6f68b7c0 JZ 0x6f68b86d\n6f68b7c6 OR dword ptr [EBX + 0x5c],0x1000000\n6f68b7cd MOV ECX,EBX\n6f68b7cf PUSH -0x1\n6f68b7d1 PUSH -0x1\n6f68b7d3 CALL 0x6f651010\n6f68b7d8 MOV ECX,EBX\n6f68b7da CALL 0x6f679db0\n6f68b7df PUSH 0x6fd3c748\n6f68b7e4 LEA ECX,[EBX + 0x118]\n6f68b7ea CALL 0x6f058190\n6f68b7ef MOV ECX,dword ptr [EBX + 0x28]\n6f68b7f2 XOR EDX,EDX\n6f68b7f4 CALL 0x6f1a3180\n6f68b7f9 MOV EAX,dword ptr [EBX]\n6f68b7fb MOV ECX,EBX\n6f68b7fd PUSH 0x4\n6f68b7ff PUSH 0x1\n6f68b801 CALL dword ptr [EAX + 0x100]\n6f68b807 TEST EAX,EAX\n6f68b809 JNZ 0x6f68b861\n6f68b80b MOV ECX,dword ptr [0x6fd687a8]\n6f68b811 PUSH ESI\n6f68b812 PUSH EDI\n6f68b813 MOVZX EAX,word ptr [ECX + 0x28]\n6f68b817 PUSH EAX\n6f68b818 CALL 0x6f1e0ea0\n6f68b81d MOV ESI,EAX\n6f68b81f PUSH EBX\n6f68b820 MOV EDI,dword ptr [ESI + 0x34]\n6f68b823 MOV ECX,EDI\n6f68b825 CALL 0x6f2908b0\n6f68b82a MOVZX EDX,byte ptr [ESI + 0x30]\n6f68b82e MOV ECX,EDI\n6f68b830 MOV ESI,dword ptr [EBP + -0x4]\n6f68b833 MOV EBX,EAX\n6f68b835 PUSH 0x1\n6f68b837 PUSH 0x0\n6f68b839 PUSH EDX\n6f68b83a PUSH ESI\n6f68b83b CALL 0x6f2928c0\n6f68b840 PUSH 0x116\n6f68b845 MOV EDX,0x6fb7a600\n6f68b84a MOV ECX,ESI\n6f68b84c CALL 0x6f3763d0\n6f68b851 POP EDI\n6f68b852 POP ESI\n6f68b853 TEST EBX,EBX\n6f68b855 JZ 0x6f68b85e\n6f68b857 XOR ECX,ECX\n6f68b859 CALL 0x6f377190\n6f68b85e MOV EBX,dword ptr [EBP + -0x4]\n6f68b861 MOV ECX,EBX\n6f68b863 CALL 0x6f69d240\n6f68b868 POP EBX\n6f68b869 MOV ESP,EBP\n6f68b86b POP EBP\n6f68b86c RET\n6f68b86d PUSH 0x6fd3c744\n6f68b872 LEA ECX,[EBX + 0x118]\n6f68b878 CALL 0x6f058190\n6f68b87d MOV ECX,EBX\n6f68b87f CALL 0x6f69d240\n6f68b884 POP EBX\n6f68b885 MOV ESP,EBP\n6f68b887 POP EBP\n6f68b888 RET\n",
+      "instruction_count": 85
+    },
+    "6f058120": {
+      "name": "FUN_6f058120",
+      "end": "6f05818f",
+      "decompiled": "\nvoid __thiscall FUN_6f058120(int *param_1,undefined4 *param_2,undefined4 param_3,undefined4 param_4)\n\n{\n  undefined4 uVar1;\n  undefined4 *puVar2;\n  \n  uVar1 = (**(code **)(*param_1 + 0x14))();\n  puVar2 = (undefined4 *)Ordinal_401(0x10,\"FloatProp.cpp\",0x77,0);\n  if (puVar2 == (undefined4 *)0x0) {\n    puVar2 = (undefined4 *)0x0;\n  }\n  else {\n    puVar2[1] = 0;\n    puVar2[2] = 0xffffffff;\n    puVar2[3] = 0xffffffff;\n    *puVar2 = FloatModifier::vftable;\n  }\n  FUN_6f0626a0(uVar1,param_1,param_3,param_4);\n  *param_2 = puVar2;\n  if (puVar2 != (undefined4 *)0x0) {\n    puVar2[1] = puVar2[1] + 1;\n  }\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f35ed98",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35edde",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35ee24",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35ee6a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35eeb0",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35eef6",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35ef3c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35ef82",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35efc8",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f35f00b",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f35ed30"
+        },
+        {
+          "site": "6f28bc98",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f28bbf0"
+        },
+        {
+          "site": "6f41df0a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f41def0"
+        },
+        {
+          "site": "6f4225ba",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4225a0"
+        },
+        {
+          "site": "6f361dc8",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f361b90"
+        },
+        {
+          "site": "6f362175",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f361ec0"
+        },
+        {
+          "site": "6f6708e7",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6708a0"
+        },
+        {
+          "site": "6f69d403",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f69d360"
+        },
+        {
+          "site": "6f363554",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f3633f0"
+        },
+        {
+          "site": "6f69d0eb",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f69cf20"
+        },
+        {
+          "site": "6f436b9e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f436b00"
+        },
+        {
+          "site": "6f5e6563",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5e64b0"
+        },
+        {
+          "site": "6f669807",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6696e0"
+        },
+        {
+          "site": "6f694c1f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f694b20"
+        },
+        {
+          "site": "6f4ee01c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4edf00"
+        },
+        {
+          "site": "6f6d8c39",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f6d8ba0"
+        },
+        {
+          "site": "6f4e9707",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f4e9650"
+        },
+        {
+          "site": "6f5c8186",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5c8130"
+        },
+        {
+          "site": "6f5c8346",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "6f5c82f0"
+        }
+      ],
+      "assembly": "6f058120 PUSH EBP\n6f058121 MOV EBP,ESP\n6f058123 PUSH ECX\n6f058124 PUSH EBX\n6f058125 PUSH ESI\n6f058126 PUSH EDI\n6f058127 MOV EDI,ECX\n6f058129 MOV dword ptr [EBP + -0x4],0x0\n6f058130 MOV EAX,dword ptr [EDI]\n6f058132 CALL dword ptr [EAX + 0x14]\n6f058135 PUSH 0x0\n6f058137 PUSH 0x77\n6f058139 PUSH 0x6fa80a40\n6f05813e PUSH 0x10\n6f058140 MOV EBX,EAX\n6f058142 CALL 0x6f07c6d2\n6f058147 MOV ESI,EAX\n6f058149 TEST ESI,ESI\n6f05814b JZ 0x6f05816a\n6f05814d MOV dword ptr [ESI + 0x4],0x0\n6f058154 MOV dword ptr [ESI + 0x8],0xffffffff\n6f05815b MOV dword ptr [ESI + 0xc],0xffffffff\n6f058162 MOV dword ptr [ESI],0x6fa80a20\n6f058168 JMP 0x6f05816c\n6f05816a XOR ESI,ESI\n6f05816c PUSH dword ptr [EBP + 0x10]\n6f05816f MOV ECX,ESI\n6f058171 PUSH dword ptr [EBP + 0xc]\n6f058174 PUSH EDI\n6f058175 PUSH EBX\n6f058176 CALL 0x6f0626a0\n6f05817b MOV EAX,dword ptr [EBP + 0x8]\n6f05817e MOV dword ptr [EAX],ESI\n6f058180 TEST ESI,ESI\n6f058182 JZ 0x6f058187\n6f058184 INC dword ptr [ESI + 0x4]\n6f058187 POP EDI\n6f058188 POP ESI\n6f058189 POP EBX\n6f05818a MOV ESP,EBP\n6f05818c POP EBP\n6f05818d RET 0xc\n",
+      "instruction_count": 42
+    },
+    "6f54c640": {
+      "name": "Morph_UsesAlternateAvailabilityPolicy",
+      "end": "6f54c651",
+      "decompiled": "\n/* \n   SEP producer audit: common v41c queries Misc/MorphAlternateDisable with default zero.\n   Burrow/Submerge override v41c with constanttrue4c8b60. This is not a DataB flag.\n   \n   Morph372: common v41c still queries Misc/MorphAlternateDisable with default zero;\n   Burrow/Submerge override6f4c8b60 returns1. Complete native54eb80 acquires alternate\n   availability before subtype40c;54cb50 releases at reverse completion or actual\n   detach. Five public Submerge/Apiv scenes preserve311 matching markers across two\n   observations and an observer-free control. Existing/late passive and initially\n   alternate attachment remain suspended through reverse hold. Full762-record\n   projection preserves449 active native events,311 marker events and two reported\n   pre-start system exceptions outside game.dll literally; their cause is not\n   established. Engine uses existing saved morph_owned and counted availability;\n   no new serialized field. In-process WriteGame/ReadGame tests cover held and live\n   transition ownership; no fresh-process claim. Mount/common Morph composition\n   remain within existing SEP-01.2.\n   \n   Morph374 prepared evidence: map war3mapMisc MorphAlternateDisable0/1 produces26 complete\n   common-policy returns per observed run; ordinary Bear/Raven alternate availability is enabled\n   only with1. Bear acquires at deferred forwardcompletion; Raven at immediate takeoff rebind.\n   Reverse completion releases and restarts Apiv fade0.625; Raven landinghold1.375 means age50 is\n   before the later age55 positive enemyvisibility sample. Engine implementation is not established\n   by these annotations. */\n\nvoid Morph_UsesAlternateAvailabilityPolicy(void)\n\n{\n  FUN_6f047710(0);\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fadbd94",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fae0f40",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6faee948",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fafeb08",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fafef58",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6faff3a8",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fb28ad4",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fb348e0",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fb53e20",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fb54270",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fb6fe3c",
+          "type": "DATA",
+          "entry": ""
+        },
+        {
+          "site": "6fb7637c",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f54c640 PUSH 0x0\n6f54c642 MOV EDX,0x6fb1c550\n6f54c647 MOV ECX,0x6fa7fc80\n6f54c64c CALL 0x6f047710\n6f54c651 RET\n",
+      "instruction_count": 5
+    }
+  },
+  "instructions": {
+    "6f3e3c00": "56",
+    "6f3e3c01": "8bf1",
+    "6f3e3c03": "8b0e",
+    "6f3e3c05": "85c9",
+    "6f3e3c07": "741a",
+    "6f3e3c09": "8b01",
+    "6f3e3c0b": "ff5008",
+    "6f3e3c0e": "8b0e",
+    "6f3e3c10": "85c9",
+    "6f3e3c12": "7409",
+    "6f3e3c14": "ff4904",
+    "6f3e3c17": "7504",
+    "6f3e3c19": "8b01",
+    "6f3e3c1b": "ff10",
+    "6f3e3c1d": "c70600000000",
+    "6f3e3c23": "5e",
+    "6f3e3c24": "c3",
+    "6f3e3bd0": "56",
+    "6f3e3bd1": "8bf1",
+    "6f3e3bd3": "8b0e",
+    "6f3e3bd5": "85c9",
+    "6f3e3bd7": "741a",
+    "6f3e3bd9": "8b01",
+    "6f3e3bdb": "ff5008",
+    "6f3e3bde": "8b0e",
+    "6f3e3be0": "85c9",
+    "6f3e3be2": "7409",
+    "6f3e3be4": "ff4904",
+    "6f3e3be7": "7504",
+    "6f3e3be9": "8b01",
+    "6f3e3beb": "ff10",
+    "6f3e3bed": "c70600000000",
+    "6f3e3bf3": "5e",
+    "6f3e3bf4": "c3",
+    "6f6696e0": "55",
+    "6f6696e1": "8bec",
+    "6f6696e3": "6aff",
+    "6f6696e5": "683052a56f",
+    "6f6696ea": "64a100000000",
+    "6f6696f0": "50",
+    "6f6696f1": "83ec10",
+    "6f6696f4": "53",
+    "6f6696f5": "56",
+    "6f6696f6": "57",
+    "6f6696f7": "a19c68ce6f",
+    "6f6696fc": "33c5",
+    "6f6696fe": "50",
+    "6f6696ff": "8d45f4",
+    "6f669702": "64a300000000",
+    "6f669708": "8bf1",
+    "6f66970a": "8b8614010000",
+    "6f669710": "40",
+    "6f669711": "898614010000",
+    "6f669717": "83f801",
+    "6f66971a": "7419",
+    "6f66971c": "e88f060100",
+    "6f669721": "8b4df4",
+    "6f669724": "64890d00000000",
+    "6f66972b": "59",
+    "6f66972c": "5f",
+    "6f66972d": "5e",
+    "6f66972e": "5b",
+    "6f66972f": "8be5",
+    "6f669731": "5d",
+    "6f669732": "c20400",
+    "6f669735": "8b7d08",
+    "6f669738": "f30f1007",
+    "6f66973c": "0f2e0544c7d36f",
+    "6f669743": "9f",
+    "6f669744": "f6c444",
+    "6f669747": "7a19",
+    "6f669749": "e832200200",
+    "6f66974e": "8b4df4",
+    "6f669751": "64890d00000000",
+    "6f669758": "59",
+    "6f669759": "5f",
+    "6f66975a": "5e",
+    "6f66975b": "5b",
+    "6f66975c": "8be5",
+    "6f66975e": "5d",
+    "6f66975f": "c20400",
+    "6f669762": "51",
+    "6f669763": "8b4e28",
+    "6f669766": "ba06000000",
+    "6f66976b": "c7042400000000",
+    "6f669772": "56",
+    "6f669773": "6830b7686f",
+    "6f669778": "e85333b4ff",
+    "6f66977d": "8d8e28010000",
+    "6f669783": "e878a4d7ff",
+    "6f669788": "8d862c010000",
+    "6f66978e": "8bc8",
+    "6f669790": "8945ec",
+    "6f669793": "e838a4d7ff",
+    "6f669798": "8d4508",
+    "6f66979b": "50",
+    "6f66979c": "8d8e18010000",
+    "6f6697a2": "e829e89eff",
+    "6f6697a7": "6844c7d36f",
+    "6f6697ac": "8d5508",
+    "6f6697af": "8d4de4",
+    "6f6697b2": "e8d962a0ff",
+    "6f6697b7": "f30f1005a053cd6f",
+    "6f6697bf": "8b00",
+    "6f6697c1": "25ffffff7f",
+    "6f6697c6": "894508",
+    "6f6697c9": "0f2f4508",
+    "6f6697cd": "7610",
+    "6f6697cf": "68a053cd6f",
+    "6f6697d4": "8d8e18010000",
+    "6f6697da": "e8b1e99eff",
+    "6f6697df": "8bd7",
+    "6f6697e1": "8d4df0",
+    "6f6697e4": "e8f779a0ff",
+    "6f6697e9": "6848c7d36f",
+    "6f6697ee": "8bd7",
+    "6f6697f0": "8d4de4",
+    "6f6697f3": "e8b863a0ff",
+    "6f6697f8": "50",
+    "6f6697f9": "8d45f0",
+    "6f6697fc": "50",
+    "6f6697fd": "8d4508",
+    "6f669800": "50",
+    "6f669801": "8d8e18010000",
+    "6f669807": "e814e99eff",
+    "6f66980c": "8bf8",
+    "6f66980e": "8b0f",
+    "6f669810": "c745fc00000000",
+    "6f669817": "85c9",
+    "6f669819": "7403",
+    "6f66981b": "ff4104",
+    "6f66981e": "8b8e28010000",
+    "6f669824": "85c9",
+    "6f669826": "7409",
+    "6f669828": "ff4904",
+    "6f66982b": "7504",
+    "6f66982d": "8b01",
+    "6f66982f": "ff10",
+    "6f669831": "8b4d08",
+    "6f669834": "8b07",
+    "6f669836": "898628010000",
+    "6f66983c": "c745fcffffffff",
+    "6f669843": "85c9",
+    "6f669845": "7409",
+    "6f669847": "ff4904",
+    "6f66984a": "7504",
+    "6f66984c": "8b01",
+    "6f66984e": "ff10",
+    "6f669850": "6a00",
+    "6f669852": "56",
+    "6f669853": "68d4010d00",
+    "6f669858": "6848c7d36f",
+    "6f66985d": "6a01",
+    "6f66985f": "8d45e8",
+    "6f669862": "50",
+    "6f669863": "8d8e18010000",
+    "6f669869": "e822e89eff",
+    "6f66986e": "8bf0",
+    "6f669870": "8b0e",
+    "6f669872": "c745fc01000000",
+    "6f669879": "85c9",
+    "6f66987b": "7403",
+    "6f66987d": "ff4104",
+    "6f669880": "8b7dec",
+    "6f669883": "8b0f",
+    "6f669885": "85c9",
+    "6f669887": "7409",
+    "6f669889": "ff4904",
+    "6f66988c": "7504",
+    "6f66988e": "8b01",
+    "6f669890": "ff10",
+    "6f669892": "8b4de8",
+    "6f669895": "8b06",
+    "6f669897": "8907",
+    "6f669899": "c745fcffffffff",
+    "6f6698a0": "85c9",
+    "6f6698a2": "7409",
+    "6f6698a4": "ff4904",
+    "6f6698a7": "7504",
+    "6f6698a9": "8b01",
+    "6f6698ab": "ff10",
+    "6f6698ad": "8b4df4",
+    "6f6698b0": "64890d00000000",
+    "6f6698b7": "59",
+    "6f6698b8": "5f",
+    "6f6698b9": "5e",
+    "6f6698ba": "5b",
+    "6f6698bb": "8be5",
+    "6f6698bd": "5d",
+    "6f6698be": "c20400",
+    "6f694b20": "55",
+    "6f694b21": "8bec",
+    "6f694b23": "6aff",
+    "6f694b25": "68c084a56f",
+    "6f694b2a": "64a100000000",
+    "6f694b30": "50",
+    "6f694b31": "83ec10",
+    "6f694b34": "53",
+    "6f694b35": "56",
+    "6f694b36": "57",
+    "6f694b37": "a19c68ce6f",
+    "6f694b3c": "33c5",
+    "6f694b3e": "50",
+    "6f694b3f": "8d45f4",
+    "6f694b42": "64a300000000",
+    "6f694b48": "8bf1",
+    "6f694b4a": "8b8614010000",
+    "6f694b50": "48",
+    "6f694b51": "898614010000",
+    "6f694b57": "85c0",
+    "6f694b59": "0f8f66010000",
+    "6f694b5f": "81665cfffffffe",
+    "6f694b66": "8d8e18010000",
+    "6f694b6c": "ba44c7d36f",
+    "6f694b71": "e87a24fdff",
+    "6f694b76": "84c0",
+    "6f694b78": "7407",
+    "6f694b7a": "8bce",
+    "6f694b7c": "e82fc5fbff",
+    "6f694b81": "8b5d08",
+    "6f694b84": "f30f1003",
+    "6f694b88": "0f2e0544c7d36f",
+    "6f694b8f": "9f",
+    "6f694b90": "f6c444",
+    "6f694b93": "7a1b",
+    "6f694b95": "8bce",
+    "6f694b97": "e8e46bffff",
+    "6f694b9c": "8b4df4",
+    "6f694b9f": "64890d00000000",
+    "6f694ba6": "59",
+    "6f694ba7": "5f",
+    "6f694ba8": "5e",
+    "6f694ba9": "5b",
+    "6f694baa": "8be5",
+    "6f694bac": "5d",
+    "6f694bad": "c20400",
+    "6f694bb0": "8b4e28",
+    "6f694bb3": "ba01000000",
+    "6f694bb8": "e8c3e5b0ff",
+    "6f694bbd": "51",
+    "6f694bbe": "8b4e28",
+    "6f694bc1": "ba06000000",
+    "6f694bc6": "c7042400000000",
+    "6f694bcd": "56",
+    "6f694bce": "6830b7686f",
+    "6f694bd3": "e8f87eb1ff",
+    "6f694bd8": "8d8e28010000",
+    "6f694bde": "e81df0d4ff",
+    "6f694be3": "8d862c010000",
+    "6f694be9": "8bc8",
+    "6f694beb": "8945ec",
+    "6f694bee": "e8ddefd4ff",
+    "6f694bf3": "53",
+    "6f694bf4": "ba40c7d36f",
+    "6f694bf9": "8d4df0",
+    "6f694bfc": "e8cfb09dff",
+    "6f694c01": "6848c7d36f",
+    "6f694c06": "8bd3",
+    "6f694c08": "8d4de4",
+    "6f694c0b": "e8a0af9dff",
+    "6f694c10": "50",
+    "6f694c11": "8d45f0",
+    "6f694c14": "50",
+    "6f694c15": "8d4508",
+    "6f694c18": "50",
+    "6f694c19": "8d8e18010000",
+    "6f694c1f": "e8fc349cff",
+    "6f694c24": "8bd8",
+    "6f694c26": "8b0b",
+    "6f694c28": "c745fc00000000",
+    "6f694c2f": "85c9",
+    "6f694c31": "7403",
+    "6f694c33": "ff4104",
+    "6f694c36": "8b8e28010000",
+    "6f694c3c": "85c9",
+    "6f694c3e": "7409",
+    "6f694c40": "ff4904",
+    "6f694c43": "7504",
+    "6f694c45": "8b01",
+    "6f694c47": "ff10",
+    "6f694c49": "8b4d08",
+    "6f694c4c": "8b03",
+    "6f694c4e": "898628010000",
+    "6f694c54": "c745fcffffffff",
+    "6f694c5b": "85c9",
+    "6f694c5d": "7409",
+    "6f694c5f": "ff4904",
+    "6f694c62": "7504",
+    "6f694c64": "8b01",
+    "6f694c66": "ff10",
+    "6f694c68": "6a00",
+    "6f694c6a": "56",
+    "6f694c6b": "68d4010d00",
+    "6f694c70": "6844c7d36f",
+    "6f694c75": "6a00",
+    "6f694c77": "8d45e8",
+    "6f694c7a": "50",
+    "6f694c7b": "8d8e18010000",
+    "6f694c81": "e80a349cff",
+    "6f694c86": "8bf0",
+    "6f694c88": "8b0e",
+    "6f694c8a": "c745fc01000000",
+    "6f694c91": "85c9",
+    "6f694c93": "7403",
+    "6f694c95": "ff4104",
+    "6f694c98": "8b7dec",
+    "6f694c9b": "8b0f",
+    "6f694c9d": "85c9",
+    "6f694c9f": "7409",
+    "6f694ca1": "ff4904",
+    "6f694ca4": "7504",
+    "6f694ca6": "8b01",
+    "6f694ca8": "ff10",
+    "6f694caa": "8b4de8",
+    "6f694cad": "8b06",
+    "6f694caf": "8907",
+    "6f694cb1": "c745fcffffffff",
+    "6f694cb8": "85c9",
+    "6f694cba": "7409",
+    "6f694cbc": "ff4904",
+    "6f694cbf": "7504",
+    "6f694cc1": "8b01",
+    "6f694cc3": "ff10",
+    "6f694cc5": "8b4df4",
+    "6f694cc8": "64890d00000000",
+    "6f694ccf": "59",
+    "6f694cd0": "5f",
+    "6f694cd1": "5e",
+    "6f694cd2": "5b",
+    "6f694cd3": "8be5",
+    "6f694cd5": "5d",
+    "6f694cd6": "c20400",
+    "6f68b780": "55",
+    "6f68b781": "8bec",
+    "6f68b783": "51",
+    "6f68b784": "53",
+    "6f68b785": "51",
+    "6f68b786": "8bd9",
+    "6f68b788": "c7042400000000",
+    "6f68b78f": "6a00",
+    "6f68b791": "6a00",
+    "6f68b793": "ba06000000",
+    "6f68b798": "895dfc",
+    "6f68b79b": "8b4b28",
+    "6f68b79e": "e82d13b2ff",
+    "6f68b7a3": "8d8b28010000",
+    "6f68b7a9": "e85284d5ff",
+    "6f68b7ae": "8d8b2c010000",
+    "6f68b7b4": "e81784d5ff",
+    "6f68b7b9": "83bb1401000000",
+    "6f68b7c0": "0f84a7000000",
+    "6f68b7c6": "814b5c00000001",
+    "6f68b7cd": "8bcb",
+    "6f68b7cf": "6aff",
+    "6f68b7d1": "6aff",
+    "6f68b7d3": "e83858fcff",
+    "6f68b7d8": "8bcb",
+    "6f68b7da": "e8d1e5feff",
+    "6f68b7df": "6848c7d36f",
+    "6f68b7e4": "8d8b18010000",
+    "6f68b7ea": "e8a1c99cff",
+    "6f68b7ef": "8b4b28",
+    "6f68b7f2": "33d2",
+    "6f68b7f4": "e88779b1ff",
+    "6f68b7f9": "8b03",
+    "6f68b7fb": "8bcb",
+    "6f68b7fd": "6a04",
+    "6f68b7ff": "6a01",
+    "6f68b801": "ff9000010000",
+    "6f68b807": "85c0",
+    "6f68b809": "7556",
+    "6f68b80b": "8b0da887d66f",
+    "6f68b811": "56",
+    "6f68b812": "57",
+    "6f68b813": "0fb74128",
+    "6f68b817": "50",
+    "6f68b818": "e88356b5ff",
+    "6f68b81d": "8bf0",
+    "6f68b81f": "53",
+    "6f68b820": "8b7e34",
+    "6f68b823": "8bcf",
+    "6f68b825": "e88650c0ff",
+    "6f68b82a": "0fb65630",
+    "6f68b82e": "8bcf",
+    "6f68b830": "8b75fc",
+    "6f68b833": "8bd8",
+    "6f68b835": "6a01",
+    "6f68b837": "6a00",
+    "6f68b839": "52",
+    "6f68b83a": "56",
+    "6f68b83b": "e88070c0ff",
+    "6f68b840": "6816010000",
+    "6f68b845": "ba00a6b76f",
+    "6f68b84a": "8bce",
+    "6f68b84c": "e87fabceff",
+    "6f68b851": "5f",
+    "6f68b852": "5e",
+    "6f68b853": "85db",
+    "6f68b855": "7407",
+    "6f68b857": "33c9",
+    "6f68b859": "e832b9ceff",
+    "6f68b85e": "8b5dfc",
+    "6f68b861": "8bcb",
+    "6f68b863": "e8d8190100",
+    "6f68b868": "5b",
+    "6f68b869": "8be5",
+    "6f68b86b": "5d",
+    "6f68b86c": "c3",
+    "6f68b86d": "6844c7d36f",
+    "6f68b872": "8d8b18010000",
+    "6f68b878": "e813c99cff",
+    "6f68b87d": "8bcb",
+    "6f68b87f": "e8bc190100",
+    "6f68b884": "5b",
+    "6f68b885": "8be5",
+    "6f68b887": "5d",
+    "6f68b888": "c3",
+    "6f058120": "55",
+    "6f058121": "8bec",
+    "6f058123": "51",
+    "6f058124": "53",
+    "6f058125": "56",
+    "6f058126": "57",
+    "6f058127": "8bf9",
+    "6f058129": "c745fc00000000",
+    "6f058130": "8b07",
+    "6f058132": "ff5014",
+    "6f058135": "6a00",
+    "6f058137": "6a77",
+    "6f058139": "68400aa86f",
+    "6f05813e": "6a10",
+    "6f058140": "8bd8",
+    "6f058142": "e88b450200",
+    "6f058147": "8bf0",
+    "6f058149": "85f6",
+    "6f05814b": "741d",
+    "6f05814d": "c7460400000000",
+    "6f058154": "c74608ffffffff",
+    "6f05815b": "c7460cffffffff",
+    "6f058162": "c706200aa86f",
+    "6f058168": "eb02",
+    "6f05816a": "33f6",
+    "6f05816c": "ff7510",
+    "6f05816f": "8bce",
+    "6f058171": "ff750c",
+    "6f058174": "57",
+    "6f058175": "53",
+    "6f058176": "e825a50000",
+    "6f05817b": "8b4508",
+    "6f05817e": "8930",
+    "6f058180": "85f6",
+    "6f058182": "7403",
+    "6f058184": "ff4604",
+    "6f058187": "5f",
+    "6f058188": "5e",
+    "6f058189": "5b",
+    "6f05818a": "8be5",
+    "6f05818c": "5d",
+    "6f05818d": "c20c00",
+    "6f54c640": "6a00",
+    "6f54c642": "ba50c5b16f",
+    "6f54c647": "b980fca76f",
+    "6f54c64c": "e8bfb0afff",
+    "6f54c651": "c3"
+  }
+}

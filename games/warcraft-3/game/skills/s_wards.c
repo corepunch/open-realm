@@ -481,8 +481,16 @@ static void invisibility_begin(edict_t *unit, float transition) {
 void S_PermanentInvisibilityInitialize(edict_t *unit) {
     if(!unit)return;
     float transition=permanent_invisibility_transition(unit);
-    if(transition<0) {invisibility_clear(unit);return;}
+    if(transition<0 || S_AbilityExecutionDisabled(unit,ID_APIV)) {invisibility_clear(unit);return;}
     invisibility_begin(unit,transition);
+}
+
+/*670950 invokes68b780 after rebind, before new ability attachment. A
+ * retained enabled contribution completes its fade; a destination-only passive
+ * must keep the authored fade begun by its actual initialization. */
+void S_RefreshRetainedPermanentInvisibility(edict_t *unit,bool retained) {
+    if(retained && unit && G_ActorHasAbilityCode(unit,ID_APIV) && !S_AbilityExecutionDisabled(unit,ID_APIV))
+        invisibility_begin(unit,0);
 }
 
 /* Own Permanent Invisibility's publication and exact scalar listener queue. */

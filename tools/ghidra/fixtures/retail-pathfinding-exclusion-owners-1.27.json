@@ -319,7 +319,8 @@
     "oracle-group367",
     "oracle-morph372",
     "oracle-target371-ground",
-    "oracle-captain373-strategic"
+    "oracle-captain373-strategic",
+    "oracle-morph374"
   ],
   "entries": [
     {
@@ -7164,6 +7165,32 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "Transport, SuicidePlayerUnits, Town preferred-primary and complete journeys remain in the original existing leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-morph374",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Mount reachability, other concrete Morph producers (including ANrg) and counted-owner compositions remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Bear/Raven availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 1,
+          "text": "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Bear/Raven availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 2,
+          "text": "Two pre-start system exception rows per instrumented capture outside game.dll are retained literally; cause and OS-fault unreachability are not established.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Bear/Raven availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
         }
       ]
     }

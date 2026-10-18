@@ -3,6 +3,9 @@
 [Contract, current ledger and reproduction](retail-pathfinding.md).
 Retail **1.27.1.7085** only; addresses and report paths use the conventions there.
 
+[Configured common Morph availability](common-morph-passive-availability.md) documents the
+Morph374 owner lifecycle, failing-first cases and strict native projection.
+
 [Submerge passive availability](submerge-passive-availability.md) documents the
 Morph372 owner lifecycle, failing-first cases and strict native projection.
 

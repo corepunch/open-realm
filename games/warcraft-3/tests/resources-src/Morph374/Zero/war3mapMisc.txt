@@ -1,0 +1,3 @@
+[Misc]
+Morph374Fixture=Zero
+MorphAlternateDisable=0
