@@ -1934,7 +1934,7 @@ void S_RunMoveTimers(void) {
     }
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
-        if(!ent->inuse || !ent->movement.pause_resume_pending || ent->paused)continue;
+        if(!ent->inuse || !ent->movement.pause_resume_pending || ent->paused || ent->movement.internal_suspend_depth)continue;
         wc3Clock_t const *due=&ent->movement.pause_deadline;
         bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
             (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
@@ -2389,7 +2389,9 @@ bool S_UnitOrdersPaused(edict_t const *self) {
 }
 
 bool S_UnitExecutionPaused(edict_t const *self) {
-    return self && (self->movement.pause_resume_pending || (self->paused &&
+    return self && (self->movement.pause_resume_pending ||
+        (self->movement.internal_suspend_depth && self->movement.pause_phase!=UNIT_PAUSE_ADMITTING &&
+         self->movement.pause_phase!=UNIT_PAUSE_BYPASSED) || (self->paused &&
         self->movement.pause_phase!=UNIT_PAUSE_ADMITTING && self->movement.pause_phase!=UNIT_PAUSE_BYPASSED &&
         self->movement.pause_phase!=UNIT_PAUSE_WAITING));
 }
@@ -2412,6 +2414,45 @@ static void move_suspend_physical_task(edict_t *self) {
     S_TrackMoveTimers(self);
 }
 
+void S_AcquireInternalSuspension(edict_t *self) {
+    if(!self || !self->inuse || M_IsDead(self))return;
+    if(self->movement.internal_suspend_depth++)return;
+    if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
+        self->movement.pause_resume_pending=false;
+        S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);return;
+    }
+    move_visual_track(self);
+    uint32_t const order=self->current_order_id,spawn=self->spawn_time;
+    bool point=self->currentmove==&move_move_walk && self->goalentity && move_point_order_id(order);
+    S_StopUnitMovementWithRecovery(self);
+    if(point)move_reset_progress(self);
+    self->movement.pause_order_id=order;
+    self->movement.pause_phase=UNIT_PAUSE_ADMITTING;
+    self->current_order_id=MOVE_ORDER_SUSPENDED;
+    uint32_t const revision=G_UnitMoveRevision(self);
+    G_PublishIssuedPointOrder(self,MOVE_ORDER_SUSPENDED,&(vec2_t){0},self->s.player,NULL);
+    if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
+    if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision) {
+        self->movement.pause_order_id=0;
+        self->movement.pause_phase=UNIT_PAUSE_BYPASSED;
+    } else if(self->movement.internal_suspend_depth) {
+        move_suspend_physical_task(self);
+        self->movement.pause_phase=UNIT_PAUSE_SUSPENDED;
+        S_SuspendRepairWork(self);
+    }
+    S_RefreshUnitPauseSuppression(self);
+}
+
+void S_ReleaseInternalSuspension(edict_t *self) {
+    if(!self || !self->movement.internal_suspend_depth)return;
+    if(--self->movement.internal_suspend_depth || self->paused)return;
+    if(self->movement.pause_phase!=UNIT_PAUSE_SUSPENDED && self->current_order_id!=MOVE_ORDER_SUSPENDED)return;
+    self->movement.pause_resume_pending=true;
+    self->movement.pause_deadline=level.pathing_clock;
+    FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+    S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);
+}
+
 void S_SetUnitPaused(edict_t *self, bool paused) {
     if (!self || self->paused==paused) return;
     if(!paused && self->movement.pause_phase==UNIT_PAUSE_WAITING) {
@@ -2422,6 +2463,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         self->paused=true;self->movement.pause_phase=UNIT_PAUSE_WAITING;return;
     }
     if (paused) {
+        S_SetSleepClockPaused(self,true);
         /*697770/688d30 cancel an already-built suspension's end request.
          * They do not admit another point head or retire its retained user. */
         if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
@@ -2471,12 +2513,13 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
          * hold and its retained packets remain until the scheduled boundary. */
         S_ReleaseScriptedAbilityDisables(self);
         self->paused=false;
+        S_SetSleepClockPaused(self,false);
         /* Nested Unpause during notification has not acquired a physical
          * hold. The outer dispatch retires the unconstructed suspension. */
         if(self->movement.pause_phase==UNIT_PAUSE_ADMITTING)return;
         if(self->movement.pause_phase==UNIT_PAUSE_BYPASSED)self->movement.pause_phase=UNIT_PAUSE_NONE;
-        else if(self->movement.pause_order_id || self->current_order_id==MOVE_ORDER_SUSPENDED ||
-                self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
+        else if(!self->movement.internal_suspend_depth && (self->movement.pause_order_id ||
+                self->current_order_id==MOVE_ORDER_SUSPENDED || self->movement.pause_phase==UNIT_PAUSE_SUSPENDED)) {
             self->movement.pause_resume_pending=true;
             S_TrackMoveTimers(self);
             self->movement.pause_deadline=level.pathing_clock;

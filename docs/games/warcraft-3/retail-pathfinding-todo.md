@@ -8,6 +8,14 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+Sleep367 implements independent main/initial suspension and primary expiry,
+Script Pause composition, delayed damage wake and stable positive paused refresh.
+Three failing-first production regressions pass640 assertions per edition;
+15 accepted captures retain332 public markers and622 projected records.
+Ghidra63 functions/2246 instructions and the original minimum scalar are guarded.
+Concrete Stun/SleepStun producers and wider guards retain existing GROUP-03.2.
+[Evidence](retail-pathfinding-sleep367.md).
+
 Point371 admits the raw point Attack physical owner synchronously. Six complete
 native captures retain3,396 public markers and3,422 whole records;3,216 original
 guards protect24 full functions. Both editions pass29 focused tests/11,306

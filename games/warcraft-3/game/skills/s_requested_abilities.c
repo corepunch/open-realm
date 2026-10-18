@@ -881,7 +881,7 @@ BZ_ABILITY_PROC(CAbilityMetamorphosis) {
 /* Name=Sleep
  * Ubertip="Puts a target enemy unit to sleep."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySleep) { target_status_execute(caster, st, spell); }
+/* Concrete Sleep and initial-guard owners are implemented in s_sleep.c. */
 
 /* Neutral direct-damage bolt; unlike Fire Bolt it has no authored stun. */
 BZ_ABILITY_PROC(CAbilityFingerOfDeath) {

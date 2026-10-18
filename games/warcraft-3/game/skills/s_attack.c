@@ -864,9 +864,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
-    FOR_LOOP(i, G_UnitStatusSlotCount(target))
-        if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
-            unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_SCRIPT);
+    S_SleepDamageWake(target);
     unit_updatestatuses(target);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);

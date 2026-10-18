@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 209; /* Captain deferred selection owners and immutable unit class order. */
+static uint32_t const save_version = 211; /* Independent Sleep suspension and primary-clock owners. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1179,6 +1179,12 @@ static field_t const status_fields[] = {
     TF(heroabilitystatus_t, stack_policy, F_INT),
     TF(heroabilitystatus_t, move_speed_delta, F_FLOAT),
     TF(heroabilitystatus_t, move_speed_applied, F_INT),
+    TF(heroabilitystatus_t, sleep_timer.deadline.time, F_FLOAT),
+    TF(heroabilitystatus_t, sleep_timer.deadline.epoch, F_INT),
+    TF(heroabilitystatus_t, sleep_timer.deadline.span, F_FLOAT),
+    TF(heroabilitystatus_t, sleep_timer.sequence, F_INT),
+    TF(heroabilitystatus_t, sleep_remaining, F_FLOAT),
+    TF(heroabilitystatus_t, sleep_kind, F_INT),
     TF(heroabilitystatus_t, source, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -1359,6 +1365,7 @@ field_t edict_fields[] = {
     F(edict_s, movement.type_rebind_pending, F_INT),
     F(edict_s, movement.pause_order_id, F_INT),
     F(edict_s, movement.pause_resume_pending, F_INT),
+    F(edict_s, movement.internal_suspend_depth, F_INT),
     F(edict_s, movement.pause_deadline.time, F_FLOAT),
     F(edict_s, movement.pause_deadline.epoch, F_INT),
     F(edict_s, movement.pause_deadline.span, F_FLOAT),

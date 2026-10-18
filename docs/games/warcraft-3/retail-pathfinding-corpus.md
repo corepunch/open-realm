@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Point371, the inventory has **594 entries**: **313** oracle contracts
-(including variants) supplied by **241** distinct verifier scripts, **121**
+As of Sleep367, the inventory has **595 entries**: **314** oracle contracts
+(including variants) supplied by **242** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -73,7 +73,7 @@ or silently upgrade the existing evidence.
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
 identity, source versions and frozen input hashes. The current Captain369
-inventory has594 entries:313 oracle contracts supplied by241 distinct verifier
+inventory has595 entries:314 oracle contracts supplied by242 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2422,3 +2422,8 @@ Point371 adds six complete point Attack captures,3,396 public markers and3,422
 whole native records. All1,344 arrival/velocity pairs match production helpers.
 Both editions pass29 focused tests/11,306 assertions; the existing TARGET-01.2
 leaf retains Ground and wider producer coverage.
+
+Sleep367 adds five repeat/control experiments with332 public markers and622
+projected records, including separate internal owners and paused positive refresh.
+The strict engine gate passes3 tests/640 assertions per edition. Existing
+GROUP-03.2 retains concrete Stun/SleepStun producers and wider guards.

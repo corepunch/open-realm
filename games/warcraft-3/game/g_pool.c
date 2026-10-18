@@ -63,7 +63,8 @@ DEFINE_POOL_OWNER_CALLBACKS(attack_two, ent->attack_overrides[1], AttackTwo, uni
     (void)0, (void)0)
 /* Plain units carry no status storage. Records retain their original slot
  * identities until edict release, including synchronous inverse callbacks. */
-DEFINE_POOL(abilstatus, UnitStatus, unitStatusStorage_t, MAX_ENTITIES)
+DEFINE_POOL_CALLBACKS(abilstatus, UnitStatus, unitStatusStorage_t, MAX_ENTITIES,
+    (void)0, S_ForgetSleepOwner(ent))
 DEFINE_POOL_OWNER_CALLBACKS(orders, ent->order_queue.entries, UnitOrdersInline, unitOrderStorage_t, MAX_ENTITIES,
     (void)0, ent->order_queue.head = ent->order_queue.count = 0)
 /* Large FIFOs grow geometrically. Most units never allocate a queue, and

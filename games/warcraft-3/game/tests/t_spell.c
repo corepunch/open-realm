@@ -2247,7 +2247,7 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 		"C;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"DataC1\"\nC;Y1;X9;K\"BuffID1\"\n"
 		"C;Y2;X1;K\"AHbn\"\nC;Y2;X2;K\"AHbn\"\nC;Y2;X4;K\"12\"\nC;Y2;X5;K\"4\"\nC;Y2;X9;K\"BHbn\"\n"
 		"C;Y3;X1;K\"ANsi\"\nC;Y3;X2;K\"ANsi\"\nC;Y3;X3;K\"200\"\nC;Y3;X4;K\"16\"\nC;Y3;X5;K\"8\"\nC;Y3;X9;K\"BNsi\"\n"
-		"C;Y4;X1;K\"AUsl\"\nC;Y4;X2;K\"AUsl\"\nC;Y4;X4;K\"15\"\nC;Y4;X5;K\"4\"\nC;Y4;X9;K\"BUsl\"\n"
+		"C;Y4;X1;K\"AUsl\"\nC;Y4;X2;K\"AUsl\"\nC;Y4;X4;K\"15\"\nC;Y4;X5;K\"4\"\nC;Y4;X6;K\"0.25\"\nC;Y4;X9;K\"BUsl\"\n"
 		"C;Y5;X1;K\"AUdp\"\nC;Y5;X2;K\"AUdp\"\nC;Y5;X7;K\"2\"\n"
 		"C;Y6;X1;K\"AOcl\"\nC;Y6;X2;K\"AOcl\"\nC;Y6;X3;K\"500\"\nC;Y6;X6;K\"100\"\nC;Y6;X7;K\"3\"\nC;Y6;X8;K\"0.5\"\nE\n";
 	edict_t *caster = make_hero(MAKEFOURCC('u','d','e','a'), 200, 300, 0, 0);
@@ -2275,6 +2275,16 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	test_execute_code(caster, "AUsl", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = first));
 	T_ASSERT(S_UnitHasStatus(first, MAKEFOURCC('B','U','s','l')));
 	T_Damage(first, caster, 1);
+	T_ASSERT(S_UnitHasStatus(first, MAKEFOURCC('B','U','s','l')));
+	T_FEQ(first->health.value, 500.0f, 0.001f);
+	/* Authored initial guard blocks damage; wake is a later timer boundary. */
+	level.time += 251; wc3_clock_advance(&level.pathing_clock, .251f, 0);
+	S_RunAbilityTimers(); unit_updatestatuses(first);
+	T_NULL(unit_findstatus(first, MAKEFOURCC('B','U','s','p')));
+	T_Damage(first, caster, 1);
+	T_ASSERT(S_UnitHasStatus(first, MAKEFOURCC('B','U','s','l')));
+	level.time++; wc3_clock_advance(&level.pathing_clock, .001f, 0);
+	S_RunAbilityTimers();
 	T_ASSERT(!S_UnitHasStatus(first, MAKEFOURCC('B','U','s','l')));
 
 	test_execute_code(caster, "AUdp", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = third));

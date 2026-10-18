@@ -1785,6 +1785,11 @@ typedef struct heroabilitystatus_s {
     uint32_t prevention_mask; /* captured Attacks Prevented mask; zero after its inverse */
     float move_speed_delta; /* applying owner captures the exact signed contribution */
     uint32_t move_speed_applied;
+    /* Concrete Sleep owners have independent primary-clock expiration. */
+    abilityPrimaryTimer_t sleep_timer;
+    float sleep_remaining;
+    uint32_t sleep_kind;
+    bool sleep_clock_paused;
 } heroabilitystatus_t;
 
 /* Status application is authoritative for identity and source metadata.  The
@@ -2405,6 +2410,7 @@ struct edict_s {
         bool captain_actor_siege; /* Native captain6c.20, refreshed only by logical roster mutations. */
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
         wc3Clock_t type_rebind_deadline;
+        uint32_t internal_suspend_depth; /* Independent internal suspension contributions. */
         uint32_t pause_order_id; /* Point head beneath the scripted pause order. */
         unitPausePhase_t pause_phase;
         bool pause_resume_pending;
@@ -3719,6 +3725,11 @@ void S_PublishMovement(edict_t *);
 void S_RunMoveTimers(void);
 void S_RunCaptainRangeTimers(void);
 void S_SetUnitPaused(edict_t *, bool);
+void S_AcquireInternalSuspension(edict_t *);
+void S_ReleaseInternalSuspension(edict_t *);
+void S_SetSleepClockPaused(edict_t *, bool);
+void S_SleepDamageWake(edict_t *);
+void S_ForgetSleepOwner(edict_t *);
 void S_SetUnitPauseFlag(edict_t *, bool);
 bool S_UnitExecutionPaused(edict_t const *);
 bool S_UnitOrderExecutionHeld(edict_t const *);

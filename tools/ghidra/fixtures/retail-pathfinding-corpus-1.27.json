@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "313 executable original/evidence contracts;594 total entries; provenance and limitations remain per-entry.",
+  "scope": "314 executable original/evidence contracts;595 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56635,6 +56635,69 @@
       "exclusions": [
         "AttackGround selected-range/FLT_MAX admission, wider target/ability producer inventory and full retail-save parity remain existing TARGET-01.2 and BASE/E2E scope."
       ]
+    },
+    {
+      "id": "oracle-group367",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_group367.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "group367.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "instructions": {
+          "equal": 2246
+        },
+        "functions": {
+          "equal": 63
+        },
+        "data_guards": {
+          "equal": 1
+        },
+        "captures": {
+          "equal": 15
+        },
+        "scenes": {
+          "equal": 26
+        },
+        "public_markers": {
+          "equal": 332
+        },
+        "native_events": {
+          "equal": 622
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 3,
+              "assertions": 640
+            },
+            "tft": {
+              "tests": 3,
+              "assertions": 640
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.2 concrete Sleep and initial guard own independent suspension and primary expiry clocks, composed Script Pause, delayed damage wake, stable positive refresh and saved ownership.",
+      "exclusions": [
+        "Concrete Stun/SleepStun producer reachability and other GROUP-03.2 guards remain in this existing leaf.",
+        "Stock attachment rejection does not prove custom-data or factory unreachability.",
+        "No full-frame, arbitrary trajectory or retail-save parity claim."
+      ]
     }
   ],
   "fixtures": [
@@ -57533,7 +57596,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e622fcb1c36f71ca7ee11d696d2d11c32c9b63c7f68a7435894eabfef8009533"
+      "sha256": "b013af86ba6ad83f69e8944114fa3fafea170064b56cfcf1b530f9122f9691bd"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58389,7 +58452,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "bbd29a6d10645d3b545ad61894314de5852d49593b0166a34453f7dfcae1850b"
+      "sha256": "8081116edb36fca775e0d03f99c00400f0f191396f4851c2cfabddbdd3dffc03"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -58825,7 +58888,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "800b80506498184cb8fd527576929804e87aa9bb7098037b5eda9afbb7a8c9dd"
+      "sha256": "92265f0cf8c1bc8508bcdd4270217fc9a9a8c95ec61f93e9c630025dde76a764"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -58833,7 +58896,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "09787467056b9c9e6d87c294788d2f0f4ea4d7029f6e844435ec5bd549dc424c"
+      "sha256": "a751738175ac3cf6d097ff0e56fcce455d1ede8387426e7ef378ce2f6dbc388f"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -59325,7 +59388,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "1219de7a1d35b3c1e90f942a6ed93bbbb4c9ab0daa86be92b7627c47a58ae7f6"
+      "sha256": "0718f360f33ab359ed2a7ec5c990b2c64c9c5c1982d9772a05ac80b2c2ea6dbf"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59341,7 +59404,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "358c58cd9a3572456b1dc8892445b2736a7e2f8d5899b4a1cdb8133bdb4571ff"
+      "sha256": "4d309485ee114d488a85571c90a101b4823826520ab6c700b4337c8c7eb0feb2"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59349,11 +59412,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "3d132a9646b64e91d6536d455424a0150e2fb8d8de3def15086e7f0c3f17fe4f"
+      "sha256": "c9c89954ff5a09091e535bf05787e51a3c8eb9446957023c074b7d9135bcf315"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "73d74b6b4f7d0ac822d2330f61588336ff91124ea420bcee7bc1d760f871abbb"
+      "sha256": "d3a8f4f3ece46a46dd576f57fb53d9e89707c13fe1a78f8350af96827ce2abba"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -60141,7 +60204,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "3221a0f860675f892155d09443ebd1fe6d743564b926e403d7c06d8cb8a4732a"
+      "sha256": "abdfd9508a3316ffbc3549b82f89d993d28c4ce5a3b98c0f8c85eab6fdf53fb3"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -60425,7 +60488,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "2e3a24d0dda821d6eea9a647b2674cbe329724f4fe65c45488b390de8ab2d35f"
+      "sha256": "9bcaa08d4da3628afdd463fd124f8a4479a12365a024e4e6908d09a879a2a090"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -60549,7 +60612,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "f0c85354a53667ec7ea082c051a7c60c6c582028c430e72c8d9d76d95bb68de2"
+      "sha256": "afbcd029cea0bdf5f1c951e0fbc673280073cabd3d9309cfbb9294ba5f782897"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -64341,7 +64404,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "0a1f4ea530f45883ee469e3ff3509dfae0b714f9b0f1a17f85fad602075de99c"
+      "sha256": "60fc6badf21dde8fbd5d814d1f7513307b92953188c6966207bf84d104ca0352"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -64409,7 +64472,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_pool.c",
-      "sha256": "91cc467ec035109ac0688d87d9bfcb20d4b227633e9e246af8339c720dd6597a"
+      "sha256": "bb369fb6ac2c8862d3708b95bda7cff2eaf47834decb8036c9e5c71850042de7"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_pause289.h",
@@ -65873,7 +65936,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_requested_abilities.c",
-      "sha256": "222fc7de549869cbeeceafa9037f237f9052267c299e5fd1e46be3fd05512c7f"
+      "sha256": "5ebbdf8148cf9ada9acd50244ebc8b6121e42bfdc34ef2d0fc33b301e7076e21"
     },
     {
       "path": "games/warcraft-3/game.mk",
@@ -66197,7 +66260,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "341c6bcf30f50a8b32ff42a94cff33d027edf62d7e32605592330e2c6fac74df"
+      "sha256": "b94ad28fe5bd086e069b2811aca2e1956f8a254f6b46d15d7a57a7924828ef0f"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -67674,6 +67737,98 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_target371.py",
       "sha256": "8da9331fa299e93cca468a23a4c08389010d6de73586209676d722368c7fb4a1"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-sleep367.md",
+      "sha256": "ce00adb0f086ec022c6bbea39fb4b5d6a1c7d4545c0c7cb4c0a22419e5d1448a"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_sleep.c",
+      "sha256": "6e16a9a0e6a4f03200f3e88d66339c693c1bb4e24d9118b8768db2c556dddb05"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_group367.py",
+      "sha256": "2fd1f5a4029cfdb54a80ee5b3f984ba7cac9540e73f3aa6ea774c28320c540eb"
+    },
+    {
+      "path": "tools/frida/research/group367_factory_make_map.py",
+      "sha256": "f266ade183b2bb5000a508defbc0da229e1769e201e3a2b04583645b97398eb8"
+    },
+    {
+      "path": "tools/frida/research/group367_factory_observer.js",
+      "sha256": "5db7cd97ef1ae259800b816af8bc524593ff49b91099290cf58d3e0d5ef560a4"
+    },
+    {
+      "path": "tools/frida/research/group367_factory_probe.j",
+      "sha256": "830af06ada3e61d267be74ba55fe3e3ab1cb5c74d5117378bd53b12a2a2f985b"
+    },
+    {
+      "path": "tools/frida/research/group367_nested_probe.j",
+      "sha256": "937837cb374c7a3dd393f329bd92e31f46cded97ec7256208027a7fd99df8090"
+    },
+    {
+      "path": "tools/frida/research/group367_nested_typed_observer.js",
+      "sha256": "20415cc004969fddbc976a0cebebaec7f9ea76a79424b73aea7d36c7e3f34e3c"
+    },
+    {
+      "path": "tools/frida/research/group367_observer.js",
+      "sha256": "111d12dab8becd695ee177cebb2f86cc26dc437b5713f864bc40890b525b6592"
+    },
+    {
+      "path": "tools/frida/research/group367_probe.j",
+      "sha256": "bedb92a6de60be1d8cb9527dc2f46dce8dec9ae937c119420d8d62fa9fb88290"
+    },
+    {
+      "path": "tools/frida/research/group367_refresh_canonical_observer.js",
+      "sha256": "85da2cd0e0b74e56fbee2fa265e22c0c00e4bf889617c6f3566fd123b6a6a970"
+    },
+    {
+      "path": "tools/frida/research/group367_refresh_make_map.py",
+      "sha256": "077e01fbffe58ac0a6164a651a56645ae5d7f68584e843cabede25b22453b924"
+    },
+    {
+      "path": "tools/frida/research/group367_refresh_probe.j",
+      "sha256": "8ec199559509093a9aa9f24e8a8c920fa92e27ad1de1ac6e2f115839bfc7d86b"
+    },
+    {
+      "path": "tools/frida/research/group367_sleep_observer.js",
+      "sha256": "a89e7020c10dba253cfd8a78b7063ca5379ff42bcbddf3ee9f79d911569fb785"
+    },
+    {
+      "path": "tools/frida/research/group367_sleep_probe.j",
+      "sha256": "0965967fb91a27fc38551a5dbc77ce1db4b7c295e1c66033adbfefce1302c7f6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group367-1.27.json",
+      "sha256": "4d367e927c696b75139673307636e0f49bf4e35e3e15ca3cb2c611f9ffceb160"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group367-inputs-1.27.json.gz",
+      "sha256": "f34b099a8d3acc32684ea00e71ff667260bc66e7d7f22af4f3874cd4e65dbd4a"
+    },
+    {
+      "path": "tools/ghidra/research/Group367ClockEvidence.java",
+      "sha256": "1365bf14f2ed288cf43b023054faffa4e8390e9cdb3706f166038fa5cf9d1d10"
+    },
+    {
+      "path": "tools/ghidra/research/Group367Evidence.java",
+      "sha256": "65e032ba3ceea014784223ac119ae927ae0c5013caa4c72cb03adbaf4cda3a9b"
+    },
+    {
+      "path": "tools/ghidra/research/Group367SuspensionEvidence.java",
+      "sha256": "6f8db706a0605fc87d9b0489b70e558a4f67709909a9cd5e32f0131a5ed8e957"
+    },
+    {
+      "path": "tools/ghidra/research/group367_freeze.py",
+      "sha256": "ceffd3e4aae518702e19daf1bc2c6ac29278a8b723fa3a6890d7d5fe78f3c44e"
+    },
+    {
+      "path": "tools/ghidra/research/group367_typed.py",
+      "sha256": "cddb090a8309b239287e81fe55151917c4c8c778d69c48f932617989c2c969d9"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_group367.py",
+      "sha256": "4f88659308d0673ff60ca595647dd3d272c0e458e27f7ca4d5ca8f8f250cface"
     }
   ]
 }

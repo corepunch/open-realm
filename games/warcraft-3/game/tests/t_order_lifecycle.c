@@ -2666,4 +2666,230 @@ TEST(wc3_order_lifecycle, creep_guard_soft_leash_times_out_through_scheduler) {
     T_ASSERT(creep_guard_home_distance(creep) <= move_settle_distance(creep));
 }
 
+/* Retail Sleep367: BUsl retains admitted orders under suspension851973;
+ * its initial BUsp blocks damage for DataA without acquiring script Pause. */
+TEST(wc3_order_lifecycle, group367_sleep_initial_pause_damage_and_saved_queued_move) {
+    FOR_LOOP(schema,2)FOR_LOOP(custom,2)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        char text[1600];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;EBB;Y2;X6\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"HeroDur1\"\n"
+            "C;Y1;X5;K\"%s\"\nC;Y1;X6;K\"BuffID1\"\n"
+            "C;Y2;X1;K\"AUsl\"\nC;Y2;X2;K\"AUsl\"\n"
+            "C;Y2;X3;K\"20\"\nC;Y2;X4;K\"5\"\n"
+            "C;Y2;X5;K\"%s\"\nC;Y2;X6;K\"BUsl,BUsp,BUst\"\nE\n",
+            schema ? "DataA1" : "Data11", custom ? "0.375" : "2");
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *caster=review_order_unit(-800,0),*target=review_order_unit(0,1);
+        caster->invulnerable=true;target->health.value=target->health.max_value=420;
+        uint32_t const code=MAKEFOURCC('A','U','s','l'),sleep=MAKEFOURCC('B','U','s','l');
+        uint32_t const pause=MAKEFOURCC('B','U','s','p');
+        T_ASSERT(G_ActorAddSkill(caster,code));
+        T_ASSERT(G_IssueUnitPointOrder(target,"move",&(vec2_t){0,1200},false,1,0));
+        abilityitem_t item=S_AbilityItem(code);
+        spellTarget_t dest={.type=SPELL_TARGET_UNIT,.entity=target};
+        abilityCall_t call={.item=&item,.target=&dest};
+        S_AbilityMessage(caster,A_EXECUTE,&call);
+        T_NOT_NULL(unit_findstatus(target,sleep));
+        heroabilitystatus_t *initial=unit_findstatus(target,pause);
+        T_NOT_NULL(initial);
+        if(initial)T_EQ(initial->timestamp,1000+(custom ? 375 : 2000));
+        T_ASSERT(!target->paused);
+        T_ASSERT(!S_AbilityExecutionDisabled(target,MAKEFOURCC('A','m','o','v')));
+        T_ASSERT(!S_AbilityExecutionDisabled(target,MAKEFOURCC('A','a','t','k')));
+        float const health=target->health.value;
+        T_Damage(target,caster,10);
+        T_FEQ(target->health.value,health,0);
+        T_NOT_NULL(unit_findstatus(target,sleep));
+        T_ASSERT(G_IssueUnitPointOrder(target,"move",&(vec2_t){1200,0},false,1,0));
+        T_EQ(target->current_order_id,851973);
+        if(saved) {
+            uint32_t c=caster->s.number,t=target->s.number;
+            UnitWeapons_t const *weapons=caster->data.UnitWeapons;
+            cstring_t path=Test_TempPath("wc3-sleep367-initial.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            caster=g_edicts+c;target=g_edicts+t;
+            caster->data.UnitWeapons=target->data.UnitWeapons=weapons;
+            T_NOT_NULL(unit_findstatus(target,pause));
+            T_EQ(target->current_order_id,851973);
+        }
+        level.time=1000+(custom ? 376 : 2001);
+        wc3_clock_advance(&level.pathing_clock,custom ? .376f : 2.001f,0);
+        unit_updatestatuses(target);
+        T_NULL(unit_findstatus(target,pause));T_NOT_NULL(unit_findstatus(target,sleep));
+        T_EQ(target->current_order_id,851973);
+        T_Damage(target,caster,10);
+        T_FEQ(target->health.value,health-10,0);
+        /* Native damage queues the buff's end; its public post-damage query
+         * still sees BUsl, and a subsequent simulation boundary resumes Move. */
+        T_NOT_NULL(unit_findstatus(target,sleep));
+        FOR_LOOP(frame,20) {
+            level.time+=5;wc3_clock_advance(&level.pathing_clock,.005f,0);
+            S_RunAbilityTimers();G_RunEntities();
+        }
+        T_NULL(unit_findstatus(target,sleep));
+        T_EQ(target->current_order_id,G_OrderId("move"));
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Sleep367Nested: scripted Pause owns its disables and stops the initial
+ * guard clock, independently of both internal suspension contributions. */
+TEST(wc3_order_lifecycle, group367_sleep_script_pause_composition_and_saved_guard_clock) {
+    FOR_LOOP(schema,2)FOR_LOOP(mode,4)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        char text[1600];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;EBB;Y2;X6\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"HeroDur1\"\n"
+            "C;Y1;X5;K\"%s\"\nC;Y1;X6;K\"BuffID1\"\n"
+            "C;Y2;X1;K\"AUsl\"\nC;Y2;X2;K\"AUsl\"\n"
+            "C;Y2;X3;K\"20\"\nC;Y2;X4;K\"5\"\n"
+            "C;Y2;X5;K\"2\"\nC;Y2;X6;K\"BUsl,BUsp,BUst\"\nE\n",
+            schema ? "DataA1" : "Data11");
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *caster=review_order_unit(-800,0),*target=review_order_unit(0,1);
+        caster->invulnerable=true;target->health.value=target->health.max_value=420;
+        uint32_t const code=MAKEFOURCC('A','U','s','l'),sleep=MAKEFOURCC('B','U','s','l');
+        uint32_t const pause=MAKEFOURCC('B','U','s','p'),move=MAKEFOURCC('A','m','o','v');
+        T_ASSERT(G_ActorAddSkill(caster,code));
+        T_ASSERT(G_IssueUnitPointOrder(target,"move",&(vec2_t){0,1200},false,1,0));
+        if(mode&1)S_SetUnitPaused(target,true);
+        abilityitem_t item=S_AbilityItem(code);
+        spellTarget_t dest={.type=SPELL_TARGET_UNIT,.entity=target};
+        abilityCall_t call={.item=&item,.target=&dest};
+        S_AbilityMessage(caster,A_EXECUTE,&call);
+        T_NOT_NULL(unit_findstatus(target,sleep));T_NOT_NULL(unit_findstatus(target,pause));
+        if(!(mode&1)) {
+            level.time=1100;wc3_clock_advance(&level.pathing_clock,.1f,0);
+            S_SetUnitPaused(target,true);
+        }
+        T_ASSERT(target->paused);T_ASSERT(S_AbilityExecutionDisabled(target,move));
+        T_ASSERT(!G_IssueUnitPointOrder(target,"move",&(vec2_t){1200,0},false,1,0));
+        if(saved) {
+            uint32_t c=caster->s.number,t=target->s.number;
+            UnitWeapons_t const *weapons=caster->data.UnitWeapons;
+            cstring_t path=Test_TempPath("wc3-sleep367-nested.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            caster=g_edicts+c;target=g_edicts+t;
+            caster->data.UnitWeapons=target->data.UnitWeapons=weapons;
+            T_ASSERT(target->paused);T_ASSERT(S_AbilityExecutionDisabled(target,move));
+        }
+        uint32_t elapsed=4000-level.time;level.time=4000;
+        wc3_clock_advance(&level.pathing_clock,elapsed*.001f,0);
+        unit_updatestatuses(target);
+        T_NOT_NULL(unit_findstatus(target,sleep));T_NOT_NULL(unit_findstatus(target,pause));
+        T_Damage(target,caster,10);T_FEQ(target->health.value,420,0);
+        if(mode&2) {
+            heroabilitystatus_t *status=unit_findstatus(target,sleep);
+            if(status)unit_removestatus(target,status,STATUS_REMOVE_SCRIPT);
+            status=unit_findstatus(target,pause);
+            if(status)unit_removestatus(target,status,STATUS_REMOVE_SCRIPT);
+            T_NULL(unit_findstatus(target,sleep));T_NULL(unit_findstatus(target,pause));
+            T_ASSERT(target->paused);T_ASSERT(S_AbilityExecutionDisabled(target,move));
+            T_ASSERT(!G_IssueUnitPointOrder(target,"move",&(vec2_t){1200,0},false,1,0));
+        }
+        S_SetUnitPaused(target,false);
+        T_ASSERT(!target->paused);T_ASSERT(!S_AbilityExecutionDisabled(target,move));
+        if(!(mode&2)) {
+            T_EQ(target->current_order_id,851973);
+            T_ASSERT(G_IssueUnitPointOrder(target,"move",&(vec2_t){1200,0},false,1,0));
+            T_EQ(target->current_order_id,851973);
+            level.time=4500;wc3_clock_advance(&level.pathing_clock,.5f,0);
+            unit_updatestatuses(target);
+            T_NOT_NULL(unit_findstatus(target,pause));T_NOT_NULL(unit_findstatus(target,sleep));
+            T_Damage(target,caster,10);T_FEQ(target->health.value,420,0);
+            level.time=6500;wc3_clock_advance(&level.pathing_clock,2,0);
+            unit_updatestatuses(target);
+            T_NULL(unit_findstatus(target,pause));T_NOT_NULL(unit_findstatus(target,sleep));
+            T_Damage(target,caster,10);T_FEQ(target->health.value,410,0);
+            T_NOT_NULL(unit_findstatus(target,sleep));
+        }
+        FOR_LOOP(frame,20) {
+            level.time+=5;wc3_clock_advance(&level.pathing_clock,.005f,0);
+            S_RunAbilityTimers();G_RunEntities();
+        }
+        T_NULL(unit_findstatus(target,sleep));
+        T_EQ(target->current_order_id,G_OrderId("move"));
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Native Refresh367 scene3: positive refresh rearms main Sleep even while
+ * its clock-pause contribution remains positive; the new guard stays frozen. */
+TEST(wc3_order_lifecycle, group367_sleep_paused_refresh_keeps_owner_and_rearms_primary) {
+    FOR_LOOP(schema,2)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        char text[1600];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;EBB;Y2;X6\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"HeroDur1\"\n"
+            "C;Y1;X5;K\"%s\"\nC;Y1;X6;K\"BuffID1\"\n"
+            "C;Y2;X1;K\"AUsl\"\nC;Y2;X2;K\"AUsl\"\n"
+            "C;Y2;X3;K\"3\"\nC;Y2;X4;K\"3\"\n"
+            "C;Y2;X5;K\"2\"\nC;Y2;X6;K\"BUsl,BUsp,BUst\"\nE\n",
+            schema ? "DataA1" : "Data11");
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *caster=review_order_unit(-800,0),*second=review_order_unit(-600,0);
+        edict_t *target=review_order_unit(0,1);
+        caster->invulnerable=second->invulnerable=true;
+        uint32_t const code=MAKEFOURCC('A','U','s','l'),sleep=MAKEFOURCC('B','U','s','l');
+        uint32_t const pause=MAKEFOURCC('B','U','s','p');
+        T_ASSERT(G_ActorAddSkill(caster,code));T_ASSERT(G_ActorAddSkill(second,code));
+        T_ASSERT(G_IssueUnitPointOrder(target,"move",&(vec2_t){0,1200},false,1,0));
+        S_SetUnitPaused(target,true);
+        abilityitem_t item=S_AbilityItem(code);
+        spellTarget_t dest={.type=SPELL_TARGET_UNIT,.entity=target};
+        abilityCall_t call={.item=&item,.target=&dest};
+        S_AbilityMessage(caster,A_EXECUTE,&call);
+        heroabilitystatus_t *main=unit_findstatus(target,sleep),*initial=unit_findstatus(target,pause);
+        T_NOT_NULL(main);T_NOT_NULL(initial);
+        uint32_t instance=main ? main->instance_id : 0;
+        if(initial)unit_removestatus(target,initial,STATUS_REMOVE_SCRIPT);
+        T_NULL(unit_findstatus(target,pause));T_NOT_NULL(unit_findstatus(target,sleep));
+        level.time+=2000;wc3_clock_advance(&level.pathing_clock,2,0);S_RunAbilityTimers();
+        wc3Clock_t now=G_TimerQueryClock(NULL);
+        S_AbilityMessage(second,A_EXECUTE,&call);
+        main=unit_findstatus(target,sleep);
+        T_NOT_NULL(main);T_NOT_NULL(unit_findstatus(target,pause));
+        if(main)T_EQ(main->instance_id,instance);
+        abilityTimerRequest_t request={0};abilityCall_t query={.primary_timer=&request};
+        bool ready=CAbilitySleepOwner(NULL,A_PRIMARY_TIMER_NEXT,&query)!=0;
+        T_ASSERT(ready);
+        if(ready)T_FEQ(request.deadline.time,wc3_add(now.time,3),0);
+        T_ASSERT(target->paused);T_EQ(target->current_order_id,851973);
+        if(saved) {
+            uint32_t t=target->s.number;
+            UnitWeapons_t const *weapons=target->data.UnitWeapons;
+            cstring_t path=Test_TempPath("wc3-sleep367-refresh.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            target=g_edicts+t;target->data.UnitWeapons=weapons;
+            T_ASSERT(target->paused);T_NOT_NULL(unit_findstatus(target,sleep));
+        }
+        level.time+=3100;wc3_clock_advance(&level.pathing_clock,3.1f,0);S_RunAbilityTimers();
+        unit_updatestatuses(target);
+        T_NULL(unit_findstatus(target,sleep));T_NOT_NULL(unit_findstatus(target,pause));
+        T_EQ(target->movement.internal_suspend_depth,1);
+        T_ASSERT(target->paused);T_EQ(target->current_order_id,851973);
+        level.time+=900;wc3_clock_advance(&level.pathing_clock,.9f,0);
+        S_SetUnitPaused(target,false);
+        level.time+=2100;wc3_clock_advance(&level.pathing_clock,2.1f,0);S_RunAbilityTimers();
+        unit_updatestatuses(target);
+        T_NULL(unit_findstatus(target,sleep));T_NULL(unit_findstatus(target,pause));
+        FOR_LOOP(frame,20) {
+            level.time+=5;wc3_clock_advance(&level.pathing_clock,.005f,0);
+            S_RunAbilityTimers();G_RunEntities();
+        }
+        T_EQ(target->current_order_id,G_OrderId("move"));
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif
