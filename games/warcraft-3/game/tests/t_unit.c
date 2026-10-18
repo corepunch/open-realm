@@ -4073,4 +4073,113 @@ TEST(wc3_unit, burrow366_early_detach_completes_forward_then_releases_subtype) {
     }
 }
 
+/* Morph372: public Submerge/Apiv original and observer-free control match. */
+TEST(wc3_unit, morph372_submerge_suspends_passive_until_reverse_completion) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned saved=0;saved<3;saved++)for(unsigned family=0;family<3;family++)for(unsigned mode=0;mode<3;mode++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char const *families[]={"Asb1","Asb2","Asb3"};
+        char text[1800];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ms72\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.625\nE\n",schema ? "Data11" : "DataA1",families[family]);
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey("Ms72"),apiv=FS_SLKKey("Apiv");
+        uint8_t water[]={CM_PATHING_UNWALKABLE};CM_SetupTestPathmap(1,1,water);
+        edict_t *unit=alloc_test_unit(FS_SLKKey(mode==2 ? "hfoo" : "hpea"),.5f,.5f);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        if(mode==0) {T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(G_ActorSetSkillPermanent(unit,apiv,true));T_ASSERT(unit->permanent_invisibility_fade.request.active);}
+        if(mode==0) {morph330_advance(1.75f);T_ASSERT(S_PermanentInvisibilityActive(unit));}
+        level.pathing_clock.time=2;
+        if(mode!=2) {T_ASSERT(unit_issueimmediateorder(unit,"submerge"));morph330_advance(2.375f);}
+        else {T_ASSERT(S_UnitIsSubmerged(unit));morph330_advance(2.375f);}
+        if(mode!=0) {T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(G_ActorSetSkillPermanent(unit,apiv,true));}
+        T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        T_ASSERT(!S_PermanentInvisibilityActive(unit));T_ASSERT(S_UnitIsSubmerged(unit));T_ASSERT(S_UnitHasInvisibilityState(unit));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,code));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','m','o','v')));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')));
+        uint32_t slot=unit-g_edicts;
+        if(saved==1) {cstring_t path=Test_TempPath("morph372-passive.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));T_ASSERT(!unit->permanent_invisibility_fade.request.active);}
+        level.pathing_clock.time=3;T_ASSERT(unit_issueimmediateorder(unit,"unsubmerge"));
+        T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+        if(saved==2) {
+            morph330_advance(3.125f);
+            cstring_t path=Test_TempPath("morph372-reverse.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;
+            T_ASSERT(unit->morph && unit->morph->transition.active && unit->morph->reverse);
+            T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+            T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        }
+        morph330_advance(3.374f);T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+        morph330_advance(3.375f);T_ASSERT(!S_AbilityExecutionDisabled(unit,apiv));
+        T_ASSERT(unit->permanent_invisibility_fade.request.active);T_FEQ(unit->permanent_invisibility_fade.origin.time,3.375f,.000001f);
+        morph330_advance(4.05f);T_ASSERT(S_PermanentInvisibilityActive(unit));
+        T_ASSERT(G_ActorRemoveSkill(unit,apiv));T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+
+/* Morph372: detach must retire the same active-form suspension source. */
+TEST(wc3_unit, morph372_submerge_detach_releases_passive_owner) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned saved=0;saved<2;saved++)for(unsigned family=0;family<3;family++)for(unsigned pending=0;pending<4;pending++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char const *families[]={"Asb1","Asb2","Asb3"};
+        char text[1800];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Ms72\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\n"
+            "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.625\nE\n",schema ? "Data11" : "DataA1",families[family]);
+        slkTestData_t *timing=parse_slk_string(text);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey("Ms72"),apiv=FS_SLKKey("Apiv");
+        uint8_t water[]={CM_PATHING_UNWALKABLE};CM_SetupTestPathmap(1,1,water);
+        edict_t *unit=alloc_test_unit(FS_SLKKey(pending==3 ? "hfoo" : "hpea"),.5f,.5f);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(G_ActorSetSkillPermanent(unit,apiv,true));
+        if(pending!=3) {
+            morph330_advance(1.75f);T_ASSERT(S_PermanentInvisibilityActive(unit));
+            level.pathing_clock.time=2;T_ASSERT(unit_issueimmediateorder(unit,"submerge"));
+        }
+        morph330_advance(pending==1 ? 2.125f : 2.375f);
+        if(pending==1) {
+            T_ASSERT(unit->morph && unit->morph->transition.active);
+            T_ASSERT(!S_AbilityExecutionDisabled(unit,apiv));
+        } else {
+            T_ASSERT(S_UnitIsSubmerged(unit));
+            T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+            T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        }
+        if(pending==2) {
+            level.pathing_clock.time=2.5f;T_ASSERT(unit_issueimmediateorder(unit,"unsubmerge"));
+            morph330_advance(2.625f);T_ASSERT(unit->morph->transition.active && unit->morph->reverse);
+            T_ASSERT(!S_UnitIsSubmerged(unit));T_ASSERT(S_AbilityExecutionDisabled(unit,apiv));
+        }
+        uint32_t slot=unit-g_edicts;
+        if(saved) {cstring_t path=Test_TempPath("morph372-detach.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;}
+        float detached_at=pending==1 ? 2.125f : pending==2 ? 2.625f : 3.0f;level.pathing_clock.time=detached_at;
+        T_ASSERT(G_ActorRemoveSkill(unit,code));T_ASSERT(!G_ActorHasAbilityCode(unit,code));
+        T_EQ(unit->class_id,FS_SLKKey("hpea"));
+        T_ASSERT(!unit->morph || !unit->morph->transition.active);
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_ASSERT(!S_UnitIsSubmerged(unit));T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,apiv));
+        T_ASSERT(unit->permanent_invisibility_fade.request.active);
+        T_FEQ(unit->permanent_invisibility_fade.origin.time,detached_at,.000001f);
+        /* Removing and reattaching the passive must not inherit a leaked
+         * whole-unit contribution after its Morph owner has detached. */
+        T_ASSERT(G_ActorRemoveSkill(unit,apiv));T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        T_ASSERT(G_ActorAddSkill(unit,apiv));T_ASSERT(G_ActorSetSkillPermanent(unit,apiv,true));
+        T_ASSERT(!S_AbilityExecutionDisabled(unit,apiv));
+        T_ASSERT(unit->permanent_invisibility_fade.request.active);
+        morph330_advance(detached_at+.75f);T_ASSERT(S_PermanentInvisibilityActive(unit));
+        T_ASSERT(G_ActorRemoveSkill(unit,apiv));T_ASSERT(!S_UnitHasInvisibilityState(unit));
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
 #endif /* BZ_TESTS */

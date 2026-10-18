@@ -3,6 +3,9 @@
 [Contract, current ledger and reproduction](retail-pathfinding.md).
 Retail **1.27.1.7085** only; addresses and report paths use the conventions there.
 
+[Submerge passive availability](submerge-passive-availability.md) documents the
+Morph372 owner lifecycle, failing-first cases and strict native projection.
+
 ## Separation update anchor
 
 The owner update `6f15aa80` rotates a parity counter at `+0x53c` and visits every

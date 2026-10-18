@@ -316,7 +316,8 @@
     "oracle-captain368-clear",
     "oracle-captain369-selection",
     "oracle-target371",
-    "oracle-group367"
+    "oracle-group367",
+    "oracle-morph372"
   ],
   "entries": [
     {
@@ -7111,6 +7112,32 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "Concrete producers and wider guards remain in the original GROUP-03.2 leaf; these accepted Sleep scenes do not establish global unreachability or full trajectories."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-morph372",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Mount reachability, other common Morph producers and counted-owner compositions remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Submerge availability does not close the existing Mount/common Morph composition leaf or extend the documented evidence limits."
+        },
+        {
+          "index": 1,
+          "text": "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Submerge availability does not close the existing Mount/common Morph composition leaf or extend the documented evidence limits."
+        },
+        {
+          "index": 2,
+          "text": "Two pre-start system exception rows outside game.dll are retained literally; cause and OS-fault unreachability are not established.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Submerge availability does not close the existing Mount/common Morph composition leaf or extend the documented evidence limits."
         }
       ]
     }

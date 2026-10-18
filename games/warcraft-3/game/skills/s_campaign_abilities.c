@@ -189,6 +189,9 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
         if(ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged &&
            (!ent->morph || ent->morph->code!=code)) {
             CAbilityGroundMorph(ent,A_UNIT_INIT,call);
+            /* Own the active-form suspension before publishing hidden state.
+             * Runtime attachment inherits this aggregate after A_ENABLE. */
+            S_SetMorphAbilityDisables(ent,code,true);
             submerge_publish(ent,code,true);
         }
         return true;
@@ -226,14 +229,29 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
         return code && submerge_validate(ent, code);
     case A_EXECUTE:
         return code && submerge_execute(ent, call);
-    case A_MORPH_COMPLETE:
-        submerge_publish(ent,code,!call->enabled && G_ActorHasAbilityCode(ent,code));
+    case A_MORPH_COMPLETE: {
+        bool hidden=!call->enabled && G_ActorHasAbilityCode(ent,code);
+        /* Detach has already removed membership when it forces completion;
+         * acquire its forward source so the immediate inverse also resumes passives. */
+        if(!call->enabled)S_SetMorphAbilityDisables(ent,code,true);
+        submerge_publish(ent,code,hidden);
+        /* Reverse admission removed the subtype source, but the passive
+         * remains suspended until this authored reverse completion. */
+        if(call->enabled)S_SetMorphAbilityDisables(ent,code,false);
         return CAbilityGroundMorph(ent,msg,call);
+    }
     case A_MORPH_EXPIRE:
         return code && submerge_execute(ent,call);
-    case A_DISABLE:
+    case A_DISABLE: {
+        uint32_t normal,submerged;
+        /* A pending forward completion can acquire the form owner. Finish
+         * it before testing the alternate-type detach inverse. */
+        S_CompleteMorphDetachTransition(ent,code);
+        if(ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged)
+            S_SetMorphAbilityDisables(ent,code,false);
         if(ent && S_UnitIsSubmerged(ent))submerge_publish(ent,code,false);
         return CAbilityGroundMorph(ent,msg,call);
+    }
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }

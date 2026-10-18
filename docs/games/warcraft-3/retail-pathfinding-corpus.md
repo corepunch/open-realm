@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Sleep367, the inventory has **595 entries**: **314** oracle contracts
-(including variants) supplied by **242** distinct verifier scripts, **121**
+As of Morph372, the inventory has **596 entries**: **315** oracle contracts
+(including variants) supplied by **243** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2427,3 +2427,9 @@ Sleep367 adds five repeat/control experiments with332 public markers and622
 projected records, including separate internal owners and paused positive refresh.
 The strict engine gate passes3 tests/640 assertions per edition. Existing
 GROUP-03.2 retains concrete Stun/SleepStun producers and wider guards.
+
+Morph372 registers Submerge passive suspension through reverse completion and detach,
+with initially alternate/late attachment and in-process transition save/load.
+Strict acceptance: classic: 26 tests/7250 assertions; tft: 26 tests/7250 assertions. Two pre-start system exceptions remain
+literal in the complete projection; Mount/common Morph compositions stay in SEP-01.2.
+[Contract and evidence](submerge-passive-availability.md).

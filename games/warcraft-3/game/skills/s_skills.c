@@ -2085,7 +2085,10 @@ bool S_UnitOrderDisabled(edict_t const *ent,cstring_t order) {
     ability_t const *owner=FindAbilityByOrder(order);
     for(unitAbilityDisable_t const *state=ent->ability_disables;state;state=state->next) {
         abilityitem_t item=S_AbilityItem(state->code);
-        if(!owner || !item.ability || item.ability->proc!=owner->proc)continue;
+        /* Submerge's concrete families share one order table but have distinct
+         * procedures. Their attached counters must admit the same reverse order. */
+        if(!owner || !item.ability || (item.ability->proc!=owner->proc &&
+           (!owner->orders || item.ability->orders!=owner->orders)))continue;
         if(state->order_depth<=0 && state->depth<=0)return false;
     }
     /* Unmapped validators keep conservative admission until their concrete

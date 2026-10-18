@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "314 executable original/evidence contracts;595 total entries; provenance and limitations remain per-entry.",
+  "scope": "315 executable original/evidence contracts;596 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56698,6 +56698,69 @@
         "Stock attachment rejection does not prove custom-data or factory unreachability.",
         "No full-frame, arbitrary trajectory or retail-save parity claim."
       ]
+    },
+    {
+      "id": "oracle-morph372",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_morph372.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "morph372.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 Submerge active-form passive availability, initially alternate/late attachment, reverse-completion and detach; in-process live-transition save/load.",
+      "checks": {
+        "instructions": {
+          "equal": 1474
+        },
+        "captures": {
+          "equal": 3
+        },
+        "scenes": {
+          "equal": 5
+        },
+        "public_markers": {
+          "equal": 311
+        },
+        "native_events": {
+          "equal": 449
+        },
+        "recorded_system_exceptions": {
+          "equal": 2
+        },
+        "projected_events": {
+          "equal": 762
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 26,
+              "assertions": 7250
+            },
+            "tft": {
+              "tests": 26,
+              "assertions": 7250
+            }
+          }
+        }
+      },
+      "exclusions": [
+        "Mount reachability, other common Morph producers and counted-owner compositions remain within existing SEP-01.2.",
+        "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
+        "Two pre-start system exception rows outside game.dll are retained literally; cause and OS-fault unreachability are not established."
+      ]
     }
   ],
   "fixtures": [
@@ -57596,7 +57659,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "b013af86ba6ad83f69e8944114fa3fafea170064b56cfcf1b530f9122f9691bd"
+      "sha256": "538e17e63f10d7e9c90799c6c871c04a678343eec3b1d4cbd4fda892b0145c85"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59388,7 +59451,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "0718f360f33ab359ed2a7ec5c990b2c64c9c5c1982d9772a05ac80b2c2ea6dbf"
+      "sha256": "fc6fc93778e146ad8d2f1be1dcb7f398d728158f85f5f5275dd21bfb0802952d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59404,7 +59467,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "4d309485ee114d488a85571c90a101b4823826520ab6c700b4337c8c7eb0feb2"
+      "sha256": "e757733c2820e299cb73f883020ba6e3d896f7e3a246e41fc6b3348d29f5dd02"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59416,7 +59479,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "d3a8f4f3ece46a46dd576f57fb53d9e89707c13fe1a78f8350af96827ce2abba"
+      "sha256": "fd266509f0acf13b85384dfaa086446321e65cb92d92cf858c429478c8f61df3"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -60840,7 +60903,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "2a9b5fbcee3bb4117af9c312c4fbbb341404ce9160d7138c97612b8cc7f808eb"
+      "sha256": "72e8c0122d2a6ade16bd5b34891b57efa8883daadad302424ffeab50528bc326"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -64404,7 +64467,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "60fc6badf21dde8fbd5d814d1f7513307b92953188c6966207bf84d104ca0352"
+      "sha256": "01cd44a5c63341fcb46fb9f971f5cb5902bc2bfca209ca4f43b36ea765a6a159"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -66260,7 +66323,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "b94ad28fe5bd086e069b2811aca2e1956f8a254f6b46d15d7a57a7924828ef0f"
+      "sha256": "1b9d0ab3b5b517b258f80022ea01cb883d6c8b4ca3238d662373dd90cd02413f"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -67829,6 +67892,46 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_group367.py",
       "sha256": "4f88659308d0673ff60ca595647dd3d272c0e458e27f7ca4d5ca8f8f250cface"
+    },
+    {
+      "path": "docs/games/warcraft-3/submerge-passive-availability.md",
+      "sha256": "50d15a24096c17a65c5c6138b53cb7148f3cbe5522636cfbd48ae4be4d7e5d8e"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_campaign_abilities.c",
+      "sha256": "4e72aa0da7782de1de28ea18e3839216014fa8530f84892a3ee17b381edfbe05"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_morph372.py",
+      "sha256": "a1b763972209708e82462ffea1f454dcfcddbf17d0d366c9d9117a0eb4b72e20"
+    },
+    {
+      "path": "tools/frida/research/morph372_make_map.py",
+      "sha256": "25a758ee67e0232b2580ca1091fc7993b63da6876668ca48a0e5959e431d061e"
+    },
+    {
+      "path": "tools/frida/research/morph372_observer.js",
+      "sha256": "621709d97285fda8ed89ca659ff208a611dd1be7e308c20c81ae625cc6273d4d"
+    },
+    {
+      "path": "tools/frida/research/morph372_probe.j",
+      "sha256": "0e35c04fc26504f1bb4c11297e597cb3e8f3d3d85bfd4db58484cefd586afb9f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-morph372-1.27.json",
+      "sha256": "2076b7ba10456b9d470de997cc21bcf906617a257253ebbb71bff8d6600c6f1b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-morph372-inputs-1.27.json.gz",
+      "sha256": "a74cc258f85ccd908ca1ad2215228c82ebee313dcf51210bfcd95b69cd928899"
+    },
+    {
+      "path": "tools/ghidra/research/morph372_freeze.py",
+      "sha256": "b3c470d703c5891920c812a892c7e499aaeea0510db08532cb79177e0d23a85c"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_morph372.py",
+      "sha256": "ff628749c4a7cee27bdc32970fff6542508ce27b47a7c2c7b55d4b9edb35cb29"
     }
   ]
 }
