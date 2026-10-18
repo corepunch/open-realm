@@ -178,3 +178,54 @@ The bounded local capture restores the circular sun. This same path also renders
 parented Night Elf eye and pendant glows; those require child-hierarchy coverage
 in addition to the root-bone sun case. Fog is independently owned by campaign
 menu data; see the campaign fog section when comparing background contrast.
+
+## Parented eye and pendant billboards (issue 641)
+
+The RoC model `UI/Glues/SinglePlayer/NightElfCampaign3D/NightElfCampaign3D.mdx`
+already authors both reported effects; no generated artwork or replacement material
+is needed. Relevant zero-based records in the locally inspected `War3.mpq`:
+
+| Material | Texture | Filter / alpha | Layer flags | Nodes |
+|---|---|---|---|---|
+| 15 | campaign `MoonCrescentGlow.blp` | Additive / 0.45 | `0x31` | non-billboard 261, 285 |
+| 16 | `Textures/lensflare1Ax.blp` | Additive / 0.7 | `0x31` | billboard 262, parent necklace 261 |
+| 17 | campaign `NightElfFemaleEyeGlow1.blp` | Additive / 0.3 | `0x21` | billboards 265, 266, 275, 276, parent Head 264 |
+
+`0x21` means Unshaded + Unfogged; `0x31` also adds TwoSided. These flags do not
+mean NoDepthTest (`0x40`). Eye nodes and pendant flare have no local animation
+tracks; their animated parent transforms determine their positions. Billboard
+orientation cancels inherited rotation while retaining the parent's transformed
+pivot, then faces the active camera. The eye ancestry is Root 462 → SpineLow 136 →
+SpineUp 137 → Neck 263 → Head 264. Those ancestors have rotation tracks and no
+scale tracks. The pendant's ChestR 200 ancestor also has small uniform breathing
+scale. Scale/shear cannot explain missing eyes in this asset.
+
+The missing glows share issue 640's fixed `{30,0,90}` billboard camera root cause.
+The camera-basis fix restores the eyes and pendant flare together; separate
+material/alpha changes would mask that cause. Issue 641 additionally fixes parent
+rotation extraction: normalize the inherited matrix axes before converting them
+to a quaternion. Parent scale otherwise skews the cancellation rotation, including
+the pendant's authored breathing scale. This preserves inherited size and the
+animated pivot; only the rotation used to cancel inherited orientation changes.
+
+`renderer_model.mdx_parented_eye_and_pendant_billboards_face_camera_without_losing_animated_pivots`
+drives `MDLX_BindBoneMatrices` with a rotating parent, two offset billboard children,
+nonzero entity rotation/translation, three animation poses, two camera rolls and
+parent scales 1, 1.01 (stock-shaped) and 2.3 (non-stock). It checks all three world axes and transformed pivots, then clears a child's
+billboard flag to verify normal parent-animation inheritance. On pre-fix main,
+36 facing-axis assertions failed while pivot preservation passed. With the shared
+camera-basis fix, the extended scaled-parent cases still failed 72 facing-axis
+assertions. All 340 assertions pass after normalizing the parent rotation axes.
+The fixture contains no retail assets.
+
+```sh
+make test-renderer-model test-renderer-shadows
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 \
+  +menu_game +menu_single_player_campaign_night_elf \
+  +screenshot 100 +com_frame_limit 120
+```
+
+The bounded local RoC framebuffer capture made during the shared billboard fix
+confirmed both glowing eyes and the pendant flare. These are animation-phase
+comparisons, not pixel-identical retail goldens. Network and save formats are
+unchanged.

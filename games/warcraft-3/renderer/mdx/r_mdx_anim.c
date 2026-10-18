@@ -333,7 +333,11 @@ mat4_t const *R_GetNodeGlobalMatrix(mdxModel_t const *model, mat4_t const *model
                 if (!parent_matrix) {
                     return NULL;
                 }
-                quaternion_t tmprot = Quaternion_fromMatrix(parent_matrix);
+                /* Parent animation may include breathing scale. Extract rotation from unit axes;
+                 * scaled columns skewed billboard cancellation even with the correct camera. */
+                mat4_t rotation = *parent_matrix;
+                FOR_LOOP(i, 3) Vector3_normalize((vec3_t *)rotation.m[i]);
+                quaternion_t tmprot = Quaternion_fromMatrix(&rotation);
                 tmprot = Quaternion_unm(&tmprot);
                 Matrix4_from_rotation_origin(&tmp1, &tmprot, &tmppvt);
                 Matrix4_multiply(&tmp1, global_matrix, &tmp2);

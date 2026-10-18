@@ -1316,6 +1316,81 @@ TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
     T_ASSERT(!MDLX_EventObjectId(&event, "SND", id, sizeof(id)));
 }
 
+TEST(renderer_model, mdx_parented_eye_and_pendant_billboards_face_camera_without_losing_animated_pivots) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(quaternion_t))] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = {100, 1001} };
+    uint8_t scales[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    mdxKeyTrack_t *scale = (mdxKeyTrack_t *)scales;
+    mdxNode_t parent = { .node_id = 0, .parent_id = UINT32_MAX, .rotation = track, .scale = scale };
+    mdxNode_t eyes = { .node_id = 1, .parent_id = 0, .flags = MDLXNODE_Billboarded };
+    mdxNode_t charm = { .node_id = 2, .parent_id = 0, .flags = MDLXNODE_Billboarded };
+    vec3_t pivots[] = {{1, 2, 3}, {3, 5, 7}, {4, 1, 2}};
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1, .pivots = pivots, .num_pivots = 3 };
+    mat4_t entity, proj, view, world;
+    viewDef_t saved = tr.viewDef;
+    uint32_t stride = sizeof(int) + sizeof(quaternion_t);
+
+    track->keyframeCount = 2; track->datatype = TDATA_FLOAT4;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * stride);
+        quaternion_t rot = Quaternion_fromEuler(&(vec3_t){i ? 31 : -19, i ? 12 : 7, i ? 41 : -23}, ROTATE_XYZ);
+        key->time = i ? 900 : 100; memcpy(key->data, &rot, sizeof(rot));
+    }
+    model.nodes[0] = model.node_list[0] = &parent;
+    model.nodes[1] = model.node_list[1] = &eyes;
+    model.nodes[2] = model.node_list[2] = &charm; model.num_nodes = 3;
+    Matrix4_identity(&entity); Matrix4_rotate(&entity, &(vec3_t){0, 0, 17}, ROTATE_XYZ);
+    Matrix4_translate(&entity, &(vec3_t){3, 4, 5});
+    Matrix4_perspective(&proj, 45, 1.7f, 1, 1000);
+    scale->keyframeCount = 1; scale->datatype = TDATA_FLOAT3;
+    scale->linetype = TRACK_NO_INTERP; scale->globalSeqId = UINT32_MAX;
+    ((mdxKeyFrame_t *)scale->values)->time = 100;
+    float factors[] = {1, 1.01f, 2.3f};
+    FOR_LOOP(scl, 3) {
+        vec3_t factor = {factors[scl], factors[scl], factors[scl]};
+        memcpy(((mdxKeyFrame_t *)scale->values)->data, &factor, sizeof(factor));
+        FOR_LOOP(cam, 2) {
+            vec3_t dir = {-1, -0.2f, -0.3f}, up = cam ? (vec3_t){0, 1, 1} : (vec3_t){0, 0, 1};
+            vec3_t front, right;
+            Vector3_normalize(&dir); front = Vector3_unm(&dir);
+            right = Vector3_cross(&up, &front); Vector3_normalize(&right);
+            up = Vector3_cross(&front, &right); Vector3_normalize(&up);
+            Matrix4_lookAt(&view, &(vec3_t){10, 20, 30}, &dir, &up);
+            Matrix4_multiply(&proj, &view, &tr.viewDef.viewProjectionMatrix);
+            FOR_LOOP(pose, 3) {
+                uint32_t time = 100 + pose * 400;
+                MDLX_BindBoneMatrices(&model, &entity, time, time);
+                FOR_LOOP(child, 2) {
+                    uint32_t id = child + 1;
+                    vec3_t pivot = Matrix4_multiply_vector3(&node_matrices[0], &pivots[id]);
+                    vec3_t expect = Matrix4_multiply_vector3(&entity, &pivot), actual;
+                    Matrix4_multiply(&entity, &node_matrices[id], &world);
+                    actual = Matrix4_multiply_vector3(&world, &pivots[id]);
+                    T_FEQ(actual.x, expect.x, 0.001f); T_FEQ(actual.y, expect.y, 0.001f);
+                    T_FEQ(actual.z, expect.z, 0.001f);
+                    vec3_t normal = {world.v[0], world.v[1], world.v[2]};
+                    vec3_t width = {world.v[4], world.v[5], world.v[6]};
+                    vec3_t height = {world.v[8], world.v[9], world.v[10]};
+                    T_FEQ(Vector3_len(&normal), factors[scl], 0.001f);
+                    T_FEQ(Vector3_len(&width), factors[scl], 0.001f);
+                    T_FEQ(Vector3_len(&height), factors[scl], 0.001f);
+                    Vector3_normalize(&normal); Vector3_normalize(&width); Vector3_normalize(&height);
+                    T_FEQ(Vector3_distance(&normal, &front), 0, 0.0001f);
+                    T_FEQ(Vector3_distance(&width, &right), 0, 0.0001f);
+                    T_FEQ(Vector3_distance(&height, &up), 0, 0.0001f);
+                }
+            }
+        }
+    }
+    /* The unflagged sibling still follows parent animation rather than facing the camera. */
+    eyes.flags = 0;
+    MDLX_BindBoneMatrices(&model, &entity, 500, 500);
+    FOR_LOOP(i, 16) T_FEQ(node_matrices[1].v[i], node_matrices[0].v[i], 0.001f);
+    tr.viewDef = saved;
+}
+
 TEST(renderer_model, mdx_event_world_transform_uses_event_pivot) {
     mdxEvent_t event = { 0 };
     vec3_t pivots[] = { { 4.0f, 5.0f, 6.0f } };
