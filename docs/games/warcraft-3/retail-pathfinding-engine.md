@@ -21797,3 +21797,36 @@ each fix. Nine completed retail captures preserve2,209 native events and162
 public markers, with808 whole-function instruction guards and a complete724
 primary-CAbility-vtable inventory. Ghidra is saved and readback matches. Other
 concrete Stun/SleepStun producers and acquisition guards remain GROUP-03.2.
+
+### Captain376: preserve the complete authored target-token mask
+
+The native parser `6a9350` compares whole case-insensitive tokens against51
+rows at `ce61b8..ce6348`, ORing the corresponding uint32 words. The engine's
+previous parser recognized mostly low category bits, silently dropping aliases,
+relationship and constraint groups. `ParseWeaponTargetMask` now retains the
+complete original table; existing numeric input and separators remain supported.
+`_` yields raw `fdd1f00e`; parsing does not apply the separate query-default
+expansion in `6a9ef0`. In particular, nonsapper/sapper are `10000000/20000000`
+and nonancient/ancient are `40000000/80000000`.
+
+The real typed `UnitWeapons` SLK regression loads all51 tokens through
+`G_SetSLKRows`, checking both attack masks. On672e25 it fails91 of153 assertions
+in each edition, with all row-count/setup checks passing. The table-driven fix
+passes all102 SLK tests/3008 assertions per edition. Native table/string bytes
+and63 complete parser-instruction guards are retained in
+`retail-target-tokens-1.27.json`; the new verifier checks them against the pinned
+DLL and checks both engine/test literal tables. Mutation tests reject changed
+masks, missing instructions and changed instruction bytes.
+
+This implements the authored-data part of existing `GROUP-03.4.7.3`.
+Its broader selector, recipient facts, record lifetime and runtime producer
+remain open; parser coverage does not establish their parity. Save215 and the
+network protocol are unchanged.
+
+Frozen checkpoint: `make test TEST_JOBS=16` passes9812 native tests/40396873
+assertions in34 JUnit reports and2789 Python tests; all4880 frozen source
+inputs are unchanged. The checkpoint covers672e25 plus the parser/test source;
+subsequent evidence/manifest changes are verified separately by their focused
+Python suites. Frozen output: `captain376-mask216/full-checkpoint.json` under
+the analysis runtime root, log SHA256
+`82078e3149935ea9ef3a0ef2d2dc2a053196ea01f6ad628dc43479c750b8af6c`.

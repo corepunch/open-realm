@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Waygate377, the inventory has **604 entries**: **323** oracle contracts
-(including variants) supplied by **251** distinct verifier scripts, **121**
+As of the raw target-token parser, the inventory has **605 entries**: **324** oracle contracts
+(including variants) supplied by **252** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2471,3 +2471,12 @@ Mount, remaining concrete producers and compositions stay in SEP-01.2.
 Waygate377 registers ordinary Warp-target entrance/cached-exit Move tasks and checked physical continuation. Strict acceptance: classic: 39 tests/229803 assertions; tft: 39 tests/229803 assertions.
 Original guards: 2345; controlled public markers: 1333.
 Destination quantization and wider producers remain in existing TARGET-01.2.
+
+### Raw target-token parser (Captain376)
+
+`oracle-target-tokens` is a **static** contract: all51 original token/mask
+pairs at `ce61b8..ce6348` and63 complete instructions in parser `6a9350`.
+The engine parses the same aliases and high constraint bits, including `_`'s
+raw `fdd1f00e` default. This entry does not certify the broader Captain selector.
+Run `python3 tools/ghidra/verify_wc3_pathing_target_tokens.py --binary /path/to/game.dll`;
+its portable evidence is `fixtures/retail-target-tokens-1.27.json` beside the verifier.

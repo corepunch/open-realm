@@ -823,6 +823,60 @@ static slkField_t const upgrade_schema[] = {
 
 
 static uint32_t ParseWeaponTargetMask(cstring_t text) {
+    /* Original ce61b8..ce6348 target-token table, before default expansion. */
+    static struct {cstring_t name;uint32_t bits;} const tokens[]={
+        {"air",0x4u},
+        {"aliv",0x1000000u},
+        {"alive",0x1000000u},
+        {"alli",0x4000u},
+        {"allies",0x4000u},
+        {"ally",0x4000u},
+        {"ancient",0x80000000u},
+        {"bridge",0x400u},
+        {"dead",0x2000000u},
+        {"deco",0x200u},
+        {"decoration",0x200u},
+        {"debr",0x100u},
+        {"debris",0x100u},
+        {"enem",0x10000u},
+        {"enemies",0x10000u},
+        {"enemy",0x10000u},
+        {"grou",0x2u},
+        {"ground",0x2u},
+        {"frie",0x6000u},
+        {"friend",0x6000u},
+        {"hero",0x400000u},
+        {"invu",0x200000u},
+        {"invulnerable",0x200000u},
+        {"item",0x20u},
+        {"mech",0x8000000u},
+        {"mechanical",0x8000000u},
+        {"neut",0x8000u},
+        {"neutral",0x8000u},
+        {"none",0x1u},
+        {"nonancient",0x40000000u},
+        {"nonh",0x800000u},
+        {"nonhero",0x800000u},
+        {"nonsapper",0x10000000u},
+        {"nots",0x1e000u},
+        {"notself",0x1e000u},
+        {"orga",0x4000000u},
+        {"organic",0x4000000u},
+        {"play",0x2000u},
+        {"player",0x2000u},
+        {"sapper",0x20000000u},
+        {"self",0x1000u},
+        {"stru",0x8u},
+        {"structure",0x8u},
+        {"tote",0x10u},
+        {"totem",0x10u},
+        {"tree",0x40u},
+        {"vuln",0x100000u},
+        {"vulnerable",0x100000u},
+        {"wall",0x80u},
+        {"ward",0x10u},
+        {"_",0xfdd1f00eu},
+    };
     uint32_t mask = 0;
     cstring_t p = text;
     char *end = NULL;
@@ -841,17 +895,12 @@ static uint32_t ParseWeaponTargetMask(cstring_t text) {
         while (*p && *p != ',' && len + 1 < sizeof(token)) token[len++] = *p++;
         while (len && (token[len - 1] == ' ' || token[len - 1] == '\t')) len--;
         token[len] = '\0';
-        if (!strcasecmp(token, "none"))            mask |= WC3_TARGET_FLAG_NONE;
-        else if (!strcasecmp(token, "ground"))     mask |= WC3_TARGET_FLAG_GROUND;
-        else if (!strcasecmp(token, "air"))        mask |= WC3_TARGET_FLAG_AIR;
-        else if (!strcasecmp(token, "structure"))  mask |= WC3_TARGET_FLAG_STRUCTURE;
-        else if (!strcasecmp(token, "ward"))       mask |= WC3_TARGET_FLAG_WARD;
-        else if (!strcasecmp(token, "item"))       mask |= WC3_TARGET_FLAG_ITEM;
-        else if (!strcasecmp(token, "tree"))       mask |= WC3_TARGET_FLAG_TREE;
-        else if (!strcasecmp(token, "wall"))       mask |= WC3_TARGET_FLAG_WALL;
-        else if (!strcasecmp(token, "debris"))     mask |= WC3_TARGET_FLAG_DEBRIS;
-        else if (!strcasecmp(token, "decoration")) mask |= WC3_TARGET_FLAG_DECORATION;
-        else if (!strcasecmp(token, "bridge"))     mask |= WC3_TARGET_FLAG_BRIDGE;
+        FOR_LOOP(i,sizeof(tokens)/sizeof(tokens[0])) {
+            if (!strcasecmp(token,tokens[i].name)) {
+                mask|=tokens[i].bits;
+                break;
+            }
+        }
         while (*p && *p != ',') p++;
         if (*p == ',') p++;
     }

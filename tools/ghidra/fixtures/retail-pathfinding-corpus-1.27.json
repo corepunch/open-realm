@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "323 executable original/evidence contracts;604 total entries; provenance and limitations remain per-entry.",
+  "scope": "324 executable original/evidence contracts;605 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -57269,6 +57269,40 @@
         "Custom alias state checks preserve data flow; the actual retail producer uses canonical nwgt.",
         "Selected UI startup timings differ before the fixed public resume; the cohort oracle compares every observer record in the declared interval and separately checks the complete public control stream."
       ]
+    },
+    {
+      "id": "oracle-target-tokens",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_target_tokens.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "target-tokens.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "tokens": {
+          "equal": 51
+        },
+        "parser_instructions": {
+          "equal": 63
+        },
+        "original_binary_checked": {
+          "equal": true
+        }
+      },
+      "evidence": "S",
+      "scope": "Complete original51-token authored mask table and63 whole parser instructions; typed UnitWeapons SLK first-red91 failures/153 assertions becomesgreen. Static parser parity only; broader Captain selector/runtime remains open."
     }
   ],
   "fixtures": [
@@ -58167,7 +58201,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "68e1bae9cf10d28d2803912439ea85b405009351f647bd0ef3ecbff3ce394d9e"
+      "sha256": "c7c2c1837cfc36708645549f7d0c0cdeb5891086fbfb09ad34d86a25c4a718cf"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59015,7 +59049,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_metadata.c",
-      "sha256": "d681ad772a2891e4c2db70bf3dedcee122bb773648fc5f7bf9e61adc22a4fb47"
+      "sha256": "98632528e3d60072f05e60e60a2e6f3fe693b6d90aff7b6c158bce9ee459bd56"
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
@@ -59959,7 +59993,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "59669ded9b84e05b2126c3b190f1d481c5f375b35d27dff9a97065b28d2519d4"
+      "sha256": "020ee6e2c9c2f4a34e066b28036b7134e04ca97686ba6071b754b381c1fedcda"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59971,7 +60005,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "e4d4b9172ae2b8ef4b69efc5715388a3203ca802073da05fe4b47d3b78ac4b3d"
+      "sha256": "2dee6474369698b31b66197b25a409137ff4c863480393d1d221557184f8fe54"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
@@ -64975,7 +65009,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "76218b625585ee8a90a8790285bf9c6532baa31f544c4741cbb9330be41ca33c"
+      "sha256": "00b517fd4b3df2918a3b664971a46ff2fcf96f185f8047a7ab5817e751957685"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -69124,6 +69158,22 @@
     {
       "path": "tools/ghidra/wc3_waygate377_cohort.py",
       "sha256": "e6a8a922995156bffcb290a6b9c1264f59ed90693e2c0db6b51d729814f2b652"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_captain376_mask.c",
+      "sha256": "8289403f702b033875bf44e0dc28c2a9f606aa395bd875cba7a3fb56243cfa19"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-tokens-1.27.json",
+      "sha256": "563e014bbc74aa2902a5d145c5edb631fbf51f91677ebab141865dd283690264"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_target_tokens.py",
+      "sha256": "23bebb6bb5bdebad222a3e12f25cdf91148ead75ab919f1454381dc51933c74d"
+    },
+    {
+      "path": "tests/test_wc3_target_tokens.py",
+      "sha256": "dc050c56b156bca8f7933c22cc2d241ecedb23abefc39019f87c3b35e83dea99"
     }
   ]
 }
