@@ -3,6 +3,9 @@
 [Contract, current ledger and reproduction](retail-pathfinding.md).
 Retail **1.27.1.7085** only; addresses and report paths use the conventions there.
 
+[Robo-Goblin passive availability](robo-goblin-passive-availability.md) documents the
+Morph375 owner lifecycle, failing-first cases and strict native projection.
+
 [Configured common Morph availability](common-morph-passive-availability.md) documents the
 Morph374 owner lifecycle, failing-first cases and strict native projection.
 

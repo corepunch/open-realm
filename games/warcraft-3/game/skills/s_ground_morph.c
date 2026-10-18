@@ -8,6 +8,10 @@ static void ground_morph_animation_end(edict_t *unit) {
 static umove_t ground_morph_forward={"morph",NULL,ground_morph_animation_end,CAbilityGroundMorph};
 static umove_t ground_morph_reverse={"morph alternate",NULL,ground_morph_animation_end,CAbilityGroundMorph};
 
+/* Concrete RoboGoblin v41c is54c640. Burrow keeps its unconditional override. */
+static bool ground_morph_is_configured(abilityitem_t const *item) {
+    return item && item->ability && !strcmp(item->ability->classname,"ANrg");
+}
 static bool ground_morph_is_burrow(abilityitem_t const *item) {
     return item && item->ability && !strcmp(item->ability->classname,"Abur");
 }
@@ -83,6 +87,7 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
         bool initialize=ent && ent->class_id==data->unitID && (!ent->morph || ent->morph->code!=code);
         if(ent && ground_morph_is_burrow(call->item))
             initialize=S_InitializeBurrowAbility(ent,code) && ent->class_id==data->unitID;
+        if(ground_morph_is_configured(call->item))S_InitializeConfiguredMorphAvailability(ent,call);
         if(initialize) {
             if(!ent->morph)ent->morph=G_AllocMorph();
             assert(ent->morph);
@@ -97,6 +102,7 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
         }
         return true;
     case A_MORPH_COMPLETE:
+        if(ground_morph_is_configured(call->item))S_CompleteConfiguredMorphAvailability(ent,call);
         if(ground_morph_is_burrow(call->item)) {
             if(!call->enabled) {S_SetMorphAbilityDisables(ent,code,true);ground_morph_category(ent,code,true);}
             else S_SetMorphAbilityDisables(ent,code,false);
@@ -106,6 +112,9 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
         unit_stand(ent);return true;
     case A_MORPH_EXPIRE:return ground_morph_begin(ent,call->item,true);
     case A_DISABLE:
+        if(ground_morph_is_configured(call->item)) {
+            S_DetachConfiguredMorphAvailability(ent,call);gi.LinkEntity(ent);return true;
+        }
         /* Common detach finishes its pending form before subtype inverse. */
         if(ground_morph_is_burrow(call->item))S_CompleteMorphDetachTransition(ent,code);
         {

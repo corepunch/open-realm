@@ -184,21 +184,21 @@ static bool morph_alternate_disables(void) {
     return strtol(value,NULL,0)!=0;
 }
 
-static void morph_initialize_availability(edict_t *unit,abilityCall_t const *call) {
+void S_InitializeConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call) {
     if(!unit || !call || !call->item || !call->item->code || !morph_alternate_disables())return;
     uint32_t code=call->item->code;
     abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
     if(!data->unitID || unit->class_id!=data->unitID)return;
-    /* Deferred Bear rebind precedes its completion acquire. Raven's takeoff
+    /* Deferred Bear/Robo-Goblin rebind precedes completion acquire. Raven's takeoff
      * rebind happens before S_BeginMorphTransition and acquires immediately. */
     if(unit->morph && unit->morph->code==code && unit->morph->deferred_rebind && !unit->morph->reverse)return;
     S_SetMorphAbilityDisables(unit,code,true);
 }
-static void morph_complete_availability(edict_t *unit,abilityCall_t const *call) {
+void S_CompleteConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call) {
     if(call->enabled)S_SetMorphAbilityDisables(unit,call->item->code,false);
     else if(morph_alternate_disables())S_SetMorphAbilityDisables(unit,call->item->code,true);
 }
-static void morph_detach_availability(edict_t *unit,abilityCall_t const *call) {
+void S_DetachConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call) {
     uint32_t code=call->item->code;
     if(!unit || M_IsDead(unit) || G_IsDeferredFree(unit))return;
     /* Keep permanent-form removal's existing no-inverse contract. */
@@ -225,10 +225,10 @@ static void raven_command(edict_t *ent) {
 
 BZ_ABILITY_PROC(CAbilityRavenForm) {
     switch (msg) {
-    case A_ENABLE:case A_UNIT_INIT:morph_initialize_availability(ent,call);return true;
-    case A_DISABLE:morph_detach_availability(ent,call);return true;
+    case A_ENABLE:case A_UNIT_INIT:S_InitializeConfiguredMorphAvailability(ent,call);return true;
+    case A_DISABLE:S_DetachConfiguredMorphAvailability(ent,call);return true;
     case A_MORPH_COMPLETE:
-        morph_complete_availability(ent,call);
+        S_CompleteConfiguredMorphAvailability(ent,call);
         if(call->enabled)raven_reverse_end(ent);else raven_forward_end(ent);return true;
     case A_COMMAND: raven_command(call && call->client ? call->client : ent); return true;
     case A_TOGGLE_ON: return raven_is_on(ent);
@@ -249,9 +249,9 @@ BZ_ABILITY_PROC(CAbilityBearForm) {
                 unit_issueimmediateorder(unit,bear_orders[unit->class_id==form.alternate_type ? 1 : 0]);
         }
         return true;
-    case A_ENABLE:case A_UNIT_INIT:morph_initialize_availability(ent,call);return true;
-    case A_DISABLE:morph_detach_availability(ent,call);return true;
-    case A_MORPH_COMPLETE:morph_complete_availability(ent,call);bear_morph_end(ent);return true;
+    case A_ENABLE:case A_UNIT_INIT:S_InitializeConfiguredMorphAvailability(ent,call);return true;
+    case A_DISABLE:S_DetachConfiguredMorphAvailability(ent,call);return true;
+    case A_MORPH_COMPLETE:S_CompleteConfiguredMorphAvailability(ent,call);bear_morph_end(ent);return true;
     default:return false;
     }
 }

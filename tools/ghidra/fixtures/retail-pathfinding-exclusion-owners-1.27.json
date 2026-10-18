@@ -322,7 +322,8 @@
     "oracle-captain373-strategic",
     "oracle-morph374",
     "oracle-pause379",
-    "oracle-captain378-role-masks"
+    "oracle-captain378-role-masks",
+    "oracle-morph375"
   ],
   "entries": [
     {
@@ -7217,6 +7218,32 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "Broader Town policy, transport, complete journeys and retail saves remain in the original Captain leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-morph375",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Mount reachability, remaining concrete Morph producers and counted-owner compositions remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped ANrg availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 1,
+          "text": "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped ANrg availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 2,
+          "text": "Two pre-start system exception rows per instrumented capture outside game.dll are retained literally; cause and OS-fault unreachability are not established.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped ANrg availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
         }
       ]
     }

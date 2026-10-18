@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Captain378, the inventory has **601 entries**: **320** oracle contracts
-(including variants) supplied by **248** distinct verifier scripts, **121**
+As of Morph375, the inventory has **602 entries**: **321** oracle contracts
+(including variants) supplied by **249** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Morph374
-inventory has601 entries:320 oracle contracts supplied by248 distinct verifier
+identity, source versions and frozen input hashes. The current Morph375
+inventory has602 entries:321 oracle contracts supplied by249 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2455,3 +2455,9 @@ Original guards: 506; controlled public markers: 108.
 Other counted availability producers remain in existing SEP-01.2.
 
 Captain378 registers role-specific Captain event ownership and early Lost/Death publication. The strict gate passes 8 tests/376 assertions per edition and rejects format 213 before world restoration with 2287 original guards, 678 controlled markers and 1264 complete records retaining literal sequence values. Wider Captain policies remain in GROUP-03.4.7.3.
+
+Payoff375 registers configured Robo-Goblin passive availability and concrete pending/active
+detach inverses, including initial/late attachment and in-process saves.
+Strict acceptance: classic: 28 tests/15752 assertions; tft: 28 tests/15752 assertions. Complete projection retains literal exceptions;
+Mount, remaining concrete producers and compositions stay in SEP-01.2.
+[Contract and evidence](robo-goblin-passive-availability.md).

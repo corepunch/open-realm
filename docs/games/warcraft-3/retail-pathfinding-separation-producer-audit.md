@@ -62,3 +62,11 @@ contract;74 integrity checks pass. The final private Save207 strict run passes
 24 tests/4,373 assertions per edition after genuine missing-behavior regressions.
 Mount reachability, other common Morph producers and combined owner replay
 remain within SEP-01.2. [Burrow evidence](retail-pathfinding-burrow366.md).
+
+Payoff375 adds the concrete Robo-Goblin configured availability producer: the actual
+v41c policy and +a4 removal slots, initial/late passive attachment, deferred .375
+completion and pending/active detach inverse are supported by repeated public/native
+controls. The shared configured helper is invoked only by ANrg, Bear and Raven;
+Burrow/Submerge keep their unconditional policy. Mount reachability, other concrete
+Morph subclasses and counted-owner compositions remain in existing SEP-01.2.
+[Evidence](robo-goblin-passive-availability.md).
