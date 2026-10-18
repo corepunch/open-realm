@@ -2108,7 +2108,43 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #undef _W3M_RegisterMap
 void _W3M_RegisterMap(char const *map) { (void)map; }
 
-/* NightElfX04 (55,42) has a mid-ramp corner, but its neighbouring LHBA mesh extends west, not east. */
+/* Load binary W3E through the production parser, including its computed midpoint pass. */
+static war3map_t *test_ramp_map(cstring_t path) {
+    handle_t archive, nested;
+    void *data = NULL;
+    uint32_t size = 0;
+    war3map_t *map;
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &archive));
+    T_ASSERT(test_mpq_read(archive, path, &data, &size));
+    T_ASSERT(SFileOpenArchiveFromMemory(data, size, 0, &nested));
+    map = FileReadWar3Map(nested);
+    SFileCloseArchive(nested); SFileCloseArchive(archive); free(data);
+    return map;
+}
+
+TEST(renderer_terrain, nightelfx04_restored_ground_has_no_raised_high_ramp_corner) {
+    texture_t tex = { .width = 256, .height = 256 };
+    static const struct { int cellx, highx, highy, lowx, lowy; float highz; } cases[] = {
+        {2, 2,3, 1,3, 772}, /* Original (55,43), raw height 8723, level 7. */
+        {8, 9,2, 9,1, 673}, /* Original (61,34), raw height 8324, level 7. */
+    };
+    reset_registry(); ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    war3map_t *map = test_ramp_map("Maps/FrozenThrone/Campaign/NightElfX04.w3x");
+    tr.world = map;
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        T_EQ(GetWar3MapVertex(map, cases[i].highx, cases[i].highy)->cliffVariation, 0);
+        T_EQ(GetWar3MapVertex(map, cases[i].lowx, cases[i].lowy)->cliffVariation, 1);
+        T_FEQ(R_GetVertexPosition(map, cases[i].highx, cases[i].highy, true).z, cases[i].highz, 0.001f);
+        ground_current_vertex = ground_vertex_buffer;
+        R_MakeTile(map, cases[i].cellx, 2, 0, &tex);
+        T_EQ(ground_current_vertex - ground_vertex_buffer, 6);
+        T_ASSERT(R_TileAcceptsSplat(map, cases[i].cellx, 2));
+    }
+    ground_current_vertex = NULL; tr.world = NULL; R_FreeWar3Map(map);
+}
+
+/* Historical midpoint markers reproduce #615 ground ownership independently of the corrected #642 loader.
+ * NightElfX04 (55,42)'s neighbouring LHBA mesh extends west, not east. */
 TEST(renderer_terrain, nightelfx04_uncovered_ramp_corner_keeps_ground_and_splats) {
     war3mapVertex_t verts[16] = {0};
     war3map_t map = { .width = 4, .height = 4, .vertices = verts };
@@ -2661,6 +2697,41 @@ TEST(renderer_terrain, cliff_weld_context_does_not_upload_discarded_layers) {
     T_EQ(cliff_bake.num_vertices, 0);
 
     cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
+}
+
+TEST(renderer_terrain, human03_high_ramp_endpoint_joins_ground_without_a_false_midpoint) {
+    texture_t tex = { .width = 256, .height = 256 };
+    /* The LHBA model's native high and middle endpoints, rotated by the production baker. */
+    vec3_t pos[] = {{-128,256,128}, {-128,128,64}, {0,256,128}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos,
+        .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
+    cliffData_t cliff = { .cliff = 0, .rampModelDir = "CliffTrans", .cliffModelDir = "Cliffs" };
+    reset_registry(); ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    war3map_t *map = test_ramp_map("Maps/Campaign/Human03.w3m");
+    tr.world = map; cliff_model = &mdx;
+    /* The transposed crop exercises the north/south classification independently. */
+    T_EQ(GetWar3MapVertex(map, 9, 2)->cliffVariation, 1);
+    T_EQ(GetWar3MapVertex(map, 9, 3)->cliffVariation, 0);
+    T_FEQ(R_GetVertexPosition(map, 9, 3, true).z, 147, 0.001f);
+    T_EQ(GetWar3MapVertex(map, 2, 3)->cliffVariation, 1); /* Low corner at the true midpoint. */
+    T_EQ(GetWar3MapVertex(map, 3, 3)->cliffVariation, 0); /* High corner remains on its plateau. */
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeTile(map, 3, 2, 0, &tex);
+    T_EQ(ground_current_vertex - ground_vertex_buffer, 6);
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(map, 2, 2, &cliff);
+    T_STREQ(last_model_load, "Doodads\\Terrain\\CliffTrans\\CliffTransLHBA0.mdx");
+    T_EQ(cliff_bake.num_vertices, 3);
+    T_FEQ(cliff_bake.vertices[0].position.z, 147, 0.001f);
+    T_FEQ(R_GetVertexPosition(map, 3, 3, true).z, cliff_bake.vertices[0].position.z, 0.001f);
+    T_FEQ(R_GetVertexPosition(map, 2, 3, true).z, cliff_bake.vertices[1].position.z, 0.001f);
+    T_FEQ(ground_vertex_buffer[5].position.z, cliff_bake.vertices[0].position.z, 0.001f);
+    T_ASSERT(!R_TileHasGround(map, 1, 2)); /* The genuine low ramp cell remains mesh-owned. */
+    ground_current_vertex = NULL; cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache(); R_FinishCliffs(); R_FreeWar3Map(map);
 }
 
 TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {

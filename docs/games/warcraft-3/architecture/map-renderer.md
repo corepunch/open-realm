@@ -103,8 +103,64 @@ Neither covers the rejected cell. Those two omissions produced the report's isol
 
 Do not diagnose this from raw W3E `cliffVariation` values: `FileReadWar3Map` replaces them on ramp vertices with
 computed midpoint markers before baking. `renderer_terrain.nightelfx04_uncovered_ramp_corner_keeps_ground_and_splats`
-uses the sampled heights, levels and computed flags around both cells, drives `R_MakeTile` and the splat eligibility
-path, and checks both uncovered ground and a genuine low-neighbour transition. No retail archives are needed.
+uses the sampled heights, levels and historical midpoint flags around both cells, drives `R_MakeTile` and the splat eligibility
+path, and checks both uncovered ground and a genuine low-neighbour transition. It keeps the ground-ownership
+regression independent of the loader correction for #642 below. No retail archives are needed.
+
+### High ramp endpoints and side-view floor gaps (#642)
+
+`FileReadWar3Map` discards authored W3E `cliffVariation` on ramp vertices and recomputes it as a
+midpoint marker. `R_GetVertexPosition(...,true)` lifts a marked vertex by 64 world units. Opposite
+ramp neighbours with different layers do **not** establish that the current corner is a midpoint:
+at a bend, the corner can already be the high endpoint. Require the current layer to equal the
+lower of those neighbours before marking it, for both horizontal and vertical pairs.
+
+The old test marked these high endpoints and lifted adjoining ground 64 units above its authored
+transition mesh. The resulting triangular slit was especially visible from the side. Increasing
+`R_CliffGroundJoin`'s half-tier snapping distance would stretch the cliff to the erroneous ground;
+keep the height classification correct instead. `git blame` traces the unrestricted midpoint
+classification to `3babb327da` (July 2023), predating the recent ramp placement and #615 fixes.
+
+| Map | High endpoint W3E vertex | Raw height / layer | Correct world Z |
+|---|---|---|---|
+| ROC Human03 | `(19,23)` | `8268 / 3` | `147` |
+| TFT NightElfX04 | `(55,43)` | `8723 / 7` | `772` |
+| TFT NightElfX04 | `(61,34)` | `8324 / 7` | `673` |
+
+Human03's `LHBA` at `(18,22)` still raises its genuine lower midpoint `(18,23)` to Z `83`;
+its model-owned low neighbour `(17,22)` must remain omitted by the ground baker. The two
+NightElfX04 cells restored for #615 still draw their ground and accept splats, with their high
+corners returned to the correct plateau heights.
+
+`tools/wc3terrainfixturegen.py` retains three numerical 6x6 W3E crops with a one-vertex halo.
+`make test-assets` packs them at the real campaign map paths in `build/tests/tests.mpq`; the
+NightElf map puts its two crops side by side; Human03 also includes a transposed crop to
+exercise the north/south midpoint branch. Nonzero authored variation verifies that the
+production W3E loader recomputes the markers. Tests never read installed Warcraft archives.
+`renderer_terrain.human03_high_ramp_endpoint_joins_ground_without_a_false_midpoint` drives
+`FileReadWar3Map`, the ground baker and the cliff baker using the native LHBA high/middle
+endpoints. It checks coincident ground/mesh Z and preserves the low cell's mesh ownership.
+`renderer_terrain.nightelfx04_restored_ground_has_no_raised_high_ramp_corner` covers both
+NightElf crops through the loader, emitted ground, splat eligibility and exact endpoint height.
+Both failed before this correction. Run `make test-renderer-model test-renderer-shadows`.
+
+For a bounded silhouette check, retain **every** entry of a campaign archive in a temporary copy,
+replace only its `war3map.j`, disable fog and remove trees in that diagnostic script, then position
+the camera at Human03 `(-5760,-3200)` (rotation 90) or NightElfX04 `(960,-128)` (rotation 0).
+Distance 2200, angle of attack 315 and noon lighting show the adjoining cliff faces. Camera natives
+need a local-player context: wrap them in `if GetLocalPlayer() == GetLocalPlayer() then ... endif`.
+Raw camera calls in an otherwise empty diagnostic `main` have no current player and do nothing.
+Call the diagnostic function again through `+jass DebugRampCamera` after client entry, since
+`G_ClientBegin` installs the initial map camera. Put `sv_cheats 1` in the late config for that command.
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' +exec /tmp/ramp-capture.cfg \
+  +map Maps/RampDiagnostic.w3m +jass DebugRampCamera +screenshot 60 +com_frame_limit 80
+```
+
+The fixed Human03 and side-view NightElfX04 captures were inspected at these locations: the ground
+joins remain continuous without the reported black slits. The numerical regression remains the
+reproducible check; the diagnostic captures do not exercise the original campaign scripts.
 
 ### Water Depth Tinting
 

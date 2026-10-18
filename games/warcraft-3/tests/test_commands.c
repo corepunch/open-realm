@@ -556,48 +556,35 @@ TEST(commands, screenshot_optional_delay_counts_rendered_frames) {
 }
 
 typedef struct {
-    uint32_t count;
-    bool human02;
-    bool orc01;
-    bool twin_w3m;
-    bool twin_w3x;
-    bool overlay;
-    bool transport;
+    uint32_t count, found;
 } mapListState_t;
+
+static cstring_t const fixture_maps[] = {
+    "Maps\\Campaign\\Human02.w3m",
+    "Maps\\Campaign\\Human03.w3m",
+    "Maps\\FrozenThrone\\Campaign\\NightElfX04.w3x",
+    "Maps\\Campaign\\Orc01.w3m",
+    "Maps\\Melee\\TwinRivers.w3m",
+    "Maps\\FrozenThrone\\TwinRivers.w3x",
+    "Maps\\MapOverlay.w3x",
+    "Maps\\Transport.w3m",
+};
 
 static void count_fixture_map(cstring_t path, void *userData) {
     mapListState_t *state = userData;
-
     state->count++;
-    if (!strcmp(path, "Maps\\Campaign\\Human02.w3m")) {
-        state->human02 = true;
-    } else if (!strcmp(path, "Maps\\Campaign\\Orc01.w3m")) {
-        state->orc01 = true;
-    } else if (!strcmp(path, "Maps\\Melee\\TwinRivers.w3m")) {
-        state->twin_w3m = true;
-    } else if (!strcmp(path, "Maps\\FrozenThrone\\TwinRivers.w3x")) {
-        state->twin_w3x = true;
-    } else if (!strcmp(path, "Maps\\MapOverlay.w3x")) {
-        state->overlay = true;
-    } else if (!strcmp(path, "Maps\\Transport.w3m")) {
-        state->transport = true;
-    }
+    FOR_LOOP(i, sizeof(fixture_maps) / sizeof(fixture_maps[0]))
+        if (!strcmp(path, fixture_maps[i])) state->found |= 1u << i;
 }
 
-/* Nested overlay and loadable transport archives are included in the fixture map list. */
+/* Nested overlay, terrain and loadable transport archives are included in the fixture map list. */
 TEST(commands, fixture_maps_are_listed_from_mpq) {
     mapListState_t state = { 0 };
-
+    uint32_t expected = sizeof(fixture_maps) / sizeof(fixture_maps[0]);
     setup_command_tests();
-
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 6);
-    T_EQ(state.count, 6);
-    T_ASSERT(state.human02);
-    T_ASSERT(state.orc01);
-    T_ASSERT(state.twin_w3m);
-    T_ASSERT(state.twin_w3x);
-    T_ASSERT(state.overlay);
-    T_ASSERT(state.transport);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), expected);
+    T_EQ(state.count, expected);
+    T_EQ(state.found, (1u << expected) - 1);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {

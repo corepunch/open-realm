@@ -389,6 +389,12 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@echo "[test-assets] packing tileset-archive fixture MPQ"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/O.mpq pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp "ReplaceableTextures\\Cliff\\Cliff1.blp"
+	@python3 tools/wc3terrainfixturegen.py $(TESTS_RES_DIR)/RampTerrain
+	@mkdir -p $(TESTS_RES_DIR)/Maps/Campaign $(TESTS_RES_DIR)/Maps/FrozenThrone/Campaign
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Campaign/Human03.w3m pack \
+		$(TESTS_RES_DIR)/RampTerrain/Human03/war3map.w3e war3map.w3e
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/FrozenThrone/Campaign/NightElfX04.w3x pack \
+		$(TESTS_RES_DIR)/RampTerrain/NightElfX04/war3map.w3e war3map.w3e
 	@echo "[test-assets] packing tests.mpq"
 	@python3 tools/wc3fixturegen.py $(TESTS_RES_DIR)/TransportMap
 	@set --; for f in $(TESTS_RES_DIR)/TransportMap/*; do \
@@ -396,7 +402,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Transport.w3m pack "$$@"
 	@set --; \
 	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
-		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
+		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*|RampTerrain/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	for f in $$(find $(TESTS_SRC_DIR) -type f | sort); do \
 		rel=$${f#$(TESTS_SRC_DIR)/}; arc=$$rel; \
