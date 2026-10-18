@@ -308,7 +308,8 @@
     "oracle-crowd361",
     "oracle-mask362",
     "oracle-alternate364",
-    "oracle-group359"
+    "oracle-group359",
+    "oracle-captain358-acquire"
   ],
   "entries": [
     {
@@ -6993,6 +6994,18 @@
           "task": "E2E-06.1",
           "disposition": "evidence-boundary",
           "rationale": "Concrete remaining override producers retain GROUP-03.2; full-frame and identity/inventory limits remain in the existing complete frozen-contract audit."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain358-acquire",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Legacy polling domains, full candidate and neutral admission, acquired-target script event, cross-owner subscription ordering, complete trajectories and retail saves remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "Complete acquisition, target lifecycle and Captain policy remain in the original existing leaf."
         }
       ]
     }

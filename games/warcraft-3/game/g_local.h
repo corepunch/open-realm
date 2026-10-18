@@ -2495,6 +2495,7 @@ struct edict_s {
     edict_t *build_mine; /* Undead Build retained completion target, independent of the work wait. */
     uint32_t build_mine_spawn_time;
     abilityPrimaryTimer_t build_summon_wait; /* Unit-owned d019d work completion. */
+    abilityPrimaryTimer_t attack_scan; /* Attack d01c1, independent of the current Move/task owner. */
     abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
     abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */
     abilityPrimaryTimer_t attack_swing; /* Attack d01b2: completion independent of weapon cooldown. */
@@ -4716,6 +4717,7 @@ bool S_CaptainNearRequest(botCaptain_t const *);
 void S_CaptainPointMove(botCaptain_t *, vec2_t const *, float);
 void S_CaptainTargetMove(botCaptain_t *, edict_t *, bool, float);
 bool S_CaptainTargetCloser(botCaptain_t const *, edict_t const *, edict_t const *);
+bool S_UnitUsesAIPointMove(edict_t const *);
 void S_ReleaseCaptainHomeActor(edict_t *);
 bool S_ValidateCaptainHomeActors(bool);
 bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);

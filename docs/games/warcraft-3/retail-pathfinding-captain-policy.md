@@ -513,3 +513,68 @@ retail saves are not part of this proof. Full allied support/overflow/Hero
 policies, semantic target-change callbacks, cross-owner subscription ordering,
 independent acquisition and complete actor/member trajectories remain within
 GROUP-03.4.7.3; this continuation does not close that leaf.
+
+### Independent Attack acquisition while a Captain point request is active
+
+The Captain's periodic group update is not the producer of a fresh hostile
+contact. Original `Attack_OnAcquireTimer` (`6f493ff0`) rearms the Attack request
+before testing execution guards. The idle interval is `0.5` seconds and the
+retained-target interval is `1.0` second. Its fresh-target path first publishes
+Attack through `6f4943f0`, then notifies the Captain from return address
+`6f4941a0`. This request survives replacement of the current movement task.
+
+Two instrumented captures and a control run of the clean acquisition scene
+produce the same 379 public markers. At counter 1557, a Captain member first
+publishes Attack state 1; the subsequent Captain contact sees a six-member
+mana-only roster with `c0 == 0`, restores its retained home request with range 500,
+and reissues the member into state 7 before the acquisition timer returns. The
+returned member has no Attack target. An immediate or persistent Attack target
+is therefore not the expected result of this particular fresh contact.
+
+At counter 1570, the members receive another Attack publication from the separate
+`493af7` notification path. Read-only packet tracing identifies zero-damage
+AllyCombatAlert packets (flags 4, type 16, amount 0), from `49bb50` with outer caller
+`69506c`. Removing Slow from all actors leaves this result unchanged. These
+later packets are not evidence of an acquisition-timer replay, and the upstream
+producer remains outside this verified boundary.
+
+The engine adds an independently owned Attack primary request for the missing
+`d0014` AI point-movement domain. It retains the logical deadline and serial
+through save/load and rebuilds the derived timer heap. Paused and execution-
+disabled actors retain their timer while skipping acquisition. The bounded scan
+uses the existing unsigned Attack priority, committed target distance for strict
+ties, target eligibility, and the weak-alternative fallback. Ordinary explicit
+Move (`d0012`) does not gain this voluntary scan. The constructor registers its
+own INIT-only procedure so it neither duplicates engine Attack lifecycle events
+nor changes the authored Attack procedure's cached dispatch contract.
+
+The production regression starts six armed Captain members on a point route,
+introduces a hostile actor without dealing damage, and uses a deliberately long
+weapon windup to keep the contact independent of the damage/help producer. The
+valid pre-change baseline passes 18 of 21 assertions: only the retained home,
+range 500 and automatic-combat speed-cap consequences fail. It also verifies pause
+and execution-disable inverses and a cold save/load before enabling acquisition.
+The implementation additionally checks that the exact saved request deadline,
+epoch and serial survive the reload. Save 205 adds the independent Attack timer
+record; version 204 is rejected explicitly.
+
+The immutable acquisition fixture is
+`tools/ghidra/fixtures/retail-captain358-acquire-1.27.json`; its verifier guards 1300
+original instructions and the complete publication/contact/reissue ordering.
+This is a bounded addition under GROUP-03.4.7.3. Legacy polling domains, full
+neutral and candidate admission, the acquired-target script event, cross-owner
+subscription ordering and complete trajectories still require their own retail
+proof and engine work within that existing leaf.
+
+The common timer drain owns epoch rebasing. A newly armed scan retains its raw
+future scalar deadline, even when it exceeds the current span. Normalizing it
+inside the producer makes that future request appear overdue in the outgoing
+span and repeatedly drain. The existing `target168_pending_fade_rebases` public
+timer regression exposed this defect: the original failing run reached drain
+visit3001 with a selected Attack request in epoch2 while the owner remained in
+epoch0. The fix leaves normalization to the shared primary-request rebase.
+
+The final acquisition gate runs three production tests in each edition: the
+no-damage Captain acquisition and saved inverse, incompatible-version rejection,
+and the existing scalar rebase regression. Both editions pass all 46 assertions.
+The evidence validator also rejects missing rebase coverage.

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Group359, the inventory has **587 entries**: **306** oracle contracts
-(including variants) supplied by **234** distinct verifier scripts, **121**
+As of Captain205, the inventory has **588 entries**: **307** oracle contracts
+(including variants) supplied by **235** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Target362
-inventory has586 entries:305 oracle contracts supplied by233 distinct verifier
+identity, source versions and frozen input hashes. The current Captain205
+inventory has588 entries:307 oracle contracts supplied by235 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2386,3 +2386,8 @@ and14 rejection checks. Other producers remain within SEP-01.2.
 Group359 registers distinct Freeze-family counter, order and lethal-hit lifetimes,
 source admission and the complete724-class inventory. The inventory now has
 587 entries and306 original/evidence contracts from234 verifier scripts.
+
+Captain205 registers the independent AI-point Attack acquisition timer, native
+publication/contact ordering and saved scalar rebase regression. Its strict gate
+passes3 tests/46 assertions per edition, with1,300 original guards and379 public
+markers. The wider Captain leaf remains open.

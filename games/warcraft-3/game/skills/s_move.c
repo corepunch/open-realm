@@ -5163,6 +5163,12 @@ static void ai_move_walk(edict_t *ent) {
 static umove_t move_move_walk = { .animation = "walk", .think = ai_move_walk,
     .proc = CAbilityMove, .scheduled_think = true, .sample_pose = S_PublishMovement, .leave = move_leave };
 
+/* d0014 is the acquired-target-capable AI point task. Explicit d0012 Move
+ * retains its separate order admission and does not gain a voluntary scan. */
+bool S_UnitUsesAIPointMove(edict_t const *unit) {
+    return unit && unit->currentmove==&move_move_walk && unit->current_order_id==851988u;
+}
+
 /* Identify the ordinary walk move so spell approach orders can detect replacement. */
 bool move_is_active_order_walk(edict_t const *ent) {
     return ent && ent->currentmove == &move_move_walk;

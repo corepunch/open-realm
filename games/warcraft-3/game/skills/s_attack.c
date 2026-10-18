@@ -183,7 +183,7 @@ static void attack_deliver_target_event(edict_t *target,bool owner_changed) {
 #define ATTACK_HELP_SUPPRESSION 3.0f
 #define ATTACK_AI_HELP_SUPPRESSION 0.5f
 
-enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_SWING, ATTACK_TIMER_GUARD, ATTACK_TIMER_COUNT };
+enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_SWING, ATTACK_TIMER_GUARD, ATTACK_TIMER_SCAN, ATTACK_TIMER_COUNT };
 static uint32_t attack_cap_heap[MAX_ENTITIES*ATTACK_TIMER_COUNT], attack_cap_positions[MAX_ENTITIES*ATTACK_TIMER_COUNT];
 static uint32_t attack_cap_count;
 
@@ -193,6 +193,7 @@ static abilityPrimaryTimer_t *attack_primary_timer(uint32_t key) {
     case ATTACK_TIMER_HELP: return &unit->combat_help;
     case ATTACK_TIMER_SWING: return &unit->attack_swing;
     case ATTACK_TIMER_GUARD: return &unit->attack_guard.timer;
+    case ATTACK_TIMER_SCAN: return &unit->attack_scan;
     default: return &unit->attack_speed_cap;
     }
 }
@@ -257,6 +258,25 @@ static void attack_help_cancel(edict_t *unit) {
 static void attack_swing_cancel(edict_t *unit) {
     attack_cap_remove(unit,ATTACK_TIMER_SWING);unit->attack_swing.active=false;
 }
+/*493ff0 selects idle0.5 and retained-target1.0, measured from d6bf40/44.
+ * The request belongs to Attack even while Move owns the active unit task. */
+static void attack_acquire_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_SCAN);unit->attack_scan.active=false;
+}
+static void attack_acquire_arm(edict_t *unit,wc3Clock_t now) {
+    attack_acquire_cancel(unit);
+    unit->attack_scan=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    /* Primary queues retain outgoing-span scalar deadlines. Normalizing a
+     * future request here makes it due again inside the old-span drain. */
+    unit->attack_scan.deadline.time=wc3_add(now.time,unit->attack_target ? 1 : .5f);
+    attack_cap_insert(unit,ATTACK_TIMER_SCAN);
+}
+static void attack_acquire_ensure(edict_t *unit) {
+    if(unit && attack_target_identity(unit) && unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit) &&
+       !unit->attack_scan.active && CAbilityAttack(unit,A_UNIT_OWNED,NULL))
+        attack_acquire_arm(unit,G_TimerQueryClock(NULL));
+}
+
 /* Native00b570 initializes the guard poll period independently of map tuning.
  * GuardDistance and GuardReturnTime remain authored Misc values. */
 #define ATTACK_GUARD_POLL_PERIOD 2.0f
@@ -316,12 +336,15 @@ static void attack_guard_fire(edict_t *unit) {
     G_CreepGuardIssueReturn(unit,&unit->attack_guard.point);
 }
 
+static void attack_acquire_fire(edict_t *);
+
 static void attack_primary_fire(void) {
     uint32_t key=attack_cap_heap[0];
     edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
     switch (key%ATTACK_TIMER_COUNT) {
     case ATTACK_TIMER_HELP: attack_help_cancel(unit); break;
     case ATTACK_TIMER_GUARD: attack_guard_fire(unit); break;
+    case ATTACK_TIMER_SCAN: attack_acquire_fire(unit); break;
     case ATTACK_TIMER_SWING:
         attack_swing_cancel(unit);
         /* Replacement orders, death and slot reuse cannot inherit completion. */
@@ -2136,6 +2159,79 @@ edict_t *S_AttackAlternativeTarget(edict_t *unit) {
     return attack_target_priority(unit,target) ? target : NULL;
 }
 
+/*493d20/493b20 seed a retained key and compare unsigned Attack priority,
+ * then strict committed-center distance. The generic AI nearest query has a
+ * different policy and cannot stand in for this Attack-owned selector. */
+static edict_t *attack_scan_point_target(edict_t *unit) {
+    uint32_t birth=unit->spawn_time;
+    bool mobile=G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) && S_UnitCanTranslate(unit);
+    float range=G_AcquisitionRange(unit),maximum=0;
+    if(!mobile) {S_UnitAttackApproachRange(unit,&maximum);range=MIN(range,maximum);}
+    if(!(range>0))return NULL;
+    attackHelpQuery_t *query=attack_help_queries;
+    if(query)attack_help_queries=query->next;
+    else if(!(query=calloc(1,sizeof(*query))))gi.error("Attack: cannot acquire scan query");
+    query->count=0;query->owners=UINT32_MAX;
+    vec2_t center=attack_help_fine_position(unit,CM_GetWorldBounds());
+    float radius=wc3_div(wc3_add(range,S_MoveCollisionRadius(unit)),32);
+    S_QueryMoveProximityContext(NULL,(float[]){center.x,center.y},radius,attack_help_collect,query);
+    edict_t *retained=unit->attack_target,*best=NULL;uint32_t selected_birth=0;
+    uint64_t best_key=0;
+    if(retained && retained->inuse && !G_IsDeferredFree(retained) &&
+       retained->spawn_time==unit->attack_target_spawn_time) {
+        best=retained;selected_birth=retained->spawn_time;best_key=attack_target_priority(unit,retained);
+    }
+    FOR_LOOP(i,query->count) {
+        if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))break;
+        attackHelpMember_t member=query->members[i];edict_t *target=g_edicts+member.index;
+        if(!target->inuse || G_IsDeferredFree(target) || target->spawn_time!=member.birth ||
+           target==unit || target==best || !(target->svflags&SVF_MONSTER) ||
+           G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
+           G_UnitIsInvulnerable(target) || !G_FowPlayerCanTrackUnit(unit->s.player,target) ||
+           !S_AttackCanAutoAcquire(unit,target) || !S_UnitTargetInCommittedMoveRange(unit,target,range))continue;
+        float minimum=attack_minimum_range(unit),selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
+        if(minimum>0 && minimum<selected && fabsf(wc3_sub(minimum,selected))>=wc3_float(0x3a83126f) &&
+           G_UnitTargetType(target)!=TARG_AIR && S_UnitTargetInCommittedMoveRange(unit,target,minimum))continue;
+        uint64_t key=attack_target_priority(unit,target);
+        if(!key || key<best_key || (best && key==best_key &&
+           S_UnitCommittedTargetDistanceSquared(unit,target)>=S_UnitCommittedTargetDistanceSquared(unit,best)))continue;
+        best=target;best_key=key;selected_birth=member.birth;
+    }
+    query->next=attack_help_queries;attack_help_queries=query;
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return NULL;
+    if(!best && mobile)return S_AttackAlternativeTarget(unit);
+    return best && best!=retained && best_key && best->inuse && !G_IsDeferredFree(best) &&
+        best->spawn_time==selected_birth ? best : NULL;
+}
+
+static void attack_acquire_fire(edict_t *unit) {
+    attack_acquire_cancel(unit);
+    if(!unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit))return;
+    attack_acquire_arm(unit,G_TimerQueryClock(NULL));
+    /* Idle, Patrol, Follow and active Attack still have their existing scan
+     * producers. This adds the missing d0014 owner without double-publishing
+     * those paths; their complete timer migration remains separate evidence. */
+    if(!S_UnitUsesAIPointMove(unit) || unit->paused || unit->attack_acquisition_suppressed ||
+       !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')) ||
+       S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')) ||
+       !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
+       S_UnitAbilityEvent(unit,A_NO_ACQUIRE))return;
+    uint32_t birth=unit->spawn_time;
+    bool fresh=!unit->attack_target;
+    edict_t *target=attack_scan_point_target(unit);
+    if(!target)return;
+    uint32_t target_birth=target->spawn_time;
+    S_UnitAbilityEvent(unit,A_AUTO_COMBAT_START);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    order_attack(unit,target);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    if(unit->goalentity==target && unit->currentmove && unit->currentmove->proc==CAbilityAttack)
+        G_CreepGuardAutoCombat(unit);
+    if(fresh)G_BotCaptainCombatContact(unit,target);
+}
+
 /* Original6510b0 broadcasts d01a5 through the widget index. Ordinary pose
  * publication does not produce this event. Keep the materialized list private
  * across callbacks, as for help notifications, and validate retained identities. */
@@ -2244,15 +2340,29 @@ static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
     return any;
 }
 
+/* Keep constructor-only admission separate from the authored Attack procedure:
+ * dispatcher contracts are cached by procedure identity. */
+BZ_ABILITY_PROC(CAbilityAttackScan) {
+    switch(msg) {
+    case A_UNIT_EVENT_MASK: return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT);
+    case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
+    case A_UNIT_INIT: attack_acquire_ensure(ent);return false;
+    default: return false;
+    }
+}
+
 BZ_ABILITY_PROC(CAbilityAttack) {
     switch (msg) {
+    case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
+    case A_UNIT_INIT:
+        attack_acquire_ensure(ent);return false;
     case A_UNIT_OWNED:
         if (!ent) return false;
         if (ent->data.UnitWeapons && ent->data.UnitWeapons->attacksEnabled) return true;
         FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
         return false;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_TARGET_OWNER_CHANGED);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_TARGET_OWNER_CHANGED,A_UNIT_TYPE_CHANGED,A_UNIT_INIT);
     case A_TARGET_AVAILABLE:
         if(!ent && call)attack_target_available(call->lost_target);
         return false;
@@ -2277,7 +2387,10 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         if (!call || !call->issued_target_order.order || strcmp(call->issued_target_order.order,"attackonce"))
             return ABILITY_ORDER_UNHANDLED;
         return S_OrderAttack(ent,call->issued_target_order.target) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    case A_UNIT_TYPE_CHANGED:
+        attack_acquire_ensure(ent);return false;
     case A_UNIT_STAND:
+        attack_acquire_ensure(ent);
         if(ent)ent->attack_acquisition_suppressed=false;
         attack_guard_stand(ent);return false;
     case A_UNIT_OWNER_CHANGING:
@@ -2308,6 +2421,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         attack_targets_rebuild();
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));
         FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse) {
+            if(g_edicts[i].attack_scan.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SCAN);
             if(g_edicts[i].attack_speed_cap.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_CAP);
             if(g_edicts[i].combat_help.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_HELP);
             if(g_edicts[i].attack_swing.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SWING);
@@ -2367,6 +2481,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         if(call && call->lost_target)attack_deliver_target_event(call->lost_target,msg==A_TARGET_OWNER_CHANGED);
         return false;
     case A_MOVE_LEAVE:
+        attack_acquire_ensure(ent);
         if(ent && call && call->next_move_proc!=CAbilityAttack) {
             ent->attack_acquisition_suppressed=false;
             /* Internal target loss releases current before returning to its
@@ -2377,11 +2492,11 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         return false;
     case A_DEATH:
     case A_UNIT_RETIRE:
-        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);}
+        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);attack_acquire_cancel(ent);}
         return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_guard_cancel(ent);}
+        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_guard_cancel(ent);attack_acquire_cancel(ent);}
         return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;

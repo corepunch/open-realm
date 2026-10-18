@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "306 executable original/evidence contracts;587 total entries; provenance and limitations remain per-entry.",
+  "scope": "307 executable original/evidence contracts;588 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56280,6 +56280,61 @@
         "CBuffSleepStun and CBuffStun public reachability, additional acquisition guards and general GROUP-03.2 remain in that existing leaf.",
         "The class inventory distinguishes primary CAbility descendants from secondary inheritance and unrelated named types."
       ]
+    },
+    {
+      "id": "oracle-captain358-acquire",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain358_acquire.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain358-acquire.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 379
+        },
+        "fresh_scan_boundaries": {
+          "equal": 2
+        },
+        "instructions": {
+          "equal": 1300
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 3,
+              "assertions": 46
+            },
+            "tft": {
+              "tests": 3,
+              "assertions": 46
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.4.7.3 independent Attack acquisition for d0014 Captain point movement, saved request and execution-disable inverse.",
+      "exclusions": [
+        "Legacy polling domains, full candidate and neutral admission, acquired-target script event, cross-owner subscription ordering, complete trajectories and retail saves remain GROUP-03.4.7.3."
+      ]
     }
   ],
   "fixtures": [
@@ -57178,7 +57233,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "42e35e2124676f9e40093985d1fdb70abb5fec69df2ac60ac6d6c39a8b3aece7"
+      "sha256": "09c70adecfbd0c87e0c23fe71cce7f36cb578236ee6ff38d5dabacd9d35685bb"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58034,7 +58089,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "66cfccba3c2db5a12b22a53da56789977068c7916b8507374c18b78ee83f63eb"
+      "sha256": "117e41f6772952a1a0560449331d619ce9ff55caa9ff1f9ee2a60b689f1efae8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -58470,7 +58525,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "8762da9040503f16c987d064348705b1fc7bc74c549ce0f59dd2409039f63228"
+      "sha256": "e484a053d2160ab667d16cc8122cecbf7c1ffbcdc21f23764c7b772f51ac2263"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -58478,7 +58533,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "a2dbb71d8fedc0fdb78923cb1afe445e038c8a0ce2d5df802b9c4dec02d75319"
+      "sha256": "f6457b41bf02c600a73cdb13465ace747268f5307d12369dca4f3453bd4b82dd"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -58726,7 +58781,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "38f82337d5f308b97271bc62d9583fa64ea40c5c4c8315a38eb4e77e73642f6d"
+      "sha256": "43b246f06324182660239f9ec252ef85154eba114f273ae5dcdb0d9bae7fd5e9"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -58970,7 +59025,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "dd258136813731bf4d56a0f0f0f69ee0d04d017aecf2f557bf1225648b45feb0"
+      "sha256": "71e208522b6ea688d1761be9e900240a30a06074707d48c15571644a4374180d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58986,7 +59041,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "9e7bba719b0d514625f484d49fca53b6687675fc9fa4a3711277bae043590550"
+      "sha256": "065b8197ab99049ccea89032dba70d7f0b73001de0a245aae804347553357dad"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58994,11 +59049,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "39ac7e68de966b3370d8d39cd28cc36afd56b06693bfededd291731e61f7947e"
+      "sha256": "1b6d7578421a8fc19cf4307089575453a7acd6f28d7b722eca096611badf96ee"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "018d215bbeae01c1fc7bdc8c5e032cde2c3271b88cfb5a47f039a5cab78a3103"
+      "sha256": "d3f576ba31555445eb8842146fd7e1229d0a2ac3f2c6b32413224e659f80956b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -59358,7 +59413,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "d7aa25145bda19e0b6b7faf963eaf510775004970cd4a786626ea6f1447467c3"
+      "sha256": "bd0f5719f82cd1532cc3bcd07354adaf03710818fb31129ba382f0d2dc947259"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -59382,7 +59437,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "939d1ebbcacd35385843e6c1f9b3ff7051b408a7ce5c4e6aa56f152819b3cf46"
+      "sha256": "e5cb82eb08ea331f7b1e86ad8cc6e64bac9ad586b105cb017d6684a6a888ad98"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -60194,7 +60249,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "e52e86db142b1e271dfe7e044df332d5ba03703bd1129644241e217db7151361"
+      "sha256": "8bcfdb5b31a7f4d100c5bf1bd438364be41ef9fea3ae3ac99a10b3e95bb8cbf7"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -63986,7 +64041,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "ddab8cf47f7589e962f65b48403c63b01275685092db49fedd1f12a4ce23b420"
+      "sha256": "5ac96137968f7c7f40c9b28a269409aa10ae491ce42ee77cfd2734e9814f3864"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -65842,7 +65897,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "086ad229d4f6193a9015b42566c0081efeec7241d6c85e2bf6d1737a4bd8a7c2"
+      "sha256": "0c73bdf35315aca651a381e50f9bb2434e1be4f8983abcf68ed36dc50cd27a8d"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -66799,6 +66854,38 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_group359.py",
       "sha256": "15a01a2b7d87bb6aba53c050bd5652b54b3311dd9656720acc722673fb1f7268"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain358_acquire.py",
+      "sha256": "f2d29a2b13952461076a649294637f1cc54b4191e24d88f5a945ea08703e4350"
+    },
+    {
+      "path": "tools/frida/research/captain358_acquire_make_map.py",
+      "sha256": "01fae457a4c4257a966addf15a43c693d7a4970e3132a3f5529b307584d26e70"
+    },
+    {
+      "path": "tools/frida/research/captain358_acquire_observer.js",
+      "sha256": "0b6741ea15e3537c94cac5a201128611b42001ebb6a45e022d124b8d929e7851"
+    },
+    {
+      "path": "tools/frida/research/captain358_acquire_packet_observer.js",
+      "sha256": "b64e6854f64c105d9d5f82397e14df3f75e520df4615a4705076d5457e39ce9f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain358-acquire-1.27.json",
+      "sha256": "c6bd1b7e1f9100da5a4172ce8730b54e48402af9bafb7debf71bdf834fd998e7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain358-acquire-1.27.json.gz",
+      "sha256": "a1279fdd421d1e0e154b02e6d2f2920111d57960da4ba7e179e7c2d83a84b98c"
+    },
+    {
+      "path": "tools/ghidra/research/Captain358AcquisitionEvidence.java",
+      "sha256": "10171630b99bc5f3dcc6961859632a8ba83550190178a8ea732cecb88c2cedcf"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain358_acquire.py",
+      "sha256": "58bb034c78439384a8c4df33893583157f1f5f5782834c7b47c6563c3f5a9f6c"
     }
   ]
 }

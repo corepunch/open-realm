@@ -518,6 +518,95 @@ TEST(wc3_bot, captain_contact_preserves_negative_mana_counter_through_save_and_r
     T_EQ(ARRAY_COUNT(captain->units),6);
     remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
 }
+/* Fresh Attack acquisition is independent of damage. A moving AI point
+ * member must interrupt its physical request and notify the logical Captain. */
+TEST(wc3_bot, captain_ai_point_acquisition_returns_home_before_any_damage) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    float range=600,acquire=1000,radius=32;uint32_t enabled=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','C','A','5'),
+        .numbeOfModifications=4,.modifications=mods};
+    mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&type;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    edict_t *units[6];
+    FOR_LOOP(i,6) {
+        units[i]=unit_create(0,type.newUnitID,&(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+        units[i]->mana.value=100;units[i]->mana.max_value=200;
+        /* A non-stock windup keeps damage/help from masking the independent
+         * acquisition producer during the observation window. */
+        units[i]->runtime.acquisition_range=1000;
+        units[i]->targtype=TARG_GROUND;
+        unitAttack_t *profile=S_AttackProfileWrite(units[i],0);
+        profile->damagePoint=3.25f;profile->cooldown=1.5f;
+        profile->damageBase=17;profile->type=ATK_NORMAL;
+        profile->range=600;profile->targetsAllowed=WC3_TARGET_FLAG_GROUND;
+        profile->weapon=WPN_NORMAL;
+        gi.LinkEntity(units[i]);
+    }
+    T_ASSERT(G_BotAddAssault(player,6,type.newUnitID));
+    botCaptain_t *captain=level.bots[0].captains;
+    level.bots[0].flags|=BOT_GROUPS_FLEE;
+    G_BotCaptainAttack(player,&(vec2_t){1900,1024});
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    uint32_t limit=level.time+10000;
+    while(level.time<limit && S_CaptainNearHome(captain)) {level.time+=5;globals.RunFrame();}
+    T_ASSERT(!S_CaptainNearHome(captain));
+    T_EQ(captain->strength_count,0);
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_EQ(units[0]->current_order_id,851988u);
+    G_SetPlayerAlliance(player,&game.clients[1].ps,ALLIANCE_PASSIVE,false);
+    G_SetPlayerAlliance(&game.clients[1].ps,player,ALLIANCE_PASSIVE,false);
+    vec2_t point={units[0]->s.origin2.x+160,units[0]->s.origin2.y};
+    edict_t *source=unit_create(1,MAKEFOURCC('h','f','o','o'),&point,0);
+    S_SetUnitPaused(source,true);source->targtype=TARG_GROUND;gi.LinkEntity(source);
+    T_ASSERT(S_AttackCanTarget(units[0],source));
+    T_EQ(G_FindNearestEnemy(units[0],G_AcquisitionRange(units[0])),source);
+    float health=source->health.value;
+    FOR_LOOP(i,6)S_SetUnitPaused(units[i],true);
+    limit=level.time+700;
+    while(level.time<limit) {level.time+=5;globals.RunFrame();}
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    FOR_LOOP(i,6) {
+        S_AcquireBuffAbilityDisables(units[i],false);
+        S_SetUnitPaused(units[i],false);
+    }
+    T_ASSERT(S_AbilityExecutionDisabled(units[0],MAKEFOURCC('A','a','t','k')));
+    limit=level.time+500;
+    while(level.time<limit) {level.time+=5;globals.RunFrame();}
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_ASSERT(units[0]->attack_scan.active);
+    wc3Clock_t deadline=units[0]->attack_scan.deadline;
+    uint32_t sequence=units[0]->attack_scan.sequence;
+    cstring_t file=Test_TempPath("wc3-captain-independent-acquire.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_ASSERT(S_AbilityExecutionDisabled(units[0],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(units[0]->attack_scan.active);
+    T_EQ(units[0]->attack_scan.sequence,sequence);
+    T_EQ(wc3_float_bits(units[0]->attack_scan.deadline.time),wc3_float_bits(deadline.time));
+    T_EQ(units[0]->attack_scan.deadline.epoch,deadline.epoch);
+    FOR_LOOP(i,6)S_ReleaseBuffAbilityDisables(units[i],false);
+    T_ASSERT(!S_AbilityExecutionDisabled(units[0],MAKEFOURCC('A','a','t','k')));
+    limit=level.time+1200;
+    while(level.time<limit && captain->request_range!=500) {level.time+=5;globals.RunFrame();}
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(captain->home.x));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    bool began=false;FOR_LOOP(i,6)began|=units[i]->attack_speed_cap.active;
+    T_ASSERT(began); /* Actor arrival alone cannot satisfy the acquisition producer. */
+    /* Native1557 publishes Attack before Captain home500 reissues members.
+     * The timer returns with no Attack target; later ally alerts are separate. */
+    T_FEQ(source->health.value,health,0.0001f);
+    remove(file);G_BotStop(0);level.started=false;
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;reset_entities();setup_test_world();
+}
 /* The source engagement continuation has its own target and active route;
  * a policy0 refresh must not replace the CaptainAttack retained point. */
 TEST(wc3_bot, captain_near_home_hostile_contact_retains_point_and_pursues_source) {

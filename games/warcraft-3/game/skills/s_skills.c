@@ -38,6 +38,7 @@ static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND | AB_ENGINE_EVENTS },  // Move — engine command and target death policy
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND | AB_ENGINE_EVENTS | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, attack_orders },
+    { "attackscan", CAbilityAttackScan, AB_INNATE | AB_TYPE_INIT }, /* Constructor-only Attack request. */
     { "BTLF", CAbilityTimedLife, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { "spellcast", CAbilitySpellCast, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { "morphtransition", CAbilityMorphTransition, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER | AB_UPDATE | AB_TYPE_UPDATE },

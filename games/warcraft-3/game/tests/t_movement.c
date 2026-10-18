@@ -21939,8 +21939,14 @@ TEST(wc3_movement, target168_public_invisibility_persistent_policy) {
 }
 
 #include "retail_fade168.h"
-/* The owner uses native scalar-listener deadlines, not integer milliseconds
- * or the next entity update. These are complete original consumer chains. */
+/* Query this owner directly: independent Attack acquisition timers may coexist.
+ * The scalar fixtures isolate complete original fade consumer chains, while the
+ * cold-save test below exercises delivery through the public timer merger. */
+static bool target168_next_fade(abilityTimerRequest_t *next) {
+    abilityCall_t call={.primary_timer=next};
+    next->proc=CAbilityPermanentInvisibility;
+    return CAbilityPermanentInvisibility(NULL,A_PRIMARY_TIMER_NEXT,&call);
+}
 TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
     FOR_LOOP(n,sizeof(retail_fade168)/sizeof(*retail_fade168)) {
         retailFade168_t const *row=retail_fade168+n;
@@ -21968,7 +21974,7 @@ TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
         T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,0);
         FOR_LOOP(i,row->count) {
             abilityTimerRequest_t next={0};
-            bool found=S_NextAbilityPrimaryTimer(&next);T_ASSERT(found);
+            bool found=target168_next_fade(&next);T_ASSERT(found);
             if(!found)break;
             T_EQ(next.proc,CAbilityPermanentInvisibility);
             T_EQ(wc3_float_bits(next.deadline.time),row->requests[i][2]);
@@ -21980,7 +21986,8 @@ TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
         T_EQ(S_PermanentInvisibilityActive(target),row->count!=0);T_EQ(move_follow_visits,row->count ? 1 : 0);
         T_EQ(unit->current_order_id,row->count ? 0 : G_OrderId("move"));
         T_EQ(unit->movement.follow_target,row->count ? NULL : target);
-        abilityTimerRequest_t next={0};T_ASSERT(!S_NextAbilityPrimaryTimer(&next));
+        abilityTimerRequest_t next={0};T_ASSERT(!target168_next_fade(&next));
+        T_ASSERT(!target->permanent_invisibility_fade.request.active);
         T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
         T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,row->count ? 1 : 0);
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
@@ -22087,7 +22094,7 @@ TEST(wc3_movement, target168_equal_deadline_bulk_heap_order_and_cancellation) {
     FOR_LOOP(i,4096)if(i%3==1)T_ASSERT(G_ActorRemoveSkill(units[i],MAKEFOURCC('A','p','i','v')));
     FOR_LOOP(i,4096) {
         if(i%3==1) {T_ASSERT(!S_PermanentInvisibilityActive(units[i]));continue;}
-        abilityTimerRequest_t next={0};T_ASSERT(S_NextAbilityPrimaryTimer(&next));
+        abilityTimerRequest_t next={0};T_ASSERT(target168_next_fade(&next));
         T_EQ(next.sequence,sequences[i]);T_EQ(invisibility_heap[0],units[i]);
         level.pathing_clock=next.deadline;abilityCall_t call={.primary_timer=&next};
         next.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);T_ASSERT(S_PermanentInvisibilityActive(units[i]));
