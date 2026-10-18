@@ -220,8 +220,8 @@ The fixture contains no retail assets.
 
 ```sh
 make test-renderer-model test-renderer-shadows
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 \
-  +menu_game +menu_single_player_campaign_night_elf \
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -vid_hidden 1 \
+  +ui_skip_transitions 1 +menu_game +menu_single_player_campaign_night_elf \
   +screenshot 100 +com_frame_limit 120
 ```
 
@@ -229,3 +229,10 @@ The bounded local RoC framebuffer capture made during the shared billboard fix
 confirmed both glowing eyes and the pendant flare. These are animation-phase
 comparisons, not pixel-identical retail goldens. Network and save formats are
 unchanged.
+
+Changing `BUILD=release` alone does not invalidate existing build outputs. To
+verify release compilation, force the rebuild or use separate `BIN_DIR`,
+`LIB_DIR` and `SHARE_INSTALL` paths. During this investigation both release
+compilation and the renderer regressions were explicitly rebuilt before reporting
+release validation. A no-op Make invocation is not evidence for a second build
+configuration.
