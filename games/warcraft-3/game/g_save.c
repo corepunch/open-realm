@@ -128,7 +128,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 97 persists the SetWaterBaseColor RGBA state. */
 /* Version 98 persists legacy campaign-menu race and scripted explosion state. */
 /* Version 99 persists timed full-map visibility deadlines. */
-static uint32_t const save_version = 99;
+/* Version 100 retains VM-owned item pools rather than dropping them as unknown host handles. */
+static uint32_t const save_version = 100;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically

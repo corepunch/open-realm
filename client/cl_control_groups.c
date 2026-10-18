@@ -121,10 +121,15 @@ void CL_ControlGroupsReset(void) {
 
 TEST(client_groups, save_load_roundtrip) {
     cstring_t slot = "bz-test-control-groups";
-    PATHSTR path;
-    uint32_t saved_count = cl.groups[2].num_selected;
-    uint32_t saved_ids[MAX_SELECTED_ENTITIES];
-    memcpy(saved_ids, cl.groups[2].entity_nums, sizeof(saved_ids));
+    PATHSTR path, old_home;
+    uint8_t saved_groups[sizeof(cl.groups)];
+    uint32_t last = cl.group_last, last_ms = cl.group_last_ms;
+    FILE *file;
+    memcpy(saved_groups, cl.groups, sizeof(saved_groups));
+    strlcpy(old_home, FS_HomePath(), sizeof(old_home));
+    /* ROC/TFT shards and concurrent worktrees must never share a real user save slot. */
+    FS_SetHomeDirectory(Test_TempPath("control-groups-home"));
+    CL_ControlGroupsReset();
     cl.groups[2].num_selected = 2;
     cl.groups[2].entity_nums[0] = 7;
     cl.groups[2].entity_nums[1] = 19;
@@ -135,8 +140,22 @@ TEST(client_groups, save_load_roundtrip) {
     T_EQ(cl.groups[2].num_selected, 2);
     T_EQ(cl.groups[2].entity_nums[0], 7);
     T_EQ(cl.groups[2].entity_nums[1], 19);
-    if (CL_GroupSavePath(slot, path, sizeof(path))) remove(path);
-    cl.groups[2].num_selected = saved_count;
-    memcpy(cl.groups[2].entity_nums, saved_ids, sizeof(saved_ids));
+    T_ASSERT(CL_GroupSavePath(slot, path, sizeof(path)));
+    file = fopen(path, "wb");
+    T_NOT_NULL(file);
+    if (file) { fputs("bad", file); fclose(file); }
+    CL_ControlGroupsLoad(slot);
+    T_EQ(cl.groups[2].num_selected, 0);
+    remove(path);
+    cl.groups[2].num_selected = 1;
+    CL_ControlGroupsLoad(slot);
+    T_EQ(cl.groups[2].num_selected, 0);
+    T_EQ(cl.group_last, MAX_CONTROL_GROUPS);
+    T_ASSERT(!CL_ControlGroupsSave("../outside"));
+    if (old_home[0]) FS_SetHomeDirectory(old_home);
+    memcpy(cl.groups, saved_groups, sizeof(saved_groups));
+    cl.group_last = last;
+    cl.group_last_ms = last_ms;
 }
+
 #endif

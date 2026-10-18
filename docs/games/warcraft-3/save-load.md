@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 99, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 100, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -938,3 +938,22 @@ and checked against live selectable entities when recalled. Double-tap focus
 state never survives a load. Scripted zone loads do not restore manual groups.
 Deleting a manual save also deletes its companion file. The companion must
 travel alongside the `.sav` file when copying saves to another installation.
+
+The `client_groups.save_load_roundtrip` regression uses a `Test_TempPath` home,
+so parallel ROC/TFT shards and other worktrees never overwrite a real manual-save
+companion. It covers successful restore, missing/truncated companions, and rejected
+path traversal, and restores the prior local selection state afterward.
+
+### Item pools and version 100
+
+`itempool` is a VM-owned inline payload, alongside `location` and `rect` in
+`jass_snapshot_ownedhandle`. It must bypass the host handle codec: the host owns
+entity/registry slots and otherwise encodes this unknown type as null. Version 100
+preserves each pool's weights, rawcodes, destroyed flag, and shared identity across
+aliases; version 99 and older saves are rejected. The regression
+`wc3_api.item_pool_snapshot_preserves_weights_aliases_and_destruction` saves a global
+pool and alias, restores them, removes an entry through the alias, then creates an
+item through the original. It also checks invalid rawcodes and retired pools.
+JASS verification scheduled with `jass_callbyname(..., true)` requires
+`jass_runevents` before inspecting its error state; enqueueing alone does not execute
+assertions.

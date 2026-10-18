@@ -10,6 +10,7 @@ type widget           extends agent
 type unit             extends widget
 type destructable     extends widget
 type item             extends widget
+type itempool         extends handle
 type itemtype         extends handle
 type effect           extends agent
 type effecttype       extends handle
@@ -316,6 +317,11 @@ native GetRandomReal            takes real lowBound, real highBound returns real
 constant native ConvertItemType takes integer i returns itemtype
 
 // Item inventory presentation and charge state.
+native CreateItemPool takes nothing returns itempool
+native DestroyItemPool takes itempool whichItemPool returns nothing
+native ItemPoolAddItemType takes itempool whichItemPool, integer itemId, real weight returns nothing
+native ItemPoolRemoveItemType takes itempool whichItemPool, integer itemId returns nothing
+native PlaceRandomItem takes itempool whichItemPool, real x, real y returns item
 native CreateItem               takes integer itemid, real x, real y returns item
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing

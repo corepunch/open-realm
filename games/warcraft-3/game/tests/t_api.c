@@ -8770,6 +8770,8 @@ TEST(wc3_api, item_duplicate_pickup_counts_new_item_and_existing_copy) {
         "globals\n"
         "  integer udg_Pickups = 0\n"
         "  integer udg_Duplicates = 0\n"
+        "  unit hero = null\n"
+        "  item second = null\n"
         "endglobals\n"
         "function onAcquire takes nothing returns nothing\n"
         "  local unit u = GetTriggerUnit()\n"
@@ -8793,12 +8795,14 @@ TEST(wc3_api, item_duplicate_pickup_counts_new_item_and_existing_copy) {
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
-        "  local unit hero = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
         "  local item first = CreateItem('ratf', 0.0, 0.0)\n"
-        "  local item second = CreateItem('ratf', 32.0, 0.0)\n"
+        "  set hero = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  set second = CreateItem('ratf', 32.0, 0.0)\n"
         "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_PICKUP_ITEM, null)\n"
         "  call TriggerAddAction(t, function onAcquire)\n"
         "  call BJassAssert(UnitAddItem(hero, first), \"first pickup failed\")\n"
+        "endfunction\n"
+        "function pickup_second takes nothing returns nothing\n"
         "  call BJassAssert(UnitAddItem(hero, second), \"second pickup failed\")\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
@@ -8808,8 +8812,15 @@ TEST(wc3_api, item_duplicate_pickup_counts_new_item_and_existing_copy) {
     G_RunEvents();
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+    /* Pickup events inspect current inventory when dispatched. Drain the first
+     * acquisition before simulating the next gameplay pickup. */
+    jass_callbyname(level.vm, "pickup_second", true);
+    jass_runevents(level.vm);
+    G_RunEvents();
+    jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", true);
-    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
 }
 
 TEST(wc3_api, create_item_rejects_empty_item_id) {
@@ -9646,6 +9657,48 @@ TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
     level.campaign_menu_race = 0;
 }
 
+/* Saved aliases must share the same mutable pool, including retired-pool state. */
+TEST(wc3_api, item_pool_snapshot_preserves_weights_aliases_and_destruction) {
+    cstring_t filename = Test_TempPath("wc3-item-pool.sav");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " itempool pool = null\n"
+        " itempool alias = null\n"
+        " itempool retired = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set pool = CreateItemPool()\n"
+        " set alias = pool\n"
+        " call BJassAssert(PlaceRandomItem(pool, 0.0, 0.0) == null, \"empty pool spawned\")\n"
+        " call ItemPoolAddItemType(pool, 'ratf', 2.0)\n"
+        " call ItemPoolAddItemType(pool, 'spro', 3.0)\n"
+        " call ItemPoolAddItemType(pool, 'ZZZZ', 100.0)\n"
+        " set retired = CreateItemPool()\n"
+        " call ItemPoolAddItemType(retired, 'ratf', 1.0)\n"
+        " call DestroyItemPool(retired)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " local item picked = null\n"
+        " call BJassAssert(pool != null, \"pool lost on load\")\n"
+        " call BJassAssert(alias == pool, \"pool alias lost on load\")\n"
+        " call ItemPoolRemoveItemType(alias, 'spro')\n"
+        " set picked = PlaceRandomItem(pool, 64.0, 96.0)\n"
+        " call BJassAssert(GetItemTypeId(picked) == 'ratf', \"pool entries or alias lost\")\n"
+        " call BJassAssert(GetItemX(picked) == 64.0, \"pool spawn location lost\")\n"
+        " call ItemPoolRemoveItemType(alias, 'ratf')\n"
+        " call BJassAssert(PlaceRandomItem(pool, 0.0, 0.0) == null, \"invalid type spawned\")\n"
+        " call ItemPoolAddItemType(retired, 'spro', 1.0)\n"
+        " call BJassAssert(PlaceRandomItem(retired, 0.0, 0.0) == null, \"destroyed pool revived\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", true);
+    jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    remove(filename);
+}
+
 /* Removing a location invalidates all variable aliases without changing
  * the storage of unrelated value handles (such as zero-valued enum races). */
 TEST(wc3_api, remove_location_invalidates_aliases) {
@@ -9682,7 +9735,8 @@ TEST(wc3_api, removed_location_global_survives_save_as_null) {
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     jass_callbyname(level.vm, "verify", true);
-    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
     remove(filename);
 }
 

@@ -705,6 +705,8 @@ Unresolvable item types are excluded from selection, and successful selections
 spawn through the ordinary world-item path. Destroyed handles remain inert even
 if another JASS variable retains a reference. These pools do not enforce item
 uniqueness or global population limits; map triggers must implement such policy.
+Pools, their aliases, and destroyed state survive VM snapshots through the owned
+handle codec; see [save/load](save-load.md#item-pools-and-version-100).
 
 The 256-entry maximum is an OpenRealm implementation limit, not a verified
 Warcraft III retail limit. Weighted selection and invalid-weight handling still
@@ -727,6 +729,12 @@ and `wc3_api.item_duplicate_pickup_counts_new_item_and_existing_copy`.
 The second test verifies the post-acquisition inventory view seen by item
 pickup triggers. Additional campaign/save-load compatibility is covered by
 existing item inventory tests; no global engine-owned counter is introduced.
+
+Pickup callbacks are queued and observe the inventory at dispatch time. Two
+`UnitAddItem` calls in one script action can therefore both observe both copies.
+`wc3_api.item_duplicate_pickup_counts_new_item_and_existing_copy` drains the first
+pickup's event before issuing the second to reproduce successive gameplay pickups.
+Its final JASS verification must be run, not merely queued.
 
 ### Rune of Rebirth (`rreb` / `AIrb`)
 
