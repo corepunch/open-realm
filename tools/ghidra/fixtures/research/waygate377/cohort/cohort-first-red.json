@@ -1,0 +1,42 @@
+{
+  "module_sha256": "99b2f30902de243c8ecde312ba4d5f206eca6fdd5a392b0f8fc740eb2d413d44",
+  "test_sha256": "bac8c88f346771a4a281fb594c2f62a60d636e9aa548728442e94dd18233210a",
+  "engine": {
+    "classic": {
+      "exit": 1,
+      "totals": [],
+      "junit": {
+        "name": "OpenRealm",
+        "tests": "1",
+        "failures": "1",
+        "errors": "0",
+        "skipped": "0",
+        "assertions": "117"
+      },
+      "assertions": {
+        "passed": 112,
+        "total": 117,
+        "failed": 5
+      },
+      "classification": "Behavior failures only; all fixture/profile/history/save setup assertions pass."
+    },
+    "tft": {
+      "exit": 1,
+      "totals": [],
+      "junit": {
+        "name": "OpenRealm",
+        "tests": "1",
+        "failures": "1",
+        "errors": "0",
+        "skipped": "0",
+        "assertions": "117"
+      },
+      "assertions": {
+        "passed": 112,
+        "total": 117,
+        "failed": 5
+      },
+      "classification": "Behavior failures only; all fixture/profile/history/save setup assertions pass."
+    }
+  }
+}

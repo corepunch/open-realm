@@ -2533,6 +2533,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
 }
 
 static void move_detach_task(edict_t *self) {
+    self->movement.point_continuation=false;self->movement.next_point=(vec2_t){0};
     self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
     S_TrackMoveTimers(self);
     move_detach_group(self);
@@ -4410,6 +4411,7 @@ static void move_reset_local_path(edict_t *self) {
 }
 
 void move_reset_progress(edict_t *self) {
+    self->movement.point_continuation=false;self->movement.next_point=(vec2_t){0};
     self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
     S_TrackMoveTimers(self);
     move_release_captain_reference(self);
@@ -5260,18 +5262,21 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
-static void move_begin_walk(edict_t *self, edict_t *target, bool patrol_leg) {
+static bool move_begin_walk_checked(edict_t *self,edict_t *target,bool patrol_leg,bool guard_callbacks) {
+    uint32_t spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
     if (S_GoldMineWorkerIsInside(self))
-        return;
+        return false;
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || unit_hasstatusstate(self, WC3_STATUS_STATE_ROOTED)
         || S_PurgeIsImmobilized(self))
-        return;
+        return false;
     if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
     {
         abilityCall_t call = MAKE(abilityCall_t, .move_target = target);
         S_UnitAbilityEventWithCall(self, A_MOVE_START, &call);
     }
+    if(guard_callbacks && (!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) ||
+       M_IsDead(self) || G_UnitMoveRevision(self)!=revision))return false;
     S_SetMoveGoal(self, &self->goalentity, target);
     self->attack_target_spawn_time = 0;
     S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
@@ -5291,16 +5296,19 @@ static void move_begin_walk(edict_t *self, edict_t *target, bool patrol_leg) {
     self->movement.flat_speed_bonus = S_MoveSpeedBonus(self);
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
+    if(guard_callbacks && (!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) ||
+       M_IsDead(self) || G_UnitMoveRevision(self)!=revision+1))return false;
     unit_commit_current_pose(self);
     self->movement.pose_clock = level.pathing_clock;
     self->movement.clock_valid = true;
     /* No route heading exists at submission time. Hold the stand pose instead
      * of showing a walking unit facing its previous, often opposite, heading. */
     unit_setanimation(self, "stand");
+    return true;
 }
 
 void order_move(edict_t *self, edict_t *target) {
-    move_begin_walk(self, target, false);
+    move_begin_walk_checked(self,target,false,false);
 }
 
 /* A public point command owns the current user head. Internal approaches use
@@ -5310,7 +5318,7 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
     /* Public admission69a881 stops through05ca50 before the new point task,
      * even for an idle actor embedded in a peer. Recover before cohort seeding. */
     S_StopUnitMovementWithRecovery(self);
-    move_begin_walk(self, goal, order_id==WC3_ORDER_ID_PATROL_TWO_POINTS);
+    move_begin_walk_checked(self,goal,order_id==WC3_ORDER_ID_PATROL_TWO_POINTS,false);
     if (self->goalentity == goal && self->currentmove == &move_move_walk)
         self->current_order_id = order_id;
 }
@@ -5735,6 +5743,28 @@ bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
     return true;
 }
 
+/* Every unassociated d016b task runs5fa950, including a gate entrance
+ * and its later cached endpoint. Only physical membership is shared; each
+ * unit retains its own independent internal task sequence. */
+static void move_start_unassociated_point_group(edict_t *unit,vec2_t const *point) {
+    movePointRequest_t request={.id=move_allocate_group_id(),
+        .history=unit->movement.previous_request_id,.goal=move_point_fine(point)};
+    move_request_attach(&request,unit);
+    wc3GridPose_t source;unit_predicted_pose(unit,&source);
+    box2_t bounds=CM_GetWorldBounds();
+    float center[]={wc3_grid_coordinate(source.world[0],bounds.min.x,32),
+        wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
+    moveQueuedCohort_t query={unit,&request};
+    /*013490 initializes the world radius used by selector8 in5fa950. */
+    /* 5fa950 rejects the sentinel previous identity before querying peers. */
+    if(unit->movement.previous_request_id && !unit->movement.group_isolation)
+        S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
+    /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
+     * for this source.16bcf0 then partitions all ready rows again. Old group
+     * membership does not bypass the current predicted-distance predicate. */
+    move_request_ready(&request,unit);
+}
+
 static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return QUEUED_ORDER_UNHANDLED;
     uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
@@ -5760,21 +5790,7 @@ static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t co
         move_group_admission.point.x==queued->point.x && move_group_admission.point.y==queued->point.y ?
         move_group_admission.request : NULL;
     if(prepared && !unit->movement.group_isolation)return true;
-    movePointRequest_t request={.id=move_allocate_group_id(),
-        .history=unit->movement.previous_request_id,.goal=move_point_fine(&queued->point)};
-    move_request_attach(&request,unit);
-    wc3GridPose_t source;unit_predicted_pose(unit,&source);
-    box2_t bounds=CM_GetWorldBounds();
-    float center[]={wc3_grid_coordinate(source.world[0],bounds.min.x,32),
-        wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
-    moveQueuedCohort_t query={unit,&request};
-    /*013490 initializes the world radius used by selector8 in5fa950. */
-    if(!unit->movement.group_isolation)
-        S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
-    /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
-     * for this source.16bcf0 then partitions all ready rows again. Old group
-     * membership does not bypass the current predicted-distance predicate. */
-    move_request_ready(&request,unit);
+    move_start_unassociated_point_group(unit,&queued->point);
     return true;
 }
 
@@ -6143,6 +6159,38 @@ static void move_start_point_group(edict_t *actor,vec2_t const *home,float range
         .arrival_range=wc3_point_arrival_range(range)};
     actor->movement.group_id=group->id;move_unit_groups[actor-g_edicts]=group;
     move_group_seed_route(group); group->ticking=false;
+}
+
+bool S_ValidUnitPointContinuation(edict_t const *unit) {
+    if(*(uint8_t const *)&unit->movement.point_continuation>1 ||
+       !isfinite(unit->movement.next_point.x) || !isfinite(unit->movement.next_point.y))return false;
+    if(!unit->movement.point_continuation)
+        return unit->movement.next_point.x==0 && unit->movement.next_point.y==0;
+    return unit->inuse && !M_IsDead(unit) && unit->movement.group_id &&
+        unit->currentmove==&move_move_walk && unit->goalentity &&
+        (unit->goalentity->svflags&SVF_MOVE_WAYPOINT);
+}
+
+/* 5fd270 captures two independent d016b tasks for an active Warp target.
+ * Prepend order executes the packet's entrance before the cached exit. The
+ * ordinary portal route reads the live edge; this producer never teleports. */
+bool S_IssueWaygateMoveOrder(edict_t *unit,edict_t *gate,vec2_t const *entrance,uint32_t order_id) {
+    if(!unit || !entrance || !S_WaygateIsGate(gate) ||
+       S_MoveTargetStatus(unit,gate)!=MOVE_TARGET_VALID || !S_UnitCanTranslate(unit))return false;
+    vec2_t first=*entrance,next={0};
+    bool pending=S_WaygateIsActive(gate);
+    if(pending)S_WaygateGetDestination(gate,&next);
+    uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+    S_StopUnitMovementWithRecovery(unit);
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       G_UnitMoveRevision(unit)!=revision)return false;
+    edict_t *goal=Waypoint_add(&first);
+    if(!goal)return false;
+    unit->current_order_id=order_id;
+    if(!move_begin_walk_checked(unit,goal,false,true) || unit->goalentity!=goal)return false;
+    unit->movement.point_continuation=pending;unit->movement.next_point=next;
+    move_start_unassociated_point_group(unit,&first);
+    return true;
 }
 
 /* Spell point tasks, including flyers, use the ordinary physical producer.
@@ -6721,9 +6769,24 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
             completed=true;
             bool cant_path=(member->flags&0x20000)!=0;
             vec2_t failed_goal=unit->goalentity ? unit->goalentity->s.origin2 : unit->s.origin2;
+            bool next_point=unit->movement.point_continuation;
+            vec2_t continuation=unit->movement.next_point;
             bool follow=group->follow_continuation;
             float range=group->follow_range;
             move_detach_group(unit); unit->movement.group_id=0;
+            if(next_point) {
+                uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+                move_leave(unit);
+                if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+                   G_UnitMoveRevision(unit)!=revision)continue;
+                edict_t *goal=Waypoint_add(&continuation);
+                if(!goal){unit->stand(unit);continue;}
+                /* The current public head is already committed. A nested Stop
+                 * or replacement must remain authoritative across startup. */
+                if(move_begin_walk_checked(unit,goal,false,true) && unit->goalentity==goal)
+                    move_start_unassociated_point_group(unit,&continuation);
+                continue;
+            }
             if (target) {
                 if (follow && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
                     move_reset_local_path(unit);
@@ -7197,8 +7260,10 @@ BZ_ABILITY_PROC(CAbilityMove) {
             edict_t *target=queued->target_number<globals.num_edicts ?
                 globals.edicts+queued->target_number : NULL;
             if(target && target!=ent && target->spawn_time==queued->target_spawn_time &&
-               S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID)
+               S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID) {
+                if(S_WaygateIsGate(target))return S_IssueWaygateMoveOrder(ent,target,&queued->point,G_OrderId(queued->order));
                 return S_IssueFollowOrder(ent,target,G_OrderId(queued->order));
+            }
             /* Original5fd270 uses the order's retained48/50 words after
              * optional-target validation, including a failed identity lookup. */
             edict_t *waypoint=Waypoint_add(&queued->point);

@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 214; /* Captain roster subscriptions exclude TargetLost; retained target roles keep it. */
+static uint32_t const save_version = 215; /* Captain roster subscriptions exclude TargetLost; retained target roles keep it. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1084,6 +1084,8 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, wait_blocker, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, group_id, F_INT),
     TF(edictMovement_s, previous_request_id, F_INT),
+    TF(edictMovement_s, point_continuation, F_INT),
+    TF(edictMovement_s, next_point, F_VECTOR),
     /* Shared route jobs and resumable movement directions are process-local
      * caches. In particular route_resume_goal is an edict pointer, so clear
      * the complete route-resume/wait record on save and rebuild it after load. */
@@ -2508,6 +2510,7 @@ static bool ValidMoveFineRequests(void) {
             unit->movement.visual_policy>15 || *(uint8_t const *)&unit->movement.visual_valid>1 ||
             *(uint8_t const *)&unit->movement.visual_active>1 || !isfinite(unit->movement.visual_facing) ||
             !isfinite(unit->movement.visual_speed)) return false;
+        if(!S_ValidUnitPointContinuation(unit))return false;
         if (unit->movement.fine_queued) queued++;
         else if (unit->movement.fine_prev || unit->movement.fine_next) return false;
     }
@@ -4935,7 +4938,7 @@ TEST(wc3_save, target378_rejects_version_213_before_captain_role_masks) {
     if (!file) return;
     T_ASSERT(LoadBytes(file, &header, sizeof(header)));
     fclose(file);
-    T_EQ(header.version, 214);
+    T_EQ(header.version, save_version);
     T_ASSERT(write_save_fixture_header(current, previous, 213, header.edict_size));
     unit->user_data = 378;
     T_ASSERT(!G_GetSaveMap(previous, map, sizeof(map)));
@@ -5409,4 +5412,24 @@ TEST(wc3_save, rejects_version_204_before_independent_attack_scan) {
     remove(current);remove(previous);
 }
 
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_save, rejects_version_214_before_retained_point_task_layout) {
+    cstring_t current=Test_TempPath("save-point-task-current.bin");
+    cstring_t previous=Test_TempPath("save-point-task-v214.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    T_ASSERT(WriteGame(current));
+    FILE *file=fopen(current,"rb");T_NOT_NULL(file);if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,214,header.edict_size));
+    unit->user_data=377;
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
+    T_EQ(unit->user_data,377);
+    T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
+    remove(current);remove(previous);
+}
 #endif

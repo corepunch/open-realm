@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of ChemicalRage380, the inventory has **603 entries**: **322** oracle contracts
-(including variants) supplied by **250** distinct verifier scripts, **121**
+As of Waygate377, the inventory has **604 entries**: **323** oracle contracts
+(including variants) supplied by **251** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -73,7 +73,7 @@ or silently upgrade the existing evidence.
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
 identity, source versions and frozen input hashes. The current ChemicalRage380
-inventory has603 entries:322 oracle contracts supplied by250 distinct verifier
+inventory has604 entries:323 oracle contracts supplied by251 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2467,3 +2467,7 @@ detach inverses, including initial/late attachment and in-process saves.
 Strict acceptance: classic: 30 tests/19026 assertions; tft: 30 tests/19026 assertions. Complete projection retains literal exceptions;
 Mount, remaining concrete producers and compositions stay in SEP-01.2.
 [Contract and evidence](chemical-rage-passive-availability.md).
+
+Waygate377 registers ordinary Warp-target entrance/cached-exit Move tasks and checked physical continuation. Strict acceptance: classic: 39 tests/229803 assertions; tft: 39 tests/229803 assertions.
+Original guards: 2345; controlled public markers: 1333.
+Destination quantization and wider producers remain in existing TARGET-01.2.

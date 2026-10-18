@@ -324,7 +324,8 @@
     "oracle-pause379",
     "oracle-captain378-role-masks",
     "oracle-morph375",
-    "oracle-morph380"
+    "oracle-morph380",
+    "oracle-waygate377"
   ],
   "entries": [
     {
@@ -7271,6 +7272,39 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "Scoped ANcr availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-waygate377",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Destination setter quantization and unobserved target producer branches remain in TARGET-01.2.",
+          "task": "TARGET-01.2",
+          "disposition": "behavior",
+          "rationale": "The existing TARGET-01.2 leaf retains destination quantization and wider target producer inventory; the Waygate point-task chunk does not close them."
+        },
+        {
+          "index": 1,
+          "text": "Synthetic engine callback free/reuse protection is not an additional public retail trace.",
+          "task": "TARGET-01.2",
+          "disposition": "behavior",
+          "rationale": "The existing TARGET-01.2 leaf retains destination quantization and wider target producer inventory; the Waygate point-task chunk does not close them."
+        },
+        {
+          "index": 2,
+          "text": "Custom alias state checks preserve data flow; the actual retail producer uses canonical nwgt.",
+          "task": "TARGET-01.2",
+          "disposition": "behavior",
+          "rationale": "The existing TARGET-01.2 leaf retains destination quantization and wider target producer inventory; the Waygate point-task chunk does not close them."
+        },
+        {
+          "index": 3,
+          "text": "Selected UI startup timings differ before the fixed public resume; the cohort oracle compares every observer record in the declared interval and separately checks the complete public control stream.",
+          "task": "TARGET-01.2",
+          "disposition": "behavior",
+          "rationale": "The existing TARGET-01.2 leaf retains destination quantization and wider target producer inventory; the Waygate point-task chunk does not close them."
         }
       ]
     }

@@ -1270,6 +1270,8 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         }
         /* Target-owned Smart interactions run before relation-based attack/follow
          * fallback. The target ability owns validation and any persistent move. */
+        if (S_WaygateIsGate(target))
+            return S_IssueWaygateMoveOrder(self,target,fallback_point ? fallback_point : &target->s.origin2,G_OrderId(order));
         if (S_UnitTargetAbilityOrder(target, self, order)) return true;
         if (unit_smart_target_is_enemy(self, target)) {
             if (S_UnitPolymorphed(self)) return false;
@@ -1297,6 +1299,8 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     if (!strcmp(order,"board")) return S_CargoOrderBoard(self,target);
     if (!strcmp(order,"load")) return S_CargoOrderLoad(self,target);
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
+        if (S_WaygateIsGate(target))
+            return S_IssueWaygateMoveOrder(self,target,fallback_point ? fallback_point : &target->s.origin2,G_OrderId(order));
         return S_IssueFollowOrder(self, target, G_OrderId(order));
     }
     if (!strcmp(order, "attack")) {

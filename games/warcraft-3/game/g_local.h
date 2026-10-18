@@ -2472,6 +2472,8 @@ struct edict_s {
         bool point_forced_arrival; /* Original moverD8.10000; range override still requires arrival heading. */
         edict_t *wait_blocker; /* removed actors invalidate references before edict reuse */
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
+        bool point_continuation; /* Unit-owned pending d016b; physical cohort rebinding does not consume it. */
+        vec2_t next_point; /* Captured endpoint of the next internal point task. */
         uint32_t previous_request_id; /* Latest submitted shared Move request; independent of FIFO activation. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float speed_factor; /* retained Move multiplier, updated by applying owners */
@@ -4933,6 +4935,8 @@ bool S_UnitUsesAIPointMove(edict_t const *);
 void S_ReleaseCaptainHomeActor(edict_t *);
 bool S_ValidateCaptainHomeActors(bool);
 bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);
+bool S_ValidUnitPointContinuation(edict_t const *);
+bool S_IssueWaygateMoveOrder(edict_t *, edict_t *, vec2_t const *, uint32_t);
 /* Native5fb940 results; cargo/hidden are world-presence failures, not fog. */
 typedef enum {
     MOVE_TARGET_VALID = 0,

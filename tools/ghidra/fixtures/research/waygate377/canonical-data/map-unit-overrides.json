@@ -1,0 +1,297 @@
+{
+  "version": 2,
+  "tables": [
+    [
+      {
+        "base": "hfoo",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "Hpal",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "edoc",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "edcm",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "edot",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "edtm",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "ewsp",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "base": "egol",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "id": "urpo",
+            "type": 0,
+            "value": 2,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpp",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpg",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "id": "urpr",
+            "type": 0,
+            "value": 17,
+            "end": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "base": "hfoo",
+        "new": "hF00",
+        "mods": [
+          {
+            "id": "ufor",
+            "type": 0,
+            "value": 0,
+            "end": "hF00"
+          }
+        ]
+      },
+      {
+        "base": "hfoo",
+        "new": "hF01",
+        "mods": [
+          {
+            "id": "ufor",
+            "type": 0,
+            "value": 1,
+            "end": "hF01"
+          }
+        ]
+      },
+      {
+        "base": "hfoo",
+        "new": "hF02",
+        "mods": [
+          {
+            "id": "ufor",
+            "type": 0,
+            "value": 2,
+            "end": "hF02"
+          }
+        ]
+      },
+      {
+        "base": "hfoo",
+        "new": "hF03",
+        "mods": [
+          {
+            "id": "ufor",
+            "type": 0,
+            "value": 3,
+            "end": "hF03"
+          }
+        ]
+      }
+    ]
+  ]
+}

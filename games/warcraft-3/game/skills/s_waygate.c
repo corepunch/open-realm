@@ -204,30 +204,10 @@ void S_WaygateSetActive(edict_t *gate, bool active) {
     G_AddUnitAnimationProperties(gate, "alternate", active);
 }
 
-static bool waygate_point_inside(edict_t const *gate, vec2_t const *point) {
-    float width, height;
-
-    if (!gate || !point || !waygate_dimensions(gate, &width, &height)) return false;
-    return fabsf(point->x - gate->s.origin2.x) <= width * 0.5f &&
-           fabsf(point->y - gate->s.origin2.y) <= height * 0.5f;
-}
-
-static bool waygate_target_inside(edict_t const *gate, edict_t const *unit) {
-    return unit && waygate_point_inside(gate, &unit->s.origin2);
-}
-
-static bool waygate_target_valid(edict_t const *unit, edict_t const *gate, uint32_t spawn_time) {
-    if (!unit || !gate || unit == gate || !gate->inuse || gate->spawn_time != spawn_time) return false;
-    if (M_IsDead(unit) || M_IsDead(gate) || !S_UnitCanTranslate(unit)) return false;
-    return S_WaygateIsActive(gate) && gate->waygate->destination_set;
-}
-
 static bool waygate_behavior_active(edict_t const *unit) {
     return unit && (unit->movement.waygate_target || unit->movement.waygate_goal ||
                     unit->movement.waygate_target_spawn_time);
 }
-
-static void waygate_cancel(edict_t *unit);
 
 /* CAbilityWarp owns only its pointers. In particular, secondarygoal is shared
  * by unrelated movement behaviors and must never be cleared by Way Gate exit. */
@@ -239,123 +219,6 @@ static void waygate_clear_order(edict_t *unit) {
     S_SetMoveGoal(unit, &unit->movement.waygate_goal, NULL);
     unit->movement.waygate_target_spawn_time = 0;
     move_reset_progress(unit);
-}
-
-static bool waygate_complete(edict_t *unit, edict_t *gate) {
-    vec2_t position;
-
-    if (!unit || !gate) return false;
-    if (!G_FindUnitUnstuckPosition(unit, &gate->waygate->destination, &position)) {
-        fprintf(stderr, "WC3 Waygate: no legal destination for unit %u gate %u at (%.1f, %.1f); traversal cancelled\n",
-                unit->s.number, gate->s.number, gate->waygate->destination.x, gate->waygate->destination.y);
-        waygate_cancel(unit);
-        return false;
-    }
-    S_SpellRelocateUnit(unit, BZ_AMOV, &position);
-    waygate_clear_order(unit);
-    unit_stand(unit);
-    return true;
-}
-
-static bool waygate_find_entry_point(edict_t *unit, edict_t *gate, vec2_t *out) {
-    float width, height;
-    box2_t entry;
-
-    if (!unit || !gate || !out || !waygate_dimensions(gate, &width, &height)) return false;
-    entry.min = (vec2_t){ gate->s.origin2.x - width * 0.5f, gate->s.origin2.y - height * 0.5f };
-    entry.max = (vec2_t){ gate->s.origin2.x + width * 0.5f, gate->s.origin2.y + height * 0.5f };
-    return G_ClosestStaticPathablePointInRectForRadiusFlags(&unit->s.origin2, &entry,
-        unit->collision, M_UnitStaticPathingFlags(unit), out);
-}
-
-static edict_t *waygate_create_approach_goal(edict_t *unit, edict_t *gate) {
-    vec2_t approach;
-
-    if (waygate_find_entry_point(unit, gate, &approach))
-        return Waypoint_add(&approach);
-    if (!G_UnitIsStructure(gate) || !gate->pathtex)
-        return gate; /* Models without a blocked authored footprint can be followed directly. */
-    return NULL;
-}
-
-static void waygate_cancel(edict_t *unit) {
-    waygate_clear_order(unit);
-    unit_stand(unit);
-}
-
-static void ai_waygate_walk(edict_t *unit) {
-    edict_t *gate = unit ? unit->movement.waygate_target : NULL;
-    uint32_t const spawn_time = unit ? unit->movement.waygate_target_spawn_time : 0;
-    float distance, step;
-
-    if (!waygate_target_valid(unit, gate, spawn_time)) {
-        waygate_cancel(unit);
-        return;
-    }
-    if (waygate_target_inside(gate, unit)) {
-        waygate_complete(unit, gate);
-        return;
-    }
-    if (!unit->movement.waygate_goal || !unit->movement.waygate_goal->inuse) {
-        edict_t *goal = waygate_create_approach_goal(unit, gate);
-        if (!goal) {
-            waygate_cancel(unit);
-            return;
-        }
-        S_SetMoveGoal(unit, &unit->movement.waygate_goal, goal);
-        S_SetMoveGoal(unit, &unit->goalentity, goal);
-    }
-    distance = M_DistanceToGoal(unit);
-    step = unit_movedistance(unit);
-    if (move_is_blocked(unit, distance, step) || unit->movement.flow_unreachable) {
-        waygate_cancel(unit);
-        return;
-    }
-    unit_changeangle_for_radius(unit, unit->collision);
-    if (unit->movement.flow_goal_reached && !waygate_target_inside(gate, unit)) {
-        waygate_cancel(unit);
-        return;
-    }
-    unit_moveindirection(unit);
-}
-
-static umove_t waygate_move_walk = { "walk", ai_waygate_walk, NULL, CAbilityWarp };
-
-static bool waygate_order_use(edict_t *unit, edict_t *gate) {
-    edict_t *goal = NULL;
-    uint32_t const spawn_time = gate ? gate->spawn_time : 0;
-
-    if (!waygate_target_valid(unit, gate, spawn_time)) return false;
-    if (!waygate_target_inside(gate, unit)) {
-        goal = waygate_create_approach_goal(unit, gate);
-        if (!goal) return false; /* A rejected Smart order must not disturb the current behavior. */
-    }
-
-    S_SetFollowTarget(unit,NULL);
-    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
-    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
-    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
-    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
-    unit->movement.holding_position = false;
-    waygate_clear_order(unit);
-
-    if (!goal) {
-        S_SetMoveGoal(unit, &unit->goalentity, NULL);
-        unit->movement.waygate_target = gate;
-        unit->movement.waygate_target_spawn_time = spawn_time;
-        waygate_complete(unit, gate);
-        return true;
-    }
-
-    /* Install the movement first: unit_setmove publishes A_MOVE_LEAVE for the
-     * old behavior, which must not be allowed to clear the new gate state. */
-    unit_setmove(unit, &waygate_move_walk);
-    unit->movement.waygate_target = gate;
-    unit->movement.waygate_target_spawn_time = spawn_time;
-    S_SetMoveGoal(unit, &unit->movement.waygate_goal, goal);
-    S_SetMoveGoal(unit, &unit->goalentity, goal);
-    move_reset_progress(unit);
-    return true;
 }
 
 BZ_ABILITY_PROC(CAbilityWarp) {
@@ -389,24 +252,17 @@ BZ_ABILITY_PROC(CAbilityWarp) {
         case A_TARGET_ORDER:
             return call && call->target_order.issuer && call->target_order.order &&
                    !strcmp(call->target_order.order, "smart") &&
-                   waygate_order_use(call->target_order.issuer, ent);
+                   S_IssueWaygateMoveOrder(call->target_order.issuer, ent,
+                       &ent->s.origin2, G_OrderId(call->target_order.order));
         case A_MOVE_LEAVE:
             if (!waygate_behavior_active(ent)) return false;
             waygate_clear_order(ent);
             return true;
-        case A_ORDER_ACCEPTED: {
-            bool const owns_move = ent && ent->currentmove && ent->currentmove->proc == CAbilityWarp;
+        case A_ORDER_ACCEPTED:
             if (!waygate_behavior_active(ent)) return false;
-            /* A Smart order can itself start this approach. Its post-accept
-             * notification must not retire the behavior that just accepted it. */
-            if (owns_move && call && call->order && !strcmp(call->order, "smart"))
-                return true;
+            /* Reserved serialized fields never own a physical task now. */
             waygate_clear_order(ent);
-            /* The accepted order may already have installed its own cast/move.
-             * Only replace the old Way Gate walk when it is still current. */
-            if (owns_move) unit_stand(ent);
             return true;
-        }
         case A_UNIT_REMOVE:
             if(!ent)return false;
             if(waygate_behavior_active(ent))waygate_clear_order(ent);
