@@ -8,8 +8,8 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Execution order for the remaining 30 (2026-10-18)
 
-**Current closure result: 309/336 complete, 27 open.** GROUP-01.2 is now verified
-across its existing producer matrix, BASE-03.2 publishes the field inventory and BASE-01.4 the forced-position entry inventory. The execution plan below retains its
+**Current closure result: 310/336 complete, 26 open.** GROUP-01.2 is now verified
+across its existing producer matrix, BASE-03.2 publishes the field inventory, BASE-01.4 the forced-position entry inventory and NUM-01.2 the arithmetic inventory. The execution plan below retains its
 original 30-leaf baseline and milestone counts as planning history.
 
 **Baseline: 306/336 complete, 30 open.** Morph382 is committed as
@@ -95,6 +95,10 @@ until the remaining matrices are frozen; test counts and research volume do not
 substitute for leaf closure.
 
 ## Progress
+
+Arith012 closes NUM-01.2: 114 arithmetic/conversion rows over11,671 guarded
+original sites, with every unresolved helper or family owned by an existing open
+leaf. **26 tasks remain.** [Inventory](retail-pathfinding-arithmetic-inventory.md).
 
 Forced014 closes BASE-01.4: 71 forced-position/teleport/pathing-bypass entry rows
 over a closed universe of303 guarded call sites, each unresolved path owned by an
@@ -1907,7 +1911,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 ### NUM-01 — Arithmetic inventory
 
 - [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
-- [ ] **NUM-01.2** Publish the remaining arithmetic/conversion inventory with original caller sites and evidence/task ownership; link verified scalars and completed paired/decimal/public/angle/Pow slices01.4..6/08/09. Explicit extensions01.10..19 own rounding, shared constant initialization, reachable operand aliases, decimal CRT grammar/locale and nonreturning VM lifetime; compiled literal producers remain01.7. Classify any newly discovered numeric helper into existing evidence or an explicit follow-up leaf.
+- [x] **NUM-01.2** Publish the remaining arithmetic/conversion inventory with original caller sites and evidence/task ownership; link verified scalars and completed paired/decimal/public/angle/Pow slices01.4..6/08/09. Explicit extensions01.10..19 own rounding, shared constant initialization, reachable operand aliases, decimal CRT grammar/locale and nonreturning VM lifetime; compiled literal producers remain01.7. Classify any newly discovered numeric helper into existing evidence or an explicit follow-up leaf. Closed by the [arithmetic inventory](retail-pathfinding-arithmetic-inventory.md): 114 helper/family rows over a closed universe of11,671 original sites with1,486 exclusions and11,760 DLL instruction guards;80 covered,32 partial,2 uncovered, each unresolved row owned by an existing open leaf. New: unaudited distance helper070850 (NUM-01.12), Gaussian dice branch and FP-control reset092f70 (E2E-06.1), static float->int64 runtime, round-to-nearest SSE initializers and inline fine/world exponent scaling. Integer-overflow fault and formatter-buffer lifetimes are E2E-05.2 rows.
 - [x] **NUM-01.3** Independent integer formula regenerates all 1,025 embedded reciprocal entries exactly; Ghidra references identify a static table consumed by0711e0, with no runtime producer. Same generator also reproduces all 1,025 sine entries. Evidence: [generated tables](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry), report `scalar-trig-engine-exact.json`; historical build-time source is unavailable.
 
 - [x] **NUM-01.4** Split01.2's paired-trig consumer integration: execute original071340 with raw angle words and verified ECX/EDX/stack4/RET4 ABI, independently regenerated sine table, alias/guard/nonvolatile-register controls and optimized/unoptimized C. Integrate shared phase calculation into production velocity without changing any frozen velocity/facing/position words. Evidence: [paired trigonometry](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry),20,032 distinct raw angles plus80,128 aliases through original code/C with guards, independent table model and-O0/-O2 regression; frozen digest01131f85... and 122/122 unchanged-trajectory corpus outcomes. Remaining conversion/angle-helper ABI and public-domain inventory stays01.2.

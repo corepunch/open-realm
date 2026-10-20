@@ -338,9 +338,9 @@
         {
           "index": 0,
           "text": "Distance and angular math observed from original helpers, not independently reimplemented.",
-          "task": "NUM-01.2",
-          "disposition": "behavior",
-          "rationale": "Join the remaining arithmetic helper/caller inventory to independent engine evidence; original-helper observations alone are insufficient."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "arrival distance/angle now independently implemented (wc3_pathing_arrival.h: wc3_sub/mul/add/sqrt + wc3_heading_error) and verified by NUM-01.17/01.20 and oracle-arrival-engine 2342 cases; only wider numeric domains remain (E2E-06.1)"
         }
       ]
     },
@@ -1118,9 +1118,9 @@
         {
           "index": 0,
           "text": "Distance and angular math observed from original helpers, not independently reimplemented.",
-          "task": "NUM-01.2",
-          "disposition": "behavior",
-          "rationale": "Join the remaining arithmetic helper/caller inventory to independent engine evidence; original-helper observations alone are insufficient."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "same as above"
         }
       ]
     },
@@ -6809,9 +6809,9 @@
         {
           "index": 0,
           "text": "Oversized original native-buffer and arithmetic-fault lifetimes remain NUM-01.2; engine formatting bounds are transactional safety behavior, not proven retail overflow parity.",
-          "task": "NUM-01.2",
+          "task": "E2E-05.2",
           "disposition": "behavior",
-          "rationale": "Native buffer overflow and integer fault lifetime require their own bounded original evidence; successful formatting cases do not establish those policies."
+          "rationale": "oversized native buffer + arithmetic-fault lifetimes are listed remaining rows; Fault353 is candidate evidence"
         },
         {
           "index": 1,
