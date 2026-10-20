@@ -213,7 +213,13 @@ bool unit_affectingcombat(edict_t *self) {
 
 static void unit_prepare_stand(edict_t *self) {
     self->current_order_id = 0;
-    self->build = NULL;
+    /* Construction and production own this link independently of the user
+     * head. In particular, owner-change Stop precedes queue cancellation and
+     * must leave its old-owner refunds reachable. */
+    edict_t *head = self->build;
+    if (head != self && !(head && head->training) &&
+        !(head && head->revival && head->revival->reviving && head->revival->producer == self))
+        self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
     self->movement.last_distance = 0;
@@ -1232,6 +1238,22 @@ void G_ClearUnitOrderQueue(edict_t *self) {
     queue->head = queue->count = 0;
 }
 
+/* 673e80 keeps the user head and cancels its successors. An executing head is
+ * outside the ring; a removal/inside-construction suspended head is entry 0. */
+void G_CancelUnitOrderSuccessors(edict_t *self) {
+    unitOrderQueue_t *queue = &self->order_queue;
+    if (!G_IsDeferredFree(self) && !self->construction_held) {
+        G_ClearUnitOrderQueue(self);
+        return;
+    }
+    if (queue->count < 2) return;
+    for (uint32_t i = 1; i < queue->count; i++)
+        S_UnitQueuedOrderEvent(self, &queue->entries[(queue->head + i) % queue->capacity], A_QUEUE_ORDER_CANCEL);
+    for (uint32_t i = 1; i < queue->count; i++)
+        memset(&queue->entries[(queue->head + i) % queue->capacity], 0, sizeof(unitOrder_t));
+    queue->count = 1;
+}
+
 uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
     return self ? self->order_queue.count : 0;
 }
@@ -1466,7 +1488,11 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         if (result == ABILITY_ORDER_POINT)
             return G_IssueUnitPointOrder(self,order,&point,queue,issuer_player,0);
         if (result == ABILITY_ORDER_INTERCEPTED) {
-            G_PublishIssuedTargetOrder(self, order, target, issuer_player);
+            /* 680320 mode1 after 69b2f0: the owner keeps its head and task, 673e80
+             * cancels every pending successor and no issued-order event is sent.
+             * This corrects the earlier retained-FIFO/published-event engine path
+             * (Order022 repair-reissue and repair-smart captures). */
+            G_CancelUnitOrderSuccessors(self);
             return true;
         }
     }

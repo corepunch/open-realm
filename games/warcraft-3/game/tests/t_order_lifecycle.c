@@ -299,7 +299,10 @@ TEST(wc3_order_lifecycle, ranking264_available_target_competes_with_retained_com
         if(mode==2)newx=388;
         if(mode==3){oldx=388;newx=588;}
         if(mode==4)newx=oldx;
-        edict_t *unit=review_order_unit(0,0),*old=review_order_unit(oldx,1),*candidate=review_order_unit(newx,0);
+        /* Equal-distance candidates must not overlap: owner-change Stop now
+         * performs native embedded recovery before ranking publication. */
+        edict_t *unit=review_order_unit(0,0),*old=review_order_unit(oldx,1),
+            *candidate=review_order_unit_at(mode==4 ? 0 : newx,mode==4 ? newx : 0,0);
         unit->s.model=old->s.model=candidate->s.model=1;
         unit->collision=old->collision=candidate->collision=31;
         unit->invulnerable=true;unit->runtime.acquisition_range=700;
@@ -1667,7 +1670,10 @@ TEST(wc3_order_lifecycle, repair_family_heads_survive_approach_and_complete_at_w
         worker->buildwork->gold_accum = 0.25f;
         T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, false, 0));
         T_EQ(worker->current_order_id, 851971); T_EQ(worker->currentmove, work);
-        T_EQ(worker->order_queue.count, 1); T_FEQ(worker->buildwork->gold_accum, 0.25f, 0);
+        T_EQ(worker->order_queue.count, 0); T_FEQ(worker->buildwork->gold_accum, 0.25f, 0);
+        /* Native680383 cancels successors on interception. A later rejected
+         * family still preserves a newly queued command. */
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){832,0}, true, 0, 0));
         /* An unknown family must not retag or replace an accepted Smart repair. */
         T_ASSERT(!G_IssueUnitTargetOrder(worker, names[(i + 1) % 3], target, false, 0));
         T_EQ(worker->current_order_id, 851971);
@@ -2511,9 +2517,9 @@ TEST(wc3_order_lifecycle, creep_guard_explicit_point_move_cancels_return) {
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
 }
 
-/* Ownership transfer aborts an AI return without recording a new Stop
- * guard anchor at the creep's displaced position. */
-TEST(wc3_order_lifecycle, creep_guard_owner_transfer_preserves_stop_anchor) {
+/* Ownership transfer admits the same public Stop as an explicit command,
+ * aborting the AI return and recording the current position as its anchor. */
+TEST(wc3_order_lifecycle, creep_guard_owner_transfer_records_public_stop_anchor) {
     setup_test_world();
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
     G_CreepGuardInit(creep);
@@ -2528,7 +2534,7 @@ TEST(wc3_order_lifecycle, creep_guard_owner_transfer_preserves_stop_anchor) {
     T_ASSERT(!creep->movement.creep_guard_enabled);
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
     T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
-    T_FEQ(creep->movement.guard_position.x, 128, 0.001f);
+    T_FEQ(creep->movement.guard_position.x, 900, 0.001f);
 }
 
 TEST(wc3_order_lifecycle, creep_guard_owner_transfer_reconciles_policy) {

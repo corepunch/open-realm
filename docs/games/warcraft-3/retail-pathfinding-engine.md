@@ -10283,10 +10283,12 @@ head: the worker continues to contact, where work completes. Smart approach
 owns851971; replacing it with the concrete command changes the head. During
 work,409630 has published the canonical target identity at owner138/13c.
 Interception4371b0 can then accept same-target Smart/concrete commands without
-replacing the old head, work timers or pending FIFO. The engine's new generic
-`A_TARGET_ORDER_ADMIT` hook gives the registered/active ability that decision
-before generic queue mutation. Issued target events still publish the accepted
-command independently of the retained current head.
+replacing the old head or work timers. The recovered ORDER-02.2 witnesses
+correct this section's original FIFO/event interpretation: interception in
+mode1 cancels pending successors and publishes no new issued-target event.
+`A_TARGET_ORDER_ADMIT` gives the registered/active ability that decision before
+replacement. See [queue admission controls](retail-pathfinding-order-controls.md)
+for repeated native Repair/Smart captures and the untouched-successor control.
 
 A valid autocast direction change interrupts Move or Repair and completes its
 head to0. An already-selected direction, unavailable ability or wrong Repair

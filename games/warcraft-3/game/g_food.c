@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 
 static gameClient_t *G_FoodClient(uint32_t player) {
     gameClient_t *client = G_GetPlayerClientByNumber(player);
@@ -160,12 +161,12 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     uint32_t old_player;
 
     if (!unit || unit->s.player == player) return;
-    /* Ownership transfer must cancel an AI-owned return without resetting
-     * the independent Stop guard anchor to the creep's current position.
-     * Run before Move's owner-change Stop, which records that anchor. */
-    if (unit->movement.creep_guard_enabled &&
-        unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
-        order_stop_cleanup(unit);
+    /* 698ce0 admits d0004 through the ordinary 680320(mode1, dispatch1) path for
+     * every live unit, so callbacks see the old owner before the owner event;
+     * order-rejecting units only cancel queued successors (673e80). This
+     * replaces the old silent walking-only Stop (Order022 owner scenes). */
+    if (M_IsDead(unit) || G_IsDeferredFree(unit)) G_CancelUnitOrderSuccessors(unit);
+    else S_IssueStopOrder(unit);
     S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGING);
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before

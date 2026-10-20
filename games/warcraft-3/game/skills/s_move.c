@@ -7437,8 +7437,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
     case A_UNIT_OWNER_CHANGING:
-        /* Original698d92 cancels ordinary Move while callbacks still see the old player. */
-        if (unit_is_walking(ent)) order_stop(ent);
+        /* The owner-change public Stop (698d92) already retired any Move task. */
         move_unlink_requests(ent); return true;
     case A_UNIT_OWNER_CHANGED:
         /* Original05c800/168a80 publishes the new player class after cancellation. */

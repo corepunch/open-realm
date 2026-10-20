@@ -341,6 +341,9 @@ static bool ShowTrainedUnit(edict_t *townhall, edict_t *unit) {
     /* Food Used was already reserved on this queue entity. Completion only
      * activates Food Made; it must not charge Food Used a second time. */
     G_SetUnitFoodMade(unit, unit->data.UnitBalance->foodMade);
+    /* ai_train_build retained the successor before this successful reveal.
+     * The completed unit now owns no production-queue link. */
+    unit->build = NULL;
     unit->stand(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
     return true;
@@ -465,9 +468,8 @@ void ai_train_build(edict_t *ent) {
             }
             if (completed->sacrifice)
                 SacrificeQueueMessage(ent, completed, A_QUEUE_COMPLETE);
-            /* Queued units use build as the next-item link, while unit_stand()
-             * clears build for the completed unit. Preserve the producer's queue
-             * link before revealing/standing the completed unit. */
+            /* ShowTrainedUnit detached the completed child's queue link.
+             * The producer retains the successor captured before the reveal. */
             ent->build = next;
             if (ent->build && ent->build->training && !(ent->build->research && ent->build->research->upgrade))
                 ReserveTrainingFood(ent, ent->build);

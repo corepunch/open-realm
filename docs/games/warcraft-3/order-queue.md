@@ -237,3 +237,6 @@ Runtime checks should additionally cover:
 
 - [Building Construction](building-construction.md) — construction placement validation, cursor ownership, arrival-time revalidation, and race-specific construction lifecycles.
 - [Issued Target and Point Order Events](issued-target-order-events.md) — submission-time trigger publication for immediate and queued orders.
+
+Retail producer details and the recovered owner-change/Repair corrections are
+recorded in [queue admission controls](retail-pathfinding-order-controls.md).

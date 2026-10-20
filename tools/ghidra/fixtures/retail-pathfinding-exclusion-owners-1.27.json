@@ -333,7 +333,8 @@
     "oracle-captain473-retreat-saveload",
     "oracle-morph390",
     "oracle-harvest012-ownership",
-    "oracle-supportgoal-water-widget"
+    "oracle-supportgoal-water-widget",
+    "oracle-order022-admission"
   ],
   "entries": [
     {
@@ -7516,6 +7517,39 @@
           "task": "E2E-05.2",
           "disposition": "evidence-boundary",
           "rationale": "The restoration process and renderer are separate acceptance boundaries."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-order022-admission",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Cast protection is captured but not implemented by this owner-change/Repair batch; subgroup and wider internal ownership remain ORDER-02.2.",
+          "task": "ORDER-02.2",
+          "disposition": "behavior",
+          "rationale": "This finite recovered producer batch leaves the named behavior or evidence boundary open."
+        },
+        {
+          "index": 1,
+          "text": "Transient bypass and spell/morph preserving-interruption producers remain ORDER-01.13.",
+          "task": "ORDER-01.13",
+          "disposition": "behavior",
+          "rationale": "This finite recovered producer batch leaves the named behavior or evidence boundary open."
+        },
+        {
+          "index": 2,
+          "text": "Input-delivery timestamps vary; public event-contract agreement does not establish scheduler cadence (NUM-02.3).",
+          "task": "NUM-02.3",
+          "disposition": "evidence-boundary",
+          "rationale": "This finite recovered producer batch leaves the named behavior or evidence boundary open."
+        },
+        {
+          "index": 3,
+          "text": "In-process save continuations do not establish fresh-process restoration or rendered parity (E2E-05.2).",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "This finite recovered producer batch leaves the named behavior or evidence boundary open."
         }
       ]
     }

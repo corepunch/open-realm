@@ -1245,7 +1245,7 @@ typedef enum {
     ABILITY_ORDER_UNHANDLED,
     ABILITY_ORDER_REJECTED,
     ABILITY_ORDER_ACCEPTED,
-    ABILITY_ORDER_INTERCEPTED, /* Accepted by the current owner without replacing its public head or queue. */
+    ABILITY_ORDER_INTERCEPTED, /* Current owner keeps its public head; pending successors are canceled, no event. */
     ABILITY_ORDER_POINT, /* Owner converts a target order to its captured point before admission. */
 } abilityOrderResult_t;
 
@@ -4845,6 +4845,7 @@ uint32_t G_OrderDefinitionCount(void);
 bool G_OrderDefinitionInfo(uint32_t index, uint32_t *id, cstring_t  *name, uint32_t *ability);
 bool G_UnitStartNextQueuedOrder(edict_t *);
 void G_ClearUnitOrderQueue(edict_t *);
+void G_CancelUnitOrderSuccessors(edict_t *);
 uint32_t G_UnitQueuedOrderCount(edict_t const *);
 void unit_birth(edict_t *);
 void unit_die(edict_t *, edict_t *);

@@ -1248,12 +1248,15 @@ TEST(wc3_unit, stop_exits_ready_animation) {
     T_STREQ(ent->currentmove->animation, "stand");
 }
 
-TEST(wc3_unit, stand_clears_build_pointer) {
+TEST(wc3_unit, stand_clears_transient_build_target) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    ent->build = ent;
+    edict_t *target = make_unit(64, 0);
+    /* A self-link is the construction marker, not a worker target. */
+    ent->build = target;
     unit_stand(ent);
     T_NULL(ent->build);
+    T_ASSERT(target->inuse);
 }
 
 TEST(wc3_unit, stand_clears_no_ubersplat_flag) {

@@ -30,7 +30,7 @@ the archives also preserve work that was never committed.
 | Stone Form390 | `agent-aef3a192684e6a326`, `bcf1f57ca` | Integrated in the reviewed recovery batch with strict/affected/full acceptance. Later391 probes remain separate uncommitted research; SEP-01.2 remains open. |
 | Harvest H012 | `agent-aa0697990a076c197`, `1c44de6d6` plus dirty files | Integrated from the complete dirty snapshot with Save218, mine-owned death cleanup, Peon saved journey and loader-error checks. Strict6 tests/251 assertions per edition and full acceptance pass; ORDER-01.12 stays open. |
 | Support/goal | `agent-ad242504f7459a0ea` (`foot-04.2`) | Integrated recovered destructable Move/radius/loss ownership, prepared water/ramp support and exact metadata float/SSE cap. Strict472 tests/2000479 assertions per edition; full9992 native/2934 Python pass. FOOT-04.2 remains open. [Evidence](retail-pathfinding-support-goals.md). |
-| Queued/internal orders | `agent-a7a1cc22776ff3841` | Untracked `t_order022.c` and retail capture/probe tools; incomplete. Static queue-flag findings are in session subagent `a517cf9dbc42847a0`; public runtime witnesses remain necessary. |
+| Queued/internal orders | `agent-a7a1cc22776ff3841` | Recovered public owner-Stop and Repair interception, with explicit training/construction/revival cleanup, are integrated after the full10,004-native/2,957-Python checkpoint and five affected gates. Captures, native admission oracle and scheduler/save regressions are retained. UI cast/work fallback remains separate unfinished work; ORDER-02.2 stays open. [Evidence](retail-pathfinding-order-controls.md). |
 | Item drop | `agent-a250661f0df278ffd` | Dirty inventory procedure, command/native/item/shop/save wiring, regression and retail fixture directory; unfinished. Review complete snapshot and persistence contract. |
 | Operand aliases | `agent-a57f0c0c6b7e57853` | Untracked `tools/ghidra/research/operand_aliases.py`; research only. |
 
@@ -64,3 +64,15 @@ failing-first ramp/metadata/INI regressions. Shared Captain473, Group012 and
 Waygate377 oracles were revalidated before their source pins were refreshed.
 The first support full checkpoint's two radius failures and three stale-pin
 errors remain recorded as rejected evidence. The backlog remains25 open.
+
+
+The recovered order-control batch uses frozen code tree
+`3121617f2f8b4083494fa28cd4754c4c9edf8ea8`: actual make exit0,
+10,004 native tests/34 JUnit reports, zero failures/errors/skips, and2,957 Python
+tests. Five fresh affected gates also pass. The two earlier full-suite failures
+remain recorded: Stand first erased constructing/producing ownership; preserving
+that ownership then exposed Training's missing completed-child link release.
+Training now detaches that link explicitly after successful exit placement.
+New paid training/revival and real-frame saved completion tests preserve the
+regressions. The applied main-worktree source is compared byte for byte with
+the reviewed candidate and rebuilt before its focused gate. No TODO leaf closes.
