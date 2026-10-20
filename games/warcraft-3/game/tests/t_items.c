@@ -1819,7 +1819,7 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
 
     /* Player drop orders respect inv5, while UnitRemoveItem-style direct
      * removal still uses the authoritative direct drop primitive. */
-    T_ASSERT(!G_OrderDropItemAt(unit, item, &destination));
+    T_ASSERT(!S_OrderDropItemPoint(unit, item, &destination));
     T_ASSERT(unit->inventory[0] == item);
     T_ASSERT(G_DropItem(unit, 0));
     T_NULL(unit->inventory[0]);
@@ -3206,62 +3206,6 @@ TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
-TEST(wc3_items, point_drop_waits_for_simulation_tick) {
-    setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vec2_t destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
-
-    T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    T_ASSERT(unit->inventory[0] == item);
-    T_ASSERT(!item->item || !item->item->in_world);
-
-    unit->currentmove->think(unit);
-
-    T_NULL(unit->inventory[0]);
-    T_ASSERT(item->item->in_world);
-    T_FEQ(item->s.origin2.x, destination.x, 0.001f);
-    T_FEQ(item->s.origin2.y, destination.y, 0.001f);
-    T_NULL(unit->item_drop);
-    T_NULL(unit->goalentity);
-}
-
-TEST(wc3_items, distant_point_drop_moves_before_releasing_item) {
-    setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vec2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
-
-    T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    unit->currentmove->think(unit);
-
-    T_ASSERT(unit->inventory[0] == item);
-    T_ASSERT(!item->item || !item->item->in_world);
-    T_ASSERT(unit->s.origin2.x > 0.0f);
-    T_ASSERT(unit->item_drop == item);
-    T_NOT_NULL(unit->goalentity);
-}
-
-TEST(wc3_items, point_drop_revalidates_carried_item) {
-    setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vec2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
-
-    T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->carrier = NULL;
-    unit->currentmove->think(unit);
-
-    T_NULL(unit->item_drop);
-    T_NULL(unit->goalentity);
-    T_STREQ(unit->currentmove->animation, "stand");
-}
-
 /* Generic handoff is used both by targeted item orders and by scripted
  * UnitAddItem when the item is already carried. None of these tests needs a
  * Rexxar-specific unit or game asset. */
@@ -4173,7 +4117,8 @@ cleanup_soul_approach_save:
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
+/* All six native V2 captures reject UnitDropItemPoint for undroppable items. */
+TEST(wc3_items, set_item_droppable_blocks_manual_and_public_native_drop) {
     edict_t *carrier = NULL;
     edict_t *item = NULL;
 
@@ -4184,7 +4129,7 @@ TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
         "  item gem = null\n"
         "endglobals\n"
         "function scripted_drop takes nothing returns nothing\n"
-        "  call UnitDropItemPoint(carrier, gem, 128.0, 64.0)\n"
+        "  call BJassAssert(not UnitDropItemPoint(carrier, gem, 128.0, 64.0),\"undroppable native rejects\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set carrier = CreateUnit(Player(0), 'Hpal', 64.0, 64.0, 0.0)\n"
@@ -4209,8 +4154,9 @@ TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
     jass_callbyname(level.vm, "scripted_drop", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    T_NULL(item->item->carrier);
-    T_ASSERT(item->item->in_world);
+    T_EQ(item->item->carrier,carrier);
+    T_ASSERT(!item->item->in_world);
+    T_EQ(carrier->current_order_id,0);
 }
 
 TEST(wc3_items, orc08_scripted_soul_slot_swap_keeps_item_bound_to_carrier) {
@@ -4363,6 +4309,8 @@ static int item_cursor_test_image(cstring_t path) { (void)path; return 73; }
 
 TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_removal) {
     setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    game.clients[0].mapplayer=level.mapinfo->players;
     void (*write)(pfWriteType_t, void const *) = gi.Write;
     void (*unicast)(edict_t *) = gi.unicast;
     gi.Write = item_noop_write; gi.unicast = item_noop_unicast;
@@ -4403,14 +4351,25 @@ TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_remova
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
     G_ClientCommand(clent, 2, drag);
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     cstring_t point[] = {"point", "24", "0"};
     G_ClientCommand(clent, 3, point);
     T_NULL(client->menu.dragged_item);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
     T_ASSERT(unit->inventory[0] == item); /* Drop order awaits simulation. */
-    unit->currentmove->think(unit);
+    T_NOT_NULL(move_unit_group(unit));
+    /* The cursor submits an order; only the real frame scheduler runs Move's owner. */
+    for (uint32_t frame = 0; frame < 100 && !item->item->in_world; frame++) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+    }
     T_ASSERT(item->item->in_world);
+    T_NULL(move_unit_group(unit));
+    T_EQ(unit->current_order_id,0);
     T_ASSERT(G_PickupItem(unit, item));
     G_ClientCommand(clent, 2, drag);
     /* Same address with a new lifetime must never show/operate on a recycled item. */

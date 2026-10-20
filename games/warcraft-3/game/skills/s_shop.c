@@ -8,8 +8,3 @@
 BZ_COMMAND_PROC(AbilityPurchaseItem) {
     UI_AddCancelButton(clent);
 }
-
-/* Inventory is also the move identity for pickup and drop orders. */
-BZ_ABILITY_PROC(CAbilityInventory) {
-    return CAbilityPassive(ent, msg, call);
-}

@@ -141,6 +141,16 @@ substitute for leaf closure.
 
 ## Progress
 
+TARGET-01.2 remains the active leaf. Its point-drop candidate replaces immediate
+JASS release and greedy steering with Inventory-owned admission, Move physical
+ownership and incarnation-checked terminal release. The focused gate passes139
+tests/11469 assertions per edition; optional SC2API passes34/311. Integration
+acceptance passes all seven affected gates and the full checkpoint:10046 native
+and3079 Python tests,34 fresh JUnit reports with no failures/errors/skips. No leaf closes;
+**25 remain**. Continue through Inventory Give/Pawn and the complete producer
+range/heading/force/stop/firing matrix before advancing the serial queue.
+[Point-drop evidence](inventory-and-items.md#point-drop-command-ownership-and-retail-evidence-2026-10-20).
+
 The reviewed Stone390/Harvest012/Reach031 recovery batch passes the full checkpoint:
 **9,974 native tests across34 reports and2,912 Python evidence tests**, actual
 `make test TEST_JOBS=16` exit0 with native SDL2. It integrates the two engine

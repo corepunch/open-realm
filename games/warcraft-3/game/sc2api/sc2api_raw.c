@@ -153,7 +153,8 @@ static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) 
     if (!ability_id) return false;
     index = out->order_count;
     out->orders[index].ability_id = ability_id;
-    if (order->target_type == UNIT_ORDER_TARGET_POINT || order->target_type == UNIT_ORDER_TARGET_BUILD) {
+    if (order->target_type == UNIT_ORDER_TARGET_POINT || order->target_type == UNIT_ORDER_TARGET_BUILD ||
+        order->target_type == UNIT_ORDER_TARGET_POINT_ITEM) {
         out->orders[index].has_point = true;
         out->orders[index].point = WC3_SC2API_WorldToBoardPoint(&order->point);
     } else if (order->target_type == UNIT_ORDER_TARGET_ENTITY) {

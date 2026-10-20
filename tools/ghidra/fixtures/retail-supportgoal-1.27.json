@@ -4538,10 +4538,10 @@
   "instruction_count": 4512,
   "pins": {
     "games/warcraft-3/game/g_destructable.c": "416dc483d4bca012721595b08f97a63943913861feb42205a308b00e0dd5f6f0",
-    "games/warcraft-3/game/g_local.h": "ef336c710005c7829425995e153b80e9d7c7874400d2f0e3579e322d90f0c8cc",
+    "games/warcraft-3/game/g_local.h": "03e5727519ad9d010ef13b1271bb179bafd06569b0c2809a82b4c8c019fc5c03",
     "games/warcraft-3/game/g_support.c": "29fa39762f93459ff08fd4a9fc6f0b1613cecfaf0bc0861c523b243c233cb477",
     "games/warcraft-3/game/g_world.c": "ce382fff16282792f8885012b7db24225d7cdb04d674aa16eae6c805aafce106",
-    "games/warcraft-3/game/m_unit.c": "b31ab86234201ebb1419f7b8f0a38f606df6c265ea86c0d5132d9834a2651cd4",
+    "games/warcraft-3/game/m_unit.c": "238655da53fc315f0be3f2b276bd0dd3ee5549c580c5904dee7506b8e5420645",
     "games/warcraft-3/game/skills/fixtures/retail_supportgoal_motion.h": "1499bdc4a98acf63ff758f953d9d78c3cfc996ee60d8cc25aa86f7ff424187fa",
     "games/warcraft-3/game/skills/fixtures/retail_widgetgoal_motion.h": "4a2b7630de69dbbf9352d158bafb036690eb4b703235bc879a620a6df192c311",
     "games/warcraft-3/game/skills/s_move.c": "e3837376d74da35d9e755b193b9c6ac272fbc52607bceace10725eaef2018e7e",

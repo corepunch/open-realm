@@ -735,6 +735,38 @@ TEST(wc3_sc2api, raw_orders_export_active_then_shift_queue_fifo) {
     T_FEQ(raw.orders[1].point.x, WC3_SC2API_WorldToBoardPoint(&second).x, 0.001f);
 }
 
+/* The carried item identity belongs to the order payload, never a raw unit target. */
+TEST(wc3_sc2api, raw_inventory_point_drop_exports_point_instead_of_carried_item_tag) {
+    reset_entities();setup_test_world();
+    cstring_t script=
+        "globals\nunit rawCarrier\nitem rawItem\nendglobals\n"
+        "function rawDrop takes nothing returns nothing\n"
+        "call BJassAssert(UnitDropItemPoint(rawCarrier,rawItem,512.0,96.0),\"accepted drop\")\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set rawCarrier=CreateUnit(Player(0),'Hpal',64.0,64.0,0.0)\n"
+        "set rawItem=CreateItem('ratf',64.0,64.0)\n"
+        "call BJassAssert(UnitAddItem(rawCarrier,rawItem),\"carried item\")\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *unit=NULL;
+    FOR_LOOP(i,globals.num_edicts)
+        if(g_edicts[i].inuse && g_edicts[i].class_id==MAKEFOURCC('H','p','a','l'))unit=g_edicts+i;
+    T_NOT_NULL(unit);
+    if(!unit)return;
+    G_FinishMovePathingInitialization();
+    jass_callbyname(level.vm,"rawDrop",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    wc3Sc2RawUnit_t raw;
+    T_ASSERT(WC3_SC2API_FillRawUnit(0,unit,&raw));
+    T_EQ(raw.order_count,1);
+    T_EQ(raw.orders[0].ability_id,G_OrderId("dropitem"));
+    T_ASSERT(raw.orders[0].has_point);
+    T_ASSERT(!raw.orders[0].has_target_unit);
+    vec2_t point=WC3_SC2API_WorldToBoardPoint(&(vec2_t){512,96});
+    T_FEQ(raw.orders[0].point.x,point.x,0);
+    T_FEQ(raw.orders[0].point.y,point.y,0);
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_sc2api, raw_point_callback_replacement_preserves_logical_order_head) {
     FOR_LOOP(route, 3) FOR_LOOP(mode, 2) {
         char script[4096];

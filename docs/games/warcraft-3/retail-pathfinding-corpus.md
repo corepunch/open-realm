@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Captain473, Stone Form390 and Harvest H012, the inventory has **611 entries**: **330** oracle contracts
-(including variants) supplied by **258** distinct verifier scripts, **121**
+As of the point-drop recovery, the inventory has **614 entries**: **333** oracle contracts
+(including variants) supplied by **261** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2522,3 +2522,20 @@ results remain independently checked. Strict acceptance passes472 tests/
 2000479 assertions per edition; the actual full checkpoint passes9992 native
 and2934 Python tests. FOOT-04.2 and the existing clock/restoration owners remain
 open. [Behavior, failures and evidence limits](retail-pathfinding-support-goals.md).
+
+## Inventory point-drop recovery
+
+`oracle-itemdrop-point` joins12 literal retail captures (eight observations/four
+controls,5340 public markers), eight DLL code ranges and14 exact-clock movement
+cases/441 mover writes to current Classic/TFT engine tests. The required139
+tests/11469 assertions per edition include real cursor ingress, specialized
+silent admission, queued replacement cancellation, immobile/paused/dead
+producers and item incarnation through saves/reuse. The native auditors retain
+`engine_parity:false`; engine verification is a separate required gate result.
+[Ownership and limits](inventory-and-items.md#point-drop-command-ownership-and-retail-evidence-2026-10-20).
+TARGET-01.2 stays open for the remaining producer/firing matrix.
+
+The recovered ORDER022 corpus contract now publishes the verified binary hash
+and checks nested results through their root fields. Dotted field names were
+not readable by the corpus runner. Smart/selected-target/native selector and
+engine counts remain fixed; this repair does not weaken their expectations.

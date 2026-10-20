@@ -278,6 +278,7 @@ if __name__ == '__main__':
                                      selection_masks=len(selector['accumulator']),
                                      engine=compare_engine(selector, ROOT))
     result.update(instruction_guards=len(instruction_guards), binary_checked=bool(args.binary),
+                  binary_sha256=SHA if args.binary else None,
                   admission_cases=len(admission['admission']), owner_slices=len(admission['owner']))
     if not args.evidence_only:
         import verify_wc3_pathing_work242 as runner

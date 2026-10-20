@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 218; /* Hidden miners own Unit198; Harvest phase heads. */
+static uint32_t const save_version = 219; /* Inventory point-drop callback and retained item incarnation. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -191,6 +191,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_CargoBoardComplete),
     SAVE_CFUNCTION(S_CargoLoadComplete),
     SAVE_CFUNCTION(S_CargoDropComplete),
+    SAVE_CFUNCTION(S_InventoryDropComplete),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -1416,6 +1417,7 @@ field_t edict_fields[] = {
     F(edict_s, attack_alternative_spawn_time, F_INT),
     F(edict_s, attack_acquisition_suppressed, F_INT),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, item_drop_spawn_time, F_INT),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
     F(edict_s, soul_trap_head, F_EDICT, 0, FIELD_NONE),
     F(edict_s, soul_trap_carrier, F_EDICT, 0, FIELD_NONE),
@@ -3236,6 +3238,9 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
     if (ent->class_id) {
         G_BindEntityData(ent);
+        /* Unit footprints are process-owned assets. Reconstruct them before
+         * saved static masks and Move bindings observe the restored units. */
+        if (ent->data.UnitUI->modelFile) ent->pathtex = M_LoadPathTex(ent->data.UnitData->pathingTexture);
         /* animation is a process-owned model pointer and is deliberately not serialized.
          * Re-resolve it from the persisted logical request plus per-unit animation tags. */
         if (G_UnitAnimationRequest(ent)[0])

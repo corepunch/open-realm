@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X33;Y18;D0
+B;X36;Y19;D0
 C;X1;Y1;K"unitID"
 C;X21;K"movetp"
 C;X28;K"isBuildOn"
@@ -8,6 +8,9 @@ C;X30;K"turnRate"
 C;X31;K"propWin"
 C;X32;K"race"
 C;X33;K"cargoSize"
+C;X34;K"pathTex"
+C;X35;K"targType"
+C;X36;K"collision"
 C;X1;Y2;K"ugol"
 C;X28;KTRUE
 C;X31;K60
@@ -72,4 +75,9 @@ C;X1;Y18;K"nwlt"
 C;X21;K"foot"
 C;X30;K0.6
 C;X31;K60
+C;X1;Y19;K"hhou"
+C;X21;K"_"
+C;X34;K"PathTextures\4x4SimpleSolid.tga"
+C;X35;K"structure"
+C;X36;K72
 E

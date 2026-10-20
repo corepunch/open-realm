@@ -259,6 +259,29 @@ static bool G_InventoryAbilityAvailable(edict_t const *unit, cstring_t ability) 
     return G_GetPlayerTechResearchedLevel(owner, required_upgrade) > 0;
 }
 
+/* Capacity and permissions share one lookup, including UnitAddAbility
+ * attachments. Authored inventory rows retain their existing priority. */
+static uint32_t inventory_ability_code(edict_t const *unit,bool *seen) {
+    *seen=false;
+    if(!unit || !unit->inuse)return 0;
+    cstring_t list=unit->data.UnitAbilities ? unit->data.UnitAbilities->abilList : NULL;
+    if(list) {
+        PARSE_LIST(list,abil,parse_segment) {
+            if(G_AbilityCodeName(abil)!=MAKEFOURCC('A','I','n','v'))continue;
+            *seen=true;
+            if(G_InventoryAbilityAvailable(unit,abil))return FS_SLKKey(abil);
+        }
+    }
+    FOR_LOOP(i,ARRAY_COUNT(unit->abilities.added)) {
+        uint32_t code=unit->abilities.added[i];
+        if(G_AbilityCode(code)!=MAKEFOURCC('A','I','n','v'))continue;
+        *seen=true;
+        char name[5]={0};memcpy(name,&code,4);
+        if(G_InventoryAbilityAvailable(unit,name))return code;
+    }
+    return 0;
+}
+
 /* Classic ROC has a built-in six-slot hero inventory and no AInv data row.
  * AIab/AIa6 are attribute bonuses, never inventory aliases. An authored AInv
  * row (including zero capacity) remains authoritative when present. */
@@ -267,34 +290,18 @@ static bool G_UsesClassicHeroInventory(edict_t const *unit, cstring_t ability) {
         G_UnitIsHero(unit) && !G_AbilityDataName(ability)->id;
 }
 
-static bool G_InventoryAbilityFlag(edict_t const *unit, uint32_t data_index, bool roc_hero_default) {
-    cstring_t abilities = NULL;
-    bool has_inventory_ability = false;
-
-    if (!unit || !unit->inuse) return false;
-    if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
-    if (abilities) {
-        PARSE_LIST(abilities, abil, parse_segment) {
-            abilityLevel_t const *ability_level;
-            uint32_t const code = G_AbilityCodeName(abil);
-
-            if (code != MAKEFOURCC('A','I','n','v')) continue;
-            has_inventory_ability = true;
-            if (!G_InventoryAbilityAvailable(unit, abil)) continue;
-            if (G_UsesClassicHeroInventory(unit, abil)) return roc_hero_default;
-            ability_level = G_AbilityLevel(FS_SLKKey(abil), 1);
-            return ability_level &&
-                   data_index < sizeof(ability_level->data) / sizeof(ability_level->data[0]) &&
-                   ability_level->data[data_index].number != 0.0f;
-        }
+static bool G_InventoryAbilityFlag(edict_t const *unit,uint32_t data_index,bool roc_hero_default) {
+    if(!unit || !unit->inuse)return false;
+    bool has_inventory;
+    uint32_t code=inventory_ability_code(unit,&has_inventory);
+    if(code) {
+        char name[5]={0};memcpy(name,&code,4);
+        if(G_UsesClassicHeroInventory(unit,name))return roc_hero_default;
+        abilityLevel_t const *row=G_AbilityLevel(code,1);
+        return row && data_index<sizeof(row->data)/sizeof(row->data[0]) && row->data[data_index].number!=0;
     }
-
-    /* Reign of Chaos synthesizes the normal hero inventory when no inventory
-     * ability is authored. That stock hero inventory can use items and does
-     * not drop them on death; callers supply the appropriate default. */
-    if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
-        return roc_hero_default;
-    return false;
+    /* Preserve the stock RoC Hero fallback when no inventory is attached. */
+    return !has_inventory && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit) && roc_hero_default;
 }
 
 bool G_InventoryCanUseItems(edict_t const *unit) {
@@ -351,26 +358,16 @@ static uint32_t G_InventoryAbilityCapacity(edict_t const *unit, cstring_t abilit
 }
 
 uint32_t G_InventoryCapacity(edict_t const *unit) {
-    cstring_t abilities = NULL;
-    bool has_inventory_ability = false;
-
-    if (!unit || !unit->inuse) return 0;
-    if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
-    if (abilities) {
-        PARSE_LIST(abilities, abil, parse_segment) {
-            uint32_t const code = G_AbilityCodeName(abil);
-            if (code != MAKEFOURCC('A','I','n','v')) continue;
-            has_inventory_ability = true;
-            if (!G_InventoryAbilityAvailable(unit, abil)) continue;
-            return G_InventoryAbilityCapacity(unit, abil);
-        }
+    if(!unit || !unit->inuse)return 0;
+    bool has_inventory;
+    uint32_t code=inventory_ability_code(unit,&has_inventory);
+    if(code) {
+        char name[5]={0};memcpy(name,&code,4);
+        return G_InventoryAbilityCapacity(unit,name);
     }
-
-    /* Restore the classic hero inventory when no inventory ability is authored.
-     * ROC map formats are <= 24; TFT/custom data may
-     * intentionally omit inventory, so do not synthesize there. */
-    if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
-        return G_InventoryAbilityCapacity(unit, "AInv");
+    /* Classic Hero inventory is synthesized only when no inventory row exists. */
+    if(!has_inventory && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
+        return G_InventoryAbilityCapacity(unit,"AInv");
     return 0;
 }
 
@@ -816,51 +813,13 @@ bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot) {
     return true;
 }
 
-static void G_StopDropItemOrder(edict_t *unit) {
+static void G_StopGiveItemOrder(edict_t *unit) {
     if (!unit) return;
     S_SetMoveGoal(unit, &unit->goalentity, NULL);
     unit->item_drop = NULL;
     if (unit->stand) unit->stand(unit);
     else unit_stand(unit);
 }
-
-static void G_DropItemThink(edict_t *unit) {
-    edict_t *item = unit ? unit->item_drop : NULL;
-    edict_t *destination = unit ? unit->goalentity : NULL;
-    float distance;
-    float move_distance;
-    int32_t slot;
-
-    if (!unit || !destination || !G_IsItem(item) || item->item->carrier != unit || item->item->in_world) {
-        G_StopDropItemOrder(unit);
-        return;
-    }
-    slot = item->item->inventory_slot;
-    if (slot < 0 || slot >= MAX_INVENTORY || unit->inventory[slot] != item) {
-        G_StopDropItemOrder(unit);
-        return;
-    }
-
-    distance = M_DistanceToGoal(unit);
-    if (distance <= ITEM_DROP_RANGE) {
-        vec2_t const position = destination->s.origin2;
-        G_DropItemAt(unit, (uint32_t)slot, &position);
-        G_StopDropItemOrder(unit);
-        return;
-    }
-
-    move_distance = unit_movedistance(unit);
-    if (move_is_blocked(unit, distance, move_distance)) {
-        G_StopDropItemOrder(unit);
-        return;
-    }
-    unit_changeangle(unit);
-    unit_moveindirection(unit);
-}
-
-static umove_t item_move_drop = {
-    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory
-};
 
 /* Use the authored GiveItemRange for unit-target handoff (separate from
  * DropItemRange). The two collision radii are included in unit reach. */
@@ -891,7 +850,7 @@ static void G_GiveItemThink(edict_t *source) {
     float distance, move_distance;
 
     if (!G_CanGiveItemTarget(source, item, recipient)) {
-        G_StopDropItemOrder(source);
+        G_StopGiveItemOrder(source);
         return;
     }
     distance = M_DistanceToGoal(source);
@@ -907,12 +866,12 @@ static void G_GiveItemThink(edict_t *source) {
         } else {
             G_QueueOwnerSoundAlias(source, "ItemDrop");
         }
-        G_StopDropItemOrder(source);
+        G_StopGiveItemOrder(source);
         return;
     }
     move_distance = unit_movedistance(source);
     if (move_is_blocked(source, distance, move_distance)) {
-        G_StopDropItemOrder(source);
+        G_StopGiveItemOrder(source);
         return;
     }
     unit_changeangle(source);
@@ -943,24 +902,6 @@ bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
     /* unit_setmove clears a pending item_drop when replacing an old order. */
     source->item_drop = item;
     unit_setanimation(source, "stand");
-    return true;
-}
-
-bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position) {
-    if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
-        !G_ItemDroppable(item) || G_ItemAbilitiesPreventDrop(unit, item) || (unit->aiflags & AI_IMMOBILE) ||
-        !G_IsItem(item) || item->item->carrier != unit || item->item->in_world ||
-        item->item->inventory_slot < 0 || item->item->inventory_slot >= MAX_INVENTORY ||
-        unit->inventory[item->item->inventory_slot] != item) {
-        return false;
-    }
-
-    S_SetMoveGoal(unit, &unit->goalentity, Waypoint_add(position));
-    if (!unit->goalentity) return false;
-    move_reset_progress(unit);
-    unit_setmove(unit, &item_move_drop);
-    unit->item_drop = item;
-    unit_setanimation(unit, "stand");
     return true;
 }
 

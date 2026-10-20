@@ -653,12 +653,9 @@ uint32_t UnitDropItemPoint(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
     float x = jass_checknumber(j, 3);
     float y = jass_checknumber(j, 4);
-    int32_t slot;
-    if (!whichUnit || !G_IsItem(whichItem) || whichItem->item->carrier != whichUnit)
-        return jass_pushboolean(j, 0);
-    slot = whichItem->item->inventory_slot;
-    if (slot < 0) return jass_pushboolean(j, 0);
-    return jass_pushboolean(j, G_DropItemAtScripted(whichUnit, (uint32_t)slot, &MAKE(vec2_t, x, y)));
+    /* Native2188b0 admits order852001 through206b90; it does not release the
+     * item synchronously. Inventory owns the approach and range-checked drop. */
+    return jass_pushboolean(j, S_OrderDropItemPoint(whichUnit, whichItem, &MAKE(vec2_t, x, y)));
 }
 uint32_t UnitDropItemTarget(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

@@ -192,7 +192,7 @@ typedef struct {
     uint32_t size;
 } wc3MapGameDataPrefixParams_t;
 
-#define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
+#define ITEM_DROP_RANGE 150.0f   /* world units; stock MiscGame GiveItemRange, used only when that key is absent (point drop reads DropItemRange) */
 #define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
 #define MAX_BOARDING_RESERVATIONS 10
@@ -898,6 +898,7 @@ typedef enum {
     UNIT_ORDER_TARGET_POINT,
     UNIT_ORDER_TARGET_ENTITY,
     UNIT_ORDER_TARGET_BUILD,
+    UNIT_ORDER_TARGET_POINT_ITEM, /* ort2 retains a point and an independent carried-item identity. */
 } unitOrderTargetType_t;
 
 typedef struct {
@@ -905,9 +906,9 @@ typedef struct {
     unitOrderTargetType_t target_type;
     vec2_t point;
     vec2_t continuation; /* Owned two-point orders retain their other endpoint. */
-    /* Entity-target orders identify their gameplay target here. Queued Build
-     * orders instead identify their owner-only Construction Site Indicator so
-     * queue teardown can remove presentation without storing process pointers. */
+    /* Retained edict identity: the gameplay target, a carried item for point/item
+     * orders, or Build's owner-only Construction Site Indicator. Queue teardown
+     * can release presentation without retaining process pointers. */
     uint32_t target_number;
     uint32_t target_spawn_time;
     bool target_is_unit; /* Captured class survives removal and slot reuse. */
@@ -919,6 +920,7 @@ typedef struct {
 
 enum { UNIT_ORDER_AI_IMMEDIATE=851974,
     UNIT_ORDER_AI_SUICIDE=851982, UNIT_ORDER_CONTEXT_AI=MAKEFOURCC('A','I','0','6') };
+bool G_AdmitUnitOrder(edict_t *,unitOrder_t const *,bool);
 bool G_IsAIImmediateOrder(unitOrder_t const *);
 bool G_AdmitAIImmediateOrder(edict_t *,bool);
 bool G_AdmitAISuicideOrder(edict_t *,bool);
@@ -2627,6 +2629,7 @@ struct edict_s {
     uint32_t attack_alternative_spawn_time;
     uint32_t attack_acquisition_suppressed; /* Explicit target owner clears retail Attack20.4000. */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
+    uint32_t item_drop_spawn_time; /* captured point-drop item incarnation */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;
     edict_t *soul_trap_head; /* carrier-owned list of trapped unit edicts */
@@ -5131,6 +5134,7 @@ void S_AttackGroundComplete(edict_t *, edict_t *, bool);
 void S_CargoBoardComplete(edict_t *, edict_t *, bool);
 void S_CargoLoadComplete(edict_t *, edict_t *, bool);
 void S_CargoDropComplete(edict_t *, edict_t *, bool);
+void S_InventoryDropComplete(edict_t *, edict_t *, bool);
 bool S_CargoOrderNearestEntangledMine(edict_t *);
 bool S_CargoAttacksEnabled(edict_t const *);
 edict_t *S_CargoTransportForUnit(edict_t const *);
@@ -5260,7 +5264,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item);
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
-bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position);
+bool S_OrderDropItemPoint(edict_t *, edict_t *, vec2_t const *);
 bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);

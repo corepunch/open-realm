@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "332 executable original/evidence contracts; 613 total entries; provenance and limitations remain per entry.",
+  "scope": "333 executable original/evidence contracts; 614 total entries; provenance and limitations remain per entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -57781,47 +57781,55 @@
         "engine_checked": {
           "equal": true
         },
-        "smart_head.smart_head": {
-          "equal": 851971
+        "smart_head": {
+          "equal": {
+            "captures": 2,
+            "controls": 1,
+            "scenes": 15,
+            "public_markers": 216,
+            "smart_head": 851971,
+            "attack_head": 851983,
+            "engine_parity": false,
+            "remaining_owner": "ORDER-02.2"
+          }
         },
-        "smart_head.attack_head": {
-          "equal": 851983
+        "selected_target": {
+          "equal": {
+            "captures": 2,
+            "controls": 1,
+            "scenes": 6,
+            "public_markers": 84,
+            "notification_contract_markers": 30,
+            "target_events": 12,
+            "engine_parity": false,
+            "trajectory_parity": false,
+            "remaining_owner": "ORDER-02.2"
+          }
         },
-        "smart_head.public_markers": {
-          "equal": 216
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 330,
+              "assertions": 533027
+            },
+            "tft": {
+              "tests": 330,
+              "assertions": 533027
+            }
+          }
         },
-        "selected_target.notification_contract_markers": {
-          "equal": 30
-        },
-        "selected_target.public_markers": {
-          "equal": 84
-        },
-        "selected_target.trajectory_parity": {
-          "equal": false
-        },
-        "engine.classic.tests": {
-          "minimum": 330
-        },
-        "engine.tft.tests": {
-          "minimum": 330
-        },
-        "engine.classic.assertions": {
-          "minimum": 533027
-        },
-        "engine.tft.assertions": {
-          "minimum": 533027
-        },
-        "ui_selector.native_cases": {
-          "equal": 10560
-        },
-        "ui_selector.selection_masks": {
-          "equal": 8191
-        },
-        "ui_selector.engine.cases.-O0": {
-          "equal": 10560
-        },
-        "ui_selector.engine.cases.-O2": {
-          "equal": 10560
+        "ui_selector": {
+          "equal": {
+            "native_cases": 10560,
+            "selection_masks": 8191,
+            "engine": {
+              "cases": {
+                "-O0": 10560,
+                "-O2": 10560
+              },
+              "header_sha256": "ec027988f3408f8806f67d0d8856629d12f841c4981a0c9727f744d91d61ec20"
+            }
+          }
         }
       },
       "exclusions": [
@@ -57836,6 +57844,72 @@
         "L"
       ],
       "scope": "Original queue admission and owner Stop; real player Move/Attack/Smart protected windup and work-mode decisions, native Smart851971, prepared selected-target publication before callbacks, cancellation/reuse and Smart acknowledgement identity, Repair interception, saved successors and deferred-release lifecycle. ORDER-02.2 remains open."
+    },
+    {
+      "id": "oracle-itemdrop-point",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_itemdrop_point.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "itemdrop-point.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "observations": {
+          "equal": 8
+        },
+        "controls": {
+          "equal": 4
+        },
+        "captures": {
+          "equal": 12
+        },
+        "public_markers": {
+          "equal": 5340
+        },
+        "motion_cases": {
+          "equal": 14
+        },
+        "mover_writes": {
+          "equal": 441
+        },
+        "instruction_ranges": {
+          "equal": 8
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 139,
+              "assertions": 11469
+            },
+            "tft": {
+              "tests": 139,
+              "assertions": 11469
+            }
+          }
+        },
+        "engine_checked": {
+          "equal": true
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Inventory public point-drop admission, silent specialized order class, replacement cancellation, stock/authored ranges, 14 exact-clock mover trajectories, terminal item incarnation, Stop/item loss/reuse and in-process save continuations. Immobile near/far, paused/dead rejection, runtime-added Inventory and real cursor ingress are exercised. TARGET-01.2 remains open for the complete producer and firing-poll matrix.",
+      "exclusions": [
+        "Pickup/Give/Pawn and the wider producer range, heading, force and complete firing-poll matrix remain TARGET-01.2.",
+        "Other held-order and working-owner replacement compositions remain ORDER-02.2.",
+        "In-process save tests do not establish fresh-process restoration or rendered parity; those remain E2E-05.2."
+      ]
     }
   ],
   "fixtures": [
@@ -58733,7 +58807,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "f8396dab11cf0f8132eb7f70585db395f5bfe80b56529fa6f158fcf1c5940a07"
+      "sha256": "d411aea497cc44bf8ffefc3ad07602eec4358d1a857c704755ef7787826f6131"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -60025,7 +60099,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "d503d40c18c2ed34e587b454fc28e471341d5b79e9beb16b8af26283ccba5374"
+      "sha256": "f961e2a2362a2cbb9f68af3e9da16ed1ac4d8d08f1116ea93d850c1cc11c8e73"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -60033,7 +60107,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "ef336c710005c7829425995e153b80e9d7c7874400d2f0e3579e322d90f0c8cc"
+      "sha256": "03e5727519ad9d010ef13b1271bb179bafd06569b0c2809a82b4c8c019fc5c03"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -60525,7 +60599,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "b04f69b3fd169194eae9c6b428cde5fc982cdb789d5e544fe87f6827f4278b48"
+      "sha256": "9adb9c33633240a0e878848663d9cbd17be70ccae3c9dde2b640050dfb9fdd6a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -60541,7 +60615,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "4d4a758d4bdb6b5e6157a3babbcc101da70359fbd591ffefd5e2b807ab842f0a"
+      "sha256": "85a61a15199855e479ef300e5aee6939e72ac9e5b73a652b7c5400efb290d02e"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -60553,7 +60627,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "246e5e512517ce409ec4ff98fd42d67f60f8ec37918cde8885d3bbcc2b756a93"
+      "sha256": "5ec7126d687bd93b309ff846a1ca1459ded21d9432b4fcfb3eb0de4dfb6ed944"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -61489,7 +61563,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "b31ab86234201ebb1419f7b8f0a38f606df6c265ea86c0d5132d9834a2651cd4"
+      "sha256": "238655da53fc315f0be3f2b276bd0dd3ee5549c580c5904dee7506b8e5420645"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -61833,7 +61907,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "2192efc41f428d0eff2c653dff88036e420c7aad782ee57223ef04482adcb6cf"
+      "sha256": "e303a235ec974c3f68047be639c354e17df54d982ad77eb373ef5d2672344704"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -61989,7 +62063,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_items.c",
-      "sha256": "910480dda2617a15a92398e36410ef048a1df140011d1ad4a30cb6568cf2a08e"
+      "sha256": "c1721d470095ae58fc23da91f45fdd9528906641f81081e9d7de710735aee804"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_recovery_scope.py",
@@ -65541,7 +65615,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "1cebdfd29d82133fb366b40a2e8df6224504eef3aff68e2509688d5c11602b13"
+      "sha256": "d0089df49a813ac2612dd31a4eb5bf039cf0a856786ce4c5f789ba74707afd7a"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -67397,7 +67471,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "49bd731f101cf40b04e0832e3e919de24350a529127a627c85c00f27947f8ee5"
+      "sha256": "087669ec719261b8354601b295843f8e01d99b591a8f72bbb85f528030b96a9b"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -69669,7 +69743,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "fc3e9c263d9ca5248685cfe7bb8165b761eb36b3aaefa1cbd589294f65d6d98c"
+      "sha256": "77b57ef9880407fd26286bcfb075eb18a54547d24868a695a4cac09a5ad0ea13"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -69725,7 +69799,7 @@
     },
     {
       "path": "games/warcraft-3/game/sc2api/sc2api_raw.c",
-      "sha256": "c4a4040c738397293f30b5ef69ad8ea263f0e11ddddd1df2230381446b3ccde0"
+      "sha256": "6ed30a0153d5a56c14edc9c37588f9a412415ff2fc52f998fdb7b892cd087b3d"
     },
     {
       "path": "games/warcraft-3/game/skills/s_ability_stubs.c",
@@ -70013,7 +70087,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain376-1.27.json",
-      "sha256": "2910081ae293d8f3ca08863a351a180f7f29b3c12991642a3ce2e1765130ffd9"
+      "sha256": "545dc423a869725dad0ac8c07864d7b6f4c0f35c3d24cc269d5be3761a606cd3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain376-native-1.27.json.gz",
@@ -70209,7 +70283,7 @@
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Units/UnitData.slk",
-      "sha256": "6adb6f1ca12db3ba68ca1424b3587e01c38926af895035d6db1358a020e5ad89"
+      "sha256": "f93f67c20dc4a73efd1b5d44b0e696252fa652c9bbcd5a4e587afa91711d1629"
     },
     {
       "path": "tests/test_wc3_pathfinding_harvest012.py",
@@ -70337,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "725d318db00f43e5e31c604e9bfc08beda3dfb00cc6acbdab0bac6c7feb7bc0c"
+      "sha256": "6d9ee3f5bfd5981a7537a18b857112fa133a114224cc9fd727a9b8607efed0dd"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
@@ -70389,7 +70463,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_order022.py",
-      "sha256": "3545af6fb1ed48c744a31711ef4da7cd2fedbe42625a722593c5a6a4e3307b10"
+      "sha256": "b5b58d641340c0edeb2b79e62f731227d324d9ba4eae8b47e2784f4a5d7895f3"
     },
     {
       "path": "tools/ghidra/research/order022_admission_oracle.py",
@@ -70506,6 +70580,10 @@
     {
       "path": "tools/ghidra/audit_wc3_pathing_order022_smart.py",
       "sha256": "c70d9fe165d415cc291b22b427fd8fd4e79cc03b32b51fe5300391224d6a3246"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
+      "sha256": "4cef38e9e9b51b7c5b3c829d4f76ba455443142922ae3bfe456fc634abd84e64"
     }
   ]
 }

@@ -27,6 +27,7 @@ static cstring_t const repair_orders[] = { "repair", "repairon", "repairoff", NU
 static cstring_t const renew_orders[] = { "renew", "renewon", "renewoff", NULL };
 static cstring_t const restoration_orders[] = { "restoration", "restorationon", "restorationoff", NULL };
 static cstring_t const move_orders[] = { "move", "smart", NULL };
+static cstring_t const inventory_orders[] = { "dropitem", NULL };
 static cstring_t const patrol_orders[] = { "patrol", NULL };
 static cstring_t const attack_orders[] = { "attack", "attackonce", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
@@ -226,7 +227,7 @@ static ability_t abilitylist[] = {
     { "ANsw", CAbilitySummonWarEagle, AB_SPELL },  /* Summon Hawk */
     { "ANst", CAbilityStampede, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Stampede */
     { "ANfs", CAbilityFlameStrikeNeutral, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
-    { "AInv", CAbilityInventory, AB_PASSIVE },  /* Inventory */
+    { "AInv", CAbilityInventory, AB_PASSIVE, SPELL_TARGET_NONE, inventory_orders },  /* Inventory */
     { "ANdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Drunken Brawler */
     { "ANdh", CAbilityDrunkenHaze, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "ANsi", CAbilitySilence, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_POINT },  /* Silence */

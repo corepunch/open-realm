@@ -8,6 +8,8 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f54efe0","Inventory_CreatePointOrTargetDropTasks","TARGET01.2 item drop: specialized ort2 order. Point branch prepends d016b with live Misc.DropItemRange and no association before d017c. Target branch uses half Give/Pawn/Drop range and facing check before d0171; target terminal proof remains open."},
+        {"6f56a670","Inventory_CompletePointOrTargetDrop","TARGET01.2 item drop: terminal point action checks predicted source plus collision at05b440, resolves the retained item AgentIdentity through55b420, and releases at the raw point only when in range. Item removal does not retire the preceding physical point task. Twelve observations/controls and exact441-write engine replay; wider target branch remains open."},
         {"6f71f510","Config_GetMetadataFloat","FOOT04.2 metadata producer: wraps1a8d50, returns its float through x87. Terrain.MaxHeight reaches this path, not JASS S2R070de0."},
         {"6f1a8d50","Config_ReadMetadataFloat","FOOT04.2: missing lookup1a74d0 returns0; otherwise Storm Ordinal574 parses to float. Storm SHA36339f69727f0f3dcb4431a9567b84f56007c331cfa3b183862af43e8314eb72. Native574 supports exponent and minus-only leading sign, binary64 staging then float rounding.677 literal words/caps and8 actual prepared fields;729f68 CVTTSS2SI uses integer-indefinite for invalid/out-of-range."},
 

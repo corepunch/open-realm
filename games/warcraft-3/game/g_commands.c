@@ -2086,7 +2086,7 @@ static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
         !G_IsItem(item) || item->item->carrier != unit)
         return false;
-    if (!G_OrderDropItemAt(unit, item, location)) return false;
+    if (!S_OrderDropItemPoint(unit, item, location)) return false;
     G_SendPointConfirmation(clent, location, false);
     return true;
 }

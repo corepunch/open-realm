@@ -334,7 +334,8 @@
     "oracle-morph390",
     "oracle-harvest012-ownership",
     "oracle-supportgoal-water-widget",
-    "oracle-order022-admission"
+    "oracle-order022-admission",
+    "oracle-itemdrop-point"
   ],
   "entries": [
     {
@@ -7550,6 +7551,32 @@
           "task": "E2E-05.2",
           "disposition": "evidence-boundary",
           "rationale": "This finite recovered producer batch leaves the named behavior or evidence boundary open."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-itemdrop-point",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Pickup/Give/Pawn and the wider producer range, heading, force and complete firing-poll matrix remain TARGET-01.2.",
+          "task": "TARGET-01.2",
+          "disposition": "behavior",
+          "rationale": "The finite point-drop acceptance does not close this remaining behavior or evidence boundary."
+        },
+        {
+          "index": 1,
+          "text": "Other held-order and working-owner replacement compositions remain ORDER-02.2.",
+          "task": "ORDER-02.2",
+          "disposition": "behavior",
+          "rationale": "The finite point-drop acceptance does not close this remaining behavior or evidence boundary."
+        },
+        {
+          "index": 2,
+          "text": "In-process save tests do not establish fresh-process restoration or rendered parity; those remain E2E-05.2.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "The finite point-drop acceptance does not close this remaining behavior or evidence boundary."
         }
       ]
     }

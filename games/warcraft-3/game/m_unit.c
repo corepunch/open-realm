@@ -1982,10 +1982,11 @@ bool G_IssuePlayerTargetOrder(playerOrderSelection_t const *selection,uint32_t i
     return true;
 }
 
-/*6802f0 replaces;693450 appends. Both create the same saved immediate
- * packet and share issued notification, nested replacement and activation. */
-static bool unit_admit_ai_core_order(edict_t *self,bool replace,uint32_t code,cstring_t name) {
-    if(!self || !self->inuse || M_IsDead(self))return false;
+/*680320 cancels the old user chain before appending a captured packet.
+ * Keep this lifecycle common to AI and specialized ability-owned orders. */
+bool G_AdmitUnitOrder(edict_t *self,unitOrder_t const *packet,bool replace) {
+    if(!self || !self->inuse || M_IsDead(self) || !packet || !unit_order_name_valid(packet->order))return false;
+    unitOrder_t order=*packet;
     uint32_t spawn=self->spawn_time;
     bool held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
     if(replace) {
@@ -2012,16 +2013,21 @@ static bool unit_admit_ai_core_order(edict_t *self,bool replace,uint32_t code,cs
         }
     }
     if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
-    unitOrder_t order={.target_type=UNIT_ORDER_TARGET_NONE,.order_id=code,
-        .issuer_player=self->s.player,.owner_context=UNIT_ORDER_CONTEXT_AI};
-    snprintf(order.order,sizeof(order.order),"%s",name);
     if(self->order_queue.count>=unit_user_queue_limit(self))return false;
     if(!G_AppendUnitOrder(self,&order))return false;
     held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
-    if(!held && !G_UnitHasActiveOrder(self) && !G_BotAIStopTaskActive(self))
-        return G_UnitStartNextQueuedOrder(self);
-    if(!self->current_order_id)self->current_order_id=code;
+    if(!held && !G_UnitHasActiveOrder(self) && !G_BotAIStopTaskActive(self))G_UnitStartNextQueuedOrder(self);
+    else if(!self->current_order_id)self->current_order_id=order.order_id;
+    /*680320 is void: accepted admission is independent of a later constructor's result. */
     return true;
+}
+
+/* AI producers retain their immediate packet and share ordinary replacement. */
+static bool unit_admit_ai_core_order(edict_t *self,bool replace,uint32_t code,cstring_t name) {
+    unitOrder_t order={.target_type=UNIT_ORDER_TARGET_NONE,.order_id=code,
+        .issuer_player=self ? self->s.player : 0,.owner_context=UNIT_ORDER_CONTEXT_AI};
+    snprintf(order.order,sizeof(order.order),"%s",name);
+    return G_AdmitUnitOrder(self,&order,replace);
 }
 
 bool G_AdmitAIImmediateOrder(edict_t *self,bool replace) {

@@ -767,3 +767,141 @@ callbacks complete, and then disappears. An ability-less quest pickup does
 **not** fabricate item-use events or unlock a specific campaign chapter.
 Map scripts/campaign progression own the secret-level unlock; no global
 `sclp` special case is required in the item system.
+
+## Point-drop command ownership and retail evidence (2026-10-20)
+
+`UnitDropItemPoint` and inventory drag both submit `S_OrderDropItemPoint`.
+Inventory owns validation, the captured carried-item identity, its walking
+behavior and the terminal drop action in `skills/s_inventory.c`. Move owns the
+physical point approach. The old synchronous JASS release and greedy point-drop
+steering are removed. Pickup/Give/Pawn remain separate work inside TARGET-01.2;
+this point-drop integration does not close that leaf.
+
+Retail native2188b0 calls206b90 and the common680320 replacement path. The
+engine's typed `UNIT_ORDER_TARGET_POINT_ITEM` packet retains the requested
+point plus the carried item's edict number/incarnation. `G_AdmitUnitOrder`
+captures that packet before cancelling the active user chain and successors,
+then dispatches it through Inventory's ordinary ability messages. Acceptance
+remains independent of a synchronous constructor's result.
+
+The specialized retail order class getter684ab0 returns `ort2`. Dispatcher
+67abe0 compares exact ordinary point/target/immediate classes, so this class
+emits **no ordinary issued-order event**. Two V3 observations and an unhooked
+control prove that silent frontier, with successful notifying controls for all
+three ordinary event kinds. Planned nested drop callbacks did not execute;
+this is not reentrant callback coverage.
+
+Producer54efe0 creates d016b at the raw requested point with
+`Misc.DropItemRange` and no association, followed by action d017c. The missing
+key's retail default is0 (047840), not the old150-world-unit steering constant.
+Arrival and can't-path both run action56a670, whose05b440 check includes the
+predicted source position and source collision. Only that terminal action
+releases the item at the exact requested point. An immobile Farm with runtime
+AInv accepts near and far commands and completes synchronously: near drops,
+far retains its item, both retire the public head to0. Paused and dead sources
+reject. A speed setter of0 is not proof of physical immobility; retail clamps it.
+
+The point task survives `RemoveItem` and `UnitRemoveItem`; retail continues the
+journey after the item disappears. The initial port instead stopped, producing
+24/300 failures per edition. Carriage is now checked only at terminal action.
+A second regression removes the item, waits the real allocator cooldown and
+creates/picks up a replacement in the same edict slot. It first fails24/340
+per edition. Retail55b420 and command6868f0 resolve retained AgentIdentity pairs;
+the engine therefore persists `item_drop_spawn_time` alongside `item_drop`.
+Four save timings reject the replacement incarnation, while reattaching the
+original item remains a positive control. Save219 adds that field and registers
+`S_InventoryDropComplete` as an F_CFUNCTION; older saves are rejected.
+
+The common admission regression first exposed eight surviving queued-Move
+assertions per edition; replacing through `G_AdmitUnitOrder` cancels them.
+Paused rejection first exposed40 assertions. A separate runtime-added AInv
+capacity/permission regression first fails5/7 per edition; shared inventory
+queries now inspect authored rows followed by runtime additions. Existing
+research gates and the Classic Hero inventory fallback retain their priority.
+
+Farm obstacle fixtures carry authored health500, collision72, structure
+classification and a synthetic4x4 magenta footprint at the original archive
+path `PathTextures\4x4SimpleSolid.tga`. Tests never consume retail archives.
+Repairing those preconditions exposed nine saved-footprint failures: `pathtex`
+is runtime state, so ReadEdict now reloads bound UnitData.pathingTexture before
+rebuilding static masks. Fresh/saved Farm geometry passes206/206 assertions per
+edition. The bound UnitUI model row supplies the existing spawn classification;
+the fixture's public CreateUnit does not set EF_UNIT.
+
+The three compressed literal bundles `retail-itemdrop-{point,admission,immobile}-1.27.json.gz`
+preserve four authored maps and12 complete captures: eight observations and
+four unhooked controls,5340 public markers. V2 covers stock100/authored64 ranges,
+equality/adjacent points, occupied/enclosed destinations, Stop, undroppable and
+item-loss scenes. V3 supplies admission/event controls; V4 supplies immobile,
+dead and paused producers. Capture sources remain byte-identical to their
+recorded provenance. Historical V1/V2 admission diagnostics are retained outside
+the repo; only V3 supplies three accepted event controls.
+
+`itemdrop_motion_fixture.py` exports441 literal mover writes in14 V2 cases.
+Each replay supplies the actual clock/counter inputs and compares all eight
+retained mover words, final item ownership/placement and before/mid-walk saves.
+Those words are time, epoch, fine X/Y, velocity X/Y, maximum and facing; position
+starts at mover+78/+7c, not+70. The former rounded-coordinate/zero-clock fixture
+was invalid as an exact movement comparison. No movement arithmetic or float
+tolerance was changed to make this replay pass. Numerical Stop/item-loss
+trajectories remain outside those14 exact-clock cases.
+
+The canonical `verify_wc3_pathing_itemdrop_point.py` gate checks the literal
+captures, eight original code ranges against the pinned DLL, generated motion
+fixture identity, source hashes and actual Classic/TFT runs. Required JUnit
+cases include exact motion, real cursor ingress, immobile/suspended/dead
+admission, cancellation, item reuse and saved continuation. Its contract is139
+tests/11469 assertions per edition. The optional SC2API build separately passes34
+tests/311 assertions per edition, including export of the destination point
+rather than the retained item as a unit target. Native capture auditors retain
+`engine_parity:false`; the canonical gate reports engine verification separately.
+
+The recovery source is preserved in the original untouched Claude worktree and
+immutable takeover backups. Detailed captures, failed-first logs and current
+acceptance reports are under `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/`.
+Whole-leaf completion still requires the remaining producer range, heading,
+force/stop and full firing-poll matrix. The next Inventory producer is54efe0's
+unit-target branch: half Give/Pawn approach range, facing admission and separate
+full-range terminal action, including loss/replacement/saves.
+
+The direct producer audit retained37 point-task,81 target-task, one target/item
+action, seven point-bridge and five target-bridge references in53 containing
+functions. Full read-only decompilations and their index are preserved in the
+runtime directory above. The Ghidra bulk tool returns at most20 functions per
+call; split the request and assert every requested key before calling an export
+complete. This direct-reference set does not resolve all virtual dispatch or
+prove runtime behavior. The next Give probe's two observations and unhooked
+control agree on900 public markers: inside/equality completes synchronously;
+adjacent outside creates d0171 with75 and d017d retains150. That native evidence
+is not yet an engine comparison or a completed Inventory target branch.
+
+Integration acceptance passes all seven affected contracts (Waygate377,
+Captain376/473, Group012, support goals, ORDER022 admission and point drop).
+Fresh original-code support/admission runs use the established verification
+venv with Unicorn. Actual `make test TEST_JOBS=16` exits0:10046 native tests,
+43182487 assertions,34 fresh JUnit reports with zero failures/errors/skips,
+and3079 Python tests. A final diagnostic-call formatting adjustment preserves
+source line numbers; every loaded ELF section except the build-ID note is
+byte-identical after rebuilding. The final point gate again passes139 tests/
+11469 assertions per edition against that rebuilt library. No movement words
+or numerical expectations changed, and no TODO closes.
+
+Run the bounded gate with a new report filename:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_itemdrop_point.py --binary /path/to/game.dll --report /tmp/itemdrop-point-new.json
+```
+
+Further native-only target research is preserved separately as `itemgive-v2`
+and `TargetGiveV2a.w3m` in the runtime archive. Two observations and an unhooked
+control agree on all2976 markers across26 scenes, with explicit source capacity,
+target kind/fullness and Pawn-ability preconditions. Full/enemy/non-inventory
+unit and item/destructable targets use the existing point/action path at the
+captured widget position (`DropItemRange=100`). Valid Give uses target range75
+and action range150; Pawn uses65/130. Immobile Give completes synchronously
+through full range, while paused/dead sources reject. Inspect point-task and
+action-task events as well as target-task events: the earlier target-only
+summary omitted these valid point fallbacks. Enemy scenes can also contain
+independent combat tasks, so attribute tasks to their actual actor/producer.
+This remains unintegrated target research; dynamic capacity/availability
+changes and complete firing-poll ownership still need their own comparisons.

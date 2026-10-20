@@ -59,6 +59,7 @@ void unit_setmove(edict_t *self, umove_t *move) {
      * an unrelated move/attack is active. */
     if (self->item_drop && self->currentmove && self->currentmove != move) {
         self->item_drop = NULL;
+        self->item_drop_spawn_time = 0;
     }
     /* A replaced pre-spawn Build order used to leave build_project set after
      * Stop/Move, so later code could mistake an idle worker for an active build. */

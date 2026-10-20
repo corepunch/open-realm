@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "patterns": [
+    "wc3_items.*",
+    "wc3_cursor.*"
+  ],
+  "native_expected": {
+    "observations": 8,
+    "controls": 4,
+    "captures": 12,
+    "public_markers": 5340,
+    "motion_cases": 14,
+    "mover_writes": 441,
+    "instruction_ranges": 8
+  },
+  "engine_expected": {
+    "classic": {
+      "tests": 139,
+      "assertions": 11469
+    },
+    "tft": {
+      "tests": 139,
+      "assertions": 11469
+    }
+  },
+  "required_engine_cases": [
+    "wc3_items.itemdrop_public_stop_retains_carried_item_through_save",
+    "wc3_items.point_drop_waits_for_simulation_tick",
+    "wc3_items.distant_point_drop_moves_before_releasing_item",
+    "wc3_items.point_drop_revalidates_carried_item",
+    "wc3_items.itemdrop_undroppable_zero_and_far_reject_without_movement",
+    "wc3_items.itemdrop_farm_fixture_retains_authored_obstacles_through_save",
+    "wc3_items.itemdrop_original_clock_mover_writes_match_retail",
+    "wc3_items.itemdrop_runtime_added_inventory_exposes_capacity_and_permissions",
+    "wc3_items.itemdrop_dead_source_rejects_without_releasing_retained_inventory",
+    "wc3_items.itemdrop_immobile_source_completes_synchronously_without_move_owner",
+    "wc3_items.itemdrop_specialized_packet_keeps_issued_events_silent",
+    "wc3_items.itemdrop_replacement_cancels_active_and_queued_move_through_save",
+    "wc3_items.itemdrop_paused_source_rejects_without_replacing_suspension",
+    "wc3_items.itemdrop_reattached_original_item_still_completes_through_save",
+    "wc3_items.itemdrop_recycled_carried_item_is_not_released_by_old_point_task",
+    "wc3_items.itemdrop_item_loss_retains_point_owner_through_save_and_arrival",
+    "wc3_cursor.inventory_drag_publishes_icon_and_clears_after_cancel_or_removal"
+  ],
+  "scope": "Inventory public point-drop admission, silent specialized order class, replacement cancellation, stock/authored ranges, 14 exact-clock mover trajectories, terminal item incarnation, Stop/item loss/reuse and in-process save continuations. Immobile near/far, paused/dead rejection, runtime-added Inventory and real cursor ingress are exercised. TARGET-01.2 remains open for the complete producer and firing-poll matrix.",
+  "pins": {
+    "games/warcraft-3/game/api/api_unit.h": "e303a235ec974c3f68047be639c354e17df54d982ad77eb373ef5d2672344704",
+    "games/warcraft-3/game/g_ai.c": "aa8054722da150a903014d04108ef998f1f4486bcb0046700395f6755bdadee9",
+    "games/warcraft-3/game/g_commands.c": "84c7099f7eb0e89bc4e8fcda5f0c86580d0c93c747c4b835606569ce4681afd3",
+    "games/warcraft-3/game/g_items.c": "b1913a695b262f6e7466901e98ea6b40e68a65435e8b2c0bfb43c20135ce6f7a",
+    "games/warcraft-3/game/g_local.h": "03e5727519ad9d010ef13b1271bb179bafd06569b0c2809a82b4c8c019fc5c03",
+    "games/warcraft-3/game/g_save.c": "f961e2a2362a2cbb9f68af3e9da16ed1ac4d8d08f1116ea93d850c1cc11c8e73",
+    "games/warcraft-3/game/m_unit.c": "238655da53fc315f0be3f2b276bd0dd3ee5549c580c5904dee7506b8e5420645",
+    "games/warcraft-3/game/sc2api/sc2api_raw.c": "6ed30a0153d5a56c14edc9c37588f9a412415ff2fc52f998fdb7b892cd087b3d",
+    "games/warcraft-3/game/skills/s_inventory.c": "834a586179a1ddef0e4b49b913b14864db2e948b65e46af0684474564b835551",
+    "games/warcraft-3/game/skills/s_shop.c": "314a65e1a4a7ca3d7286174fd2d609ec6f81d1eec9c976e1b17427fd8b5e7574",
+    "games/warcraft-3/game/skills/s_skills.c": "5ec7126d687bd93b309ff846a1ca1459ded21d9432b4fcfb3eb0de4dfb6ed944",
+    "games/warcraft-3/game/tests/fixtures/retail_itemdrop_motion.h": "01b421bdecb37cf118afa242b52d29ba988cafc1886a00edb950a19133f0e2f4",
+    "games/warcraft-3/game/tests/t_itemdrop_point.c": "4b161bc6a843980ad32f6493734dd866fe334097928f24eda7f8c958a1b8fc84",
+    "games/warcraft-3/game/tests/t_items.c": "c1721d470095ae58fc23da91f45fdd9528906641f81081e9d7de710735aee804",
+    "games/warcraft-3/tests/resources-src/PathTextures/4x4SimpleSolid.tga": "c65767fd139582a5ab53c480a91c7f94ac7c55c14b47f43cc15b01d9e4a5690a",
+    "games/warcraft-3/tests/resources-src/Units/UnitBalance.slk": "db98b9d6078f1eb6960819d4f91816a40f5eaa67ae2cf00bb72ca081dc7f7964",
+    "games/warcraft-3/tests/resources-src/Units/UnitData.slk": "f93f67c20dc4a73efd1b5d44b0e696252fa652c9bbcd5a4e587afa91711d1629",
+    "tools/ghidra/fixtures/research/itemdrop/itemdrop_capture.py": "1df644734407aab129d17a998049e214d30e7e6d36dc7f3ea112c73f61f3ce60",
+    "tools/ghidra/fixtures/research/itemdrop/itemdrop_make_map.py": "a74c976646a20d460a3fe17baa9fd4e444c31d2e12731ace8cb42056dffe8cd2",
+    "tools/ghidra/fixtures/research/itemdrop/itemdrop_observer.js": "40132fbf0f868655b191c6d6d94befcd90c7d523ea1d35345d4004e42ac721af",
+    "tools/ghidra/fixtures/research/itemdrop/itemdrop_probe.j": "fc52734d88e6770c240b5e2614acbdc59df926ad6a8e020344b0b629a9a1c360",
+    "tools/ghidra/fixtures/research/itemdrop_admission/itemdrop_capture.py": "1df644734407aab129d17a998049e214d30e7e6d36dc7f3ea112c73f61f3ce60",
+    "tools/ghidra/fixtures/research/itemdrop_admission/itemdrop_make_map.py": "65fbf261dc436128f8e2934f336069b6046dce9619a98bf8ad898a789a1e461b",
+    "tools/ghidra/fixtures/research/itemdrop_admission/itemdrop_observer.js": "40132fbf0f868655b191c6d6d94befcd90c7d523ea1d35345d4004e42ac721af",
+    "tools/ghidra/fixtures/research/itemdrop_admission/itemdrop_probe.j": "0508e0bd8087767d7754d0de2a13fdaca49783bdf868c1f35c56b7fae4601760",
+    "tools/ghidra/fixtures/research/itemdrop_immobile/itemdrop_capture.py": "1df644734407aab129d17a998049e214d30e7e6d36dc7f3ea112c73f61f3ce60",
+    "tools/ghidra/fixtures/research/itemdrop_immobile/itemdrop_make_map.py": "17451c14708903daa1e5b9f1a43bd2ceafb069b69d9d739cc07cfcc2e4413d25",
+    "tools/ghidra/fixtures/research/itemdrop_immobile/itemdrop_observer.js": "40132fbf0f868655b191c6d6d94befcd90c7d523ea1d35345d4004e42ac721af",
+    "tools/ghidra/fixtures/research/itemdrop_immobile/itemdrop_probe.j": "0b9d9f39214b52952f0f23e0e7ead9532acedc1df296a13a076ef806ce1d57dc",
+    "tools/ghidra/fixtures/retail-itemdrop-admission-1.27.json.gz": "4b103000a0ccd454ca8109dfb7e76aa3bc63023176fbbf30bcb3124a9dcb59a4",
+    "tools/ghidra/fixtures/retail-itemdrop-immobile-1.27.json.gz": "6d385b1e12fe4eb7aca8fa8d9d81e14985c64fd85035dca0230d9fb139340416",
+    "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json.gz": "62ee17375913ada5522222614f66b46d308fe480dcdcf99483fbf519969f9d30",
+    "tools/ghidra/research/itemdrop_evidence.py": "29e865cf0f3238b0d1933630d105612619ff57c5e80adbf1d8817e2fd8fd65ea",
+    "tools/ghidra/research/itemdrop_motion_fixture.py": "db2bff5dc20d99c2cb8d6efae0faa3bd4370c120bbbd7533cd1bdb9e1709194f",
+    "tools/ghidra/verify_wc3_pathing_itemdrop_point.py": "3225f9f78360f66afbec85797dcb4627e8341e3aee55c92a671d9878da75fcc2",
+    "tools/ghidra/wc3_pathfinding_engine_tests.py": "b49420ae5212c137594e3d9925239dea80ce055a2af2d02e5e1d72c15ebc7193",
+    "games/warcraft-3/game/tests/t_sc2api.c": "001f3a5b559bf1d121c7ad21e120b492543612ab35376e44a331232a7ad8540e"
+  }
+}
