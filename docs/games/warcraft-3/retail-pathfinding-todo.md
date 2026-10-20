@@ -6,7 +6,52 @@ research before declaring the full faithful OpenRealm replacement. Independently
 verified slices can be integrated earlier; the [scalar/turn integration](retail-pathfinding-engine.md)
 has exact C/live evidence without closing the whole-replacement READY gates.
 
-## Execution order for the remaining 30 (2026-10-18)
+## Current serial execution order (2026-10-20)
+
+**25 open. Active leaf: TARGET-01.2.** This queue supersedes the historical
+lane/agent scheduling below. Finish the active leaf's full documented criterion,
+required retail/engine/save verification and integration before advancing.
+A verified partial slice is progress within that leaf and does not close it.
+Work outside the active leaf is limited to dependencies required to complete it.
+
+TARGET-01.2 currently starts with the recovered point/item-drop owner. Continue
+through its remaining producer inventory, command/target range, heading,
+force/stop parameters, adjacent/equality boundaries and complete firing polls.
+Finishing item drop alone does not authorize moving to the next leaf.
+
+1. `TARGET-01.2` — command/target parameters and complete firing polls.
+2. `BASE-02.3` — valid public input domains.
+3. `MOVE-01.1` — authored movement parameters.
+4. `NUM-01.12` — reachable operand aliases.
+5. `NUM-02.3` — long oblique trajectories.
+6. `NUM-03.2` — nonfinite inputs.
+7. `FOOT-04.2` — goal and footprint boundaries.
+8. `SEP-01.2` — separation selectors and overrides.
+9. `ORDER-01.12` — Harvest ownership.
+10. `ORDER-01.16` — Build ownership.
+11. `ORDER-01.13` — ability ownership.
+12. `ORDER-02.2` — remaining queue-control contracts.
+13. `GROUP-03.2` — speed-cap exemptions.
+14. `GROUP-03.4` — Captain attachment.
+15. `GROUP-03.4.7.3` — Captain goal policies.
+16. `GROUP-04.6` — persistent group/member integration.
+17. `E2E-05.1` — concrete gap ledger.
+18. `E2E-05.2` — resolve every ledger entry.
+19. `E2E-06.1` — freeze verified contracts.
+20. `E2E-03.1` — deterministic repeats.
+21. `E2E-03.2` — boundary corpus.
+22. `READY-01.1` — coverage audit.
+23. `READY-02.1` — cross-feature acceptance.
+24. `READY-03.1` — fresh corpus reproduction.
+25. `READY-04.1` — final replacement review.
+
+The ordering establishes producer, numeric and order contracts before group
+composition. The gap ledger precedes discrepancy resolution; verified contracts
+precede repeat/boundary corpora and the four final gates. Resolve counterexamples
+required by the active criterion before advancing. Preserve existing ownership
+links and do not reduce the scope to the subset already passing.
+
+## Historical 30-leaf execution baseline (2026-10-18)
 
 **Current audited result: 311/336 complete, 25 open.** GROUP-01.2 is now verified
 across its existing producer matrix, BASE-03.2 publishes the field inventory, BASE-01.4 the forced-position entry inventory, NUM-01.2 the arithmetic inventory; BASE-03.1 now publishes the complete per-branch inventory below. The execution plan below retains its
