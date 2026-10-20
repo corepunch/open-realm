@@ -8,6 +8,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -56,13 +57,114 @@ static avFix_t avatar_setup(uint32_t rank) {
     fix.unit->health.value = 400; fix.unit->health.max_value = 650;
     fix.unit->mana.value = fix.unit->mana.max_value = 100;
     fix.unit->armor_value = 5; fix.unit->temporary_armor_bonus = 1.1f;
-    fix.unit->attack1.temporaryDamageBonus = 3; fix.unit->attack2.temporaryDamageBonus = 4;
+    S_AttackProfileWrite(fix.unit, 0)->temporaryDamageBonus = 3; S_AttackProfileWrite(fix.unit, 1)->temporaryDamageBonus = 4;
     fix.unit->svflags |= SVF_MONSTER; fix.unit->movetype = MOVETYPE_NONE;
     fix.unit->stand = unit_stand; fix.unit->die = unit_die;
     return fix;
 }
 
 static void avatar_done(avFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+
+/* Public Avatar enters a counted separation hold before returning to JASS.
+ * Retail 4eecd0 acquires it even though GetUnitCurrentOrder already reads zero.
+ * The ability owner must survive a later configuration refresh. */
+TEST(wc3_avatar, separation323_public_cast_owns_suppression) {
+    avFix_t fix = avatar_setup(1);
+    edict_t *unit = fix.unit;
+    UnitBalance_t balance = *unit->data.UnitBalance;
+    balance.repulse = 1;
+    unit->data.UnitBalance = &balance;
+    CAbilityMove(unit, A_UNIT_INIT, NULL);
+    T_ASSERT(unit->movement.repulse.active);
+    T_EQ(unit->movement.repulse.disable_depth, 0);
+    T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
+    T_ASSERT(S_UnitSpellImmune(unit));
+    T_EQ(unit->movement.repulse.disable_depth, 1);
+    T_ASSERT(!unit->movement.repulse.active);
+    CAbilityMove(unit, A_UNIT_TYPE_CHANGED, NULL);
+    T_EQ(unit->movement.repulse.disable_depth, 1);
+    T_ASSERT(!unit->movement.repulse.active);
+    reset_entities();
+    avatar_done(fix);
+}
+
+TEST(wc3_avatar, separation323_early_inverse_replaces_request_and_survives_save) {
+    avFix_t fix = avatar_setup(1);
+    edict_t *unit = fix.unit;
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(unit_issueimmediateorder(unit,"avatar"));
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    level.pathing_clock.time=1.4f;
+    unit_removestatus(unit,unit_findstatus(unit,BZ_AVATAR_BUFF),STATUS_REMOVE_DISPEL);
+    T_EQ(unit->movement.repulse.disable_depth,2);
+    T_ASSERT(!S_UnitSpellImmune(unit));
+    unsigned slot=unit->s.number;
+    cstring_t file=Test_TempPath("avatar323-transition.bin");
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file)); remove(file);
+    unit=g_edicts+slot;
+    T_EQ(unit->movement.repulse.disable_depth,2);
+    level.pathing_clock.time=2;
+    S_RunAbilityTimers();
+    T_EQ(unit->movement.repulse.disable_depth,2); /* Replaced entry deadline. */
+    level.pathing_clock.time=2.4f;
+    S_RunAbilityTimers();
+    T_EQ(unit->movement.repulse.disable_depth,1); /* Native retains this count. */
+    T_NULL(unit->avatar);
+    reset_entities(); avatar_done(fix);
+}
+
+TEST(wc3_avatar, separation323_stop_pause_and_removal_keep_distinct_owners) {
+    avFix_t fix=avatar_setup(1);
+    edict_t *unit=fix.unit;
+    UnitBalance_t balance=*unit->data.UnitBalance;
+    balance.repulse=1;unit->data.UnitBalance=&balance;
+    CAbilityMove(unit,A_UNIT_INIT,NULL);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(unit_issueimmediateorder(unit,"avatar"));
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    S_SetUnitPaused(unit,true);
+    T_EQ(unit->movement.repulse.disable_depth,2);
+    level.pathing_clock.time=2;
+    S_RunAbilityTimers();
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_ASSERT(unit->paused);T_ASSERT(!unit->movement.repulse.active);
+    S_SetUnitPaused(unit,false);
+    level.pathing_clock.time=2.1f;S_RunMoveTimers();
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_ASSERT(unit->movement.repulse.active);
+    S_AvatarExpire(unit);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_ASSERT(unit->avatar && unit->avatar->transition.active);
+    G_DeferFreeEdict(unit);
+    T_ASSERT(!unit->avatar || !unit->avatar->transition.active);
+    T_EQ(unit->movement.repulse.disable_depth,2); /* Removal adds its own count. */
+    level.pathing_clock.time=4;S_RunAbilityTimers();
+    T_EQ(unit->movement.repulse.disable_depth,2); /* Canceled ability request never releases. */
+    reset_entities();avatar_done(fix);
+}
+
+TEST(wc3_avatar, separation323_rebase_and_free_cancel_pending_request) {
+    avFix_t fix=avatar_setup(1);
+    edict_t *unit=fix.unit;
+    level.pathing_clock=(wc3Clock_t){.time=299.5f,.span=300};
+    T_ASSERT(unit_issueimmediateorder(unit,"avatar"));
+    S_RebaseAbilityPrimaryTimers(300);
+    level.pathing_clock=(wc3Clock_t){.time=0.4f,.epoch=1,.span=300};
+    S_RunAbilityTimers();T_EQ(unit->movement.repulse.disable_depth,1);
+    level.pathing_clock.time=0.5f;
+    S_RunAbilityTimers();T_EQ(unit->movement.repulse.disable_depth,0);
+    S_AvatarExpire(unit);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    G_FreeEdict(unit);
+    abilityTimerRequest_t request={0};
+    T_ASSERT(!S_NextAbilityPrimaryTimer(&request));
+    edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    level.pathing_clock.time=2;S_RunAbilityTimers();
+    T_EQ(replacement->movement.repulse.disable_depth,0);
+    reset_entities();avatar_done(fix);
+}
 
 TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
     avFix_t fix = avatar_setup(1);
@@ -72,10 +174,10 @@ TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
     T_FEQ(unit->health.max_value, 1150, 0.001f);
     T_FEQ(unit->health.value, 900, 0.001f);
     T_FEQ(G_UnitArmorValue(unit), 10, 0.001f);
-    T_FEQ(unit->attack1.temporaryDamageBonus, 23, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 24, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 23, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 24, 0.001f);
     T_ASSERT(S_UnitSpellImmune(unit));
-    T_STREQ(unit->animation_props, "alternate");
+    T_STREQ(G_UnitAnimationProperties(unit), "alternate");
     T_ASSERT(!unit_issueimmediateorder(unit, "avatar"));
     T_FEQ(unit->mana.value, 75, 0.001f);
     unit->health.value = 300;
@@ -83,10 +185,10 @@ TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
     T_FEQ(unit->health.value, 300, 0.001f);
     T_FEQ(unit->health.max_value, 650, 0.001f);
     T_FEQ(unit->armor_value, 5, 0.001f);
-    T_FEQ(unit->attack1.temporaryDamageBonus, 3, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 4, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 3, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 4, 0.001f);
     T_ASSERT(!S_UnitSpellImmune(unit));
-    T_STREQ(unit->animation_props, "");
+    T_STREQ(G_UnitAnimationProperties(unit), "");
     S_AvatarExpire(unit);
     T_FEQ(unit->health.max_value, 650, 0.001f);
     level.time += 90000; unit_updatestatuses(unit);
@@ -109,8 +211,8 @@ TEST(wc3_avatar, direct_status_removal_does_not_reenter_avatar_cleanup) {
     unit_removestatus(unit, slot, STATUS_REMOVE_DISPEL);
     T_NULL(unit_findstatus(unit, BZ_AVATAR_BUFF));
     T_FEQ(unit->health.max_value, 650.0f, 0.001f);
-    T_FEQ(unit->attack1.temporaryDamageBonus, 3.0f, 0.001f);
-    T_ASSERT(!unit->avatar);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 3.0f, 0.001f);
+    T_ASSERT(!unit->avatar || !unit->avatar->level);
     avatar_done(fix);
 }
 
@@ -148,7 +250,7 @@ TEST(wc3_avatar, level_change_death_and_removal_reverse_stored_values) {
     edict_t *unit = fix.unit;
     T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_FEQ(unit->health.max_value, 1250, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 35, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 35, 0.001f);
     unit->hero.str++; G_RecomputeHeroStats(unit);
     T_FEQ(unit->health.max_value, 1275, 0.001f);
     T_FEQ(unit->armor_value, 12, 0.001f);
@@ -157,7 +259,11 @@ TEST(wc3_avatar, level_change_death_and_removal_reverse_stored_values) {
     T_FEQ(unit->health.value, 0, 0.001f);
     T_FEQ(unit->health.max_value, 675, 0.001f);
     T_FEQ(unit->armor_value, 5, 0.001f);
-    T_FEQ(unit->attack1.temporaryDamageBonus, 3, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 3, 0.001f);
+    T_ASSERT(!unit->avatar || !unit->avatar->level);
+    T_EQ(unit->movement.repulse.disable_depth,1); /* Original entry request survives death. */
+    level.pathing_clock.time=1; S_RunAbilityTimers();
+    T_EQ(unit->movement.repulse.disable_depth,0);
     T_NULL(unit->avatar);
     T_ASSERT(!S_UnitSpellImmune(unit));
     avatar_done(fix);
@@ -169,8 +275,8 @@ TEST(wc3_avatar, ability_removal_expires_active_avatar) {
     T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
     T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));
-    T_NULL(unit->avatar); T_ASSERT(!S_UnitSpellImmune(unit));
-    T_FEQ(unit->health.max_value, 650, 0.001f); T_FEQ(unit->attack1.temporaryDamageBonus, 3, 0.001f);
+    T_ASSERT(!unit->avatar || !unit->avatar->level); T_ASSERT(!S_UnitSpellImmune(unit));
+    T_FEQ(unit->health.max_value, 650, 0.001f); T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 3, 0.001f);
     avatar_done(fix);
 }
 
@@ -197,6 +303,7 @@ TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
     T_ASSERT(!S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_NULL(unit->avatar);
     unit->mana.value = 100;
+    G_EnsureUnitStatusSlots(unit);
     FOR_LOOP(i, MAX_UNIT_STATUSES) unit->abilstatus[i] = (heroabilitystatus_t){ .code = i + 1, .level = 1 };
     T_ASSERT(!S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_FEQ(unit->mana.value, 100, 0.001f);
@@ -206,24 +313,38 @@ TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
 TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
     avFix_t fix = avatar_setup(1);
     edict_t *unit = fix.unit;
+    g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
 
     memset(unit->heroabilities, 0, sizeof(unit->heroabilities));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);
     T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 1);
 
+    T_ASSERT(run_test_jass("globals\ninteger issued=0\ninteger effects=0\nendglobals\n"
+        "function onEffect takes nothing returns nothing\nset effects=effects+1\n"
+        "call BJassAssert(GetSpellAbilityId()=='AHav' and GetSpellAbilityUnit()==GetTriggerUnit(),\"Avatar effect context\")\n"
+        "call BJassAssert(GetUnitState(GetTriggerUnit(),ConvertUnitState(2))==100.0,\"Avatar effect precedes cost\")\nendfunction\n"
+        "function onIssued takes nothing returns nothing\n"
+        "call BJassAssert(GetIssuedOrderId()==OrderId(\"avatar\"),\"Avatar issued identity\")\n"
+        "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='Hpal',\"Avatar issued unit\")\n"
+        "set issued=issued+1\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\nlocal trigger e=CreateTrigger()\nlocal group g=CreateGroup()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+        "call TriggerAddAction(t,function onIssued)\n"
+        "call TriggerRegisterPlayerUnitEvent(e,Player(0),EVENT_PLAYER_UNIT_SPELL_EFFECT,null)\n"
+        "call GroupEnumUnitsOfPlayer(g,Player(0),null)\n"
+        "call TriggerRegisterUnitEvent(e,FirstOfGroup(g),ConvertUnitEvent(291))\ncall DestroyGroup(g)\n"
+        "call TriggerAddAction(e,function onEffect)\nendfunction\n"
+        "function checkIssued takes nothing returns nothing\n"
+        "call BJassAssert(effects==2,\"Avatar EFFECT families completed synchronously\")\n"
+        "call BJassAssert(issued==1,\"Avatar issued callback completed synchronously\")\nendfunction\n"));
     level.events.read = level.events.write = 0;
     memset(level.events.queue, 0, sizeof(level.events.queue));
     T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
-    T_EQ(level.events.write, 4);
-    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
-    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
-    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_ISSUED_ORDER);
-    T_EQ(level.events.queue[3].type, EVENT_UNIT_ISSUED_ORDER);
-    T_ASSERT(level.events.queue[0].edict == unit && level.events.queue[1].edict == unit);
-    T_EQ((uint32_t)level.events.queue[0].value, BZ_AVATAR);
-    T_EQ((uint32_t)level.events.queue[1].value, BZ_AVATAR);
-    T_ASSERT(level.events.queue[2].edict == unit && level.events.queue[3].edict == unit);
+    /* EFFECT delivery is synchronous, as original40b380/67ce30 establish. */
+    T_EQ(level.events.write, 0);
+    jass_callbyname(level.vm,"checkIssued",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(G_GetIssuedOrderId(unit), G_OrderId("avatar"));
 
     T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));

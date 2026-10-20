@@ -1,0 +1,2129 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scenes": [
+    {
+      "map": "RS-Mechanical201b.w3m",
+      "map_sha256": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5",
+      "captures": {
+        "live-b3.jsonl": {
+          "bytes": 10690,
+          "sha256": "0d0e81680190e3c9fc268ca138b46a1dfcdb0569954caa718dde690cbbe527f7",
+          "metadata": {
+            "event": "metadata",
+            "task": "SEP-01.2 / payoff201",
+            "mode": "observe",
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+              "mechanical201_observer.js": "0f01b0b158eb862ef79d03fa22314df2704bed845ccea769bfd11760f5aaaedb",
+              "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+              "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+              "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+              "map": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5"
+            },
+            "map": "Maps\\RS-Mechanical201b.w3m",
+            "seconds": 100.0,
+            "continue_at": 30,
+            "display": ":98",
+            "remote": "127.0.0.1:27049",
+            "env": "B",
+            "input": [],
+            "input_seconds": null,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "prefix": "M201 "
+          }
+        },
+        "live-b4.jsonl": {
+          "bytes": 10692,
+          "sha256": "4a246ba858433283f921aef949affad3807b80882a3d85381d01e69c0ce3cf34",
+          "metadata": {
+            "event": "metadata",
+            "task": "SEP-01.2 / payoff201",
+            "mode": "observe",
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+              "mechanical201_observer.js": "0f01b0b158eb862ef79d03fa22314df2704bed845ccea769bfd11760f5aaaedb",
+              "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+              "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+              "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+              "map": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5"
+            },
+            "map": "Maps\\RS-Mechanical201b.w3m",
+            "seconds": 100.0,
+            "continue_at": 30,
+            "display": ":98",
+            "remote": "127.0.0.1:27049",
+            "env": "B",
+            "input": [],
+            "input_seconds": null,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "prefix": "M201 "
+          }
+        },
+        "control-b1.jsonl": {
+          "bytes": 1333,
+          "sha256": "30e76e22f2607f3e8617d1334702bd72f62341262d27105c74f3c719a54efa8b",
+          "metadata": {
+            "event": "metadata",
+            "task": "SEP-01.2 / payoff201",
+            "mode": "control",
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+              "mechanical201_observer.js": "ecfb12f9dd8ae1bd3e4704f39eff5759c5b2903ebf2bf872967ed94adddce28b",
+              "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+              "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+              "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+              "map": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5"
+            },
+            "map": "Maps\\RS-Mechanical201b.w3m",
+            "seconds": 85.0,
+            "continue_at": 30,
+            "display": ":99",
+            "remote": "127.0.0.1:27050",
+            "env": "C",
+            "input": [],
+            "input_seconds": null,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "prefix": "M201 "
+          }
+        }
+      },
+      "stages": [
+        {
+          "event": "marker",
+          "tick": 0,
+          "value": "M201 tick=0 label=start type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 1,
+          "value": "M201 tick=1 label=start_file type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 1,
+          "value": "M201 tick=1 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 2,
+          "value": "M201 tick=2 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 3,
+          "value": "M201 tick=3 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 4,
+          "value": "M201 tick=4 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 5,
+          "value": "M201 tick=5 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 6,
+          "value": "M201 tick=6 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 7,
+          "value": "M201 tick=7 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 8,
+          "value": "M201 tick=8 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 9,
+          "value": "M201 tick=9 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "choose-begin",
+          "tick": 9,
+          "level": -1,
+          "tileset": 88,
+          "args": [
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852207727
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852138344
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852138354
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852989795
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852075879
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1853057125
+        },
+        {
+          "event": "range-begin",
+          "tick": 9,
+          "index": 33,
+          "span": 6,
+          "caller": "672f14"
+        },
+        {
+          "event": "range-end",
+          "tick": 9,
+          "value": 5
+        },
+        {
+          "event": "choose-end",
+          "tick": 9,
+          "code": 1853057125
+        },
+        {
+          "event": "marker",
+          "tick": 10,
+          "value": "M201 tick=10 label=item_created type=1835233897"
+        },
+        {
+          "event": "choose-begin",
+          "tick": 10,
+          "level": -1,
+          "tileset": 88,
+          "args": [
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852207727
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852138344
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852138354
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852989795
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852075879
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1853057125
+        },
+        {
+          "event": "range-begin",
+          "tick": 10,
+          "index": 33,
+          "span": 6,
+          "caller": "672f14"
+        },
+        {
+          "event": "range-end",
+          "tick": 10,
+          "value": 2
+        },
+        {
+          "event": "choose-end",
+          "tick": 10,
+          "code": 1852138354
+        },
+        {
+          "event": "refresh",
+          "tick": 10,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 0,
+            "flag": 0,
+            "depth": 0
+          },
+          "caller": "68a4fa"
+        },
+        {
+          "event": "configure",
+          "tick": 10,
+          "args": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "event": "apply-begin",
+          "tick": 10,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 0,
+            "flag": 0,
+            "depth": 0
+          },
+          "duration": 0
+        },
+        {
+          "event": "apply-end",
+          "tick": 10,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 0,
+            "flag": 1,
+            "depth": 1
+          }
+        },
+        {
+          "event": "marker",
+          "tick": 10,
+          "value": "M201 tick=10 label=item_use accepted=1"
+        },
+        {
+          "event": "marker",
+          "tick": 10,
+          "value": "M201 tick=10 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 11,
+          "value": "M201 tick=11 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 12,
+          "value": "M201 tick=12 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 13,
+          "value": "M201 tick=13 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 14,
+          "value": "M201 tick=14 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 15,
+          "value": "M201 tick=15 label=created type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 15,
+          "value": "M201 tick=15 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 16,
+          "value": "M201 tick=16 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 17,
+          "value": "M201 tick=17 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 18,
+          "value": "M201 tick=18 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 19,
+          "value": "M201 tick=19 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "refresh",
+          "tick": 19,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 1,
+            "flag": 1,
+            "depth": 1
+          },
+          "caller": "698f8d"
+        },
+        {
+          "event": "configure",
+          "tick": 19,
+          "args": [
+            0,
+            0,
+            240,
+            0
+          ]
+        },
+        {
+          "event": "marker",
+          "tick": 20,
+          "value": "M201 tick=20 label=owner_refresh type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 20,
+          "value": "M201 tick=20 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 21,
+          "value": "M201 tick=21 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 22,
+          "value": "M201 tick=22 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 23,
+          "value": "M201 tick=23 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 24,
+          "value": "M201 tick=24 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "inverse-begin",
+          "tick": 24,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 1,
+            "flag": 1,
+            "depth": 1
+          }
+        },
+        {
+          "event": "inverse-end",
+          "tick": 24,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 1,
+            "flag": 0,
+            "depth": 0
+          }
+        },
+        {
+          "event": "marker",
+          "tick": 25,
+          "value": "M201 tick=25 label=buff_remove type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 25,
+          "value": "M201 tick=25 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 26,
+          "value": "M201 tick=26 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 27,
+          "value": "M201 tick=27 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 28,
+          "value": "M201 tick=28 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 29,
+          "value": "M201 tick=29 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "refresh",
+          "tick": 29,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 2,
+            "flag": 0,
+            "depth": 0
+          },
+          "caller": "698f8d"
+        },
+        {
+          "event": "configure",
+          "tick": 29,
+          "args": [
+            0,
+            0,
+            32,
+            0
+          ]
+        },
+        {
+          "event": "marker",
+          "tick": 30,
+          "value": "M201 tick=30 label=inverse_refresh type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 30,
+          "value": "M201 tick=30 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 31,
+          "value": "M201 tick=31 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 32,
+          "value": "M201 tick=32 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 33,
+          "value": "M201 tick=33 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 34,
+          "value": "M201 tick=34 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 35,
+          "value": "M201 tick=35 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 36,
+          "value": "M201 tick=36 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 37,
+          "value": "M201 tick=37 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 38,
+          "value": "M201 tick=38 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 39,
+          "value": "M201 tick=39 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 40,
+          "value": "M201 tick=40 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 41,
+          "value": "M201 tick=41 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 42,
+          "value": "M201 tick=42 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 43,
+          "value": "M201 tick=43 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 44,
+          "value": "M201 tick=44 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 45,
+          "value": "M201 tick=45 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 46,
+          "value": "M201 tick=46 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 47,
+          "value": "M201 tick=47 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 48,
+          "value": "M201 tick=48 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 49,
+          "value": "M201 tick=49 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 50,
+          "value": "M201 tick=50 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 50,
+          "value": "M201 tick=50 label=complete type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        }
+      ],
+      "public_markers": [
+        "M201 tick=1 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=2 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=3 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=4 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=5 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=6 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=7 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=8 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=9 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=10 label=item_created type=1835233897",
+        "M201 tick=10 label=item_use accepted=1",
+        "M201 tick=10 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=11 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=12 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=13 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=14 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=15 label=created type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=15 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=16 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=17 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=18 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=19 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=20 label=owner_refresh type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=20 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=21 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=22 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=23 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=24 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=25 label=buff_remove type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=25 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=26 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=27 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=28 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=29 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=30 label=inverse_refresh type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=30 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=31 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=32 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=33 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=34 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=35 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=36 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=37 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=38 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=39 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=40 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=41 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=42 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=43 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=44 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=45 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=46 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=47 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=48 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=49 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=50 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=50 label=complete type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+      ]
+    },
+    {
+      "map": "RS-Mechanical201c.w3m",
+      "map_sha256": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a",
+      "captures": {
+        "live-c1.jsonl": {
+          "bytes": 10865,
+          "sha256": "408a80cb642dd8bb77834040cb9619fb275c088cc81ef33ab6fccfc7de8e02d6",
+          "metadata": {
+            "event": "metadata",
+            "task": "SEP-01.2 / payoff201",
+            "mode": "observe",
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+              "mechanical201_observer.js": "82b212f48768f0d141d230cdc1ff795bd705201af4fd9dae3b03992d8e089c30",
+              "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+              "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+              "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+              "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+            },
+            "map": "Maps\\RS-Mechanical201c.w3m",
+            "seconds": 100.0,
+            "continue_at": 30,
+            "display": ":98",
+            "remote": "127.0.0.1:27049",
+            "env": "B",
+            "input": [],
+            "input_seconds": null,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "prefix": "M201 "
+          }
+        },
+        "live-c2.jsonl": {
+          "bytes": 10866,
+          "sha256": "d3a6bfc62ace8177208fe9a21ef1159e8bc1fb7224ce8ac09d8dbce73c852362",
+          "metadata": {
+            "event": "metadata",
+            "task": "SEP-01.2 / payoff201",
+            "mode": "observe",
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+              "mechanical201_observer.js": "82b212f48768f0d141d230cdc1ff795bd705201af4fd9dae3b03992d8e089c30",
+              "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+              "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+              "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+              "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+            },
+            "map": "Maps\\RS-Mechanical201c.w3m",
+            "seconds": 100.0,
+            "continue_at": 30,
+            "display": ":98",
+            "remote": "127.0.0.1:27049",
+            "env": "B",
+            "input": [],
+            "input_seconds": null,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "prefix": "M201 "
+          }
+        },
+        "control-c1.jsonl": {
+          "bytes": 1333,
+          "sha256": "0f843982ee6ceb1ee064122c89ecd86ebb1d9e185bb7c638099fc0fa3450610c",
+          "metadata": {
+            "event": "metadata",
+            "task": "SEP-01.2 / payoff201",
+            "mode": "control",
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+              "mechanical201_observer.js": "82b212f48768f0d141d230cdc1ff795bd705201af4fd9dae3b03992d8e089c30",
+              "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+              "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+              "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+              "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+            },
+            "map": "Maps\\RS-Mechanical201c.w3m",
+            "seconds": 100.0,
+            "continue_at": 30,
+            "display": ":99",
+            "remote": "127.0.0.1:27050",
+            "env": "C",
+            "input": [],
+            "input_seconds": null,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "prefix": "M201 "
+          }
+        }
+      },
+      "stages": [
+        {
+          "event": "marker",
+          "tick": 0,
+          "value": "M201 tick=0 label=start type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 1,
+          "value": "M201 tick=1 label=start_file type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 1,
+          "value": "M201 tick=1 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 2,
+          "value": "M201 tick=2 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 3,
+          "value": "M201 tick=3 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 4,
+          "value": "M201 tick=4 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 5,
+          "value": "M201 tick=5 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 6,
+          "value": "M201 tick=6 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 7,
+          "value": "M201 tick=7 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 8,
+          "value": "M201 tick=8 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 9,
+          "value": "M201 tick=9 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "choose-begin",
+          "tick": 9,
+          "level": -1,
+          "tileset": 88,
+          "args": [
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852207727
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852138344
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852138354
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852989795
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1852075879
+        },
+        {
+          "event": "candidate",
+          "tick": 9,
+          "code": 1853057125
+        },
+        {
+          "event": "range-begin",
+          "tick": 9,
+          "index": 33,
+          "span": 6,
+          "caller": "672f14"
+        },
+        {
+          "event": "range-end",
+          "tick": 9,
+          "value": 5
+        },
+        {
+          "event": "choose-end",
+          "tick": 9,
+          "code": 1853057125
+        },
+        {
+          "event": "marker",
+          "tick": 10,
+          "value": "M201 tick=10 label=item_created type=1835233897"
+        },
+        {
+          "event": "choose-begin",
+          "tick": 10,
+          "level": -1,
+          "tileset": 88,
+          "args": [
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852207727
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852138344
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852138354
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852989795
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1852075879
+        },
+        {
+          "event": "candidate",
+          "tick": 10,
+          "code": 1853057125
+        },
+        {
+          "event": "range-begin",
+          "tick": 10,
+          "index": 33,
+          "span": 6,
+          "caller": "672f14"
+        },
+        {
+          "event": "range-end",
+          "tick": 10,
+          "value": 2
+        },
+        {
+          "event": "choose-end",
+          "tick": 10,
+          "code": 1852138354
+        },
+        {
+          "event": "refresh",
+          "tick": 10,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 0,
+            "flag": 0,
+            "depth": 0,
+            "sep": null
+          },
+          "caller": "68a4fa"
+        },
+        {
+          "event": "configure",
+          "tick": 10,
+          "args": [
+            1,
+            0,
+            3,
+            2
+          ],
+          "sep": 540016640
+        },
+        {
+          "event": "apply-begin",
+          "tick": 10,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 0,
+            "flag": 0,
+            "depth": 0,
+            "sep": 540016640
+          },
+          "duration": 0
+        },
+        {
+          "event": "apply-end",
+          "tick": 10,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 0,
+            "flag": 1,
+            "depth": 1,
+            "sep": 540016640
+          }
+        },
+        {
+          "event": "marker",
+          "tick": 10,
+          "value": "M201 tick=10 label=item_use accepted=1"
+        },
+        {
+          "event": "marker",
+          "tick": 10,
+          "value": "M201 tick=10 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 11,
+          "value": "M201 tick=11 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 12,
+          "value": "M201 tick=12 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 13,
+          "value": "M201 tick=13 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 14,
+          "value": "M201 tick=14 label=sample type=0 xy=0.000,0.000 owner=0 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 15,
+          "value": "M201 tick=15 label=created type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 15,
+          "value": "M201 tick=15 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 16,
+          "value": "M201 tick=16 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 17,
+          "value": "M201 tick=17 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 18,
+          "value": "M201 tick=18 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 19,
+          "value": "M201 tick=19 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1"
+        },
+        {
+          "event": "refresh",
+          "tick": 19,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 1,
+            "flag": 1,
+            "depth": 1,
+            "sep": 540016647
+          },
+          "caller": "698f8d"
+        },
+        {
+          "event": "configure",
+          "tick": 19,
+          "args": [
+            1,
+            0,
+            243,
+            2
+          ],
+          "sep": 791674880
+        },
+        {
+          "event": "marker",
+          "tick": 20,
+          "value": "M201 tick=20 label=owner_refresh type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 20,
+          "value": "M201 tick=20 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 21,
+          "value": "M201 tick=21 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 22,
+          "value": "M201 tick=22 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 23,
+          "value": "M201 tick=23 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "marker",
+          "tick": 24,
+          "value": "M201 tick=24 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1"
+        },
+        {
+          "event": "inverse-begin",
+          "tick": 24,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 1,
+            "flag": 1,
+            "depth": 1,
+            "sep": 791674880
+          }
+        },
+        {
+          "event": "inverse-end",
+          "tick": 24,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 1,
+            "flag": 0,
+            "depth": 0,
+            "sep": 791674880
+          }
+        },
+        {
+          "event": "marker",
+          "tick": 25,
+          "value": "M201 tick=25 label=buff_remove type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 25,
+          "value": "M201 tick=25 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 26,
+          "value": "M201 tick=26 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 27,
+          "value": "M201 tick=27 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 28,
+          "value": "M201 tick=28 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 29,
+          "value": "M201 tick=29 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0"
+        },
+        {
+          "event": "refresh",
+          "tick": 29,
+          "unit": {
+            "id": [
+              892,
+              899
+            ],
+            "code": 1852138354,
+            "owner": 2,
+            "flag": 0,
+            "depth": 0,
+            "sep": 791674887
+          },
+          "caller": "698f8d"
+        },
+        {
+          "event": "configure",
+          "tick": 29,
+          "args": [
+            1,
+            0,
+            35,
+            2
+          ],
+          "sep": 573571072
+        },
+        {
+          "event": "marker",
+          "tick": 30,
+          "value": "M201 tick=30 label=inverse_refresh type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 30,
+          "value": "M201 tick=30 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 31,
+          "value": "M201 tick=31 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 32,
+          "value": "M201 tick=32 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 33,
+          "value": "M201 tick=33 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 34,
+          "value": "M201 tick=34 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 35,
+          "value": "M201 tick=35 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 36,
+          "value": "M201 tick=36 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 37,
+          "value": "M201 tick=37 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 38,
+          "value": "M201 tick=38 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 39,
+          "value": "M201 tick=39 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 40,
+          "value": "M201 tick=40 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 41,
+          "value": "M201 tick=41 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 42,
+          "value": "M201 tick=42 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 43,
+          "value": "M201 tick=43 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 44,
+          "value": "M201 tick=44 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 45,
+          "value": "M201 tick=45 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 46,
+          "value": "M201 tick=46 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 47,
+          "value": "M201 tick=47 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 48,
+          "value": "M201 tick=48 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 49,
+          "value": "M201 tick=49 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 50,
+          "value": "M201 tick=50 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        },
+        {
+          "event": "marker",
+          "tick": 50,
+          "value": "M201 tick=50 label=complete type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+        }
+      ],
+      "public_markers": [
+        "M201 tick=1 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=2 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=3 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=4 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=5 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=6 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=7 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=8 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=9 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=10 label=item_created type=1835233897",
+        "M201 tick=10 label=item_use accepted=1",
+        "M201 tick=10 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=11 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=12 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=13 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=14 label=sample type=0 xy=0.000,0.000 owner=0 buff=0",
+        "M201 tick=15 label=created type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=15 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=16 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=17 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=18 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=19 label=sample type=1852138354 xy=711.750,512.000 owner=0 buff=1",
+        "M201 tick=20 label=owner_refresh type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=20 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=21 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=22 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=23 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=24 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=1",
+        "M201 tick=25 label=buff_remove type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=25 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=26 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=27 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=28 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=29 label=sample type=1852138354 xy=711.750,512.000 owner=1 buff=0",
+        "M201 tick=30 label=inverse_refresh type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=30 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=31 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=32 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=33 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=34 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=35 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=36 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=37 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=38 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=39 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=40 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=41 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=42 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=43 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=44 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=45 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=46 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=47 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=48 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=49 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=50 label=sample type=1852138354 xy=711.750,512.000 owner=2 buff=0",
+        "M201 tick=50 label=complete type=1852138354 xy=711.750,512.000 owner=2 buff=0"
+      ]
+    }
+  ],
+  "word_capture": {
+    "name": "live-c3-words.jsonl",
+    "bytes": 18723,
+    "sha256": "b67bc9b1ef955732ade55540386f54d47b74b9e7780ddd87d086b37b9c067731",
+    "metadata": {
+      "event": "metadata",
+      "task": "SEP-01.2 / payoff201",
+      "mode": "observe",
+      "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "owned": true,
+      "source_sha256": {
+        "mechanical201_capture.py": "df9ae892a78ee4faf4acda2f2e615e12545f37bdb4efd10345abd180e942760e",
+        "mechanical201_observer.js": "02fa89254ae10788e0023d76ddb9631fbba8605bc0c17156122255c3a3206c50",
+        "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+        "mechanical201_make_map.py": "8bdd4879a978c5814bf65e9c46753f45761926c02441f331a4b99abfabfb023f",
+        "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+        "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+        "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+      },
+      "map": "Maps\\RS-Mechanical201c.w3m",
+      "seconds": 100.0,
+      "continue_at": 30.0,
+      "display": ":98",
+      "remote": "127.0.0.1:27049",
+      "env": "B",
+      "input": [],
+      "input_seconds": null,
+      "frida": "17.18.0",
+      "timestamp": 1481263518,
+      "imageSize": 15130624,
+      "prefix": "M201 ",
+      "pose_words": true
+    },
+    "queries": [
+      {
+        "event": "public-x",
+        "tick": 0,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 0,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 1,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 1,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 1,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 1,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 2,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 2,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 3,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 3,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 4,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 4,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 5,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 5,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 6,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 6,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 7,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 7,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 8,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 8,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 10,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 10,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 10,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 10,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 11,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 11,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 12,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 12,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 13,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-y",
+        "tick": 13,
+        "handle": 0,
+        "word": 0
+      },
+      {
+        "event": "public-x",
+        "tick": 14,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 14,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 15,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 15,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 15,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 15,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 16,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 16,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 17,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 17,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 18,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 18,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 19,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 19,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 20,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 20,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 20,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 20,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 21,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 21,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 22,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 22,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 23,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 23,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 24,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 24,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 25,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 25,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 25,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 25,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 26,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 26,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 27,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 27,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 28,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 28,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 29,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 29,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 30,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 30,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 30,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 30,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 31,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 31,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 32,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 32,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 33,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 33,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 34,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 34,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 35,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 35,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 36,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 36,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 37,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 37,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 38,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 38,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 39,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 39,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 40,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 40,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 41,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 41,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 42,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 42,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 43,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 43,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 44,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 44,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 45,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 45,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 46,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 46,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 47,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 47,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 48,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 48,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 49,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 49,
+        "handle": 1048690,
+        "word": 1140850688
+      },
+      {
+        "event": "public-x",
+        "tick": 50,
+        "handle": 1048690,
+        "word": 1144123392
+      },
+      {
+        "event": "public-y",
+        "tick": 50,
+        "handle": 1048690,
+        "word": 1140850688
+      }
+    ]
+  }
+}

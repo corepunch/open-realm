@@ -1,0 +1,95 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "captures": {
+    "TARGET-02.1/captures/observe-1.jsonl": {
+      "bytes": 33974387,
+      "sha256": "c5a42099628ff6c4f6894aae284bf5149a3be9560d830410d1cd0e367c760163",
+      "metadata": {
+        "event": "metadata",
+        "task": "TARGET-02.1",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "target021_capture.py": "9c061cf418f77083765053f1de262d91c0c38cacf5039865288e2f866254c58b",
+          "target021_observer.js": "37f3c11e29a1213b7807eabb73797203de7522c6a5c56537803394e90d277e53",
+          "target021_probe.j": "500105421ef15eac51dc33a97dbc5892397bff63cc6308039105eaa093513ffe",
+          "target021_make_map.py": "e6e7f00b5c625e9be4401924afdd24c8092cd05c68c9836d3c45604e5113b146",
+          "map": "657403d348d14a7961348ec2b9ac7db3853aecebe70b6b94fd0184435685b9d4"
+        },
+        "map": "Maps\\RS-TARGET-02.1-a.w3m",
+        "seconds": 360.0,
+        "continue_at": 45,
+        "display": ":99",
+        "remote": "127.0.0.1:27050",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research3",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "T021 ",
+        "always": false
+      }
+    },
+    "TARGET-02.1/captures/observe-2.jsonl": {
+      "bytes": 33974385,
+      "sha256": "fc97b618402f0e008e7f100d11dfe51b56aaf409f89665597b615615545bf8b4",
+      "metadata": {
+        "event": "metadata",
+        "task": "TARGET-02.1",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "target021_capture.py": "9c061cf418f77083765053f1de262d91c0c38cacf5039865288e2f866254c58b",
+          "target021_observer.js": "37f3c11e29a1213b7807eabb73797203de7522c6a5c56537803394e90d277e53",
+          "target021_probe.j": "500105421ef15eac51dc33a97dbc5892397bff63cc6308039105eaa093513ffe",
+          "target021_make_map.py": "e6e7f00b5c625e9be4401924afdd24c8092cd05c68c9836d3c45604e5113b146",
+          "map": "657403d348d14a7961348ec2b9ac7db3853aecebe70b6b94fd0184435685b9d4"
+        },
+        "map": "Maps\\RS-TARGET-02.1-a.w3m",
+        "seconds": 600.0,
+        "continue_at": 45,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "T021 ",
+        "always": false
+      }
+    },
+    "TARGET-02.1/captures/control-2.jsonl": {
+      "bytes": 1490,
+      "sha256": "9e916f8217b7dc055fe6676d2f07646f796c48b43d3f58c818b7af47f639116b",
+      "metadata": {
+        "event": "metadata",
+        "task": "TARGET-02.1",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "target021_capture.py": "1e099c4ec975b06f21e08ca7db8189876a6c66bc3541c7aed25f4dd833e2f5d2",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "target021_probe.j": "500105421ef15eac51dc33a97dbc5892397bff63cc6308039105eaa093513ffe",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "657403d348d14a7961348ec2b9ac7db3853aecebe70b6b94fd0184435685b9d4"
+        },
+        "map": "Maps\\RS-TARGET-02.1-a.w3m",
+        "seconds": 600.0,
+        "continue_at": 45,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "T021 ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "header_sha256": "8aa6ae1a8ea793fb54d801390da05823fbb02cee9523e9a9bc4c1cb75b6d660f"
+}

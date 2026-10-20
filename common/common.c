@@ -108,7 +108,7 @@ static void FS_NormalizePath(cstring_t in, string_t out, uint32_t out_size) {
     if (!in) {
         return;
     }
-    snprintf(out, out_size, "%s", in);
+    strlcpy(out, in, out_size);
     for (i = 0; out[i]; i++) {
         if (out[i] == '/') {
             out[i] = '\\';
@@ -737,13 +737,20 @@ static void FS_AddGameDirectory(cstring_t dirname) {
     }
 }
 
+/* Later mounts win lookups. The original searches War3Patch.mpq before every
+ * base archive; name order alone would let War3x*.mpq shadow the patch. */
+static int FS_ArchiveRank(cstring_t base) {
+    return !strcasecmp(base, "War3Patch.mpq");
+}
+
 static int FS_ComparePaths(void const *a, void const *b) {
     PATHSTR const *pa = a;
     PATHSTR const *pb = b;
     cstring_t abase = FS_BaseName(*pa);
     cstring_t bbase = FS_BaseName(*pb);
-    int cmp = strcasecmp(abase, bbase);
+    int cmp = FS_ArchiveRank(abase) - FS_ArchiveRank(bbase);
 
+    if (!cmp) cmp = strcasecmp(abase, bbase);
     return cmp ? cmp : strcasecmp(*pa, *pb);
 }
 

@@ -250,7 +250,7 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
     /*Resolve the same authored WC3 buff rawcode used by the normal status
      * panel, then expose that stable uint32 id as SC2 Raw Unit.buff_ids. Only
      * publish live visible state; snapshots return before this point. */
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         uint32_t const buff = G_UnitStatusBuffCode(&ent->abilstatus[i]);
         bool duplicate = false;
 
@@ -523,7 +523,7 @@ wc3Sc2ActionResult_t WC3_SC2API_IssueRawUnitCommand(uint32_t player,
      * name. Alias-aware unit dispatch retains the concrete Warcraft ability. */
     abilityitem_t const item = S_AbilityItem(command->ability_id);
     if (G_AbilityData(command->ability_id)->id == command->ability_id && item.ability) {
-        if (!G_UnitAbilityLevel(unit, command->ability_id) || !item.ability->orders ||
+        if (!G_UnitAbilityClassLevel(unit, command->ability_id) || !item.ability->orders ||
             !item.ability->orders[0]) return WC3_SC2_ACTION_NOT_SUPPORTED;
         order = item.ability->orders[0];
     }
@@ -575,7 +575,7 @@ wc3Sc2ActionResult_t WC3_SC2API_ToggleRawAutocast(uint32_t player, uint32_t abil
         wc3Sc2ActionResult_t result = WC3_SC2_ACTION_SUCCESS;
         if (!unit) result = WC3_SC2_ACTION_CANT_TARGET;
         else if (!G_UnitCanControl(client, unit)) result = WC3_SC2_ACTION_CANT_CONTROL_UNIT;
-        else if (!G_UnitAbilityLevel(unit, ability_code)) result = WC3_SC2_ACTION_NOT_SUPPORTED;
+        else if (!G_UnitAbilityClassLevel(unit, ability_code)) result = WC3_SC2_ACTION_NOT_SUPPORTED;
         else if (!G_SetUnitAutocast(unit, ability_code, !G_UnitAutocastIsOn(unit, ability_code)))
             result = WC3_SC2_ACTION_ERROR;
         if (aggregate == WC3_SC2_ACTION_SUCCESS && result != WC3_SC2_ACTION_SUCCESS) aggregate = result;

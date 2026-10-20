@@ -2,6 +2,7 @@
 #include "common/online.h"
 #include "../client/client.h"
 #include "server_api.h"
+#include "frame_budget.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -108,6 +109,26 @@ static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, bool dedica
     }
 }
 #endif /* !__EMSCRIPTEN__ */
+
+static hostFrameBudget_t host_budget;
+static bool host_checkpoints, host_presenting;
+static uint32_t host_client_tick;
+
+void Com_FrameCheckpoint(void) {
+    if (!host_checkpoints || host_presenting || cls.state != ca_active || !scr_initialized) return;
+    uint64_t now = SDL_GetPerformanceCounter();
+    if (!Host_FrameCheckpointDue(&host_budget, now)) return;
+    uint32_t tick = SDL_GetTicks();
+    host_presenting = true;
+    CL_PresentationFrame(tick - host_client_tick);
+    host_client_tick = tick;
+    Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - now);
+#ifndef __EMSCRIPTEN__
+    Com_LimitFrameRate(host_budget.start, host_budget.frequency, false);
+#endif
+    host_budget.start = SDL_GetPerformanceCounter();
+    host_presenting = false;
+}
 
 #ifdef _WIN32
 static bool Sys_FileExists(cstring_t filename) {
@@ -369,13 +390,22 @@ static openrealm_frame_state_t frame_state;
 
 static void OpenRealm_Frame(void *argument) {
     openrealm_frame_state_t *state = (openrealm_frame_state_t *)argument;
+    host_budget.start = SDL_GetPerformanceCounter();
+    int maxfps = Cvar_Integer("com_maxfps", 60);
+    host_budget.period = host_budget.frequency / (uint64_t)(maxfps > 0 ? maxfps : 60);
+    host_checkpoints = !state->dedicated;
     uint32_t current_time = SDL_GetTicks();
     uint32_t elapsed = current_time - state->previous_time;
     Online_Frame(elapsed);
     if (SV_NeedsFrame())
         SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : elapsed);
     if (!state->dedicated) {
-        CL_Frame(elapsed);
+        uint64_t render_start = SDL_GetPerformanceCounter();
+        uint32_t client_tick = SDL_GetTicks();
+        host_checkpoints = false;
+        CL_Frame(client_tick - host_client_tick);
+        host_client_tick = client_tick;
+        Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - render_start);
     } else {
 #ifndef __EMSCRIPTEN__
         string_t cmd = Sys_ConsoleInput();
@@ -621,7 +651,9 @@ int main(int argc, string_t argv[]) {
 
     fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 
-    frame_state.previous_time = SDL_GetTicks();
+    host_budget.frequency = SDL_GetPerformanceFrequency();
+    host_client_tick = SDL_GetTicks();
+    frame_state.previous_time = host_client_tick;
     frame_state.frame_count = 0;
     frame_state.dedicated = dedicated;
 #ifdef __EMSCRIPTEN__
@@ -631,9 +663,8 @@ int main(int argc, string_t argv[]) {
 #else
     Uint64 performanceFrequency = SDL_GetPerformanceFrequency();
     while (true) {
-        Uint64 frame_start = SDL_GetPerformanceCounter();
         OpenRealm_Frame(&frame_state);
-        Com_LimitFrameRate(frame_start, performanceFrequency, dedicated);
+        Com_LimitFrameRate(host_budget.start, performanceFrequency, dedicated);
     }
 #endif
 

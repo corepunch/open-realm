@@ -1,0 +1,101 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "runtime": "/GitHub/wc3-analysis/runtime/payoff184",
+  "evidence": [],
+  "attempts": [
+    {
+      "capture": "observe-1.jsonl",
+      "sha256": "3fa886b7b1cee79050600e9b223cc7df4d8175e4a463c164f35d21efabbb2637",
+      "mode": "observe",
+      "map": "Maps\\RS-Spell184.w3m",
+      "source_sha256": {
+        "spell184_capture.py": "613d686f972d5a9188727c16eccb65e26cdb5001dee8cee631035c459b5382fc",
+        "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+        "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+        "spell184_make_map.py": "0da1e0e9a7c23ce41a979bb2ef3c536d0063eb5f010bab8feb01aa4a5b844665",
+        "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+        "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+        "map": "3df7506d314f83c227dd6cb140fba04a4b37bb4f8153e660ff00d7411c508aa3"
+      },
+      "result": [
+        {
+          "event": "trace-end",
+          "installed": true,
+          "counts": {}
+        },
+        {
+          "event": "controller-end",
+          "elapsed": 180.04271527100354,
+          "complete": false
+        },
+        {
+          "event": "preload-file",
+          "missing": true
+        }
+      ],
+      "accepted": false,
+      "reason": "No simulation markers; missing Preload file. First map additionally had mismatched shadow-map dimensions."
+    },
+    {
+      "capture": "observe-v2-1.jsonl",
+      "sha256": "7670ccc1bbe3c0b83f2a67424d1e5bbf2cec1b0eacfd887188ed5166edfab61e",
+      "mode": "observe",
+      "map": "Maps\\RS-Spell184-v2.w3m",
+      "source_sha256": {
+        "spell184_capture.py": "613d686f972d5a9188727c16eccb65e26cdb5001dee8cee631035c459b5382fc",
+        "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+        "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+        "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+        "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+        "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+        "map": "351e6eafef752eb6b8a17057bc824287b98308f2c6446e69a841f2c95815d29c"
+      },
+      "result": [
+        {
+          "event": "trace-end",
+          "installed": true,
+          "counts": {}
+        },
+        {
+          "event": "controller-end",
+          "elapsed": 180.06487582900445,
+          "complete": false
+        },
+        {
+          "event": "preload-file",
+          "missing": true
+        }
+      ],
+      "accepted": false,
+      "reason": "No simulation markers; missing Preload file. First map additionally had mismatched shadow-map dimensions."
+    },
+    {
+      "capture": "control-v2-1.jsonl",
+      "sha256": "1165dc93c7dc560858b128d95d5a59f4a5bb6752d96216d7892d665ee947f128",
+      "mode": "control",
+      "map": "Maps\\RS-Spell184-v2.w3m",
+      "source_sha256": {
+        "spell184_capture.py": "f23a94779ff401c79ccfa4d489c4d114e222c3c63053f0b4989370995b67b31d",
+        "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+        "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+        "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+        "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+        "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+        "map": "351e6eafef752eb6b8a17057bc824287b98308f2c6446e69a841f2c95815d29c"
+      },
+      "result": [
+        {
+          "event": "controller-end",
+          "elapsed": 180.0749303959892,
+          "complete": false
+        },
+        {
+          "event": "preload-file",
+          "missing": true
+        }
+      ],
+      "accepted": false,
+      "reason": "No simulation markers; missing Preload file. First map additionally had mismatched shadow-map dimensions."
+    }
+  ]
+}

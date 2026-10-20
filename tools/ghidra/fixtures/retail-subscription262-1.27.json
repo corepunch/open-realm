@@ -1,0 +1,1559 @@
+{
+  "version": 1,
+  "task": "GROUP-03.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "8d36eaf9d6b72e651c6c02012a72ca3ba9016b13eae0cdb81a44fec5ed118717",
+  "capture_sources": {
+    "subscribe262_capture.py": "2bd8529347bd59212d1b2a0d41f106e5e5d54f6a452c10f336e8b46cdf266c94",
+    "subscribe262_observer.js": "38f20f707be41efb7abfe16f7efad7825ab5e0d5de42d7750be9798e45ab6fc9",
+    "subscribe262_make_map.py": "1f233f2bc5ca745b12eaffef48f1e1b3cff2414b3cf793d939eac196235f038f",
+    "subscribe262_probe.j": "167c342cc0e279832c6ddb67af302ed19d20d45f4d08c9024cc338ca8951ae38",
+    "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+    "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176"
+  },
+  "pins": {
+    "tools/frida/research/subscribe262_capture.py": "2bd8529347bd59212d1b2a0d41f106e5e5d54f6a452c10f336e8b46cdf266c94",
+    "tools/frida/research/subscribe262_observer.js": "38f20f707be41efb7abfe16f7efad7825ab5e0d5de42d7750be9798e45ab6fc9",
+    "tools/frida/research/subscribe262_probe.j": "167c342cc0e279832c6ddb67af302ed19d20d45f4d08c9024cc338ca8951ae38",
+    "tools/frida/research/subscribe262_make_map.py": "1f233f2bc5ca745b12eaffef48f1e1b3cff2414b3cf793d939eac196235f038f",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf",
+    "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "tools/frida/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "tools/ghidra/research/Subscription262Evidence.java": "68b7edaab6194516256160324af4a3e7413f00efe94034eb6a618874612f3770"
+  },
+  "bundle_sha256": "baed3db0d5eeac36b17b27bc56187b6ca8b29f1f64138c3538dac0b36efdadda",
+  "engine_tests": [
+    "wc3_order_lifecycle.*",
+    "wc3_save.*",
+    "wc3_movement.group_move_attack*"
+  ],
+  "events": [
+    {
+      "event": "marker",
+      "seq": 2,
+      "tick": 1,
+      "scene": 1,
+      "value": "S262 tick=1 label=start scene=1 order=0 x=512.000 y=256.000"
+    },
+    {
+      "event": "marker",
+      "seq": 3,
+      "tick": 2,
+      "scene": 2,
+      "value": "S262 tick=2 label=owner-before scene=2 order=851983 x=517.123 y=254.292"
+    },
+    {
+      "event": "available-enter",
+      "seq": 4,
+      "tick": 2,
+      "scene": 2,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 5,
+      "tick": 2,
+      "scene": 2,
+      "receiver": {
+        "identity": 1,
+        "widget": 5198,
+        "flags": 512,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 524437,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        732,
+        732
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 6,
+      "tick": 2,
+      "scene": 2,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 7,
+      "tick": 2,
+      "scene": 2,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 34103312,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 8,
+      "tick": 2,
+      "scene": 2,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 9,
+      "tick": 2,
+      "scene": 2,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 34103312,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 10,
+      "tick": 2,
+      "scene": 2,
+      "receiver": 2,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 11,
+      "tick": 2,
+      "scene": 2
+    },
+    {
+      "event": "marker",
+      "seq": 12,
+      "tick": 2,
+      "scene": 2,
+      "value": "S262 tick=2 label=owner-after scene=2 order=851983 x=517.123 y=254.292"
+    },
+    {
+      "event": "marker",
+      "seq": 13,
+      "tick": 4,
+      "scene": 4,
+      "value": "S262 tick=4 label=owner-before scene=4 order=0 x=542.737 y=245.754"
+    },
+    {
+      "event": "available-enter",
+      "seq": 14,
+      "tick": 4,
+      "scene": 4,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 15,
+      "tick": 4,
+      "scene": 4,
+      "receiver": {
+        "identity": 1,
+        "widget": 5710,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 34095120,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 16,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 17,
+      "tick": 4,
+      "scene": 4,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 18,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 19,
+      "tick": 4,
+      "scene": 4,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "range",
+      "seq": 20,
+      "tick": 4,
+      "scene": 4,
+      "range": 1140457472,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "admission",
+      "seq": 21,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 2,
+      "target": 0,
+      "accepted": 1
+    },
+    {
+      "event": "begin",
+      "seq": 22,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 2,
+      "caller": "49e351"
+    },
+    {
+      "event": "range",
+      "seq": 23,
+      "tick": 4,
+      "scene": 4,
+      "range": 1119092736,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 0
+    },
+    {
+      "event": "range",
+      "seq": 24,
+      "tick": 4,
+      "scene": 4,
+      "range": 1119092736,
+      "mode": 1,
+      "caller": "4945e8",
+      "accepted": 0
+    },
+    {
+      "event": "notify-exit",
+      "seq": 25,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 2,
+      "after": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 26,
+      "tick": 4,
+      "scene": 4
+    },
+    {
+      "event": "available-enter",
+      "seq": 27,
+      "tick": 4,
+      "scene": 4,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 28,
+      "tick": 4,
+      "scene": 4,
+      "receiver": {
+        "identity": 1,
+        "widget": 5710,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 34095120,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "range",
+      "seq": 29,
+      "tick": 4,
+      "scene": 4,
+      "range": 1142292480,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "admission",
+      "seq": 30,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 1,
+      "target": 0,
+      "accepted": 1
+    },
+    {
+      "event": "begin",
+      "seq": 31,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 1,
+      "caller": "49e351"
+    },
+    {
+      "event": "range",
+      "seq": 32,
+      "tick": 4,
+      "scene": 4,
+      "range": 1119092736,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "range",
+      "seq": 33,
+      "tick": 4,
+      "scene": 4,
+      "range": 1119092736,
+      "mode": 1,
+      "caller": "4945e8",
+      "accepted": 1
+    },
+    {
+      "event": "notify-exit",
+      "seq": 34,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 35,
+      "tick": 4,
+      "scene": 4,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 36,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 37,
+      "tick": 4,
+      "scene": 4,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 38,
+      "tick": 4,
+      "scene": 4,
+      "receiver": 2,
+      "after": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 39,
+      "tick": 4,
+      "scene": 4
+    },
+    {
+      "event": "marker",
+      "seq": 40,
+      "tick": 4,
+      "scene": 4,
+      "value": "S262 tick=4 label=owner-after scene=4 order=0 x=542.737 y=245.754"
+    },
+    {
+      "event": "marker",
+      "seq": 41,
+      "tick": 6,
+      "scene": 6,
+      "value": "S262 tick=6 label=owner-before scene=6 order=851983 x=542.737 y=245.754"
+    },
+    {
+      "event": "available-enter",
+      "seq": 42,
+      "tick": 6,
+      "scene": 6,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 43,
+      "tick": 6,
+      "scene": 6,
+      "receiver": {
+        "identity": 1,
+        "widget": 5710,
+        "flags": 512,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 540688,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 44,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 45,
+      "tick": 6,
+      "scene": 6,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 46,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 47,
+      "tick": 6,
+      "scene": 6,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "range",
+      "seq": 48,
+      "tick": 6,
+      "scene": 6,
+      "range": 1140457472,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "admission",
+      "seq": 49,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 2,
+      "target": 0,
+      "accepted": 1
+    },
+    {
+      "event": "begin",
+      "seq": 50,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 2,
+      "caller": "49e351"
+    },
+    {
+      "event": "range",
+      "seq": 51,
+      "tick": 6,
+      "scene": 6,
+      "range": 1119092736,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 0
+    },
+    {
+      "event": "range",
+      "seq": 52,
+      "tick": 6,
+      "scene": 6,
+      "range": 1119092736,
+      "mode": 1,
+      "caller": "4945e8",
+      "accepted": 0
+    },
+    {
+      "event": "notify-exit",
+      "seq": 53,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 2,
+      "after": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 54,
+      "tick": 6,
+      "scene": 6
+    },
+    {
+      "event": "available-enter",
+      "seq": 55,
+      "tick": 6,
+      "scene": 6,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 56,
+      "tick": 6,
+      "scene": 6,
+      "receiver": {
+        "identity": 1,
+        "widget": 5710,
+        "flags": 512,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 540688,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1078149361,
+        "serial": 13
+      }
+    },
+    {
+      "event": "range",
+      "seq": 57,
+      "tick": 6,
+      "scene": 6,
+      "range": 1142292480,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "admission",
+      "seq": 58,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 1,
+      "target": 0,
+      "accepted": 1
+    },
+    {
+      "event": "begin",
+      "seq": 59,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 1,
+      "caller": "49e351"
+    },
+    {
+      "event": "range",
+      "seq": 60,
+      "tick": 6,
+      "scene": 6,
+      "range": 1119092736,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "range",
+      "seq": 61,
+      "tick": 6,
+      "scene": 6,
+      "range": 1119092736,
+      "mode": 1,
+      "caller": "4945e8",
+      "accepted": 1
+    },
+    {
+      "event": "notify-exit",
+      "seq": 62,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1080452710,
+        "serial": 45
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 63,
+      "tick": 6,
+      "scene": 6,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 64,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 65,
+      "tick": 6,
+      "scene": 6,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 66,
+      "tick": 6,
+      "scene": 6,
+      "receiver": 2,
+      "after": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 67,
+      "tick": 6,
+      "scene": 6
+    },
+    {
+      "event": "marker",
+      "seq": 68,
+      "tick": 6,
+      "scene": 6,
+      "value": "S262 tick=6 label=owner-after scene=6 order=851983 x=542.737 y=245.754"
+    },
+    {
+      "event": "marker",
+      "seq": 69,
+      "tick": 8,
+      "scene": 8,
+      "value": "S262 tick=8 label=owner-before scene=8 order=851985 x=554.542 y=239.704"
+    },
+    {
+      "event": "available-enter",
+      "seq": 70,
+      "tick": 8,
+      "scene": 8,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 71,
+      "tick": 8,
+      "scene": 8,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 72,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 73,
+      "tick": 8,
+      "scene": 8,
+      "receiver": {
+        "identity": 1,
+        "widget": 5198,
+        "flags": 512,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 589973,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        732,
+        732
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1080452710,
+        "serial": 45
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 74,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1080452710,
+        "serial": 45
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 75,
+      "tick": 8,
+      "scene": 8,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "range",
+      "seq": 76,
+      "tick": 8,
+      "scene": 8,
+      "range": 1140457472,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "admission",
+      "seq": 77,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 2,
+      "target": 0,
+      "accepted": 1
+    },
+    {
+      "event": "begin",
+      "seq": 78,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 2,
+      "caller": "49e351"
+    },
+    {
+      "event": "range",
+      "seq": 79,
+      "tick": 8,
+      "scene": 8,
+      "range": 1119092736,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 0
+    },
+    {
+      "event": "range",
+      "seq": 80,
+      "tick": 8,
+      "scene": 8,
+      "range": 1119092736,
+      "mode": 1,
+      "caller": "4945e8",
+      "accepted": 0
+    },
+    {
+      "event": "notify-exit",
+      "seq": 81,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 2,
+      "after": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 82,
+      "tick": 8,
+      "scene": 8
+    },
+    {
+      "event": "available-enter",
+      "seq": 83,
+      "tick": 8,
+      "scene": 8,
+      "source": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "caller": "6991a7",
+      "radius": 1149861888
+    },
+    {
+      "event": "notify-enter",
+      "seq": 84,
+      "tick": 8,
+      "scene": 8,
+      "receiver": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 85,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 0,
+      "after": {
+        "active": false
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 86,
+      "tick": 8,
+      "scene": 8,
+      "receiver": {
+        "identity": 1,
+        "widget": 5198,
+        "flags": 512,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 589973,
+      "prevention": 0,
+      "acquisition": 1142292480,
+      "target_words": [
+        732,
+        732
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1080452710,
+        "serial": 45
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 87,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 1,
+      "after": {
+        "active": true,
+        "deadline": 1080452710,
+        "serial": 45
+      }
+    },
+    {
+      "event": "notify-enter",
+      "seq": 88,
+      "tick": 8,
+      "scene": 8,
+      "receiver": {
+        "identity": 2,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "target": {
+        "identity": 0,
+        "widget": 5702,
+        "flags": 513,
+        "suspension": 0
+      },
+      "ability_flags": 570966032,
+      "prevention": 0,
+      "acquisition": 1140457472,
+      "target_words": [
+        4294967295,
+        4294967295
+      ],
+      "before": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "notify-exit",
+      "seq": 89,
+      "tick": 8,
+      "scene": 8,
+      "receiver": 2,
+      "after": {
+        "active": true,
+        "deadline": 1079613849,
+        "serial": 25
+      }
+    },
+    {
+      "event": "available-exit",
+      "seq": 90,
+      "tick": 8,
+      "scene": 8
+    },
+    {
+      "event": "marker",
+      "seq": 91,
+      "tick": 8,
+      "scene": 8,
+      "value": "S262 tick=8 label=owner-after scene=8 order=851985 x=554.542 y=239.704"
+    },
+    {
+      "event": "marker",
+      "seq": 92,
+      "tick": 9,
+      "scene": 9,
+      "value": "S262 tick=9 label=complete scene=9 order=851985 x=575.151 y=222.261"
+    },
+    {
+      "event": "trace-end",
+      "installed": true,
+      "readOnly": true,
+      "counts": {
+        "module": 1,
+        "marker": 10,
+        "available-enter": 7,
+        "notify-enter": 21,
+        "notify-exit": 21,
+        "available-exit": 7,
+        "range": 15,
+        "admission": 5,
+        "begin": 5
+      },
+      "depth": 0
+    }
+  ],
+  "markers": [
+    "S262 tick=1 label=start scene=1 order=0 x=512.000 y=256.000",
+    "S262 tick=2 label=owner-before scene=2 order=851983 x=517.123 y=254.292",
+    "S262 tick=2 label=owner-after scene=2 order=851983 x=517.123 y=254.292",
+    "S262 tick=4 label=owner-before scene=4 order=0 x=542.737 y=245.754",
+    "S262 tick=4 label=owner-after scene=4 order=0 x=542.737 y=245.754",
+    "S262 tick=6 label=owner-before scene=6 order=851983 x=542.737 y=245.754",
+    "S262 tick=6 label=owner-after scene=6 order=851983 x=542.737 y=245.754",
+    "S262 tick=8 label=owner-before scene=8 order=851985 x=554.542 y=239.704",
+    "S262 tick=8 label=owner-after scene=8 order=851985 x=554.542 y=239.704",
+    "S262 tick=9 label=complete scene=9 order=851985 x=575.151 y=222.261"
+  ],
+  "instructions": {
+    "6f49e130": "55",
+    "6f49e131": "8bec",
+    "6f49e133": "6aff",
+    "6f49e135": "687834a26f",
+    "6f49e13a": "64a100000000",
+    "6f49e140": "50",
+    "6f49e141": "83ec08",
+    "6f49e144": "53",
+    "6f49e145": "56",
+    "6f49e146": "57",
+    "6f49e147": "a19c68ce6f",
+    "6f49e14c": "33c5",
+    "6f49e14e": "50",
+    "6f49e14f": "8d45f4",
+    "6f49e152": "64a300000000",
+    "6f49e158": "8bf9",
+    "6f49e15a": "f7472000400000",
+    "6f49e161": "0f8425020000",
+    "6f49e167": "8b4730",
+    "6f49e16a": "85c0",
+    "6f49e16c": "7505",
+    "6f49e16e": "e84d7bbbff",
+    "6f49e173": "f7402000020000",
+    "6f49e17a": "0f840c020000",
+    "6f49e180": "83bf2002000000",
+    "6f49e187": "0f8fff010000",
+    "6f49e18d": "8b5f30",
+    "6f49e190": "85db",
+    "6f49e192": "7509",
+    "6f49e194": "8bcf",
+    "6f49e196": "e8257bbbff",
+    "6f49e19b": "8bd8",
+    "6f49e19d": "f6432001",
+    "6f49e1a1": "7424",
+    "6f49e1a3": "8b87c0020000",
+    "6f49e1a9": "8d8fbc020000",
+    "6f49e1af": "2301",
+    "6f49e1b1": "83f8ff",
+    "6f49e1b4": "0f84d2010000",
+    "6f49e1ba": "e86131bcff",
+    "6f49e1bf": "85c0",
+    "6f49e1c1": "0f84c5010000",
+    "6f49e1c7": "8b4508",
+    "6f49e1ca": "8d4df0",
+    "6f49e1cd": "ff700c",
+    "6f49e1d0": "e8db91d3ff",
+    "6f49e1d5": "8b75f0",
+    "6f49e1d8": "c745fc00000000",
+    "6f49e1df": "85f6",
+    "6f49e1e1": "0f848f010000",
+    "6f49e1e7": "3bf3",
+    "6f49e1e9": "0f8487010000",
+    "6f49e1ef": "8d4f6c",
+    "6f49e1f2": "56",
+    "6f49e1f3": "e868edf8ff",
+    "6f49e1f8": "85c0",
+    "6f49e1fa": "0f8576010000",
+    "6f49e200": "8b06",
+    "6f49e202": "8bce",
+    "6f49e204": "ff903c010000",
+    "6f49e20a": "85c0",
+    "6f49e20c": "0f8561010000",
+    "6f49e212": "8b75f0",
+    "6f49e215": "f6462001",
+    "6f49e219": "0f8557010000",
+    "6f49e21f": "56",
+    "6f49e220": "8bcb",
+    "6f49e222": "e879dd1e00",
+    "6f49e227": "85c0",
+    "6f49e229": "0f8544010000",
+    "6f49e22f": "8b4df0",
+    "6f49e232": "50",
+    "6f49e233": "8b01",
+    "6f49e235": "ff90b8000000",
+    "6f49e23b": "50",
+    "6f49e23c": "8d4508",
+    "6f49e23f": "8bcf",
+    "6f49e241": "50",
+    "6f49e242": "e809acffff",
+    "6f49e247": "50",
+    "6f49e248": "8bcf",
+    "6f49e24a": "e811a2ffff",
+    "6f49e24f": "8bc8",
+    "6f49e251": "e82ad3bbff",
+    "6f49e256": "85c0",
+    "6f49e258": "0f8415010000",
+    "6f49e25e": "ff75f0",
+    "6f49e261": "8d45ec",
+    "6f49e264": "8bcf",
+    "6f49e266": "50",
+    "6f49e267": "e8b4a2ffff",
+    "6f49e26c": "6a00",
+    "6f49e26e": "6a01",
+    "6f49e270": "8bcb",
+    "6f49e272": "e8b90d1d00",
+    "6f49e277": "85c0",
+    "6f49e279": "7544",
+    "6f49e27b": "f30f100564bfd66f",
+    "6f49e283": "8d4dec",
+    "6f49e286": "0f2f45ec",
+    "6f49e28a": "b864bfd66f",
+    "6f49e28f": "6a01",
+    "6f49e291": "0f46c1",
+    "6f49e294": "8b4df0",
+    "6f49e297": "8b00",
+    "6f49e299": "8945ec",
+    "6f49e29c": "8b01",
+    "6f49e29e": "ff90b8000000",
+    "6f49e2a4": "50",
+    "6f49e2a5": "8d45ec",
+    "6f49e2a8": "8bcf",
+    "6f49e2aa": "50",
+    "6f49e2ab": "e8b0a1ffff",
+    "6f49e2b0": "8bc8",
+    "6f49e2b2": "e8c9d2bbff",
+    "6f49e2b7": "85c0",
+    "6f49e2b9": "0f84b4000000",
+    "6f49e2bf": "8b75f0",
+    "6f49e2c2": "8bce",
+    "6f49e2c4": "e877c4d9ff",
+    "6f49e2c9": "85c0",
+    "6f49e2cb": "744b",
+    "6f49e2cd": "f7472000800000",
+    "6f49e2d4": "7442",
+    "6f49e2d6": "8d8f48020000",
+    "6f49e2dc": "8d55ec",
+    "6f49e2df": "e89c50ffff",
+    "6f49e2e4": "84c0",
+    "6f49e2e6": "742d",
+    "6f49e2e8": "8b4df0",
+    "6f49e2eb": "8b874c020000",
+    "6f49e2f1": "894508",
+    "6f49e2f4": "6a01",
+    "6f49e2f6": "8b01",
+    "6f49e2f8": "ff90b8000000",
+    "6f49e2fe": "50",
+    "6f49e2ff": "8d4508",
+    "6f49e302": "8bcf",
+    "6f49e304": "50",
+    "6f49e305": "e856a1ffff",
+    "6f49e30a": "8bc8",
+    "6f49e30c": "e86fd2bbff",
+    "6f49e311": "85c0",
+    "6f49e313": "755e",
+    "6f49e315": "8b75f0",
+    "6f49e318": "6a01",
+    "6f49e31a": "56",
+    "6f49e31b": "8bcf",
+    "6f49e31d": "e8ce76ffff",
+    "6f49e322": "85c0",
+    "6f49e324": "744d",
+    "6f49e326": "8b03",
+    "6f49e328": "8bcb",
+    "6f49e32a": "ff90ec000000",
+    "6f49e330": "83f80c",
+    "6f49e333": "7c15",
+    "6f49e335": "8b4770",
+    "6f49e338": "23476c",
+    "6f49e33b": "83f8ff",
+    "6f49e33e": "750a",
+    "6f49e340": "8b55f0",
+    "6f49e343": "8bcb",
+    "6f49e345": "e8d6e25100",
+    "6f49e34a": "8bcf",
+    "6f49e34c": "e8efd8ffff",
+    "6f49e351": "ff75f0",
+    "6f49e354": "8bcf",
+    "6f49e356": "e845000000",
+    "6f49e35b": "85c0",
+    "6f49e35d": "7414",
+    "6f49e35f": "ff75f0",
+    "6f49e362": "8bcb",
+    "6f49e364": "e867ce1d00",
+    "6f49e369": "ff75f0",
+    "6f49e36c": "8bcf",
+    "6f49e36e": "e87d60ffff",
+    "6f49e373": "8b75f0",
+    "6f49e376": "c745fcffffffff",
+    "6f49e37d": "85f6",
+    "6f49e37f": "740b",
+    "6f49e381": "ff4e04",
+    "6f49e384": "7506",
+    "6f49e386": "8b06",
+    "6f49e388": "8bce",
+    "6f49e38a": "ff10",
+    "6f49e38c": "8b4df4",
+    "6f49e38f": "64890d00000000",
+    "6f49e396": "59",
+    "6f49e397": "5f",
+    "6f49e398": "5e",
+    "6f49e399": "5b",
+    "6f49e39a": "8be5",
+    "6f49e39c": "5d",
+    "6f49e39d": "c20400"
+  },
+  "limits": [
+    "Only explicit Attack/AttackOnce versus Stop/Attack Move availability ownership is certified by this public scene.",
+    "The original actor is publicly invulnerable to suppress reciprocal acquisition; every resulting field and handler gate is retained.",
+    "Unit284/288 cached samples differ at tick8 between repeats; complete raw words are retained, projection compares actual range outcomes, flags, target identities and clocks.",
+    "No full49d680 target ranking, general prevention/AI domains, exact complete combat trajectory or performance claim."
+  ]
+}

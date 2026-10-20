@@ -12,10 +12,7 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 		!(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&
 		!(strstr(targets, "structure") && G_UnitIsStructure(target)))
 		return false;
-	if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
-	if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-		level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
-	return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
+	return S_TargsAllowsOwner(targets, caster, target);
 }
 
 /* Destructables use their own damage lifecycle and have no player alliance.
@@ -40,7 +37,7 @@ static bool self_destruct_allows_destructable(uint32_t code, uint32_t level, edi
 }
 
 static void self_destruct_explode(edict_t *ent, uint32_t code) {
-	uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
+	uint32_t level = MAX(1u, G_UnitAbilityClassLevel(ent, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
 	float build = S_SpellData(code, level, 5);
@@ -79,7 +76,7 @@ static void self_destruct_kaboom(edict_t *ent, uint32_t code) {
 
 /* Autocast: detonate in place when a valid target is already inside DataA. */
 static bool self_destruct_autocast_acquire(edict_t *caster, uint32_t code) {
-	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
+	uint32_t level = MAX(1u, G_UnitAbilityClassLevel(caster, code));
 	float full_r = S_SpellData(code, level, 1);
 	vec2_t point;
 	if (full_r <= 0.0f) full_r = 100.0f;
@@ -126,7 +123,7 @@ BZ_ABILITY_PROC(CAbilitySelfDestruct) {
 		return true;
 	case A_DEATH:
 		if (!code || !ent || kaboom_cast) return false;
-		level = MAX(1u, G_UnitAbilityLevel(ent, code));
+		level = MAX(1u, G_UnitAbilityClassLevel(ent, code));
 		if (S_SpellData(code, level, 6) <= 0.0f) return false;
 		self_destruct_explode(ent, code);
 		return true;

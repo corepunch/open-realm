@@ -75,6 +75,13 @@ bool is_logic_operator(wordExtractor_t *p, cstring_t str) {
 }
 
 cstring_t jass_getoperator(cstring_t str) {
+    /* Retail bytecode20..23 uses software scalars; Galaxy keeps host arithmetic. */
+    if (!c_operators) {
+        if (!strcmp(str, "+")) return "__wc3_add";
+        if (!strcmp(str, "-")) return "__wc3_sub";
+        if (!strcmp(str, "*")) return "__wc3_mul";
+        if (!strcmp(str, "/")) return "__wc3_div";
+    }
     static struct { cstring_t token, name; } const grammar[] = {
         { "+", "__add" }, { "-", "__sub" }, { "*", "__mul" }, { "/", "__div" },
         { "!=", "__ne" }, { "==", "__eq" }, { ">=", "__ge" }, { "<=", "__le" },
@@ -260,10 +267,12 @@ wordExtractor_t(read_single_identifier) {
         left->args = read_single_identifier(p);
     } else if (eat_token(p, "(")) {
         left = parse_logical_expression(p);
-    } else if (is_integer(tok)) {
+    } else if (c_operators ? is_integer(tok) : jlex_number_kind(tok) == JLEX_INTEGER) {
         left = alloc_ident_token(p, TT_INTEGER);
-    } else if (is_float(tok)) {
+        if (!c_operators) left->flags |= TF_RETAIL_NUMBER;
+    } else if (c_operators ? is_float(tok) : jlex_number_kind(tok) == JLEX_REAL) {
         left = alloc_ident_token(p, TT_REAL);
+        if (!c_operators) left->flags |= TF_RETAIL_NUMBER;
     } else if (is_string(tok)) {
         left = alloc_ident_token(p, TT_STRING);
         jass_remove_quotes(left->primary, '\"');
@@ -288,6 +297,7 @@ wordExtractor_t(read_single_identifier) {
 }
 
 wordExtractor_t(parse_multiplicative_expression) {
+    /* Reduce each operator before reading the next operator at this precedence. */
     token_t *left = read_single_identifier(p);
     while (is_multiplicative_operator(peek_token(p))) {
         token_t *oper = parse_operator_token(p);
@@ -323,22 +333,24 @@ wordExtractor_t(parse_comparison_expression) {
     return left;
 }
 
-wordExtractor_t(parse_logical_expression) {
+/* Operator recursion must stop before a comma. The following argument belongs
+ * to the outer call, not the right-hand logical operand's argument list. */
+wordExtractor_t(parse_logic_operators) {
     token_t *left = parse_comparison_expression(p);
     if (is_logic_operator(p, peek_token(p))) {
         token_t *oper = parse_operator_token(p);
-        token_t *right = parse_logical_expression(p);
+        token_t *right = parse_logic_operators(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
         return oper;
     }
-    if (eat_token(p, ",")) {
-        left->next = parse_logical_expression(p);
-        return left;
-    }
-    if (eat_token(p, ")") || eat_token(p, "]")) {
-        return left;
-    }
+    return left;
+}
+
+wordExtractor_t(parse_logical_expression) {
+    token_t *left = parse_logic_operators(p);
+    if (eat_token(p, ",")) left->next = parse_logical_expression(p);
+    else { (void)(eat_token(p, ")") || eat_token(p, "]")); }
     return left;
 }
 
@@ -490,6 +502,7 @@ static parseClass_t global_keywords[] = {
 
 token_t *JASS_ParseTokens(wordExtractor_t *p) {
     c_operators = false;
+    p->retail_numbers = true;
     token_t *tokens = NULL;
     if (setjmp(exception_env) == 0) {
         token_t *token = NULL;
@@ -832,6 +845,7 @@ static token_t *galaxy_parse_global_or_func(wordExtractor_t *p) {
 
 token_t *GALAXY_ParseTokens(wordExtractor_t *p) {
     c_operators = true;
+    p->retail_numbers = false;
     token_t *tokens = NULL;
     if (setjmp(exception_env) == 0) {
         while (*peek_token(p)) {
@@ -863,4 +877,3 @@ token_t *GALAXY_ParseTokens(wordExtractor_t *p) {
         return NULL;
     }
 }
-

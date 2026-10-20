@@ -221,6 +221,9 @@ audit-wc3-hero-saveload: $(BINARY) mpqtool
 test-wc3-hero-saveload-audit:
 	python3 tests/test_wc3_hero_saveload_audit.py
 
+test-pathfinding-tools:
+	python3 -m unittest discover -s tests -p 'test*pathfinding*.py'
+
 TRACE_FILE := build/profile-map.trace
 
 profile-map: $(BINARY) xctraceprof
@@ -270,7 +273,7 @@ $(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h vendor/
 # jass.h includes g_local.h: stale edict/client offsets break player-local ESC cleanup after contract changes.
 JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_GAME_DIR) $(WC3_DIR)/common server shared -name '*.h')
 $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(JASS_HEADERS) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
-$(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
+$(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h $(WC3_DIR)/common/wc3_math.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(SHEET_LIB) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS) -lsheet))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_GAME_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) $(WC3_PROTOBUF_LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
@@ -294,6 +297,9 @@ $(GAME_WC3_TEST_LIB): $(WC3_SC2API_BUILD_CONFIG)
 $(WC3_TEST_BINARY): tests/online_acceptance.h $(WC3_TEST_DIR)/online_gameplay.h
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_GAME_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) $(WC3_PROTOBUF_LIBS) -lm -lz))
+# Canonical order names are included as C data in both unity modules.
+$(GAME_LIB) $(GAME_WC3_TEST_LIB): $(WC3_GAME_DIR)/g_order_names.inc
+
 $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
@@ -320,6 +326,9 @@ $(WC3_ENGINE_SHARDS): test-wc3-engine-%: $(WC3_TEST_BINARY) test-assets | $(TEST
 	TEST_SHARD="$(lastword $(subst -, ,$*))/$(WC3_TEST_SHARDS)" TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-$*.xml" TEST_JUNIT_SUITE="test-wc3-engine-$*" \
 		$(WC3_TEST_BINARY) -data $(TESTS_DIR) $(if $(filter tft-%,$*),-tft) +dedicated 1 +test '$(WC3_PATTERN)'
 
+test-wc3-power-lifetime: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
+	python3 tools/ghidra/wc3_power_lifetime.py --binary $(WC3_TEST_BINARY) --data $(TESTS_DIR) --junit $(TEST_JUNIT_DIR)/test-wc3-power-lifetime.xml
+
 .PHONY: test-client-camera
 test-client-camera: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-client-camera.xml" TEST_JUNIT_SUITE="test-client-camera" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'client_camera.*' +com_frame_limit 100
@@ -337,6 +346,12 @@ test-jass-build: $(JASS_LIB)
 # Common flags for standalone test binaries.
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared -Ishared/types -Iserver -Icommon -Iclient
 TEST_MENU_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/menu
+
+# The same pure-kernel witnesses also register in the full game tests. Build
+# them directly for adaptive-search iterations without relinking that module.
+$(eval $(call test_schema,test-wc3-adaptive-witnesses,$(SHARED_LIB) $(WC3_GAME_DIR)/g_local.h $(wildcard $(WC3_DIR)/common/wc3_pathing*.h) $(WC3_GAME_DIR)/tests/retail_adaptive_witnesses.h,$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_wc3_adaptive_witnesses$(EXE_EXT),tests/test_runner.c $(WC3_GAME_DIR)/tests/t_adaptive_witnesses.c,-lshared -lm,))
+$(eval $(call test_schema,test-wc3-repulsion-kernel,$(SHARED_LIB) $(WC3_GAME_DIR)/g_local.h $(wildcard $(WC3_DIR)/common/wc3_pathing*.h) $(WC3_GAME_DIR)/tests/retail_repulsion_policy.h,$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_wc3_repulsion_kernel$(EXE_EXT),tests/test_runner.c $(WC3_GAME_DIR)/tests/t_repulsion_kernel.c,-lshared -lm,))
+
 ifeq ($(UNAME_S),Darwin)
 TEST_GC_SECTIONS := -Wl,-dead_strip
 else
@@ -357,14 +372,14 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-wc3-power-lifetime test-pathfinding-tools test-render-harness test-mpq-compression
 
 # Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
 test-stress: $(BIN_DIR)/test_server_net$(EXE_EXT) | $(TEST_JUNIT_DIR)
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-stress.xml" TEST_JUNIT_SUITE="test-stress" $(BIN_DIR)/test_server_net 'stress_net.*'
 
-$(eval $(call test_schema,test-core,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_openwarcraft3$(EXE_EXT),tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_client_canvas.c $(WC3_TEST_DIR)/test_keys.c common/net.c common/msg.c common/online_packet.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-core,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_openwarcraft3$(EXE_EXT),tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_client_canvas.c $(WC3_TEST_DIR)/test_keys.c common/net.c common/msg.c common/online_packet.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c,-lsheet -lshared -lSDL2 -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMPQ_TEST_API -DBZ_TESTS,$(BIN_DIR)/test_mpq_compression$(EXE_EXT),tests/test_runner.c tests/test_mpq_compression.c common/mpq.c,-lshared -lm -lz,))
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
@@ -418,6 +433,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		"ui_panel TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx" \
 		"anim_pulse TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx" \
 		"anim_oneshot TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_oneshot.mdx" \
+		"unit_death TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/unit_death.mdx" \
 		"doodad_birth TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuildingRuined2/ElvenFishVillageBuildingRuined2.mdx" \
 		"doodad TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuilding0/ElvenFishVillageBuilding0.mdx" \
 		"morph TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Units/Creeps/Medivh/Medivh.mdx"; do \
@@ -432,6 +448,11 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a \
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3b war3map.w3b \
 		$(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp "Textures\\minimap_hero.blp"
+	@echo "[test-assets] packing configured Morph fixture MPQs"
+	@for mode in Absent Zero One; do \
+		$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Morph374$$mode.w3x pack \
+			$(TESTS_SRC_DIR)/Morph374/$$mode/war3mapMisc.txt war3mapMisc.txt; \
+	done
 	@echo "[test-assets] packing tileset-archive fixture MPQ"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/O.mpq pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp "ReplaceableTextures\\Cliff\\Cliff1.blp"
@@ -500,7 +521,7 @@ $(ZIP_FILE):
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass wc3-sc2api-proto \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
 	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
-	update-render-golden openwarcraft3-tests test-wc3-engine download
+	update-render-golden openwarcraft3-tests test-wc3-engine test-pathfinding-tools download
 
 .PHONY: test-menu-boundary
 test-menu-boundary:
@@ -518,6 +539,7 @@ $(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_E
 
 $(eval $(call test_schema,test-gl-shader,$(wildcard vendor/gl_shader/*.[ch]),$(TEST_CFLAGS),$(BIN_DIR)/test_gl_shader$(EXE_EXT),tests/test_runner.c tests/test_gl_shader.c shared/test.c,$(LIBS),))
 
+.PHONY: test-wc3-power-lifetime
 # Prepare a local, generated copy of Blizzard's s2client-proto definitions and
 # append OpenRealm's Warcraft III Race values. This target never downloads
 # dependencies; SC2API_PROTO_DIR must name a local checkout/source export.

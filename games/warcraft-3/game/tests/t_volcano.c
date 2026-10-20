@@ -53,7 +53,7 @@ static edict_t *volcano_doodad(void) {
 }
 
 static uint32_t volcano_stun_ms(edict_t const *unit) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;

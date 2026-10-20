@@ -5,6 +5,20 @@
 
 #define AURA_UPDATE_MS 2000 // milliseconds; retail aura refresh interval; used to throttle recipient recalculation
 
+/* Only broadcast dispatch consumes these subscriptions. Direct calls retain
+ * the procedure's complete interface. Unqueried procedures keep all events. */
+static inline intptr_t S_UnitMessageSubscriptions(abilityCall_t const *call,
+                                                abilityMsg_t const *messages, size_t count) {
+    if (!call || !call->unit_messages) return false;
+    *call->unit_messages = (abilityMessageSet_t){0};
+    for (size_t i = 0; i < count; i++)
+        call->unit_messages->bits[messages[i] / 64] |= UINT64_C(1) << (messages[i] % 64);
+    return true;
+}
+#define UNIT_MESSAGE_SUBSCRIPTIONS(...) \
+    S_UnitMessageSubscriptions(call, (abilityMsg_t const[]){__VA_ARGS__}, \
+        sizeof((abilityMsg_t const[]){__VA_ARGS__}) / sizeof(abilityMsg_t))
+
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \
@@ -45,6 +59,7 @@
 /* Concrete AbilityData implementations. */
 
 extern cstring_t const raven_orders[];
+extern cstring_t const bear_orders[];
 extern cstring_t const barkskin_orders[];
 extern cstring_t const stone_form_orders[];
 extern cstring_t const submerge_orders[];
@@ -54,7 +69,36 @@ BZ_ABILITY_PROC(CAbilityHarvestBase);
 BZ_ABILITY_PROC(CAbilityPower);
 BZ_ABILITY_PROC(CAbilityMove);
 BZ_ABILITY_PROC(CAbilityRavenForm);
+BZ_ABILITY_PROC(CAbilityBearForm);
+BZ_ABILITY_PROC(CAbilityMorphTransition);
+BZ_ABILITY_PROC(CAbilityGroundMorph);
+bool S_UnitIsBurrowed(edict_t const *);
+BZ_ABILITY_PROC(CAbilityPhoenix);
+BZ_ABILITY_PROC(CAbilityCorporealForm);
+BZ_ABILITY_PROC(CAbilityEtherealForm);
+bool S_PrepareMorphFlight(edict_t *,uint32_t target,abilityLevel_t const *,bool *takeoff,bool *landing);
+void S_BeginMorphRise(edict_t *);
+void S_UpdateMorphRise(edict_t *);
+BZ_ABILITY_PROC(CAbilityAvengerForm);
+void S_BeginMorphTransition(edict_t *,uint32_t code,uint32_t base,uint32_t target,bool reverse,bool deferred,float delay);
+void S_RemoveMorphAbility(edict_t *,uint32_t code);
+void S_CompleteMorphDetachTransition(edict_t *,uint32_t);
+void S_ScheduleMorphExpiration(edict_t *,float duration);
+bool S_HoldMorphAnimation(edict_t *);
 BZ_ABILITY_PROC(CAbilityAttack);
+BZ_ABILITY_PROC(CAbilityAttackScan);
+BZ_ABILITY_PROC(CAbilityCaptainSelection);
+BZ_ABILITY_PROC(CAbilityTownPolicy);
+BZ_ABILITY_PROC(CAbilityTimedLife);
+void S_ApplyTimedLife(edict_t *,uint32_t,float);
+void S_PauseTimedLife(edict_t *,bool);
+bool S_RemoveTimedLife(edict_t *,uint32_t);
+uint32_t S_TimedLifeLevel(edict_t const *,uint32_t);
+bool S_UnitHasTimedLife(edict_t const *);
+void S_ReleaseTimedLives(edict_t *);
+void S_ClearTimedLives(void);
+bool S_WriteTimedLives(FILE *);
+bool S_ReadTimedLives(FILE *);
 BZ_ABILITY_PROC(CAbilityAttackGround);
 BZ_ABILITY_PROC(CAbilityBuild);
 BZ_ABILITY_PROC(CAbilityTrain);
@@ -66,6 +110,7 @@ BZ_ABILITY_PROC(CAbilityEntangledGoldMine);
 BZ_ABILITY_PROC(CAbilityCancel);
 BZ_ABILITY_PROC(CAbilityRepair);
 BZ_ABILITY_PROC(CAbilityStop);
+bool S_IssueStopOrder(edict_t *);
 BZ_ABILITY_PROC(CAbilityHoldPosition);
 BZ_ABILITY_PROC(CAbilityPatrol);
 BZ_ABILITY_PROC(CAbilityRally);
@@ -75,12 +120,14 @@ BZ_ABILITY_PROC(CAbilitySelectSkill);
 BZ_ABILITY_PROC(CAbilityAuraDevotion);
 BZ_ABILITY_PROC(CAbilityHolyBolt);
 BZ_ABILITY_PROC(CAbilitySimpleSpell);
+BZ_ABILITY_PROC(CAbilitySpellCast);
 BZ_ABILITY_PROC(CAbilityModalSpell);
 BZ_ABILITY_PROC(S_AbilityMessage);
 bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call);
 intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload);
 BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
+BZ_ABILITY_PROC(CAbilityEnduranceAura);
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility);
 BZ_ABILITY_PROC(CAbilityWindWalk);
 BZ_ABILITY_PROC(CAbilityShadowMeld);
@@ -153,6 +200,8 @@ BZ_ABILITY_PROC(CAbilityThunderClap);
 BZ_ABILITY_PROC(CAbilityFrostNova);
 BZ_ABILITY_PROC(CAbilityTranquility);
 BZ_ABILITY_PROC(CAbilityChannel);
+BZ_ABILITY_PROC(CAbilityItemTeleport);
+void S_CancelItemSpell(edict_t *,edict_t *,uint32_t);
 BZ_ABILITY_PROC(CAbilityImmolation);
 BZ_ABILITY_PROC(CAbilityColdArrows);
 BZ_ABILITY_PROC(CAbilityCharm);
@@ -167,6 +216,7 @@ BZ_ABILITY_PROC(CAbilityHarvestLumber);
 BZ_ABILITY_PROC(CAbilityRepairGeneric);
 BZ_ABILITY_PROC(CAbilityRoot);
 void S_AncientBeginMorph(edict_t *, bool rooted);
+void S_AncientFacingComplete(edict_t *, edict_t *, bool arrived);
 BZ_ABILITY_PROC(CAbilityBlink);
 BZ_ABILITY_PROC(CAbilityFanOfKnives);
 BZ_ABILITY_PROC(CAbilityShadowStrike);
@@ -187,6 +237,8 @@ BZ_ABILITY_PROC(CAbilityItemHeal);
 BZ_ABILITY_PROC(CAbilityItemManaRestore);
 BZ_ABILITY_PROC(CAbilityItemInvis);
 BZ_ABILITY_PROC(CAbilityAttackBonus);
+BZ_ABILITY_PROC(CAbilityMoveSpeedBonus);
+float S_MoveSpeedBonus(edict_t *unit);
 BZ_ABILITY_PROC(CAbilityAttributeBonus);
 BZ_ABILITY_PROC(CAbilityStrengthMod);
 BZ_ABILITY_PROC(CAbilityDefenseBonus);
@@ -198,6 +250,8 @@ BZ_ABILITY_PROC(CAbilityExperienceMod);
 BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
 BZ_ABILITY_PROC(CAbilityItemHealAoe);
+BZ_ABILITY_PROC(CAbilityMechanicalCritter);
+bool S_UnitMechanicalCritter(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityItemManaAoe);
 BZ_ABILITY_PROC(CAbilityItemDispelAoe);
 BZ_ABILITY_PROC(CAbilityItemRestoreAoe);
@@ -242,7 +296,9 @@ BZ_ABILITY_PROC(CAbilityAnimateDead);
 BZ_ABILITY_PROC(CAbilityDeathCoil);
 BZ_ABILITY_PROC(CAbilityDeathPact);
 BZ_ABILITY_PROC(CAbilityMetamorphosis);
+BZ_ABILITY_PROC(CBuffMetamorphosis);
 BZ_ABILITY_PROC(CAbilitySleep);
+BZ_ABILITY_PROC(CAbilitySleepOwner);
 BZ_ABILITY_PROC(CAbilitySleepAlways);
 BZ_ABILITY_PROC(CAbilityCreepSleep);
 BZ_ABILITY_PROC(CAbilityDreadLordInferno);
@@ -394,10 +450,29 @@ bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status);
 bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except);
 bool S_UnitHasInvisibilityState(edict_t const *unit);
 bool S_AuraUnitActive(edict_t const *unit);
+void S_InvalidateAuraSources(void);
+void S_MarkAuraSource(edict_t const *unit);
+bool S_UnitHasAuraSource(edict_t *);
+void S_InvalidateEnduranceSources(void);
+void S_MarkEnduranceSource(edict_t const *unit);
+float S_ApplyEnduranceMoveSpeed(edict_t *,float);
+float S_ApplyEnduranceAttackBonus(edict_t *,float);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 bool S_GhostActive(edict_t const *unit);
 void S_PermanentInvisibilityInitialize(edict_t *unit);
+void S_RefreshRetainedPermanentInvisibility(edict_t *unit,bool retained);
+/* Concrete attached buffs share the saved ordered availability owners. */
+void S_AttachStatusAbilityAvailability(edict_t *,uint32_t,uint32_t);
+void S_DetachStatusAbilityAvailability(edict_t *,uint32_t,uint32_t);
+void S_AdjustAbilityAvailability(edict_t *,uint32_t,uint32_t,bool add,bool orders);
+bool S_ValidateMetamorphosisOwners(void);
+void S_SetMetamorphosisClocksPaused(edict_t *,bool);
+void S_ForgetMetamorphosisOwner(edict_t *);
+void S_SetMorphExpirationPaused(edict_t *,bool);
+void S_InitializeConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
+void S_CompleteConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
+void S_DetachConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void S_InfernoLand(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point);
 bool S_HoldPosition(edict_t *unit);
@@ -416,8 +491,6 @@ float S_BrillianceManaRegen(edict_t *unit);
 float S_DevotionArmorBonus(edict_t *unit);
 float S_UnholyHealthRegen(edict_t *unit);
 float S_UnholyMoveBonus(edict_t *unit);
-float S_EnduranceMoveBonus(edict_t *unit);
-float S_EnduranceAttackBonus(edict_t *unit);
 float S_VampiricLifeSteal(edict_t *unit);
 float S_TrueshotAttackBonus(edict_t *unit);
 int S_SearingArrowDamage(edict_t *attacker, int damage);
@@ -443,8 +516,14 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
 edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration);
 uint32_t S_EnforceSummonedUnitTypeLimit(edict_t *caster, uint32_t unit_id, uint32_t max_count);
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code);
+void S_AttackAdjustPrevention(edict_t *unit, uint32_t mask, bool release);
+heroabilitystatus_t *S_ApplyAttackPrevention(edict_t *caster, edict_t *target,
+    abilityitem_t const *spell, cstring_t buff, float duration);
+BZ_ABILITY_PROC(CAbilityAttackPrevention);
 bool S_UnitPolymorphed(edict_t const *unit);
 void S_PolymorphRemove(edict_t *unit);
+UnitBalance_t const *S_PolymorphMovementProfile(edict_t const *unit);
+void S_AdjustUnitMoveSpeed(edict_t *unit, float delta);
 int S_BlackArrowDamage(edict_t *attacker, int damage);
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target);
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);
@@ -455,6 +534,7 @@ void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t cons
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point);
 void S_ReincarnationOnDeath(edict_t *unit);
 bool S_HumanCanAttack(edict_t const *unit);
+bool S_HumanAttackPriorityEnabled(edict_t const *unit);
 float S_HumanMoveFactor(edict_t const *unit);
 float S_DefendAttackReduction(edict_t const *unit);
 float S_HumanArmorBonus(edict_t const *unit);
@@ -496,7 +576,7 @@ void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target);
 void S_PoisonOnHit(edict_t *attacker, edict_t *target);
 float S_SlowPoisonMoveReduction(edict_t const *unit);
 float S_SlowPoisonAttackReduction(edict_t const *unit);
-void S_OrbOnHit(edict_t *attacker, edict_t *target);
+void S_OrbOnHit(edict_t *attacker, edict_t *target,bool before_damage);
 float S_BarkskinArmorBonus(edict_t const *unit);
 float S_ManaFlareArmorBonus(edict_t const *unit);
 
@@ -551,7 +631,16 @@ void S_SpellEndCooldown(edict_t *caster, uint32_t code);
 void S_SpellResetCooldowns(edict_t *caster);
 bool S_SpellSpendMana(edict_t *caster, uint32_t code, uint32_t level);
 bool S_SpellCanPay(edict_t *caster, uint32_t code, uint32_t level);
+void S_CancelSpellOwner(edict_t *caster,uint32_t code);
+bool S_InterceptSpellOrder(edict_t *caster,uint32_t code);
 bool S_CastNoTargetSpell(edict_t *caster, uint32_t code);
+void S_DefaultSpellCastProfile(edict_t const *, uint32_t code, spellCastProfile_t *);
+void S_CancelSpellCast(edict_t *);
+bool S_UnitHasSpellTask(edict_t const *);
+bool S_QuerySpellEventTarget(edict_t const *,uint32_t,spellTarget_t *);
+void S_ClearSpellCasts(void);
+bool S_WriteSpellCasts(FILE *);
+bool S_ReadSpellCasts(FILE *);
 bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);
 bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range);
@@ -585,10 +674,13 @@ bool S_UnitCanTranslate(edict_t const *unit);
 float S_EnsnareMeleeRange(edict_t const *unit);
 bool S_SpellIsEnemy(edict_t *caster, edict_t *target);
 bool S_SpellIsFriend(edict_t *caster, edict_t *target);
+bool S_SpellIsNeutral(edict_t const *caster, edict_t const *target);
+bool S_TargsAllowsOwner(cstring_t targets, edict_t const *source, edict_t const *target);
 void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point);
 bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target);
 bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target);
 bool S_SpellShieldImpactDeferred(uint32_t code);
+bool S_PrepareUnitSpellEffect(edict_t *caster, uint32_t code, edict_t *target);
 bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target);
 bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_name);
 bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t *caster, edict_t *target);
@@ -613,5 +705,11 @@ void S_SpellEndChannel(edict_t *thinker);
  * receive validation and execution messages through the registry row. */
 void spell_cmd(edict_t *clent);
 void spell_run_frame(edict_t *ent);
+
+/* Counted Freeze-family status owner; applying subclasses select order disabling. */
+BZ_ABILITY_PROC(CAbilityFreezeDamageBonus);
+BZ_ABILITY_PROC(CAbilityFreezingBreath);
+void S_FreezingBreathOnHit(edict_t *,edict_t *);
+heroabilitystatus_t *S_ApplyFreezeStatus(edict_t *,edict_t *,uint32_t,uint32_t,cstring_t,float,bool);
 
 #endif

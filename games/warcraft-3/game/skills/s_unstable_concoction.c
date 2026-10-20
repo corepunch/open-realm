@@ -7,16 +7,11 @@ static bool unstable_concoction_splash_allows(uint32_t code, edict_t *caster, ed
 		S_UnitIsCycloned(target) || target->targtype != TARG_AIR)
 		return false;
 	targets = G_AbilityLevel(code, 1)->targs;
-	if (!targets) return true;
-	if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
-	if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-		level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral)
-		return true;
-	return false;
+	return S_TargsAllowsOwner(targets, caster, target);
 }
 
 static void unstable_concoction_explode(edict_t *caster, edict_t *primary, uint32_t code) {
-	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
+	uint32_t level = MAX(1u, G_UnitAbilityClassLevel(caster, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
 	float max_d = S_SpellData(code, level, 5), splash_spent = 0.0f;

@@ -1071,9 +1071,9 @@ TEST(wc3_ability_lifecycle, stop_move_and_attack_retire_channel_before_motion) {
         edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
         slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
         caster->unitinfo.MoveSpeed = 300; caster->movetype = MOVETYPE_STEP;
-        caster->attack1.type = ATK_NORMAL;
-        caster->attack1.range = 600; caster->attack1.damageBase = 10; caster->attack1.cooldown = 1;
-        caster->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+        S_AttackProfileWrite(caster, 0)->type = ATK_NORMAL;
+        S_AttackProfileWrite(caster, 0)->range = 600; S_AttackProfileWrite(caster, 0)->damageBase = 10; S_AttackProfileWrite(caster, 0)->cooldown = 1;
+        S_AttackProfileWrite(caster, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
         T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
         edict_t *thinker = review_thinker(caster);
         if (i == 0) T_ASSERT(unit_issueimmediateorder(caster, orders[i]));
@@ -1459,6 +1459,90 @@ TEST(wc3_ability_lifecycle, jass_removebuffs_filters_classified_statuses) {
     unit_removebuffs(unit, false, true, false, true, false, false, false);
     T_EQ(negative->level, 0);
     T_ASSERT(unknown->level != 0);
+}
+
+/* Explicit protection also applies when the applying ability supplies a known
+ * native filter policy; that policy still owns polarity and resistance. */
+TEST(wc3_ability_lifecycle, jass_removebuffs_preserves_undispellable_known_owner) {
+    FOR_LOOP(classified,2) {
+        edict_t *unit = review_setup();
+        uint32_t const owner = MAKEFOURCC('A','b','l','o');
+        abilityitem_t item = S_AbilityItem(owner);
+        T_NOT_NULL(item.ability);
+        if (!item.ability) continue;
+        T_ASSERT(item.ability->flags & AB_STATUS_POLICY);
+        heroabilitystatus_t *protected = unit_applystatus(unit,&(status_application_t){
+            .buff="Bip0",.level=1,.duration=7.0f,.data=owner,.source_ability=owner,
+            .buff_flags=WC3_STATUS_BUFF_UNDISPELLABLE |
+                (classified ? WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL : 0)
+        });
+        heroabilitystatus_t *ordinary = unit_applystatus(unit,&(status_application_t){
+            .buff="Bip1",.level=1,.duration=7.0f,.data=owner,.source_ability=owner,
+            /* A known owner remains authoritative over conflicting hints. */
+            .buff_flags=classified ? WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL : 0
+        });
+        T_NOT_NULL(protected); T_NOT_NULL(ordinary);
+        if (!protected || !ordinary) continue;
+        uint32_t const instance = protected->instance_id;
+        uint32_t const deadline = protected->timestamp;
+        T_ASSERT(!unit_status_can_dispel(protected));
+        T_ASSERT(unit_status_can_dispel(ordinary));
+        T_EQ(unit_removebuffs(unit,true,false,true,false,false,false,false),1);
+        T_EQ(ordinary->level,0);
+        T_EQ(protected->level,1);
+        T_EQ(protected->instance_id,instance);
+        T_EQ(protected->timestamp,deadline);
+        T_EQ(protected->data,owner);
+        T_ASSERT(protected->buff_flags & WC3_STATUS_BUFF_UNDISPELLABLE);
+    }
+}
+
+static uint32_t removebuffs_reason_visits;
+static abilityMsg_t removebuffs_reason_messages[2];
+static status_remove_reason_t removebuffs_reason_values[2];
+static uint32_t removebuffs_reason_levels[2];
+static abilityProc_t removebuffs_reason_original;
+void S_ReplaceAbilityProcedure(ability_t const *ability,abilityProc_t proc);
+static intptr_t removebuffs_reason_observer(edict_t *unit,abilityMsg_t msg,abilityCall_t const *call) {
+    if (msg == A_STATUS_REMOVE || msg == A_STATUS_REMOVED) {
+        if (removebuffs_reason_visits < 2) {
+            uint32_t i = removebuffs_reason_visits;
+            removebuffs_reason_messages[i] = msg;
+            removebuffs_reason_values[i] = call->status.reason;
+            removebuffs_reason_levels[i] = call->status.slot->level;
+        }
+        removebuffs_reason_visits++;
+    }
+    return removebuffs_reason_original(unit,msg,call);
+}
+
+TEST(wc3_ability_lifecycle, jass_removebuffs_dispatches_script_reason_before_owner_inverse) {
+    FOR_LOOP(natural,2) {
+        edict_t *unit = review_setup();
+        uint32_t const owner = MAKEFOURCC('A','b','l','o');
+        heroabilitystatus_t *slot = unit_applystatus(unit,&(status_application_t){
+            .buff="Bir0",.level=1,.duration=7.0f,.data=owner,.source_ability=owner
+        });
+        T_NOT_NULL(slot);
+        if (!slot) continue;
+        abilityitem_t item = S_AbilityItem(owner);
+        T_NOT_NULL(item.ability);
+        if (!item.ability) continue;
+        removebuffs_reason_original = item.ability->proc;
+        removebuffs_reason_visits = 0;
+        S_ReplaceAbilityProcedure(item.ability,removebuffs_reason_observer);
+        if (natural) unit_expirestatus(unit,slot);
+        else T_EQ(unit_removebuffs(unit,true,false,true,false,false,false,false),1);
+        S_ReplaceAbilityProcedure(item.ability,removebuffs_reason_original);
+        T_EQ(removebuffs_reason_visits,2);
+        T_EQ(removebuffs_reason_messages[0],A_STATUS_REMOVE);
+        T_EQ(removebuffs_reason_messages[1],A_STATUS_REMOVED);
+        T_EQ(removebuffs_reason_levels[0],1);
+        T_EQ(removebuffs_reason_levels[1],0);
+        T_EQ(removebuffs_reason_values[0],natural ? STATUS_REMOVE_EXPIRE : STATUS_REMOVE_SCRIPT);
+        T_EQ(removebuffs_reason_values[1],natural ? STATUS_REMOVE_EXPIRE : STATUS_REMOVE_SCRIPT);
+        T_EQ(slot->level,0);
+    }
 }
 
 TEST(wc3_ability_lifecycle, jass_removebuffs_preserves_undispellable_and_mixed_records) {

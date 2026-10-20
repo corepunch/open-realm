@@ -1,0 +1,1416 @@
+{
+  "passed": true,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "cases": [
+    {
+      "exit": "clear",
+      "cls": 0,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          0
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 0,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          0
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 0,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          0
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 0,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          0
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 1,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          1
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 1,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          1
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 1,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          1
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 1,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          1
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 2,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          2
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 2,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          2
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 2,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          2
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 2,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          2
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 3,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          3
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 3,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          3
+        ]
+      ],
+      "result": 0,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 3,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          3
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "clear",
+      "cls": 3,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          3
+        ]
+      ],
+      "result": 0,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 0,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          0
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 0,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          0
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ],
+        [
+          "commit",
+          0,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 0,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          0
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ],
+        [
+          "commit",
+          2,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 0,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          0
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 1,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          1
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 1,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          1
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ],
+        [
+          "commit",
+          0,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 1,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          1
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ],
+        [
+          "commit",
+          2,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 1,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          1
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 2,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          2
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 2,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          2
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ],
+        [
+          "commit",
+          0,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 2,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          2
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ],
+        [
+          "commit",
+          2,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 2,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          2
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 3,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          3
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 3,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          3
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ],
+        [
+          "commit",
+          0,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 3,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          3
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ],
+        [
+          "commit",
+          2,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "admitted",
+      "cls": 3,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          3
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ],
+        [
+          "commit",
+          1,
+          7,
+          1100742656,
+          1101266944
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        19,
+        20,
+        20,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 0,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          0
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 0,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          0
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 0,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          0
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 0,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          0
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 1,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          1
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 1,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          1
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 1,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          1
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 1,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          1
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 2,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          2
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 2,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          2
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 2,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          2
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 2,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          2
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 3,
+      "outer": 0,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          3
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 3,
+      "outer": 0,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          0,
+          1,
+          3
+        ],
+        [
+          "placement",
+          0,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 0,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 3,
+      "outer": 1,
+      "absent": 0,
+      "trace": [
+        [
+          "footprint",
+          2,
+          1,
+          3
+        ],
+        [
+          "placement",
+          2,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    },
+    {
+      "exit": "exhausted",
+      "cls": 3,
+      "outer": 1,
+      "absent": 1,
+      "trace": [
+        [
+          "footprint",
+          1,
+          1,
+          3
+        ],
+        [
+          "placement",
+          1,
+          7,
+          5
+        ]
+      ],
+      "result": 1,
+      "final_counter": 1,
+      "final_mode": 7,
+      "bounds": [
+        20,
+        20,
+        21,
+        21
+      ]
+    }
+  ],
+  "case_count": 48,
+  "scope": "Complete original170080, controlled prediction/footprint/placement/publication boundaries; four footprints, null self and outer counter. All reachable result exits restore held identity, endpoint mode and SEH."
+}

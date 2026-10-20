@@ -1,0 +1,7 @@
+{
+ "name": "pathing_orc07",
+ "probe": "pathing",
+ "base": {"mpq": "war3.mpq", "member": "Maps\\Campaign\\Orc07.w3m"},
+ "box": [-1584.0, 2320.0, -400.0, 3504.0],
+ "step": 32.0
+}

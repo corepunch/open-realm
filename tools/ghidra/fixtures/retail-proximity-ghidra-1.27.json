@@ -1,0 +1,36 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "rows": [
+    {
+      "address": "6f1702f0",
+      "name": "Separate_Update",
+      "comment": "Cooldown first; apply retained endpoint displacement; accumulate ordered outward pairs with owner RNG on tiny overlap; damp/deadzone/cap. Original shipped initializer rows,600 pair105 tail slices match C705 words. Engine owner scheduler/idle pair/Save66 ported. Public101 two-member full composition verifies830 owner visits/1361 commits; request-speed c0\u003e0 clears source vector and installs cooldown7 after countdown, c0!\u003d0 rejects candidate.13 overlaps and91 retries interleave one owner stream. Payoff132/SEP-02.2: production ordered proximity composition matches all3055 complete T-phase visits and2439 individual neighbor calls in global captured order across27 units, including the zero-contribution T2/T5 cross-cluster calls. Every pair identity/pose/vector/RNG word and complete endpoint/vector/cooldown/fine rectangle matches. Exact-overlap phase integration remains SEP-02.3/04. [SEP-01.2] SEP-01.2: selector \u003d byte[sep+22]\u002615; rows 5..15 are all-zero words: no accumulation, tail zeroes the vector and never installs cooldown (original oracle + live hS05 pairs), yet the d\u003c0.001 branch still consumes one owner draw per overlapping candidate per visit.",
+      "signature": "undefined Separate_Update()"
+    },
+    {
+      "address": "6f1604d0",
+      "name": "Mover_UpdateProximityBounds",
+      "comment": "Position +/- radius times map scale; floor minima/maxima+1, YX rectangle to mover+94. Software-float boundary matters;2304 complete integration calls also verify real record mutation.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff132: independent proximity membership uses floor((fine position +/- fine radius)*inverse_scale), maxima +1. PathMaps_Create15ab60 sets scale8 and reciprocal1/8; padded dimensions\u003d(fine+16)/8+1. The fine footprint and proximity radius are different producers.",
+      "signature": "undefined Mover_UpdateProximityBounds()"
+    },
+    {
+      "address": "6f16ffa0",
+      "name": "Separate_ApplyPendingDisplacement",
+      "comment": "Only nonzero software squared retained vector: predict fine pose, add vector, validate16ee80, apply05c820 if accepted. Does not clear retained vector.05c820 subtracts predicted pose then15f7b0 adds delta back. Engine fine endpoint avoids world-roundtrip cancellation.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff132/SEP-02.2: complete engine updates reproduce all3055 captured T visits including every rejected/capped/deadzone/cooldown result and published fine rectangle; retained displacement is not cleared after rejection. Native pair/tail replay separately verifies all3000 bodies/4321 neighbor contributions in the complete scene.",
+      "signature": "undefined Separate_ApplyPendingDisplacement()"
+    },
+    {
+      "address": "6f170960",
+      "name": "Separate_ConfigureQuery",
+      "comment": "Stores mover/position/radius/category/minimum rank and derives proximity rectangle. \nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff132: query uses the same software-scalar bound operations as proximity publication, with selector radius rather than collision radius. Effective ordinary memberships match1440 full original queries across1280 update and160 cleanup checkpoints.",
+      "signature": "undefined Separate_ConfigureQuery()"
+    },
+    {
+      "address": "6f16f570",
+      "name": "Separate_CollectCandidates",
+      "comment": "Clears candidate vector and dispatches rectangle traversal with configured map or source object\u0027s map/rectangle.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff132/SEP-02.2: repeated nine T clusters retain every ordered neighbor contribution. Query visits Y/X cells and newest effective insertion first; retained cell membership is not re-prepended by motion. Earlier same-pass position applications are visible to later candidates. Both full live captures and3543 observer-free markers agree.\nPayoff132 fixture contract: native T2 begins visiting T5 unit12 at visit1090. This is a zero-contribution candidate beyond the separation radius but inside the coarse proximity query. Complete neighbor certification must create all27 T units and follow captured global visit order; isolating triads silently drops these calls.",
+      "signature": "undefined Separate_CollectCandidates()"
+    }
+  ]
+}

@@ -29,10 +29,24 @@ void setup_test_world(void);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
 bool run_test_jass(cstring_t src);
+bool run_test_jass_error(cstring_t src, cstring_t expected);
 extern player_t *currentplayer;
 void unit_die(edict_t *self, edict_t *attacker);
 void unit_build(edict_t *self, uint32_t class_id);
+/* Public point orders use the scheduled physical owner. Prime its velocity,
+ * then advance it before testing the entity-owned region/range observations. */
+static void api_run_move_entities(unsigned ticks) {
+    G_BeginEntityFrame();level.scheduled_frame=true;
+    FOR_LOOP(i,ticks) {
+        wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+        M_RunScheduledThinks();
+    }
+    G_RunEntities();level.scheduled_frame=false;
+}
+
 static edict_t *find_test_unit(uint32_t class_id);
+static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
+static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
 
 
 
@@ -96,6 +110,674 @@ static void selection_native_test_write(pfWriteType_t type, void const *data) {
 }
 
 static void selection_native_test_unicast(edict_t *ent) { (void)ent; }
+
+/* Retail public decimal parser outputs captured with raw words, not R2S text. */
+TEST(wc3_api, pathfinding_decimal_destination_uses_retail_parser) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local real x = S2R(\"1936.25\")\n"
+        "  local real y = S2R(\"144.125\")\n"
+        "  call BJassAssert(S2R(\"1.25\") == 1.25, \"decimal was truncated to integer\")\n"
+        "  call BJassAssert(y == 144.125, \"fractional coordinate missing\")\n"
+        "  call BJassAssert(S2R(\"1.25e2\") == 1.25, \"exponent suffix should terminate decimal\")\n"
+        "  call BJassAssert(S2R(\" 1.25\") == 0.0, \"leading whitespace should terminate decimal\")\n"
+        "  call BJassAssert(S2R(\"1234567890\") == 1234567808.0, \"significant digit truncation differs\")\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", x, y), \"parsed point order rejected\")\n"
+        "endfunction\n"));
+    edict_t *mover = NULL;
+    for (int i = MAX_CLIENTS; i < globals.num_edicts; i++)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) mover = &g_edicts[i];
+    T_ASSERT(mover != NULL);
+    if (mover) {
+        vec2_t issued;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &issued));
+        T_EQ(issued.x, 1936.2501220703125f);
+        T_EQ(issued.y, 144.125f);
+    }
+    reset_entities();
+}
+
+/* Retail NUM-01.13: an authored unit-name byte string reaches SubString/S2R and Move. */
+TEST(wc3_api, pathfinding_decimal_high_bytes_match_retail_words) {
+    static uint32_t const expected[] = {0x00000000u, 0x41400000u, 0x3f000000u, 0x00000000u};
+    char bytes[129];
+    FOR_LOOP(i, 128) bytes[i] = (char)(128+i);
+    bytes[128] = 0;
+    unitModification_t name = {
+        .modID = MAKEFOURCC('u','n','a','m'), .type = mod_string, .data = (handle_t)bytes
+    };
+    unitData_t original = {
+        .originalUnitID = MAKEFOURCC('h','f','o','o'), .numbeOfModifications = 1, .modifications = &name
+    };
+    mapInfo_t mapinfo = {.num_originalUnits = 1, .originalUnits = &original};
+    reset_entities();
+    setup_test_world();
+    mapInfo_t const *saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local hashtable values = InitHashtable()\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local string source = GetUnitName(mover)\n"
+        "  local string byte = \"\"\n"
+        "  local integer i = 0\n"
+        "  local real x = 0.0\n"
+        "  local real y = 0.0\n"
+        "  call BJassAssert(StringLength(source) == 128, \"authored byte source changed\")\n"
+        "  loop\n"
+        "    exitwhen i == 128\n"
+        "    set byte = SubString(source, i, i + 1)\n"
+        "    call SaveReal(values, i, 0, S2R(byte))\n"
+        "    call SaveReal(values, i, 1, S2R(\"12\" + byte + \"34\"))\n"
+        "    call SaveReal(values, i, 2, S2R(\".5\" + byte + \"7\"))\n"
+        "    call SaveReal(values, i, 3, S2R(\"-\" + byte + \"0.2\"))\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  set x = S2R(\"-1936.25\" + SubString(source, 0, 1) + \"9\")\n"
+        "  set y = S2R(\"-144.125\" + SubString(source, 127, 128) + \"9\")\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", x, y), \"byte-parsed Move rejected\")\n"
+        "endfunction\n"));
+    hashtable_t const *table = &level.hashtables[0];
+    T_EQ(table->num_entries, 512);
+    FOR_LOOP(i, table->num_entries) {
+        uint32_t word;
+        T_EQ(table->entries[i].type, HT_REAL);
+        T_EQ(table->entries[i].parent, (int32_t)(i/4));
+        T_EQ(table->entries[i].child, (int32_t)(i%4));
+        memcpy(&word, &table->entries[i].value.real, sizeof(word));
+        T_EQ(word, expected[i%4]);
+    }
+    edict_t *mover = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(mover);
+    if (mover) {
+        vec2_t point;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &point));
+        uint32_t word;
+        memcpy(&word, &point.x, sizeof(word));
+        T_EQ(word, 0xc4f20801u);
+        memcpy(&word, &point.y, sizeof(word));
+        T_EQ(word, 0xc3102000u);
+    }
+    reset_entities();
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+}
+
+/* Capture actual VM literal values in their owning hashtable, independently of JASS comparisons. */
+#include "retail_expressions.h"
+
+TEST(wc3_api, pathfinding_compiled_expressions_match_original_inputs_and_results) {
+    reset_entities();setup_test_world();
+    char source[24000];unsigned length=snprintf(source,sizeof(source),
+        "globals\nhashtable values\ninteger calls=0\nendglobals\n"
+        "function PathExpressionInteger takes integer tag, integer value returns integer\n"
+        "set calls=calls*10+tag\nreturn value\nendfunction\n"
+        "function PathExpressionReal takes integer tag, real value returns real\n"
+        "set calls=calls*10+tag\nreturn value\nendfunction\n");
+    FOR_LOOP(i,sizeof(expression82_cases)/sizeof(*expression82_cases)) {
+        bool integer=expression82_cases[i].integer;
+        length+=snprintf(source+length,sizeof(source)-length,
+            "function case%u takes nothing returns nothing\nlocal %s input\nset calls=0\nset input=%s\n"
+            "call Save%s(values,%u,0,input)\ncall Save%s(values,%u,1,%s(input))\n"
+            "call SaveInteger(values,%u,2,calls)\nendfunction\n",i,integer?"integer":"real",
+            expression82_cases[i].expression,integer?"Integer":"Real",i,integer?"Real":"Integer",i,
+            integer?"I2R":"R2I",i);
+    }
+    length+=snprintf(source+length,sizeof(source)-length,"function main takes nothing returns nothing\nset values=InitHashtable()\n");
+    FOR_LOOP(i,sizeof(expression82_cases)/sizeof(*expression82_cases))
+        length+=snprintf(source+length,sizeof(source)-length,"call case%u()\n",i);
+    snprintf(source+length,sizeof(source)-length,"endfunction\n");
+    T_ASSERT(run_test_jass(source));
+    hashtable_t const *table=&level.hashtables[0];
+    T_EQ(table->num_entries,3*sizeof(expression82_cases)/sizeof(*expression82_cases));
+    FOR_LOOP(i,table->num_entries) {
+        uint32_t word;memcpy(&word,&table->entries[i].value,sizeof(word));
+        unsigned row=i/3,column=i%3;
+        T_EQ(table->entries[i].parent,(int32_t)row);T_EQ(table->entries[i].child,(int32_t)column);
+        T_EQ(word,column==0?expression82_cases[row].input:column==1?expression82_cases[row].output:expression82_cases[row].operands);
+    }
+    reset_entities();
+}
+
+TEST(wc3_api, pathfinding_compiled_literals_match_retail_words) {
+    static uint32_t const expected[] = {0xbf85635d, 0x3f19999a, 0x3fc00000, 0xcf000000, 0x7f000000};
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local hashtable values = InitHashtable()\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call SaveReal(values, 0, 0, 0.59999999999999998)\n"
+        "  call SaveReal(values, 0, 1, 0.6)\n"
+        "  call SaveReal(values, 0, 2, 4294967297.5)\n"
+        "  call SaveReal(values, 0, 3, 2147483648.0)\n"
+        "  call SaveReal(values, 0, 4, 0.00000000000000000000000000000001)\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", 4294967297.5, 144.125), \"compiled point order rejected\")\n"
+        "endfunction\n"));
+    hashtable_t const *table = &level.hashtables[0];
+    T_EQ(table->num_entries, 5);
+    FOR_LOOP(i, table->num_entries) {
+        uint32_t word;
+        memcpy(&word, &table->entries[i].value.real, sizeof(word));
+        T_EQ(table->entries[i].type, HT_REAL);
+        T_EQ(table->entries[i].child, (int32_t)i);
+        T_EQ(word, expected[i]);
+    }
+    edict_t *mover = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(mover);
+    if (mover) {
+        vec2_t point;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &point));
+        uint32_t word;
+        memcpy(&word, &point.x, sizeof(word));
+        T_EQ(word, 0x3fc00000);
+        memcpy(&word, &point.y, sizeof(word));
+        T_EQ(word, 0x43102000);
+    }
+    reset_entities();
+}
+
+/* Save/load reconstructs source tokens and retains both stored words and future evaluations. */
+TEST(wc3_api, pathfinding_compiled_literals_survive_save_load) {
+    cstring_t path = Test_TempPath("openwarcraft3-wc3-compiled-literals-save.bin");
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable values = null\n"
+        "  constant real compiled = 0.59999999999999998\n"
+        "endglobals\n"
+        "function StoreCompiled takes nothing returns nothing\n"
+        "  call SaveReal(values, 0, 0, compiled)\n"
+        "  call SaveReal(values, 0, 1, 4294967297.5)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set values = InitHashtable()\n"
+        "  call StoreCompiled()\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    FOR_LOOP(pass, 2) {
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 2);
+        if (table->num_entries == 2) {
+            uint32_t word;
+            memcpy(&word, &table->entries[0].value.real, sizeof(word));
+            T_EQ(word, 0xbf85635d);
+            memcpy(&word, &table->entries[1].value.real, sizeof(word));
+            T_EQ(word, 0x3fc00000);
+        }
+        if (!pass) {
+            jass_callbyname(level.vm, "StoreCompiled", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+    }
+    remove(path);
+    reset_entities();
+}
+
+/* Payoff259 original source compilation replaces the old temporary host-number
+ * guard: these are identifiers when declared, while exponents remain invalid. */
+TEST(wc3_api, pathfinding_compiled_numeric_syntax_matches_retail_lexer) {
+    setup_test_world();
+    T_ASSERT(!run_test_jass("function main takes nothing returns nothing\n  local real value = 1e2\nendfunction\n"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local real nan=11.\nlocal real inf=12.\nlocal real Infinity=13.\n"
+        "call BJassAssert(nan+inf+Infinity==36.,\"retail source identifiers\")\nendfunction\n"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n  call BJassAssert(.5 == 0.5, \"verified decimal syntax recovers\")\nendfunction\n"));
+    reset_entities();
+}
+
+/* Wide source integers must wrap per digit before their native conversion or movement use. */
+TEST(wc3_api, pathfinding_compiled_integer_literals_match_retail_words) {
+    static struct { cstring_t expression; uint32_t word, real_word; } const cases[] = {
+        { "0", 0x00000000u, 0x00000000u },
+        { "1", 0x00000001u, 0x3f800000u },
+        { "-1", 0xffffffffu, 0xbf800000u },
+        { "16777217", 0x01000001u, 0x4b800000u },
+        { "2147483647", 0x7fffffffu, 0x4effffffu },
+        { "2147483648", 0x80000000u, 0xcf000000u },
+        { "-2147483648", 0x80000000u, 0xcf000000u },
+        { "4294967295", 0xffffffffu, 0xbf800000u },
+        { "4294967296", 0x00000000u, 0x00000000u },
+        { "4294967297", 0x00000001u, 0x3f800000u },
+        { "-4294967297", 0xffffffffu, 0xbf800000u },
+        { "9223372036854775807", 0xffffffffu, 0xbf800000u },
+        { "9223372036854775808", 0x00000000u, 0x00000000u },
+        { "18446744073709551615", 0xffffffffu, 0xbf800000u },
+        { "18446744073709551616", 0x00000000u, 0x00000000u },
+        { "18446744073709551617", 0x00000001u, 0x3f800000u },
+        { "-18446744073709551617", 0xffffffffu, 0xbf800000u },
+        { "9999999999999999999999999999999999999999999999999999999999999999999999999999999999", 0xffffffffu, 0xbf800000u },
+        { "$0", 0x00000000u, 0x00000000u },
+        { "$7fffffff", 0x7fffffffu, 0x4effffffu },
+        { "$80000000", 0x80000000u, 0xcf000000u },
+        { "-$80000000", 0x80000000u, 0xcf000000u },
+        { "$ffffffff", 0xffffffffu, 0xbf800000u },
+        { "$100000000", 0x00000000u, 0x00000000u },
+        { "$100000001", 0x00000001u, 0x3f800000u },
+        { "$ffffffffffffffff", 0xffffffffu, 0xbf800000u },
+        { "$10000000000000000", 0x00000000u, 0x00000000u },
+        { "$10000000000000001", 0x00000001u, 0x3f800000u },
+        { "0x7FFFFFFF", 0x7fffffffu, 0x4effffffu },
+        { "0x80000000", 0x80000000u, 0xcf000000u },
+        { "0xFFFFFFFF", 0xffffffffu, 0xbf800000u },
+        { "0x100000001", 0x00000001u, 0x3f800000u },
+        { "0xFFFFFFFFFFFFFFFF", 0xffffffffu, 0xbf800000u },
+        { "0x10000000000000001", 0x00000001u, 0x3f800000u },
+        { "00", 0x00000000u, 0x00000000u },
+        { "077", 0x0000003fu, 0x427c0000u },
+        { "017777777777", 0x7fffffffu, 0x4effffffu },
+        { "020000000000", 0x80000000u, 0xcf000000u },
+        { "-020000000000", 0x80000000u, 0xcf000000u },
+        { "037777777777", 0xffffffffu, 0xbf800000u },
+        { "040000000000", 0x00000000u, 0x00000000u },
+        { "040000000001", 0x00000001u, 0x3f800000u },
+        { "01000000000000000000000", 0x00000000u, 0x00000000u },
+        { "01000000000000000000001", 0x00000001u, 0x3f800000u },
+    };
+    reset_entities();
+    setup_test_world();
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        char script[1024];
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call SaveInteger(values, 0, 0, %s)\n"
+            "  call SaveReal(values, 0, 1, I2R(%s))\nendfunction\n", cases[i].expression, cases[i].expression);
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 2);
+        if (table->num_entries == 2) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, HT_INTEGER);
+            memcpy(&word, &table->entries[0].value.integer, sizeof(word));
+            T_EQ(word, cases[i].word);
+            T_EQ(table->entries[1].type, HT_REAL);
+            memcpy(&word, &table->entries[1].value.real, sizeof(word));
+            T_EQ(word, cases[i].real_word);
+        }
+    }
+    reset_entities();
+}
+
+/* Source integer conversion reaches Move and remains live after source-token reconstruction. */
+TEST(wc3_api, pathfinding_compiled_integer_move_survives_save_load) {
+    cstring_t path = Test_TempPath("openwarcraft3-wc3-compiled-integer-save.bin");
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable values = null\n"
+        "  constant integer compiled = 18446744073709551873\n"
+        "endglobals\n"
+        "function StoreCompiledInteger takes nothing returns nothing\n"
+        "  call SaveInteger(values, 0, 0, compiled)\n"
+        "  call SaveInteger(values, 0, 1, $10000000000000001)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  set values = InitHashtable()\n"
+        "  call StoreCompiledInteger()\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", I2R(compiled), 144.0), \"compiled integer Move rejected\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    FOR_LOOP(pass, 2) {
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 2);
+        if (table->num_entries == 2) {
+            T_EQ(table->entries[0].value.integer, 257);
+            T_EQ(table->entries[1].value.integer, 1);
+        }
+        if (!pass) {
+            jass_callbyname(level.vm, "StoreCompiledInteger", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+    }
+    edict_t *mover = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(mover);
+    if (mover) {
+        vec2_t point;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &point));
+        T_EQ(point.x, 257.0f);
+        T_EQ(point.y, 144.0f);
+    }
+    remove(path);
+    reset_entities();
+}
+
+/* Frozen public-native words, with decimal text producing the real inputs. */
+TEST(wc3_api, pathfinding_public_numeric_natives_match_retail_words) {
+    static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {
+        { "S2R(\"1.25\")", 0x3fa00000u, false },
+        { "S2R(\"-1.25\")", 0xbfa00000u, false },
+        { "S2R(\"+1.25\")", 0x3fa00000u, false },
+        { "S2R(\".125\")", 0x3e000000u, false },
+        { "S2R(\"1936.25\")", 0x44f20801u, false },
+        { "S2R(\"-1936.25\")", 0xc4f20801u, false },
+        { "S2R(\"144.125\")", 0x43102000u, false },
+        { "S2R(\"123456789.123456789\")", 0x4ceb79a2u, false },
+        { "S2R(\"0.000000123456789\")", 0x34048f8au, false },
+        { "S2R(\"1234567890\")", 0x4e932c05u, false },
+        { "S2R(\"2147483648\")", 0x4effffffu, false },
+        { "S2R(\"1.25e2\")", 0x3fa00000u, false },
+        { "S2R(\"1.25;more\")", 0x3fa00000u, false },
+        { "S2R(\"1..25\")", 0x3f800000u, false },
+        { "S2R(\"1e3\")", 0x3f800000u, false },
+        { "S2R(\"abc\")", 0x00000000u, false },
+        { "S2R(\"nan\")", 0x00000000u, false },
+        { "S2R(\"inf\")", 0x00000000u, false },
+        { "S2R(\" 1.25\")", 0x00000000u, false },
+        { "S2R(\"\")", 0x00000000u, false },
+        { "S2R(\".\")", 0x00000000u, false },
+        { "S2R(\"-0.0\")", 0x00000000u, false },
+        { "S2R(\"+0\")", 0x00000000u, false },
+        { "S2R(\"12345678901234567890123456789012345678901234567890\")", 0x00000000u, false },
+        { "I2R(0)", 0x00000000u, false },
+        { "I2R(1)", 0x3f800000u, false },
+        { "I2R(-1)", 0xbf800000u, false },
+        { "I2R(16777217)", 0x4b800000u, false },
+        { "I2R(2147483647)", 0x4effffffu, false },
+        { "I2R(-2147483647)", 0xceffffffu, false },
+        { "R2I(S2R(\"0.0\"))", 0x00000000u, true },
+        { "R2I(S2R(\"0.5\"))", 0x00000000u, true },
+        { "R2I(S2R(\"-0.5\"))", 0x00000000u, true },
+        { "R2I(S2R(\"1.75\"))", 0x00000001u, true },
+        { "R2I(S2R(\"-1.75\"))", 0xffffffffu, true },
+        { "R2I(S2R(\"2147483648.0\"))", 0x7fffff80u, true },
+        { "R2I(S2R(\"-2147483648.0\"))", 0x80000080u, true },
+        { "R2I(S2R(\"10000000000.0\"))", 0x7fffffffu, true },
+        { "R2I(S2R(\"-10000000000.0\"))", 0x80000000u, true },
+        { "Sin(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Sin(S2R(\"0.6\"))", 0x3f108c3eu, false },
+        { "Sin(S2R(\"-0.6\"))", 0xbf108bebu, false },
+        { "Sin(S2R(\"3.141592653589793\"))", 0x30000000u, false },
+        { "Sin(S2R(\"6.283185307179586\"))", 0xb0000000u, false },
+        { "Cos(S2R(\"0.0\"))", 0x3f7fffffu, false },
+        { "Cos(S2R(\"0.6\"))", 0x3f53494cu, false },
+        { "Cos(S2R(\"-0.6\"))", 0x3f534985u, false },
+        { "Cos(S2R(\"3.141592653589793\"))", 0xbf7fffffu, false },
+        { "Cos(S2R(\"6.283185307179586\"))", 0x3f7fffffu, false },
+        { "Acos(S2R(\"-2.0\"))", 0x00000000u, false },
+        { "Acos(S2R(\"-1.0\"))", 0x40490fdbu, false },
+        { "Acos(S2R(\"-0.6\"))", 0x400db70du, false },
+        { "Acos(S2R(\"0.0\"))", 0x3fc90fdau, false },
+        { "Acos(S2R(\"0.6\"))", 0x3f6d6335u, false },
+        { "Acos(S2R(\"1.0\"))", 0x00000000u, false },
+        { "Acos(S2R(\"2.0\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"-4.0\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"-0.0005\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"0.0\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"0.0009999999\"))", 0x3d018707u, false },
+        { "SquareRoot(S2R(\"0.001\"))", 0x3d018707u, false },
+        { "SquareRoot(S2R(\"0.0010000002\"))", 0x3d018707u, false },
+        { "SquareRoot(S2R(\"0.5\"))", 0x3f3504f3u, false },
+        { "SquareRoot(S2R(\"2.0\"))", 0x3fb504f3u, false },
+        { "SquareRoot(S2R(\"4.0\"))", 0x40000000u, false },
+        { "S2R(\"-1936.25\")", 0xc4f20801u, false },
+        { "S2R(\"-144.125\")", 0xc3102000u, false },
+    };
+    setup_test_world();
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        char script[1024];
+        /* Save the actual native result; the C expectation cannot be parsed by the VM. */
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call Save%s(values, 0, 0, %s)\nendfunction\n",
+            cases[i].integer ? "Integer" : "Real", cases[i].expression);
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 1);
+        if (table->num_entries == 1) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, cases[i].integer ? HT_INTEGER : HT_REAL);
+            memcpy(&word, &table->entries[0].value, sizeof(word));
+            T_EQ(word, cases[i].word);
+        }
+    }
+    reset_entities();
+}
+
+/* Actual registered angle-native outputs with decimal producers and public guards. */
+TEST(wc3_api, pathfinding_public_angle_natives_match_retail_words) {
+    static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {
+        { "Asin(S2R(\"-2.0\"))", 0x00000000u, false },
+        { "Asin(S2R(\"-1.0\"))", 0xbfc90fdbu, false },
+        { "Asin(S2R(\"-0.999\"))", 0xbfc356aeu, false },
+        { "Asin(S2R(\"-0.994140625\"))", 0xbfbb32e2u, false },
+        { "Asin(S2R(\"-0.6\"))", 0xbf24bc7fu, false },
+        { "Asin(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Asin(S2R(\"0.6\"))", 0x3f24bc7fu, false },
+        { "Asin(S2R(\"0.994140625\"))", 0x3fbb32e1u, false },
+        { "Asin(S2R(\"0.999\"))", 0x3fc356adu, false },
+        { "Asin(S2R(\"1.0\"))", 0x3fc90fdbu, false },
+        { "Asin(S2R(\"2.0\"))", 0x00000000u, false },
+        { "Atan(S2R(\"-10000.0\"))", 0xbfc90c94u, false },
+        { "Atan(S2R(\"-1.0\"))", 0xbf490fdcu, false },
+        { "Atan(S2R(\"-0.6\"))", 0xbf0a58efu, false },
+        { "Atan(S2R(\"-0.2679492\"))", 0xbe860a90u, false },
+        { "Atan(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Atan(S2R(\"0.2679492\"))", 0x3e860a90u, false },
+        { "Atan(S2R(\"0.6\"))", 0x3f0a58efu, false },
+        { "Atan(S2R(\"1.0\"))", 0x3f490fdcu, false },
+        { "Atan(S2R(\"10000.0\"))", 0x3fc90c94u, false },
+        { "Tan(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Tan(S2R(\"0.6\"))", 0x3f2f234eu, false },
+        { "Tan(S2R(\"-0.6\"))", 0xbf2f22bau, false },
+        { "Tan(S2R(\"1.5707963267948966\"))", 0x4effffffu, false },
+        { "Tan(S2R(\"3.141592653589793\"))", 0xb0000001u, false },
+        { "Atan2(S2R(\"0.0\"), S2R(\"0.0\"))", 0x00000000u, false },
+        { "Atan2(S2R(\"0.0009\"), S2R(\"0.0009\"))", 0x00000000u, false },
+        { "Atan2(S2R(\"0.001\"), S2R(\"0.0009\"))", 0x3f5685efu, false },
+        { "Atan2(S2R(\"0.0009\"), S2R(\"0.001\"))", 0x3f3b99c8u, false },
+        { "Atan2(S2R(\"-0.001\"), S2R(\"0.0\"))", 0xbfc90fdbu, false },
+        { "Atan2(S2R(\"0.0\"), S2R(\"-0.001\"))", 0x40490fdbu, false },
+        { "Atan2(S2R(\"1.0\"), S2R(\"1.0\"))", 0x3f490fdcu, false },
+        { "Atan2(S2R(\"-1.0\"), S2R(\"1.0\"))", 0xbf490fdcu, false },
+        { "Atan2(S2R(\"1.0\"), S2R(\"-1.0\"))", 0x4016cbe4u, false },
+        { "Atan2(S2R(\"-1.0\"), S2R(\"-1.0\"))", 0xc016cbe4u, false },
+        { "Atan2(S2R(\"10.0\"), S2R(\"1.0\"))", 0x3fbc4de9u, false },
+        { "Atan2(S2R(\"1.0\"), S2R(\"10.0\"))", 0x3dcc1f14u, false },
+        { "Deg2Rad(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Deg2Rad(S2R(\"90.0\"))", 0x3fc90fdbu, false },
+        { "Deg2Rad(S2R(\"180.0\"))", 0x40490fdbu, false },
+        { "Deg2Rad(S2R(\"360.0\"))", 0x40c90fdbu, false },
+        { "Deg2Rad(S2R(\"-45.0\"))", 0xbf490fdbu, false },
+        { "Deg2Rad(S2R(\"0.1\"))", 0x3ae4c389u, false },
+        { "Rad2Deg(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Rad2Deg(S2R(\"3.141592653589793\"))", 0x43340000u, false },
+        { "Rad2Deg(S2R(\"6.283185307179586\"))", 0x43b40000u, false },
+        { "Rad2Deg(S2R(\"-0.6\"))", 0xc2098287u, false },
+        { "Rad2Deg(S2R(\"0.001\"))", 0x3d6aaefbu, false },
+    };
+    setup_test_world();
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        char script[1024];
+        /* Save the actual native result; the C expectation cannot be parsed by the VM. */
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call Save%s(values, 0, 0, %s)\nendfunction\n",
+            cases[i].integer ? "Integer" : "Real", cases[i].expression);
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 1);
+        if (table->num_entries == 1) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, cases[i].integer ? HT_INTEGER : HT_REAL);
+            memcpy(&word, &table->entries[0].value, sizeof(word));
+            T_EQ(word, cases[i].word);
+        }
+    }
+    reset_entities();
+}
+
+/* Original registered20f990 outputs, verified against independent scalar models. */
+TEST(wc3_api, pathfinding_public_power_native_matches_retail_words) {
+    static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {
+        { "Pow(S2R(\"0\"), S2R(\"-1\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0\"), S2R(\"0\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"0\"), S2R(\"0.5\"))", 0x00000000u, false },
+        { "Pow(S2R(\"-0.0005\"), S2R(\"-1\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0.0005\"), S2R(\"-1\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0.0005\"), S2R(\"0.5\"))", 0x3cb72dcau, false },
+        { "Pow(S2R(\"0.001\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"-0.001\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"1\"), S2R(\"-3\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"1\"), S2R(\"0.0005\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"0.0005\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"0.0005\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"0\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-0.0\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"0.5\"))", 0x3fb504f3u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"0.5\"))", 0x3fb504f3u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-0.5\"))", 0x3f3504f5u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"-0.5\"))", 0x3f3504f5u, false },
+        { "Pow(S2R(\"2\"), S2R(\"3\"))", 0x41000000u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"3\"))", 0xc1000000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"4\"))", 0x41800000u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"4\"))", 0x41800000u, false },
+        { "Pow(S2R(\"0.5\"), S2R(\"-3\"))", 0x40fffffbu, false },
+        { "Pow(S2R(\"-0.5\"), S2R(\"-3\"))", 0x40fffffbu, false },
+        { "Pow(S2R(\"16\"), S2R(\"0.5\"))", 0x407ffffbu, false },
+        { "Pow(S2R(\"10\"), S2R(\"-0.3\"))", 0x3f004dd1u, false },
+        { "Pow(S2R(\"100\"), S2R(\"0.3\"))", 0x407ec9d7u, false },
+        { "Pow(S2R(\"-100\"), S2R(\"0.3\"))", 0x407ec9d7u, false },
+        { "Pow(S2R(\"1.5\"), S2R(\"2.25\"))", 0x401f5cacu, false },
+        { "Pow(S2R(\"1.25\"), S2R(\"7.5\"))", 0x40aa992eu, false },
+        { "Pow(S2R(\"10\"), S2R(\"10\"))", 0x501502f9u, false },
+        { "Pow(S2R(\"100\"), S2R(\"-20\"))", 0x7f000000u, false },
+        { "Pow(S2R(\"100\"), S2R(\"20\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0.0009999999\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"0.0010000002\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"2\"), S2R(\"8388608\"))", 0x00000000u, false },
+        { "Pow(S2R(\"1\"), S2R(\"2147483520\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-17\"))", 0x37000012u, false },
+        { "Pow(S2R(\"2\"), S2R(\"63.5\"))", 0x5f3504b5u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-63.5\"))", 0x1fb50533u, false },
+    };
+    setup_test_world();
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        char script[1024];
+        /* Save the actual native result; the C expectation cannot be parsed by the VM. */
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call Save%s(values, 0, 0, %s)\nendfunction\n",
+            cases[i].integer ? "Integer" : "Real", cases[i].expression);
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 1);
+        if (table->num_entries == 1) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, cases[i].integer ? HT_INTEGER : HT_REAL);
+            memcpy(&word, &table->entries[0].value, sizeof(word));
+            T_EQ(word, cases[i].word);
+        }
+    }
+    reset_entities();
+}
+
+#include "games/warcraft-3/common/wc3_format.h"
+#include "fixtures/retail_basic352_format.h"
+TEST(wc3_api, basic352_public_width_strings_and_numeric_roundtrip) {
+    setup_test_world();
+    FOR_LOOP(i, sizeof(retail_basic352_format) / sizeof(*retail_basic352_format)) {
+        G_ClearHashtableRegistry();
+        char script[512];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "local hashtable h=InitHashtable()\nlocal string s=%s\n"
+            "call SaveStr(h,0,0,s)\ncall SaveReal(h,0,1,S2R(s))\nendfunction\n",
+            retail_basic352_format[i].expression);
+        T_ASSERT(run_test_jass(script));
+        T_EQ(level.hashtables[0].num_entries, 2u);
+        if (level.hashtables[0].num_entries == 2) {
+            T_STREQ(level.hashtables[0].entries[0].value.string, retail_basic352_format[i].value);
+            uint32_t word;
+            memcpy(&word, &level.hashtables[0].entries[1].value.real, sizeof(word));
+            T_EQ(word, retail_basic352_format[i].parsed);
+        }
+    }
+    reset_entities();
+}
+/* These are engine buffer guarantees, not a claim of retail overflow/fault parity. */
+TEST(wc3_api, basic352_native_format_buffer_boundary_is_transactional) {
+    unsigned char bytes[264];
+    memset(bytes, 0xa5, sizeof(bytes));
+    T_ASSERT(wc3_format_real(-0.5f,252,0,(char *)bytes+4,256));
+    T_EQ(strlen((char *)bytes+4),255u);
+    FOR_LOOP(i,4) { T_EQ(bytes[i],0xa5u);T_EQ(bytes[260+i],0xa5u); }
+    memset(bytes, 0xa5, sizeof(bytes));
+    T_ASSERT(!wc3_format_real(-0.5f,253,0,(char *)bytes+4,256));
+    FOR_LOOP(i,sizeof(bytes))T_EQ(bytes[i],0xa5u);
+    T_ASSERT(!wc3_format_real(wc3_float(0x4f000000u),0,INT32_MAX,(char *)bytes+4,256));
+    FOR_LOOP(i,sizeof(bytes))T_EQ(bytes[i],0xa5u);
+}
+
+TEST(wc3_api, basic352_formatted_numeric_input_reaches_move_and_cold_save) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit u=CreateUnit(Player(0),'hfoo',768.,768.,0.)\n"
+        "call UnitRemoveAbility(u,'Aatk')\n"
+        "call IssuePointOrder(u,\"move\",S2R(R2SW(1152.125,8,3)),768.)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) {unit=ent;break;}
+    T_NOT_NULL(unit);if(!unit)return;
+    T_NOT_NULL(unit->goalentity);if(!unit->goalentity)return;
+    /* Original public point-order input is raw X=0: width inserts a leading
+     * space, and S2R's verified grammar does not skip it. */
+    T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x), 0u);
+    T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y), 0x44400000u);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    unsigned number=unit->s.number;
+    cstring_t file=Test_TempPath("wc3-basic352-format.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    unit=&g_edicts[number];T_NOT_NULL(unit->goalentity);
+    if(unit->goalentity)T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x), 0u);
+    api_run_move_entities(50);
+    T_ASSERT(unit->s.origin2.x<768.0f);
+    reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_trig351.h"
+/* Actual VM calls retain value operands in storage distinct from native locals.
+ * Expectations are literal retail returns, including public domain guards. */
+TEST(wc3_api, trig351_public_callers_preserve_operand_signs_and_storage) {
+    setup_test_world();
+    FOR_LOOP(i, sizeof(retail_trig351) / sizeof(*retail_trig351)) {
+        G_ClearHashtableRegistry();
+        char script[512];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "local hashtable values = InitHashtable()\ncall SaveReal(values,0,0,%s)\nendfunction\n",
+            retail_trig351[i].expression);
+        T_ASSERT(run_test_jass(script));
+        T_EQ(level.hashtables[0].num_entries, 1u);
+        if (level.hashtables[0].num_entries == 1) {
+            uint32_t word;
+            memcpy(&word, &level.hashtables[0].entries[0].value.real, sizeof(word));
+            T_EQ(word, retail_trig351[i].word);
+        }
+    }
+    reset_entities();
+}
+
+/* Actual nonreturning native calls belong to the bounded stress worker below;
+ * public guards and the neighboring large terminating domain remain in '*'. */
+TEST(wc3_api, pathfinding_power_large_terminating_domain_preserves_public_guards) {
+    setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call BJassAssert(Pow(0.0,-I2R(1073741824)*2.0)==0.0,\"public negative zero-base guard\")\n"
+        "call BJassAssert(Pow(1.0,-I2R(1000000000))==1.0,\"zero log remains terminating\")\n"
+        "call BJassAssert(Pow(2.0,I2R(1073741824))==0.0,\"large positive converted exponent\")\nendfunction\n"));
+    reset_entities();
+}
 
 TEST(wc3_api, revive_hero_location_native_restores_grom_style_death) {
     edict_t *hero;
@@ -220,7 +902,7 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     currentplayer = saved_currentplayer;
 }
 
-TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
+TEST(wc3_api, undead_race_and_public_unit_classification) {
     edict_t *undead = NULL;
     UnitData_t undead_data = { .id = MAKEFOURCC('u','g','h','o'), .race = "undead" };
 
@@ -240,6 +922,7 @@ TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set raceSubject = CreateUnit(Player(0), 'ugho', 0.0, 0.0, 0.0)\n"
+        "  call BJassAssert(UnitAddType(raceSubject, ConvertUnitType(14)), \"explicit live classification\")\n"
         "endfunction\n"));
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('u','g','h','o')) {
@@ -426,7 +1109,7 @@ TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
 TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
     edict_t *unit, *replacement;
     event_t *registration;
-    uint32_t old_spawn_time;
+    uint32_t old_spawn_time, removal_events;
 
     reset_entities(); setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -438,13 +1121,14 @@ TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
     registration->limitval = 0;
     old_spawn_time = unit->spawn_time;
     G_FreeEdict(unit);
+    removal_events=level.events.write;
     level.time += 2000;
     replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     replacement->spawn_time = level.time;
     T_ASSERT(replacement == unit);
     T_NE(replacement->spawn_time, old_spawn_time);
     G_SetHealth(replacement, 0);
-    T_EQ(level.events.write, 0);
+    T_EQ(level.events.write, removal_events);
 }
 
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
@@ -488,7 +1172,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
         "  call TriggerRegisterEnterRegion(acceptedEvent, watchedRegion, Condition(function accept_enter_filter))\n"
         "  call TriggerRegisterEnterRegion(rejectedEvent, watchedRegion, Condition(function reject_enter_filter))\n"
-        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call RegionAddRect(watchedRegion, Rect(32.0, -16.0, 63.0, 16.0))\n"
         "  call TriggerAddAction(acceptedEvent, function on_enter)\n"
         "  call TriggerAddAction(rejectedEvent, function on_rejected_enter)\n"
         "endfunction\n"
@@ -517,10 +1201,11 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     mover->health.value = 250.0f;
     mover->health.max_value = 250.0f;
     unit_stand(mover);
+    S_SetUnitMoveSpeed(mover,400); /* Cross the first32-unit region cell in this one-step test. */
     T_ASSERT(unit_issueorder(mover, "move", &destination));
 
-    G_RunEntities();
-    T_ASSERT(mover->s.origin2.x > 24.0f);
+    api_run_move_entities(2);
+    T_ASSERT(mover->s.origin2.x >= 32.0f);
     T_ASSERT(mover->s.origin2.x < 64.0f);
     G_RunEvents();
     jass_runevents(level.vm);
@@ -698,7 +1383,7 @@ TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
     G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify_removed_unit_did_not_receive_event", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     currentplayer = saved_currentplayer;
 }
 
@@ -844,7 +1529,7 @@ TEST(wc3_api, set_unit_position_dispatches_region_crossings) {
         "  local trigger leaveTrigger = CreateTrigger()\n"
         "  local region r = CreateRegion()\n"
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call RegionAddRect(r, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call RegionAddRect(r, Rect(32.0, -16.0, 63.0, 16.0))\n"
         "  call TriggerRegisterEnterRegion(enterTrigger, r, null)\n"
         "  call TriggerRegisterLeaveRegion(leaveTrigger, r, null)\n"
         "  call TriggerAddAction(enterTrigger, function on_enter)\n"
@@ -1304,7 +1989,7 @@ TEST(wc3_api, unit_type_ground_uses_authored_foot_movement) {
     T_NOT_NULL(gryphon);
     if (footman) {
         T_STREQ(footman->data.UnitData->moveTypeName, "foot");
-        T_ASSERT(!(footman->script_unit_types & (1u << 4)));
+        T_EQ(G_UnitTypeClassificationFlag(WC3_UNIT_TYPE_GROUND),0);
         T_ASSERT(!(footman->aiflags & AI_FLYING));
     }
     if (gryphon) {
@@ -1705,7 +2390,7 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
         }
     }
     T_NOT_NULL(handler);
-    G_PublishEvent(entering, EVENT_GAME_ENTER_REGION)->responseTo = handler;
+    G_PublishEventResponse(entering, EVENT_GAME_ENTER_REGION, handler);
     G_RunEvents();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyEnter", true);
@@ -1776,13 +2461,13 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
     unit_stand(leaving);
     T_ASSERT(unit_issueorder(leaving, "move", &destination));
     FOR_LOOP(i, 10) {
-        if (leaving->s.origin2.x > 200.0f) break;
+        if (leaving->s.origin2.x >= 224.0f) break;
         level.time += FRAMETIME;
-        G_RunEntities();
+        api_run_move_entities(1);
         G_RunEvents();
         jass_runevents(level.vm);
     }
-    T_ASSERT(leaving->s.origin2.x > 200.0f);
+    T_ASSERT(leaving->s.origin2.x >= 224.0f);
     jass_callbyname(level.vm, "verifyLeave", false);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -2332,6 +3017,8 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     gameClient_t *gc = &game.clients[0];
     edict_t *target = NULL;
 
+    /* Camera offsets need an admitted clear spawn, independent of prior camera bounds. */
+    reset_entities(); setup_test_world();
     gc->ps.number = 0;
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(
@@ -2586,6 +3273,60 @@ TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
     T_EQ(level.fow.players[2].visible[index], 0);
 }
 
+TEST(wc3_api, fog253_queries_classify_completed_planes) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    T_ASSERT(run_test_jass(
+        "function checkFog takes real x, real y, player p, boolean visible, boolean fogged, boolean masked returns nothing\n"
+        "local location l=Location(x,y)\n"
+        "call BJassAssert(IsVisibleToPlayer(x,y,p)==visible, \"point visible\")\n"
+        "call BJassAssert(IsFoggedToPlayer(x,y,p)==fogged, \"point fogged\")\n"
+        "call BJassAssert(IsMaskedToPlayer(x,y,p)==masked, \"point masked\")\n"
+        "call BJassAssert(IsLocationVisibleToPlayer(l,p)==visible, \"location visible\")\n"
+        "call BJassAssert(IsLocationFoggedToPlayer(l,p)==fogged, \"location fogged\")\n"
+        "call BJassAssert(IsLocationMaskedToPlayer(l,p)==masked, \"location masked\")\n"
+        "call RemoveLocation(l)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call FogEnable(true)\ncall FogMaskEnable(true)\n"
+        "call checkFog(0.0,0.0,Player(0),false,false,true)\n"
+        "call SetFogStateRadius(Player(0),FOG_OF_WAR_VISIBLE,0.0,0.0,32.0,false)\n"
+        "call checkFog(0.0,0.0,Player(0),true,false,false)\n"
+        "call checkFog(0.0,0.0,Player(1),false,false,true)\n"
+        "call SetFogStateRadius(Player(0),FOG_OF_WAR_FOGGED,0.0,0.0,32.0,false)\n"
+        "call checkFog(0.0,0.0,Player(0),false,true,false)\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call checkFog(0.0,0.0,Player(0),true,false,false)\n"
+        "call checkFog(256.0,0.0,Player(0),true,false,false)\n"
+        "call FogEnable(true)\ncall FogMaskEnable(true)\n"
+        "call SetFogStateRadius(Player(0),FOG_OF_WAR_MASKED,0.0,0.0,32.0,false)\n"
+        "call checkFog(0.0,0.0,Player(0),false,false,true)\n"
+        "call checkFog(0.0,0.0,null,false,false,false)\n"
+        "call BJassAssert(not IsLocationVisibleToPlayer(null,Player(0)), \"null visible\")\n"
+        "call BJassAssert(not IsLocationFoggedToPlayer(null,Player(0)), \"null fogged\")\n"
+        "call BJassAssert(not IsLocationMaskedToPlayer(null,Player(0)), \"null masked\")\n"
+        "endfunction\n"));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_api, fog253_queries_use_calling_client_policy) {
+    reset_entities();setup_test_world();G_FowInit();
+    player_t *caller=test_player(1);
+    currentplayer=caller;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call BJassAssert(IsVisibleToPlayer(0.0,0.0,Player(0)), \"calling policy must affect other player query\")\n"
+        "call BJassAssert(not IsMaskedToPlayer(0.0,0.0,Player(0)), \"calling mask policy\")\n"
+        "endfunction\n"));
+    currentplayer=NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(IsMaskedToPlayer(0.0,0.0,Player(1)), \"queried player policy must not leak\")\n"
+        "call BJassAssert(not IsVisibleToPlayer(0.0,0.0,Player(1)), \"default calling policy\")\n"
+        "call BJassAssert(IsVisibleToPlayer(0.0,0.0,Player(12)), \"neutral forced visibility\")\n"
+        "endfunction\n"));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
 TEST(wc3_api, glyph_omniscience_visibility_expires_but_exploration_remains) {
     uint32_t index;
     uint32_t start;
@@ -2622,12 +3363,14 @@ TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
     setup_test_world();
     G_FowInit();
     G_FowConnectPlayer(0);
+    fogModifier_t *owned=G_FogModifierCreate();T_NOT_NULL(owned);if(!owned)return;
+    *owned=mod;
     index = test_fow_cell(0.0f, 0.0f);
 
-    G_FogModifierStart(&mod);
+    G_FogModifierStart(owned);
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 1);
-    G_FogModifierStop(&mod);
+    G_FogModifierStop(owned);
 
     /* The next normal update removes current sight but must retain the
      * exploration created synchronously by the short-lived modifier. */
@@ -2647,29 +3390,69 @@ TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
     setup_test_world();
     G_FowInit();
     G_FowConnectPlayer(0);
+    fogModifier_t *owned=G_FogModifierCreate();T_NOT_NULL(owned);if(!owned)return;
+    *owned=mod;
     index = test_fow_cell(0.0f, 0.0f);
 
-    G_FogModifierStart(&mod);
+    G_FogModifierStart(owned);
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 1);
-    G_FogModifierStop(&mod);
+    G_FogModifierStop(owned);
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 0);
 
-    mod.center.x = 256.0f;
+    owned->center.x = 256.0f;
     index = test_fow_cell(256.0f, 0.0f);
-    mod.state = WC3_FOG_STATE_FOGGED;
-    G_FogModifierStart(&mod);
+    owned->state = WC3_FOG_STATE_FOGGED;
+    G_FogModifierStart(owned);
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 0);
-    mod.state = WC3_FOG_STATE_MASKED;
+    owned->state = WC3_FOG_STATE_MASKED;
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 0);
     T_EQ(level.fow.players[0].visible[index], 0);
-    G_FogModifierStop(&mod);
+    G_FogModifierStop(owned);
+}
+
+TEST(wc3_api, fog_modifier_save_restores_aliases_stopped_and_unreferenced_active_records) {
+    reset_entities(); setup_test_world(); G_FowInit(); G_FowConnectPlayer(0);
+    T_ASSERT(run_test_jass(
+        "type fogmodifier extends handle\n"
+        "globals\nfogmodifier first\nfogmodifier alias\nfogmodifier stopped\nendglobals\n"
+        "function verify takes nothing returns nothing\n"
+        "call BJassAssert(first == alias, \"fog aliases survive\")\n"
+        "call FogModifierStop(first)\ncall FogModifierStart(alias)\n"
+        "endfunction\n"
+        "function destroy takes nothing returns nothing\n"
+        "call DestroyFogModifier(first)\ncall FogModifierStart(alias)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\nlocal fogmodifier hidden\n"
+        "set first=CreateFogModifierRadius(Player(0),FOG_OF_WAR_VISIBLE,0,0,256,false,true)\n"
+        "set alias=first\ncall FogModifierStart(first)\n"
+        "set hidden=CreateFogModifierRadius(Player(0),FOG_OF_WAR_FOGGED,0,0,256,false,true)\n"
+        "call FogModifierStart(hidden)\nset hidden=null\n"
+        "set stopped=CreateFogModifierRadius(Player(0),FOG_OF_WAR_VISIBLE,0,0,256,false,true)\n"
+        "endfunction\n"));
+    uint32_t index=test_fow_cell(0,0); G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0); T_EQ(level.fow.players[0].explored[index],1);
+    cstring_t file=Test_TempPath("wc3-fog166-registry.bin");
+    T_ASSERT(WriteGame(file));
+    jass_callbyname(level.vm,"verify",false);G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],1);
+    T_ASSERT(ReadGame(file)); G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0);
+    jass_callbyname(level.vm,"verify",false);G_FowUpdate();
+    T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(level.fow.players[0].visible[index],1);
+    jass_callbyname(level.vm,"destroy",false);G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0);
+    /* A destroyed light handle is saved as null; the unreferenced hidden
+     * modifier remains game-owned and active through another cold restore. */
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0);
+    remove(file);G_FowShutdown();reset_entities();setup_test_world();
 }
 
 TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
@@ -3171,6 +3954,128 @@ static void setup_set_unit_position_pathmap(void) {
         .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
 }
 
+/* Public terrain natives must mutate just the selected fine-cell bits and
+ * report blocked status. Native type201630 is distinct from movement masks. */
+TEST(wc3_api, terrain_pathing_natives_preserve_other_bits_and_cells) {
+    uint8_t const masks[] = {255,2,4,8,16,32,64,128,0};
+    box2_t bounds = {{-1024,-2048},{1024,0}};
+    static uint8_t cells[64*64];
+    char script[2048];
+    for (unsigned type=0;type<9;type++) {
+        unsigned rawtype = type==8 ? 42 : type;
+        for (unsigned seed=0;seed<4;seed++) {
+            uint8_t flags=(uint8_t[]){0,1,0x55,0xaa}[seed], after=flags|masks[type];
+            memset(cells,0,sizeof(cells)); cells[5*64+4]=flags; cells[5*64+5]=0x91;
+            reset_entities(); setup_test_world();
+            CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells); G_BlightInit();
+            snprintf(script,sizeof(script),
+                "function main takes nothing returns nothing\n"
+                "local pathingtype p=ConvertPathingType(%u)\n"
+                "call BJassAssert(IsTerrainPathable(-895.875,-1887.75,p)==%s,\"terrain query before\")\n"
+                "call SetTerrainPathable(-895.875,-1887.75,p,false)\n"
+                "call BJassAssert(IsTerrainPathable(-895.875,-1887.75,p)==%s,\"terrain query blocked\")\n"
+                "call SetTerrainPathable(-895.875,-1887.75,p,true)\n"
+                "call BJassAssert(not IsTerrainPathable(-895.875,-1887.75,p),\"terrain query cleared\")\n"
+                "call SetTerrainPathable(-895.875,-1887.75,p,false)\n"
+                "endfunction\n",rawtype,flags&masks[type]?"true":"false",masks[type]?"true":"false");
+            T_ASSERT(run_test_jass(script));
+            uint8_t actual=0;
+            T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){-895.875,-1887.75},&actual));
+            T_EQ(actual,after);
+            T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){-863.875,-1887.75},&actual));
+            T_EQ(actual,0x91);
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_api, terrain_pathing_natives_survive_save_and_restore_blight) {
+    cstring_t filename = Test_TempPath("openwarcraft3-terrain-pathing-save.bin");
+    uint8_t cells[16*16] = {0}, flags = 0;
+    vec2_t point = {144,176}, neighbor = {176,176};
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
+    CM_SetupTestPathmap(16,16,cells); G_BlightInit();
+    T_ASSERT(run_test_jass(
+        "function block takes nothing returns nothing\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(0),false)\nendfunction\n"
+        "function clear takes nothing returns nothing\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(0),true)\nendfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "call BJassAssert(IsTerrainPathable(144,176,ConvertPathingType(1)),\"saved walking bit\")\n"
+        "call BJassAssert(IsTerrainPathable(144,176,ConvertPathingType(5)),\"saved blight bit\")\n"
+        "endfunction\nfunction main takes nothing returns nothing\ncall block()\nendfunction\n"));
+    T_ASSERT(G_IsPointBlighted(&point)); T_ASSERT(!G_IsPointBlighted(&neighbor));
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm,"clear",false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,0);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm,"verify",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,255);
+    T_ASSERT(G_IsPointBlighted(&point)); T_ASSERT(!G_IsPointBlighted(&neighbor));
+    T_ASSERT(G_GetTerrainPathingFlags(&neighbor,&flags)); T_EQ(flags,0);
+    remove(filename); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_api, terrain_point_query231_preserves_live_spatial_observations) {
+    uint8_t cells[16*16]={0};
+    reset_entities();setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});CM_SetupTestPathmap(16,16,cells);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),144,176);
+    unit->svflags|=SVF_MONSTER;unit->collision=16;unit->s.model=1;
+    G_PublishMoveSpatialObject(unit);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *object=wc3_records_owned(map,unit-g_edicts);
+    object->stamp=7;map->query=1000;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(1)),\"terrain ignores unit verdict\")\n"
+        "endfunction\n"));
+    /*04e090 supplies a high-only mask.1489a0 still observes an active
+     * object's identity before its low-category miss; this history is saved. */
+    T_EQ(map->query,1001);T_EQ(object->stamp,1001);
+    uint32_t owner=unit-g_edicts;
+    cstring_t filename=Test_TempPath("point231-save.bin");
+    T_ASSERT(WriteGame(filename));
+    /* Saving compacts memberships through its own stamped traversal. Compare
+     * the serialized state, rather than the earlier native-return counter. */
+    uint32_t saved_query=map->query,saved_stamp=object->stamp;
+    map->query=9000;object->stamp=9000;
+    T_ASSERT(ReadGame(filename));map=S_GetMoveFineSpatial();
+    object=wc3_records_owned(map,owner);T_NOT_NULL(object);
+    T_EQ(map->query,saved_query);if(object)T_EQ(object->stamp,saved_stamp);
+    remove(filename);reset_entities();setup_test_world();
+}
+
+TEST(wc3_api, terrain_pathing_query_ignores_objects_and_preserves_native_amphibious_bit) {
+    uint8_t cells[16*16] = {0}, flags = 0;
+    vec2_t point = {144,176};
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
+    CM_SetupTestPathmap(16,16,cells); G_BlightInit();
+    edict_t *object = alloc_test_unit(0,point.x,point.y);
+    object->collision = 16; object->svflags = 0; gi.LinkEntity(object);
+    CM_BakeStaticObstacles();
+    T_ASSERT(CM_GetPathingFlagsAt(&point,&flags)); T_ASSERT(flags & 2);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(1)),\"objects are not terrain\")\n"
+        "call BJassAssert(IsTerrainPathable(-0.125,176,ConvertPathingType(42)),\"outside with empty mask\")\n"
+        "call BJassAssert(IsTerrainPathable(512,176,ConvertPathingType(1)),\"max edge is outside\")\n"
+        "call SetTerrainPathable(-0.125,176,ConvertPathingType(0),false)\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(1),false)\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(6),false)\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(7)),\"native writes do not derive amphibious bit\")\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(1),true)\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(1)),\"terrain clears under object\")\n"
+        "endfunction\n"));
+    T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,64);
+    T_ASSERT(CM_GetPathingFlagsAt(&point,&flags)); T_ASSERT(flags & 2);
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
     edict_t *moved;
 
@@ -3183,9 +4088,9 @@ TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
 
     moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(moved);
-    /* Warsmash checks (256,256), then the first 64-unit spiral point below it. */
-    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
-    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+    /* Retail policy2 visits cell(8,7) first and publishes its centre. */
+    T_FEQ(moved->s.origin.x, 272.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 240.0f, 0.001f);
 }
 
 TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
@@ -3199,10 +4104,9 @@ TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
 
     created = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(created);
-    /* Warsmash CreateUnit calls createUnitSimple, which nudges an embedded
-     * unit to the first legal point in its 64-unit spiral. */
-    T_FEQ(created->s.origin.x, 256.0f, 0.001f);
-    T_FEQ(created->s.origin.y, 192.0f, 0.001f);
+    /* Public CreateUnit uses the same verified cell(8,7) admission as SetUnitPosition. */
+    T_FEQ(created->s.origin.x, 272.0f, 0.001f);
+    T_FEQ(created->s.origin.y, 240.0f, 0.001f);
 }
 
 TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
@@ -3303,8 +4207,9 @@ TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
     if (created) {
         T_FEQ(created->s.origin.x, 256.0f, 0.001f);
         T_FEQ(created->s.origin.y, 256.0f, 0.001f);
-        T_EQ(created->data.UnitData->id, MAKEFOURCC('n','f','r','m'));
-        T_EQ(created->data.UnitWeapons->id, MAKEFOURCC('n','f','r','m'));
+        T_EQ(created->data.UnitData->id, custom_id);
+        T_ASSERT(M_UnitMoveDisabled(created));
+        T_EQ(created->data.UnitWeapons->id, custom_id);
         T_EQ(created->data.UnitBalance->id, custom_id);
         T_FEQ(created->data.UnitBalance->maxHealth, custom_health, 0.001f);
     }
@@ -3321,9 +4226,9 @@ TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
     free_slk_rows(old_data); free_slk_rows(old_balance); free_slk_rows(old_weapons);
 }
 
-/* Movement-disabled is a property of the movetp row, not of "has no attack": a retail tower row authors "_"
- * with an enabled weapon and a non-zero speed cell, and both position natives must leave it where asked. */
-TEST(wc3_api, movement_disabled_armed_unit_keeps_requested_position) {
+/* BASE-02.1: zero fine query does not remove a positive-speed Move owner.
+ * Both position natives still retain the requested unblocked pose. */
+TEST(wc3_api, zero_query_armed_move_owner_keeps_requested_position) {
     static cstring_t const data_slk =
         "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
@@ -3356,7 +4261,8 @@ TEST(wc3_api, movement_disabled_armed_unit_keeps_requested_position) {
     created = find_test_unit(MAKEFOURCC('n','f','r','m'));
     T_NOT_NULL(created);
     if (created) {
-        T_ASSERT(M_UnitMoveDisabled(created));
+        T_ASSERT(!M_UnitMoveDisabled(created));
+        T_FEQ(S_UnitMoveSpeed(created), 75.0f, 0.001f);
         T_FEQ(created->s.origin.x, 256.0f, 0.001f);
         T_FEQ(created->s.origin.y, 256.0f, 0.001f);
     }
@@ -3394,8 +4300,10 @@ TEST(wc3_api, createunit_avoids_live_unit_collision) {
     T_NOT_NULL(first); T_NOT_NULL(second);
     if (first && second) {
         T_FEQ(first->s.origin.x, 256.0f, 0.001f);
-        T_FEQ(second->s.origin.x, 256.0f, 0.001f);
-        T_FEQ(second->s.origin.y, 192.0f, 0.001f);
+        T_EQ(second->collision,16);
+        /* Both16-radius actors are class1; first disjoint cell is(7,6). */
+        T_FEQ(second->s.origin.x, 240.0f, 0.001f);
+        T_FEQ(second->s.origin.y, 208.0f, 0.001f);
     }
 }
 
@@ -3448,7 +4356,7 @@ TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     T_FEQ(out.y, 192.0f, 0.001f);
 }
 
-TEST(wc3_api, float_unstuck_collision_uses_sea_domain) {
+TEST(wc3_api, float_unstuck_retains_nonflyer_collision_layer) {
     enum { CELLS = 16 };
     static UnitData_t const foot_data = { .moveTypeName = "foot" };
     static UnitData_t const float_data = { .moveTypeName = "float" };
@@ -3473,12 +4381,17 @@ TEST(wc3_api, float_unstuck_collision_uses_sea_domain) {
 
     T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
     T_FEQ(out.x, requested.x, 0.001f);
-    T_FEQ(out.y, requested.y, 0.001f);
+    T_FEQ(out.y, requested.y - 64.0f, 0.001f);
 
     blocker->data.UnitData = &float_data;
     T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
     T_FEQ(out.x, requested.x, 0.001f);
     T_FEQ(out.y, requested.y - 64.0f, 0.001f);
+
+    blocker->aiflags |= AI_FLYING;
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    T_FEQ(out.x, requested.x, 0.001f);
+    T_FEQ(out.y, requested.y, 0.001f);
 }
 
 TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
@@ -3513,8 +4426,8 @@ TEST(wc3_api, set_unit_position_loc_uses_same_unstuck_search) {
 
     moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(moved);
-    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
-    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+    T_FEQ(moved->s.origin.x, 272.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 240.0f, 0.001f);
 }
 
 /* Issue-418: HumanX03.w3x calls OffsetLocation(GetUnitLoc(null unit), ...) which
@@ -4005,7 +4918,7 @@ TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
     G_DeferFreeEdict(unit);
     T_ASSERT(unit->inuse);
     T_ASSERT(unit->s.renderfx & RF_HIDDEN);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_ASSERT(!unit->inuse);
 }
 
@@ -4103,7 +5016,7 @@ TEST(wc3_api, createunit_does_not_reuse_deferred_dead_unit) {
     replacement = unit_createorfind(0, MAKEFOURCC('h','p','e','a'), &(vec2_t){0, 0}, 0);
     T_ASSERT(replacement && replacement != dead);
     T_ASSERT(replacement->inuse);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     G_FreeEdict(replacement);
 }
 
@@ -4454,6 +5367,792 @@ TEST(wc3_api, immediate_order_publishes_order_event_context) {
     jass_callbyname(level.vm, "verifyOrder", true);
     jass_runevents(level.vm);
     T_EQ(G_GetIssuedOrderId(unit), G_OrderId("holdposition"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+/* Synchronous nested orders finish before the outer native returns, while
+ * each condition/action keeps its own immutable submitted payload. */
+TEST(wc3_api, issued_order_context_is_frozen_across_replacement_and_reentry) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer pointConditions = 0\n"
+        "  integer pointActions = 0\n"
+        "  integer stopActions = 0\n"
+        "endglobals\n"
+        "function checkPoint takes integer index returns nothing\n"
+        "  local integer id = OrderId(\"move\")\n"
+        "  local real x = 192.0\n"
+        "  local real y = 64.0\n"
+        "  local location p\n"
+        "  if index == 3 then\n"
+        "    set id = OrderId(\"smart\")\n"
+        "    set x = 256.0\n"
+        "    set y = 96.0\n"
+        "  elseif index == 2 then\n"
+        "    set x = 320.0\n"
+        "    set y = 128.0\n"
+        "  endif\n"
+        "  call BJassAssert(GetIssuedOrderId() == id, \"callback must retain its submitted order ID\")\n"
+        "  call BJassAssert(GetOrderPointX() == x and GetOrderPointY() == y, \"callback must retain its submitted point\")\n"
+        "  set p = GetOrderPointLoc()\n"
+        "  call BJassAssert(GetLocationX(p) == x and GetLocationY(p) == y, \"order location must use callback snapshot\")\n"
+        "  call RemoveLocation(p)\n"
+        "endfunction\n"
+        "function pointCondition takes nothing returns boolean\n"
+        "  set pointConditions = pointConditions + 1\n"
+        "  call checkPoint(pointConditions)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function onPoint takes nothing returns nothing\n"
+        "  set pointActions = pointActions + 1\n"
+        "  call checkPoint(pointActions)\n"
+        "  if pointActions == 1 then\n"
+        "    call BJassAssert(IssuePointOrder(testUnit, \"move\", 320.0, 128.0), \"reentrant replacement accepted\")\n"
+        "    call checkPoint(1)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function onStop takes nothing returns nothing\n"
+        "  set stopActions = stopActions + 1\n"
+        "  call BJassAssert(GetIssuedOrderId() == OrderId(\"stop\"), \"immediate callback must retain Stop ID\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(pointConditions == 3 and pointActions == 3 and stopActions == 1, \"each submission publishes once\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"initial Move accepted\")\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 256.0, 96.0), \"replacement Smart accepted\")\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"stop\"), \"Stop accepted\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger p = CreateTrigger()\n"
+        "  local trigger s = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(p, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerAddCondition(p, Condition(function pointCondition))\n"
+        "  call TriggerAddAction(p, function onPoint)\n"
+        "  call TriggerRegisterUnitEvent(s, testUnit, EVENT_UNIT_ISSUED_ORDER)\n"
+        "  call TriggerAddAction(s, function onStop)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->stand = unit_stand;
+    unit_stand(unit);
+    jass_callbyname(level.vm, "issue", true); jass_runevents(level.vm);
+    G_RunEvents(); jass_runevents(level.vm);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", true); jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, current_order_point_move_tracks_active_head_through_server_frames) {
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-current-order-point-save-test.bin");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "endglobals\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == 0, \"idle unit has no current user order\")\n"
+        "endfunction\n"
+        "function verifyMove takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"move\"), \"current head stays Move while Smart waits\")\n"
+        "endfunction\n"
+        "function verifySmart takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"smart\"), \"Smart becomes current only at activation\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"ordinary Move accepted\")\n"
+        "  call verifyMove()\n"
+        "endfunction\n"
+        "function replace takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 320.0, 128.0), \"point replacement accepted\")\n"
+        "  call verifySmart()\n"
+        "  call BJassAssert(not IssuePointOrder(testUnit, \"missingorder\", 64.0, 64.0), \"unsupported replacement rejected\")\n"
+        "  call verifySmart()\n"
+        "endfunction\n"
+        "function stop takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"stop\"), \"Stop accepted\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function recreate takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "issue", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "smart", &(vec2_t){384, 160}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(unit->order_queue.count, 1);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 240 && unit->order_queue.count; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(move_is_active_order_walk(unit));
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    jass_callbyname(level.vm, "stop", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    jass_callbyname(level.vm, "issue", false);
+    jass_callbyname(level.vm, "replace", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 240 && move_is_active_order_walk(unit); frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(!move_is_active_order_walk(unit));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){320, 128}) <= unit->collision + 16);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = false;
+    G_FreeEdict(unit); level.time += 1001;
+    jass_callbyname(level.vm, "recreate", false);
+    T_ASSERT(find_test_unit(MAKEFOURCC('h','p','e','a')) == unit);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_api, current_order_follow_tracks_active_head_through_server_frames) {
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-current-order-follow-save-test.bin");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  unit targetUnit = null\n"
+        "endglobals\n"
+        "function verifySmart takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"smart\"), \"standing or moving Follow retains Smart\")\n"
+        "endfunction\n"
+        "function verifyMove takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"move\"), \"target Move retains its public command\")\n"
+        "endfunction\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == 0, \"retired Follow has no current command\")\n"
+        "endfunction\n"
+        "function smart takes nothing returns nothing\n"
+        "  call BJassAssert(IssueTargetOrder(testUnit, \"smart\", targetUnit), \"ally Smart accepted\")\n"
+        "  call verifySmart()\n"
+        "endfunction\n"
+        "function move takes nothing returns nothing\n"
+        "  call BJassAssert(IssueTargetOrder(testUnit, \"move\", targetUnit), \"target Move accepted\")\n"
+        "  call verifyMove()\n"
+        "endfunction\n"
+        "function reject takes nothing returns nothing\n"
+        "  call BJassAssert(not IssueTargetOrder(testUnit, \"missingorder\", targetUnit), \"invalid replacement rejected\")\n"
+        "  call verifyMove()\n"
+        "endfunction\n"
+        "function stop takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"stop\"), \"Stop accepted\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function removeTarget takes nothing returns nothing\n"
+        "  call RemoveUnit(targetUnit)\n"
+        "endfunction\n"
+        "function recreate takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  set targetUnit = CreateUnit(Player(0), 'hfoo', 512.0, 64.0, 0.0)\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function kill takes nothing returns nothing\n"
+        "  call KillUnit(testUnit)\n"
+        "  call verifyIdle()\n"
+        "  call BJassAssert(not IssueTargetOrder(testUnit, \"move\", targetUnit), \"dead Move rejected\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  set targetUnit = CreateUnit(Player(0), 'hfoo', 512.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    edict_t *target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(unit); T_NOT_NULL(target);
+    edict_t *actors[] = {unit, target};
+    for (int i = 0; i < 2; i++) {
+        actors[i]->health.value = actors[i]->health.max_value = 100;
+        actors[i]->collision = 8; actors[i]->unitinfo.MoveSpeed = 256;
+        actors[i]->movetype = MOVETYPE_STEP; actors[i]->svflags |= SVF_MONSTER;
+        actors[i]->think = monster_think; actors[i]->stand = unit_stand; actors[i]->die = unit_die;
+        unit_stand(actors[i]); gi.LinkEntity(actors[i]);
+    }
+    jass_callbyname(level.vm, "smart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 80; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(unit->movement.follow_target == target);
+    T_EQ(unit->order_queue.count, 1);
+    T_ASSERT(M_DistanceToGoal(unit) <= G_FollowStopRange(unit, target) + 16);
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    T_EQ(unit->order_queue.count, 0);
+    jass_callbyname(level.vm, "reject", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    float const old_x = unit->s.origin.x;
+    target->s.origin.x = target->s.origin2.x = 704; gi.LinkEntity(target);
+    for (int frame = 0; frame < 20; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(unit->s.origin.x > old_x);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    jass_callbyname(level.vm, "removeTarget", false);
+    /* RemoveUnit defers edict reclamation until the event pass completes. */
+    for (int frame = 0; frame < 10 && unit->movement.follow_target; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_NULL(unit->movement.follow_target);
+    T_EQ(unit->order_queue.count, 0);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    for (int frame = 0; frame < 120 && move_is_active_order_walk(unit); frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){768, 128}) <= unit->collision + 16);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    level.started = false;
+    G_FreeEdict(unit); level.time += 1001;
+    jass_callbyname(level.vm, "recreate", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(find_test_unit(MAKEFOURCC('h','p','e','a')) == unit);
+    target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    actors[1] = target;
+    for (int i = 0; i < 2; i++) {
+        actors[i]->health.value = actors[i]->health.max_value = 100;
+        actors[i]->collision = 8; actors[i]->unitinfo.MoveSpeed = 256;
+        actors[i]->movetype = MOVETYPE_STEP; actors[i]->svflags |= SVF_MONSTER;
+        actors[i]->think = monster_think; actors[i]->stand = unit_stand; actors[i]->die = unit_die;
+        unit_stand(actors[i]); gi.LinkEntity(actors[i]);
+    }
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){192, 64}, false, 0, 0));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", target, true, 0));
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 120 && unit->order_queue.count; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(unit->movement.follow_target == target);
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "stop", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "kill", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    remove(filename);
+}
+
+TEST(wc3_api, current_order_repair_native_frames_queue_save_death_and_reuse) {
+    cstring_t filename = Test_TempPath("wc3-repair122-save.bin");
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n unit worker = null\n unit target = null\nendglobals\n"
+        "function repair takes nothing returns nothing\n"
+        " call BJassAssert(IssueTargetOrder(worker, \"repair\", target), \"Repair accepted\")\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==852024, \"Repair owns public head\")\nendfunction\n"
+        "function smart takes nothing returns nothing\n"
+        " call BJassAssert(IssueTargetOrder(worker, \"smart\", target), \"Smart Repair accepted\")\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==851971, \"Smart retains public identity\")\nendfunction\n"
+        "function verifyRepair takes nothing returns nothing\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==852024, \"Repair remains current\")\nendfunction\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==0, \"Repair head retired\")\nendfunction\n"
+        "function full takes nothing returns nothing\n"
+        " call SetUnitState(target, UNIT_STATE_LIFE, GetUnitState(target, UNIT_STATE_MAX_LIFE))\nendfunction\n"
+        "function kill takes nothing returns nothing\n call KillUnit(worker)\n call verifyIdle()\nendfunction\n"
+        "function removeTarget takes nothing returns nothing\n call RemoveUnit(target)\n call verifyRepair()\nendfunction\n"
+        "function recreate takes nothing returns nothing\n"
+        " set worker=CreateUnit(Player(0),'hpea',64.0,64.0,0.0)\n call verifyIdle()\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        " set worker=CreateUnit(Player(0),'hpea',64.0,64.0,0.0)\n"
+        " set target=CreateUnit(Player(0),'hbar',704.0,64.0,0.0)\nendfunction\n"));
+    edict_t *worker = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    edict_t *target = find_test_unit(MAKEFOURCC('h','b','a','r'));
+    T_NOT_NULL(worker); T_NOT_NULL(target);
+    worker->health.value = worker->health.max_value = 100;
+    worker->collision = 8; worker->unitinfo.MoveSpeed = 256;
+    worker->movetype = MOVETYPE_STEP; worker->svflags |= SVF_MONSTER;
+    worker->think = monster_think; worker->stand = unit_stand; worker->die = unit_die;
+    target->health.max_value = 1000; target->health.value = 900;
+    target->collision = 32; target->stand = unit_stand;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    unit_stand(worker); gi.LinkEntity(worker); gi.LinkEntity(target);
+    jass_callbyname(level.vm, "repair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){768,128}, true, 0, 0));
+    target->health.value = 999.5f;
+    T_ASSERT(!G_IssueUnitTargetOrder(worker, "repair", target, false, 0));
+    T_EQ(worker->current_order_id, 852024); T_EQ(worker->order_queue.count, 1);
+    target->health.value = 900;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(worker, "stop")); T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(worker->build, target); T_EQ(worker->order_queue.count, 1);
+    T_EQ(worker->buildwork->target_spawn_time, target->spawn_time);
+    T_ASSERT(!worker->buildwork->target_removed);
+    T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    jass_callbyname(level.vm, "smart", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){192,64}, false, 0, 0));
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", target, true, 0));
+    T_EQ(worker->current_order_id, 851986); T_EQ(worker->order_queue.count, 1);
+    T_ASSERT(WriteGame(filename)); T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(ReadGame(filename));
+    for (int frame = 0; frame < 120 && worker->order_queue.count; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(worker->order_queue.count, 0);
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "full", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    for (int frame = 0; frame < 3; frame++) { level.time += FRAMETIME; globals.RunFrame(); }
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    float approach_x = worker->s.origin.x;
+    for (int frame = 0; frame < 120 && worker->current_order_id; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(worker->s.origin.x > approach_x); T_NULL(worker->build);
+    jass_callbyname(level.vm, "verifyIdle", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    target->health.value = 900;
+    jass_callbyname(level.vm, "repair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "kill", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(worker->build); T_EQ(worker->order_queue.count, 0);
+    G_FreeEdict(worker); level.time += 1001;
+    jass_callbyname(level.vm, "recreate", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(find_test_unit(MAKEFOURCC('h','p','e','a')), worker);
+    jass_callbyname(level.vm, "repair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "removeTarget", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(worker->buildwork->target_removed); T_NULL(worker->build);
+    T_ASSERT(WriteGame(filename)); T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(worker->buildwork->target_removed); T_NULL(worker->build);
+    for (int frame = 0; frame < 8 && worker->current_order_id; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    jass_callbyname(level.vm, "verifyIdle", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(worker->build);
+    remove(filename); building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_api, current_order_hold_is_retired_while_behavior_persists) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-current-order-hold-save-test.bin");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "endglobals\n"
+        "function verifyHold takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == 0, \"Hold completes its user head while retaining behavior\")\n"
+        "endfunction\n"
+        "function hold takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"holdposition\"), \"Hold accepted\")\n"
+        "  call verifyHold()\n"
+        "endfunction\n"
+        "function move takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 512.0, 64.0), \"Move accepted\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"move\"), \"Move replaces retained Hold behavior\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit);
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    jass_callbyname(level.vm, "hold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(unit->movement.holding_position);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyHold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_ASSERT(unit->movement.holding_position);
+    /* The minimal MPQ omits UnitWeapons; supply the authored attack contract. */
+    unit->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL; S_AttackProfileWrite(unit, 0)->range = 64; S_AttackProfileWrite(unit, 0)->cooldown = 0.5f;
+    S_AttackProfileWrite(unit, 0)->damagePoint = 0.2f;
+    S_AttackProfileWrite(unit, 0)->damageBase = 10; S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->runtime.acquisition_range = 600;
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','g','r','u'), 88, 64);
+    enemy->s.player = 1; enemy->targtype = TARG_GROUND; enemy->health.value = enemy->health.max_value = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    enemy->svflags |= SVF_MONSTER;
+    enemy->die = unit_die; gi.LinkEntity(enemy);
+    T_ASSERT(G_FindNearestEnemy(unit, 600) == enemy);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 60; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(enemy->health.value < enemy->health.max_value);
+    T_FEQ(unit->s.origin.x, 64, 0.001f); T_FEQ(unit->s.origin.y, 64, 0.001f);
+    jass_callbyname(level.vm, "verifyHold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_FreeEdict(enemy);
+    for (int frame = 0; frame < 20; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(unit->movement.holding_position);
+    jass_callbyname(level.vm, "verifyHold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_ASSERT(!unit->movement.holding_position);
+    remove(filename);
+}
+
+TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
+    for (int smart = 0; smart < 2; smart++) for (int queued = 0; queued < 4; queued++) {
+        reset_entities();
+        setup_test_world();
+        T_ASSERT(run_test_jass(
+            "globals\n"
+            "  unit subject = null\n"
+            "  unit target = null\n"
+            "  unit other = null\n"
+            "endglobals\n"
+            "function move takes nothing returns nothing\n"
+            "  call BJassAssert(IssueTargetOrder(subject, \"move\", target), \"target Move accepted\")\n"
+            "endfunction\n"
+            "function smart takes nothing returns nothing\n"
+            "  call BJassAssert(IssueTargetOrder(subject, \"smart\", target), \"target Smart accepted\")\n"
+            "endfunction\n"
+            "function removeTarget takes nothing returns nothing\n"
+            "  call RemoveUnit(target)\n"
+            "endfunction\n"
+            "function removeOther takes nothing returns nothing\n"
+            "  call RemoveUnit(other)\n"
+            "endfunction\n"
+            "function verifyIdle takes nothing returns nothing\n"
+            "  call BJassAssert(GetUnitCurrentOrder(subject) == 0, \"RemoveUnit synchronously retires Follow\")\n"
+            "endfunction\n"
+            "function verifySmart takes nothing returns nothing\n"
+            "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"smart\"), \"lost queued Smart retains its point\")\n"
+            "endfunction\n"
+            "function verifyMove takes nothing returns nothing\n"
+            "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"move\"), \"valid pending point Move activates synchronously\")\n"
+            "endfunction\n"
+            "function main takes nothing returns nothing\n"
+            "  set subject = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+            "  set target = CreateUnit(Player(0), 'hfoo', 512.0, 64.0, 0.0)\n"
+            "  set other = CreateUnit(Player(0), 'hgry', 64.0, 512.0, 0.0)\n"
+            "endfunction\n"));
+        edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+        edict_t *target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+        edict_t *actors[] = {unit, target};
+        T_NOT_NULL(unit); T_NOT_NULL(target);
+        for (int i = 0; i < 2; i++) {
+            actors[i]->health.value = actors[i]->health.max_value = 100;
+            actors[i]->collision = 8; actors[i]->unitinfo.MoveSpeed = 256;
+            actors[i]->movetype = MOVETYPE_STEP; actors[i]->svflags |= SVF_MONSTER;
+            actors[i]->think = monster_think; actors[i]->stand = unit_stand; actors[i]->die = unit_die;
+            unit_stand(actors[i]); gi.LinkEntity(actors[i]);
+        }
+        jass_callbyname(level.vm, smart ? "smart" : "move", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        /* Retail216: Smart initially owns approach/d0174, whose loss can
+         * reissue a point. Exercise this test's persistent Follow/d0173
+         * contract by completing that approach before removing the target. */
+        api_run_move_entities(30);
+        T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2) <=
+                 G_FollowStopRange(unit,target)+unit->collision+target->collision);
+        jass_callbyname(level.vm, "removeOther", false);
+        T_ASSERT(unit->movement.follow_target == target);
+        T_EQ(unit->current_order_id, G_OrderId(smart ? "smart" : "move"));
+        if (queued == 2) T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", target, true, 0));
+        if (queued) T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, queued != 3, 0, 0));
+        jass_callbyname(level.vm, "removeTarget", false);
+        T_ASSERT(target->inuse); T_ASSERT(G_IsDeferredFree(target));
+        T_NULL(unit->movement.follow_target);
+        /* Payoff277 repeated retail Shift RMB: removing a subscribed target
+         * retires the active Follow, but does not discard the queued Smart.
+         * It activates at its saved point before the remaining point Move. */
+        T_EQ(unit->order_queue.count, queued == 2 ? 1 : 0);
+        jass_callbyname(level.vm, queued == 2 ? "verifySmart" : queued ? "verifyMove" : "verifyIdle", false);
+        T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+        jass_callbyname(level.vm, "removeTarget", false);
+        jass_callbyname(level.vm, queued == 2 ? "verifySmart" : queued ? "verifyMove" : "verifyIdle", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if (queued) T_ASSERT(move_is_active_order_walk(unit));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        level.time += FRAMETIME; globals.RunFrame();
+        T_ASSERT(!target->inuse);
+        if (queued) {
+            for (int frame = 0; frame < 120 && move_is_active_order_walk(unit); frame++) {
+                level.time += FRAMETIME; globals.RunFrame();
+            }
+            T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){768, 128}) <= unit->collision + 16);
+        }
+        jass_callbyname(level.vm, "verifyIdle", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+}
+
+TEST(wc3_api, current_order_patrol_owns_native_reversal_and_pending_activation) {
+    char const *filename = Test_TempPath("openwarcraft3-wc3-current-order-patrol-save-test.bin");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit subject = null\n"
+        "endglobals\n"
+        "function verifyPatrol takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(subject) == 851991, \"persistent Patrol owns its public head\")\n"
+        "endfunction\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(subject) == 0, \"retired Patrol has no current head\")\n"
+        "endfunction\n"
+        "function patrol takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(subject, \"patrol\", 384.0, 64.0), \"public Patrol accepted\")\n"
+        "  call verifyPatrol()\n"
+        "endfunction\n"
+        "function reject takes nothing returns nothing\n"
+        "  call BJassAssert(not IssuePointOrder(subject, \"missingorder\", 512.0, 64.0), \"invalid replacement rejected\")\n"
+        "  call verifyPatrol()\n"
+        "endfunction\n"
+        "function stop takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(subject, \"stop\"), \"Stop accepted\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function move takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(subject, \"move\", 192.0, 64.0), \"point Move accepted\")\n"
+        "endfunction\n"
+        "function kill takes nothing returns nothing\n"
+        "  call KillUnit(subject)\n"
+        "  call verifyIdle()\n"
+        "  call BJassAssert(not IssuePointOrder(subject, \"patrol\", 384.0, 64.0), \"dead Patrol rejected\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set subject = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit);
+    jass_callbyname(level.vm, "patrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NOT_NULL(unit->movement.patrol_a); T_NOT_NULL(unit->movement.patrol_b);
+    if (!unit->movement.patrol_a || !unit->movement.patrol_b) return;
+    jass_callbyname(level.vm, "reject", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    unsigned reversals = 0;
+    edict_t *last = unit->movement.patrol_target;
+    for (int frame = 0; frame < 100; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+        if (unit->movement.patrol_target != last) {
+            reversals++; last = unit->movement.patrol_target;
+        }
+    }
+    T_ASSERT(reversals >= 2);
+    jass_callbyname(level.vm, "verifyPatrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "stop", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyPatrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 1);
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    T_NULL(unit->movement.patrol_a);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &(vec2_t){448, 64}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    for (int frame = 0; frame < 120 && unit->current_order_id != 851991; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->order_queue.count, 0);
+    jass_callbyname(level.vm, "verifyPatrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){192, 64}) <= 64);
+    T_FEQ(unit->movement.patrol_a->s.origin.x, unit->s.origin.x, 0.001f);
+    T_FEQ(unit->movement.patrol_a->s.origin.y, unit->s.origin.y, 0.001f);
+    T_FEQ(unit->movement.patrol_b->s.origin.x, 448, 0.001f);
+    T_FEQ(unit->movement.patrol_b->s.origin.y, 64, 0.001f);
+    jass_callbyname(level.vm, "kill", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_FreeEdict(unit); level.time += 1001;
+    jass_callbyname(level.vm, "main", false);
+    T_ASSERT(find_test_unit(MAKEFOURCC('h','p','e','a')) == unit);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_api, current_order_patrol_ui_uses_same_pending_owner) {
+    void (*write)(pfWriteType_t, void const *) = gi.Write;
+    void (*unicast)(edict_t *) = gi.unicast;
+    cstring_t command[] = { "button", "CmdPatrol" };
+    setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *clent = g_edicts;
+    clent->client = game.clients;
+    gi.Write = selection_native_test_write; gi.unicast = selection_native_test_unicast;
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit); G_SelectEntity(clent->client, unit);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){192, 64}, false, 0, 0));
+    G_ClientCommand(clent, 2, command);
+    T_ASSERT(clent->client->menu.supports_order_queue);
+    T_NOT_NULL(clent->client->menu.on_location_selected);
+    clent->client->menu.order_queued = true;
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &(vec2_t){448, 64}));
+    T_EQ(unit->current_order_id, G_OrderId("move")); T_EQ(unit->order_queue.count, 1);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 120 && unit->current_order_id != 851991; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->current_order_id, 851991); T_EQ(unit->order_queue.count, 0);
+    T_NOT_NULL(unit->movement.patrol_a);
+    clent->client->menu.order_queued = false;
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &(vec2_t){512, 256}));
+    T_EQ(unit->current_order_id, 851991);
+    T_FEQ(unit->movement.patrol_b->s.origin.x, 512, 0.001f);
+    T_FEQ(unit->movement.patrol_b->s.origin.y, 256, 0.001f);
+    gi.Write = write; gi.unicast = unicast;
+}
+
+TEST(wc3_api, issued_order_context_ignores_spell_metadata) {
+    setup_test_world();
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer spellEvents = 0\n"
+        "endglobals\n"
+        "function onSpell takes nothing returns nothing\n"
+        "  set spellEvents = spellEvents + 1\n"
+        "  call BJassAssert(GetSpellAbilityId() == 'AHbz', \"spell retains its own scalar metadata\")\n"
+        "  call BJassAssert(GetSpellTargetX() == 112.0, \"spell retains its own point metadata\")\n"
+        "  call BJassAssert(GetIssuedOrderId() == 0, \"spell callback has no issued order ID\")\n"
+        "  call BJassAssert(GetOrderPointX() == 0.0, \"spell callback has no order point X\")\n"
+        "  call BJassAssert(GetOrderPointY() == 0.0, \"spell callback has no order point Y\")\n"
+        "  call BJassAssert(GetOrderPointLoc() == null, \"spell callback has no order location\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(spellEvents == 1, \"spell callback executes once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_SPELL_EFFECT, null)\n"
+        "  call TriggerAddAction(t, function onSpell)\n"
+        "endfunction\n"));
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 32);
+    G_PublishEventWithPoint(&(gameEventPointParams_t){ .edict = unit,
+        .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .value = MAKEFOURCC('A','H','b','z'),
+        .point = &(vec2_t){112, 224} });
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, issued_target_context_is_frozen_across_replacement) {
+    setup_test_world();
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit mover = null\n"
+        "  unit first = null\n"
+        "  unit second = null\n"
+        "  integer targetEvents = 0\n"
+        "endglobals\n"
+        "function onTarget takes nothing returns nothing\n"
+        "  set targetEvents = targetEvents + 1\n"
+        "  if targetEvents <= 2 then\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"move\"), \"first target order ID frozen\")\n"
+        "    call BJassAssert(GetOrderTargetUnit() == first, \"first target ownership frozen\")\n"
+        "  else\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"smart\"), \"second target order ID frozen\")\n"
+        "    call BJassAssert(GetOrderTargetUnit() == second, \"second target ownership frozen\")\n"
+        "  endif\n"
+        "  call BJassAssert(GetOrderPointX() == 0.0, \"target order does not expose point metadata\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssueTargetOrder(mover, \"move\", first), \"first follow accepted\")\n"
+        "  call BJassAssert(IssueTargetOrder(mover, \"smart\", second), \"replacement follow accepted\")\n"
+        "  call BJassAssert(IssueImmediateOrder(mover, \"stop\"), \"follow interruption accepted\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(targetEvents == 4, \"both event families publish each target once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  set first = CreateUnit(Player(0), 'hfoo', 192.0, 64.0, 0.0)\n"
+        "  set second = CreateUnit(Player(0), 'hfoo', 256.0, 96.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), ConvertPlayerUnitEvent(40), null)\n"
+        "  call TriggerRegisterUnitEvent(t, mover, EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+        "  call TriggerAddAction(t, function onTarget)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = &g_edicts[i];
+        if (!unit->inuse || (unit->class_id != MAKEFOURCC('h','p','e','a') &&
+                             unit->class_id != MAKEFOURCC('h','f','o','o'))) continue;
+        unit->health.value = unit->health.max_value = 100;
+        unit->svflags |= SVF_MONSTER;
+        unit->stand = unit_stand; unit_stand(unit);
+    }
+    jass_callbyname(level.vm, "issue", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_STREQ(jass_rterror_message(level.vm), "");
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
@@ -6095,16 +7794,36 @@ TEST(wc3_api, alliance_passive_default_false) {
     T_ASSERT(!G_GetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE));
 }
 
+/* Original 1e7c20/1e9bf0 defaults, verified against retail GetPlayerAlliance matrices
+ * (tools/frida/wc3_alliance_probe.j): every player holds types 0..7 toward itself and is
+ * mutually PASSIVE with Neutral Passive; after config, controllers (not W3I slot types) make
+ * Neutral/Rescuable players mutually PASSIVE with User/Computer ones and with each other. */
 TEST(wc3_api, alliance_defaults_include_neutral_passive_and_neutral_controller_slots) {
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
+    uint32_t const controllers[] = {0, 1, 5, 3, 2, 0};
 
     mapinfo->players[3].playerType = kPlayerTypeNeutral;
+    mapinfo->players[5].playerType = kPlayerTypeNeutral;
     G_InitPlayerAlliances(level.mapinfo);
+    T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(3), ALLIANCE_PASSIVE));
+    FOR_LOOP(i, sizeof(controllers) / sizeof(controllers[0]))
+        PLAYER_CLIENT(test_player(i))->jass.controller = controllers[i];
+    G_InitControllerAlliances();
 
+    FOR_LOOP(type, ALLIANCE_SHARED_ADVANCED_CONTROL + 1)
+        T_ASSERT(G_GetPlayerAlliance(test_player(2), test_player(2), (PLAYERALLIANCE)type));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(2), test_player(2), ALLIANCE_RESCUABLE));
     T_ASSERT(G_GetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE));
     T_ASSERT(G_GetPlayerAlliance(test_player(PLAYER_NEUTRAL_PASSIVE), test_player(0), ALLIANCE_PASSIVE));
+    /* Neutral controller 3 and rescuable 4 pair with user/computer 0/1, each other, themselves. */
     T_ASSERT(G_GetPlayerAlliance(test_player(0), test_player(3), ALLIANCE_PASSIVE));
-    T_ASSERT(G_GetPlayerAlliance(test_player(3), test_player(0), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(3), test_player(1), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(4), test_player(3), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(3), test_player(0), ALLIANCE_SHARED_SPELLS));
+    /* Player 2 (controller none) and the W3I-neutral user slot 5 are not neutral partners. */
+    T_ASSERT(!G_GetPlayerAlliance(test_player(3), test_player(2), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(5), test_player(0), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE));
     T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_PASSIVE));
 }
 
@@ -6609,6 +8328,60 @@ TEST(wc3_api, group_add_is_set_semantics) {
     G_FreeJassGroup(group);
 }
 
+/* Retail ForGroup order (tools/frida/journeys/grouporder.json): GroupAddUnit prepends
+ * Heroes and appends other units; [Hpal,hfoo,Hamg,hfoo,Hmkg] enumerates Hmkg,Hamg,Hpal,hfoo,hfoo. */
+TEST(wc3_api, group_add_prepends_heroes_like_original) {
+    uint32_t const types[] = {MAKEFOURCC('H','p','a','l'), MAKEFOURCC('h','f','o','o'),
+        MAKEFOURCC('H','a','m','g'), MAKEFOURCC('h','f','o','o'), MAKEFOURCC('H','m','k','g')};
+    uint32_t const order[] = {4, 2, 0, 1, 3};
+    UnitBalance_t const hero_row = {.strength = 20}, unit_row = {0};
+    edict_t *units[5];
+    reset_entities();
+    ggroup_t *group = G_AllocJassGroup();
+    T_NOT_NULL(group);
+    FOR_LOOP(i, 5) {
+        units[i] = alloc_test_unit(types[i], (float)i, 0);
+        units[i]->data.UnitBalance = i % 2 == 0 ? &hero_row : &unit_row;
+        T_EQ(G_UnitIsHero(units[i]), (bool)(i % 2 == 0));
+        T_ASSERT(group_add_entity(group, units[i]));
+    }
+    T_EQ(group->num_units, 5);
+    FOR_LOOP(i, 5) T_ASSERT(group->units[i] == units[order[i]]);
+    G_FreeJassGroup(group);
+    reset_entities();
+}
+
+/* Original 28a460 draws captured on Human05 after its three random-race draws (fixed seed
+ * 77617233): Udea, Hpal and four Obla receive slots 14, 14, 13, 12, 0, 9. The fifth Obla draw
+ * lands on used slot 13 and yields to the least-used slot 0. One-name types never draw. */
+TEST(wc3_api, hero_proper_names_follow_original_least_used_choice) {
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"nameCount\"\n"
+        "C;Y2;X1;K\"Udea\"\nC;Y2;X2;K15\n"
+        "C;Y3;X1;K\"Hpal\"\nC;Y3;X2;K15\n"
+        "C;Y4;X1;K\"Obla\"\nC;Y4;X2;K14\n"
+        "C;Y5;X1;K\"Hfoo\"\nC;Y5;X2;K1\nE\n";
+    uint32_t const obla = MAKEFOURCC('O','b','l','a');
+    uint32_t const expected[] = {13, 12, 0, 9};
+    setup_test_world();
+    slkTestData_t *rows = parse_slk_string(data_slk), *old = G_SetSLKRows("UnitData", rows);
+    G_ClearHeroNames();
+    wc3_random_seed(&level.pathing_random, 0x77617233u);
+    FOR_LOOP(i, 3) wc3_random_next(&level.pathing_random);
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('U','d','e','a')), 14);
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('H','p','a','l')), 14);
+    FOR_LOOP(i, 4) T_EQ(G_PickHeroProperName(obla), expected[i]);
+    wc3Random_t const before = level.pathing_random;
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('H','f','o','o')), 0);
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('h','p','e','a')), 0);
+    T_EQ(level.pathing_random.sum, before.sum);
+    T_EQ(level.num_hero_names, 3);
+    G_ClearHeroNames();
+    G_SetSLKRows("UnitData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
     ggroup_t *group = G_AllocJassGroup();
 
@@ -6711,6 +8484,121 @@ TEST(wc3_api, repeated_create_destroy_group_does_not_exhaust_registry) {
     T_EQ(level.num_groups, 1);
     T_ASSERT(!level.groups[0]->inuse);
     currentplayer = NULL;
+}
+
+/* Original scene46 admits the first twelve retained group members for every
+ * public point-order form. The engine must execute the ordinary Move dispatch
+ * and preserve the two units beyond the native admission limit. */
+static cstring_t group_point_admission_script =
+    "globals\n"
+    "group requestGroup = null\n"
+    "unit array requestUnits\n"
+    "endglobals\n"
+    "function verifyGroupPoint takes boolean accepted returns nothing\n"
+    "local integer i = 0\n"
+    "call BJassAssert(accepted, \"group point request must accept Move\")\n"
+    "loop\n"
+    "exitwhen i == 14\n"
+    "if i < 12 then\n"
+    "call BJassAssert(GetUnitCurrentOrder(requestUnits[i]) == 851986, \"retained member must receive Move\")\n"
+    "else\n"
+    "call BJassAssert(GetUnitCurrentOrder(requestUnits[i]) == 0, \"group request must retain the twelve-unit limit\")\n"
+    "endif\n"
+    "call IssueImmediateOrder(requestUnits[i], \"stop\")\n"
+    "set i = i + 1\n"
+    "endloop\n"
+    "endfunction\n"
+    "function main takes nothing returns nothing\n"
+    "local integer i = 0\n"
+    "local location goal = Location(128.0, 512.0)\n"
+    "set requestGroup = CreateGroup()\n"
+    "loop\n"
+    "exitwhen i == 14\n"
+    "set requestUnits[i] = CreateUnit(Player(0), 'hpea', I2R(i)*96.0, 0.0, 90.0)\n"
+    "call GroupAddUnit(requestGroup, requestUnits[i])\n"
+    "set i = i + 1\n"
+    "endloop\n"
+    "call verifyGroupPoint(GroupPointOrder(requestGroup, \"move\", 128.0, 512.0))\n"
+    "call verifyGroupPoint(GroupPointOrderById(requestGroup, 851986, 128.0, 512.0))\n"
+    "call verifyGroupPoint(GroupPointOrderLoc(requestGroup, \"move\", goal))\n"
+    "call verifyGroupPoint(GroupPointOrderByIdLoc(requestGroup, 851986, goal))\n"
+    "call BJassAssert(not GroupPointOrder(null, \"move\", 0.0, 0.0), \"null group must reject\")\n"
+    "call BJassAssert(not GroupPointOrderById(requestGroup, 0, 0.0, 0.0), \"unknown order must reject\")\n"
+    "call BJassAssert(not GroupPointOrderLoc(requestGroup, \"move\", null), \"null location must reject\")\n"
+    "call BJassAssert(not GroupPointOrderByIdLoc(requestGroup, 851986, null), \"numeric null location must reject\")\n"
+    "call RemoveLocation(goal)\n"
+    "call DestroyGroup(requestGroup)\n"
+    "endfunction";
+
+TEST(wc3_api, group_point_order_forms_admit_twelve_members) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    setup_test_world();
+    uint8_t cells[64*64] = {0};
+    box2_t bounds = {{-512,-512},{1536,1536}};
+    CM_SetupTestPathmap(64, 64, cells);
+    CM_SetupTestWorldBounds(&bounds);
+    T_ASSERT(run_test_jass(group_point_admission_script));
+    CM_SetupTestPathmap(0, 0, NULL);
+    currentplayer = NULL;
+}
+
+/* Group dispatch resolves registered Move ownership, while Patrol and Attack
+ * retain their normal point-order path. A JASS collection does not own Move. */
+TEST(wc3_api, group_point_order_ability_ownership) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    currentplayer=&game.clients[0].ps;
+    cstring_t script="globals\nunit a\nunit b\ngroup g\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hpea',128,128,90)\n"
+        "set b=CreateUnit(Player(0),'hpea',256,128,90)\n"
+        "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
+        "call BJassAssert(GroupPointOrder(g,\"smart\",512,512),\"Smart batch accepted\")\n"
+        "call DestroyGroup(g)\n"
+        "call BJassAssert(GetUnitCurrentOrder(a)==OrderId(\"smart\"),\"collection destruction retains Move\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(b)==OrderId(\"smart\"),\"both Move members remain active\")\n"
+        "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
+        "call BJassAssert(GroupPointOrder(g,\"patrol\",640,512),\"Patrol batch accepted\")\n"
+        /* ORDER-01.9: issued Patrol expands to the active two-endpoint order. */
+        "call BJassAssert(GetUnitCurrentOrder(a)==851991,\"Patrol owner retained\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(b)==851991,\"second Patrol owner retained\")\n"
+        "call BJassAssert(GroupPointOrder(g,\"attack\",640,512),\"Attack batch accepted\")\n"
+        "call DestroyGroup(g)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    /* Smart/Patrol replacement detaches three obsolete physical owners.
+     * Point Attack admission independently creates one live singleton per unit
+     * (retail49a980); the next owner visit retires only the obsolete owners. */
+    unsigned empty=0,active=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse) {
+        moveGroup_t *group=level.move_groups[i];
+        if(!group->count) {empty++;continue;}
+        active++;T_EQ(group->count,1);
+        T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);
+        T_EQ(group->complete,S_AttackMoveComplete);
+        T_EQ(group->receiver,group->members[0].unit);
+        T_EQ(group->receiver_spawn,group->receiver->spawn_time);
+        T_EQ(group->receiver->movement.group_id,group->id);
+        T_NOT_NULL(group->receiver->movement.attackmove_waypoint);
+        T_FEQ(group->receiver->movement.attackmove_waypoint->s.origin2.x,640,0);
+        T_FEQ(group->receiver->movement.attackmove_waypoint->s.origin2.y,512,0);
+    }
+    T_EQ(empty,3);T_EQ(active,2);
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    active=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse) {
+        moveGroup_t *group=level.move_groups[i];active++;
+        T_EQ(group->count,1);T_EQ(group->owner_ability,GetAbilityIndex(CAbilityAttack)+1);
+        T_EQ(group->complete,S_AttackMoveComplete);
+        T_EQ(group->receiver,group->members[0].unit);
+    }
+    T_EQ(active,2);
+    unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','p','e','a')) {
+        count++; T_NOT_NULL(ent->movement.attackmove_waypoint); T_NOT_NULL(ent->currentmove);
+        if (ent->currentmove) T_ASSERT(ent->currentmove->proc==CAbilityAttack);
+    }
+    T_EQ(count,2);
+    currentplayer=NULL; reset_entities(); setup_test_world();
 }
 
 TEST(wc3_api, destroy_group_clears_members) {
@@ -6903,7 +8791,7 @@ static void substr(char const *source, int32_t start, int32_t end, char *out, in
     if (end > len) end = len;
     int32_t n = end - start;
     if (n <= 0 || n + 1 > outsz) { out[0] = '\0'; return; }
-    strncpy(out, source + start, (size_t)n);
+    memcpy(out, source + start, (size_t)n);
     out[n] = '\0';
 }
 
@@ -6941,38 +8829,158 @@ TEST(wc3_api, substring_single_char) {
  * Misc — GetRandomInt / GetRandomReal range
  * ========================================================================= */
 
+/* Original seeded public queries, with raw/direction draws represented by
+ * discarded public integer draws; both consume exactly one owner transition. */
+TEST(wc3_api, random_natives_match_original_owner_words) {
+    uint32_t const seeds[] = {0,1,47,53,59,61,7085,12345,0x7fffffff,0x80000000,0xffffffff};
+    uint32_t const expected[11][24] = {
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000007u,0x3f060b5au,
+            0xfffffffcu,0xc10f54c6u,0xfffffff9u,0x4125499au,0x0000001bu,0x419e42f7u,
+            0x80000000u,0x33d51d1cu,0x7fffffffu,0x00000000u,0x79f5ca6eu,0x3f268f5eu,
+            0x87b86f9bu,0xc3f888a8u,0x00000001u,0x3a94645au,0x7fffffffu,0x40435264u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000001u,0x3f21a828u,
+            0xfffffffcu,0xc103faaeu,0x0000000cu,0x411db9f6u,0x0000000eu,0x41a9a63fu,
+            0x80000000u,0x344d014eu,0x7fffffffu,0x00000000u,0x49c31ad0u,0x3e774a30u,
+            0xae988360u,0xc3d16bacu,0x00000000u,0x3abe8f51u,0x7ffffffeu,0x4084f6b5u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000005u,0x3f7e499eu,
+            0xfffffffcu,0xc0a2cfc3u,0x0000000au,0xc1040368u,0x00000014u,0x41909d6au,
+            0x80000000u,0x3410d0d8u,0x7fffffffu,0x00000000u,0x6261cee8u,0x3f51049eu,
+            0xe2764c75u,0x43ac1a58u,0x00000001u,0x3af5531eu,0x7ffffffeu,0x4070ce80u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000009u,0x3d9e2e90u,
+            0xfffffff9u,0xc091f376u,0x0000000bu,0x40cbbec4u,0x00000011u,0x4141141au,
+            0x80000000u,0x332de758u,0x7fffffffu,0x00000000u,0x097fedceu,0x3f3e36d4u,
+            0xc6be9908u,0xc3d90ba4u,0x00000001u,0x3ae4574eu,0x7fffffffu,0x40a2db46u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x0000000au,0x3f58be3eu,
+            0xfffffff9u,0xbfb395a0u,0xfffffff9u,0x40cacb38u,0x00000018u,0x4177f0c2u,
+            0x80000000u,0x33b45298u,0x7fffffffu,0x00000000u,0x7c1ce627u,0x3e34a1c0u,
+            0xd7b91224u,0xc2f565a0u,0x00000001u,0x3a9229edu,0x7ffffffeu,0x40945f0bu,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000001u,0x3c93ba40u,
+            0xfffffffau,0xc0af0eb0u,0x00000004u,0x4101161eu,0x0000000eu,0x41c692beu,
+            0x80000000u,0x33a57e8cu,0x7fffffffu,0x00000000u,0x75c365adu,0x3c997840u,
+            0xbf6c970eu,0x43f21ef0u,0x00000001u,0x3ad27d9du,0x7ffffffeu,0x4087dc57u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x0000000au,0x3f356de0u,
+            0xfffffff7u,0xc0f00cd3u,0xfffffff7u,0xc002b478u,0x00000012u,0x4196dcc3u,
+            0x80000000u,0x331ef738u,0x7fffffffu,0x00000000u,0x007c2d07u,0x3e0d9a88u,
+            0xa4310beau,0xc3f9a4a0u,0x00000000u,0x3a9ae2d9u,0x7fffffffu,0x400c0b92u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000006u,0x3e0048f0u,
+            0xfffffff8u,0xc0cc2ba8u,0x00000009u,0x40b66b70u,0x00000012u,0x419c7a77u,
+            0x80000000u,0x33ef320cu,0x7fffffffu,0x00000000u,0x3a37495bu,0x3ee6bab4u,
+            0xce167b57u,0x43dc3eccu,0x00000000u,0x3a9c5c3du,0x7fffffffu,0x40841349u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000003u,0x3e956398u,
+            0xfffffff7u,0xbff155e0u,0x00000003u,0xc0c44fe4u,0x00000018u,0x419b257au,
+            0x80000000u,0x3299fdd0u,0x7fffffffu,0x00000000u,0x143fcb8eu,0x3db41420u,
+            0xc483c403u,0x43f15644u,0x00000000u,0x3aaae953u,0x7ffffffeu,0x4071bfacu,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x0000000au,0x3d4c7160u,
+            0xfffffff7u,0xc0a3ca01u,0x0000000bu,0xc10575a9u,0x0000001cu,0x419fec43u,
+            0x80000000u,0x3371a598u,0x7fffffffu,0x00000000u,0x32025ab9u,0x3e805f58u,
+            0xf786c7beu,0x4362de88u,0x00000001u,0x3ad5fd35u,0x7fffffffu,0x4008da06u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000004u,0x3f58797au,
+            0xfffffffcu,0xc0beef94u,0xfffffffeu,0x412290aau,0x0000000cu,0x41a7c0dfu,
+            0x80000000u,0x34614b92u,0x7fffffffu,0x00000000u,0x52601e41u,0x3f48a5c0u,
+            0x988aa757u,0xc35eda58u,0x00000001u,0x3ade211du,0x7fffffffu,0x403e22aau,
+        },
+    };
+    cstring_t const bounds[] = {
+        "0,0", "(I2R(0)/I2R(1)),(I2R(0)/I2R(1))",
+        "7,7", "(I2R(7)/I2R(1)),(I2R(7)/I2R(1))",
+        "1,10", "(I2R(0)/I2R(1)),(I2R(1)/I2R(1))",
+        "-10,-1", "(I2R(-10)/I2R(1)),(I2R(-1)/I2R(1))",
+        "-9,13", "(I2R(-9)/I2R(1)),(I2R(13)/I2R(1))",
+        "12,-4", "(I2R(12)/I2R(1)),(I2R(-4)/I2R(1))",
+        "-2147483648,2147483647", "(I2R(0)/I2R(1)),(I2R(1)/I2R(4194304))",
+        "2147483647,-2147483648", "(I2R(0)/I2R(1)),(I2R(1)/I2R(8388608))",
+        "0,2147483647", "(I2R(-1)/I2R(8)),(I2R(7)/I2R(8))",
+        "-2147483648,0", "(I2R(-512)/I2R(1)),(I2R(512)/I2R(1))",
+        "0,-1", "(I2R(1)/I2R(1024)),(I2R(1)/I2R(512))",
+        "2147483646,2147483647", "(I2R(2)/I2R(1)),(I2R(-2)/I2R(1))",
+    };
+    char script[16384];
+    FOR_LOOP(seed,11) {
+        reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+        int used=snprintf(script,sizeof(script),
+            "globals\nhashtable values\nendglobals\nfunction main takes nothing returns nothing\n"
+            "local integer discard\nset values=InitHashtable()\ncall SetRandomSeed(%d)\n",(int32_t)seeds[seed]);
+        FOR_LOOP(i,12) used+=snprintf(script+used,sizeof(script)-used,
+            "set discard=GetRandomInt(0,1)\n"
+            "call SaveInteger(values,0,%u,GetRandomInt(%s))\n"
+            "call SaveReal(values,0,%u,GetRandomReal(%s))\n"
+            "set discard=GetRandomInt(0,1)\n",i*2,bounds[i*2],i*2+1,bounds[i*2+1]);
+        snprintf(script+used,sizeof(script)-used,"endfunction\n");
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table=&level.hashtables[0]; T_EQ(table->num_entries,24);
+        FOR_LOOP(i,24) {
+            T_EQ(table->entries[i].child,(int32_t)i);
+            uint32_t word; memcpy(&word,&table->entries[i].value,sizeof(word));
+        T_EQ(word,expected[seed][i]);
+        }
+    }
+    reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+}
+
+TEST(wc3_api, random_owner_continues_identically_after_save) {
+    cstring_t file=Test_TempPath("openwarcraft3-random-owner-save.bin");
+    uint32_t expected[2];
+    reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+    T_ASSERT(run_test_jass(
+        "globals\nhashtable values\nendglobals\n"
+        "function next takes nothing returns nothing\n"
+        "call SaveInteger(values,0,0,GetRandomInt(1,2000000000))\n"
+        "call SaveReal(values,0,1,GetRandomReal(-9,13))\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set values=InitHashtable()\ncall SetRandomSeed(12345)\nendfunction\n"));
+    T_ASSERT(WriteGame(file)); jass_callbyname(level.vm,"next",false);
+    FOR_LOOP(i,2) memcpy(expected+i,&level.hashtables[0].entries[i].value,sizeof(uint32_t));
+    T_ASSERT(ReadGame(file)); jass_callbyname(level.vm,"next",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    FOR_LOOP(i,2) {
+        uint32_t actual; memcpy(&actual,&level.hashtables[0].entries[i].value,sizeof(actual));
+        T_EQ(actual,expected[i]);
+    }
+    remove(file); reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+}
+
+/* Exercise the natives through compiled JASS; libc range tests never reached the engine. */
 TEST(wc3_api, random_int_in_range) {
-    srand(42);
-    for (int i = 0; i < 50; i++) {
-        int32_t lo = 1, hi = 10;
-        int32_t r = lo + rand() % (hi - lo + 1);
-        T_ASSERT(r >= lo && r <= hi);
-    }
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local integer i=0\nlocal integer value\ncall SetRandomSeed(42)\nloop\nexitwhen i==50\n"
+        "set value=GetRandomInt(1,10)\ncall BJassAssert(value>=1 and value<=10, \"integer range\")\n"
+        "set i=i+1\nendloop\nendfunction\n"));
 }
-
 TEST(wc3_api, random_int_single_value) {
-    srand(1);
-    int32_t lo = 7, hi = 7;
-    int32_t r = lo + rand() % (hi - lo + 1);
-    T_EQ((int)r, 7);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call BJassAssert(GetRandomInt(7,7)==7, \"equal bounds\")\nendfunction\n"));
 }
-
 TEST(wc3_api, random_real_in_range) {
-    srand(42);
-    for (int i = 0; i < 50; i++) {
-        float lo = 0.0f, hi = 1.0f;
-        float t = (float)rand() / (float)RAND_MAX;
-        float r = lo + t * (hi - lo);
-        T_ASSERT(r >= lo && r <= hi);
-    }
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local integer i=0\nlocal real value\ncall SetRandomSeed(42)\nloop\nexitwhen i==50\n"
+        "set value=GetRandomReal(0,1)\ncall BJassAssert(value>=0 and value<1, \"real range\")\n"
+        "set i=i+1\nendloop\nendfunction\n"));
 }
-
 TEST(wc3_api, random_seed_deterministic) {
-    srand(12345);
-    int a = rand();
-    srand(12345);
-    int b = rand();
-    T_EQ(a, b);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local integer value\ncall SetRandomSeed(12345)\nset value=GetRandomInt(1,100000)\n"
+        "call SetRandomSeed(12345)\ncall BJassAssert(GetRandomInt(1,100000)==value, \"reseed\")\nendfunction\n"));
 }
 
 /* =========================================================================
@@ -7155,6 +9163,9 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject = find_test_unit(MAKEFOURCC('h','p','e','a'));
     target = find_test_unit(MAKEFOURCC('h','f','o','o'));
     T_NOT_NULL(subject); T_NOT_NULL(target);
+    /* This minimal Footman fixture has no collision value; retail's range
+     * candidate predicate requires a positive mover radius. */
+    target->collision=16;G_MarkMoveSpatialObject(target);
     subject->movetype = MOVETYPE_STEP;
     subject->stand = unit_stand;
     subject->birth = unit_birth;
@@ -7166,10 +9177,18 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject->health.max_value = 250.0f;
     unit_stand(subject);
     T_ASSERT(unit_issueorder(subject, "move", &destination));
-    G_RunEntities();
+    /* Match the primary drain before each physical owner. A frame-end-only
+     * drain would predict an earlier listener from an already committed pose. */
+    G_BeginEntityFrame();level.scheduled_frame=true;
+    FOR_LOOP(i,3) {
+        wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+        G_RunTimersBeforePathOwner(&level.pathing_clock);M_RunScheduledThinks();
+    }
+    G_RunEntities();level.scheduled_frame=false;
     T_ASSERT(subject->s.origin2.x > 0.0f);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
-    T_ASSERT(level.events.write > level.events.read);
+    /* Range delivery is a primary-clock poll, independent of the movement pass. */
+    level.scheduled_frame=true;G_RunTimers();
     G_RunEvents();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
@@ -7222,17 +9241,21 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     T_ASSERT(subject->inuse && G_IsDeferredFree(subject));
     T_ASSERT(!G_EventSubjectIsCurrent(rangeEvent));
 
+    /* This test owns event dispatch, so start the mover facing the crossing direction. */
+    target->s.angle = (float)M_PI;
+
     target->movetype = MOVETYPE_STEP; target->stand = unit_stand; target->birth = unit_birth;
     target->die = unit_die; target->think = monster_think; target->collision = 0.0f;
     target->unitinfo.MoveSpeed = 1000.0f;
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
     T_ASSERT(unit_issueorder(target, "move", &destination));
-    G_RunEntities();
+    api_run_move_entities(2);
     T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vec2_t)) == 0);
     T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
-    T_ASSERT(level.events.write > level.events.read);
+    /* Issued Move delivery is synchronous; no unrelated queued order remains. */
+    T_EQ(level.events.write, level.events.read);
     for (uint32_t i = level.events.read; i < level.events.write; i++) {
         gameEvent_t *queued = &level.events.queue[i % MAX_EVENT_QUEUE];
         if (queued->type == EVENT_UNIT_IN_RANGE && queued->responseTo == rangeEvent)
@@ -7242,7 +9265,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify_removed_subject_did_not_dispatch", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     currentplayer = saved_currentplayer;
 }
 
@@ -7272,7 +9295,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_subject_movement) {
     subject->health.value = subject->health.max_value = 250.0f; unit_stand(subject);
     T_ASSERT(unit_issueorder(subject, "move", &destination));
     level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
-    G_RunEntities();
+    api_run_move_entities(2);
     T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;
 }
@@ -7312,7 +9335,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
     T_ASSERT(unit_issueorder(target, "move", &destination));
     level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
-    G_RunEntities();
+    api_run_move_entities(2);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
     T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;
@@ -8040,7 +10063,7 @@ TEST(wc3_api, rexxar_stash_cache_survives_hidden_carrier_removal) {
     if (carrier) {
         T_ASSERT(G_IsDeferredFree(carrier));
         FOR_LOOP(slot, MAX_INVENTORY) T_NOT_NULL(held[slot]);
-        G_RunDeferredFrees();
+        G_TestFinishDeferredFrees();
         T_ASSERT(!carrier->inuse);
         FOR_LOOP(slot, MAX_INVENTORY) {
             T_NOT_NULL(held[slot]);
@@ -8118,7 +10141,7 @@ TEST(wc3_api, rexxar_stash_cache_sparse_slots_survive_carrier_removal) {
     T_NOT_NULL(carrier);
     if (carrier) {
         T_ASSERT(G_IsDeferredFree(carrier));
-        G_RunDeferredFrees();
+        G_TestFinishDeferredFrees();
         T_ASSERT(!carrier->inuse);
         jass_callbyname(level.vm, "verifySparseStash", true);
         jass_runevents(level.vm);
@@ -8266,6 +10289,7 @@ static void death_events_before_corpse_removal(bool queued) {
     T_NOT_NULL(victim);
     jass_callbyname(level.vm, "kill_and_remove", queued);
     level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
     globals.RunFrame();
     T_ASSERT(!victim->inuse);
     jass_callbyname(level.vm, "verify", false);
@@ -8313,6 +10337,7 @@ TEST(wc3_api, death_events_drain_chained_corpse_removals) {
         "endfunction\n"));
     jass_callbyname(level.vm, "finish", true);
     level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
     globals.RunFrame();
     FOR_LOOP(i, globals.num_edicts) if (i >= game.max_clients) T_ASSERT(!g_edicts[i].inuse);
     jass_callbyname(level.vm, "verify", false);
@@ -8333,7 +10358,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
         "  set deaths = deaths + 1\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
-        "  call BJassAssert(deaths == 0, \"death event reached a reused edict\")\n"
+        "  call BJassAssert(deaths == 2, \"only the original synchronous death reached subscribers\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
@@ -8342,6 +10367,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
         "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
         "  call TriggerAddAction(t, function on_death)\n"
         "  call KillUnit(victim)\n"
+        "  call BJassAssert(deaths == 2, \"both death families complete inside KillUnit\")\n"
         "endfunction\n"));
     victim = find_test_unit(MAKEFOURCC('h','f','o','o'));
     T_NOT_NULL(victim);
@@ -8350,7 +10376,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
     replacement = SP_SpawnAtLocation(MAKEFOURCC('h','p','e','a'), 0, &MAKE(vec2_t, 64, 64));
     T_ASSERT(replacement == victim);
     G_DeferFreeEdict(replacement);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_ASSERT(!replacement->inuse);
     G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
@@ -9586,6 +11612,69 @@ TEST(wc3_api, game_save_event_registration_survives_snapshot) {
     remove(filename);
 }
 
+/* The archive selects event numbering; map format 24/25 alone cannot do so. */
+TEST(wc3_api, legacy_and_modern_spell_shop_event_registration) {
+    FOR_LOOP(modern, 2) {
+        reset_entities(); setup_test_world();
+        char script[4096];
+        snprintf(script, sizeof(script),
+            "globals\nconstant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT=ConvertPlayerUnitEvent(%u)\n"
+            "integer effects=0\nendglobals\n"
+            "function effect takes nothing returns nothing\nset effects=effects+1\nendfunction\n"
+            "function verify takes nothing returns nothing\ncall BJassAssert(effects==2,\"both spell events dispatched\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "local unit u=CreateUnit(Player(0),'hfoo',0,0,0)\nlocal integer i=0\n"
+            "loop\nexitwhen i==9\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(%u+i),null)\n"
+            "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(%u+i))\nset i=i+1\nendloop\n"
+            "call TriggerAddAction(t,function effect)\nendfunction\n",
+            modern ? 277u : 274u, modern ? 272u : 269u, modern ? 289u : 286u);
+        T_ASSERT(run_test_jass(script));
+        FOR_LOOP(i, 9) {
+            T_EQ(level.events.handlers[i*2].type, EVENT_PLAYER_UNIT_SELL+i);
+            T_EQ(level.events.handlers[i*2+1].type, EVENT_UNIT_SELL+i);
+        }
+        edict_t *unit=level.events.handlers[1].subject;
+        T_NOT_NULL(unit);
+        G_PublishEvent(unit,EVENT_PLAYER_UNIT_SPELL_EFFECT);
+        G_PublishEvent(unit,EVENT_UNIT_SPELL_EFFECT);
+        G_RunEvents();jass_runevents(level.vm);
+        jass_callbyname(level.vm,"verify",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+}
+
+
+/* This worker deliberately enters a nonreturning native. It is excluded from
+ * '*' and may only be launched by the bounded, owning process controller. */
+extern void (*test_preload_marker)(cstring_t);
+static bool power350_complete;
+static void power350_marker(cstring_t marker) {
+    if(strncmp(marker,"P350 ",5))return;
+    fprintf(stdout,"POWER350 c=%u %s\n",level.pathing_counter,marker);fflush(stdout);
+    if(strstr(marker,"label=complete"))power350_complete=true;
+}
+TEST(stress_wc3_power_lifetime, public_timer_worker) {
+    reset_entities();setup_test_world();
+    G_BotShutdown();
+    unsigned kind=(unsigned)atoi(gi.CvarString("wc3_power350_case","0"));T_ASSERT(kind<4);
+    if(kind>=4)return;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    uint32_t length=0;char *probe=gi.ReadFile("Scripts\\power350.j",&length);T_NOT_NULL(probe);
+    if(!probe)return;
+    char *token=strstr(probe,"@CASE@");T_NOT_NULL(token);
+    if(!token){gi.MemFree(probe);return;}
+    char *script=malloc(length+100);size_t prefix=token-probe;
+    memcpy(script,probe,prefix);
+    snprintf(script+prefix,length+100-prefix,"%u%s\nfunction main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n",kind,token+6);
+    gi.MemFree(probe);power350_complete=false;test_preload_marker=power350_marker;
+    T_ASSERT(run_test_jass(script));free(script);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<3500){level.time+=5;globals.RunFrame();}
+    T_ASSERT(power350_complete); /* A terminating worker must run the real timers. */
+    test_preload_marker=NULL;level.started=false;reset_entities();
+}
 TEST(wc3_api, destroy_trigger_retires_registered_and_queued_events) {
     uint32_t active_events = 0;
     uint32_t queued_response_events = 0;
@@ -9614,6 +11703,10 @@ TEST(wc3_api, destroy_trigger_retires_registered_and_queued_events) {
         "  call DestroyTrigger(watched)\n"
         "endfunction\n"));
 
+    /* Retail trigger destruction retires registrations at its saved release deadline. */
+    wc3Clock_t release;uint32_t serial;
+    T_ASSERT(G_NextTriggerRelease(&release,&serial));
+    level.pathing_clock=release;G_FireTriggerRelease();
     FOR_EACH_EVENT(event) active_events++;
     T_EQ(active_events, 0);
     T_ASSERT(level.events.write > level.events.read);

@@ -13,6 +13,14 @@
  * Steering, collision-aware steps, route goals, and support heights are owned here.
  */
 #include "s_skills.h"
+#include "games/warcraft-3/common/wc3_pathing_yield.h"
+#include "games/warcraft-3/common/wc3_pathing_retry.h"
+#include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_arrival.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
+#include "games/warcraft-3/common/wc3_pathing_formation.h"
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
+#include "games/warcraft-3/common/wc3_pathing_widget.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -20,6 +28,7 @@
  * raised from the old free-move-plus-push values so units keep trying to
  * thread through instead of giving up the instant they are briefly packed. */
 #define MOVE_BLOCKED_FRAMES 24
+#define MOVE_ORDER_SUSPENDED 851973u // order ID; original688d77 scripted-pause suspension head
 #define MOVE_SETTLE_FRAMES 8
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
@@ -31,6 +40,68 @@ typedef struct {
     vec2_t point;
     float radius;
 } moveSlot_t;
+
+typedef struct {
+    wc3Velocity_t velocity;
+    wc3GridPose_t pose;
+} moveStep_t;
+
+static entitySet_t move_timer_members, move_visual_members;
+static void move_start_point_group(edict_t *,vec2_t const *,float);
+static void move_visual_track(edict_t *);
+static void move_visual_update(void);
+typedef struct { uint16_t target,prev,next; } moveFollowLink_t;
+typedef struct { uint16_t head,tail,count; } moveFollowList_t;
+typedef struct { uint64_t sequence; uint32_t incarnation; uint16_t index; } moveFollowDelivery_t;
+static moveFollowLink_t move_follow_links[MAX_ENTITIES];
+static moveFollowList_t move_follow_lists[MAX_ENTITIES];
+#ifdef BZ_TESTS
+static uint32_t move_follow_visits;
+static void (*move_test_target_lost)(edict_t *unit);
+#endif
+
+/* Timer ownership changes at admission/cancellation, never by scanning scenery
+ * every five milliseconds. Three passes below retain the original phase order. */
+static void move_captain_track_timer(edict_t *);
+void S_TrackMoveTimers(edict_t const *ent) {
+    uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
+    if(!g_edicts || index>=MAX_ENTITIES)return;
+    move_captain_track_timer(g_edicts+index);
+    entity_set_put(&move_timer_members,index,ent->inuse && (ent->movement.captain_home.actor ||
+        ent->movement.captain_home.roster_actor || ent->movement.pause_resume_pending || ent->movement.type_rebind_pending));
+}
+
+#ifdef BZ_TESTS
+/* Read-only observer of scheduled Move commits, before same-clock map timers. */
+static void (*move_test_motion_commit)(edict_t *unit);
+static void (*move_test_visual_commit)(edict_t *unit,float before_facing,float before_speed);
+static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
+static void (*move_test_group_begin)(moveGroup_t const *group);
+enum { MOVE_PHASE_SCHEDULER, MOVE_PHASE_PUBLISH, MOVE_PHASE_RADIUS, MOVE_PHASE_GROUP, MOVE_PHASE_DECIDE, MOVE_PHASE_COMMIT, MOVE_PHASE_SEPARATE };
+static void (*move_test_owner_phase)(unsigned phase,uint64_t id);
+/* Observe logical membership and physical retirement independently. These
+ * callbacks report committed production mutations and never drive owners. */
+enum { MOVE_LEDGER_BIND, MOVE_LEDGER_DETACH, MOVE_LEDGER_RELEASE };
+static void (*move_test_owner_ledger)(unsigned event,edict_t *unit,
+    moveGroup_t const *previous,moveGroup_t const *next);
+#define MOVE_OWNER_LEDGER(event,unit,previous,next) do { if(move_test_owner_ledger) \
+    move_test_owner_ledger(event,unit,previous,next); } while(0)
+static uint32_t move_owner_visit_allocations;
+#define MOVE_OWNER_PHASE(phase,id) do { if(move_test_owner_phase)move_test_owner_phase(phase,id); } while(0)
+typedef struct { float cap, speed; } moveGroupCommitTrace_t;
+static void (*move_test_group_commit)(moveGroup_t const *group, moveGroupMember_t const *member, moveGroupCommitTrace_t const *trace);
+static void (*move_test_group_regroup)(moveGroup_t const *group,uint32_t const *trace);
+typedef struct { wc3RetryInput_t input; wc3Random_t owner; uint32_t count, result; } moveRetryTrace_t;
+static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
+typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
+static void (*move_test_repulse)(edict_t *unit,moveRepulseTrace_t const *trace);
+static uint32_t move_retry_member_visits;
+#endif
+
+#ifndef BZ_TESTS
+#define MOVE_OWNER_PHASE(phase,id) ((void)0)
+#define MOVE_OWNER_LEDGER(event,unit,previous,next) ((void)0)
+#endif
 
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
 #define MOVE_SLIDE_RINGS BZ_ROUTE_SLIDE_RINGS
@@ -47,28 +118,724 @@ typedef enum {
     MOVE_AVOID_RESOURCE_WORKER,
     MOVE_AVOID_STATIC_ONLY,
 } moveAvoidPolicy_t;
+typedef struct {
+    vec2_t const *point;
+    float radius;
+    moveAvoidPolicy_t policy;
+} moveRoutePoint_t;
 
 typedef enum {
     MOVE_COLLIDE_UNITS,
     MOVE_IGNORE_UNITS,
 } moveCollisionPolicy_t;
 
-typedef enum {
-    WC3_MOVE_GROUND,
-    WC3_MOVE_AIR,
-    WC3_MOVE_SEA,
-    WC3_MOVE_AMPHIBIOUS,
-    WC3_MOVE_DISABLED,
-} wc3MovementClass_t;
-
-typedef struct { cstring_t name; wc3MovementClass_t movement_class; } wc3MovementTypeMap_t;
-/* UnitData movetp values; unknown authored values (retail uses "_") are disabled. */
-static wc3MovementTypeMap_t const movement_types[] = {
-    { "foot", WC3_MOVE_GROUND }, { "horse", WC3_MOVE_GROUND },
-    { "hover", WC3_MOVE_GROUND }, { "fly", WC3_MOVE_AIR },
-    { "float", WC3_MOVE_SEA }, { "amph", WC3_MOVE_AMPHIBIOUS },
-};
+typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
+static moveRepulseQuery_t *repulse_query;
+#ifdef BZ_TESTS
+static void (*move_test_repulse_pair)(edict_t const *,edict_t const *,wc3RepulsePair_t const *,wc3Repulse_t const *,wc3Random_t);
+static void (*move_test_repulse_endpoint)(edict_t const *,float const [2],bool,bool);
+static void (*move_test_point_approach)(edict_t const *,float,abilityProc_t);
+static uint64_t move_test_repulse_unlink_visits;
+static void (*move_test_repulse_count_observer)(edict_t const *);
+#endif
 static edict_t *trymove_self = NULL;
+static void unit_predicted_pose(edict_t const *, wc3GridPose_t *);
+static moveGroup_t const *move_deciding_group;
+static uint32_t move_deciding_excluded;
+/* Physical group allocations are stable until map teardown; IDs remain truth. */
+static moveGroup_t *move_unit_groups[MAX_ENTITIES];
+/* All request identities are minted by move_allocate_group_id. Copies and
+ * retirement cannot introduce an ID above this conservative upper bound.
+ * Reconstruct once after map/save replacement; wrapped IDs still use the
+ * authoritative collision check below. No serialized state is duplicated. */
+static uint32_t move_group_id_bound;
+static bool move_group_id_bound_valid;
+typedef struct {
+    vec2_t world,fine,published,origin,velocity;
+    wc3Clock_t now,committed;
+    uint32_t flags;
+} movePoseKey_t;
+_Static_assert(sizeof(movePoseKey_t)==68,"Pose key must contain no padding");
+typedef struct {
+    edict_t const *unit;
+    movePoseKey_t key;
+    wc3GridPose_t pose;
+    bool valid;
+} movePoseCache_t;
+/* Entity numbers give every live owner its own prediction slot at full game
+ * capacity. Complete input bits remain truth; callbacks and external writers
+ * need no invalidation protocol. Tags also protect non-pool test actors. */
+static movePoseCache_t move_pose_cache[MAX_ENTITIES];
+typedef struct { moveGroup_t *group; uint64_t sequence; } moveGroupVisit_t;
+static moveGroupVisit_t *move_group_visits;
+static uint32_t move_group_visit_capacity;
+static moveGroup_t *move_group_head;
+static uint32_t move_group_first_free;
+static bool move_group_order_valid;
+static int move_compare_group_visits(void const *,void const *);
+/* Saves record creation sequences, not process links. Sort once on restore;
+ * allocation prepends new owners and retirement unlinks them in constant time. */
+static void move_prepare_group_order(void) {
+    if(move_group_order_valid)return;
+    uint32_t count=ARRAY_COUNT(level.move_groups),visits=0;
+    moveGroupVisit_t *owners=count ? malloc(count*sizeof(*owners)) : NULL;
+    if(count && !owners)gi.error("Move: cannot reconstruct physical owner order");
+    move_group_first_free=count;
+    FOR_LOOP(i,count) {
+        moveGroup_t *group=level.move_groups[i];group->slot=i;
+        group->newer=group->older=NULL;
+        if(group->inuse)owners[visits++]=(moveGroupVisit_t){group,group->sequence};
+        else move_group_first_free=MIN(move_group_first_free,i);
+    }
+    if(visits)qsort(owners,visits,sizeof(*owners),move_compare_group_visits);
+    FOR_LOOP(i,visits) {
+        owners[i].group->newer=i ? owners[i-1].group : NULL;
+        owners[i].group->older=i+1<visits ? owners[i+1].group : NULL;
+    }
+    move_group_head=visits ? owners[0].group : NULL;
+    move_group_order_valid=true;free(owners);
+}
+#ifdef BZ_TESTS
+static uint32_t move_group_id_visits,move_queued_peer_visits,move_group_lookup_visits;
+static uint32_t move_pose_cache_hits,move_pose_cache_misses;
+uint32_t S_TestMoveGroupLookupSteps(bool reset) {
+    uint32_t steps=move_group_lookup_visits;
+    if(reset)move_group_lookup_visits=0;
+    return steps;
+}
+#endif
+/* Registry identity survives callback-driven pool growth and save relocation. */
+static moveGroup_t *move_find_group(uint32_t id) {
+    if (!id) return NULL;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+#ifdef BZ_TESTS
+        move_group_lookup_visits++;
+#endif
+        moveGroup_t *group=level.move_groups[i];
+        if (group->inuse && group->id==id) return group;
+    }
+    return NULL;
+}
+
+static moveGroup_t *move_unit_group(edict_t const *unit) {
+    uint32_t id=unit->movement.group_id;
+    if(!id)return NULL;
+    uintptr_t index=((uintptr_t)unit-(uintptr_t)g_edicts)/sizeof(*unit);
+    if(index>=MAX_ENTITIES)return move_find_group(id);
+    moveGroup_t *group=move_unit_groups[index];
+    if(group && group->inuse && group->id==id)return group;
+    /* First lookup after activation/restoration repairs the derived binding. */
+    return move_unit_groups[index]=move_find_group(id);
+}
+
+/* The save owner has already checked unique physical identities and each
+ * live unit binding. Publish the derived lookup without touching member rows,
+ * canonical ownership or the saved/newest-first encounter order. */
+void S_RestoreMoveGroupBinding(edict_t *unit,moveGroup_t *group) {
+    assert(unit>=g_edicts && unit<g_edicts+globals.num_edicts);
+    assert(group && group->inuse && unit->movement.group_id==group->id);
+    move_unit_groups[unit-g_edicts]=group;
+}
+
+/* An edict address alone is insufficient after removal and slot reuse. */
+static moveGroupMember_t *move_find_member(edict_t const *unit) {
+    moveGroup_t *group=move_unit_group(unit);
+    if (!group || group->individual) return NULL;
+    FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time)
+        return group->members+i;
+    return NULL;
+}
+
+/* Original16c250 temporarily marks eligible cohort objects40000000 around all decisions.
+ * Capture eligibility before any member step changes flags; endpoint queries still see the objects. */
+uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit) {
+    uint32_t flags=unit->movement.velocity.x || unit->movement.velocity.y ? 0x20000000 : 0;
+    if (move_deciding_group) FOR_LOOP(i,move_deciding_group->count) {
+        moveGroupMember_t const *member=move_deciding_group->members+i;
+        if (member->unit==unit && member->spawn==unit->spawn_time && (move_deciding_excluded&(1u<<i)))
+            flags|=0x40000000;
+    }
+    return flags;
+}
+
+/* Original16 player rows own independent ordinary fine1100-work FIFOs.
+ * TODO SCHED-03/04: the three accelerated policy buckets remain separate. */
+static void move_unlink_fine_request(edict_t *unit) {
+    if (!unit->movement.fine_queued) return;
+    assert(unit->movement.fine_class<MAX_PLAYERS);
+    moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
+    edict_t *prev=unit->movement.fine_prev,*next=unit->movement.fine_next;
+    if (prev) prev->movement.fine_next=next;
+    else budget->head=next;
+    if (next) next->movement.fine_prev=prev;
+    else budget->tail=prev;
+    assert(budget->count); budget->count--;
+    unit->movement.fine_prev=unit->movement.fine_next=NULL; unit->movement.fine_queued=false;
+}
+
+void S_CancelUnitMoveFineRequest(edict_t *unit) {
+    move_unlink_fine_request(unit);
+}
+
+void S_InitMoveFineScheduler(void) {
+    cstring_t policy=gi.CvarString("wc3_path_scheduler","responsive");
+    if (strcmp(policy,"responsive") && strcmp(policy,"retail"))
+        gi.error("wc3_path_scheduler must be responsive or retail (takes effect on map start)");
+    level.move_fine_responsive=!strcmp(policy,"responsive");
+}
+
+unsigned S_MoveSchedulingClass(edict_t const *mover) {
+    /* Native missile path/line producers publish class15 independently of
+     * the launching player. Rendering and damage still retain that owner. */
+    return mover->movetype==MOVETYPE_FLYMISSILE ? 15u : mover->s.player;
+}
+
+void S_InitMoveProjectile(edict_t *mover) {
+    mover->movetype=MOVETYPE_FLYMISSILE;
+    mover->movement.adaptive_disabled=true;
+    mover->movement.fine_class=15;
+    mover->movement.pose_clock=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    mover->movement.clock_valid=true;
+    mover->collision=0;
+    mover->no_pathing=true;
+}
+
+bool S_AdmitUnitMoveFineRequest(edict_t *unit) {
+    unsigned player=S_MoveSchedulingClass(unit);
+    if (player>=MAX_PLAYERS) {
+        fprintf(stderr,"Move: invalid fine-search class %u for unit %u\n",player,unit->s.number);
+        return false;
+    }
+    if (unit->movement.fine_class!=player) {
+        move_unlink_fine_request(unit);
+        unit->movement.fine_class=player;
+    }
+    moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
+    uint32_t now=level.pathing_counter;
+    if (now<unit->movement.fine_request_time) unit->movement.fine_request_time=now-BZ_WC3_FINE_REQUEST_INTERVAL;
+    if (now-unit->movement.fine_request_time<BZ_WC3_FINE_REQUEST_INTERVAL) return false;
+    unit->movement.fine_request_time=now;
+    uint32_t limit=level.move_fine_responsive ? MAX(BZ_WC3_FINE_OWNER_WORK,budget->limit) : BZ_WC3_FINE_OWNER_WORK;
+    if (budget->work<=limit && (!budget->head || budget->head==unit)) {
+        move_unlink_fine_request(unit); return true;
+    }
+    if (!unit->movement.fine_queued) {
+        unit->movement.fine_prev=budget->tail; unit->movement.fine_next=NULL;
+        if (budget->tail) budget->tail->movement.fine_next=unit;
+        else budget->head=unit;
+        budget->tail=unit; budget->count++; unit->movement.fine_queued=true;
+    }
+    unit->movement.fine_request_time=0;
+    return false;
+}
+
+void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work) {
+    assert(unit->movement.fine_class<MAX_PLAYERS);
+    moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
+    budget->work+=work;
+    if (budget->work<BZ_WC3_FINE_FAST_WORK) unit->movement.fine_request_time=0;
+}
+
+/* Retail 1679c0 selects independent coarse pools; 167fa0 reloads after
+ * reload+1 owner visits. Request links are stable within edicts/heap groups. */
+static uint32_t const move_coarse_work[3]={800,300,900};
+static uint32_t const move_coarse_reload[3]={3,2,2};
+/* The priority bucket's selector is 2000, but a target group's path keeps
+ * its own 5000-node limit. Responsive grants must cover the actual search. */
+static uint32_t const move_coarse_search[3]={5000,5000,400};
+
+void S_CancelMoveCoarseRequest(moveCoarseRequest_t *request) {
+    if(request->queued) {
+        assert(request->player<MAX_PLAYERS && request->policy<3);
+        moveCoarseBudget_t *budget=&level.move_coarse_budgets[request->player][request->policy];
+        if(request->prev)request->prev->next=request->next;
+        else budget->head=request->next;
+        if(request->next)request->next->prev=request->prev;
+        else budget->tail=request->prev;
+        assert(budget->count);budget->count--;
+    }
+    request->prev=request->next=NULL;request->sequence=0;
+    request->queued=request->waiting=false;
+}
+
+/* Native168800 selects the individual's current pool; all engine-side local
+ * request records must be retired before changing that individual's task. */
+static void move_unlink_requests(edict_t *self) {
+    move_unlink_fine_request(self);
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.adaptive_admission);
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.group_admission);
+}
+
+void S_SetMoveCoarseTarget(moveCoarseRequest_t *request,bool target) {
+    unsigned policy=target ? 1 : 0;
+    if(request->policy==policy)return;
+    /* Native168ab0 changes membership without resetting the path's clock. */
+    S_CancelMoveCoarseRequest(request);
+    request->policy=policy;
+}
+
+bool S_AdmitMoveCoarseRequest(edict_t *unit,moveCoarseRequest_t *request,unsigned policy) {
+    if(!unit || !unit->inuse || S_MoveSchedulingClass(unit)>=MAX_PLAYERS || policy>=3)
+        gi.error("Move: invalid coarse admission owner/policy");
+    unsigned player=S_MoveSchedulingClass(unit);
+    if(request->queued && (request->player!=player || request->policy!=policy))
+        S_CancelMoveCoarseRequest(request);
+    request->player=player;request->policy=policy;
+    uint32_t now=level.pathing_counter;
+    if(!now)now=level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+    if(now<request->time)request->time=now-BZ_WC3_FINE_REQUEST_INTERVAL;
+    request->waiting=true;
+    if(now-request->time<BZ_WC3_FINE_REQUEST_INTERVAL)return false;
+    request->time=now;
+    /* 166c30 checks the interval before leaving the member's fine queue. */
+    if(policy==2)S_CancelUnitMoveFineRequest(unit);
+    moveCoarseBudget_t *budget=&level.move_coarse_budgets[request->player][policy];
+    uint32_t limit=level.move_fine_responsive ? MAX(move_coarse_work[policy],budget->limit) : move_coarse_work[policy];
+    if(budget->work<=limit && (!budget->head || budget->head==request)) {
+        S_CancelMoveCoarseRequest(request);return true;
+    }
+    if(!request->queued) {
+        if(level.move_coarse_sequence==UINT64_MAX)gi.error("Move: coarse queue sequence exhausted");
+        request->sequence=++level.move_coarse_sequence;
+        request->prev=budget->tail;request->next=NULL;
+        if(budget->tail)budget->tail->next=request;
+        else budget->head=request;
+        budget->tail=request;budget->count++;request->queued=true;
+    }
+    request->time=0;return false;
+}
+
+void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *request,uint32_t work) {
+    assert(request->player<MAX_PLAYERS && request->policy<3);
+    level.move_coarse_budgets[request->player][request->policy].work+=work;
+    /* 166c30 uses this request's work, unlike fine's cumulative <64 test. */
+    if(work<32)request->time=0;
+}
+
+void S_ClearMoveCoarseRequests(void) {
+    FOR_LOOP(i,globals.num_edicts) {
+        moveFineRoute_t *route=&g_edicts[i].movement.fine_route;
+        route->adaptive_admission=route->group_admission=(moveCoarseRequest_t){0};
+    }
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveFineRoute_t *route=&level.move_groups[i]->route;
+        route->adaptive_admission=route->group_admission=(moveCoarseRequest_t){0};
+    }
+    memset(level.move_coarse_budgets,0,sizeof(level.move_coarse_budgets));
+    level.move_coarse_sequence=0;
+}
+
+static int move_compare_coarse_requests(void const *a,void const *b) {
+    uint64_t x=(*(moveCoarseRequest_t *const *)a)->sequence,y=(*(moveCoarseRequest_t *const *)b)->sequence;
+    return (x>y)-(x<y);
+}
+
+/* Save/restore is outside owner ticks. Rebuild only the process links from
+ * saved insertion ranks; gameplay admission/unlink never scans the pool. */
+static bool move_check_coarse_requests(bool restore) {
+    size_t capacity=2*((size_t)globals.num_edicts+ARRAY_COUNT(level.move_groups)),count=0;
+    moveCoarseRequest_t **requests=capacity ? malloc(capacity*sizeof(*requests)) : NULL;
+    if(capacity && !requests)return false;
+    bool valid=true;
+    FOR_LOOP(i,globals.num_edicts+ARRAY_COUNT(level.move_groups)) {
+        bool active=i<globals.num_edicts ? g_edicts[i].inuse : level.move_groups[i-globals.num_edicts]->inuse;
+        moveFineRoute_t *route=i<globals.num_edicts ? &g_edicts[i].movement.fine_route : &level.move_groups[i-globals.num_edicts]->route;
+        moveCoarseRequest_t *owners[2]={&route->adaptive_admission,&route->group_admission};
+        FOR_LOOP(j,2) {
+            moveCoarseRequest_t *r=owners[j];
+            if(*(uint8_t *)&r->queued>1 || *(uint8_t *)&r->waiting>1 || r->player>=MAX_PLAYERS || r->policy>=3)valid=false;
+            if(r->queued) {
+                if(!active || !r->waiting || !r->sequence || r->sequence>level.move_coarse_sequence)valid=false;
+                requests[count++]=r;
+            } else if(r->sequence || r->prev || r->next)valid=false;
+        }
+    }
+    if(count)qsort(requests,count,sizeof(*requests),move_compare_coarse_requests);
+    uint32_t counts[MAX_PLAYERS][3]={{0}};
+    moveCoarseRequest_t *first[MAX_PLAYERS][3]={{0}},*last[MAX_PLAYERS][3]={{0}};
+    uint64_t previous=0;
+    if(valid)FOR_LOOP(i,count) {
+        moveCoarseRequest_t *r=requests[i];unsigned p=r->player,k=r->policy;
+        if(r->sequence<=previous)valid=false;
+        previous=r->sequence;
+        if(!first[p][k])first[p][k]=r;
+        if(!restore && (r->prev!=last[p][k] || (last[p][k] && last[p][k]->next!=r)))valid=false;
+        counts[p][k]++;last[p][k]=r;
+    }
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(k,3) {
+        moveCoarseBudget_t const *b=&level.move_coarse_budgets[p][k];
+        uint64_t maximum=(uint64_t)MAX_ENTITIES*3*(move_coarse_search[k]+1u);
+        if(b->count!=counts[p][k] || b->countdown>move_coarse_reload[k] ||
+           (b->limit && (b->limit<move_coarse_work[k] || b->limit>maximum ||
+            (!level.move_fine_responsive && b->limit!=move_coarse_work[k]))) ||
+           b->work>(uint64_t)MAX(b->limit,move_coarse_work[k])+move_coarse_search[k]+1u)valid=false;
+        if(!restore && (b->head!=first[p][k] || b->tail!=last[p][k] || (last[p][k] && last[p][k]->next)))valid=false;
+    }
+    if(valid && restore) {
+        FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(k,3) {
+            level.move_coarse_budgets[p][k].head=level.move_coarse_budgets[p][k].tail=NULL;
+        }
+        FOR_LOOP(i,count) {
+            moveCoarseRequest_t *r=requests[i];moveCoarseBudget_t *b=&level.move_coarse_budgets[r->player][r->policy];
+            r->prev=b->tail;r->next=NULL;
+            if(b->tail)b->tail->next=r;else b->head=r;
+            b->tail=r;
+        }
+    }
+    free(requests);return valid;
+}
+
+bool S_ValidateMoveCoarseRequests(void) {return move_check_coarse_requests(false);}
+bool S_RestoreMoveCoarseRequests(void) {return move_check_coarse_requests(true);}
+
+static void move_update_coarse_budgets(void) {
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(k,3) {
+        moveCoarseBudget_t *budget=&level.move_coarse_budgets[p][k];
+        if(!budget->countdown) {
+            budget->work=0;
+            /* Responsive admission services waiting coarse owners at every
+             * owner boundary. Retail retains each pool's reload+1 cadence. */
+            budget->countdown=level.move_fine_responsive ? 0 : move_coarse_reload[k];
+            uint64_t grant=level.move_fine_responsive ? (uint64_t)budget->count*(move_coarse_search[k]+1u) : 0;
+            if(grant>UINT32_MAX)gi.error("Move: coarse service grant exceeds counter domain");
+            budget->limit=MAX(move_coarse_work[k],(uint32_t)grant);
+        } else budget->countdown--;
+    }
+}
+
+void S_ClearMoveFineRequests(void) {
+    S_ClearMoveCoarseRequests();
+    move_timer_members=(entitySet_t){0};
+    FOR_LOOP(i,globals.num_edicts) {
+        g_edicts[i].movement.fine_prev=g_edicts[i].movement.fine_next=NULL;
+        g_edicts[i].movement.fine_queued=false;
+    }
+    memset(level.move_fine_budgets,0,sizeof(level.move_fine_budgets));
+    level.pathing_owner_clock_valid=false;
+    level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+}
+
+/* Original167310 visits every row;167fa0 clears work on countdown0 and reloads1. */
+static void move_update_fine_budget(void) {
+    if (!++level.pathing_counter) level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+    move_update_coarse_budgets();
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t *budget=level.move_fine_budgets+i;
+        if (!budget->countdown) {
+            budget->work=0; budget->countdown=1;
+            /* Freeze a service grant for the requests already waiting at this
+             * simulation boundary. Every queued request can execute its full
+             * bounded search, including the charged over-budget pop. Keep the
+             * grant fixed while it drains; recomputing from the shrinking FIFO
+             * would strand its tail. New requests still obey FIFO admission.
+             * No wall clock, worker timing or local selection affects this. */
+            budget->limit=level.move_fine_responsive ?
+                MAX(BZ_WC3_FINE_OWNER_WORK,budget->count*(BZ_WC3_UNIT_FINE_WORK+1u)) :
+                BZ_WC3_FINE_OWNER_WORK;
+        }
+        else budget->countdown--;
+    }
+}
+
+#ifdef BZ_TESTS
+static uint64_t move_shared_lookup_steps;
+uint64_t S_TestMoveSharedLookupSteps(bool reset) {
+    uint64_t steps=move_shared_lookup_steps;
+    if(reset)move_shared_lookup_steps=0;
+    return steps;
+}
+#define MOVE_SHARED_LOOKUP_STEP() (move_shared_lookup_steps++)
+#else
+#define MOVE_SHARED_LOOKUP_STEP() ((void)0)
+#endif
+
+/* Derived slot index, never saved or used to choose owner traversal order.
+ * Slots survive backing-array growth; cold load reconstructs the index.
+ * Empty hash entries are zero, occupied entries are slot+1. */
+static uint32_t *move_shared_index;
+static uint32_t move_shared_index_capacity,move_shared_index_used,move_shared_first_free;
+static moveShared_t const *move_shared_index_data;
+static uint32_t move_shared_index_count,move_shared_head;
+static int move_compare_shared_slots(void const *left,void const *right) {
+    uint64_t a=level.move_shared[*(uint32_t const *)left].id;
+    uint64_t b=level.move_shared[*(uint32_t const *)right].id;
+    return a>b ? -1 : a<b;
+}
+
+static uint32_t move_shared_hash(uint64_t id) {
+    /* SplitMix64 finalizer: disperse both words of monotonic saved identities. */
+    id=(id^(id>>30))*UINT64_C(0xbf58476d1ce4e5b9);
+    id=(id^(id>>27))*UINT64_C(0x94d049bb133111eb);
+    return (uint32_t)(id^(id>>31));
+}
+
+static bool move_shared_insert(uint32_t slot) {
+    uint64_t id=level.move_shared[slot].id;
+    if(!id)return false;
+    uint32_t mask=move_shared_index_capacity-1,index=move_shared_hash(id)&mask;
+    while(move_shared_index[index]) {
+        if(level.move_shared[move_shared_index[index]-1].id==id)return false;
+        index=(index+1)&mask;
+    }
+    move_shared_index[index]=slot+1;move_shared_index_used++;
+    return true;
+}
+
+bool S_RebuildMoveShared(void) {
+    uint32_t count=ARRAY_COUNT(level.move_shared),capacity=16;
+    if(count>UINT32_MAX/2 || (count && !level.move_shared))return false;
+    while(capacity<count*2) {
+        if(capacity>UINT32_MAX/2)return false;
+        capacity*=2;
+    }
+    if(capacity!=move_shared_index_capacity) {
+        uint32_t *index=calloc(capacity,sizeof(*index));
+        if(!index)return false;
+        free(move_shared_index);move_shared_index=index;move_shared_index_capacity=capacity;
+    } else memset(move_shared_index,0,capacity*sizeof(*move_shared_index));
+    move_shared_index_used=0;move_shared_first_free=count;
+    move_shared_index_data=NULL;move_shared_index_count=0;
+    FOR_LOOP(i,count) {
+        if(level.move_shared[i].inuse) {if(!move_shared_insert(i))return false;}
+        else move_shared_first_free=MIN(move_shared_first_free,i);
+    }
+    uint32_t *order=count ? malloc(count*sizeof(*order)) : NULL,used=0;
+    if(count && !order)return false;
+    FOR_LOOP(i,count) {
+        level.move_shared[i].newer=level.move_shared[i].older=0;
+        if(level.move_shared[i].inuse)order[used++]=i;
+    }
+    if(used)qsort(order,used,sizeof(*order),move_compare_shared_slots);
+    FOR_LOOP(i,used) {
+        level.move_shared[order[i]].newer=i ? order[i-1]+1 : 0;
+        level.move_shared[order[i]].older=i+1<used ? order[i+1]+1 : 0;
+    }
+    move_shared_head=used ? order[0]+1 : 0;
+    free(order);
+    move_shared_index_data=level.move_shared;move_shared_index_count=count;
+    return true;
+}
+
+static bool move_prepare_shared_index(void) {
+    return move_shared_index && move_shared_index_data==level.move_shared &&
+        move_shared_index_count==ARRAY_COUNT(level.move_shared) ? true : S_RebuildMoveShared();
+}
+
+moveShared_t *S_FindMoveShared(uint64_t id) {
+    if(!id || !move_prepare_shared_index())return NULL;
+    uint32_t mask=move_shared_index_capacity-1,index=move_shared_hash(id)&mask;
+    for(;;index=(index+1)&mask) {
+        MOVE_SHARED_LOOKUP_STEP();
+        uint32_t slot=move_shared_index[index];if(!slot)return NULL;
+        moveShared_t *shared=level.move_shared+slot-1;
+        if(shared->id==id)return shared->inuse ? shared : NULL;
+    }
+}
+
+static void move_shared_erase(uint32_t slot) {
+    uint32_t mask=move_shared_index_capacity-1,index=move_shared_hash(level.move_shared[slot].id)&mask;
+    while(move_shared_index[index]!=slot+1)index=(index+1)&mask;
+    move_shared_index[index]=0;move_shared_index_used--;
+    /* Reinsert the following cluster so no tombstones accumulate under churn. */
+    for(index=(index+1)&mask;move_shared_index[index];index=(index+1)&mask) {
+        uint32_t displaced=move_shared_index[index]-1;
+        move_shared_index[index]=0;move_shared_index_used--;move_shared_insert(displaced);
+    }
+    move_shared_first_free=MIN(move_shared_first_free,slot);
+}
+
+static moveShared_t *move_group_shared(moveGroup_t const *group) {
+    if (!group->shared_id) return NULL;
+    moveShared_t *shared=S_FindMoveShared(group->shared_id);
+    if (!shared) gi.error("Move: stale shared parameter owner %llu",(unsigned long long)group->shared_id);
+    return shared;
+}
+
+/* Reference0 is reclaimed in the next owner prepass, as original16c220 does. */
+static uint64_t move_alloc_shared(void) {
+    if (level.next_move_shared_id==UINT64_MAX) gi.error("Move: shared owner identity exhausted");
+    if(!move_prepare_shared_index())gi.error("Move: cannot index shared parameter owners");
+    uint32_t slot=move_shared_first_free;
+    while(slot<ARRAY_COUNT(level.move_shared) && level.move_shared[slot].inuse) slot++;
+    if (slot==ARRAY_COUNT(level.move_shared)) {
+        if (slot==level.move_shared_capacity) {
+            uint32_t capacity=level.move_shared_capacity ? level.move_shared_capacity*2 : 16;
+            if (capacity<level.move_shared_capacity) gi.error("Move: shared owner capacity exhausted");
+            moveShared_t *pool=realloc(level.move_shared,capacity*sizeof(*pool));
+            if (!pool) gi.error("Move: cannot allocate %u shared parameter owners",capacity);
+            level.move_shared=pool; level.move_shared_capacity=capacity;
+        }
+        ARRAY_COUNT(level.move_shared)++;
+    }
+    moveShared_t *shared=level.move_shared+slot;
+    *shared=(moveShared_t){.id=++level.next_move_shared_id,.inuse=true,.speed=FLT_MAX,.next_speed=FLT_MAX};
+    if(move_shared_index_used>=move_shared_index_capacity/2) {
+        if(!S_RebuildMoveShared())gi.error("Move: cannot grow shared parameter index");
+    } else {
+        if(!move_shared_insert(slot))gi.error("Move: duplicate shared parameter identity");
+        shared->older=move_shared_head;
+        if(move_shared_head)level.move_shared[move_shared_head-1].newer=slot+1;
+        move_shared_head=slot+1;
+        move_shared_index_data=level.move_shared;move_shared_index_count=ARRAY_COUNT(level.move_shared);
+    }
+    move_shared_first_free=slot+1;
+    return shared->id;
+}
+
+bool S_ValidateMoveShared(void) {
+    if(!S_RebuildMoveShared())return false;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
+        moveShared_t const *shared=level.move_shared+i;
+        if (*(uint8_t const *)&shared->inuse>1) return false;
+        if (!shared->inuse) continue;
+        if (!shared->id || shared->id>level.next_move_shared_id ||
+            isinf(shared->speed) || shared->speed<0 || isinf(shared->next_speed) || shared->next_speed<0 ||
+            !isfinite(shared->radius) || shared->radius<0) return false;
+    }
+    uint32_t count=ARRAY_COUNT(level.move_shared);
+    uint32_t *references=count ? calloc(count,sizeof(*references)) : NULL;
+    if(count && !references)return false;
+    bool valid=true;
+    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[g];
+        if(!group->inuse || !group->shared_id)continue;
+        moveShared_t const *shared=S_FindMoveShared(group->shared_id);
+        if(!shared){valid=false;break;}
+        references[shared-level.move_shared]++;
+    }
+    FOR_LOOP(i,count)if(level.move_shared[i].inuse && references[i]!=level.move_shared[i].references)valid=false;
+    free(references);return valid;
+}
+
+/* Publish the previous speed accumulator, then collect all bound groups'
+ * live mover radii before any physical owner routes. Original15aa80 orders
+ *16c220 for shared owners,16e1f0 for groups, and only then16c570 movement. */
+static void move_update_shared(void) {
+    move_prepare_group_order();
+    if(!move_prepare_shared_index())gi.error("Move: invalid shared parameter index");
+    /* Native owner+38c is an intrusive newest-first list, independent of
+     * free-pool slot reuse. Prefetch the successor before a retiring visit. */
+    for(uint32_t link=move_shared_head;link;) {
+        uint32_t i=link-1;moveShared_t *shared=level.move_shared+i;
+        link=shared->older;
+        if (!shared->references) {
+            if(shared->newer)level.move_shared[shared->newer-1].older=shared->older;
+            else move_shared_head=shared->older;
+            if(shared->older)level.move_shared[shared->older-1].newer=shared->newer;
+            move_shared_erase(i);memset(shared,0,sizeof(*shared));continue;
+        }
+        shared->speed=shared->next_speed; shared->next_speed=FLT_MAX; shared->radius=0;
+        MOVE_OWNER_PHASE(MOVE_PHASE_PUBLISH,shared->id);
+    }
+    /* Original15aa80 uses the same newest-first list for radius and movement. */
+    for(moveGroup_t const *group=move_group_head;group;group=group->older) {
+        if (!group->inuse) continue;
+        moveShared_t *shared=move_group_shared(group); if (!shared) continue;
+        MOVE_OWNER_PHASE(MOVE_PHASE_RADIUS,group->id);
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t const *member=group->members+i; edict_t const *unit=member->unit;
+            if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
+                shared->radius=MAX(shared->radius,S_MoveCollisionRadius(unit));
+        }
+    }
+}
+
+static void move_free_group_routes(moveGroup_t *group) {
+    S_CancelMoveCoarseRequest(&group->route.group_admission);
+    S_CancelMoveCoarseRequest(&group->route.adaptive_admission);
+    free(group->route.points); free(group->route.adaptive_points); free(group->route.group_points);
+}
+
+/* Retire route allocations independently of the originating JASS collection. */
+static void move_release_group(moveGroup_t *group) {
+    MOVE_OWNER_LEDGER(MOVE_LEDGER_RELEASE,NULL,group,NULL);
+    moveShared_t *shared=move_group_shared(group);
+    if (shared) {
+        if (!shared->references) gi.error("Move: shared parameter reference underflow");
+        shared->references--;
+    }
+    if(move_group_order_valid) {
+        if(group->newer)group->newer->older=group->older;
+        else move_group_head=group->older;
+        if(group->older)group->older->newer=group->newer;
+        move_group_first_free=MIN(move_group_first_free,group->slot);
+    }
+    move_free_group_routes(group); memset(group,0,sizeof(*group));
+}
+
+void S_ClearMoveGroups(void) {
+    S_ClearMoveCoarseRequests();
+    memset(move_unit_groups,0,sizeof(move_unit_groups));
+    move_group_id_bound=0;move_group_id_bound_valid=false;
+    move_visual_members=(entitySet_t){0};
+    move_group_head=NULL;move_group_first_free=0;move_group_order_valid=false;
+    memset(move_pose_cache,0,sizeof(move_pose_cache));
+    /* Atomic teardown also handles a partially rejected save. It must not
+     * consume unchecked serialized bindings or reference counts. */
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {move_free_group_routes(level.move_groups[i]);free(level.move_groups[i]);}
+    free(level.move_groups); level.move_groups=NULL;
+    free(move_group_visits);move_group_visits=NULL;move_group_visit_capacity=0;
+    ARRAY_COUNT(level.move_groups)=level.move_group_capacity=0;
+    free(level.move_shared); level.move_shared=NULL;
+    ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=0;
+    free(move_shared_index);move_shared_index=NULL;move_shared_index_capacity=move_shared_index_used=0;
+    move_shared_index_data=NULL;move_shared_index_count=move_shared_first_free=move_shared_head=0;
+}
+
+static void move_cancel_receiver(moveGroup_t *group, edict_t *unit, bool ability_chase) {
+    edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
+    void (*complete)(edict_t *,edict_t *,bool)=group->complete;
+    group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
+    /* Cancelling an ability-owned chase releases its physical work; it is
+     * not the terminal can't-path dispatch from the completion scan. The
+     * owner may be transferring to target-loss recovery or a newer order. */
+    if(!ability_chase && receiver && receiver->inuse && receiver->spawn_time==spawn &&
+       !G_IsDeferredFree(receiver) && complete)
+        complete(receiver,unit,false);
+}
+
+static void move_detach_group(edict_t *unit) {
+    moveGroup_t *group=move_unit_group(unit);
+    if (!group) return;
+    bool ability_chase=group->owner_ability && group->target;
+    FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
+        /*16d4e0 invalidates before callbacks;16d1c0 swaps invalid rows in
+         * reverse order at the next preparation. Swapping during a forward
+         * completion scan changes the surviving members' encounter order. */
+        if (group->ticking) {
+            group->members[i].unit=NULL;
+            group->members[i].spawn=0;
+        } else group->members[i]=group->members[--group->count];
+        /* Empty owners retain allocations/FIFO position until their next visit.
+         * Their borrowed target is no longer needed by any member. Drop it
+         * here so a removal/save needs neither a dangling reference nor a scan
+         * of all physical groups. */
+        bool live=false;
+        FOR_LOOP(j,group->count) if (group->members[j].unit) {live=true;break;}
+        if (!live) {
+            group->target = NULL;
+            group->target_spawn = group->target_refresh = 0;
+            group->target_region=group->target_region_owner=group->target_region_slot=0;
+            group->follow_continuation=false;group->follow_range=0;
+            group->flags &= ~0x1000u;
+        }
+        /* Native171340 detaches now, but16c150 retires the empty owner at its
+         * next visit. Its coarse FIFO entry and allocations remain until then,
+         * for ordinary groups as well as groups with shared parameters. */
+        MOVE_OWNER_LEDGER(MOVE_LEDGER_DETACH,unit,group,NULL);
+        move_cancel_receiver(group,unit,ability_chase);
+        return;
+    }
+}
+
+static umove_t move_move_walk;
+static void move_run_group_updates(void);
+static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent);
+static bool move_follow_in_range(edict_t *unit, edict_t *target);
+static void move_leave(edict_t *self);
+static bool move_point_order_id(uint32_t order);
+static void move_captain_actor_point(edict_t *,vec2_t const *,float);
+
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
 
@@ -82,7 +849,7 @@ static void move_route_resume_save(edict_t *self, edict_t *goal, float radius,
                                   uint8_t blocked_flags, vec2_t const *direction) {
     if (!self || !goal || !direction || Vector2_len(direction) <= 0.001f) return;
     self->movement.route_resume_direction = *direction;
-    self->movement.route_resume_goal = goal;
+    S_SetMoveGoal(self, &self->movement.route_resume_goal, goal);
     self->movement.route_resume_goal_origin = goal->s.origin2;
     self->movement.route_resume_goal_spawn = goal->spawn_time;
     self->movement.route_resume_time = level.time;
@@ -136,7 +903,7 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
             (unsigned)(goal ? goal->s.number : 0), (unsigned)(goal ? goal->spawn_time : 0),
             (unsigned)(goal ? goal->class_id : 0), (unsigned)(goal ? goal->s.player : 0),
             goal ? goal->s.origin2.x : 0.0f, goal ? goal->s.origin2.y : 0.0f,
-            self->collision, job.active, job.requester_number,
+            S_MoveCollisionRadius(self), job.active, job.requester_number,
             job.goal_number, job.target_cell_x, job.target_cell_y,
             (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
         return;
@@ -234,20 +1001,25 @@ static float unit_apply_earthquake_speed(edict_t const *unit, float speed) {
     return MIN(speed, MAX(EARTHQUAKE_MIN_MOVE_SPEED, speed * (1.0f - reduction)));
 }
 
-static float unit_current_speed(edict_t const *self) {
-    float speed = self->unitinfo.MoveSpeed > 0
-        ? self->unitinfo.MoveSpeed
-        : self->data.UnitBalance->speed;
-    if (S_ItemSpeedActive(self)) speed = game.constants.maxUnitSpeed;
-    else speed = unit_apply_earthquake_speed(self, speed);
-    if (self->movement.group_speed > 0 && self->movement.group_speed < speed && unit_is_walking(self)) {
-        speed = self->movement.group_speed;
+static float move_active_group_speed(edict_t const *self);
+static float unit_effective_speed(edict_t *ent);
+
+static float unit_current_speed(edict_t *self) {
+    /* Step budgets and group caps must consume the same status/aura speed.
+     * Using raw speed here left individual walkers unaffected by slows/bonuses. */
+    float speed = unit_effective_speed(self);
+    if (unit_is_walking(self)) {
+        float cap = move_find_member(self) ? 0 : self->movement.group_id ? move_active_group_speed(self) : self->movement.group_speed;
+        if (cap > 0 && cap < speed) speed = cap;
     }
     return speed;
 }
 
 float unit_movedistance(edict_t *self) {
-    return 10 * unit_current_speed(self) / FRAMETIME;
+    float elapsed = level.scheduled_think ? (self->movement.clock_valid ?
+        wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock) : 0) : 10.0f / FRAMETIME;
+    return level.scheduled_think ? wc3_mul(unit_current_speed(self), elapsed) :
+        10 * unit_current_speed(self) / FRAMETIME;
 }
 
 /* --- Collision-aware movement (block-and-slide) ---------------------------
@@ -263,83 +1035,73 @@ static bool unit_is_flying(edict_t const *ent) {
     return ent && (ent->aiflags & AI_FLYING) != 0;
 }
 
-static cstring_t unit_movement_type_name(edict_t const *ent) {
-    return ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
+static unitMovementType_t move_type_from_name(cstring_t name) {
+    return wc3_movement_parse(name);
 }
 
-static wc3MovementClass_t unit_movement_class(edict_t const *ent) {
-    cstring_t const movetp = unit_movement_type_name(ent);
+void S_CompileMovementData(UnitData_t *data) {
+    data->compiledMoveTypeName = data->moveTypeName;
+    data->compiledMoveType = move_type_from_name(data->moveTypeName);
+}
 
-    if (unit_is_flying(ent)) return WC3_MOVE_AIR;
-    if (!movetp || !*movetp) return WC3_MOVE_GROUND;
-    FOR_LOOP(i, sizeof(movement_types) / sizeof(*movement_types))
-        if (!strcmp(movetp, movement_types[i].name)) return movement_types[i].movement_class;
-    return WC3_MOVE_DISABLED;
+unitMovementType_t S_UnitMovementType(UnitData_t const *data) {
+    if (!data) return UNIT_MOVE_UNSPECIFIED;
+    if (data->compiledMoveTypeName == data->moveTypeName) return data->compiledMoveType;
+    /* In-memory fixture rows and an explicitly rebound field need not have
+     * passed through the metadata loader. Decode the live value in that case;
+     * never mutate a borrowed row or rely on its rawcode to identify it. */
+    return move_type_from_name(data->moveTypeName);
 }
 
 uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
-    switch (unit_movement_class(ent)) {
-    case WC3_MOVE_AIR: return CM_PATHING_UNFLYABLE;
-    case WC3_MOVE_SEA: return CM_PATHING_UNSWIMMABLE;
-    case WC3_MOVE_AMPHIBIOUS:
-        return CM_PATHING_REQUIRE_ALL | CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
-    default: return CM_PATHING_UNWALKABLE;
+    if (unit_is_flying(ent)) return CM_PATHING_UNFLYABLE;
+    if(ent && ent->movement.captain_actor_type)return CM_PATHING_UNWALKABLE;
+    wc3MovementProfile_t const *profile=S_UnitMovementProfile(ent ? ent->data.UnitData : NULL);
+    /* Forced-ground producers change the fine profile, retaining the
+     * authored/coarse class. The physical layer is already ability-owned. */
+    return profile->support==WC3_SUPPORT_FLIGHT ? wc3_movement_profiles[UNIT_MOVE_FOOT].query : profile->query;
+}
+
+wc3MovementProfile_t const *S_UnitMovementProfile(UnitData_t const *data) {
+    return wc3_movement_profile(S_UnitMovementType(data));
+}
+
+uint8_t S_UnitMoveCategory(edict_t const *ent) {
+    if(!ent)return 0;
+    uint8_t category=0;
+    if(!unit_is_flying(ent)) {
+        wc3MovementProfile_t const *profile=S_UnitMovementProfile(ent->data.UnitData);
+        category=ent->movement.captain_actor_type ? 2 : profile->support==WC3_SUPPORT_FLIGHT ?
+            wc3_movement_profiles[UNIT_MOVE_FOOT].category : profile->category;
     }
+    if(ent->morph)category=(category & ~ent->morph->category_clear) | ent->morph->category_set;
+    return category;
 }
 
-typedef enum {
-    MOVE_DOMAIN_NONE   = 0,
-    MOVE_DOMAIN_GROUND = 1 << 0,
-    MOVE_DOMAIN_SEA    = 1 << 1,
-    MOVE_DOMAIN_AIR    = 1 << 2,
-} moveCollisionDomain_t;
-
-static uint8_t unit_collision_domains(edict_t const *ent) {
-    if (!ent) return MOVE_DOMAIN_NONE;
-    /* Structures remain precise ground/sea blockers in addition to their
-     * authored footprint, avoiding leakage through coarse 32u pathing cells. */
-    if (G_UnitIsStructure(ent)) return MOVE_DOMAIN_GROUND | MOVE_DOMAIN_SEA;
-    switch (unit_movement_class(ent)) {
-    case WC3_MOVE_AIR: return MOVE_DOMAIN_AIR;
-    case WC3_MOVE_SEA: return MOVE_DOMAIN_SEA;
-    case WC3_MOVE_AMPHIBIOUS: return MOVE_DOMAIN_GROUND | MOVE_DOMAIN_SEA;
-    case WC3_MOVE_DISABLED: return MOVE_DOMAIN_NONE;
-    default: return MOVE_DOMAIN_GROUND;
-    }
+uint8_t S_UnitMoveCoarseMask(edict_t const *ent) {
+    if(ent && ent->movement.captain_actor_type)
+        return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
+    return wc3_movement_coarse_mask(S_UnitMovementProfile(ent ? ent->data.UnitData : NULL)->path_class);
 }
 
-static uint8_t pathing_collision_domains(uint8_t mover_flags) {
-    uint8_t domains = 0;
-    if (mover_flags & CM_PATHING_UNWALKABLE) domains |= MOVE_DOMAIN_GROUND;
-    if (mover_flags & CM_PATHING_UNSWIMMABLE) domains |= MOVE_DOMAIN_SEA;
-    if (mover_flags & CM_PATHING_UNFLYABLE) domains |= MOVE_DOMAIN_AIR;
-    return domains ? domains : MOVE_DOMAIN_GROUND;
+/*68a060 constructs the implicit Move owner when the captured authored speed
+ * is nonzero, regardless of movetp.685310/698af0 read and write that owner;
+ * a zero pathing query must not disable a positive-speed unit. The instance
+ * speed and explicit setter flag retain an existing owner when shared defaults
+ * change; allocator-only owners also publish their speed there. Captains own
+ * their independent speed even without a UnitBalance row. */
+static bool move_class_removed(edict_t const *ent) {
+    if(ent)FOR_LOOP(i,ARRAY_COUNT(ent->abilities.removed))
+        if(ent->abilities.removed[i]==MAKEFOURCC('A','m','o','v'))return true;
+    return false;
 }
-
-bool M_UnitsShareCollisionDomain(edict_t const *a, edict_t const *b) {
-    return (unit_collision_domains(a) & unit_collision_domains(b)) != 0;
-}
-
-/* Command-time obstacle stamping is game-owned: the shared router asks which
- * pathing channels this blocker occupies for the requesting mover policy. */
-uint8_t M_UnitDynamicPathingFlags(edict_t const *ent, uint8_t mover_flags) {
-    uint8_t const overlap = unit_collision_domains(ent) & pathing_collision_domains(mover_flags);
-
-    if (!overlap) return 0;
-    if (mover_flags & CM_PATHING_REQUIRE_ALL)
-        return mover_flags & (CM_PATHING_UNWALKABLE | CM_PATHING_UNFLYABLE | CM_PATHING_UNSWIMMABLE);
-    if (overlap & MOVE_DOMAIN_AIR) return CM_PATHING_UNFLYABLE;
-    if (overlap & MOVE_DOMAIN_SEA) return CM_PATHING_UNSWIMMABLE;
-    return CM_PATHING_UNWALKABLE;
-}
-
-/* Warsmash MovementType.DISABLED: a unit row whose movetp names no movement type is pathable anywhere and
- * collides with nothing. Retail UnitData authors "_" on every building and scenery unit, so this is the
- * class that keeps a scripted pedestal or structure exactly where CreateUnit/SetUnitPosition put it.
- * A row with no movetp cell at all stays mobile: retail always authors the column, so absence is a
- * partial row rather than a statement about movement. */
 bool M_UnitMoveDisabled(edict_t const *ent) {
-    return unit_movement_class(ent) == WC3_MOVE_DISABLED;
+    /*685310/698af0 require the attached Move owner, including after explicit
+     * Amov removal. A positive authored speed alone cannot recreate it. */
+    if(move_class_removed(ent))return true;
+    return ent && !ent->movement.captain_actor_type && ent->data.UnitBalance &&
+        ent->data.UnitBalance->speed==0 && ent->unitinfo.MoveSpeed==0 &&
+        !(ent->unitinfo.move_flags&BZ_UNIT_SPEED_SET);
 }
 
 /* BoxEdicts predicate: solid units/buildings sharing this mover's collision
@@ -347,7 +1109,7 @@ bool M_UnitMoveDisabled(edict_t const *ent) {
  * effects, missiles), and the opposite air/ground layer (flyers and ground
  * units pass through each other). */
 static bool filter_blockers(edict_t const *ent) {
-    if (ent == trymove_self || IS_HOLLOW(ent) || ent->collision <= 0.0f)
+    if (ent == trymove_self || IS_HOLLOW(ent) || S_MoveCollisionRadius(ent) <= 0.0f)
         return false;
     /* An alive walkable destructable is a ground surface, not a circle-shaped
      * obstacle. Its authored path texture remains responsible for deck edges. */
@@ -357,9 +1119,9 @@ static bool filter_blockers(edict_t const *ent) {
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
      * and ARE counted here — relying on the terrain footprint alone lets units
-     * leak through coarse 32u cells. Ground, sea and air movers otherwise only
-     * collide when their Warsmash-style movement domains overlap. */
-    return M_UnitsShareCollisionDomain(ent, trymove_self);
+     * leak through coarse 32u cells. Flyers and non-flyers retain separate layers;
+     * native query masks do not define a second ground/sea collision domain. */
+    return unit_is_flying(ent) == unit_is_flying(trymove_self);
 }
 
 /* Distance from point p to the segment [a,b]. */
@@ -374,6 +1136,54 @@ static float point_segment_distance(vec2_t const *a, vec2_t const *b, vec2_t con
     return Vector2_distance(&closest, p);
 }
 
+/* All Move geometry consumers use the same retail footprint class. */
+static bool move_static_point(edict_t const *self, vec2_t const *point) {
+    pathAccelParams_t params = { point, NULL, S_MoveCollisionRadius(self), M_UnitStaticPathingFlags(self) };
+    return G_MovePathPointIsPathable(&params);
+}
+
+static bool move_static_line(edict_t const *self, vec2_t const *point, float radius) {
+    pathAccelParams_t params = { &self->s.origin2, point, radius, M_UnitStaticPathingFlags(self) };
+    return G_MovePathLineIsPathable(&params);
+}
+
+/* Route eligibility follows the same ability-owned collision query as steps.
+ * Fine search ignores moving neighbours; precise step collision still sees them. */
+static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
+    /* Physical member admission owns fine occupancy independently of the
+     * public ability. Attack retains its range/queue policy above this layer. */
+    moveGroup_t *group=move_unit_group(self);
+    bool physical=group && !group->individual && !group->turning;
+    bool units = (physical || unit_routes_to_location(self)) && point.policy != MOVE_AVOID_STATIC_ONLY &&
+        !S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL);
+    /* Original16a790 passes05bdd0's fine prediction to16fbd0. Reversing a
+     * published world coordinate loses low bits at nonzero map origins. */
+    vec2_t const *fine = self->movement.pose_valid &&
+        wc3_float_bits(self->movement.pose_world.x)==wc3_float_bits(self->s.origin2.x) &&
+        wc3_float_bits(self->movement.pose_world.y)==wc3_float_bits(self->s.origin2.y) ?
+        &self->movement.sampled_pose : NULL;
+    moveGroupMember_t const *member=move_find_member(self);
+    /* A newly admitted cohort has no published layout yet. Advisory steering
+     * before its first owner visit must use the caller's destination rather
+     * than the zeroed member slot. The owner publishes slots before deciding. */
+    if (member && !move_unit_group(self)->initialized) member=NULL;
+    edict_t *target=self->movement.captain_home.active ? self->movement.captain_home.actor : self->goalentity;
+    /* A point-order waypoint carries coordinates, not a resolved group target. */
+    if(target && (target->svflags&SVF_MOVE_WAYPOINT))target=NULL;
+    return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,self->no_pathing ? 0 : M_UnitStaticPathingFlags(self)},
+        .mover=self,.target=target,.target_region=group ? S_MoveGroupTargetRegion(group) : 0,
+        .units=units,.fine=fine,.fine_target=member ? &member->destination : NULL,
+        .coarse_mask=S_UnitMoveCoarseMask(self) };
+}
+
+static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
+    /* Original215540 clears only the mover query. Its category remains an obstacle to others. */
+    if (self->no_pathing) return true;
+    movePathQuery_t query = move_route_query(self, point);
+    return G_UnitMovePathLineIsPathable(&query);
+}
+
+/* Check static pathing and live units; retain the rejecting unit for give-way. */
 static bool move_wisp_egress_tree_valid(edict_t const *self) {
     edict_t const *tree;
     return self && self->movement.wisp_egress_active &&
@@ -393,9 +1203,9 @@ static bool move_wisp_egress_corridor_clear(edict_t const *self, edict_t const *
         float const t = (float)i / (float)samples;
         vec2_t const p = { self->s.origin2.x + (target->x - self->s.origin2.x) * t,
                             self->s.origin2.y + (target->y - self->s.origin2.y) * t };
-        if (CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+        if (CM_PointIsPathableForRadiusFlags(&p, S_MoveCollisionRadius(self), flags)) continue;
         float const tree_dist = CM_DistanceToPathingFootprintFlags(tree, &p, flags);
-        if (!CM_TerrainPointIsWalkable(&p) || tree_dist > self->collision + CM_PathCellWorldSize())
+        if (!CM_TerrainPointIsWalkable(&p) || tree_dist > S_MoveCollisionRadius(self) + CM_PathCellWorldSize())
             return false;
         FOR_LOOP(n, globals.num_edicts) {
             edict_t const *other = EDICT_NUM(n);
@@ -406,7 +1216,7 @@ static bool move_wisp_egress_corridor_clear(edict_t const *self, edict_t const *
              * own that overlapping sample while it is still inside the
              * harvested tree, but become blockers as the corridor approaches
              * their footprint more closely than the harvested one. */
-            if (other_dist + 1.0f < tree_dist && other_dist <= self->collision + CM_PathCellWorldSize())
+            if (other_dist + 1.0f < tree_dist && other_dist <= S_MoveCollisionRadius(self) + CM_PathCellWorldSize())
                 return false;
         }
     }
@@ -417,7 +1227,7 @@ static bool move_wisp_egress_choose_target(edict_t *self, uint8_t flags) {
     edict_t *tree = self->movement.wisp_egress_tree;
     float const cell = MAX(4.0f, CM_PathCellWorldSize() * 0.5f);
     float const radius = (float)MAX(tree->pathtex->width, tree->pathtex->height) * CM_PathCellWorldSize() * 0.5f +
-        self->collision + CM_PathCellWorldSize() * 2.0f;
+        S_MoveCollisionRadius(self) + CM_PathCellWorldSize() * 2.0f;
     float best = FLT_MAX;
     vec2_t chosen = {0, 0};
     bool found = false;
@@ -425,7 +1235,7 @@ static bool move_wisp_egress_choose_target(edict_t *self, uint8_t flags) {
         for (float x = tree->s.origin2.x - radius; x <= tree->s.origin2.x + radius; x += cell) {
             vec2_t const p = {x, y};
             float const d = Vector2_distance(&self->s.origin2, &p);
-            if (d >= best || !CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+            if (d >= best || !CM_PointIsPathableForRadiusFlags(&p, S_MoveCollisionRadius(self), flags)) continue;
             if (!move_wisp_egress_corridor_clear(self, tree, &p, flags)) continue;
             best = d;
             chosen = p;
@@ -450,7 +1260,6 @@ void M_StartWispTreeEgress(edict_t *self, edict_t *tree) {
  * so the slide can apply speed-priority give-way. */
 static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
                                  moveCollisionPolicy_t collision_policy) {
-    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     trymove_blocker = NULL;
     /* Pathing-disabled units (SetUnitPathing(false), scripted moves) ignore
      * all collision, matching the old unconditional translate. */
@@ -459,19 +1268,17 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
     bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
-        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags);
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, S_MoveCollisionRadius(self), M_UnitStaticPathingFlags(self));
     if (wisp_egress) {
-        if (!move_wisp_egress_corridor_clear(self, self->movement.wisp_egress_tree, cand, blocked_flags)) {
+        if (!move_wisp_egress_corridor_clear(self, self->movement.wisp_egress_tree, cand, M_UnitStaticPathingFlags(self)))
             return false;
-        }
-    } else if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags)) {
+    } else if (!move_static_point(self, cand)) {
         return false;
     }
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
-    if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags) &&
-        !CM_LineIsPathableForRadiusFlags(&self->s.origin2, cand, self->collision, blocked_flags))
+    if (move_static_point(self, &self->s.origin2) && !move_static_line(self, cand, S_MoveCollisionRadius(self)))
         return false;
 
     if (collision_policy == MOVE_IGNORE_UNITS)
@@ -487,7 +1294,7 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
      * the unit jump clean over it.  BoxEdicts tests each entity's bounds (which
      * already extend by its own collision radius), so inflating by self's radius
      * is enough to catch any blocker within rr of the corridor. */
-    float const reach = self->collision + 1.0f;
+    float const reach = S_MoveCollisionRadius(self) + 1.0f;
     float const ox = self->s.origin2.x, oy = self->s.origin2.y;
     box2_t const box = {
         { (ox < cand->x ? ox : cand->x) - reach, (oy < cand->y ? oy : cand->y) - reach },
@@ -497,7 +1304,7 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
     uint32_t const num = gi.BoxEdicts(&box, trymove_colliders, MAX_MOVE_COLLIDERS, filter_blockers);
     FOR_LOOP(i, num) {
         edict_t *const b = trymove_colliders[i];
-        float const rr = self->collision + b->collision;
+        float const rr = S_MoveCollisionRadius(self) + S_MoveCollisionRadius(b);
         /* Swept test: the unit's whole PATH this tick (origin -> cand) must
          * clear b, not just the endpoint — otherwise a fast unit (step ~one
          * cell) jumps clean over a smaller unit between ticks.  Mirrors WC3's
@@ -529,9 +1336,12 @@ bool M_MoveIsValid(edict_t *self, vec2_t const *pos) {
     return move_is_valid(self, pos);
 }
 
-static void unit_commit_step(edict_t *self, vec2_t const *cand) {
+static void unit_commit_world(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
+    self->movement.pose_valid = false;
+    self->movement.clock_valid = false;
+    self->movement.worker_avoid_blocked_frames = 0;
     self->s.origin.x = cand->x;
     self->s.origin.y = cand->y;
     gi.LinkEntity(self);
@@ -540,6 +1350,1467 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
         self->movement.route_resume_time = level.time;
         self->movement.route_resume_goal_origin = self->movement.route_resume_goal->s.origin2;
     }
+}
+
+static void unit_commit_step(edict_t *self, vec2_t const *cand) {
+    unit_commit_world(self,cand); G_PublishMoveSpatialObject(self);
+}
+
+/* Group destinations remain in native fine coordinates. World projection is
+ * only for APIs whose input contract is world space, never retained state. */
+static vec2_t move_point_fine(vec2_t const *point) {
+    box2_t bounds=CM_GetWorldBounds();
+    return (vec2_t){wc3_grid_coordinate(point->x,bounds.min.x,32),wc3_grid_coordinate(point->y,bounds.min.y,32)};
+}
+static vec2_t move_point_world(vec2_t const *point) {
+    box2_t bounds=CM_GetWorldBounds();
+    return (vec2_t){wc3_world_coordinate(point->x,bounds.min.x,32),wc3_world_coordinate(point->y,bounds.min.y,32)};
+}
+
+/* Preserve native low bits on unchanged axes; world position writers reproject changed axes. */
+static void unit_grid_pose(edict_t const *self, wc3GridPose_t *pose) {
+    box2_t const bounds = CM_GetWorldBounds();
+    *pose = (wc3GridPose_t){ .grid = {self->movement.fine_pose.x, self->movement.fine_pose.y},
+        .origin = {bounds.min.x, bounds.min.y}, .world = {self->s.origin2.x, self->s.origin2.y} };
+    float const published[2] = {self->movement.pose_world.x, self->movement.pose_world.y};
+    FOR_LOOP(k, 2) {
+        float old = published[k];
+        if (!self->movement.pose_valid || wc3_float_bits(old) != wc3_float_bits(pose->world[k]))
+            pose->grid[k] = wc3_grid_coordinate(pose->world[k], pose->origin[k], 32);
+    }
+}
+
+/* Retain accepted native pose after the common explicit-world commit invalidates its old value. */
+static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
+    vec2_t cand = {pose->world[0], pose->world[1]};
+    unit_commit_world(self, &cand);
+    self->movement.fine_pose = self->movement.sampled_pose = (vec2_t){pose->grid[0], pose->grid[1]};
+    self->movement.pose_valid = true;
+    self->movement.pose_world = cand;
+    if (level.scheduled_think) {
+        self->movement.pose_clock = level.pathing_clock;
+        self->movement.clock_valid = true;
+    }
+    G_PublishMoveSpatialObject(self);
+    M_CheckGround(self);
+}
+
+/* Release the virtual target only after logical ownership and all physical
+ * task references end. Recreation may retire an actor with live followers. */
+static botCaptain_t *move_actor_captain(edict_t const *actor) {
+    uint32_t type=actor->movement.captain_actor_type;
+    if (!actor->movement.captain_actor_owned || actor->s.player>=MAX_PLAYERS ||
+        !type || type>BOT_CAPTAIN_COUNT) return NULL;
+    botCaptain_t *captain=level.bots[actor->s.player].captains+type-1;
+    return captain->home_actor==actor ? captain : NULL;
+}
+
+/* Captain periodic updates share the event-timer drain with JASS. Range
+ * listeners dispatch separately on the primary clock. This derived heap keeps
+ * normalized saved deadlines and adapts them to the drain's outgoing span. */
+typedef struct {
+    edict_t *unit;
+    wc3Clock_t due;
+    uint32_t sequence,spawn;
+} moveCaptainTimer_t;
+static moveCaptainTimer_t move_captain_timers[MAX_ENTITIES];
+static uint32_t move_captain_timer_positions[MAX_ENTITIES],move_captain_timer_count;
+static bool move_captain_timer_less(moveCaptainTimer_t const *a,moveCaptainTimer_t const *b) {
+    if(a->due.epoch!=b->due.epoch)return (int32_t)(a->due.epoch-b->due.epoch)<0;
+    return a->due.time==b->due.time ? a->sequence<b->sequence : a->due.time<b->due.time;
+}
+static void move_captain_timer_put(uint32_t index,moveCaptainTimer_t entry) {
+    move_captain_timers[index]=entry;
+    move_captain_timer_positions[entry.unit-g_edicts]=index+1;
+}
+static void move_captain_timer_remove(edict_t *unit) {
+    uint32_t position=move_captain_timer_positions[unit-g_edicts];
+    if(!position)return;
+    move_captain_timer_positions[unit-g_edicts]=0;position--;
+    moveCaptainTimer_t last=move_captain_timers[--move_captain_timer_count];
+    if(position==move_captain_timer_count)return;
+    while(position && move_captain_timer_less(&last,&move_captain_timers[(position-1)/2])) {
+        move_captain_timer_put(position,move_captain_timers[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<move_captain_timer_count) {
+        uint32_t child=position*2+1;
+        if(child+1<move_captain_timer_count && move_captain_timer_less(&move_captain_timers[child+1],&move_captain_timers[child]))child++;
+        if(!move_captain_timer_less(&move_captain_timers[child],&last))break;
+        move_captain_timer_put(position,move_captain_timers[child]);position=child;
+    }
+    move_captain_timer_put(position,last);
+}
+static void move_captain_track_timer(edict_t *unit) {
+    move_captain_timer_remove(unit);
+    botCaptain_t *captain=unit->inuse ? move_actor_captain(unit) : NULL;
+    wc3Clock_t const *due=captain ? &captain->update_due : NULL;
+    if(!due || !due->span) {unit->movement.captain_home.sequence=0;return;}
+    if(!unit->movement.captain_home.sequence)unit->movement.captain_home.sequence=++level.timer_sequence;
+    moveCaptainTimer_t entry={unit,*due,unit->movement.captain_home.sequence,unit->spawn_time};
+    uint32_t position=move_captain_timer_count++;
+    while(position && move_captain_timer_less(&entry,&move_captain_timers[(position-1)/2])) {
+        move_captain_timer_put(position,move_captain_timers[(position-1)/2]);position=(position-1)/2;
+    }
+    move_captain_timer_put(position,entry);
+}
+static void move_captain_reset_timers(void) {
+    move_captain_timer_count=0;memset(move_captain_timer_positions,0,sizeof(move_captain_timer_positions));
+}
+static bool move_captain_next_timer(abilityTimerRequest_t *request) {
+    if(!move_captain_timer_count)return false;
+    moveCaptainTimer_t const *entry=move_captain_timers;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    request->deadline=entry->due;request->sequence=entry->sequence;
+    int32_t epochs=(int32_t)(entry->due.epoch-now.epoch);
+    if(epochs>0)request->deadline.time=wc3_add(entry->due.time,wc3_mul(wc3_float(wc3_from_int(epochs)),now.span));
+    else if(epochs<0)request->deadline.time=wc3_sub(entry->due.time,wc3_mul(wc3_float(wc3_from_int(-epochs)),entry->due.span));
+    request->deadline.epoch=now.epoch;
+    return true;
+}
+static void move_captain_fire_timer(void) {
+    if(!move_captain_timer_count)return;
+    moveCaptainTimer_t entry=move_captain_timers[0];edict_t *unit=entry.unit;
+    move_captain_timer_remove(unit);
+    if(!unit->inuse || unit->spawn_time!=entry.spawn || unit->movement.captain_home.sequence!=entry.sequence)return;
+    /* The event clock is supplied by TimerDrain. Native periodic callbacks
+     * observe the unchanged primary clock, unlike primary range callbacks. */
+    botCaptain_t *captain=move_actor_captain(unit);
+    if(captain)G_FireCaptainTimer(captain);
+    move_captain_track_timer(unit);
+}
+
+/* Registered inner membership is retained across physical order replacement.
+ * Ordinary callbacks use the edge-maintained count, not an entity/roster scan. */
+static uint32_t move_captain_entered(edict_t const *actor) {
+    botCaptain_t const *captain=move_actor_captain(actor);
+    if (captain) return captain->entered_members;
+    uint32_t count=0;
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t const *unit=g_edicts+i;
+        if(unit->inuse && unit->movement.captain_home.entered &&
+            (unit->movement.captain_home.roster_actor==actor ||
+             (!unit->movement.captain_home.roster_actor && unit->movement.captain_home.active && unit->movement.captain_home.actor==actor))) count++;
+    }
+    return count;
+}
+
+static void move_free_unowned_captain_actor(edict_t *actor) {
+    if (!actor || !actor->inuse || actor->movement.captain_actor_owned) return;
+    FILTER_EDICTS(ent,ent->inuse && (ent->movement.captain_home.actor==actor || ent->movement.captain_home.roster_actor==actor)) return;
+    G_FreeEdict(actor);
+}
+
+static void move_release_captain_reference(edict_t *self) {
+    edict_t *actor=self->movement.captain_home.actor;
+    self->movement.captain_home.actor=NULL;
+    S_TrackMoveTimers(self);
+    self->movement.captain_home.active=false;
+    if (!self->movement.captain_home.roster_actor) self->movement.captain_home.entered=false;
+    move_free_unowned_captain_actor(actor);
+}
+
+/* Native9d5610 removes the retained member, independently of its canceled task.
+ * Compact logical encounter indices before the edict slot can be reused. */
+static void move_remove_captain_roster_member(edict_t *self) {
+    edict_t *actor=self->movement.captain_home.roster_actor;
+    if (!actor) return;
+    botCaptain_t *captain=move_actor_captain(actor);
+    if (captain && self->movement.captain_home.entered) captain->entered_members--;
+    uint32_t index=self->movement.captain_home.member_index;
+    self->movement.captain_home.roster_actor=NULL;
+    self->movement.captain_home.outer=false;
+    self->movement.captain_home.entered=false;
+    S_TrackMoveTimers(self);
+    if (actor->movement.captain_actor_members) actor->movement.captain_actor_members--;
+    actor->movement.captain_actor_siege=false;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
+        if (ent->movement.captain_home.member_index>index) ent->movement.captain_home.member_index--;
+        if (S_UnitHasLongRangeSiegeAttack(ent)) actor->movement.captain_actor_siege=true;
+    }
+}
+
+void S_DetachCaptainUnit(edict_t *self) {
+    move_remove_captain_roster_member(self);
+    move_release_captain_reference(self);
+}
+
+void S_ReleaseCaptainHomeActor(edict_t *actor) {
+    if (!actor) return;
+    actor->movement.captain_actor_owned=false;
+    S_TrackMoveTimers(actor);
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
+        ent->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(ent);
+        ent->movement.captain_home.outer=false;
+        if (!ent->movement.captain_home.active) ent->movement.captain_home.entered=false;
+    }
+    move_free_unowned_captain_actor(actor);
+}
+
+/* Native9d2f90 retains category2 with radius0. Fine occupancy still covers
+ * one cell; no model, ordinary unit data or client presentation is required. */
+void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type) {
+    if (captain->home_actor) {
+        /* Authored home and the retained point request are separate. Native
+         *9d5c70 leaves an occupied actor/request in place before reevaluation. */
+        return;
+    }
+    edict_t *actor=captain->home_actor;
+    if (!actor) {
+        actor=captain->home_actor=G_Spawn();
+        captain->update_due=G_TimerQueryClock(NULL);
+        wc3_clock_advance(&captain->update_due,1,0);
+        captain->state=type==BOT_CAPTAIN_ATTACK+1 ? BOT_CAPTAIN_ACTIVE : BOT_CAPTAIN_FORMING;
+        captain->goal=captain->active_goal=captain->home;
+        captain->request_range=200;
+        captain->point_order=851988u; /* Native initializer9d2f90 retains d0014. */
+    }
+    actor->svflags=SVF_NOCLIENT;
+    actor->stand=unit_stand;
+    actor->s.player=player;
+    actor->movement.captain_actor_type=type;
+    actor->movement.captain_actor_owned=true;
+    /* Native9d2f90 admits its zero-radius actor through ordinary point
+     * placement. The authored home remains the later shared point request. */
+    actor->s.origin2=captain->home;
+    if (!G_FindUnitPlacementPosition(actor,&captain->home,&actor->s.origin2))
+        fprintf(stderr,"WC3 captain placement: no admitted home player=%u type=%u at (%.9g,%.9g)\n",player,type,captain->home.x,captain->home.y);
+    gi.LinkEntity(actor);
+    G_PublishMoveSpatialObject(actor);
+    S_TrackMoveTimers(actor);
+}
+
+static int move_captain_reference_compare(void const *a,void const *b) {
+    uint64_t x=*(uint64_t const *)a,y=*(uint64_t const *)b;
+    return (x>y)-(x<y);
+}
+
+/* The logical actor and physical references are saved; the bot VM is not.
+ * Rebuild only runtime captain links and reject stale physical references. */
+bool S_ValidateCaptainHomeActors(bool rebind) {
+    uint64_t references[MAX_ENTITIES];uint32_t reference_count=0;
+    uint64_t registrations[MAX_PLAYERS*BOT_CAPTAIN_COUNT];uint32_t registration_count=0;
+    edict_t *owners[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
+    uint32_t counts[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
+    FILTER_EDICTS(actor,actor->inuse && actor->movement.captain_actor_type) {
+        uint32_t type=actor->movement.captain_actor_type;
+        if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || S_MoveCollisionRadius(actor)!=0 ||
+            actor->movement.captain_actor_members>globals.num_edicts) return false;
+        if (!actor->movement.captain_actor_owned) continue;
+        uint32_t serial=actor->movement.captain_home.sequence;
+        if(!serial || serial>level.timer_sequence)return false;
+        edict_t **slot=&owners[actor->s.player][type-1];
+        if (*slot) return false;
+        *slot=actor;
+        registrations[registration_count++]=serial;
+    }
+    qsort(registrations,registration_count,sizeof(*registrations),move_captain_reference_compare);
+    for(uint32_t i=1;i<registration_count;i++)if(registrations[i]==registrations[i-1])return false;
+    FILTER_EDICTS(ent,ent->inuse) {
+        if (ent->movement.captain_actor_owned && !ent->movement.captain_actor_type) return false;
+        if (*(uint8_t *)&ent->movement.captain_actor_siege>1 ||
+            (ent->movement.captain_actor_siege && !ent->movement.captain_actor_type)) return false;
+        edict_t *actor=ent->movement.captain_home.actor;
+        edict_t *roster=ent->movement.captain_home.roster_actor;
+        if (*(uint8_t *)&ent->movement.captain_home.active>1 ||
+            *(uint8_t *)&ent->movement.captain_home.entered>1 ||
+            *(uint8_t *)&ent->movement.captain_home.outer>1 ||
+            (ent->movement.captain_home.entered && !ent->movement.captain_home.active && !roster) ||
+            (ent->movement.captain_home.outer && !roster)) return false;
+        if (roster && (!roster->inuse || !roster->movement.captain_actor_owned ||
+            !roster->movement.captain_actor_type || roster->movement.captain_actor_type>BOT_CAPTAIN_COUNT ||
+            (actor && actor!=roster))) return false;
+        if (roster) counts[roster->s.player][roster->movement.captain_actor_type-1]++;
+        if (ent->movement.captain_home.active && !actor) return false;
+        if (!actor) actor=roster;
+        if (actor && (!actor->movement.captain_actor_members ||
+            actor->movement.captain_actor_members>globals.num_edicts ||
+            ent->movement.captain_home.member_index>=actor->movement.captain_actor_members)) return false;
+        if (actor && (!actor->inuse || !actor->movement.captain_actor_type ||
+            actor->movement.captain_actor_type>BOT_CAPTAIN_COUNT)) return false;
+        if(actor)references[reference_count++]=((uint64_t)(actor-g_edicts+1)<<32)|ent->movement.captain_home.member_index;
+        if (actor &&
+            (!isfinite(ent->movement.captain_home.due.time) || !isfinite(ent->movement.captain_home.due.span) ||
+             ent->movement.captain_home.due.span<=0 || !isfinite(ent->movement.captain_home.home.x) ||
+             !isfinite(ent->movement.captain_home.home.y))) return false;
+    }
+    /* Pair identity, not world encounter order, establishes uniqueness.
+     * Sorting O(N log N) replaces the old pairwise O(N^2) save check. */
+    qsort(references,reference_count,sizeof(*references),move_captain_reference_compare);
+    for(uint32_t i=1;i<reference_count;i++)if(references[i]==references[i-1])return false;
+    FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
+        if (owners[p][c] && owners[p][c]->movement.captain_actor_members!=counts[p][c]) return false;
+    if (rebind) {
+        FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+            level.bots[p].captains[c].home_actor=owners[p][c];
+            level.bots[p].captains[c].entered_members=0;
+        }
+        FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor && ent->movement.captain_home.entered) {
+            botCaptain_t *captain=move_actor_captain(ent->movement.captain_home.roster_actor);
+            if(captain)captain->entered_members++;
+        }
+    }
+    return true;
+}
+
+static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id);
+static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target);
+
+/* Native9d2ee0 with retained GoHome range500:2*r*r+5000 world squared.
+ * Initializers019720/019890/001c30 provide500/5000/2; PE slots are zero. */
+static bool move_captain_near_point(edict_t const *actor,vec2_t const *point,float range) {
+    wc3GridPose_t pose; unit_predicted_pose(actor,&pose);
+    float x=wc3_sub(pose.world[0],point->x),y=wc3_sub(pose.world[1],point->y);
+    float limit=range<100 ? 20000 : wc3_add(wc3_mul(2,wc3_mul(range,range)),5000);
+    return wc3_add(wc3_mul(x,x),wc3_mul(y,y))<=limit;
+}
+
+static bool move_captain_near_home(edict_t const *actor,vec2_t const *home) {
+    return move_captain_near_point(actor,home,500);
+}
+
+bool S_CaptainNearHome(botCaptain_t const *captain) {
+    return captain->home_actor && move_captain_near_home(captain->home_actor,&captain->home);
+}
+
+bool S_CaptainNearRequest(botCaptain_t const *captain) {
+    return captain->home_actor && move_captain_near_point(captain->home_actor,&captain->goal,captain->request_range);
+}
+
+static void move_captain_collect_member(edict_t *actor,edict_t **roster,edict_t *unit) {
+    if(!unit->inuse || (unit->movement.captain_home.roster_actor!=actor &&
+        (unit->movement.captain_home.roster_actor || !unit->movement.captain_home.active || unit->movement.captain_home.actor!=actor))) return;
+    uint32_t index=unit->movement.captain_home.member_index;
+    if(index>=actor->movement.captain_actor_members || roster[index])
+        gi.error("Move: invalid captain roster member %u/%u",index,actor->movement.captain_actor_members);
+    roster[index]=unit;
+}
+
+/* Request-local storage remains valid through nested order callbacks. Physical
+ * indices are separate from the AI's prepend order, including after load. */
+static edict_t **move_captain_collect_roster(edict_t *actor) {
+    uint32_t count=actor->movement.captain_actor_members;
+    if(!count)return NULL;
+    if(count>globals.num_edicts)gi.error("Move: invalid captain roster size %u",count);
+    edict_t **roster=gi.MemAlloc(count*sizeof(*roster));
+    memset(roster,0,count*sizeof(*roster));
+    botCaptain_t *captain=move_actor_captain(actor);
+    if(captain && ARRAY_COUNT(captain->units)==count) {
+        FOR_EACH_ARRAY(edict_t *,member,captain->units) move_captain_collect_member(actor,roster,*member);
+    } else {
+        for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1))
+            move_captain_collect_member(actor,roster,g_edicts+i);
+    }
+    FOR_LOOP(i,count)if(!roster[i])gi.error("Move: missing captain roster member %u/%u",i,count);
+    return roster;
+}
+
+/* Native9d27c0 retains roster order through bounded physical batches. */
+static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t members,vec2_t const *home,bool logical) {
+    botCaptain_t const *captain=move_actor_captain(actor);
+    uint32_t const order_id=captain && captain->point_order ? captain->point_order : G_OrderId("move");
+    /* Retail queued AI point orders preserve an already active identical
+     * request. A completed physical task remains eligible for new admission. */
+    bool unchanged=members>0;vec2_t goal=move_point_fine(home);
+    FOR_LOOP(i,members) {
+        edict_t *ent=roster[i]; moveGroup_t const *group=move_unit_group(ent);
+        if (!group || group->target || !group->shared_id || group->goal.x!=goal.x || group->goal.y!=goal.y)
+            unchanged=false;
+    }
+    if (unchanged) return;
+    typeof(actor->movement.captain_home) *retained=gi.MemAlloc(members*sizeof(*retained));
+    FOR_LOOP(i,members) {
+        edict_t *ent=roster[i];
+        retained[i]=ent->movement.captain_home;
+        ent->movement.captain_home.active=false;
+        /* Transfer physical references across order replacement. */
+        ent->movement.captain_home.actor=NULL;
+        S_TrackMoveTimers(ent);
+        ent->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(ent);
+    }
+    uint64_t shared_id=members>1 ? move_alloc_shared() : 0;
+    if (members==1) S_IssueMoveOrder(roster[0],Waypoint_add(home),order_id);
+    else for(uint32_t first=0;first<members;first+=BZ_WC3_GROUP_ORDER_UNITS) {
+        groupPointOrder_t request={.count=MIN(members-first,BZ_WC3_GROUP_ORDER_UNITS),
+            .order="move",.order_id=order_id,.issuer_player=actor->s.player,
+            .point=home};
+        FOR_LOOP(i,request.count) {
+            request.units[i].unit=roster[first+i];
+            request.units[i].spawn=roster[first+i]->spawn_time;
+        }
+        if (!move_group_point_order(&request,shared_id))
+            fprintf(stderr,"WC3 Move: captain shared home point batch rejected at %u/%u members\n",first,members);
+    }
+    FOR_LOOP(i,members) {
+        roster[i]->movement.captain_home=retained[i];
+        S_TrackMoveTimers(roster[i]);
+        roster[i]->movement.captain_home.actor=actor;
+        S_TrackMoveTimers(roster[i]);
+        roster[i]->movement.captain_home.active=false;
+        if (!logical) roster[i]->movement.captain_home.entered=false;
+    }
+    gi.MemFree(retained);
+}
+
+/* Native9d16c0 prepares only members whose current target is not this captain,
+ * then admits them in roster order through twelve-row physical requests. */
+static void move_captain_shared_target(edict_t *actor) {
+    uint32_t members=actor->movement.captain_actor_members,count=0;
+    edict_t **roster=move_captain_collect_roster(actor);
+    edict_t **selected=gi.MemAlloc(members*sizeof(*selected));
+    FOR_LOOP(i,members) {
+        edict_t *ent=roster[i];
+        if (!ent) gi.error("Move: missing captain target member %u/%u",i,members);
+        moveGroup_t const *group=move_unit_group(ent);
+        if (group && group->target==actor) continue;
+        selected[count++]=ent;
+    }
+    gi.MemFree(roster);
+    if (!count) {gi.MemFree(selected);return;}
+    typeof(actor->movement.captain_home) *retained=gi.MemAlloc(count*sizeof(*retained));
+    FOR_LOOP(i,count) {
+        retained[i]=selected[i]->movement.captain_home;
+        selected[i]->movement.captain_home.actor=selected[i]->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(selected[i]);
+    }
+    uint64_t shared_id=move_alloc_shared();
+    for (uint32_t first=0;first<count;first+=BZ_WC3_GROUP_ORDER_UNITS) {
+        groupPointOrder_t request={.count=MIN(count-first,BZ_WC3_GROUP_ORDER_UNITS),
+            .order="move",.order_id=G_OrderId("move"),.issuer_player=actor->s.player,
+            .point=&retained[first].home};
+        FOR_LOOP(i,request.count) {
+            request.units[i].unit=selected[first+i];
+            request.units[i].spawn=selected[first+i]->spawn_time;
+        }
+        if (!move_group_captain_order(&request,shared_id,actor))
+            gi.error("Move: captain shared target batch rejected at %u/%u",first,count);
+    }
+    FOR_LOOP(i,count) {
+        selected[i]->movement.captain_home=retained[i];
+        selected[i]->movement.captain_home.actor=actor;
+        selected[i]->movement.captain_home.active=true;
+        S_TrackMoveTimers(selected[i]);
+    }
+    gi.MemFree(retained);
+    gi.MemFree(selected);
+}
+
+/* The ordinary Captain update keeps the retained inner-membership count:
+ * placement does not manufacture new range-enter events. Reuse the same
+ * shared target/point admission as the range listener. */
+void S_UpdateCaptainMemberOrders(botCaptain_t *captain) {
+    edict_t *actor=captain ? captain->home_actor : NULL;
+    if(!actor || !actor->inuse || !actor->movement.captain_actor_members)return;
+    uint32_t members=actor->movement.captain_actor_members;
+    if(captain->entered_members<members)move_captain_shared_target(actor);
+    else {
+        edict_t **roster=move_captain_collect_roster(actor);
+        move_captain_shared_point(actor,roster,members,&captain->active_goal,true);
+        gi.MemFree(roster);
+    }
+}
+
+/*9d4c20 point policy: scan the retained logical roster, not all entities.
+ * The reduction uses total membership, but only eligible Move owners supply
+ * the minimum and Adro classification. Combat target policies are separate. */
+static float move_captain_point_speed(botCaptain_t const *captain) {
+    if (captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) return 500;
+    float speed=9999;uint32_t entered=captain->entered_members,members=ARRAY_COUNT(captain->units);
+    uint32_t board=G_OrderId("board");
+    bool ordinary=false;
+    FOR_EACH_ARRAY(edict_t *,member,captain->units) {
+        edict_t *unit=*member;
+        if (M_UnitMoveDisabled(unit) || !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) ||
+            S_CargoTransportForUnit(unit) || unit->current_order_id==board) continue;
+        speed=MIN(speed,S_UnitMoveSpeed(unit));
+        if (!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP)) ordinary=true;
+    }
+    float x=wc3_float(wc3_float_bits(wc3_sub(captain->active_goal.x,captain->home.x))&0x7fffffffu);
+    float y=wc3_float(wc3_float_bits(wc3_sub(captain->active_goal.y,captain->home.y))&0x7fffffffu);
+    if (ordinary && entered<members &&
+        !(x<wc3_float(0x3a83126f) && y<wc3_float(0x3a83126f))) {
+        float count=wc3_float(wc3_from_int(members));
+        float factor=wc3_add(wc3_mul(count,wc3_float(0x3c321643)),wc3_float(0x3f3d37a7));
+        speed=wc3_mul(speed,factor);
+    }
+    return speed;
+}
+
+/* Strict predicted membership retains creation phase and exact timer deadline. */
+static void move_captain_home_update(edict_t *self) {
+    edict_t *actor=self->movement.captain_home.roster_actor ? self->movement.captain_home.roster_actor : self->movement.captain_home.actor;
+    if (!actor) return;
+    wc3Clock_t *due=&self->movement.captain_home.due,next=level.pathing_clock;
+    wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
+    bool ready=next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
+    if (!ready) return;
+    /* Native0522e0 dispatches at the request's exact deadline, then restores
+     * the primary clock. Testing only the published quantum fires5ms late. */
+    wc3Clock_t now=level.pathing_clock;
+    level.pathing_clock=*due;
+    wc3_clock_advance(due,1,0);
+    wc3GridPose_t pose,target;
+    unit_predicted_pose(self,&pose);unit_predicted_pose(actor,&target);
+    /* The range listener follows the admitted actor, independently of the
+     * authored home used for the later shared point order. */
+    float delta[2];
+    FOR_LOOP(k,2) delta[k]=wc3_sub(target.grid[k],pose.grid[k]);
+    uint32_t members=actor->movement.captain_actor_members;
+    bool logical=self->movement.captain_home.roster_actor!=NULL;
+    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(S_MoveCollisionRadius(self),32));
+    float distance=wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]));
+    bool entered=distance<wc3_mul(radius,radius),was_entered=self->movement.captain_home.entered;
+    if (logical) {
+        botCaptain_t *captain=move_actor_captain(actor);
+        if(captain && entered!=was_entered) {
+            if(entered)captain->entered_members++;
+            else captain->entered_members--;
+        }
+        self->movement.captain_home.entered=entered;
+    }
+    if (logical || !self->movement.captain_home.active) {
+        /* Native d01cd leaves the registered outer circle and replaces the
+         * shared point leg with a private virtual-target approach. Retain the
+         * creation-phase deadline through the shared leg, including on load. */
+        float outer=wc3_add(wc3_div(wc3_add(1000,wc3_mul(25,members)),32),wc3_div(S_MoveCollisionRadius(self),32));
+        bool outside=distance>=wc3_mul(outer,outer),was_outer=self->movement.captain_home.outer;
+        if (logical) self->movement.captain_home.outer=!outside;
+        if (outside && (!logical || was_outer) && !self->movement.captain_home.active) {
+            /* Original9d8eb0 uses the inner count, not the outer departure
+             * count: more than floor(roster/10) missing members updates the
+             * complete roster. Already following members retain their heads. */
+            uint32_t entered_count=logical ? move_captain_entered(actor) : 0;
+            if (logical && members/10<members-entered_count) {
+                move_captain_shared_target(actor);
+                level.pathing_clock=now;
+                return;
+            }
+            typeof(self->movement.captain_home) retained=self->movement.captain_home;
+            /* Transfer the physical reference without briefly releasing the
+             * final follower of an actor whose logical captain was retired. */
+            self->movement.captain_home.actor=NULL;
+            S_TrackMoveTimers(self);
+            move_leave(self);
+            S_RecoverStoppedUnitPosition(self);
+            S_IssueMoveOrder(self,self->goalentity,G_OrderId("move"));
+            self->movement.captain_home=retained;
+            S_TrackMoveTimers(self);
+            self->movement.captain_home.actor=actor;
+            S_TrackMoveTimers(self);
+            self->movement.captain_home.active=true;
+            self->movement.captain_home.entered=false;
+            move_start_follow_group(self,actor,true);
+        }
+        if (!logical || !entered || was_entered) {
+            level.pathing_clock=now;
+            return;
+        }
+    }
+    if (!logical && entered)
+        self->movement.captain_home.entered=true;
+    /* Native9d9020 only publishes after bc <= cc+c4. Preserve roster order
+     * through the two-pass shared point admission, including after load. */
+    uint32_t entered_count=move_captain_entered(actor);
+    if (entered_count==members) {
+        edict_t **roster=move_captain_collect_roster(actor);
+        /* Native9d4600 replaces the moving virtual point request first.
+         * Consume its old velocity at the exact callback deadline. */
+        if (actor->unitinfo.move_flags&BZ_UNIT_SPEED_SET) {
+            botCaptain_t *captain=move_actor_captain(actor);
+            if (captain) actor->unitinfo.MoveSpeed=move_captain_point_speed(captain);
+            move_captain_actor_point(actor,&self->movement.captain_home.home,200);
+        }
+        move_captain_shared_point(actor,roster,members,&self->movement.captain_home.home,logical);
+        gi.MemFree(roster);
+    }
+    level.pathing_clock=now;
+}
+
+/* Captain range listeners belong to the primary clock. Retail dispatches
+ * their callbacks after the event-timer drain, at their exact primary deadline. */
+void S_RunCaptainRangeTimers(void) {
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t *ent=g_edicts+i;
+        if(ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor))
+            move_captain_home_update(ent);
+    }
+}
+
+/* Pose sampling must not replace tasks ahead of a due path owner. */
+void S_RunMoveTimers(void) {
+    if(!level.scheduled_frame) {
+        G_RunCaptainTimers();
+        S_RunCaptainRangeTimers();
+    }
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t *ent=g_edicts+i;
+        if(!ent->inuse || !ent->movement.pause_resume_pending || ent->paused || ent->movement.internal_suspend_depth)continue;
+        wc3Clock_t const *due=&ent->movement.pause_deadline;
+        bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
+            (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
+        if(!ready)continue;
+        uint32_t order=ent->movement.pause_order_id;
+        ent->movement.pause_resume_pending=false;
+        ent->movement.pause_phase=UNIT_PAUSE_NONE;
+        S_TrackMoveTimers(ent);S_RefreshUnitPauseSuppression(ent);
+        uint32_t const spawn=ent->spawn_time;
+        S_ExecuteTransientAbilityOrders(ent);
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))continue;
+        ent->movement.pause_order_id=0;
+        if(!order && G_UnitQueuedOrderCount(ent)) {
+            unit_stand(ent);
+        } else if(order && ent->goalentity && ent->currentmove==&move_move_walk) {
+            /* Retain the packet before callbacks: Stop can free the old
+             * waypoint. User-head notification precedes task construction. */
+            vec2_t point=ent->goalentity->s.origin2;
+            uint32_t const spawn=ent->spawn_time,revision=G_UnitMoveRevision(ent);
+            ent->current_order_id=order;
+            G_PublishIssuedPointOrder(ent,order,&point,ent->s.player,NULL);
+            if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) ||
+               S_UnitExecutionPaused(ent))continue;
+            if(G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=revision)continue;
+            uint32_t const head=ent->current_order_id;
+            S_IssueMoveOrder(ent,Waypoint_add(&point),order);
+            ent->current_order_id=head;
+            if(ent->currentmove==&move_move_walk && ent->goalentity)
+                move_start_point_group(ent,&point,0);
+        } else if(order) {
+            ent->current_order_id=order;
+            if(ent->currentmove && ent->currentmove->proc)
+                ent->currentmove->proc(ent,A_ORDER_RESUME,NULL);
+        } else if(ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
+    }
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t *ent=g_edicts+i;
+        if(!ent->inuse || !ent->movement.type_rebind_pending)continue;
+        wc3Clock_t const *due=&ent->movement.type_rebind_deadline;
+        bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
+            (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
+        if (!ready)continue;
+        ent->movement.type_rebind_pending=false;
+        S_TrackMoveTimers(ent);
+        if (ent->currentmove==&move_move_walk && ent->goalentity) {
+            vec2_t point=ent->goalentity->s.origin2;
+            S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
+            /* 5ffb60 constructs a replacement point task after the type
+             * rebind. Its physical owner must consume the newly published
+             * adaptive policy, just as a fresh public point order does. */
+            if(ent->currentmove==&move_move_walk && ent->goalentity)
+                move_start_point_group(ent,&point,0);
+        }
+    }
+
+}
+
+/* Queries predict from the retained fine pose without committing its time origin. */
+void S_PublishMovement(edict_t *self) {
+    if (!self->movement.clock_valid || !self->movement.pose_valid) return;
+    if (S_UnitExecutionPaused(self) || self->stunned) {
+        self->movement.fine_pose = self->movement.sampled_pose;
+        self->movement.pose_clock = level.pathing_clock;
+        return;
+    }
+    wc3GridPose_t pose;
+    unit_predicted_pose(self, &pose);
+    vec2_t point = {pose.world[0], pose.world[1]};
+    self->movement.sampled_pose = (vec2_t){pose.grid[0], pose.grid[1]};
+    if (wc3_float_bits(point.x) == wc3_float_bits(self->s.origin2.x) &&
+        wc3_float_bits(point.y) == wc3_float_bits(self->s.origin2.y)) return;
+    if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    self->s.origin2 = self->movement.pose_world = point;
+    gi.LinkEntity(self);
+}
+
+/* A native write first commits the old velocity at the current clock. */
+static void unit_commit_current_pose(edict_t *self) {
+    wc3GridPose_t pose;
+    unit_grid_pose(self, &pose);
+    bool clocked = self->movement.clock_valid;
+    uint32_t blocked = self->movement.worker_avoid_blocked_frames;
+    float velocity[2] = {self->movement.velocity.x, self->movement.velocity.y};
+    /*171340 integrates even an idle fresh mover before changing velocity.
+     * Zero elapsed still normalizes the signed-zero fine state. */
+    wc3_grid_step(&pose, velocity, clocked ? wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock) : 0);
+    unit_commit_pose(self, &pose);
+    self->movement.worker_avoid_blocked_frames = blocked;
+    if (clocked) {
+        self->movement.pose_clock = level.pathing_clock;
+        self->movement.clock_valid = true;
+    }
+}
+
+/* Derived intrusive-link slots keep the serialized owner order and make
+ * retirement O(1). Neither process pointers nor this cache enter saves. */
+static edict_t **move_repulse_links[MAX_ENTITIES];
+static edict_t *move_repulse_link_base,*move_repulse_link_head;
+static bool move_repulse_links_valid;
+
+static void move_repulse_clear_links(void) {
+    memset(move_repulse_links,0,sizeof(move_repulse_links));
+    move_repulse_link_base=move_repulse_link_head=NULL;move_repulse_links_valid=false;
+}
+
+bool S_RestoreMoveRepulsors(void) {
+    move_repulse_clear_links();
+    edict_t **link=&level.repulse_head;
+    while(*link) {
+#ifdef BZ_TESTS
+        move_test_repulse_unlink_visits++;
+#endif
+        uintptr_t delta=(uintptr_t)*link-(uintptr_t)g_edicts;
+        uint32_t index=delta/sizeof(*g_edicts);
+        if(!g_edicts || delta%sizeof(*g_edicts) || delta/sizeof(*g_edicts)>=globals.num_edicts ||
+            move_repulse_links[index] || !(*link)->inuse || !(*link)->movement.repulse.active)goto failed;
+        move_repulse_links[index]=link;link=&(*link)->movement.repulse.next;
+    }
+    FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+        move_test_repulse_unlink_visits++;
+#endif
+        if(g_edicts[i].movement.repulse.active && (!g_edicts[i].inuse || !move_repulse_links[i]))goto failed;
+    }
+    move_repulse_link_base=g_edicts;move_repulse_link_head=level.repulse_head;move_repulse_links_valid=true;return true;
+failed:
+    move_repulse_clear_links();return false;
+}
+
+static void move_repulse_prepare_links(void) {
+    if(move_repulse_links_valid && move_repulse_link_base==g_edicts && move_repulse_link_head==level.repulse_head)return;
+    if(!level.repulse_head) {
+        /* An empty runtime list needs no whole-edict discovery. Load uses the
+         * full validator separately, including orphan active records. */
+        move_repulse_clear_links();move_repulse_link_base=g_edicts;move_repulse_links_valid=true;return;
+    }
+    if(!S_RestoreMoveRepulsors())gi.error("Move repulsors: invalid owner membership");
+}
+
+/* Membership survives idle/attack orders and is removed before freeing or rebinding an actor. */
+static void move_repulse_unlink(edict_t *self) {
+    if(self->movement.repulse.active) {
+        move_repulse_prepare_links();
+        uint32_t index=self-g_edicts;edict_t **link=move_repulse_links[index];
+        assert(link && *link==self);
+#ifdef BZ_TESTS
+        move_test_repulse_unlink_visits++;
+#endif
+        *link=self->movement.repulse.next;
+        if(*link)move_repulse_links[*link-g_edicts]=link;
+        move_repulse_links[index]=NULL;move_repulse_link_head=level.repulse_head;
+    }
+    /* Membership teardown must not erase independent suppression owners. */
+    self->movement.repulse.state=(wc3Repulse_t){0};
+    self->movement.repulse.next=NULL;
+    self->movement.repulse.active=false;
+}
+
+/* Original1710e0 replaces the old repulsor and inserts the new object at the list head. */
+static void move_repulse_init(edict_t *self) {
+    if (self->movement.repulse.active) move_repulse_unlink(self);
+    UnitBalance_t const *balance = self->data.UnitBalance;
+    /* Native66fc50 is independent of the authored Move ability: zero-speed
+     * units still own separation, participate in queries and can be displaced. */
+    /* Native694690 owns a counted contribution. Final69c510 releases it
+     * before destruction, and may legitimately configure a fresh repulsor. */
+    if (!balance || !balance->repulse ||
+        self->movement.repulse.disable_depth > 0 || !G_UnitIsWorldActive(self) || self->paused ||
+        S_SpellIsChanneling(self) || S_RepairSuppressesSeparation(self)) return;
+    move_repulse_prepare_links();
+    uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,S_UnitMechanicalCritter(self));
+    self->movement.repulse.state.packed = wc3_repulse_policy(0,balance->repulseParam,category,balance->repulsePrio);
+    self->movement.repulse.active = true;
+    self->movement.repulse.next = level.repulse_head;
+    if(level.repulse_head)move_repulse_links[level.repulse_head-g_edicts]=&self->movement.repulse.next;
+    level.repulse_head=self;move_repulse_links[self-g_edicts]=&level.repulse_head;
+    move_repulse_link_head=level.repulse_head;
+    /* Mechanical Critter's latent category changes only at this real
+     * configuration boundary. Broader suppression producers remain SEP-01.2. */
+}
+
+/* Native688d90/6785c0 count independent owners. Signed INC/DEC wrap; only
+ * positive depth suppresses configuration. Refresh at each transition. */
+void S_AcquireUnitSeparationSuppression(edict_t *self) {
+    self->movement.repulse.disable_depth=(int32_t)((uint32_t)self->movement.repulse.disable_depth+1);
+    move_repulse_init(self);
+#ifdef BZ_TESTS
+    if(move_test_repulse_count_observer)move_test_repulse_count_observer(self);
+#endif
+}
+
+void S_ReleaseUnitSeparationSuppression(edict_t *self) {
+    self->movement.repulse.disable_depth=(int32_t)((uint32_t)self->movement.repulse.disable_depth-1);
+    move_repulse_init(self);
+#ifdef BZ_TESTS
+    if(move_test_repulse_count_observer)move_test_repulse_count_observer(self);
+#endif
+}
+
+/* An absent construction worker records scripted pause but has no suspended
+ * world task. Its pause contribution begins when construction returns it. */
+void S_RefreshUnitPauseSuppression(edict_t *self) {
+    bool held=S_UnitExecutionPaused(self) && !self->construction_held && !G_IsDeferredFree(self);
+    if(held==self->movement.repulse.pause_suppression)return;
+    self->movement.repulse.pause_suppression=held;
+    if(held)S_AcquireUnitSeparationSuppression(self);
+    else S_ReleaseUnitSeparationSuppression(self);
+}
+
+/* Internal holds keep their existing flag semantics. A restoration must also
+ * release any scripted pause contribution already owned by this unit. It does
+ * not acquire a new counted owner for an unresearched internal hold. */
+void S_SetUnitPauseFlag(edict_t *self, bool paused) {
+    S_ReleaseScriptedAbilityDisables(self);
+    self->paused=paused;self->movement.pause_phase=UNIT_PAUSE_NONE;
+    if(self->movement.repulse.pause_suppression)S_RefreshUnitPauseSuppression(self);
+}
+
+/* Predict from the committed fine pose without consuming its clock or velocity. */
+static void unit_predicted_pose_at(edict_t const *self,wc3Clock_t const *clock,wc3GridPose_t *pose) {
+    unit_grid_pose(self,pose);
+    if (self->movement.clock_valid) {
+        float velocity[2] = {self->movement.velocity.x,self->movement.velocity.y};
+        wc3_grid_step(pose,velocity,wc3_elapsed(clock,&self->movement.pose_clock));
+    }
+}
+
+void S_PredictUnitFinePointAt(edict_t const *self,wc3Clock_t const *clock,float point[2]) {
+    wc3GridPose_t pose;
+    unit_grid_pose(self,&pose);
+    /* A spatial predicate consumes fine coordinates only. Preserve the step's
+     * scalar sequence without converting the predicted result back to world. */
+    if(self->movement.clock_valid) {
+        float velocity[2]={wc3_mul(self->movement.velocity.x,wc3_float(0x3d000000)),
+                           wc3_mul(self->movement.velocity.y,wc3_float(0x3d000000))};
+        wc3_integrate(pose.grid,velocity,wc3_elapsed(clock,&self->movement.pose_clock));
+    }
+    point[0]=pose.grid[0];point[1]=pose.grid[1];
+}
+
+/* Original05b580 with prediction enabled: convert the requested scalar before
+ * adding target then source radii. Source-minus-point truncation, the minimum
+ * radius and squared near-equality are observable at adjacent float inputs.
+ * Read fine positions only; querying must not commit either mover's clock. */
+static bool move_target_in_range(edict_t const *self,edict_t const *target,float range,bool predict) {
+    if(!self || !target)return false;
+    uint32_t word=wc3_float_bits(range);
+    range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    float target_radius=wc3_mul(S_MoveCollisionRadius(target),wc3_float(0x3d000000));
+    float source_radius=wc3_mul(S_MoveCollisionRadius(self),wc3_float(0x3d000000));
+    range=MAX(wc3_float(0x3efae148),wc3_add(wc3_add(range,target_radius),source_radius));
+    float source[2],point[2],squared=0;
+    if(predict) {
+        S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
+        S_PredictUnitFinePointAt(target,&level.pathing_clock,point);
+    } else {
+        wc3GridPose_t first,second;
+        unit_grid_pose(self,&first);unit_grid_pose(target,&second);
+        FOR_LOOP(k,2){source[k]=first.grid[k];point[k]=second.grid[k];}
+    }
+    FOR_LOOP(k,2) {
+        float delta=wc3_sub(source[k],point[k]);
+        squared=wc3_add(squared,wc3_mul(delta,delta));
+    }
+    float limit=wc3_mul(range,range);
+    return limit>squared ||
+        wc3_float(wc3_float_bits(wc3_sub(squared,limit))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
+bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float range) {
+    return move_target_in_range(self,target,range,true);
+}
+
+/*05b340/15f660: query both predicted centers; the squared-vector and
+ * angular deadzones are independent of Move's arrival-facing tolerance. */
+bool S_UnitTargetInFacingWindow(edict_t const *self,edict_t const *target,float half_angle) {
+    if(!self || !target)return false;
+    wc3GridPose_t source,point;unit_predicted_pose(self,&source);unit_predicted_pose(target,&point);
+    float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
+    float distance=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
+    float epsilon=wc3_float(0x3456bf95u);
+    if(wc3_float(wc3_float_bits(distance)&0x7fffffffu)<epsilon)return true;
+    float error=wc3_float(wc3_float_bits(wc3_heading_error(x,y,self->s.angle))&0x7fffffffu);
+    return !(half_angle<error &&
+        wc3_float(wc3_float_bits(wc3_sub(error,half_angle))&0x7fffffffu)>=epsilon);
+}
+
+/* Original05b580 prediction selector0: Blink retention reads committed fine
+ * centers. It must not integrate velocity or publish either mover. */
+bool S_UnitTargetInCommittedMoveRange(edict_t const *self,edict_t const *target,float range) {
+    return move_target_in_range(self,target,range,false);
+}
+
+/*49e3a0 ->058900 then05b1c0(selector0): predict the observer to WORLD,
+ * project that result back to fine, and compare with the target's stored pose.
+ * Keep this roundtrip: nonzero origins can change a low fine bit. */
+float S_UnitCommittedTargetDistanceSquared(edict_t const *self,edict_t const *target) {
+    wc3GridPose_t source,point;
+    unit_predicted_pose(self,&source);unit_grid_pose(target,&point);
+    float squared=0;
+    FOR_LOOP(k,2) {
+        uint32_t word=wc3_float_bits(wc3_sub(source.world[k],point.origin[k]));
+        float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+        float delta=wc3_sub(point.grid[k],fine);
+        squared=wc3_add(squared,wc3_mul(delta,delta));
+    }
+    return squared;
+}
+
+/* Original05b440 predicts the source, adds only its collision radius and
+ * tests squared fine distance. Root uses zero authored extra range. */
+bool S_UnitPointInMoveRange(edict_t const *self,vec2_t const *point,float range) {
+    if(!self || !point)return false;
+    uint32_t word=wc3_float_bits(range);
+    range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    range=wc3_add(range,wc3_mul(S_MoveCollisionRadius(self),wc3_float(0x3d000000)));
+    box2_t bounds=CM_GetWorldBounds();
+    float source[2],target[2]={point->x,point->y},origin[2]={bounds.min.x,bounds.min.y},squared=0;
+    S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
+    FOR_LOOP(k,2) {
+        uint32_t axis=wc3_float_bits(wc3_sub(target[k],origin[k]));
+        float fine=wc3_float((axis^(axis-0x03000000u))&0x80000000u ? 0 : axis-0x02800000u);
+        float delta=wc3_sub(source[k],fine);
+        squared=wc3_add(squared,wc3_mul(delta,delta));
+    }
+    float limit=wc3_mul(range,range);
+    return limit>squared ||
+        wc3_float(wc3_float_bits(wc3_sub(squared,limit))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
+static void unit_predicted_pose_raw(edict_t const *self,wc3GridPose_t *pose) {
+    unit_predicted_pose_at(self,&level.pathing_clock,pose);
+}
+
+static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
+    box2_t bounds=CM_GetWorldBounds();
+    movePoseKey_t key={.world=self->s.origin2,.fine=self->movement.fine_pose,
+        .published=self->movement.pose_world,.origin=bounds.min,.velocity=self->movement.velocity,
+        .now=level.pathing_clock,.committed=self->movement.pose_clock,
+        .flags=(self->movement.pose_valid ? 1u : 0) | (self->movement.clock_valid ? 2u : 0)};
+    /* Zero velocity contributes exactly zero through the retail integer
+     * scalar multiply, including signed zero and an epoch crossing. Keep the
+     * original calculation on a miss; time cannot change its result. */
+    if(!self->movement.clock_valid || (!key.velocity.x && !key.velocity.y))
+        key.now=key.committed=(wc3Clock_t){0};
+    movePoseCache_t *entry=move_pose_cache+(uint32_t)self->s.number%MAX_ENTITIES;
+    if(entry->valid && entry->unit==self && !memcmp(&entry->key,&key,sizeof(key))) {
+#ifdef BZ_TESTS
+        move_pose_cache_hits++;
+#endif
+        *pose=entry->pose;return;
+    }
+#ifdef BZ_TESTS
+    move_pose_cache_misses++;
+#endif
+    unit_predicted_pose_raw(self,pose);
+    *entry=(movePoseCache_t){.unit=self,.key=key,.pose=*pose,.valid=true};
+}
+
+/* Shared native bridge position for AI distance owners; retains Move's exact prediction. */
+void S_UnitPredictedWorldPosition(edict_t const *unit,vec2_t *point) {
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    *point=(vec2_t){pose.world[0],pose.world[1]};
+}
+
+/* Admitted Move publishes nonzero requested speed with its committed velocity;
+ * turn/retry stops clear both components. Native c0 excludes moving repulsors. */
+static bool move_repulse_moving(edict_t const *unit) {
+    return unit->movement.velocity.x!=0 || unit->movement.velocity.y!=0;
+}
+
+/* The callback only accumulates; endpoint application precedes this query on the next eligible visit. */
+static bool move_repulse_candidate(edict_t const *other) {
+    moveRepulseQuery_t *query = repulse_query;
+    uint32_t word = other->movement.repulse.state.packed;
+    if (other == query->self || !other->movement.repulse.active || !G_UnitIsWorldActive(other) ||
+        IS_HOLLOW(other) || S_MoveCollisionRadius(other) <= 0 || move_repulse_moving(other) || other->paused || other->stunned || other->no_pathing ||
+        ((word >> 20) & 255) != query->category || (word >> 28) < query->rank) return false;
+    wc3GridPose_t pose; unit_predicted_pose(other,&pose);
+    for (unsigned i = 0; i < 2; i++) query->pair.other[i] = pose.grid[i];
+#ifdef BZ_TESTS
+    wc3Repulse_t before=query->self->movement.repulse.state;
+    wc3Random_t random_before=level.pathing_random;
+#endif
+    wc3_repulse_pair(&query->self->movement.repulse.state,&query->pair);
+#ifdef BZ_TESTS
+    if(move_test_repulse_pair)move_test_repulse_pair(query->self,other,&query->pair,&before,random_before);
+#endif
+    return false;
+}
+
+/* Retained displacement is an endpoint admission, not a swept collision/slide or a replacement order. */
+static void move_repulse_update(edict_t *self) {
+    wc3Repulse_t *state = &self->movement.repulse.state;
+    if (wc3_repulse_cooldown(state)) return;
+    if (move_repulse_moving(self) || self->paused || self->stunned) {
+        state->vector[0] = state->vector[1] = 0; state->packed = (state->packed & 0xffff0000u) | 7; return;
+    }
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    wc3GridPose_t next = pose;
+    for (unsigned i = 0; i < 2; i++) next.grid[i] = wc3_add(next.grid[i],state->vector[i]);
+    for (unsigned i = 0; i < 2; i++) next.world[i] = wc3_world_coordinate(next.grid[i],next.origin[i],32);
+    vec2_t point = {next.world[0],next.world[1]}, old = self->s.origin2;
+    movePathQuery_t endpoint = {{&point,NULL,S_MoveCollisionRadius(self),M_UnitStaticPathingFlags(self)},self,NULL,true};
+    float sq = wc3_add(wc3_mul(state->vector[0],state->vector[0]),wc3_mul(state->vector[1],state->vector[1]));
+    bool admitted=sq != 0 && G_UnitMovePathFinePointIsPathable(&endpoint,next.grid);
+#ifdef BZ_TESTS
+    if(move_test_repulse_endpoint)move_test_repulse_endpoint(self,next.grid,sq != 0,admitted);
+#endif
+    if (admitted) {
+        /* Original05c820 subtracts the predicted position before15f7b0 adds the delta back. */
+        for (unsigned i = 0; i < 2; i++) {
+            next.grid[i] = wc3_add(pose.grid[i],wc3_sub(next.grid[i],pose.grid[i]));
+            next.world[i] = wc3_world_coordinate(next.grid[i],next.origin[i],32);
+        }
+        unit_commit_pose(self,&next); pose = next;
+        G_UnitPositionChanged(self,&old);
+    }
+    wc3RepulseConfig_t config = wc3_repulse_config(state->packed);
+    moveRepulseQuery_t query = {.self=self,.pair={.source={pose.grid[0],pose.grid[1]},
+        .config=config,.random=&level.pathing_random},.category=(state->packed >> 20) & 255,.rank=state->packed >> 28};
+    repulse_query = &query;
+    S_QueryMoveProximity(self,pose.grid,config.radius,move_repulse_candidate);
+    repulse_query = NULL;
+    wc3_repulse_tail(state,&config);
+}
+
+/* Original15aa80 toggles parity first, then visits every other linked repulsor after movement. */
+static void move_repulse_owner_update(void) {
+    level.repulse_phase ^= 1;
+    unsigned skip = level.repulse_phase;
+    for (edict_t *self = level.repulse_head, *next; self; self = next) {
+        next = self->movement.repulse.next;
+        if (!G_UnitIsWorldActive(self) || IS_HOLLOW(self)) { move_repulse_unlink(self); continue; }
+        if (skip) { skip--; continue; }
+#ifdef BZ_TESTS
+        moveRepulseTrace_t before={.state=self->movement.repulse.state,.point=self->movement.fine_pose,.owner=level.pathing_random};
+#endif
+        MOVE_OWNER_PHASE(MOVE_PHASE_SEPARATE,self->s.number);
+        move_repulse_update(self); skip = 1;
+#ifdef BZ_TESTS
+        if(move_test_repulse)move_test_repulse(self,&before);
+#endif
+    }
+}
+
+/* The public200000 flag precedes issued callbacks; physical100000 and
+ * ability disabling belong to the subsequent suspension constructor. */
+bool S_UnitOrdersPaused(edict_t const *self) {
+    /* Internal execution holds do not acquire scripted ability disabling. */
+    return self && self->paused && self->movement.pause_phase==UNIT_PAUSE_SUSPENDED;
+}
+
+bool S_UnitExecutionPaused(edict_t const *self) {
+    return self && (self->movement.pause_resume_pending ||
+        (self->movement.internal_suspend_depth && self->movement.pause_phase!=UNIT_PAUSE_ADMITTING &&
+         self->movement.pause_phase!=UNIT_PAUSE_BYPASSED) || (self->paused &&
+        self->movement.pause_phase!=UNIT_PAUSE_ADMITTING && self->movement.pause_phase!=UNIT_PAUSE_BYPASSED &&
+        self->movement.pause_phase!=UNIT_PAUSE_WAITING));
+}
+
+/*680320 retains admission at positive Unit198. An absent internal task can
+ * still dispatch immediately (691c70), as with an idle Avatar transition. */
+bool S_UnitOrderExecutionHeld(edict_t const *self) {
+    return S_UnitExecutionPaused(self) || (self && self->movement.repulse.disable_depth>0 &&
+        (G_UnitHasActiveOrder(self) || G_BotAIStopTaskActive(self)));
+}
+
+/* Suspension retains its user packet while its physical task is canceled.
+ * d0144 and the first counted Move disable own separate cleanup scopes; neither
+ * owns the retained order or its already scheduled release. */
+static void move_suspend_physical_task(edict_t *self) {
+    uint32_t const order=self->movement.pause_order_id;
+    bool const pending=self->movement.pause_resume_pending;
+    S_StopUnitMovementWithRecovery(self);
+    self->movement.pause_order_id=order;
+    self->movement.pause_resume_pending=pending;
+    S_TrackMoveTimers(self);
+}
+
+void S_AcquireInternalSuspension(edict_t *self) {
+    if(!self || !self->inuse || M_IsDead(self))return;
+    if(self->movement.internal_suspend_depth++)return;
+    if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
+        self->movement.pause_resume_pending=false;
+        S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);return;
+    }
+    move_visual_track(self);
+    uint32_t const order=self->current_order_id,spawn=self->spawn_time;
+    bool point=self->currentmove==&move_move_walk && self->goalentity && move_point_order_id(order);
+    S_StopUnitMovementWithRecovery(self);
+    if(point)move_reset_progress(self);
+    self->movement.pause_order_id=order;
+    self->movement.pause_phase=UNIT_PAUSE_ADMITTING;
+    self->current_order_id=MOVE_ORDER_SUSPENDED;
+    uint32_t const revision=G_UnitMoveRevision(self);
+    G_PublishIssuedPointOrder(self,MOVE_ORDER_SUSPENDED,&(vec2_t){0},self->s.player,NULL);
+    if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
+    if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision) {
+        self->movement.pause_order_id=0;
+        self->movement.pause_phase=UNIT_PAUSE_BYPASSED;
+    } else if(self->movement.internal_suspend_depth) {
+        move_suspend_physical_task(self);
+        self->movement.pause_phase=UNIT_PAUSE_SUSPENDED;
+        S_SuspendRepairWork(self);
+    }
+    S_RefreshUnitPauseSuppression(self);
+}
+
+void S_ReleaseInternalSuspension(edict_t *self) {
+    if(!self || !self->movement.internal_suspend_depth)return;
+    if(--self->movement.internal_suspend_depth || self->paused)return;
+    if(self->movement.pause_phase!=UNIT_PAUSE_SUSPENDED && self->current_order_id!=MOVE_ORDER_SUSPENDED)return;
+    self->movement.pause_resume_pending=true;
+    self->movement.pause_deadline=level.pathing_clock;
+    FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+    S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);
+}
+
+void S_SetUnitPaused(edict_t *self, bool paused) {
+    if (!self || self->paused==paused) return;
+    if(!paused && self->movement.pause_phase==UNIT_PAUSE_WAITING) {
+        self->paused=false;self->movement.pause_phase=UNIT_PAUSE_NONE;return;
+    }
+    if(paused && self->movement.pause_phase!=UNIT_PAUSE_SUSPENDED &&
+       self->movement.repulse.disable_depth>0 && G_UnitHasActiveOrder(self)) {
+        self->paused=true;self->movement.pause_phase=UNIT_PAUSE_WAITING;return;
+    }
+    if (paused) {
+        S_SetSleepClockPaused(self,true);
+        S_SetMetamorphosisClocksPaused(self,true);
+        /*697770/688d30 cancel an already-built suspension's end request.
+         * They do not admit another point head or retire its retained user. */
+        if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
+            self->paused=true;self->movement.pause_resume_pending=false;
+            S_UnitAbilityEvent(self,A_UNIT_SUSPEND);
+            S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);return;
+        }
+        move_visual_track(self);
+        uint32_t const order=self->current_order_id,spawn=self->spawn_time;
+        /* An absent worker records the public flag but has no world task to
+         * admit. Its construction owner refreshes suppression on return. */
+        if(self->construction_held || G_IsDeferredFree(self)) {
+            self->paused=true;S_RefreshUnitPauseSuppression(self);return;
+        }
+        bool point=self->currentmove==&move_move_walk && self->goalentity && move_point_order_id(order);
+        /*697770 publishes200000 before688d30's old-task cancellation.
+         * Retain the user order below the suspension, not its physical route. */
+        self->paused=true;
+        S_StopUnitMovementWithRecovery(self);
+        if(point)move_reset_progress(self);
+        self->movement.pause_order_id=order;
+        self->movement.pause_phase=UNIT_PAUSE_ADMITTING;
+        self->paused=true;self->current_order_id=MOVE_ORDER_SUSPENDED;
+        uint32_t const revision=G_UnitMoveRevision(self);
+        G_PublishIssuedPointOrder(self,MOVE_ORDER_SUSPENDED,&(vec2_t){0},self->s.player,NULL);
+        if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
+        /*67abe0 rechecks internal tasks after notification. A nested Move
+         * wins; a completed Stop leaves no task and cannot block construction. */
+        if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision) {
+            self->movement.pause_order_id=0;
+            self->movement.pause_phase=self->paused ? UNIT_PAUSE_BYPASSED : UNIT_PAUSE_NONE;
+        } else if(self->paused) {
+            /*690a50 constructs its d0144 cleanup before d0145 begins the
+             * physical hold and counted ability disabling. */
+            move_suspend_physical_task(self);
+            self->movement.pause_phase=UNIT_PAUSE_SUSPENDED;
+            S_SuspendRepairWork(self);
+            S_UnitAbilityEvent(self,A_UNIT_SUSPEND);
+            if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
+        } else {
+            self->movement.pause_phase=UNIT_PAUSE_NONE;
+            self->movement.pause_order_id=0;
+            if(self->current_order_id==MOVE_ORDER_SUSPENDED)self->current_order_id=0;
+        }
+    } else {
+        /*6977c0 releases ability availability immediately; the physical
+         * hold and its retained packets remain until the scheduled boundary. */
+        S_ReleaseScriptedAbilityDisables(self);
+        self->paused=false;
+        S_SetSleepClockPaused(self,false);
+        S_SetMetamorphosisClocksPaused(self,false);
+        /* Nested Unpause during notification has not acquired a physical
+         * hold. The outer dispatch retires the unconstructed suspension. */
+        if(self->movement.pause_phase==UNIT_PAUSE_ADMITTING)return;
+        if(self->movement.pause_phase==UNIT_PAUSE_BYPASSED)self->movement.pause_phase=UNIT_PAUSE_NONE;
+        else if(!self->movement.internal_suspend_depth && (self->movement.pause_order_id ||
+                self->current_order_id==MOVE_ORDER_SUSPENDED || self->movement.pause_phase==UNIT_PAUSE_SUSPENDED)) {
+            self->movement.pause_resume_pending=true;
+            S_TrackMoveTimers(self);
+            self->movement.pause_deadline=level.pathing_clock;
+            FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+        }
+    }
+    int32_t depth=self->movement.repulse.disable_depth;
+    S_RefreshUnitPauseSuppression(self);
+    if(depth==self->movement.repulse.disable_depth)move_repulse_init(self);
+}
+
+static void move_detach_task(edict_t *self) {
+    self->movement.point_continuation=false;self->movement.next_point=(vec2_t){0};
+    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    S_TrackMoveTimers(self);
+    move_detach_group(self);
+    self->movement.group_id=0;
+    move_release_captain_reference(self);
+    self->movement.point_forced_arrival=false;
+}
+
+static void move_invalidate_path(edict_t *self) {
+    /* Native171340 sets the sentinel destination through168b80: counts and
+     * indices are invalidated without releasing the path's owned storage. */
+    moveFineRoute_t *route=&self->movement.fine_route;
+    route->count=route->adaptive_count=route->group_count=0;
+    route->index=route->adaptive_index=route->group_index=UINT32_MAX;
+    /*171340/168b80 publishes the invalid destination as well as discarding
+     * points. Retaining the old goal bypassed the request throttle when a
+     * Captain replaced an identical point task while its fine clock was live. */
+    route->adaptive_goal=(vec2_t){wc3_float(0xc7fa0000),wc3_float(0xc7fa0000)};
+    route->partial=false;route->adaptive_short=0;
+    /*168b80 resets retry/delay before the stopped order unwinds its task
+     * chain. Inactive units must not retain the failed search counters. */
+    self->movement.retry_count=self->movement.wait_delay=0;
+    self->movement.wait_blocker=NULL;
+    self->movement.path.valid=false;
+}
+
+static void move_stop_velocity(edict_t *self) {
+    unit_commit_current_pose(self);
+    self->movement.velocity = (vec2_t){0};
+    self->movement.clock_valid = false;
+}
+
+/* A different behavior must not inherit the previous Move's prediction velocity. */
+static void move_leave(edict_t *self) {
+    move_detach_task(self);
+    move_invalidate_path(self);
+    move_stop_velocity(self);
+}
+
+/* Physical ownership is independent of the current ability's animation move.
+ * Native171340 detaches idle angular requests too. Stop before installing stand:
+ * that transition can synchronously admit a queued successor. */
+void S_StopUnitMovement(edict_t *self) {
+    if (!self) return;
+    move_visual_track(self);
+    move_leave(self);
+}
+
+/* Retail axis setters reproject both coordinates through the predicted fine pose. */
+void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
+    wc3GridPose_t pose;
+    uint32_t blocked = self->movement.worker_avoid_blocked_frames;
+    bool clocked = self->movement.clock_valid;
+    if (clocked) unit_commit_current_pose(self);
+    unit_grid_pose(self, &pose);
+    float point[2] = {pose.world[0], pose.world[1]}; point[axis] = value;
+    wc3_grid_place(&pose, point); unit_commit_pose(self, &pose);
+    self->movement.pose_clock = level.pathing_clock;
+    if (clocked) {
+        self->movement.clock_valid = true;
+    }
+    self->movement.worker_avoid_blocked_frames = blocked;
+}
+
+#ifdef BZ_TESTS
+static void (*move_recovery_trace)(void *,unsigned,edict_t const *);
+static void *move_recovery_trace_data;
+void S_TestMoveRecoveryTrace(void (*trace)(void *,unsigned,edict_t const *),void *data) {
+    move_recovery_trace=trace;move_recovery_trace_data=data;
+}
+static void move_trace_recovery(unsigned stage,edict_t const *self) {
+    if(move_recovery_trace)move_recovery_trace(move_recovery_trace_data,stage,self);
+}
+#else
+#define move_trace_recovery(stage,self) ((void)0)
+#endif
+
+/* Stop's bounded recovery uses the native fine pose; a world round trip loses low bits. */
+void S_RecoverStoppedUnitPosition(edict_t *self) {
+    G_PublishMoveSpatialObject(self);
+    move_trace_recovery(0,self);
+    /*170080 captures this pooled record once. Keep its counter held through
+     *05c820's publication; moving links does not change the held identity. */
+    wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),self-g_edicts);
+    if(record)record->flags++;
+    move_trace_recovery(1,self);
+    wc3GridPose_t pose; unit_grid_pose(self,&pose);
+    vec2_t fine={pose.grid[0],pose.grid[1]}, admitted;
+    if (G_FindUnitMoveRecoveryPosition(self,&fine,&admitted)) {
+        float point[2]={admitted.x,admitted.y};
+        wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
+        /*05c820 ->15f7b0 ->virtual54 dispatches region filters before the
+         * captured170080 hold is released. Keep the admitted point stable
+         * across a filter that issues another placement or removes the unit. */
+        vec2_t committed=self->s.origin2;
+        G_UnitRegionPositionChanged(self,&committed);
+    }
+    move_trace_recovery(2,self);
+    if(record)record->flags--;
+    move_trace_recovery(3,self);
+}
+
+/*05ca50 owns a bridge exclusion across171340, including170080's separate
+ * captured-record hold. Finish recovery before exposing stand or a successor.
+ * The bridge re-reads its current fine object at release; the inner owner does
+ * not. Neither boundary changes the caller's existing exclusion depth. */
+void S_StopUnitMovementWithRecovery(edict_t *self) {
+    if(!self)return;
+    G_PublishMoveSpatialObject(self);
+    /*69a840 holds the nonstructure unit's mover and widget regions around
+     *05ca50. This is separate from the bridge and170080 captured holds. */
+    bool unit_scope=!G_UnitIsStructure(self);
+    if(unit_scope)S_ToggleUnitMoveExclusion(self,true);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,self-g_edicts) : NULL;
+    bool held=record!=NULL;
+    if(held)record->flags++;
+    move_visual_track(self);
+    self->movement.point_forced_arrival=false;
+    move_stop_velocity(self);
+    move_detach_task(self);
+    /*69a840 supplies no placement callback for the structure support branch;
+     *171340 still cancels its physical task and invalidates the path. */
+    if(unit_scope)S_RecoverStoppedUnitPosition(self);
+    move_invalidate_path(self);
+    if(held) {
+        record=wc3_records_owned(S_GetMoveFineSpatial(),self-g_edicts);
+        if(record)record->flags--;
+    }
+    if(unit_scope)S_ToggleUnitMoveExclusion(self,false);
+}
+
+/* Portal movement keeps the order, route buffers and current velocity. */
+bool S_MoveThroughPortal(edict_t *self,vec2_t const *fine) {
+    vec2_t admitted;
+    if(!G_FindUnitMovePortalPosition(self,fine,&admitted))return false;
+    wc3GridPose_t pose;unit_predicted_pose(self,&pose);
+    vec2_t old=self->s.origin2;
+    float point[2]={admitted.x,admitted.y};
+    wc3_grid_place_fine(&pose,point);unit_commit_pose(self,&pose);
+    G_UnitPositionChanged(self,&old);
+    return true;
+}
+
+/*653510 and6515f0 clamp before constructing the placement query. Starting
+ * its rings from an outside request changes support and candidate tie order. */
+static vec2_t unit_clamp_placement(vec2_t const *point) {
+    box2_t const bounds=CM_GetWorldBounds();
+    return (vec2_t){wc3_widget_clamp_axis(point->x,bounds.min.x,bounds.max.x),
+                    wc3_widget_clamp_axis(point->y,bounds.min.y,bounds.max.y)};
+}
+
+/* Public ground spawn admits first, then commits from the fresh mover sentinel.
+ * Applying the normal setter to an already inverted requested pose loses the
+ * original initialization cancellation and publishes different fractional XY. */
+void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
+    /* Factory placement belongs to the physical mover, independently of the
+     * implicit Move ability. A zero-speed critter still commits the original
+     * sentinel cancellation (Payoff201 public authored-speed-zero witness). */
+    vec2_t old = self->s.origin2, point, clamped=unit_clamp_placement(requested);
+    if (!G_FindUnitPlacementPosition(self,&clamped,&point))
+        fprintf(stderr,"WC3 CreateUnit: no legal point for %08x at (%.9g, %.9g); retaining requested position\n",self->class_id,requested->x,requested->y);
+    box2_t const bounds = CM_GetWorldBounds();
+    /* The retail factory overwrites both fine axes with its sentinel before
+     * either placement write. Only the map origin survives that initialization. */
+    wc3GridPose_t pose = {.origin = {bounds.min.x,bounds.min.y}};
+    float world[2] = {point.x,point.y};
+    wc3_grid_spawn_place(&pose,world);
+    unit_commit_pose(self,&pose);
+    self->movement.pose_clock = level.pathing_clock;
+    self->movement.clock_valid = false;
+    G_UnitPositionChanged(self,&old);
+}
+
+/* Both public placement natives replace the order before admitting position. */
+void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
+    if (!self || !requested) return;
+    S_IssueStopOrder(self);
+    /*2155c0 still invokes placement after a callback replaces the Stop. */
+    S_PlaceUnitPosition(self,requested);
+}
+
+/*9d7ac0 places the virtual actor without GoHome's trailing9d7600 recovery.
+ * Keep velocity, physical owner and retained request; commit the current clock
+ * so the old velocity is not integrated again from before the relocation. */
+void S_TeleportCaptainActor(botCaptain_t *captain,vec2_t const *requested) {
+    edict_t *self=captain ? captain->home_actor : NULL;
+    if(!self || !self->inuse || !requested)return;
+    bool clocked=self->movement.clock_valid;
+    uint32_t blocked=self->movement.worker_avoid_blocked_frames;
+    if(clocked)unit_commit_current_pose(self);
+    vec2_t old=self->s.origin2,position;
+    G_FindUnitPlacementPosition(self,requested,&position);
+    wc3GridPose_t pose;unit_grid_pose(self,&pose);
+    float point[2]={position.x,position.y};
+    wc3_grid_place(&pose,point);unit_commit_pose(self,&pose);
+    self->movement.pose_clock=level.pathing_clock;
+    self->movement.clock_valid=clocked;
+    self->movement.worker_avoid_blocked_frames=blocked;
+    captain->position_valid=false;
+    G_UnitPositionChanged(self,&old);
+}
+
+/* Unit virtual180 admits/publishes position independently of public Stop.
+ * Root438ac0 retains its head when relocating at morph start. */
+void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
+    if(!self || !requested)return;
+    vec2_t old_position=self->s.origin2,position;
+    self->movement.velocity = (vec2_t){0};
+    self->movement.clock_valid = false;
+    /*653510 clamps world XY before virtual position admission. Preserve the
+     * resulting ring/tie order even when the terrain query is disabled. */
+    vec2_t point_request=unit_clamp_placement(requested);
+    G_FindUnitPlacementPosition(self,&point_request,&position);
+    wc3GridPose_t pose;
+    unit_grid_pose(self, &pose);
+    float point[2] = {position.x, position.y};
+    wc3_grid_place(&pose, point);
+    unit_commit_pose(self, &pose);
+    self->movement.clock_valid = false;
+    self->movement.pose_clock = level.pathing_clock;
+    move_reset_progress(self);
+    G_UnitPositionChanged(self, &old_position);
+}
+
+/* Native scheduled Move integrates old velocity before requesting its new heading.
+ * Other owners retain their existing snapshot-step contract until separately measured. */
+static vec2_t unit_step_heading(edict_t *self, float angle, moveStep_t *step) {
+    float speed = unit_current_speed(self);
+    wc3Velocity_t *v = &step->velocity;
+    *v = (wc3Velocity_t){ .vel = {self->movement.velocity.x, self->movement.velocity.y},
+        .speed = speed, .heading = angle, .limit = speed };
+    unit_grid_pose(self, &step->pose);
+    if (level.scheduled_think) {
+        float old[2] = {self->movement.velocity.x, self->movement.velocity.y};
+        float elapsed = self->movement.clock_valid ?
+            wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock) : 0;
+        wc3_grid_step(&step->pose, old, elapsed);
+        wc3_velocity_update_world(v);
+    } else {
+        wc3_velocity_update_world(v);
+        wc3_grid_step(&step->pose, v->vel, 10.0f / FRAMETIME);
+    }
+    return (vec2_t){step->pose.world[0], step->pose.world[1]};
+}
+
+/* Retail160060 commits facing from velocity. Only accepted candidates retain the previewed fine pose. */
+static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
+    move_visual_track(self);
+    wc3Velocity_t const *v = &step->velocity;
+    self->movement.velocity = (vec2_t){v->vel[0], v->vel[1]};
+    float grid_x = wc3_mul(v->vel[0], wc3_float(0x3d000000));
+    float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
+    self->s.angle = wc3_mul(v->speed,1.0f/32) > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
+    unit_commit_pose(self, &step->pose);
+    G_UnitRegionPositionChanged(self,&self->s.origin2);
+    if (self->movement.route_resume_active && self->movement.route_resume_goal &&
+        self->movement.route_resume_goal->inuse) {
+        self->movement.route_resume_time = level.time;
+        self->movement.route_resume_goal_origin = self->movement.route_resume_goal->s.origin2;
+    }
+#ifdef BZ_TESTS
+    if (level.scheduled_think && move_test_motion_commit) move_test_motion_commit(self);
+#endif
 }
 
 /* Advance the unit one tick.  Avoidance is decided ONCE per tick in
@@ -557,11 +2828,24 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
  * visibly rotate/wobble and crab sideways past each other and trees. */
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
-    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
+    /* A Wisp leaving its harvested tree starts inside that tree's footprint;
+     * unit_changeangle_policy steers it toward the egress target. */
     bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
-        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags);
-
-    if (self->aiflags & AI_IMMOBILE) {
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, S_MoveCollisionRadius(self), M_UnitStaticPathingFlags(self));
+    if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked) {
+        /* Preserve upstream's Stand clip while using retail's pre-turn gate. */
+        if (self->movement.turn_blocked && !G_AnimationHasPrimary(self->animation,"stand"))
+            unit_setanimation(self,"stand");
+        /* Original1603d0 integrates the previous velocity before publishing a turn-induced stop. */
+        if (level.scheduled_think && self->movement.turn_blocked && !(self->aiflags & AI_IMMOBILE)) {
+            unit_commit_current_pose(self);
+            self->s.angle = wc3_facing_angle(self->s.angle);
+        }
+        self->movement.velocity = (vec2_t){0};
+#ifdef BZ_TESTS
+        if (level.scheduled_think && self->movement.turn_blocked && !(self->aiflags & AI_IMMOBILE) && move_test_motion_commit)
+            move_test_motion_commit(self);
+#endif
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
     }
@@ -574,70 +2858,43 @@ static void unit_moveindirection_policy(edict_t *self,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
     if (!wisp_egress && !self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0 &&
         !self->movement.route_resume_active) {
+        self->movement.velocity = (vec2_t){0};
         move_route_wait_diag(self, true, MOVE_DIAG_ROUTE_WAIT);
         return;
     }
 
-    /* The router cannot produce a legal starting node from inside a harvested
-     * tree. Egress to a nearby globally pathable point, then resume the order. */
-    if (wisp_egress) {
-        if (!self->movement.wisp_egress_target_valid ||
-            !CM_PointIsPathableForRadiusFlags(&self->movement.wisp_egress_target, self->collision, blocked_flags))
-            move_wisp_egress_choose_target(self, blocked_flags);
-        if (!self->movement.wisp_egress_target_valid) return;
-        vec2_t const delta = Vector2_sub(&self->movement.wisp_egress_target, &self->s.origin2);
-        self->movement.heading = atan2f(delta.y, delta.x);
-    } else if (self->movement.wisp_egress_active) {
-        self->movement.wisp_egress_tree = NULL;
-        self->movement.wisp_egress_active = false;
-        self->movement.wisp_egress_target_valid = false;
-    }
-
-    /* Runtime PropWindow follows SetUnitPropWindow's native radians contract;
-     * spawn converts authored UnitData degrees once at the boundary. */
-    float const window = self->unitinfo.PropWindow;
-    float const delta = fabsf(angle_wrap(self->movement.heading - self->s.angle));
-    if (delta >= window) {
-        move_route_wait_diag(self, false, MOVE_DIAG_NONE);
-        if (!G_AnimationHasPrimary(self->animation, "stand"))
-            unit_setanimation(self, "stand");
-        return;
-    }
-
-    /* ai_move_walk() requests Walk before this common propulsion check. Restore
-     * it here only after the heading is inside PropWindow, so a blocked turn
-     * can keep advancing its Stand clip instead of restarting it each tick. */
-    if (!G_AnimationHasPrimary(self->animation, "walk"))
-        unit_setanimation(self, "walk");
-
-    float const dist = unit_movedistance(self);
-    vec2_t const facing_dir = MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle));
-    vec2_t const heading_dir = MAKE(vec2_t, cosf(self->movement.heading), sinf(self->movement.heading));
+    if (wisp_egress && !self->movement.wisp_egress_target_valid) return;
+    if (!G_AnimationHasPrimary(self->animation,"walk")) unit_setanimation(self,"walk");
+    moveStep_t motion;
+    vec2_t facing_dir, heading_dir;
+    wc3_sincos(self->s.angle, &facing_dir.y, &facing_dir.x);
+    wc3_sincos(self->movement.heading, &heading_dir.y, &heading_dir.x);
     vec2_t const origin = self->s.origin2;
     vec2_t const progress_goal = self->movement.wisp_egress_active && self->movement.wisp_egress_target_valid ?
         self->movement.wisp_egress_target : self->movement.displacement_active ? self->movement.displacement_target :
         self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
-    vec2_t const by_facing = Vector2_mad(&self->s.origin2, dist,
-                                          &facing_dir);
+    vec2_t const by_facing = unit_step_heading(self, self->s.angle, &motion);
     bool const facing_progress = !self->goalentity ||
         Vector2_distance(&by_facing, &progress_goal) <=
         Vector2_distance(&origin, &progress_goal) + 0.001f;
-    /* A lagging facing is useful while turning around an obstacle, but it must
-     * not carry a unit away from the heading selected by the route solver. */
-    if (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress &&
+    /* Point orders must progress toward their reserved destination. Ranged
+     * interaction orders follow an approach route around a blocked target;
+     * applying the centre-distance guard there reversed a lumber worker at
+     * the flow endpoint before it could reach the dropoff boundary. */
+    if ((!unit_routes_to_location(self) ||
+         (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress)) &&
         move_is_valid_policy(self, &by_facing, collision_policy)) {
-        unit_commit_step(self, &by_facing);
+        unit_commit_motion(self, &motion);
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
     }
-    vec2_t const by_heading = Vector2_mad(&self->s.origin2, dist,
-                                           &MAKE(vec2_t, cosf(self->movement.heading), sinf(self->movement.heading)));
+    vec2_t const by_heading = unit_step_heading(self, self->movement.heading, &motion);
     if (move_is_valid_policy(self, &by_heading, collision_policy)) {
-        unit_commit_step(self, &by_heading);
+        unit_commit_motion(self, &motion);
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
-    } else {
-        move_route_wait_diag(self, false, MOVE_DIAG_NONE);
+        return;
     }
+    self->movement.velocity = (vec2_t){0};
 }
 
 void unit_moveindirection(edict_t *self) {
@@ -667,27 +2924,93 @@ bool unit_snap_to_point_ignore_units(edict_t *self, vec2_t const *point) {
     return true;
 }
 
-/* Turn the facing vector toward a target heading by at most the unit's turn
- * rate ('umvr', radians/tick; WC3 default 0.5).  Pure 2-D vector math (cross =
- * signed sin of the angle to turn, dot = cos); atan2 only writes the canonical
- * s.angle the renderer/network consume. */
-static void unit_turn_toward(edict_t *self, float target) {
-    vec2_t const facing = { cosf(self->s.angle), sinf(self->s.angle) };
-    vec2_t const goal   = { cosf(target), sinf(target) };
-    float const cross = facing.x * goal.y - facing.y * goal.x;
-    float const dot   = facing.x * goal.x + facing.y * goal.y;
-    float turn = self->data.UnitData->turnRate;
-    if (turn <= 0.0f) turn = 0.5f;
-
-    if (dot >= cosf(turn)) {
-        self->s.angle = target;  /* within one tick's turn: snap */
-    } else {
-        float const st = cross >= 0.0f ? sinf(turn) : -sinf(turn);
-        float const ct = cosf(turn);
-        vec2_t const nf = { facing.x * ct - facing.y * st,
-                             facing.x * st + facing.y * ct };
-        self->s.angle = atan2f(nf.y, nf.x);
+/*05aa80 returns c8, not physical8c. SetUnitFacingTimed consumes this
+ * separately settled value; only active movers are visited after group commits. */
+float S_UnitFacing(edict_t *unit) {
+    if(!unit->movement.visual_valid) {
+        unit->movement.visual_facing=unit->s.angle;
+        unit->movement.visual_speed=0;unit->movement.visual_valid=true;
     }
+    return unit->movement.visual_facing;
+}
+
+static void move_visual_track(edict_t *unit) {
+    S_UnitFacing(unit);unit->movement.visual_active=true;
+    uintptr_t index=((uintptr_t)unit-(uintptr_t)g_edicts)/sizeof(*unit);
+    if(g_edicts && index<MAX_ENTITIES)entity_set_put(&move_visual_members,index,true);
+}
+
+static void move_visual_update(void) {
+    /*004210 initializes these16 rows through the software decimal parser. */
+    static char const *const authored[16][4]={
+        {"0.07","0.2","0.2","0.25"},{"0.03","0.1","0.2","0.25"},
+        {"0.015","0.4","0.8","0.25"},{"0.005","0.1","1.2","0.5"},
+        {"0.04","0.15","1.2","0.6"},{"0.05","0.18","1.2","0.6"},
+        {"0.1","0.3","0.8","0.4"},{"0.003","0.08","1.2","0.5"},
+        {"0.001","0.05","1.4","0.5"},
+        {"0.07","0.2","0.2","0.25"},{"0.07","0.2","0.2","0.25"},
+        {"0.07","0.2","0.2","0.25"},{"0.07","0.2","0.2","0.25"},
+        {"0.07","0.2","0.2","0.25"},{"0.07","0.2","0.2","0.25"},
+        {"0.07","0.2","0.2","0.25"}};
+    static float policies[16][4];static bool initialized;
+    if(!initialized) {FOR_LOOP(i,16)FOR_LOOP(k,4)policies[i][k]=wc3_decimal(authored[i][k]);initialized=true;}
+    for(uint32_t i=entity_set_next(&move_visual_members,0);i<globals.num_edicts;i=entity_set_next(&move_visual_members,i+1)) {
+        edict_t *unit=g_edicts+i;
+        if(!unit->inuse || G_IsDeferredFree(unit)) {entity_set_put(&move_visual_members,i,false);continue;}
+#ifdef BZ_TESTS
+        float before_facing=unit->movement.visual_facing,before_speed=unit->movement.visual_speed;
+#endif
+        float delta=wc3_turn_error(unit->s.angle,unit->movement.visual_facing);
+        float magnitude=wc3_float(wc3_float_bits(delta)&0x7fffffffu);
+        if(magnitude<wc3_float(0x3a83126f)) {
+            unit->movement.visual_facing=unit->s.angle;unit->movement.visual_speed=0;
+            unit->movement.visual_active=false;entity_set_put(&move_visual_members,i,false);
+#ifdef BZ_TESTS
+            if(move_test_visual_commit)move_test_visual_commit(unit,before_facing,before_speed);
+#endif
+            continue;
+        }
+        unsigned type=unit->movement.visual_policy;
+        float const *policy=policies[type];
+        float speed=wc3_add(unit->movement.visual_speed,delta>=0 ? policy[0] : -policy[0]);
+        float cap=MIN(magnitude,policy[1]),factor=magnitude>=policy[2] ? 1 : wc3_div(magnitude,policy[2]);
+        factor=MAX(0,MIN(1,factor));
+        if(factor!=1) {
+            float power;
+            if(!wc3_pow(factor,policy[3],&power))gi.error("Move: visual heading power did not terminate");
+            cap=wc3_mul(cap,power);
+        }
+        float step=MIN(cap,wc3_float(wc3_float_bits(speed)&0x7fffffffu));
+        if(speed<0)step=-step;
+        unit->movement.visual_speed=step;
+        unit->movement.visual_facing=wc3_facing_angle(wc3_add(unit->movement.visual_facing,step));
+#ifdef BZ_TESTS
+        if(move_test_visual_commit)move_test_visual_commit(unit,before_facing,before_speed);
+#endif
+    }
+}
+
+/* Retail's stock constructor and native setter share normalization and the minimum turn rate. */
+float unit_turnspeed(edict_t const *self) {
+    if (self->unitinfo.move_flags & BZ_UNIT_TURN_SET) return self->unitinfo.TurnSpeed;
+    return MAX(wc3_float(0x3a83126f), wc3_angle(self->data.UnitData->turnRate));
+}
+
+/* 6785d0 converts authored degrees with the stored scalar before the 05c890 setter normalizes them. */
+float unit_propwindow(edict_t const *self) {
+    if (self->unitinfo.move_flags & BZ_UNIT_WINDOW_SET) return self->unitinfo.PropWindow;
+    return wc3_angle(wc3_mul(self->data.UnitData->propWin, wc3_float(0x3c8efa35)));
+}
+
+/* Use retail's scalar turn update instead of accumulating host sin/cos rotation error. */
+static void unit_turn_toward(edict_t *self, float target) {
+    move_visual_track(self);
+    wc3Motion_t motion = { .heading = self->s.angle, .error = wc3_turn_error(target, self->s.angle),
+        .turn = move_deciding_group && move_deciding_group->turning ?
+            move_deciding_group->turn_rate : unit_turnspeed(self), .window = unit_propwindow(self) };
+    /* Retail stops from the error before turning; testing the new angle allowed premature travel. */
+    self->movement.turn_blocked = !wc3_motion_update(&motion);
+    self->s.angle = motion.heading;
 }
 
 /* Resource workers need a different local crowd rule from ordinary combat
@@ -747,7 +3070,7 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
         self->movement.worker_avoid_blocked_frames <= MOVE_WORKER_QUEUE_TICKS)
         return goal_angle;
 
-    max_deviation = self->collision *
+    max_deviation = S_MoveCollisionRadius(self) *
         (self->movement.worker_avoid_blocked_frames <= MOVE_WORKER_ESCAPE_TICKS
             ? MOVE_WORKER_MAX_DEVIATION : MOVE_WORKER_ESCAPE_DEVIATION);
 
@@ -762,7 +3085,8 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
             if (unit_worker_lateral_deviation(self, &cand) > max_deviation)
                 continue;
             if (move_is_valid(self, &cand)) {
-                self->movement.worker_avoid_blocked_frames = 0;
+                /* A legal passing step may still require turning. Only a committed step
+                 * or cleared direct corridor resets the queue, so this turn can finish. */
                 return angle;
             }
         }
@@ -797,7 +3121,155 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
     return CM_SlideRoute(&slide);
 }
 
+/* Countdown and fine-retry callers restore the final destination before
+ * turning. Keep subtraction in native coordinates, before world publication. */
+static void move_hold_goal_heading(edict_t *self) {
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    moveGroupMember_t const *member=move_find_member(self);
+    if (member && !move_unit_group(self)->initialized) member=NULL;
+    float x=member ? member->destination.x : wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
+    float y=member ? member->destination.y : wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
+    moveFineRoute_t const *route=&self->movement.fine_route;
+    if (!member && route->group_count && route->group_index<route->group_count) {
+        vec2_t point=route->group_index ? (vec2_t){wc3_mul(route->group_points[route->group_index].x,2),wc3_mul(route->group_points[route->group_index].y,2)} : route->group_goal;
+        x=point.x;y=point.y;
+    }
+    float heading=wc3_vector_heading(wc3_sub(x,pose.grid[0]),wc3_sub(y,pose.grid[1]));
+    self->movement.heading=heading; unit_turn_toward(self,heading);
+    self->movement.turn_blocked=true;
+}
+
+/* Both real retry callers share the saved owner; observers never consume draws. */
+static uint32_t move_advance_retry(edict_t *unit,wc3RetryInput_t const *input) {
+#ifdef BZ_TESTS
+    moveRetryTrace_t before={.input=*input,.owner=level.pathing_random,.count=unit->movement.retry_count};
+#endif
+    uint32_t result=wc3_retry_advance(&unit->movement.retry_count,input,&level.pathing_random);
+#ifdef BZ_TESTS
+    before.result=result;
+    if(move_test_retry)move_test_retry(unit,&before);
+#endif
+    return result;
+}
+
+static uint32_t move_retry_members(edict_t const *self) {
+    uint32_t count=0;
+    /* A physical owner contains every actor assigned its unique ID. Count
+     * live rows, including paused members, before the next pruning pass. */
+    moveGroup_t const *group=move_unit_group(self);
+    if(group) {
+        FOR_LOOP(i,group->count) {
+#ifdef BZ_TESTS
+            move_retry_member_visits++;
+#endif
+            edict_t const *peer=group->members[i].unit;
+            if(peer && peer->inuse && peer->movement.group_id==group->id)count++;
+        }
+        return count;
+    }
+    /* Larger/mixed legacy selections have an ID without a physical owner. */
+    FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+        move_retry_member_visits++;
+#endif
+        edict_t const *peer=g_edicts+i;
+        if(peer->inuse && peer->movement.group_id==self->movement.group_id)count++;
+    }
+    return count;
+}
+
+/* Original166c30 publishes the reconstructed coarse endpoint to path+24
+ * when it differs from the requested destination. Both retry callers read
+ * that same adjusted goal, even before the coarse index reaches zero. The
+ * retained first point already owns these words; no new saved cache is needed. */
+static vec2_t move_retry_goal(moveFineRoute_t const *route,vec2_t requested) {
+    if (route->adaptive_count)
+        return (vec2_t){wc3_mul(route->adaptive_points[0].x,2),wc3_mul(route->adaptive_points[0].y,2)};
+    /* 168740 discards the coarse table but not path+24. */
+    if (route->adaptive_adjusted_valid && route->adaptive_adjusted_goal.x==requested.x &&
+        route->adaptive_adjusted_goal.y==requested.y) return route->adaptive_adjusted;
+    return requested;
+}
+
+/* Original167290 resets the fine leg only; retaining the coarse route lets
+ * the following thinker refill around the peer that has now stopped. */
+static void move_retry_fine(edict_t *self) {
+    moveFineRoute_t *route=&self->movement.fine_route;
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    moveGroupMember_t const *member=move_find_member(self);
+    if (member && !move_unit_group(self)->initialized) member=NULL;
+    vec2_t goal=move_retry_goal(route,member ? member->destination : route->points[0]);
+    wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},{goal.x,goal.y},1};
+    /* TODO GROUP: engine cohorts supply members until the original group
+     * activation/membership producer replaces the current selection owner. */
+    if (self->movement.group_id) {
+        in.members=move_retry_members(self);
+    }
+    uint32_t result=move_advance_retry(self,&in);
+    assert(result==1); /* admitted fine progress clears the budget before collection */
+    route->count=0; route->index=UINT32_MAX;
+    self->movement.path.valid=false;
+    move_hold_goal_heading(self);
+}
+
+/* Original165c60 consumes a reached partial endpoint before the next refill;
+ *167290 preserves every buffer on terminal4 and resets only fine on retry1. */
+static uint32_t move_advance_endpoint(edict_t *unit, wc3GridPose_t const *pose, vec2_t goal,
+                                      uint32_t members, vec2_t *direction) {
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    if (!route->partial || !route->count || route->index) return 0;
+    float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
+    float range=wc3_float(0x3efae148);
+    if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range)) return 0;
+    if(route->adaptive_index && route->adaptive_index<route->adaptive_count){
+        /* Original167070 consumes an intermediate coarse point before retry.
+         * The fine table survives, with an invalid index, until the next visit. */
+        *direction=(vec2_t){x,y};bool warped=false;
+        if(!G_AdvanceUnitMoveAdaptiveDestination(unit,route,&warped))
+            unit->movement.wait_delay=MAX(unit->movement.wait_delay,20u);
+        unit->movement.path.valid=false;
+        return 2;
+    }
+    moveGroup_t *group=move_unit_group(unit);
+    if(group && group->target) {
+        movePathQuery_t query={.geometry={.radius=S_MoveCollisionRadius(unit)},.mover=unit,
+            .target=group->target,.target_region=S_MoveGroupTargetRegion(group),.units=true};
+        if(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){pose->grid[0],pose->grid[1]}))return 3;
+    }
+    /* Failed adaptive reconstruction publishes its retained endpoint to the
+     * adjusted fine goal used by1689d0, independently of the user click. */
+    goal=move_retry_goal(route,goal);
+    wc3RetryInput_t in={{pose->grid[0],pose->grid[1]},{goal.x,goal.y},members};
+    uint32_t result=move_advance_retry(unit,&in);
+    if (result!=4) {route->count=0;route->index=UINT32_MAX;unit->movement.path.valid=false;}
+    return result;
+}
+
+/* Original5fdff0 runs each Patrol leg as an ordinary d016b point task beneath
+ * the 851991 head, so point Move ownership also applies to that head. */
+static bool move_point_order_id(uint32_t order) {
+    return order==G_OrderId("move") || order==G_OrderId("smart") || order==WC3_ORDER_ID_PATROL_TWO_POINTS;
+}
+
+static bool move_point_retry_endpoint(edict_t *unit) {
+    if (!level.scheduled_think || move_find_member(unit) || !unit->movement.fine_route.group_count ||
+        !move_point_order_id(unit->current_order_id)) return false;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    vec2_t goal=unit->movement.fine_route.group_goal;
+    vec2_t direction;
+    uint32_t result=move_advance_endpoint(unit,&pose,goal,1,&direction);
+    if (!result) return false;
+    if (result==4) unit->movement.point_forced_arrival=true;
+    if(result==2){
+        unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
+        unit_turn_toward(unit,unit->movement.heading);unit->movement.turn_blocked=true;
+    }else move_hold_goal_heading(unit);
+    return true;
+}
+
 static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy_t policy) {
+    if (policy==MOVE_AVOID_GENERIC && move_point_retry_endpoint(self)) return;
+    self->movement.turn_blocked = false;
     float const dirlen = Vector2_len(dir);
     if (dirlen <= 0.001f)
         return;  /* no meaningful heading this tick: hold current facing */
@@ -805,9 +3277,60 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     /* Local avoidance resolves into ONE heading; the facing turns toward it and
      * the move step (unit_moveindirection) follows it, keeping facing and motion
      * aligned (no second, disagreeing search). */
-    float const goal_angle = atan2f(dir->y, dir->x);
-    float const desired = unit_desired_heading(self, goal_angle,
-                                                unit_movedistance(self), policy);
+    float const goal_angle = wc3_vector_heading(dir->x, dir->y);
+    bool wait=false;
+    bool fine_heading=false;
+    moveGroup_t const *physical=move_unit_group(self);
+    /* Internal ability point tasks use the same retained fine path and
+     * entering-cell collector as public Move. A Load/Board head must not
+     * bypass newly blocked terrain while its physical leg is cached. */
+    if (policy==MOVE_AVOID_GENERIC && (unit_routes_to_location(self) ||
+        (physical && !physical->individual && !physical->turning))) {
+        movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,S_MoveCollisionRadius(self),policy});
+        wc3GridPose_t prediction;unit_predicted_pose(self,&prediction);
+        vec2_t source={prediction.grid[0],prediction.grid[1]};
+        if (query.units) query.fine=&source;
+        moveFineRoute_t const *route=&self->movement.fine_route;
+        float point[2]; float const *fine=NULL;
+        if (self->movement.path.valid && route->count && route->index<route->count) {
+            point[0]=route->points[route->index].x; point[1]=route->points[route->index].y; fine=point;
+            fine_heading=true;
+        }
+        /* 167070/1687e0 clear retry and delay before collection, including
+         * empty vectors. TODO ROUTE: index0 arrival/perimeter and direct-flow
+         * callers still need their complete original owner transitions. */
+        bool progress=fine && route->index>0;
+        if (fine && !progress) {
+            wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+            float x=wc3_sub(pose.grid[0],fine[0]),y=wc3_sub(pose.grid[1],fine[1]);
+            float range=wc3_float(0x3efae148);
+            progress=wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range);
+        }
+        if (progress) self->movement.retry_count=self->movement.wait_delay=0;
+        /*166140 retains its captured self through collection AND168360.
+         * Empty vectors still clear the previous blocker identity. */
+        wc3YieldDecision_t choice;
+        uint32_t count=G_ResolveUnitMoveStepBlockers(&query,fine,&choice);
+        if (count) {
+            wait=choice==WC3_YIELD_SELF || self->movement.wait_delay;
+            /* Original165ae0 retries every nonempty admitted blocker vector,
+             * including a stationary peer for which168360 chooses neither yield side. */
+            if (progress && !wait) {
+                move_retry_fine(self);
+                return;
+            }
+        }
+    }
+    if (wait) {
+        self->movement.heading=goal_angle;
+        unit_turn_toward(self,goal_angle);
+        self->movement.turn_blocked=true;
+        return;
+    }
+    /* The admitted fine path already owns terrain and next-step obstruction.
+     * A second world-space slide search changes the original native heading. */
+    float const desired = fine_heading ? goal_angle :
+        unit_desired_heading(self,goal_angle,unit_movedistance(self),policy);
     self->movement.heading = desired;
     unit_turn_toward(self, desired);
 }
@@ -839,18 +3362,172 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
     unit_apply_heading(self, &dir, policy);
 }
 
-/* Keep the bounded point-route turn until it is reached; retail likewise owns
- * route progress on each mover instead of rebuilding from its current point. */
-static bool unit_accel_direction_to_point(edict_t *self, vec2_t const *target,
-                                          float radius, vec2_t *dir) {
-    if (!self || !target || !dir) return false;
-    pathAccelParams_t params = { &self->s.origin2, target, radius, M_UnitStaticPathingFlags(self) };
-    return CM_AccelerateRoute(&self->movement.path, &params, dir);
+/* Raw curves are process-owned: actor removal, reload and shutdown release them before edict replacement. */
+void S_FreeMoveRoute(edict_t *self) {
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.group_admission);
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.adaptive_admission);
+    free(self->movement.fine_route.points);
+    free(self->movement.fine_route.adaptive_points);
+    free(self->movement.fine_route.group_points);
+    self->movement.fine_route = (moveFineRoute_t){0};
+    self->movement.path.valid = false;
 }
 
-static bool unit_accel_direction(edict_t *self, float radius, vec2_t *dir) {
-    return unit_accel_direction_to_point(self, &self->goalentity->s.origin2,
-                                         radius, dir);
+#ifdef BZ_TESTS
+static void (*move_blocker_resolve_trace)(edict_t const *,uint32_t);
+void S_TestMoveBlockerResolveTrace(void (*trace)(edict_t const *,uint32_t)) {
+    move_blocker_resolve_trace=trace;
+}
+#endif
+
+/* Original168360 clears the requester identity, keeps prior delay and scans in order. */
+wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count) {
+#ifdef BZ_TESTS
+    if(move_blocker_resolve_trace)move_blocker_resolve_trace(self,count);
+#endif
+    self->movement.wait_blocker=NULL;
+    wc3YieldDecision_t result=WC3_YIELD_SKIP;
+    float velocity[]={self->movement.velocity.x,self->movement.velocity.y};
+    FOR_LOOP(i,count) {
+        edict_t *peer=blockers[i];
+        if (!peer || !peer->inuse || peer==self) continue;
+        moveGroup_t const *group=move_unit_group(peer);
+        wc3YieldPeer_t other={.velocity={peer->movement.velocity.x,peer->movement.velocity.y},
+            .player=peer->s.player,.group_flags=group ? group->flags : 0,
+            .grouped=unit_routes_to_location(peer),
+            .same_group=self->movement.group_id && self->movement.group_id==peer->movement.group_id,
+            .blocked=peer->movement.wait_blocker && peer->movement.wait_blocker->inuse};
+        /* Native16843f uses the retained physical group flag, copied from
+         * the selected request's formation option before the first tick. */
+        wc3YieldDecision_t choice=wc3_yield_decide(velocity,self->s.player,&other);
+        if (choice==WC3_YIELD_SELF) {
+            self->movement.wait_blocker=peer;
+            self->movement.wait_delay=MAX(self->movement.wait_delay,4u);
+            return WC3_YIELD_SELF;
+        }
+        if (choice==WC3_YIELD_PEER) {
+            peer->movement.wait_blocker=self;
+            peer->movement.wait_delay=MAX(peer->movement.wait_delay,20u);
+            result=WC3_YIELD_PEER;
+        }
+    }
+    return result;
+}
+
+/* Keep the bounded point-route turn until it is reached; retail likewise owns
+ * route progress on each mover instead of rebuilding from its current point. */
+typedef enum { MOVE_ROUTE_FAILED, MOVE_ROUTE_READY, MOVE_ROUTE_STOP } moveRouteResult_t;
+
+/* Native167e40 compares wrapped floor coordinates in two-fine-cell buckets.
+ * Equal buckets keep their stored destination regardless of timestamp age. */
+static bool move_destination_changed(vec2_t old, vec2_t next) {
+    if (old.x==next.x && old.y==next.y) return false;
+    int32_t ax=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(old.x)));
+    int32_t ay=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(old.y)));
+    int32_t bx=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(next.x)));
+    int32_t by=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(next.y)));
+    return (ax>>1)!=(bx>>1) || (ay>>1)!=(by>>1);
+}
+
+static bool move_destination_ready(uint32_t fine, uint32_t coarse) {
+    return level.pathing_counter-fine>=BZ_WC3_FINE_REQUEST_INTERVAL &&
+        level.pathing_counter-coarse>=BZ_WC3_FINE_REQUEST_INTERVAL;
+}
+
+static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *dir) {
+    if (!self || !point.point || !dir) return MOVE_ROUTE_FAILED;
+    movePathQuery_t query = move_route_query(self, point);
+    wc3GridPose_t before;unit_predicted_pose(self,&before);
+    /* Native16fbd0 consumes this owner's prediction, not the last sampled
+     * presentation pose. Keep the fine source alive for the whole query. */
+    vec2_t source={before.grid[0],before.grid[1]};
+    if (query.units) query.fine=&source;
+    routePath_t *path = &self->movement.path;
+    moveFineRoute_t *curve = &self->movement.fine_route;
+    vec2_t local,fine_destination;
+    if (query.units && curve->group_count && curve->group_index<curve->group_count) {
+        vec2_t fine=curve->group_index ? (vec2_t){wc3_mul(curve->group_points[curve->group_index].x,2),wc3_mul(curve->group_points[curve->group_index].y,2)} : curve->group_goal;
+        box2_t bounds=CM_GetWorldBounds();
+        local=(vec2_t){wc3_add(bounds.min.x,wc3_mul(fine.x,CM_PathCellWorldSize())),wc3_add(bounds.min.y,wc3_mul(fine.y,CM_PathCellWorldSize()))};
+        query.geometry.target=&local;
+        /* Original16a790 submits the selected fine destination unchanged.
+         * A blocked final leg must admit a partial route and its retries,
+         * rather than becoming a successful nearest-point Move. */
+        fine_destination=fine;query.fine_target=&fine_destination;
+    }
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t final=query.fine_target ? *query.fine_target :
+        (vec2_t){wc3_grid_coordinate(query.geometry.target->x,bounds.min.x,32),wc3_grid_coordinate(query.geometry.target->y,bounds.min.y,32)};
+    vec2_t held={wc3_sub(final.x,before.grid[0]),wc3_sub(final.y,before.grid[1])};
+    if(query.units && query.fine_target && curve->adaptive_points &&
+        (!move_destination_changed(curve->adaptive_goal,final) ||
+         !move_destination_ready(self->movement.fine_request_time,curve->adaptive_admission.time))) {
+        /* Native167e40/16fca2 retain the path destination until both request
+         * timestamps permit replacement. Arrival/held heading still use the
+         * caller's new destination. A group reset does not erase these times. */
+        fine_destination=curve->adaptive_goal;
+        local=(vec2_t){wc3_add(bounds.min.x,wc3_mul(fine_destination.x,CM_PathCellWorldSize())),
+            wc3_add(bounds.min.y,wc3_mul(fine_destination.y,CM_PathCellWorldSize()))};
+        query.geometry.target=&local;query.fine_target=&fine_destination;
+    }
+    moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
+    if (query.units) {
+        uint32_t advance=0;
+        /* Original165ae0 retains the admitted leg until progress/refill. A
+         * fresh full-length interior sample every tick can reject a valid
+         * cached turn as its fractional source crosses sample-cell boundaries.
+         * Advance checks terrain epoch/mask; the step collector handles peers. */
+        if (path->valid && ((!query.fine_target && Vector2_distance(&path->target,point.point) >= 1.f) ||
+            fabsf(path->radius-point.radius) >= .01f)) path->valid=false;
+        /* Native165b60 checks the retained coarse point before every fine
+         * refill. A failed portal must retry after its wait without walking
+         * toward that point merely because the fine leg was invalidated. */
+        if ((path->valid || curve->adaptive_count) &&
+            !G_AdvanceUnitMoveFineRouteStatus(&query,curve,&path->waypoint,&advance)) path->valid=false;
+        if(advance){*dir=held;return MOVE_ROUTE_STOP;}
+        if (!path->valid) {
+            if (!G_BuildUnitMoveFineRouteStatus(&query,curve,&path->waypoint,&advance)) {
+                if (advance) {*dir=held;return MOVE_ROUTE_STOP;}
+                /* Native16fbd0 stops and turns toward the held destination
+                 * when an admitted fine refill is denied or empty. Other
+                 * ability routes retain their caller's movement policy until
+                 * they enter the same member admission path. */
+                if (!query.fine_target && !curve->adaptive_admission.waiting) return MOVE_ROUTE_FAILED;
+                *dir=held;return MOVE_ROUTE_STOP;
+            }
+            path->target = *point.point; path->radius = point.radius; path->valid = true;
+        }
+        *dir = G_MoveFineRouteDirection(&query,curve);
+        return MOVE_ROUTE_READY;
+    }
+    curve->count = curve->index = 0;
+    if (path->valid && (Vector2_distance(&path->target, point.point) >= 1.0f ||
+        fabsf(path->radius - point.radius) >= 0.01f ||
+        Vector2_distance(query.geometry.from, &path->waypoint) <= CM_PathCellWorldSize() ||
+        !move_route_line(self, turn))) path->valid = false;
+    if (!path->valid) {
+        if (!G_FindUnitMovePathWaypoint(&query, &path->waypoint)) return MOVE_ROUTE_FAILED;
+        path->target = *point.point; path->radius = point.radius; path->valid = true;
+    }
+    *dir = Vector2_sub(&path->waypoint, query.geometry.from);
+    return MOVE_ROUTE_READY;
+}
+
+#ifdef BZ_TESTS
+/* Exercise the production steering consumer without advancing animation,
+ * clocks or translation. Return its own FAILED/READY/STOP result, not EAX. */
+unsigned S_TestMoveRouteDirection(edict_t *self, vec2_t const *point, vec2_t *dir) {
+    return unit_accel_direction(self,(moveRoutePoint_t){point,S_MoveCollisionRadius(self),MOVE_AVOID_GENERIC},dir);
+}
+#endif
+
+/* A nonzero Path_Advance status turns toward the pre-crossing goal and
+ * suppresses translation for this visit. Keep it distinct from route failure. */
+static void unit_apply_route_heading(edict_t *self,vec2_t const *dir,moveAvoidPolicy_t policy,moveRouteResult_t result) {
+    if(result==MOVE_ROUTE_STOP) {
+        self->movement.heading=wc3_vector_heading(dir->x,dir->y);
+        unit_turn_toward(self,self->movement.heading);self->movement.turn_blocked=true;
+    } else unit_apply_heading(self,dir,policy);
 }
 
 void unit_changeangle_towards_point(edict_t *self, vec2_t const *point) {
@@ -862,6 +3539,7 @@ void unit_changeangle_towards_point_worker(edict_t *self, vec2_t const *point) {
 }
 
 bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *point) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     vec2_t dir;
 
     if (!self || !point || (self->aiflags & AI_IMMOBILE))
@@ -878,33 +3556,42 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
      * exact point when it is directly reachable; otherwise use the same
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, point, self->collision, M_UnitStaticPathingFlags(self))) {
+    if (move_route_line(self, (moveRoutePoint_t){point, S_MoveCollisionRadius(self), MOVE_AVOID_STATIC_ONLY})) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
-    } else if (!unit_accel_direction_to_point(self, point, self->collision, &dir)) {
+    } else if (!(route_result=unit_accel_direction(self, (moveRoutePoint_t){point, S_MoveCollisionRadius(self), MOVE_AVOID_STATIC_ONLY}, &dir))) {
         return false;
     }
 
-    unit_apply_heading(self, &dir, MOVE_AVOID_STATIC_ONLY);
+    unit_apply_route_heading(self, &dir, MOVE_AVOID_STATIC_ONLY, route_result);
     return true;
 }
 
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))
         return;
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
+        wc3_yield_advance(&self->movement.wait_delay,false)) {
+        /* Original165ae0's countdown leaves the caller destination unchanged.
+         * 16fbd0 subtracts it from the predicted native source, before world
+         * projection; acquisition-time waits separately retain the waypoint. */
+        move_hold_goal_heading(self);
+        return;
+    }
     if (move_displacement_steer(self, policy))
         return;
     if (move_wisp_egress_tree_valid(self)) {
         uint8_t const flags = M_UnitStaticPathingFlags(self);
-        if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, flags)) {
+        if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, S_MoveCollisionRadius(self), flags)) {
             self->movement.wisp_egress_tree = NULL;
             self->movement.wisp_egress_active = false;
             self->movement.wisp_egress_target_valid = false;
         } else {
             if (!self->movement.wisp_egress_target_valid ||
                 !CM_PointIsPathableForRadiusFlags(&self->movement.wisp_egress_target,
-                                                   self->collision, flags))
+                                                   S_MoveCollisionRadius(self), flags))
                 move_wisp_egress_choose_target(self, flags);
             if (self->movement.wisp_egress_target_valid) {
                 vec2_t const dir = Vector2_sub(&self->movement.wisp_egress_target, &self->s.origin2);
@@ -932,7 +3619,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * for its authored interaction-range check. */
     float const radius = (unit_routes_to_location(self) ||
         (self->currentmove && self->currentmove->proc == CAbilityAttack))
-        ? self->collision : 0.0f;
+        ? S_MoveCollisionRadius(self) : 0.0f;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
@@ -941,28 +3628,70 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    /* Interaction range remains owned by the behavior. Routing can use a
-     * collision-sized approach field without completing an attack at that
-     * field's adjusted endpoint; it continues toward the real target and the
-     * attack range check decides when to engage. */
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
+    /* An admitted retail point cohort owns partial routing too. A generic
+     * static field for the raw click must not replace its task destination
+     * or skip the current fine leg when that click lies outside the world. */
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
+        self->movement.fine_route.group_count &&
+        (route_result=unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir))) {
+        unit_apply_route_heading(self, &dir, policy, route_result);
+        return;
+    }
+
+    /* Generic interaction movement keeps the original point-route contract.
+     * Attack, mine entry, resource return, repair, and other ranged behaviors
+     * decide when their interaction boundary has been reached.  Do not stop
+     * those orders at a collision-expanded flow goal outside that boundary.
+     * Move orders own radius-valid reserved destinations, so their route must
+     * use the same footprint as move-time collision; point routing previously
+     * sent units into narrow gaps and touching obstacle corners. */
+    if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}) &&
+        !(unit_routes_to_location(self) && self->movement.path.valid && self->movement.fine_route.count)) {
+        /* Retail16fbd0 advances even a clear point route. Its retained fine
+         * turn and predicted native source determine the heading; subtracting
+         * published world positions changes velocity/facing before a blocker. */
+        if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
+            (route_result=unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir))) {
+            unit_apply_route_heading(self, &dir, policy, route_result);
+            return;
+        }
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
-        if (!heatmap) {
-            if (!unit_accel_direction(self, radius, &dir)) {
-                if (!move_route_resume(self, self->goalentity, radius, blocked_flags, &dir))
-                    return; /* long incremental route is still building; keep the order */
-                self->movement.route_resume_active = true;
-            }
-            /* path_valid resolves the heading while the shared field builds;
-             * this is not a direct line to the requested destination. */
-            unit_apply_heading(self, &dir, policy);
+        /* A completed generic field previously discarded the mover's fine
+         * turn. Keep retail route choices throughout nearby detours, while
+         * known unreachable/adjusted endpoints retain their interaction path. */
+        /* Nearby orders retain retail search choices; long fields use the
+         * same footprint geometry for expansion and flow sampling. */
+        bool fine = unit_routes_to_location(self) || !heatmap ||
+                    !CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y);
+        /* A completed static field already proves disconnection. Preserve its
+         * component fallback; a partial fine turn must not postpone it. */
+        if (heatmap && !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y)) fine = false;
+        if (fine && (route_result=unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir))) {
+            unit_apply_route_heading(self, &dir, policy, route_result);
             if (!self->movement.route_resume_active)
                 move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
+            return;
+        }
+        if (!heatmap && !unit_routes_to_location(self) &&
+            move_route_resume(self, self->goalentity, radius, blocked_flags, &dir)) {
+            self->movement.route_resume_active = true;
+            unit_apply_route_heading(self, &dir, policy, route_result);
+            return;
+        }
+        if (!heatmap) {
+            /* A live object can occupy the goal while the static field is
+             * still pending. Keep collision-aware local steering in that
+             * clear static corridor; pausing here stranded occupied-goal Move.
+             * A nearest chain containing only the current cell gives no turn. */
+            if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
+                unit_apply_heading(self, &to_goal, policy);
+                self->movement.flow_direct = true;
+            }
             return;
         }
         self->movement.path.valid = false;
@@ -978,11 +3707,9 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
             dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
             if (Vector2_len(&dir) <= 0.001f) {
                 self->movement.flow_unreachable = !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
-                /* Location targets are private waypoints.  When the clicked static
-                 * component is unreachable, replace the waypoint with the
-                 * closest legal point in this mover's component; aiming at the
-                 * raw click made local avoidance walk forever along walls.
-                 * Entity goals steer to that approach point instead. */
+                /* Keep the reachable approach on the mover. Only a private
+                 * location waypoint may adopt that endpoint; interaction
+                 * targets retain their authoritative pose and footprint. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
                     vec2_t const *from = &self->s.origin2, *target = &self->goalentity->s.origin2;
                     vec2_t closest;
@@ -991,26 +3718,28 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_target = *target;
                     self->movement.flow_fallback_radius = radius;
                     self->movement.flow_fallback_time = level.time;
-                    self->movement.flow_fallback_goal = self->goalentity;
+                    S_SetMoveGoal(self, &self->movement.flow_fallback_goal, self->goalentity);
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
-                    if (CM_ClosestReachablePointForRadiusFlags(from, target, radius, blocked_flags, &closest)) {
+                    pathAccelParams_t query = {from, target, radius, blocked_flags};
+                    if (G_ClosestReachableMovePoint(&query, &closest)) {
                         self->goalentity->heatmap2 = 0;
                         self->goalentity->heatmap2_radius = 0;
                         move_reset_progress(self);
                         self->movement.flow_fallback_target = *target;
                         self->movement.flow_fallback_approach = closest;
                         self->movement.flow_fallback_radius = radius;
-                        self->movement.flow_fallback_goal = self->goalentity;
-                        /* Point orders own a private waypoint (cf. Q2 movetarget);
-                         * entity goals are shared gameplay objects and must never be moved. */
-                        bool const owns_goal = unit_routes_to_location(self) && !move_has_active_construction();
-                        if (owns_goal) {
-                            self->goalentity->s.origin2 = closest;
-                            self->goalentity->secondarygoal = NULL;
-                        } else if (Vector2_distance(&closest, target) > 1.0f) {
+                        S_SetMoveGoal(self, &self->movement.flow_fallback_goal, self->goalentity);
+                        if (!(self->goalentity->svflags & SVF_MOVE_WAYPOINT) ||
+                            (move_has_active_construction() &&
+                             Vector2_distance(&closest, target) > 1.0f)) {
+                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                             dir = Vector2_sub(&closest, &self->s.origin2);
                             self->movement.flow_direct = true;
-                            unit_apply_heading(self, &dir, policy);
+                            unit_apply_route_heading(self, &dir, policy, route_result);
+                        } else {
+                            self->goalentity->s.origin2 = closest;
+                            S_SetMoveGoal(self->goalentity, &self->goalentity->secondarygoal, NULL);
+                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                         }
                         self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                     }
@@ -1022,7 +3751,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     }
 
     self->movement.route_resume_active = false;
-    unit_apply_heading(self, &dir, policy);
+    unit_apply_route_heading(self, &dir, policy, route_result);
     move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
 }
 
@@ -1042,12 +3771,12 @@ void unit_changeangle_worker(edict_t *self) {
 static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                moveAvoidPolicy_t policy,
                                                bool continue_to_target) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))
         return;
+    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
-    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
-
     self->movement.heading = self->s.angle;
     self->movement.route_resume_active = false;
     self->movement.flow_generation = 0;
@@ -1055,7 +3784,7 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
+    if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy})) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -1063,12 +3792,12 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap) {
-            if (!unit_accel_direction(self, radius, &dir)) {
+            if (!(route_result=unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir))) {
                 if (!move_route_resume(self, self->goalentity, radius, blocked_flags, &dir))
                     return; /* long incremental route is still building */
                 self->movement.route_resume_active = true;
             }
-            unit_apply_heading(self, &dir, policy);
+            unit_apply_route_heading(self, &dir, policy, route_result);
             if (!self->movement.route_resume_active)
                 move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
             return;
@@ -1096,7 +3825,7 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
     }
 
     self->movement.route_resume_active = false;
-    unit_apply_heading(self, &dir, policy);
+    unit_apply_route_heading(self, &dir, policy, route_result);
     move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
 }
 
@@ -1112,11 +3841,231 @@ void unit_changeangle_interaction_ignore_units(edict_t *self) {
     /* Warsmash's mover owns a collision-sized path even when the ranged
      * behavior disables unit collision.  Use the worker radius for static
      * routing, but keep mobile-unit collision disabled at steering/move time. */
-    unit_changeangle_for_radius_policy(self, self ? self->collision : 0.0f,
+    unit_changeangle_for_radius_policy(self, self ? S_MoveCollisionRadius(self) : 0.0f,
                                        MOVE_AVOID_STATIC_ONLY, true);
 }
 
-/* Reserve a body-queue-style ring in g_edicts so ordinary F_EDICT relocation owns every waypoint pointer. */
+static entitySet_t waypoint_available;
+static bool waypoint_cache_valid;
+static bool waypoint_index_valid;
+static entitySet_t waypoint_dirty, waypoint_roots, waypoint_live, waypoint_kinds, waypoint_chains;
+static uint32_t waypoint_references[MAX_ENTITIES];
+static uint16_t waypoint_owner_roots[MAX_ENTITIES][11];
+_Static_assert(MAX_ENTITIES <= UINT16_MAX, "Waypoint root identity must fit with a null sentinel");
+#ifdef BZ_TESTS
+static uint32_t waypoint_owner_visits;
+#endif
+
+void G_ResetWaypointCache(void) { waypoint_cache_valid=waypoint_index_valid=false; }
+
+/* Reference writers publish the pointer synchronously. Reclamation reconciles
+ * each changed owner once, after all writes, using compact identity columns.
+ * Reads never allocate and this derived index never claims entity identities. */
+void S_MarkMoveGoals(edict_t const *owner) {
+    uintptr_t offset=(uintptr_t)owner-(uintptr_t)g_edicts;
+    if(waypoint_index_valid && g_edicts && offset<sizeof(*owner)*MAX_ENTITIES && !(offset%sizeof(*owner)))
+        entity_set_put(&waypoint_dirty,offset/sizeof(*owner),true);
+}
+
+edict_t *S_SetMoveGoal(edict_t *owner, edict_t **slot, edict_t *goal) {
+    *slot=goal;
+    S_MarkMoveGoals(owner);
+    return goal;
+}
+
+static uint16_t waypoint_identity(edict_t const *point) {
+    uintptr_t offset=(uintptr_t)point-(uintptr_t)g_edicts;
+    return g_edicts && offset<sizeof(*point)*MAX_ENTITIES && !(offset%sizeof(*point)) ?
+        (uint16_t)(offset/sizeof(*point)+1) : 0;
+}
+
+/* One retained Follow parent per unit. Links are derived; its registration
+ * rank is authoritative so cold load never substitutes edict allocation order. */
+static void move_follow_unlink(uint16_t id) {
+    moveFollowLink_t *link=move_follow_links+id-1;
+    if(!link->target)return;
+    moveFollowList_t *list=move_follow_lists+link->target-1;
+    if(link->prev)move_follow_links[link->prev-1].next=link->next;
+    else list->head=link->next;
+    if(link->next)move_follow_links[link->next-1].prev=link->prev;
+    else list->tail=link->prev;
+    assert(list->count);list->count--;*link=(moveFollowLink_t){0};
+}
+
+static void move_follow_link(uint16_t id,uint16_t target) {
+    moveFollowList_t *list=move_follow_lists+target-1;
+    move_follow_links[id-1]=(moveFollowLink_t){target,list->tail,0};
+    if(list->tail)move_follow_links[list->tail-1].next=id;
+    else list->head=id;
+    list->tail=id;list->count++;
+}
+
+void S_SetFollowTarget(edict_t *unit,edict_t *target) {
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    if(id)move_follow_unlink(id);
+    unit->movement.follow_target=target;
+    unit->movement.follow_target_spawn_time=target ? target->spawn_time : 0;
+    if(target && level.next_follow_sequence==UINT64_MAX)gi.error("Move: exhausted Follow subscription sequence");
+    unit->movement.follow_sequence=target ? ++level.next_follow_sequence : 0;
+    if(id && other)move_follow_link(id,other);
+    G_SetUnitTargetSubscription(TARGET_OWNER_MOVE,unit,target);
+}
+
+static int move_follow_compare(void const *a,void const *b) {
+    edict_t const *x=g_edicts+*(uint16_t const *)a,*y=g_edicts+*(uint16_t const *)b;
+    return (x->movement.follow_sequence>y->movement.follow_sequence)-
+        (x->movement.follow_sequence<y->movement.follow_sequence);
+}
+
+/* Save/load rejects missing, duplicated or stale logical subscriptions. */
+bool S_ValidateMoveFollows(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *unit=g_edicts+i,*target=unit->movement.follow_target;
+        if(!unit->inuse)continue;
+        if(!target) {if(unit->movement.follow_sequence)return false;continue;}
+        if(!waypoint_identity(target) || !target->inuse ||
+           unit->movement.follow_target_spawn_time!=target->spawn_time ||
+           !unit->movement.follow_sequence || unit->movement.follow_sequence>level.next_follow_sequence)return false;
+        units[count++]=i;
+    }
+    qsort(units,count,sizeof(*units),move_follow_compare);
+    FOR_LOOP(i,count)if(i && !move_follow_compare(units+i-1,units+i))return false;
+    return true;
+}
+
+static void move_follow_reset(void) {
+    memset(move_follow_links,0,sizeof(move_follow_links));memset(move_follow_lists,0,sizeof(move_follow_lists));
+}
+
+static void move_follow_rebuild(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    move_follow_reset();
+    FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].movement.follow_target)units[count++]=i;
+    qsort(units,count,sizeof(*units),move_follow_compare);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+units[i];uint16_t target=waypoint_identity(unit->movement.follow_target);
+        if(target)move_follow_link(units[i]+1,target);
+    }
+}
+
+/* Capture only this target's subscribers. Registration identities allow a
+ * callback to remove/reissue a later subscriber, or nest delivery, without
+ * delivering a newly appended subscription in the already-running pass. */
+static void move_follow_target_event(edict_t *target,abilityMsg_t message) {
+    uint16_t id=waypoint_identity(target);
+    if(!id || !move_follow_lists[id-1].count)return;
+    uint32_t count=move_follow_lists[id-1].count,pos=0;
+    moveFollowDelivery_t delivery[count];
+    for(uint16_t next=move_follow_lists[id-1].head;next;next=move_follow_links[next-1].next) {
+        edict_t *unit=g_edicts+next-1;
+        delivery[pos++]=(moveFollowDelivery_t){unit->movement.follow_sequence,unit->spawn_time,next-1};
+    }
+    assert(pos==count);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+delivery[i].index;
+        if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
+           unit->movement.follow_sequence!=delivery[i].sequence || unit->movement.follow_target!=target)continue;
+        S_DeliverMoveTargetEvent(unit,target,message);
+    }
+}
+
+void S_DeliverMoveTargetEvent(edict_t *unit,edict_t *target,abilityMsg_t message) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || unit->movement.follow_target!=target ||
+       unit->movement.follow_target_spawn_time!=target->spawn_time)return;
+#ifdef BZ_TESTS
+    uint64_t sequence=unit->movement.follow_sequence;
+    uint32_t birth=unit->spawn_time;
+    if(message==A_TARGET_LOST) {
+        move_follow_visits++;
+        if(move_test_target_lost)move_test_target_lost(unit);
+    }
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       unit->movement.follow_sequence!=sequence || unit->movement.follow_target!=target)return;
+#endif
+    abilityCall_t call={.lost_target=target};CAbilityMove(unit,message,&call);
+}
+
+static void waypoint_update_owner(uint32_t index) {
+    edict_t const *unit=g_edicts+index;
+    bool kind=(unit->svflags&SVF_MOVE_WAYPOINT)!=0;
+    edict_t *heads[11]={0};
+    if(unit->inuse && !kind) {
+        edict_t *live[]={unit->goalentity,unit->secondarygoal,unit->movement.attackmove_waypoint,
+            unit->movement.patrol_a,unit->movement.patrol_b,unit->movement.patrol_target,
+            unit->movement.waygate_goal,unit->movement.cargo_unload_goal,unit->movement.flow_fallback_goal,
+            unit->movement.route_resume_valid?unit->movement.route_resume_goal:NULL,
+            unit->ancient_root?unit->ancient_root->approach_goal:NULL};
+        memcpy(heads,live,sizeof(heads));
+    }
+    FOR_LOOP(i,sizeof(heads)/sizeof(*heads)) {
+        uint16_t next=waypoint_identity(heads[i]),old=waypoint_owner_roots[index][i];
+        if(next==old)continue;
+        if(old) {
+            assert(waypoint_references[old-1]);
+            if(!--waypoint_references[old-1])entity_set_put(&waypoint_roots,old-1,false);
+        }
+        if(next && !waypoint_references[next-1]++)entity_set_put(&waypoint_roots,next-1,true);
+        waypoint_owner_roots[index][i]=next;
+    }
+    entity_set_put(&waypoint_live,index,unit->inuse && kind);
+    entity_set_put(&waypoint_kinds,index,kind);
+    entity_set_put(&waypoint_chains,index,kind && waypoint_identity(unit->secondarygoal));
+#ifdef BZ_TESTS
+    waypoint_owner_visits++;
+#endif
+}
+
+static void waypoint_reconcile_owners(void) {
+    if(!waypoint_index_valid) {
+        waypoint_dirty=waypoint_roots=waypoint_live=waypoint_kinds=waypoint_chains=(entitySet_t){0};
+        memset(waypoint_references,0,sizeof(waypoint_references));
+        memset(waypoint_owner_roots,0,sizeof(waypoint_owner_roots));
+        FOR_LOOP(i,globals.num_edicts)waypoint_update_owner(i);
+        waypoint_index_valid=true;
+    } else {
+        for(uint32_t i=entity_set_next(&waypoint_dirty,0);i<globals.num_edicts;i=entity_set_next(&waypoint_dirty,i+1))
+            waypoint_update_owner(i);
+        waypoint_dirty=(entitySet_t){0};
+    }
+}
+
+static void waypoint_retain(entitySet_t *retained,edict_t *point) {
+    while(point) {
+        uintptr_t address=(uintptr_t)point,base=(uintptr_t)g_edicts;
+        if(address<base || address>=base+globals.num_edicts*sizeof(*point) ||
+            (address-base)%sizeof(*point))return;
+        uint32_t index=(address-base)/sizeof(*point);
+        if(!(point->svflags&SVF_MOVE_WAYPOINT) ||
+            (retained->bits[index/64]&(UINT64_C(1)<<(index%64))))return;
+        entity_set_put(retained,index,true);
+        point=point->secondarygoal;
+    }
+}
+
+/* Trace the retained heads once per allocation batch. Newly allocated slots
+ * remain leased until the next trace, so callers can install their pointers
+ * after Waypoint_add returns. The ordinary F_EDICT serializer owns all heads. */
+static void waypoint_collect_available(void) {
+    entitySet_t retained={0};
+    waypoint_reconcile_owners();
+    FOR_LOOP(word,sizeof(retained.bits)/sizeof(*retained.bits)) {
+        retained.bits[word]=waypoint_roots.bits[word]&waypoint_kinds.bits[word];
+        if(retained.bits[word])retained.top[word/64]|=UINT64_C(1)<<(word%64);
+    }
+    /* Only roots with a secondary edge need graph traversal. Shared chains
+     * and cycles retain the original first-mark stopping rule. */
+    for(uint32_t i=entity_set_next(&waypoint_chains,0);i<globals.num_edicts;i=entity_set_next(&waypoint_chains,i+1))
+        if(waypoint_references[i])waypoint_retain(&retained,g_edicts[i].secondarygoal);
+    waypoint_available=(entitySet_t){0};
+    FOR_LOOP(word,sizeof(retained.bits)/sizeof(*retained.bits)) {
+        waypoint_available.bits[word]=waypoint_live.bits[word]&~retained.bits[word];
+        if(waypoint_available.bits[word])waypoint_available.top[word/64]|=UINT64_C(1)<<(word%64);
+    }
+    waypoint_cache_valid=true;
+}
+
+/* Reserve the initial contiguous destination batch before map actors spawn. */
 void G_InitWaypoints(void) {
     uint32_t base;
     if (level.waypoints.count) return;
@@ -1124,25 +4073,47 @@ void G_InitWaypoints(void) {
     FOR_LOOP(i, MAX_WAYPOINTS) {
         edict_t *waypoint = G_Spawn();
         if (waypoint != g_edicts + base + i) gi.error("G_InitWaypoints: waypoint ring is not contiguous\n");
-        waypoint->svflags |= SVF_NOCLIENT;
+        waypoint->svflags |= SVF_NOCLIENT|SVF_MOVE_WAYPOINT;
     }
     level.waypoints.count = MAX_WAYPOINTS;
+    G_ResetWaypointCache();
 }
 
-/* Recycle one real edict from the fixed ring, matching Quake II's TRAIL/body queue ownership model. */
+/* Reuse only unreferenced destinations; grow in batches when every head is
+ * still live. A body queue may replace visible corpses, but a Move target
+ * must retain its coordinates until its owner releases it. */
 edict_t *Waypoint_add(vec2_t const *spot) {
     edict_t *waypoint;
     G_InitWaypoints();
-    waypoint = g_edicts + level.waypoints.base + level.waypoints.cursor;
-    /* A recycled waypoint must never be mistaken for an older Wander order. */
+    if(!waypoint_cache_valid)waypoint_collect_available();
+    uint32_t index=entity_set_next(&waypoint_available,level.waypoints.base+level.waypoints.cursor);
+    if(index==MAX_ENTITIES)index=entity_set_next(&waypoint_available,0);
+    if(index==MAX_ENTITIES) {
+        waypoint_collect_available();
+        index=entity_set_next(&waypoint_available,0);
+    }
+    if(index==MAX_ENTITIES) {
+        uint32_t reserve=MIN(128,globals.max_edicts-globals.num_edicts);
+        if(!reserve)gi.error("Move: no destination storage available (%u entities)\n",globals.max_edicts);
+        FOR_LOOP(i,reserve) {
+            edict_t *point=G_Spawn();
+            point->svflags|=SVF_NOCLIENT|SVF_MOVE_WAYPOINT;
+            entity_set_put(&waypoint_available,point-g_edicts,true);
+        }
+        index=entity_set_next(&waypoint_available,0);
+    }
+    waypoint=g_edicts+index;
+    entity_set_put(&waypoint_available,index,false);
+    level.waypoints.cursor=index>=level.waypoints.base && index<level.waypoints.base+MAX_WAYPOINTS ?
+        (index-level.waypoints.base+1)%MAX_WAYPOINTS : 0;
+    /* Wander pins waypoint reuse independently of the edict generation. */
     waypoint->waypoint_generation++;
     if (!waypoint->waypoint_generation) waypoint->waypoint_generation = 1;
-    level.waypoints.cursor = (level.waypoints.cursor + 1) % MAX_WAYPOINTS;
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;
     waypoint->heatmap2_radius = 0;
-    waypoint->secondarygoal = NULL;
+    S_SetMoveGoal(waypoint, &waypoint->secondarygoal, NULL);
     waypoint->collision = 0;
     M_CheckGround(waypoint);
     return waypoint;
@@ -1157,16 +4128,14 @@ static int move_harvest_path_debug_level(void) {
 uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float radius) {
     edict_t *route = self && self->secondarygoal ? self->secondarygoal : self;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(mover);
-    bool radius_matches;
     bool cached = false;
     uint32_t generation;
 
     if (!route)
         return 0;
 
-    radius_matches = fabsf(route->heatmap2_radius - radius) < 0.01f;
-    if (radius_matches && route->heatmap2)
-        cached = CM_ActivateCachedFlowForFlags(route->heatmap2, blocked_flags);
+    if (route->heatmap2)
+        cached = G_ActivateMovePathField(route->heatmap2, radius, blocked_flags);
 
     /* Fixed waypoints never move, so a still-cached field remains valid until
      * static pathing invalidates the routing cache. */
@@ -1184,11 +4153,11 @@ uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float rad
             return route->heatmap2;
     }
 
-    /* Cache misses are resumable in common/routing.c.  Return the old field for
-     * a moving target while its replacement is being built; fixed goals with
+    /* Shared routing resumes cache misses. Return the old field for a moving
+     * target while its replacement is being built; fixed goals with
      * no field simply wait until a later tick instead of steering straight into
      * the obstacle that caused routing to be needed. */
-    generation = CM_RequestHeatmapForMoverFlags((edict_t *)mover, route, radius, blocked_flags);
+    generation = G_RequestMovePathField(mover, route, radius, blocked_flags);
     if (!generation)
         return cached ? route->heatmap2 : 0;
 
@@ -1209,17 +4178,11 @@ uint32_t M_RefreshHeatmap(edict_t *self, float radius) {
     return M_RefreshHeatmapForMover(NULL, self, radius);
 }
 
-static cstring_t M_UnitMoveTypeName(edict_t const *self) {
-    return self && self->data.UnitData ? self->data.UnitData->moveTypeName : NULL;
-}
-
-static bool M_UnitUsesWaterSurface(edict_t const *self, cstring_t movetp) {
-    if (!movetp) return false;
-    if (!strcmp(movetp, "fly") || !strcmp(movetp, "hover") || !strcmp(movetp, "float"))
+static bool M_UnitUsesWaterSurface(edict_t const *self, wc3MovementProfile_t const *profile) {
+    if (profile->support == WC3_SUPPORT_FLIGHT || profile->support == WC3_SUPPORT_WATER_MAX)
         return true;
-    if (!strcmp(movetp, "amph")) {
-        return CM_TerrainPointIsSwimmable(&self->s.origin2) &&
-               !CM_TerrainPointIsWalkable(&self->s.origin2);
+    if (profile->support == WC3_SUPPORT_DEEP_WATER) {
+        return (self->movement.support_flags & WC3_SUPPORT_IN_DEEP_WATER) != 0;
     }
     return false;
 }
@@ -1233,7 +4196,7 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
     if (Vector2_distance(&self->s.origin2, &self->movement.flow_fallback_approach) <=
         unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE) {
         self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
-        self->movement.flow_fallback_goal = NULL;
+        S_SetMoveGoal(self, &self->movement.flow_fallback_goal, NULL);
         return false;
     }
     dir = Vector2_sub(&self->movement.flow_fallback_approach, &self->s.origin2);
@@ -1242,40 +4205,57 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
     return true;
 }
 
-/* Resolve the visual/support surface, then apply the unit's mutable fly height.
- * FOOT/HORSE stay terrain-based; FLY/HOVER/float and swimming AMPH units use
- * max(terrain, water).  Walkable destructables can raise every movement type
- * except float, matching Warsmash's "boats can't go on bridges" rule. */
-void M_CheckGround(edict_t *self) {
-    cstring_t const movetp = M_UnitMoveTypeName(self);
-    bool const floating = movetp && !strcmp(movetp, "float");
+/*66d780/684480: all ground movement types accept higher deck support. AMPH
+ * selects water using the previous refresh's deep flag; publish the current
+ * terrain classification only AFTER selecting height. */
+void S_RefreshUnitSupport(edict_t *self, bool force) {
+    /*684480 still publishes cached XY when the displacement is below.01.
+     * Explicit setters and pose commits force the query through M_CheckGround. */
+    bool const moved = !self->movement.support_valid ||
+        fabsf(self->s.origin.x - self->movement.support_point.x) >= 0.01f ||
+        fabsf(self->s.origin.y - self->movement.support_point.y) >= 0.01f;
+    self->movement.support_point = self->s.origin2;
+    bool const turned=fabsf(self->s.angle-self->movement.support_angle)>=.001f;
+    self->movement.support_angle=self->s.angle;
+    if (!force && !moved) {
+        if(turned)S_RefreshUnitSlope(self);
+        return;
+    }
+    unitMovementType_t const type = S_UnitMovementType(self->data.UnitData);
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
-    float const cell = CM_PathCellWorldSize();
-
-    if (M_UnitUsesWaterSurface(self, movetp))
+    float deck_height = -FLT_MAX;
+    uint8_t terrain_flags = 0;
+    uint32_t support_flags = 0;
+    if (S_GetWalkableSupport(self->s.origin2,MAX(0.0f,S_MoveCollisionRadius(self)),&deck_height) && deck_height>height) {
+        height=deck_height;
+        support_flags|=WC3_SUPPORT_ON_DECK;
+    }
+    float air;
+    if (type == UNIT_MOVE_FLY && unit_is_flying(self) && S_GetFlightSupport(self->s.origin2,&air)) {
+        support_flags = deck_height > air ? WC3_SUPPORT_ON_DECK : 0;
+        air = MAX(air,deck_height);
+        volatile float difference = air-height;
+        float maximum = self->data.UnitData->moveHeight;
+        if (maximum > 0.01f) {
+            difference = difference*self->unitinfo.FlyHeight;
+            difference = difference/maximum;
+        }
+        height = height+difference;
+    } else if (M_UnitUsesWaterSurface(self, wc3_movement_profile(type)))
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
 
-    if (!floating) {
-        for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
-            pathTex_t const *pathtex = surface->pathtex;
-            pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
-            if (!surface->inuse || surface->destructable->dead ||
-                !surface->destructable->placement_solid || !pathtex) continue;
-            bool const elevator = surface->class_id == MAKEFOURCC('D','T','r','x') ||
-                surface->class_id == MAKEFOURCC('D','T','r','f');
-            /* Only animated elevators extend support to the unit collision
-             * footprint; existing bridge entry semantics remain unchanged. */
-            float const overlap = elevator ? MAX(0.0f, self->collision) : 0.0f;
-            if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f + overlap ||
-                fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f + overlap) continue;
-            /* Blizzard.j synchronously changes the logical elevator level.
-             * Other walkable bridges retain their authored world-space Z. */
-            height = MAX(height, surface->s.origin.z +
-                (elevator ? surface->destructable->occluder_height : 0.0f));
-        }
-    }
+    if (G_GetTerrainPathingFlags(&self->s.origin2, &terrain_flags) &&
+        (terrain_flags & CM_PATHING_UNWALKABLE) && !(terrain_flags & CM_PATHING_UNFLOATABLE))
+        support_flags |= WC3_SUPPORT_IN_DEEP_WATER;
+    self->movement.support_flags = support_flags;
+    self->movement.support_valid = true;
     self->s.ground_offset = self->unitinfo.FlyHeight;
     self->s.origin.z = height + self->s.ground_offset;
+    if(moved||turned)S_RefreshUnitSlope(self);
+}
+
+void M_CheckGround(edict_t *self) {
+    S_RefreshUnitSupport(self, true);
 }
 
 float M_DistanceToGoal(edict_t *ent) {
@@ -1289,7 +4269,7 @@ float M_DistanceToGoal(edict_t *ent) {
 static float move_slot_spacing(edict_t *const *units, uint32_t count) {
     float max_radius = 0;
     FOR_LOOP(i, count) {
-        max_radius = MAX(max_radius, units[i]->collision);
+        max_radius = MAX(max_radius, S_MoveCollisionRadius(units[i]));
     }
     return MAX(MOVE_MIN_SLOT_SPACING, max_radius * 2 + MOVE_SLOT_MARGIN);
 }
@@ -1314,7 +4294,8 @@ static bool move_try_slot(vec2_t const *point,
                           uint32_t num_reserved,
                           vec2_t *out) {
     vec2_t pathable = *point;
-    if (!CM_ClosestPathablePointForRadiusFlags(point, radius, blocked_flags, &pathable)) {
+    pathAccelParams_t query = { point, NULL, radius, blocked_flags };
+    if (!G_ClosestMovePathPoint(&query, &pathable)) {
         return false;
     }
     if (move_slot_overlaps(&pathable, radius, reserved, num_reserved)) {
@@ -1417,7 +4398,39 @@ static uint32_t move_collect_selected(gameClient_t *client,
     return count;
 }
 
+/* Native05a5c0 invalidates the retained local path before publishing a new
+ * target task. Keep allocated buffers, but discard their destinations/state. */
+static void move_reset_local_path(edict_t *self) {
+    move_unlink_requests(self);
+    /* Original166060 activates a replacement path with fresh7c/80 admission
+     * timestamps. A previous follower's throttle must not delay its group leg. */
+    self->movement.fine_request_time=0;
+    self->movement.fine_route.adaptive_admission.time=0;
+    self->movement.fine_route.group_admission.time=0;
+    /* Native task activation owns a fresh local path. In particular, the old
+     * partial88.10000000 flag must not deny classification of the new group. */
+    self->movement.fine_route.count=self->movement.fine_route.adaptive_count=0;
+    self->movement.fine_route.index=self->movement.fine_route.adaptive_index=UINT32_MAX;
+    self->movement.fine_route.partial=false;self->movement.fine_route.adaptive_short=0;
+    self->movement.fine_route.adaptive_goal=(vec2_t){wc3_float(0xc7fa0000),wc3_float(0xc7fa0000)};
+    /* A new destination restarts path+24 at the destination itself. */
+    self->movement.fine_route.adaptive_adjusted_valid=0;
+    /* Replacement/internal approaches own a new group plan. Reusing the last
+     * point Move's destination can strand an ability at its previous endpoint. */
+    self->movement.fine_route.group_count=0;
+    self->movement.fine_route.group_index=UINT32_MAX;
+    self->movement.wait_delay=self->movement.retry_count=0;
+    self->movement.wait_blocker=NULL;
+}
+
 void move_reset_progress(edict_t *self) {
+    self->movement.point_continuation=false;self->movement.next_point=(vec2_t){0};
+    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    S_TrackMoveTimers(self);
+    move_release_captain_reference(self);
+    self->movement.type_rebind_pending=false;
+    S_TrackMoveTimers(self);
+    move_reset_local_path(self);
     self->movement.last_origin = self->s.origin2;
     self->movement.last_distance = -1;
     self->movement.blocked_frames = 0;
@@ -1425,17 +4438,24 @@ void move_reset_progress(edict_t *self) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
-    self->movement.flow_fallback_goal = NULL;
+    S_SetMoveGoal(self, &self->movement.flow_fallback_goal, NULL);
     self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
     self->movement.worker_avoid_origin = self->s.origin2;
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;
     self->movement.worker_avoid_active = false;
+    self->movement.point_forced_arrival=false;
+    move_detach_group(self);
+    self->movement.group_id = 0;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
+    self->movement.turn_blocked = false;
+    self->movement.velocity = (vec2_t){0};
 }
 
 void move_cancel_displacement(edict_t *self) {
     if (!self) return;
+    /* A behavior transition cancels its pending local-route request as well as displacement. */
+    move_unlink_requests(self);
     self->movement.displacement_active = false;
 }
 
@@ -1449,11 +4469,10 @@ bool move_displacement_reached(edict_t *self) {
         unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE)
         return false;
     if (M_MoveIsValid(self, &self->movement.displacement_target)) {
-        self->s.origin2 = self->movement.displacement_target;
-        self->s.origin.x = self->s.origin2.x;
-        self->s.origin.y = self->s.origin2.y;
+        /* Retire the old pose clock with the endpoint commit; a raw world write
+         * let the next heading decision integrate the old velocity past it. */
+        unit_commit_step(self, &self->movement.displacement_target);
         self->s.origin.z = CM_GetHeightAtPoint(self->s.origin2.x, self->s.origin2.y);
-        gi.LinkEntity(self);
     }
     move_cancel_displacement(self);
     return true;
@@ -1461,36 +4480,173 @@ bool move_displacement_reached(edict_t *self) {
 
 void move_start_displacement(edict_t *self, vec2_t const *target) {
     if (!self || !target) return;
+    /* Retail widget escape admits a real Move even for an idle occupant.
+     * A displacement flag alone left the stand thinker running forever.
+     * Existing walkers/builders retain their order and consume this target
+     * temporarily; only an idle stand needs a new Move destination. */
+    if (self->currentmove && self->currentmove->think == ai_stand &&
+        !self->current_order_id && !self->movement.holding_position)
+        S_IssueMoveOrder(self, Waypoint_add(target), G_OrderId("move"));
     move_reset_progress(self);
     self->movement.displacement_target = *target;
     self->movement.displacement_active = true;
     unit_setanimation(self, "walk");
 }
 
+/* Native5fb7c0 retains signed changes rather than recomputing a product of
+ * active effects. Inverse operations use the value captured by their owner. */
+static void move_republish_group_member(edict_t *unit);
+/*5fcd50 republishes only on the first applying owner, before incrementing.
+ *5fc0e0 releases without merging the resulting physical groups. */
+void S_AcquireMoveGroupIsolation(edict_t *unit) {
+    if(!unit->movement.group_isolation)move_republish_group_member(unit);
+    unit->movement.group_isolation++;
+}
+void S_ReleaseMoveGroupIsolation(edict_t *unit) {
+    assert(unit->movement.group_isolation);
+    unit->movement.group_isolation--;
+}
+static bool move_factor_below_one(float factor) {
+    float distance=wc3_float(wc3_float_bits(wc3_sub(factor,1))&0x7fffffffu);
+    return factor<1 && distance>=wc3_float(0x3a83126f);
+}
+static void move_adjust_speed_factor(edict_t *unit,float delta) {
+    if(delta==0)return;
+    float factor=unit->movement.speed_factor_initialized ? unit->movement.speed_factor : 1;
+    bool was_below=move_factor_below_one(factor);
+    factor=wc3_add(factor,delta);
+    float distance=wc3_float(wc3_float_bits(wc3_sub(factor,1))&0x7fffffffu);
+    if(distance<wc3_float(0x3a83126f))factor=1;
+    unit->movement.speed_factor=factor;unit->movement.speed_factor_initialized=1;
+    bool below=move_factor_below_one(factor);
+    if(!was_below && below)S_AcquireMoveGroupIsolation(unit);
+    else if(was_below && !below)S_ReleaseMoveGroupIsolation(unit);
+    S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
+}
+void S_ApplyMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,float delta) {
+    if(!unit || !status || status->move_speed_applied ||
+       !G_UnitAbilityClassLevel(unit,MAKEFOURCC('A','m','o','v')))return;
+    status->move_speed_delta=delta;status->move_speed_applied=1;
+    move_adjust_speed_factor(unit,delta);
+}
+/*64cf40 replaces a retained negative contribution with one scalar difference. */
+void S_UpdateMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,float delta) {
+    if(!status || !status->move_speed_applied) {S_ApplyMoveSpeedContribution(unit,status,delta);return;}
+    float change=wc3_sub(delta,status->move_speed_delta);
+    status->move_speed_delta=delta;move_adjust_speed_factor(unit,change);
+}
+void S_RemoveMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status) {
+    if(!unit || !status || !status->move_speed_applied)return;
+    status->move_speed_applied=0;
+    move_adjust_speed_factor(unit,wc3_float(wc3_float_bits(status->move_speed_delta)^0x80000000u));
+}
+
 /* Effective current move speed of a unit (runtime override, else data table). */
-static float unit_effective_speed(edict_t *ent) {
-    float speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
-    if (S_ItemSpeedActive(ent)) return game.constants.maxUnitSpeed;
-    uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
+    if (M_UnitMoveDisabled(ent)) return 0;
+    unitStatusQuery_t statuses;
+    G_BeginUnitStatusQuery(ent,&statuses);
+    /* Roots and Ensnare/Web hold Move7c in retail:5fc890 publishes zero
+     * while virtual18c preserves mobile acquisition priority. Reuse this
+     * calculation's occupied-slot discovery for the common empty case. */
+    if (!G_UnitStatusQueryEmpty(ent) &&
+        (S_UnitIsEntanglingRooted(ent) || S_UnitIsEnsnared(ent))) {
+        G_EndUnitStatusQuery(&statuses);return 0;
+    }
+    if (ent->movement.captain_actor_type) {
+        G_EndUnitStatusQuery(&statuses);return ent->unitinfo.MoveSpeed;
+    }
+    if (S_ItemSpeedActive(ent)) {
+        G_EndUnitStatusQuery(&statuses);return game.constants.maxUnitSpeed;
+    }
+    float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
+        ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    speed = wc3_add(speed, bonus);
+    uint32_t level = G_QueryUnitStatusClassLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
-    speed *= 1.0f + S_UnholyMoveBonus(ent);
-    /* Status-owned movement contributions are resolved once, not per spell. */
-    speed *= S_HumanMoveFactor(ent);
-    speed *= MAX(0.0f, 1.0f + unit_status_modifier_total(ent, WC3_STATUS_MOD_MOVE_SPEED_PERCENT));
+    speed = wc3_mul(speed, 1.0f + S_UnholyMoveBonus(ent));
+    speed = wc3_mul(speed, ent->movement.speed_factor_initialized ? ent->movement.speed_factor : 1);
+    speed = wc3_mul(speed, S_HumanMoveFactor(ent));
+    speed = wc3_mul(speed, 1.0f - S_CrippleMoveReduction(ent));
     speed = unit_apply_earthquake_speed(ent, speed);
-    speed *= 1.0f - S_PurgeMoveReduction(ent);
-    /* Slow Poison is included in the shared modifier total above. */
+    speed = wc3_mul(speed, 1.0f - S_PurgeMoveReduction(ent));
+    speed = wc3_mul(speed, 1.0f - S_SlowPoisonMoveReduction(ent));
     /* Retail Banish slows movement by 50%; other ethereal sources need not. */
     if (S_UnitHasStatus(ent, MAKEFOURCC('B','H','b','n'))) speed *= 0.5f;
-    speed *= 1.0f + S_EnduranceMoveBonus(ent);
+    speed=S_ApplyEnduranceMoveSpeed(ent,speed);
+    bool building = G_UnitIsStructure(ent);
+    UnitBalance_t const *profile = S_PolymorphMovementProfile(ent);
+    if (!profile) profile = ent->data.UnitBalance;
+    wc3SpeedLimit_t limits = { .value = speed,
+        .minimum = profile->minSpeed, .maximum = profile->maxSpeed,
+        .default_minimum = building ? game.constants.minBldgSpeed : game.constants.minUnitSpeed,
+        .default_maximum = building ? game.constants.maxBldgSpeed : game.constants.maxUnitSpeed };
+    float result=wc3_speed_limit_update(&limits);
+    G_EndUnitStatusQuery(&statuses);
+    return result;
+}
+
+/* Retail inventory changes update the queried maximum without publishing
+ * an existing mover cap. Public setters and new orders publish that maximum.
+ * TODO: MOVE-01.2 covers other effect notifications and their timing. */
+static float unit_effective_speed(edict_t *ent) {
+    return unit_effective_speed_with_bonus(ent, ent->movement.flat_speed_bonus);
+}
+
+/* Public current speed shares the status/profile consumer used by stepping
+ * and group caps. It is independent of a particular group's slower cap. */
+float S_UnitMoveSpeed(edict_t *ent) { return ent ? unit_effective_speed_with_bonus(ent, S_MoveSpeedBonus(ent)) : 0; }
+
+float S_UnitDefaultMoveSpeed(edict_t const *ent) {
+    if (!ent || !ent->data.UnitBalance) return 0;
+    float speed=ent->data.UnitBalance->speed;
+    /*203a90 queries the current Hero contribution without reading Move's
+     * mutable base. A public speed setter does not change this default. */
+    if (G_UnitIsHero(ent))
+        speed=wc3_add(speed,wc3_mul(wc3_float(wc3_from_int(ent->hero.agi)),game.constants.agiMoveBonus));
     return speed;
+}
+
+static void move_publish_speed(edict_t *ent,float speed) {
+    ent->unitinfo.MoveSpeed = speed;
+    ent->unitinfo.move_flags |= BZ_UNIT_SPEED_SET;
+    ent->movement.flat_speed_bonus = S_MoveSpeedBonus(ent);
+    wc3Velocity_t v = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
+        .limit = unit_effective_speed(ent) };
+    if (wc3_velocity_cap_world(&v)) {
+        if (ent->movement.clock_valid) unit_commit_current_pose(ent);
+        ent->movement.velocity = (vec2_t){v.vel[0], v.vel[1]};
+    }
+}
+
+void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
+    if (!ent || M_UnitMoveDisabled(ent)) return;
+    move_publish_speed(ent,speed);
+}
+
+/*5fb740 is shared by Hero contributions and temporary movement forms. */
+void S_AdjustUnitMoveSpeed(edict_t *ent, float delta) {
+    if (!ent) return;
+    float speed=wc3_add(ent->unitinfo.MoveSpeed,delta);
+    float const threshold=wc3_float(0x3a83126f); /* Math_PublicNearZeroThreshold */
+    if (fabsf(wc3_sub(speed,threshold))<threshold) speed=threshold;
+    move_publish_speed(ent,speed);
+}
+
+/*52aad0 retains Hero+b8 and publishes only new-minus-old through5fb740.
+ * Replacing Move's base through SetUnitMoveSpeed must not reset that owner. */
+void S_RefreshHeroMoveSpeed(edict_t *ent) {
+    float bonus=wc3_mul(wc3_float(wc3_from_int(ent->hero.agi)),game.constants.agiMoveBonus);
+    float delta=wc3_sub(bonus,ent->hero_move_bonus);
+    ent->hero_move_bonus=bonus;
+    S_AdjustUnitMoveSpeed(ent,delta);
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */
 static float move_group_speed(edict_t *const *units, uint32_t count) {
     float slowest = 0;
     FOR_LOOP(i, count) {
-        float const s = unit_effective_speed(units[i]);
+        float const s = S_UnitMoveSpeed(units[i]);
         if (s > 0 && (slowest == 0 || s < slowest)) {
             slowest = s;
         }
@@ -1498,11 +4654,83 @@ static float move_group_speed(edict_t *const *units, uint32_t count) {
     return slowest;
 }
 
+/* Retail re-resolves ownership before speed selection. A cohort token keeps
+ * this contract independent of the cyclic waypoint storage. The full retail
+ * member flags, shared override and decision/commit arrays remain GROUP-04.6. */
+static float move_active_group_speed(edict_t const *self) {
+    float slowest = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *member = g_edicts + i;
+        if (!member->inuse || member->movement.group_id != self->movement.group_id ||
+            M_IsDead(member) || !unit_is_walking(member) || !member->currentmove->think ||
+            !member->goalentity)
+            continue;
+        float speed = unit_effective_speed(member);
+        if (speed > 0 && (slowest == 0 || speed < slowest)) slowest = speed;
+    }
+    return slowest;
+}
+
+/* Queue payloads belong to their registered owner. A Patrol payload kind
+ * must not reserve a numerically equal Move request identity. */
+static uint32_t move_queued_group_id(unitOrder_t const *order) {
+    ability_t const *owner=order->owner_context ? FindAbilityByOrder(order->order) : NULL;
+    return owner && owner->proc==CAbilityMove ? order->owner_context : 0;
+}
+
+static uint32_t move_allocate_group_id(void) {
+    if (!move_group_id_bound_valid) {
+        FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+            move_group_id_visits++;
+#endif
+            edict_t const *unit=g_edicts+i;
+            if (!unit->inuse) continue;
+            move_group_id_bound=MAX(move_group_id_bound,unit->movement.group_id);
+            move_group_id_bound=MAX(move_group_id_bound,unit->movement.previous_request_id);
+            FOR_LOOP(q,unit->order_queue.count) {
+                unsigned slot=(unit->order_queue.head+q)%unit->order_queue.capacity;
+                move_group_id_bound=MAX(move_group_id_bound,move_queued_group_id(&unit->order_queue.entries[slot]));
+            }
+        }
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))
+            if(level.move_groups[i]->inuse)
+                move_group_id_bound=MAX(move_group_id_bound,level.move_groups[i]->request_id);
+        move_group_id_bound_valid=true;
+    }
+    bool used;
+    do {
+        if (++level.next_move_group_id == 0) ++level.next_move_group_id;
+        used = false;
+        if (level.next_move_group_id>move_group_id_bound) break;
+        FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+            move_group_id_visits++;
+#endif
+            edict_t const *unit=g_edicts+i;
+            if (!unit->inuse) continue;
+            FOR_LOOP(q,unit->order_queue.count) {
+                unsigned slot=(unit->order_queue.head+q)%unit->order_queue.capacity;
+                if (move_queued_group_id(&unit->order_queue.entries[slot])==level.next_move_group_id) used=true;
+            }
+            if (used || unit->movement.group_id == level.next_move_group_id ||
+                    unit->movement.previous_request_id == level.next_move_group_id) {
+                used = true;
+                break;
+            }
+        }
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))
+            if (level.move_groups[i]->inuse && level.move_groups[i]->request_id==level.next_move_group_id) used=true;
+    } while (used);
+    move_group_id_bound=MAX(move_group_id_bound,level.next_move_group_id);
+    return level.next_move_group_id;
+}
+
 /* Near-goal band where a Move settles when its exact goal is occupied; creep
  * guard arrival uses the same rule so a creep parked beside a filled anchor
  * counts as home. */
 float move_settle_distance(edict_t *ent) {
-    return unit_movedistance(ent) + ent->collision + MOVE_SLOT_MARGIN;
+    return unit_movedistance(ent) + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
 }
 
 bool move_should_arrive(edict_t *ent, float move_distance) {
@@ -1526,11 +4754,11 @@ bool move_should_arrive(edict_t *ent, float move_distance) {
     }
 
     float lateral = fabsf(to_goal.x * direction.y - to_goal.y * direction.x);
-    return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
+    return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN);
 }
 
 bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
-    float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    float const settle_distance = move_distance + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
     if (ent->movement.last_distance >= 0) {
         /* move_last_distance is the *closest* the unit has come to its goal (a
          * watermark), not just the previous frame's distance.  With move-time
@@ -1541,8 +4769,13 @@ bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
          * lateral motion resetting it every frame and walking forever. */
         float const improvement = ent->movement.last_distance - distance;
         float const moved = Vector2_distance(&ent->s.origin2, &ent->movement.last_origin);
-        float const min_progress = MAX(1.0f, move_distance * 0.05f);
-        float const min_moved = MAX(1.0f, move_distance * 0.25f);
+        /* A valid slow step must beat the watermark before the settle window
+         * expires. The old1-world-unit floor stopped speed2 walkers when the
+         * owner cadence changed from100ms to30ms, despite continued motion.
+         * TODO: replace this legacy guard with the full retail retry/task policy. */
+        float const floor_step=move_distance>0 ? MIN(1.f,move_distance) : 1.f;
+        float const min_progress = MAX(floor_step, move_distance * 0.05f);
+        float const min_moved = MAX(floor_step, move_distance * 0.25f);
 
         /* "Near goal" is judged by the watermark (the closest the unit has
          * ever come), not the current position: once a unit has reached its
@@ -1574,14 +4807,13 @@ bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
  * progress and reached the same near-goal band where an ordinary Move would
  * settle; a wall or disconnected route farther away is not an arrival. */
 bool move_is_settled_near_goal(edict_t *ent, float distance, float move_distance) {
-    float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    float const settle_distance = move_distance + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
     bool const blocked = move_is_blocked(ent, distance, move_distance);
     return blocked && ent->movement.last_distance <= settle_distance;
 }
 
-/* Unit-target Move/Smart is a persistent follow order rather than a snapshot
- * point move. Keep the target entity authoritative so a moving ally can be
- * tracked and the retained goal can be resumed after opportunistic combat. */
+/* Admitted unit targets retain identity. Smart selects attack/follow by
+ * relation in its dispatcher; explicit Move can follow a visible enemy too. */
 static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
     uint32_t owner;
 
@@ -1599,74 +4831,66 @@ static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
         level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    return G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
+    return true;
+}
+
+/* Native5fb940 checks world presence before visibility. Non-unit widgets
+ * return directly; owned/shared units still require their mode4 vision cell. */
+moveTargetResult_t S_MoveTargetStatus(edict_t const *self, edict_t const *target) {
+    if (!target || !target->inuse || (!target->movement.captain_actor_type && M_IsDead(target)))
+        return MOVE_TARGET_LOST;
+    bool hidden=target->script_world_hidden || G_IsDeferredFree(target) || !G_UnitIsWorldActive(target) ||
+        ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
+    if (!(target->svflags&SVF_MONSTER)) return hidden ? MOVE_TARGET_HIDDEN : MOVE_TARGET_VALID;
+    if (hidden && !target->target_loss_transient)
+        return S_CargoTransportForUnit(target) ? MOVE_TARGET_LOADED : MOVE_TARGET_HIDDEN;
+    if (target->movement.captain_actor_type) return MOVE_TARGET_VALID;
+    return self && G_FowPlayerCanTrackUnit(self->s.player,target) ? MOVE_TARGET_VALID : MOVE_TARGET_LOST;
+}
+
+/* Arrival retires the Follow parent before stand can activate a queued owner. */
+static void move_end_follow(edict_t *unit) {
+    S_SetFollowTarget(unit,NULL);unit->movement.follow_target_spawn_time=0;
+    S_SetMoveGoal(unit,&unit->goalentity,NULL);
+    unit_stand(unit);
 }
 
 static bool follow_can_auto_attack(edict_t const *self) {
-    if (!self || !S_CargoAttacksEnabled(self) || self->attack1.cooldown <= 0.0f ||
-        (self->attack1.damageBase <= 0 && self->attack1.numberOfDice <= 0)) {
+    if (!self || self->current_order_id == 851986 || !S_CargoAttacksEnabled(self) || S_AttackProfileRead(self, 0)->cooldown <= 0.0f ||
+        (S_AttackProfileRead(self, 0)->damageBase <= 0 && S_AttackProfileRead(self, 0)->numberOfDice <= 0)) {
         return false;
     }
     return !level.mapinfo || level.mapinfo->players[self->s.player].playerType != kPlayerTypeNeutral;
 }
 
-float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
-    float configured;
-    float collision_range;
-
-    if (!follower || !target) return 0.0f;
-    configured = G_UnitIsStructure(target)
-        ? game.constants.structureFollowRange
-        : game.constants.followRange;
-    /* A pathing-footprint distance already includes the building extent, so
-     * only the follower radius remains as its no-overlap lower bound. */
-    collision_range = follower->collision;
-    if (!G_UnitIsStructure(target) || !target->pathtex)
-        collision_range += target->collision;
-    return MAX(configured, collision_range);
+/*5fd270 requires an attached Move ability for the persistent target branch.
+ * Ability removal leaves a unit-shaped target, but admits only d0174 range0. */
+static bool move_target_can_follow(edict_t const *target) {
+    return !G_UnitIsStructure(target) &&
+        G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v'));
 }
 
-/* Warsmash's unit canReach() tests a building target against its authored
- * pathing pixels instead of requiring the follower to approach the building
- * centre.  OpenRealm already uses the same footprint distance for Attack,
- * Repair, harvesting, militia, and cargo interactions; follow/rally must use
- * it too or a freshly trained unit can be nudged legally out of its producer
- * and then immediately walk back into the producer's blocked footprint.
- *
- * CM_DistanceToPathingFootprint() measures from the follower centre to the
- * blocked footprint edge.  StructureFollowRange remains the authored follow
- * margin, while the follower radius is the hard no-overlap lower bound.  The
- * target collision radius is intentionally not added when a real footprint is
- * available because that would count the building extent twice. */
-static bool follow_footprint_distance(edict_t const *follower, edict_t const *target,
-                                      float *distance) {
-    float footprint;
-
-    if (!follower || !target || !distance ||
-        !G_UnitIsStructure(target) || !target->pathtex) {
-        return false;
-    }
-    footprint = CM_DistanceToPathingFootprint(target, &follower->s.origin2);
-    if (footprint >= FLT_MAX) return false;
-
-    *distance = footprint;
-    return true;
+float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
+    if (!follower || !target) return 0.0f;
+    /*5fd270: current static/rooted structures select d0174(range0), not
+     * StructureFollowRange.05a5c0 adds both mover radii before divide32. */
+    float range=move_target_can_follow(target) ? game.constants.followRange : 0;
+    return wc3_mul(MAX(wc3_float(0x3efae148),
+        wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(follower)),S_MoveCollisionRadius(target)),32)),32);
 }
 
 static void ai_follow_walk(edict_t *ent) {
     edict_t *target = ent->movement.follow_target;
-    float distance;
-    float follow_range;
-    bool standing;
 
-    if (!follow_target_is_valid(ent, target)) {
-        ent->movement.follow_target = NULL;
-        if (ent->goalentity == target) ent->goalentity = NULL;
+    if (!follow_target_is_valid(ent, target) ||
+        ent->movement.follow_target_spawn_time != target->spawn_time) {
+        S_SetFollowTarget(ent,NULL);
+        if (ent->goalentity == target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
         return;
     }
 
-    ent->goalentity = target;
+    S_SetMoveGoal(ent, &ent->goalentity, target);
     if (follow_can_auto_attack(ent) && G_ShouldAcquireThisFrame(ent)) {
         edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
@@ -1674,61 +4898,80 @@ static void ai_follow_walk(edict_t *ent) {
             return;
         }
     }
-
-    distance = M_DistanceToGoal(ent);
-    follow_range = G_FollowStopRange(ent, target);
-    follow_footprint_distance(ent, target, &distance);
-    standing = G_AnimationHasPrimary(ent->animation, "stand");
-    if (distance <= follow_range) {
-        if (!standing) {
-            move_reset_progress(ent);
-            unit_setanimation(ent, "stand");
-        }
-        return;
-    }
-
-    if (standing) move_reset_progress(ent);
-    unit_changeangle(ent);
-    if (ent->movement.flow_unreachable) {
-        unit_setanimation(ent, "stand");
-        return;
-    }
-    unit_moveindirection(ent);
 }
 
-static umove_t follow_move_walk = { "walk", ai_follow_walk, NULL, CAbilityMove };
+static umove_t follow_move_walk = { .animation="walk", .think=ai_follow_walk, .proc=CAbilityMove,
+    .scheduled_think=true, .sample_pose=S_PublishMovement, .leave=move_leave };
 
-void order_follow_resume(edict_t *self) {
+static bool move_is_following(edict_t const *unit) {
+    return unit && unit->currentmove==&follow_move_walk;
+}
+
+static void move_follow_resume(edict_t *self, bool persistent) {
     edict_t *target;
 
     if (!self || S_GoldMineWorkerIsInside(self) || (self->aiflags & AI_IMMOBILE)) {
         return;
     }
     target = self->movement.follow_target;
-    if (!follow_target_is_valid(self, target)) {
-        self->movement.follow_target = NULL;
-        if (self->goalentity == target) self->goalentity = NULL;
+    if (!follow_target_is_valid(self, target) ||
+        self->movement.follow_target_spawn_time != target->spawn_time) {
+        S_SetFollowTarget(self,NULL);
+        if (self->goalentity == target) S_SetMoveGoal(self, &self->goalentity, NULL);
         unit_stand(self);
         return;
     }
-    self->goalentity = target;
+    S_SetMoveGoal(self, &self->goalentity, target);
     self->movement.holding_position = false;
     move_reset_progress(self);
-    unit_setmove(self, &follow_move_walk);
+    unit_setmove(self,&follow_move_walk);
+    self->movement.flat_speed_bonus=S_MoveSpeedBonus(self);
+    unit_commit_current_pose(self); self->movement.pose_clock=level.pathing_clock;
+    self->movement.clock_valid=true;
+    move_start_follow_group(self,target,persistent);
+    unit_setanimation(self,"stand");
 }
 
-void order_follow(edict_t *self, edict_t *target) {
+void order_follow_resume(edict_t *self) {
+    move_follow_resume(self,false);
+}
+
+static void move_follow_order(edict_t *self, edict_t *target, bool persistent) {
     if (!self || (self->aiflags & AI_IMMOBILE) || S_GoldMineWorkerIsInside(self) ||
         !follow_target_is_valid(self, target)) {
         return;
     }
-    self->movement.attackmove_waypoint = NULL;
-    self->movement.patrol_a = NULL;
-    self->movement.patrol_b = NULL;
-    self->movement.patrol_target = NULL;
-    self->movement.follow_target = target;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    S_SetFollowTarget(self,target);
+    wc3GridPose_t point;unit_predicted_pose(target,&point);
+    self->movement.follow_order_point=(vec2_t){point.world[0],point.world[1]};
+    self->movement.follow_target_spawn_time = target->spawn_time;
     self->movement.holding_position = false;
-    order_follow_resume(self);
+    move_follow_resume(self,persistent);
+}
+
+void order_follow(edict_t *self, edict_t *target) {
+    move_follow_order(self,target,false);
+}
+
+bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
+    if (!self || S_MoveTargetStatus(self,target)!=MOVE_TARGET_VALID) return false;
+    /* Public target activation stops through the same recovery bridge as
+     * point Move. Excluding the target here strands embedded starts; target
+     * exclusion belongs to the later route query, after this admission. */
+    S_StopUnitMovementWithRecovery(self);
+    /*5fd270: distant target Move enters d0173 directly; Smart retains its
+     * d0174 approach. A nearby Move still owns the half-edge approach. */
+    bool persistent=order_id==G_OrderId("move") && move_target_can_follow(target) && !target->movement.captain_actor_type &&
+        !move_follow_in_range(self,target);
+    move_follow_order(self,target,persistent);
+    if (!self || self->goalentity != target || !move_is_following(self))
+        return false;
+    self->current_order_id = order_id;
+    return true;
 }
 
 static umove_t move_move_hold = { "stand", NULL, NULL, CAbilityMove };
@@ -1742,10 +4985,13 @@ static void move_hold(edict_t *ent) {
         /* Treat the normal near-goal blocked settle as completion of the
          * internal guard return; do not strand the unit in an active Move pose. */
         ent->movement.guard_state = GUARD_IDLE;
-        ent->goalentity = NULL;
+        S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
         return;
     }
+    /* The original generic can't-path fallback reaches5fa7a0 arrival, so a
+     * blocked Patrol leg runs its d0175 continuation like an arrival. */
+    if (S_PatrolMoveArrive(ent)) return;
     /* A terminal blocked/unreachable Move is complete for queue purposes.
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
@@ -1762,13 +5008,77 @@ static void move_hold(edict_t *ent) {
     unit_setmove(ent, &move_move_hold);
 }
 
+/* Actual zero-range point Move publishes .49 fine cells. Target approaches
+ * and other ability owners retain their own arrival contract (TARGET-01.2/3).
+ * Scheduled Move predicts from its last primary-clock commit. */
+static bool move_point_arrival(edict_t *ent) {
+    wc3GridPose_t pose; unit_grid_pose(ent, &pose);
+    float velocity[2] = {ent->movement.velocity.x, ent->movement.velocity.y};
+    float elapsed = level.scheduled_think ? (ent->movement.clock_valid ?
+        wc3_elapsed(&level.pathing_clock, &ent->movement.pose_clock) : 0) : 10.0f / FRAMETIME;
+    wc3_grid_step(&pose, velocity, elapsed);
+    vec2_t forecast = {pose.world[0], pose.world[1]};
+    float cell = CM_PathCellWorldSize();
+    float target[2] = {ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y};
+    moveGroupMember_t const *member=move_find_member(ent);
+    wc3Arrival_t a = { .heading = ent->s.angle, .range = member ? member->arrival_range : wc3_float(0x3efae148),
+        .flags = ent->movement.point_forced_arrival ? 0x10000u : 0 };
+    /* Stock WPM cells are32. Preserve authoritative cell geometry for synthetic maps,
+     * while the native retained pose remains in32-unit scalar coordinates. */
+    FOR_LOOP(k, 2) {
+        a.source[k] = wc3_div(wc3_mul(pose.grid[k], 32), cell);
+        a.target[k] = wc3_grid_coordinate(target[k], pose.origin[k], cell);
+    }
+    moveFineRoute_t *route=&ent->movement.fine_route;
+    if (route->group_count && route->group_index<route->group_count) {
+        vec2_t fine=route->group_index ? (vec2_t){wc3_mul(route->group_points[route->group_index].x,2),wc3_mul(route->group_points[route->group_index].y,2)} : route->group_goal;
+        a.target[0]=fine.x; a.target[1]=fine.y;
+    }
+    bool reached = wc3_arrival_update(&a);
+    if (!a.in_range || !M_MoveIsValid(ent, &forecast)) return false;
+    /* Original range acceptance stops translation even while the separate
+     * arrival heading gate still needs a turn. Commit the old velocity step
+     * once, then publish zero; never snap the unit onto the destination. */
+    if (!reached)
+        unit_turn_toward(ent, wc3_vector_heading(wc3_sub(a.target[0], a.source[0]),
+                                                wc3_sub(a.target[1], a.source[1])));
+    ent->s.angle = wc3_facing_angle(ent->s.angle);
+    ent->movement.velocity = (vec2_t){0};
+    unit_commit_pose(ent, &pose);
+#ifdef BZ_TESTS
+    if (level.scheduled_think && move_test_motion_commit) move_test_motion_commit(ent);
+#endif
+    if (reached) {
+        ent->movement.point_forced_arrival=false;
+        if (G_AdvanceUnitMoveGroupDestination(route)) {
+            /* Native16d6a0 resets member progress at every shared waypoint,
+             * including a terminal partial leg. Keep request timestamps and
+             * the retained group route; the next leg owns a fresh retry. */
+            ent->movement.retry_count=ent->movement.wait_delay=0;
+            ent->movement.path.valid=false;
+            return true;
+        }
+        if (S_PatrolMoveArrive(ent)) return true;
+        G_CreepGuardMoveArrived(ent);
+        if (!S_UnitAbilityMoveArrive(ent)) ent->stand(ent);
+    }
+    return true;
+}
+
 static void ai_move_walk(edict_t *ent) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
+    if(ent->movement.pause_order_id)return;
+    if (ent->movement.type_rebind_pending) return;
+    if (move_find_member(ent)) return; /* Shared owner stages all members before any commit. */
+    moveGroup_t *owner=move_unit_group(ent);
+    if (owner && owner->individual && level.scheduled_frame && !owner->ticking) return;
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
-    float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    float const settle_distance = move_distance + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
     bool blocked;
+    bool point_order;
 
-    if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
+    if (S_UnitIsCycloned(ent) || G_UnitStatusClassLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
         move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
         ent->stand(ent);
@@ -1776,12 +5086,57 @@ static void ai_move_walk(edict_t *ent) {
     }
 
     if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
+        /* A retained solid widget can make escape impossible. Retail's original
+         * can't-path recovery drains this Move without changing the footprint;
+         * the old early return never evaluated progress and walked forever.
+         * TODO: match the retail retry/task cadence after NUM-02.3; use the
+         * existing engine progress budget until its simulation clock is ported. */
+        if (!move_static_point(ent, &ent->s.origin2) &&
+            move_is_blocked(ent, Vector2_distance(&ent->s.origin2, &ent->movement.displacement_target), move_distance)) {
+            move_cancel_displacement(ent);
+            ent->stand(ent);
+            return;
+        }
         unit_changeangle(ent);
         unit_moveindirection(ent);
         return;
     }
 
-    if (move_should_arrive(ent, move_distance)) {
+    /* Completing a temporary escape can expose the ordinary point order in
+     * this same visit. Classify it after retiring displacement ownership. */
+    point_order = move_point_order_id(ent->current_order_id) &&
+        ent->goalentity && (ent->goalentity->svflags & SVF_MOVE_WAYPOINT);
+
+    if (point_order && (!ent->movement.group_id || (owner && owner->individual))) {
+        movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,S_MoveCollisionRadius(ent),MOVE_AVOID_GENERIC});
+        vec2_t destination;
+        uint32_t revision=ent->movement.fine_route.group_revision;
+        vec2_t previous=ent->movement.fine_route.group_goal;
+        if (query.units && !G_UnitMoveGroupDestination(&query,&ent->movement.fine_route,&destination)) {
+            /* TODO GROUP-04.6: blocked-source group recovery/physical admission.
+             * The existing member recovery remains visible through its route state. */
+            ent->movement.fine_route.group_count=0;
+            if(ent->movement.fine_route.group_admission.waiting) {
+                ent->movement.heading=ent->s.angle;ent->movement.turn_blocked=true;
+                unit_moveindirection(ent);return;
+            }
+        }
+        if (ent->movement.fine_route.group_count && (revision!=ent->movement.fine_route.group_revision ||
+            previous.x!=ent->movement.fine_route.group_goal.x || previous.y!=ent->movement.fine_route.group_goal.y))
+            ent->movement.path.valid=false;
+#ifdef BZ_TESTS
+        if (level.scheduled_think && ent->movement.fine_route.group_count && move_test_group_route)
+            move_test_group_route(NULL,ent);
+#endif
+    }
+    if (point_order && move_point_arrival(ent)) return;
+    if (point_order && move_point_retry_endpoint(ent)) {unit_moveindirection(ent);return;}
+
+    if (!point_order && move_should_arrive(ent, move_distance)) {
+        /* A point inside the step budget still requires facing inside the propagation window;
+         * the old snap bypassed the movement decision and completed the order while turning. */
+        unit_changeangle(ent);
+        if (ent->movement.turn_blocked) return;
 #ifdef WC3_DEBUG_BUILD
         if (ent->class_id == MAKEFOURCC('h','p','e','a'))
             fprintf(stderr, "WC3_BUILD move-arrive unit=%ld origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",
@@ -1798,7 +5153,7 @@ static void ai_move_walk(edict_t *ent) {
         if (S_UnitAbilityMoveArrive(ent)) return;
         if (ent->movement.guard_state == GUARD_RETURNING) {
             ent->movement.guard_state = GUARD_IDLE;
-            ent->goalentity = NULL;
+            S_SetMoveGoal(ent, &ent->goalentity, NULL);
         }
         ent->stand(ent);
     } else {
@@ -1818,6 +5173,10 @@ static void ai_move_walk(edict_t *ent) {
         }
         unit_changeangle(ent);
 
+        if (ent->movement.turn_blocked) {
+            unit_moveindirection(ent);
+            return;
+        }
         if (ent->movement.flow_unreachable) {
             vec2_t approach;
             vec2_t direction;
@@ -1827,11 +5186,9 @@ static void ai_move_walk(edict_t *ent) {
              * endpoint to the closest reachable cell, and never consume the
              * order as a terminal hold merely because the original point is
              * temporarily behind the construction footprint. */
-            if (CM_ClosestReachablePointForRadiusFlags(&ent->s.origin2,
-                                                       &ent->goalentity->s.origin2,
-                                                       ent->collision,
-                                                       M_UnitStaticPathingFlags(ent),
-                                                       &approach)) {
+            pathAccelParams_t query = { &ent->s.origin2, &ent->goalentity->s.origin2,
+                                        S_MoveCollisionRadius(ent), M_UnitStaticPathingFlags(ent) };
+            if (G_ClosestReachableMovePoint(&query, &approach)) {
 #ifdef WC3_DEBUG_BUILD
                 if (ent->class_id == MAKEFOURCC('h','p','e','a'))
                     fprintf(stderr, "WC3_BUILD move-approach unit=%ld from=(%.1f,%.1f) approach=(%.1f,%.1f) target=(%.1f,%.1f) goal=%ld\n",
@@ -1847,11 +5204,10 @@ static void ai_move_walk(edict_t *ent) {
              * the flow interpolation has no descending neighbour. Use the
              * persistent A* accelerator for the actual detour before falling
              * back to local steering; a cinematic move must not be cancelled. */
-            if (unit_accel_direction_to_point(ent, &ent->goalentity->s.origin2,
-                                              ent->collision, &direction)) {
+            if ((route_result=unit_accel_direction(ent, (moveRoutePoint_t){&ent->goalentity->s.origin2, S_MoveCollisionRadius(ent), MOVE_AVOID_GENERIC}, &direction))) {
                 ent->movement.flow_unreachable = false;
                 ent->movement.flow_direct = false;
-                unit_apply_heading(ent, &direction, MOVE_AVOID_GENERIC);
+                unit_apply_route_heading(ent, &direction, MOVE_AVOID_GENERIC, route_result);
                 unit_moveindirection(ent);
                 return;
             }
@@ -1875,7 +5231,11 @@ static void ai_move_walk(edict_t *ent) {
          * the path.  Preserve the old near-goal settle behavior so an occupied
          * final slot does not orbit forever, but do not cancel a distant move
          * merely because local avoidance failed for a short period. */
-        if (blocked && ent->movement.last_distance <= settle_distance) {
+        /* Scheduled retail point routes own arrival and retry. A turn wait
+         * increments the legacy progress counter, but must not terminate
+         * the Move before its fine arrival test accepts the destination. */
+        if (blocked && (!level.scheduled_think || !point_order || !ent->movement.fine_route.group_count) &&
+            ent->movement.last_distance <= settle_distance) {
             move_hold(ent);
             return;
         }
@@ -1885,7 +5245,14 @@ static void ai_move_walk(edict_t *ent) {
     }
 }
 
-static umove_t move_move_walk = { "walk", ai_move_walk, NULL, CAbilityMove };
+static umove_t move_move_walk = { .animation = "walk", .think = ai_move_walk,
+    .proc = CAbilityMove, .scheduled_think = true, .sample_pose = S_PublishMovement, .leave = move_leave };
+
+/* d0014 is the acquired-target-capable AI point task. Explicit d0012 Move
+ * retains its separate order admission and does not gain a voluntary scan. */
+bool S_UnitUsesAIPointMove(edict_t const *unit) {
+    return unit && unit->currentmove==&move_move_walk && unit->current_order_id==851988u;
+}
 
 /* Identify the ordinary walk move so spell approach orders can detect replacement. */
 bool move_is_active_order_walk(edict_t const *ent) {
@@ -1893,7 +5260,7 @@ bool move_is_active_order_walk(edict_t const *ent) {
 }
 
 bool S_UnitIsEntanglingRooted(edict_t const *unit) {
-    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
+    return unit && G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
 }
 
 /* Move owns translation eligibility. False means the unit cannot change
@@ -1908,24 +5275,30 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
-void order_move(edict_t *self, edict_t *target) {
+static bool move_begin_walk_checked(edict_t *self,edict_t *target,bool patrol_leg,bool guard_callbacks) {
+    uint32_t spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
     if (S_GoldMineWorkerIsInside(self))
-        return;
+        return false;
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || unit_hasstatusstate(self, WC3_STATUS_STATE_ROOTED)
         || S_PurgeIsImmobilized(self))
-        return;
+        return false;
+    if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
     {
         abilityCall_t call = MAKE(abilityCall_t, .move_target = target);
         S_UnitAbilityEventWithCall(self, A_MOVE_START, &call);
     }
-    self->goalentity = target;
+    if(guard_callbacks && (!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) ||
+       M_IsDead(self) || G_UnitMoveRevision(self)!=revision))return false;
+    S_SetMoveGoal(self, &self->goalentity, target);
     self->attack_target_spawn_time = 0;
-    self->movement.attackmove_waypoint = NULL;
-    self->movement.patrol_a = NULL;
-    self->movement.patrol_b = NULL;
-    self->movement.patrol_target = NULL;
-    self->movement.follow_target = NULL;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    if (!patrol_leg) {
+        S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+        S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+        S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    }
+    S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
 #ifdef WC3_DEBUG_BUILD
     if (self->class_id == MAKEFOURCC('h','p','e','a'))
@@ -1933,11 +5306,1760 @@ void order_move(edict_t *self, edict_t *target) {
                 (long)(self - g_edicts), self->s.origin2.x, self->s.origin2.y,
                 target->s.origin2.x, target->s.origin2.y, (long)(target - g_edicts));
 #endif
+    self->movement.flat_speed_bonus = S_MoveSpeedBonus(self);
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
+    if(guard_callbacks && (!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) ||
+       M_IsDead(self) || G_UnitMoveRevision(self)!=revision+1))return false;
+    unit_commit_current_pose(self);
+    self->movement.pose_clock = level.pathing_clock;
+    self->movement.clock_valid = true;
     /* No route heading exists at submission time. Hold the stand pose instead
      * of showing a walking unit facing its previous, often opposite, heading. */
     unit_setanimation(self, "stand");
+    return true;
+}
+
+void order_move(edict_t *self, edict_t *target) {
+    move_begin_walk_checked(self,target,false,false);
+}
+
+/* A public point command owns the current user head. Internal approaches use
+ * order_move without replacing that identity. Queue replay comes here only
+ * when this command actually becomes active. */
+void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
+    /* Public admission69a881 stops through05ca50 before the new point task,
+     * even for an idle actor embedded in a peer. Recover before cohort seeding. */
+    S_StopUnitMovementWithRecovery(self);
+    move_begin_walk_checked(self,goal,order_id==WC3_ORDER_ID_PATROL_TWO_POINTS,false);
+    if (self->goalentity == goal && self->currentmove == &move_move_walk)
+        self->current_order_id = order_id;
+}
+
+/* AI admission remains an independent follower until the all-entered gate.
+ * Saved physical state retains this phase without a process-owned bot VM. */
+bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
+    if (!captain->home_actor) {
+        fprintf(stderr,"WC3 Move: captain home has no retained virtual actor\n");
+        return false;
+    }
+    if (!G_IssueUnitPointOrder(self,"move",&captain->home,false,self->s.player,0)) return false;
+    uint32_t members=ARRAY_COUNT(captain->units);
+    captain->home_actor->movement.captain_actor_members=members;
+    captain->home_actor->movement.captain_actor_siege=false;
+    FOR_EACH_ARRAY(edict_t *, member,captain->units)
+        if (S_UnitHasLongRangeSiegeAttack(*member)) captain->home_actor->movement.captain_actor_siege=true;
+    self->movement.captain_home.actor=captain->home_actor;
+    S_TrackMoveTimers(self);
+    self->movement.captain_home.roster_actor=captain->home_actor;
+    S_TrackMoveTimers(self);
+    FOR_LOOP(i,members) {
+        edict_t *member=captain->units[i];
+        if (member==self || member->movement.captain_home.roster_actor==captain->home_actor)
+            member->movement.captain_home.member_index=i;
+    }
+    if(self->movement.captain_home.entered) {
+        botCaptain_t *owner=move_actor_captain(captain->home_actor);
+        if(owner)owner->entered_members--;
+    }
+    self->movement.captain_home.entered=false;
+    self->movement.captain_home.outer=false;
+    self->movement.captain_home.home=captain->home;
+    self->movement.captain_home.due=captain->created;
+    do wc3_clock_advance(&self->movement.captain_home.due,1,0);
+    while (self->movement.captain_home.due.epoch==level.pathing_clock.epoch ?
+        self->movement.captain_home.due.time<=level.pathing_clock.time :
+        (int32_t)(self->movement.captain_home.due.epoch-level.pathing_clock.epoch)<0);
+    self->movement.captain_home.active=true;
+    /* Native admission creates a private target-follow physical owner for
+     * each recruit. The task retains an AI approach range plus mover radius,
+     * independently of its later shared formation destination. */
+    move_start_follow_group(self,captain->home_actor,true);
+    S_TrackMoveTimers(self);
+    return true;
+}
+
+/* New temporary enrollment retires the old public task before the internal
+ * AI callback reissues Move. It does not emit another issued-order event. */
+bool S_AdmitTemporaryCaptainUnit(edict_t *self,botCaptain_t const *captain,edict_t *defense) {
+    /* The AI dispatcher already retired the prior task before acquiring198. */
+    edict_t *actor=captain->home_actor;
+    if (!actor) return false;
+    wc3GridPose_t source;unit_predicted_pose(actor,&source);
+    vec2_t from={source.world[0],source.world[1]},to=self->s.origin2;
+    bool follow=unit_is_flying(self) || G_CaptainMoveReachable(actor,NULL,self,&from,&to);
+    vec2_t point=captain->home;
+    if (!follow && !G_CaptainMoveReachable(actor,self,NULL,&to,&captain->home)) {
+        edict_t *fallback=defense;
+        if (fallback) {
+            point=fallback->s.origin2;
+            if (!G_CaptainMoveReachable(actor,self,fallback,&to,&point)) fallback=NULL;
+        }
+        /* Native058900 queries the committed fallback position. The
+         * predicted Captain pose above belongs only to reachability. */
+        if (!fallback) point=actor->s.origin2;
+    }
+    S_IssueMoveOrder(self,Waypoint_add(&point),G_OrderId("move"));
+    if (self->currentmove!=&move_move_walk) return false;
+    uint32_t count=ARRAY_COUNT(captain->units);
+    actor->movement.captain_actor_members=count;
+    actor->movement.captain_actor_siege=false;
+    FOR_LOOP(i,count) {
+        edict_t *member=captain->units[i];
+        if (S_UnitHasLongRangeSiegeAttack(member)) actor->movement.captain_actor_siege=true;
+        if (member==self || member->movement.captain_home.roster_actor==actor)
+            member->movement.captain_home.member_index=i;
+    }
+    self->movement.captain_home.actor=actor;
+    self->movement.captain_home.roster_actor=actor;
+    self->movement.captain_home.home=captain->home;
+    self->movement.captain_home.due=captain->created;
+    do wc3_clock_advance(&self->movement.captain_home.due,1,0);
+    while (self->movement.captain_home.due.epoch==level.pathing_clock.epoch ?
+        self->movement.captain_home.due.time<=level.pathing_clock.time :
+        (int32_t)(self->movement.captain_home.due.epoch-level.pathing_clock.epoch)<0);
+    self->movement.captain_home.active=follow;
+    self->movement.captain_home.entered=self->movement.captain_home.outer=false;
+    S_TrackMoveTimers(self);
+    if (follow) move_start_follow_group(self,actor,true);
+    return true;
+}
+
+/* Individual owners keep stable addresses when callbacks grow the slot array. */
+static moveGroup_t *move_alloc_group(void) {
+    move_prepare_group_order();
+    if (level.next_move_group_sequence==UINT64_MAX) gi.error("Move: physical owner sequence exhausted");
+    uint64_t sequence=++level.next_move_group_sequence;
+    moveGroup_t *group=NULL;
+    while(move_group_first_free<ARRAY_COUNT(level.move_groups)) {
+        uint32_t slot=move_group_first_free++;
+        if(level.move_groups[slot]->inuse)continue;
+        group=level.move_groups[slot];group->slot=slot;break;
+    }
+    if(group)goto acquired;
+    if (ARRAY_COUNT(level.move_groups)==level.move_group_capacity) {
+        uint32_t capacity=level.move_group_capacity ? level.move_group_capacity*2 : 16;
+        moveGroup_t **groups=realloc(level.move_groups,capacity*sizeof(*groups));
+        if (!groups) gi.error("Move: cannot allocate %u group slots",capacity);
+        level.move_groups=groups; level.move_group_capacity=capacity;
+    }
+    group=calloc(1,sizeof(*group));
+    if (!group) gi.error("Move: cannot allocate a physical group");
+    group->slot=ARRAY_COUNT(level.move_groups);
+    level.move_groups[ARRAY_COUNT(level.move_groups)++]=group;
+    move_group_first_free=ARRAY_COUNT(level.move_groups);
+acquired:
+    group->sequence=sequence;group->older=move_group_head;group->newer=NULL;
+    if(move_group_head)move_group_head->newer=group;
+    move_group_head=group;
+    return group;
+}
+
+/* Canonical attachments are independent of active physical members. A packet
+ * owns these bounded records across its synchronous admission callbacks; a
+ * delayed FIFO head reconstructs its own request. No pool or path allocation
+ * is required until readiness actually publishes a physical cohort. */
+typedef struct {edict_t *unit;uint32_t spawn;} moveRequestCandidate_t;
+typedef struct {
+    moveRequestCandidate_t candidates[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count,attached,ready,id,history,flags;
+    moveGroup_t *inherited;
+    uint64_t inherited_sequence,shared_id;
+    edict_t *target;
+    uint32_t target_spawn;
+    vec2_t goal;
+    bool published;
+} movePointRequest_t;
+static void move_request_ready(movePointRequest_t *,edict_t *);
+static void move_request_drop(movePointRequest_t *,edict_t *);
+static void move_request_attach(movePointRequest_t *,edict_t *);
+static int move_request_publish(movePointRequest_t *);
+
+/* Nested packets restore the current recipient; delayed FIFO activation has
+ * none. The record is never retained by an instance, queue entry or save. */
+static struct {
+    edict_t *unit;
+    vec2_t point;
+    movePointRequest_t *request;
+    uint32_t queued_context,order_id;
+} move_group_admission;
+
+/* Native Shift preserves the common point and publishes the latest submitted
+ * request identity independently of queued activation. Each completion can
+ * start alone;5faaf0 rebuilds a matching
+ * nearby cohort when another member starts the same point. */
+static bool move_queue_group_candidate(groupPointOrder_t const *request,uint32_t i,uint32_t context,movePointRequest_t *prepared) {
+    edict_t *unit=request->units[i].unit;
+    if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit) ||
+        M_IsDead(unit) || (unit->aiflags&AI_IMMOBILE) || G_BuildingUpgradeActive(unit) ||
+        !S_AncientCanReceiveOrder(unit)) return false;
+    bool active=G_UnitHasActiveOrder(unit);
+    if (!G_QueueUnitOrder(unit,request->order,UNIT_ORDER_TARGET_POINT,request->point,NULL,
+            request->issuer_player,0,0)) return false;
+    unitOrderQueue_t *queue=&unit->order_queue;
+    unsigned slot=(queue->head+queue->count-1)%queue->capacity;
+    queue->entries[slot].owner_context=context;
+    unit->movement.previous_request_id=context;
+    if (!active) {
+        typeof(move_group_admission) previous=move_group_admission;
+        move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared,context};
+        G_UnitStartNextQueuedOrder(unit);
+        move_group_admission=previous;
+    }
+    if(prepared) {
+        if(!active && unit->currentmove==&move_move_walk && !move_unit_group(unit))move_request_ready(prepared,unit);
+        else move_request_drop(prepared,unit);
+    }
+    return true;
+}
+
+static bool move_queue_group_point(groupPointOrder_t const *request) {
+    uint32_t context=move_allocate_group_id();
+    bool any=false;
+    FOR_LOOP(i,request->count)if(move_queue_group_candidate(request,i,context,NULL))any=true;
+    return any;
+}
+
+static void move_group_seed_route(moveGroup_t *group);
+
+/* Smart and nearby target Move approach once before persistent Follow.
+ * Distant explicit Move begins persistent without an intermediate owner. */
+/* Original5fd270 admits a nearby target with half its current edge distance;
+ * its later persistent task restores the authored FollowRange. */
+static bool move_follow_in_range(edict_t *unit, edict_t *target) {
+    wc3GridPose_t source,point;
+    unit_predicted_pose(unit,&source);unit_predicted_pose(target,&point);
+    float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
+    float distance2=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
+    float range=wc3_div(G_FollowStopRange(unit,target),32),range2=wc3_mul(range,range);
+    return distance2<range2 ||
+        wc3_float(wc3_float_bits(wc3_sub(distance2,range2))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
+static float move_follow_approach_range(edict_t *unit, edict_t *target, bool persistent) {
+    if (target->movement.captain_actor_type) {
+        /* Original9d86f0:70 + .6*maximum enabled attack range. The target
+         * wrapper05a5c0 subsequently adds both physical radii and divides32.
+         * A virtual captain has zero radius. The physical member stores this
+         * result, including across save/load and later weapon changes.
+         * Temporary units return50 before Hero/siege adjustment. Native Hero
+         * classification here tests the rawcode, independently of Hero stats. */
+        if ((unit->aiflags&AI_ILLUSION) || S_UnitHasTimedLife(unit))
+            return wc3_div(wc3_add(50,MAX(1,S_MoveCollisionRadius(unit))),32);
+        float attack_range=0;
+        bool armed=S_UnitAttackApproachRange(unit,&attack_range);
+        float world=armed ?
+            wc3_add(wc3_mul(attack_range,wc3_float(0x3f19999a)),70) : 300;
+        uint32_t first=unit->class_id&0xffu;
+        if (first>='A' && first<='Z' && world<600) world=600;
+        if (target->movement.captain_actor_siege) world=wc3_add(world,200);
+        return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,S_MoveCollisionRadius(unit))),32));
+    }
+    float range=wc3_div(G_FollowStopRange(unit,target),32);
+    if (persistent || !move_target_can_follow(target)) return range;
+    wc3GridPose_t source,point;
+    unit_predicted_pose(unit,&source); unit_predicted_pose(target,&point);
+    float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
+    float distance2=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
+    float range2=wc3_mul(range,range);
+    if (distance2>=range2 && wc3_float(wc3_float_bits(wc3_sub(distance2,range2))&0x7fffffffu)>=wc3_float(0x3a83126f)) return range;
+    float target_radius=wc3_div(MAX(1,S_MoveCollisionRadius(target)),32),source_radius=wc3_div(MAX(1,S_MoveCollisionRadius(unit)),32);
+    float edge=wc3_sub(wc3_sub(wc3_sqrt(distance2),target_radius),source_radius);
+    float world=wc3_mul(MAX(0,edge),32);
+    return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(wc3_div(world,2),wc3_mul(source_radius,32)),wc3_mul(target_radius,32)),32));
+}
+
+static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool persistent, float range,
+                                           bool force_arrival) {
+    /* Move->Follow shares the procedure, so unit_setmove need not dispatch
+     * leave. Transfer physical ownership before installing its successor. */
+    move_detach_group(unit);
+    /* Original5fc640 clears/re-registers on every task admission, including
+     * approach->persistent. Renewal belongs after the old physical departure. */
+    if(unit->movement.follow_target==target)S_SetFollowTarget(unit,target);
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=group->ticking=true; group->id=move_allocate_group_id();
+    group->target=target; group->target_spawn=target->spawn_time;
+    group->target_region=S_CaptureMoveTargetRegion(target,unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit),
+        &group->target_region_slot);
+    group->target_region_owner=group->target_region ? (uint32_t)(target-g_edicts)+1 : 0;
+    group->flags=0x1000u|(persistent ? 0x801u : 0); group->age=UINT32_MAX;
+    if(force_arrival)group->flags|=0x200u;
+    if (S_UnitHasAbilityFlags(target,AB_MOVE_TARGET_NO_WARP)) group->flags|=0x10u;
+    group->radius=S_MoveCollisionRadius(unit); group->request_id=unit->movement.previous_request_id;
+    wc3GridPose_t pose; unit_predicted_pose(target,&pose);
+    group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
+    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+        .arrival_range=range};
+    unit->movement.group_id=group->id;
+    move_unit_groups[unit-g_edicts]=group;
+    move_group_seed_route(group); group->ticking=false;
+    return group;
+}
+
+static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
+    moveGroup_t *group=move_start_target_group(unit,target,persistent,
+        move_follow_approach_range(unit,target,persistent),false);
+    /* Capture the already-built successor task. A later morph must neither
+     * invent a Follow after a one-shot approach nor erase a pending Follow. */
+    group->follow_continuation=!persistent && (target->movement.captain_actor_type || move_target_can_follow(target));
+    if(group->follow_continuation && !target->movement.captain_actor_type)
+        group->follow_range=game.constants.followRange;
+}
+
+/* Original40a7a0/5ff8b0 admits flyers and structures through the same target task.
+ *05a5c0 adds world radii before converting the captured range. The spell's
+ * read-only05b580 admission predicate instead converts first. */
+static bool move_begin_target_approach(edict_t *unit, edict_t *target, float range, bool center_range,
+                              edict_t *receiver, void (*complete)(edict_t *,edict_t *,bool)) {
+    if(!unit || !target || !receiver || !complete ||
+       !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);
+    order_move(unit,target);
+    if(unit->goalentity!=target || unit->currentmove!=&move_move_walk)return false;
+    S_SetFollowTarget(unit,target);
+    float world=center_range ? range : wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target));
+    uint32_t word=wc3_float_bits(world);
+    float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
+    group->receiver=receiver;group->receiver_spawn=receiver->spawn_time;group->complete=complete;
+    return true;
+}
+
+bool S_BeginUnitTargetApproach(edict_t *unit,edict_t *target,float range,
+                              edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
+    return move_begin_target_approach(unit,target,range,false,receiver,complete);
+}
+
+/* Entity-selected point spells track a live target but measure their authored
+ * point radius from its center. Ordinary unit-target spells retain hull reach. */
+bool S_BeginUnitEntityPointApproach(edict_t *unit,edict_t *target,float range,
+                                   edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
+    return move_begin_target_approach(unit,target,range,true,receiver,complete);
+}
+
+edict_t *S_UnitTargetApproachReceiver(edict_t const *unit) {
+    moveGroup_t const *group=unit ? move_unit_group(unit) : NULL;
+    /* Ability-owned chases retain their public task; only spell approaches
+     * expose a receiver whose removal cancels the current Move task. */
+    edict_t *receiver=group && !group->owner_ability ? group->receiver : NULL;
+    return receiver && receiver->inuse && receiver->spawn_time==group->receiver_spawn ? receiver : NULL;
+}
+
+void S_CancelUnitTargetApproach(edict_t *unit) {
+    if(!S_UnitTargetApproachReceiver(unit))return;
+    move_leave(unit);S_SetFollowTarget(unit,NULL);
+    S_SetMoveGoal(unit,&unit->goalentity,NULL);
+    unit_stand_no_queue(unit);
+}
+
+/* Ability-owned target requests share Move's physical scheduler without
+ * replacing the public task or its retained Follow/Patrol/Attack-Move parent.
+ * The callback owns arrival validation; cancellation only releases its work.
+ * Native5fc640 admits flying sources and structure targets through the same
+ * bridge. Destructible point-task production remains a separate contract. */
+bool S_BeginUnitTargetChase(edict_t *unit,edict_t *target,float range,abilityProc_t owner,
+                           void (*complete)(edict_t *,edict_t *,bool)) {
+    uint32_t index=GetAbilityIndex(owner);
+    if(!unit || !target || !complete || !owner || index==255 ||
+       !unit->currentmove || unit->currentmove->proc!=owner ||
+       target->destructable ||
+       !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);move_reset_local_path(unit);
+    unit->movement.flat_speed_bonus=S_MoveSpeedBonus(unit);
+    float world=wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target));
+    uint32_t word=wc3_float_bits(world);
+    float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
+    group->receiver=unit;group->receiver_spawn=unit->spawn_time;
+    group->owner_ability=index+1;group->complete=complete;
+    return true;
+}
+
+bool S_UnitTargetChaseActive(edict_t const *unit,abilityProc_t owner) {
+    moveGroup_t const *group=unit ? move_unit_group(unit) : NULL;
+    ability_t const *ability=group && group->owner_ability ? GetAbilityByIndex(group->owner_ability-1) : NULL;
+    return ability && ability->proc==owner && group->receiver==unit && group->receiver_spawn==unit->spawn_time;
+}
+
+void S_EndUnitTargetChase(edict_t *unit,abilityProc_t owner) {
+    if(S_UnitTargetChaseActive(unit,owner))move_leave(unit);
+}
+
+enum {MOVE_PREVIOUS_COHORT_RADIUS=1000};
+typedef struct {edict_t *source;movePointRequest_t *request;} moveQueuedCohort_t;
+static bool move_queued_cohort_candidate(void *data,edict_t *other) {
+    moveQueuedCohort_t *query=data;edict_t *unit=query->source;
+#ifdef BZ_TESTS
+    move_queued_peer_visits++;
+#endif
+    if(other==unit || other->movement.group_isolation || other->s.player!=unit->s.player || !G_UnitIsWorldActive(other) ||
+        M_IsDead(other) || IS_HOLLOW(other) ||
+        other->movement.previous_request_id!=unit->movement.previous_request_id ||
+        S_UnitMovementProfile(other->data.UnitData)->bits!=S_UnitMovementProfile(unit->data.UnitData)->bits)return true;
+    moveGroup_t *peer=move_unit_group(other);movePointRequest_t *request=query->request;
+    if(!peer || peer->count>=BZ_WC3_GROUP_ORDER_UNITS)return true;
+    if(peer->goal.x!=request->goal.x || peer->goal.y!=request->goal.y)return true;
+    request->inherited=peer;request->inherited_sequence=peer->sequence;
+    /*5faaf0 attaches every resolved old row before any readiness attempt.
+     * Pending source admission must retain the old physical owner and its rows.
+     * Normal reverse preparation prunes those rows after successful rebinding. */
+    FOR_LOOP(i,peer->count) {
+        moveGroupMember_t const *row=peer->members+i;edict_t *member=row->unit;
+        if(!member || member==unit || !member->inuse || member->spawn_time!=row->spawn ||
+            G_IsDeferredFree(member) || move_unit_group(member)!=peer)continue;
+        move_request_attach(request,member);
+    }
+    /* The source occupies slot zero. No callback runs while attaching peers. */
+    for(unsigned i=1;i<request->count;i++)move_request_ready(request,request->candidates[i].unit);
+    return false;
+}
+
+/* The observed active command is the logical head, before issued callbacks.
+ * A callback may replace it while the original physical constructor unwinds. */
+static void move_set_active_point_head(edict_t *unit,unitOrder_t const *order) {
+    unit->current_order_id=order->order_id;
+    G_SetActiveUnitOrder(unit,order);
+}
+
+/*680320 retires the old internal task before67abe0 notifies the new user
+ * head. The point constructor then owns its own d0144 cleanup. Callback
+ * commands cannot inherit the pending outer group's prepared admission. */
+bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
+                          uint32_t issuer, float speed) {
+    vec2_t const requested=*point;
+    uint32_t const spawn=self->spawn_time;
+    uint32_t const order_id=move_group_admission.unit==self && move_group_admission.order_id ?
+        move_group_admission.order_id : G_OrderId(order);
+    S_StopUnitMovementWithRecovery(self);
+    unitOrder_t active={.target_type=UNIT_ORDER_TARGET_POINT,.point=requested,
+        .issuer_player=issuer,.order_id=order_id,.group_speed=speed};
+    snprintf(active.order,sizeof(active.order),"%s",order);
+    move_set_active_point_head(self,&active);
+    uint32_t const revision=G_UnitMoveRevision(self);
+    typeof(move_group_admission) admission=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){0};
+    G_PublishIssuedPointOrder(self,order_id,&requested,issuer,order);
+    move_group_admission=admission;
+    if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) ||
+       M_IsDead(self) || S_UnitExecutionPaused(self))return true;
+    if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)return true;
+    /* A completed nested Stop retires the public head but leaves the outer
+     * point constructor eligible. Retain the head left by that notification. */
+    uint32_t const head=self->current_order_id;
+    edict_t *goal=Waypoint_add(&requested);
+    if(!goal)return false;
+    S_IssueMoveOrder(self,goal,order_id);
+    self->current_order_id=head;
+    self->movement.group_speed=speed;
+    S_UnitAbilityOrderAccepted(self,order);
+    return true;
+}
+
+/* Every unassociated d016b task runs5fa950, including a gate entrance
+ * and its later cached endpoint. Only physical membership is shared; each
+ * unit retains its own independent internal task sequence. */
+static void move_start_unassociated_point_group(edict_t *unit,vec2_t const *point) {
+    movePointRequest_t request={.id=move_allocate_group_id(),
+        .history=unit->movement.previous_request_id,.goal=move_point_fine(point)};
+    move_request_attach(&request,unit);
+    wc3GridPose_t source;unit_predicted_pose(unit,&source);
+    box2_t bounds=CM_GetWorldBounds();
+    float center[]={wc3_grid_coordinate(source.world[0],bounds.min.x,32),
+        wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
+    moveQueuedCohort_t query={unit,&request};
+    /*013490 initializes the world radius used by selector8 in5fa950. */
+    /* 5fa950 rejects the sentinel previous identity before querying peers. */
+    if(unit->movement.previous_request_id && !unit->movement.group_isolation)
+        S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
+    /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
+     * for this source.16bcf0 then partitions all ready rows again. Old group
+     * membership does not bypass the current predicted-distance predicate. */
+    move_request_ready(&request,unit);
+}
+
+static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
+    if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return QUEUED_ORDER_UNHANDLED;
+    uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+    move_set_active_point_head(unit,queued);
+    /*67abe0 publishes the user head before constructing its internal task.
+     * A nested command cannot borrow the outer packet's prepared request. */
+    typeof(move_group_admission) admission=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){0};
+    G_PublishIssuedPointOrder(unit,queued->order_id,&queued->point,queued->issuer_player,queued->order);
+    move_group_admission=admission;
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit))
+        return QUEUED_ORDER_REPLACED;
+    if(G_UnitHasActiveOrder(unit) && G_UnitMoveRevision(unit)!=revision)
+        return QUEUED_ORDER_REPLACED;
+    /* An instantaneous Stop leaves no internal task. Retail resumes the outer
+     * Move task even though Stop has already retired its public user head. */
+    uint32_t head=unit->current_order_id;
+    S_IssueMoveOrder(unit,Waypoint_add(&queued->point),queued->order_id);
+    unit->current_order_id=head;
+    if (unit->currentmove!=&move_move_walk || !unit->goalentity) return false;
+    movePointRequest_t *prepared=move_group_admission.unit==unit &&
+        move_group_admission.queued_context==queued->owner_context &&
+        move_group_admission.point.x==queued->point.x && move_group_admission.point.y==queued->point.y ?
+        move_group_admission.request : NULL;
+    if(prepared && !unit->movement.group_isolation)return true;
+    move_start_unassociated_point_group(unit,&queued->point);
+    return true;
+}
+
+/*16b7b0 consumes ready rows depth-first in candidate order. These are fine
+ * distances and accelerator work limits, independent of the UI query radius. */
+enum { MOVE_COHORT_DISTANCE=40,MOVE_CAPTAIN_COHORT_DISTANCE=90,
+       MOVE_COHORT_WORK=60,MOVE_CAPTAIN_COHORT_WORK=150 };
+typedef struct {
+    moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count,remaining;
+    moveCohortQuery_t query;
+} moveReadyCohort_t;
+
+static void move_group_bind_ready(moveGroup_t *group,moveReadyCohort_t *ready,unsigned index) {
+    moveGroupMember_t member=ready->members[index];
+    ready->remaining&=~(1u<<index);
+    moveGroup_t *previous=move_unit_group(member.unit);
+    if(previous && previous!=group)FOR_LOOP(i,previous->count) {
+        moveGroupMember_t *old=previous->members+i;
+        if(old->unit==member.unit && old->spawn==member.spawn)old->retired=true;
+    }
+    group->members[group->count++]=member;
+    member.unit->movement.group_id=group->id;move_unit_groups[member.unit-g_edicts]=group;
+    MOVE_OWNER_LEDGER(MOVE_LEDGER_BIND,member.unit,previous,group);
+    group->radius=MAX(group->radius,S_MoveCollisionRadius(member.unit));
+    if(group->flags&0x200)return;
+    wc3GridPose_t source;unit_predicted_pose(member.unit,&source);
+    uint32_t limit=group->flags&0x100 ? MOVE_CAPTAIN_COHORT_DISTANCE : MOVE_COHORT_DISTANCE;
+    FOR_LOOP(i,ready->count)if(ready->remaining&(1u<<i)) {
+        edict_t *candidate=ready->members[i].unit;wc3GridPose_t pose;unit_predicted_pose(candidate,&pose);
+        uint32_t distance;
+        if(member.unit->movement.adaptive_disabled || candidate->movement.adaptive_disabled) {
+            float dx=wc3_sub(pose.grid[0],source.grid[0]),dy=wc3_sub(pose.grid[1],source.grid[1]);
+            distance=wc3_int_bits(wc3_float_bits(wc3_sqrt(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)))));
+        } else distance=G_MoveCohortDistance(&ready->query,member.unit,candidate,source.grid,pose.grid,
+            group->flags&0x100 ? MOVE_CAPTAIN_COHORT_WORK : MOVE_COHORT_WORK);
+        if(distance<=limit)move_group_bind_ready(group,ready,i);
+    }
+}
+
+static unsigned move_group_partition_ready(moveGroup_t *group,moveReadyCohort_t *ready) {
+    moveGroup_t *owner=group;unsigned count=0;
+    FOR_LOOP(i,ready->count)if(ready->remaining&(1u<<i)) {
+        if(owner->count) {
+            owner->ticking=false;
+            owner=move_alloc_group();owner->inuse=owner->ticking=true;
+            owner->id=move_allocate_group_id();owner->request_id=group->request_id;
+            owner->age=UINT32_MAX;owner->goal=group->goal;owner->flags=group->flags&~0x10000u;
+            owner->target=group->target;owner->target_spawn=group->target_spawn;
+            owner->shared_id=group->shared_id;
+            if(owner->shared_id) {
+                moveShared_t *shared=S_FindMoveShared(owner->shared_id);
+                if(!shared || shared->references==UINT32_MAX)gi.error("Move: invalid cohort shared owner");
+                shared->references++;
+            }
+        }
+        move_group_bind_ready(owner,ready,i);move_group_seed_route(owner);count++;
+    }
+    owner->ticking=false;return count;
+}
+
+/*6bcc40 compares retained nine-word candidate rows. Unsigned subtraction
+ * preserves native signed32 wrap without undefined C signed overflow. */
+static int32_t move_compare_point_candidates(uint32_t const a[7],uint32_t const b[7]) {
+    uint32_t difference=((int32_t)b[0]<1)-((int32_t)a[0]<1);
+    if(!difference)difference=b[4]-a[4];
+    if(!difference)difference=a[2]-b[2];
+    if(!difference)difference=a[1]-b[1];
+    if(!difference)difference=b[5]-a[5];
+    if(!difference)difference=a[3]-b[3];
+    if(!difference)difference=a[6]-b[6];
+    return (int32_t)difference;
+}
+
+static uint32_t move_point_order_score(edict_t *unit,uint32_t order,vec2_t const *point) {
+    uint32_t score=S_UnitPointOrderPriority(unit,order,point);
+    if(score!=UINT32_MAX)return score;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    float dx=wc3_sub(point->x,pose.world[0]),dy=wc3_sub(point->y,pose.world[1]);
+    float squared=wc3_add(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)),0);
+    return wc3_int_bits(wc3_float_bits(wc3_mul(squared,wc3_float(0x3dcccccd))));
+}
+
+#ifdef BZ_TESTS
+static void (*move_test_request_scope)(movePointRequest_t const *,unsigned);
+#define MOVE_REQUEST_SCOPE(request,stage) do {if(move_test_request_scope)move_test_request_scope(request,stage);} while(0)
+#else
+#define MOVE_REQUEST_SCOPE(request,stage) ((void)0)
+#endif
+
+static edict_t *move_request_member(movePointRequest_t const *request,unsigned i) {
+    moveRequestCandidate_t const *member=request->candidates+i;
+    edict_t *unit=member->unit;
+    return (request->attached&(1u<<i)) && unit && unit->inuse &&
+        unit->spawn_time==member->spawn && !G_IsDeferredFree(unit) ? unit : NULL;
+}
+
+static void move_request_attach(movePointRequest_t *request,edict_t *unit) {
+    FOR_LOOP(i,request->count)if(request->candidates[i].unit==unit &&
+        request->candidates[i].spawn==unit->spawn_time)return;
+    if(request->count==BZ_WC3_GROUP_ORDER_UNITS)gi.error("Move: canonical candidate overflow");
+    unsigned i=request->count++;
+    request->candidates[i]=(moveRequestCandidate_t){unit,unit->spawn_time};
+    request->attached|=1u<<i;
+}
+
+/*169c50/169d60 hold every resolved attachment, including pending candidates.
+ * Release re-resolves the member's current fine object. Neither the ready
+ * mask nor a cohort's reordered/consumed rows own this lifetime. Fine holds
+ * leave the cached coarse hierarchy untouched. */
+/*16aff0/16da60: the current target fine object is resolved at each boundary.
+ * Captain requests have no cached-region producer. A target/member alias owns
+ * two counted holds; attachment deduplication does not merge these owners. */
+static void move_request_target_exclusion(movePointRequest_t const *request,bool acquire) {
+    edict_t *target=request->target;
+    if(!target || !target->inuse || target->spawn_time!=request->target_spawn || G_IsDeferredFree(target))return;
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,target-g_edicts) : NULL;
+    if(record) {if(acquire)record->flags++;else record->flags--;}
+}
+
+static void move_request_exclusions(movePointRequest_t *request,bool acquire) {
+    if(acquire)move_request_target_exclusion(request,true);
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=move_request_member(request,i);
+        if(!unit) {if(acquire)request->ready&=~(1u<<i);continue;}
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+        wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,unit-g_edicts) : NULL;
+        if(record) {if(acquire)record->flags++;else record->flags--;}
+    }
+    if(!acquire)move_request_target_exclusion(request,false);
+}
+
+static int move_request_publish(movePointRequest_t *request) {
+    if(request->published)return 0;
+    moveReadyCohort_t ready={.count=request->count};
+    /* A nested order can replace an already-ready task before the last
+     * recipient returns. Preserve its new owner rather than reclaim it. */
+    FOR_LOOP(i,request->count)if(request->ready&(1u<<i)) {
+        edict_t *unit=move_request_member(request,i);
+        moveGroup_t *owner=unit ? move_unit_group(unit) : NULL;
+        bool inherited=owner && owner==request->inherited && owner->inuse &&
+            owner->sequence==request->inherited_sequence;
+        if(unit && !inherited && (unit->currentmove!=&move_move_walk || owner)) {
+            request->attached&=~(1u<<i);request->ready&=~(1u<<i);
+        }
+    }
+    MOVE_REQUEST_SCOPE(request,0);
+    move_request_exclusions(request,true);
+    MOVE_REQUEST_SCOPE(request,1);
+    unsigned pending=0;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=move_request_member(request,i);
+        if(!unit)continue;
+        if(request->ready&(1u<<i)) {
+            ready.members[i]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+                .arrival_range=wc3_point_arrival_range(0)};
+            ready.remaining|=1u<<i;
+        } else pending++;
+    }
+    int result=-1;
+    if(!pending) {
+        result=0;
+        if(ready.remaining) {
+            moveGroup_t *group=move_alloc_group();
+            group->inuse=group->ticking=true;group->id=request->id;group->request_id=request->history;
+            group->age=UINT32_MAX;group->goal=request->goal;group->flags=request->flags;
+            group->target=request->target;group->target_spawn=request->target_spawn;
+            group->shared_id=request->shared_id;
+            if(group->shared_id) {
+                moveShared_t *shared=S_FindMoveShared(group->shared_id);
+                if(!shared || shared->references==UINT32_MAX)gi.error("Move: invalid canonical shared owner");
+                shared->references++;
+            }
+            result=move_group_partition_ready(group,&ready);
+        }
+        request->published=true;request->ready=0;
+    }
+    MOVE_REQUEST_SCOPE(request,2);
+    move_request_exclusions(request,false);
+    MOVE_REQUEST_SCOPE(request,3);
+    return result;
+}
+
+/*169550 reissues the retained slot, without changing the public order or
+ * joining the remaining members. Empty slots survive until owner preparation. */
+static void move_republish_group_member(edict_t *unit) {
+    moveGroup_t *old=move_unit_group(unit);
+    if(!old)return;
+    moveGroupMember_t *member=NULL;
+    FOR_LOOP(i,old->count)if(old->members[i].unit==unit && old->members[i].spawn==unit->spawn_time){member=old->members+i;break;}
+    if(!member)return;
+    moveGroupMember_t saved=*member;
+    movePointRequest_t request={.id=move_allocate_group_id(),.history=old->request_id,
+        .goal={wc3_add(old->goal.x,member->offset.x),wc3_add(old->goal.y,member->offset.y)},
+        .flags=old->flags,.inherited=old,.inherited_sequence=old->sequence,
+        .shared_id=old->shared_id,.target=old->target,.target_spawn=old->target_spawn};
+    member->unit=NULL;member->spawn=0;
+    move_request_attach(&request,unit);move_request_ready(&request,unit);
+    moveGroup_t *group=move_unit_group(unit);
+    if(!group || group==old)gi.error("Move: failed to republish existing member");
+    group->target_region=old->target_region;group->target_region_owner=old->target_region_owner;group->target_region_slot=old->target_region_slot;
+    group->follow_continuation=old->follow_continuation;group->follow_range=old->follow_range;
+    group->turning=old->turning;group->turn_rate=old->turn_rate;
+    group->receiver=old->receiver;group->receiver_spawn=old->receiver_spawn;group->owner_ability=old->owner_ability;group->complete=old->complete;
+    group->members[0].arrival_range=saved.arrival_range;
+}
+
+static void move_request_ready(movePointRequest_t *request,edict_t *unit) {
+    if(request->published)return;
+    FOR_LOOP(i,request->count)if(move_request_member(request,i)==unit) {
+        request->ready|=1u<<i;break;
+    }
+    move_request_publish(request);
+}
+
+static void move_request_drop(movePointRequest_t *request,edict_t *unit) {
+    if(request->published)return;
+    FOR_LOOP(i,request->count)if(request->candidates[i].unit==unit &&
+        request->candidates[i].spawn==unit->spawn_time) {request->attached&=~(1u<<i);request->ready&=~(1u<<i);}
+    move_request_publish(request);
+}
+
+static bool move_request_admit(movePointRequest_t *prepared,groupPointOrder_t const *request,unsigned i) {
+    edict_t *unit=request->units[i].unit;
+    if(!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) {
+        move_request_drop(prepared,unit);return false;
+    }
+    unit->movement.previous_request_id=prepared->id;
+    typeof(move_group_admission) previous=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared,0,request->order_id};
+    bool accepted=unit_issueorder(unit,request->order,request->point);
+    move_group_admission=previous;
+    if(accepted && unit->current_order_id==request->order_id &&
+        unit->currentmove==&move_move_walk && !move_unit_group(unit))move_request_ready(prepared,unit);
+    else move_request_drop(prepared,unit);
+    return accepted;
+}
+
+/* Captain and selected packets share canonical attachment/readiness ownership.
+ * Preparation allocates an identity, not a provisional physical group. Nested
+ * admission callbacks see no newly bound members until the last pending row
+ * becomes ready or drops. Target/member fine holds cover partition and seed. */
+static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
+    if(!request->count)return false;
+    if(request->queued)return move_queue_group_point(request);
+    movePointRequest_t prepared={.id=move_allocate_group_id(),.goal=move_point_fine(request->point),
+        .flags=request->formation_toggle ? 14u : 0,.shared_id=shared_id,.target=target};
+    prepared.history=prepared.id;
+    if(target) {
+        wc3GridPose_t pose;unit_predicted_pose(target,&pose);
+        prepared.goal=(vec2_t){pose.grid[0],pose.grid[1]};prepared.target_spawn=target->spawn_time;
+    }
+    if(shared_id) {
+        if(!S_FindMoveShared(shared_id))gi.error("Move: missing new shared parameter owner");
+        prepared.flags|=target ? 0x1c01 : 0xd00;
+    }
+    FOR_LOOP(i,request->count)move_request_attach(&prepared,request->units[i].unit);
+    bool any=false;
+    FOR_LOOP(i,request->count)if(move_request_admit(&prepared,request,i))any=true;
+    return any;
+}
+
+/*6b8c10/89cd10: prepare canonical requests before callbacks, retain attachment
+ * order and publish each class at its readiness/drop boundary. Forced grounding
+ * already clears AI_FLYING through the ability owner; authored fly alone is insufficient. */
+static bool move_group_selected_point_order(groupPointOrder_t const *request) {
+    enum {PRIMARY,FLOATING,ALT_FLIGHT,CLASSES};
+    unsigned slots[BZ_WC3_GROUP_ORDER_UNITS],remaining[CLASSES]={0};
+    movePointRequest_t prepared[CLASSES]={0};
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        bool floating=S_UnitMovementProfile(unit->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits;
+        slots[i]=floating ? FLOATING : request->formation_toggle && unit_is_flying(unit) ? ALT_FLIGHT : PRIMARY;
+        remaining[slots[i]]++;
+    }
+    FOR_LOOP(k,CLASSES)if(remaining[k])
+        prepared[k]=(movePointRequest_t){.id=move_allocate_group_id(),.goal=move_point_fine(request->point),.flags=request->formation_toggle ? 14u : 0};
+    FOR_LOOP(k,CLASSES)prepared[k].history=prepared[k].id;
+    FOR_LOOP(i,request->count)move_request_attach(prepared+slots[i],request->units[i].unit);
+    unsigned indices[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t keys[BZ_WC3_GROUP_ORDER_UNITS][7];
+    edict_t *focus=request->selection_owner ? G_GetMainSelectedUnit(request->selection_owner->client) : NULL;
+    FOR_LOOP(i,request->count) {
+        indices[i]=i;
+        if(request->selection_owner) {
+            edict_t *unit=request->units[i].unit;
+            uint32_t *key=keys[i];
+            key[0]=unit->movement.repulse.disable_depth;
+            key[1]=G_CountUnitOrders(unit,request->order_id);key[2]=G_CountUnitOrders(unit,0);
+            key[3]=move_point_order_score(unit,request->order_id,request->point);
+            key[4]=2; /* Native point-validation row, distinct from target validation. */
+            key[5]=focus && focus->class_id==unit->class_id;key[6]=unit->s.number;
+        }
+    }
+    /* At most twelve UI candidates; fixed stack storage and at most66 comparisons.
+     * All keys precede callbacks, as in6ba800 -> qsort ->6b93a0. */
+    if(request->selection_owner)for(unsigned n=1;n<request->count;n++) {
+        unsigned index=indices[n],j=n;
+        while(j && move_compare_point_candidates(keys[index],keys[indices[j-1]])<0) {
+            indices[j]=indices[j-1];j--;
+        }
+        indices[j]=index;
+    }
+    bool any=false;
+    FOR_LOOP(n,request->count) {
+        unsigned i=indices[n],slot=slots[i];
+        if(request->queued) {
+            if(move_queue_group_candidate(request,i,prepared[slot].id,prepared+slot))any=true;
+            else move_request_drop(prepared+slot,request->units[i].unit);
+        } else if(move_request_admit(prepared+slot,request,i))any=true;
+    }
+    return any;
+}
+
+static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id) {
+    if(!shared_id)return move_group_selected_point_order(request);
+    return move_group_captain_order(request,shared_id,NULL);
+}
+
+/*16c6d0 keeps strict minima in adaptive-enabled and ordinary pools.
+ * The owned path policy is independent of movement class and formation hold. */
+static edict_t *move_group_source(moveGroup_t const *group,wc3GridPose_t *selected) {
+    if(!group->count)return NULL;
+    uint32_t index=0;
+    if(!(group->flags&0x200)) {
+        float goal[]={group->goal.x,group->goal.y};
+        float best[]={FLT_MAX,FLT_MAX};uint32_t nearest[]={0,UINT32_MAX};
+        FOR_LOOP(i,group->count) {
+            edict_t *unit=group->members[i].unit;wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            float dx=wc3_sub(goal[0],pose.grid[0]),dy=wc3_sub(goal[1],pose.grid[1]);
+            float distance=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
+            unsigned preferred=!unit->movement.adaptive_disabled;
+            if(distance<best[preferred]) {best[preferred]=distance;nearest[preferred]=i;}
+        }
+        index=nearest[1]!=UINT32_MAX ? nearest[1] : nearest[0];
+    }
+    edict_t *source=group->members[index].unit;unit_predicted_pose(source,selected);return source;
+}
+
+/* Original16de50 seeds the formation origin when the cohort is created,
+ * before the next owner pass can predict a moving member at a later clock. */
+static void move_group_seed_route(moveGroup_t *group) {
+    wc3GridPose_t pose;
+    vec2_t center={0},goal=group->goal;
+    FOR_LOOP(i,group->count) {
+        unit_predicted_pose(group->members[i].unit,&pose);
+        center.x=wc3_add(center.x,pose.grid[0]);center.y=wc3_add(center.y,pose.grid[1]);
+    }
+    float scale=wc3_div(1,wc3_float(wc3_from_int(group->count)));
+    float dx=wc3_sub(goal.x,wc3_mul(center.x,scale)),dy=wc3_sub(goal.y,wc3_mul(center.y,scale));
+    if(dx!=0 || dy!=0)group->heading=wc3_vector_heading(dx,dy);
+    if(group->flags&0x200)group->point=goal;
+    else {
+        edict_t *source=move_group_source(group,&pose);
+        if(!source)gi.error("Move: physical group has no route source");
+        group->point=(vec2_t){pose.grid[0],pose.grid[1]};
+    }
+    group->flags|=0x10000u;
+}
+
+static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
+#ifdef BZ_TESTS
+    if(move_test_point_approach)move_test_point_approach(actor,range,actor->currentmove ? actor->currentmove->proc : NULL);
+#endif
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=group->ticking=true; group->id=move_allocate_group_id();
+    group->goal=move_point_fine(home); group->age=UINT32_MAX; group->radius=S_MoveCollisionRadius(actor);
+    group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,
+        .arrival_range=wc3_point_arrival_range(range)};
+    actor->movement.group_id=group->id;move_unit_groups[actor-g_edicts]=group;
+    move_group_seed_route(group); group->ticking=false;
+}
+
+bool S_ValidUnitPointContinuation(edict_t const *unit) {
+    if(*(uint8_t const *)&unit->movement.point_continuation>1 ||
+       !isfinite(unit->movement.next_point.x) || !isfinite(unit->movement.next_point.y))return false;
+    if(!unit->movement.point_continuation)
+        return unit->movement.next_point.x==0 && unit->movement.next_point.y==0;
+    return unit->inuse && !M_IsDead(unit) && unit->movement.group_id &&
+        unit->currentmove==&move_move_walk && unit->goalentity &&
+        (unit->goalentity->svflags&SVF_MOVE_WAYPOINT);
+}
+
+/* 5fd270 captures two independent d016b tasks for an active Warp target.
+ * Prepend order executes the packet's entrance before the cached exit. The
+ * ordinary portal route reads the live edge; this producer never teleports. */
+bool S_IssueWaygateMoveOrder(edict_t *unit,edict_t *gate,vec2_t const *entrance,uint32_t order_id) {
+    if(!unit || !entrance || !S_WaygateIsGate(gate) ||
+       S_MoveTargetStatus(unit,gate)!=MOVE_TARGET_VALID || !S_UnitCanTranslate(unit))return false;
+    vec2_t first=*entrance,next={0};
+    bool pending=S_WaygateIsActive(gate);
+    if(pending)S_WaygateGetDestination(gate,&next);
+    uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+    S_StopUnitMovementWithRecovery(unit);
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       G_UnitMoveRevision(unit)!=revision)return false;
+    edict_t *goal=Waypoint_add(&first);
+    if(!goal)return false;
+    unit->current_order_id=order_id;
+    if(!move_begin_walk_checked(unit,goal,false,true) || unit->goalentity!=goal)return false;
+    unit->movement.point_continuation=pending;unit->movement.next_point=next;
+    move_start_unassociated_point_group(unit,&first);
+    return true;
+}
+
+/* Spell point tasks, including flyers, use the ordinary physical producer.
+ * Capture the world range once; completion belongs to the retained receiver. */
+bool S_BeginUnitPointTargetApproach(edict_t *unit,edict_t *goal,float range,
+                                  edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
+    if(!unit || !goal || !receiver || !complete ||
+       !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);order_move(unit,goal);
+    if(unit->goalentity!=goal || unit->currentmove!=&move_move_walk)return false;
+    move_start_point_group(unit,&goal->s.origin2,range);
+    moveGroup_t *group=move_unit_group(unit);
+    group->receiver=receiver;group->receiver_spawn=receiver->spawn_time;group->complete=complete;
+    return true;
+}
+
+/* Internal point tasks retain their requesting ability's public order.
+ * Arrival range is supplied world range /32, independently of collision. */
+bool S_BeginUnitPointApproach(edict_t *unit,vec2_t const *point,float range,abilityProc_t owner,
+                            void (*complete)(edict_t *,edict_t *,bool)) {
+    uint32_t index=GetAbilityIndex(owner);
+    if(!unit || !point || !complete || !owner || index==255 ||
+       !unit->currentmove || unit->currentmove->proc!=owner || !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);move_reset_local_path(unit);
+    unit->movement.flat_speed_bonus=S_MoveSpeedBonus(unit);
+    move_start_point_group(unit,point,range);
+    moveGroup_t *group=move_unit_group(unit);
+    group->receiver=unit;group->receiver_spawn=unit->spawn_time;
+    group->owner_ability=index+1;group->complete=complete;
+    return true;
+}
+
+/* Native2151b0 ->05c0e0 publishes a bridge-owned physical request. It retains
+ * the public head and old velocity; the next owner visit commits that velocity
+ * before stopping translation. The tiny point is authoritative, so a moving
+ * unit may turn toward a different heading after that final translation. */
+void S_SetUnitFacingTimed(edict_t *unit,float degrees,float duration) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit))return;
+    float angle=wc3_mul(degrees,wc3_float(0x3c8efa35));
+    if(duration<=wc3_float(0x3dcccccd)) {
+        move_visual_track(unit);
+        unit->s.angle=wc3_facing_angle(angle);return;
+    }
+    float visits=wc3_div(duration,wc3_decimal("0.03"));
+    float turn=wc3_float(wc3_float_bits(wc3_div(wc3_turn_error(angle,S_UnitFacing(unit)),visits))&0x7fffffffu);
+    if(!(fabsf(wc3_sub(visits,0))>=wc3_float(0x3456bf95)) ||
+       !(fabsf(wc3_sub(turn,0))>=wc3_float(0x3456bf95)))return;
+    S_BeginUnitFacingRequest(unit,&(moveFacingRequest_t){.angle=angle,.turn=turn});
+}
+
+/* Native05c0e0 is shared by public timed facing and internal d0176 tasks.
+ * Completion belongs to the requesting ability; Move only owns its cohort. */
+void S_BeginUnitFacingRequest(edict_t *unit,moveFacingRequest_t const *request) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || !request)return;
+    float angle=request->angle;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    vec2_t point={wc3_add(pose.grid[0],wc3_mul(wc3_float(0x3c23d70a),wc3_cos(angle))),
+        wc3_add(pose.grid[1],wc3_mul(wc3_float(0x3c23d70a),wc3_sin(angle)))};
+    move_detach_group(unit);
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=true;group->turning=true;group->turn_rate=request->turn;
+    group->id=move_allocate_group_id();group->flags=0x10200u;
+    group->point=point;group->radius=S_MoveCollisionRadius(unit);
+    group->goal=point;
+    group->route.group_goal=point;group->route.group_index=UINT32_MAX;
+    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+        .arrival_range=wc3_float(0x3efae148)};
+    unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
+    group->receiver=request->receiver;
+    group->receiver_spawn=request->receiver ? request->receiver->spawn_time : 0;
+    group->complete=request->complete;
+}
+
+static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float range) {
+    /* The Captain owns its bridge for its entire lifetime. Point replacement
+     * stops/invalidates it, but has no fresh Move-ability activation166060 to
+     * reset admission timestamps. Retain the fine/coarse throttle across the
+     * ordinary order setup; otherwise an identical request advances too soon. */
+    uint32_t fine=actor->movement.fine_request_time;
+    uint32_t coarse=actor->movement.fine_route.adaptive_admission.time;
+    move_leave(actor);
+    S_IssueMoveOrder(actor,Waypoint_add(home),G_OrderId("move"));
+    actor->movement.fine_request_time=fine;
+    actor->movement.fine_route.adaptive_admission.time=coarse;
+    move_start_point_group(actor,home,range);
+}
+
+/* Internal reissue preserves the member's range-listener state. It is not
+ * temporary enrollment and must not reset entered/outer flags or deadlines. */
+void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
+    botCaptain_t const *captain=move_actor_captain(actor);
+    uint32_t const order_id=captain && captain->point_order ? captain->point_order : G_OrderId("move");
+    /*9d16c0 skips a retained Captain target;9d87d0 also retains an identical
+     * Move head. Moving that actor does not restart its followers or refresh
+     * their captured approach ranges. Stop/point replacement has no such owner. */
+    moveGroup_t const *group=move_unit_group(unit);
+    if (group && group->target==actor && group->target_spawn==actor->spawn_time &&
+        (unit->current_order_id==851986u || unit->current_order_id==851988u) && unit->currentmove==&move_move_walk)
+        return;
+    typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
+    unit->movement.captain_home.actor=unit->movement.captain_home.roster_actor=NULL;
+    S_TrackMoveTimers(unit);
+    S_IssueMoveOrder(unit,Waypoint_add(&retained.home),order_id);
+    unit->movement.captain_home=retained;
+    unit->movement.captain_home.actor=actor;
+    unit->movement.captain_home.active=true;
+    S_TrackMoveTimers(unit);
+    move_start_follow_group(unit,actor,true);
+}
+
+/*9d44d0 retains the point/range before publishing the virtual mover request.
+ * Physical roster publication remains in encounter order, in twelve-row batches. */
+static void move_captain_publish_point(botCaptain_t *captain,vec2_t const *point,float range,bool retain,bool prepare) {
+    edict_t *actor=captain->home_actor;
+    if (!actor) return;
+    /*9d44d0 retains the AI Move variant for a point away from authored home. */
+    float dx=wc3_float(wc3_float_bits(wc3_sub(point->x,captain->home.x))&0x7fffffffu);
+    float dy=wc3_float(wc3_float_bits(wc3_sub(point->y,captain->home.y))&0x7fffffffu);
+    if(!(dx<wc3_float(0x3a83126f) && dy<wc3_float(0x3a83126f)))captain->point_order=851988u;
+    uint32_t members=actor->movement.captain_actor_members;
+    edict_t **roster=move_captain_collect_roster(actor);
+    if(retain) {captain->goal=*point;captain->request_range=range;}
+    captain->active_goal=*point;
+    uint32_t entered=0;
+    FOR_EACH_ARRAY(edict_t *,member,captain->units) {
+        edict_t *ent=*member;
+        if (!ent->inuse || ent->movement.captain_home.roster_actor!=actor) continue;
+        uint32_t index=ent->movement.captain_home.member_index;
+        if (index>=members || roster[index]!=ent) gi.error("Move: invalid captain point roster %u/%u",index,members);
+        if (ent->movement.captain_home.entered) entered++;
+        ent->movement.captain_home.home=*point;
+    }
+    actor->unitinfo.MoveSpeed=move_captain_point_speed(captain);
+    /* Retail decimal0.4 reproduces the observed runtime default3eccccce.
+     * The hidden actor's first turn and seven later headings differ by one bit. */
+    actor->unitinfo.TurnSpeed=wc3_decimal("0.4");
+    actor->unitinfo.PropWindow=wc3_float(0x3dcccccd);
+    actor->unitinfo.move_flags|=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    if(prepare)move_captain_actor_point(actor,point,range);
+    if (!members) {gi.MemFree(roster);return;}
+    if (entered==members) move_captain_shared_point(actor,roster,members,point,true);
+    else FOR_LOOP(i,members) S_ReissueCaptainUnit(roster[i],actor);
+    gi.MemFree(roster);
+}
+
+void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
+    move_captain_publish_point(captain,point,range,true,true);
+}
+
+/*9d4600 retains the requested point only for policy1. Outside configured
+ * range the bridge first approaches the captured target point; its goal
+ * callback refreshes the live target and enters the persistent target task. */
+bool S_CaptainTargetCloser(botCaptain_t const *captain,edict_t const *source,edict_t const *retained) {
+    wc3GridPose_t actor,a,b;
+    unit_predicted_pose(captain->home_actor,&actor);
+    unit_predicted_pose(source,&a);unit_predicted_pose(retained,&b);
+    float ax=wc3_sub(actor.world[0],a.world[0]),ay=wc3_sub(actor.world[1],a.world[1]);
+    float bx=wc3_sub(actor.world[0],b.world[0]),by=wc3_sub(actor.world[1],b.world[1]);
+    return wc3_add(wc3_mul(ax,ax),wc3_mul(ay,ay))<wc3_add(wc3_mul(bx,bx),wc3_mul(by,by));
+}
+
+void S_CaptainTargetMove(botCaptain_t *captain,edict_t *target,bool retain,float range) {
+    if(!target) {S_CaptainPointMove(captain,&captain->goal,200);return;}
+    edict_t *actor=captain->home_actor;
+    if(!actor || !target->inuse || G_IsDeferredFree(target))return;
+    wc3GridPose_t pose;unit_predicted_pose(target,&pose);
+    vec2_t point={pose.world[0],pose.world[1]};
+    bool inside=S_UnitTargetInMoveRange(actor,target,range);
+    move_captain_publish_point(captain,&point,range,retain,!inside);
+    if(inside) {
+        uint32_t fine=actor->movement.fine_request_time;
+        uint32_t coarse=actor->movement.fine_route.adaptive_admission.time;
+        move_leave(actor);S_IssueMoveOrder(actor,target,G_OrderId("move"));
+        actor->movement.fine_request_time=fine;
+        actor->movement.fine_route.adaptive_admission.time=coarse;
+        S_SetFollowTarget(actor,target);
+        move_start_target_group(actor,target,true,wc3_div(range,32),false);
+    }
+}
+
+/*9d2670 near-home inverse uses the roster range count, not the state enum.
+ * Empty captains and state1 place the actor before requesting their home. */
+void S_CaptainGoHome(botCaptain_t *captain) {
+    edict_t *actor=captain->home_actor;
+    if (!actor || !captain->home_set) return;
+    if (S_CaptainNearHome(captain)) {
+        uint32_t entered=move_captain_entered(actor);
+        if (entered>=ARRAY_COUNT(captain->units)/2) captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
+        return;
+    }
+    if (!ARRAY_COUNT(captain->units) || captain->state==BOT_CAPTAIN_FORMING) {
+        /*9d6ed0 relocates the virtual actor without admitting a public unit
+         * Stop. Keep its existing internal cleanup separate from2155c0. */
+        order_stop(actor);
+        S_PlaceUnitPosition(actor,&captain->home);
+    }
+    captain->point_order=851986u;
+    S_CaptainPointMove(captain,&captain->home,500);
+}
+
+/* Native171070 installs the profile;16cb80 consumes its low rank nibble.
+ * Rebinding object-data pointers alone must not change a live mover's row. */
+void S_SetMoveVisualPolicy(edict_t *unit,uint32_t policy) {
+    unit->movement.visual_policy=policy&15u;
+}
+
+void S_SetMoveFormationRank(edict_t *unit, uint32_t rank) {
+    unit->movement.formation_rank=rank&15u;
+}
+
+/* Original16b2f0 projects predicted positions, not formation offsets.
+ * Cohorts have at most twelve rows: fixed scratch storage and the native
+ * strict comparisons and minimum-to-tail swaps also retain the native tie behavior. */
+static void move_group_classify(moveGroup_t *group) {
+    /* Equal ranks cannot exceed the running rank minimum or encounter a
+     * lower-ranked peer. Skip pure scalar projection/sorting for this common
+     * case, independently of positions, radii and arrived-member flags. */
+    uint32_t rank=group->members[0].unit->movement.formation_rank;
+    bool mixed=false;
+    for(uint32_t i=1;i<group->count;i++) {
+        if(group->members[i].unit->movement.formation_rank!=rank) {mixed=true;break;}
+    }
+    if(!mixed)return;
+    struct { float lower, upper; uint32_t member; } intervals[BZ_WC3_GROUP_ORDER_UNITS];
+    float sine,cosine;
+    wc3_sincos(wc3_float(wc3_float_bits(group->heading)^0x80000000u),&sine,&cosine);
+    FOR_LOOP(i,group->count) {
+        edict_t *unit=group->members[i].unit;wc3GridPose_t pose;
+        unit_predicted_pose(unit,&pose);
+        float position=wc3_sub(wc3_mul(pose.grid[0],cosine),wc3_mul(pose.grid[1],sine));
+        float radius=wc3_add(wc3_div(S_MoveCollisionRadius(unit),32),1);
+        intervals[i]=(typeof(intervals[0])){wc3_sub(position,radius),wc3_add(position,radius),i};
+    }
+    for(uint32_t tail=group->count;tail>1;) {
+        tail--;uint32_t minimum=tail;
+        for(uint32_t i=tail;i>0;) {
+            i--;if(intervals[i].lower<intervals[minimum].lower)minimum=i;
+        }
+        if(minimum!=tail) {
+            typeof(intervals[0]) swap=intervals[tail];intervals[tail]=intervals[minimum];intervals[minimum]=swap;
+        }
+    }
+    uint32_t rank_limit=16;
+    for(uint32_t i=group->count;i>0;) {
+        i--;moveGroupMember_t *member=group->members+intervals[i].member;
+        if(member->flags&0x10000)continue;
+        uint32_t rank=member->unit->movement.formation_rank;
+        if(rank>rank_limit) {member->flags|=0x200000;continue;}
+        rank_limit=rank;
+        for(uint32_t j=i;j>0 && !(member->flags&0x200000);) {
+            j--;if(!(intervals[j].lower<intervals[i].upper))break;
+            moveGroupMember_t const *other=group->members+intervals[j].member;
+            if(!(other->flags&0x10000) && other->unit->movement.formation_rank<rank)
+                member->flags|=0x200000;
+        }
+    }
+}
+
+static bool move_group_route(moveGroup_t *group) {
+    /*16de50 disables acceleration for bypass cohorts;167120 appends the
+     * retained destination directly. This request consumes no coarse work. */
+    if(group->flags&0x200) {
+        vec2_t point=group->goal;
+        if(!group->initialized || point.x!=group->point.x || point.y!=group->point.y) {
+            group->point=point;group->route.group_goal=point;
+            G_ReserveMoveRouteBuffer(&group->route.group_points,&group->route.group_capacity,1);
+            group->route.group_points[0]=(vec2_t){wc3_mul(group->point.x,.5f),wc3_mul(group->point.y,.5f)};
+            group->route.group_count=1;group->route.group_index=0;
+            group->initialized=true;group->flags|=0x30000u;group->age=0;
+        }
+        return true;
+    }
+    wc3GridPose_t pose;
+    edict_t *source=move_group_source(group,&pose); if (!source) return false;
+    /* Original16c940 scans the live resolved members when routing samples a
+     * local group. Membership pruning has already removed departed owners. */
+    group->radius=0;
+    FOR_LOOP(i,group->count) if (S_MoveCollisionRadius(group->members[i].unit)>group->radius)
+        group->radius=S_MoveCollisionRadius(group->members[i].unit);
+    moveShared_t const *shared=move_group_shared(group);
+    if (shared) group->radius=shared->radius;
+    vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
+    vec2_t goal=move_point_world(&group->goal);
+    movePathQuery_t query={.geometry={&from,&goal,group->radius,M_UnitStaticPathingFlags(source)},
+        .mover=source,.target=group->target,.target_region=S_MoveGroupTargetRegion(group),.units=true,.fine=&fine,
+        .fine_target=group->target ? &group->goal : NULL,.coarse_mask=S_UnitMoveCoarseMask(source),
+        .no_warp=(group->flags&0x10u)!=0,.group_path=true};
+    uint32_t revision=group->route.group_revision;
+    bool cached=group->route.group_count && group->route.group_index<group->route.group_count;
+    bool rebuilt;
+    if (!G_UnitMoveGroupDestinationStatus(&query,&group->route,&point,&rebuilt)) {
+        if(!group->route.group_admission.waiting)
+            fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,goal.x,goal.y);
+        return false;
+    }
+    if (!rebuilt && cached && group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
+    /* Native16ce10 ->1697a0(reset-members0,reset-counters1) resets these
+     * on every admitted replacement, even if its endpoint is unchanged. */
+    if (rebuilt) group->age=group->completion_counter=0;
+    float dx=wc3_sub(point.x,group->point.x),dy=wc3_sub(point.y,group->point.y);
+    if (dx!=0 || dy!=0) group->heading=wc3_vector_heading(dx,dy);
+    group->point=point; group->initialized=true; group->flags|=0x30000;
+    wc3FormationMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+    FOR_LOOP(i,group->count) {
+        edict_t *unit=group->members[i].unit; unit_predicted_pose(unit,&pose);
+        members[i]=(wc3FormationMember_t){.position={pose.grid[0],pose.grid[1]},
+            .radius=wc3_div(S_MoveCollisionRadius(unit),32),.rank=unit->movement.captain_actor_type ? 0 : unit->movement.formation_rank};
+    }
+    wc3Formation_t formation={members,group->count,group->heading};
+    if (!wc3_formation_layout(&formation)) gi.error("Move: invalid %u-member formation",group->count);
+    FOR_LOOP(i,group->count) group->members[i].offset=
+        (vec2_t){members[i].offset[0],members[i].offset[1]};
+    return true;
+}
+
+/* Native167070 advances a nonfinal coarse leg without consuming retry.
+ * Final partial endpoints retain165c60/167290's stopped retry transition.
+ * 16fd0a forces arrival only when this visit's 167e40 reported ready: a
+ * changed destination still inside its request interval keeps the status. */
+static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_t *member,
+                                            wc3GridPose_t const *pose, vec2_t *direction, bool ready) {
+    edict_t *unit=member->unit;
+    uint32_t result=move_advance_endpoint(unit,pose,member->destination,group->count,direction);
+    if(result==2)return result;
+    /*16fd0a forces range for successful target-perimeter3 and exhausted4.
+     * Only exhausted4 publishes the failed-path member bit. Both retain the
+     * independent heading gate and the destination-readiness barrier. */
+    if ((result==3 || result==4) && ready) {
+        member->forced_arrival=true;
+        if(result==4)member->flags|=0x20000;
+    }
+    return result;
+}
+
+/* Native16a790 adjusts a refreshed slot after the cohort classification.
+ * Keep the previous destination/flags until this member's decision: the next
+ * owner visit observes adjusted40000 and seeds the classification cooldown. */
+static void move_group_adjust_destination(moveGroup_t *group, moveGroupMember_t *member) {
+    member->destination=(vec2_t){wc3_add(group->point.x,member->offset.x),wc3_add(group->point.y,member->offset.y)};
+    member->flags&=~0x70000u;
+    if ((member->offset.x!=0 || member->offset.y!=0) &&
+        G_AdjustUnitMoveFormationDestination(member->unit,group->point,&member->destination)) member->flags|=0x40000;
+    box2_t bounds=CM_GetWorldBounds();
+    member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
+}
+
+/*16a790 starts each decision from velocity when it is moving. An immediate
+ * facing write changes physical8c without redirecting the retained velocity;
+ * using that write as the steering origin incorrectly turns a running unit. */
+static float move_member_heading(edict_t const *unit) {
+    float x=wc3_mul(unit->movement.velocity.x,1.0f/32),y=wc3_mul(unit->movement.velocity.y,1.0f/32);
+    float speed=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
+    return wc3_float(wc3_float_bits(wc3_sub(speed,0))&0x7fffffffu)>=wc3_float(0x34d6bf95) ?
+        wc3_vector_heading(x,y) : unit->s.angle;
+}
+
+static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *member) {
+    if (group->flags&0x10000) move_group_adjust_destination(group,member);
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
+    edict_t *unit=member->unit;
+    float old_angle=unit->s.angle,heading=move_member_heading(unit);
+    wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
+    wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
+        /* Native16a790 temporarily replaces b0 with runtime .49 during
+         * unseen pursuit, then restores the retained authored arrival range. */
+        .heading=heading,.range=!group->unseen_counter ? member->arrival_range : wc3_float(0x3efae148),
+        .flags=member->forced_arrival || (group->flags&0x200) ? 0x10000 : 0};
+    /* Original16a790 replaces arrival10000 from this visit's result. A cached
+     * slot may cease to be reached after SetUnitX/Y or physical displacement. */
+    member->flags&=~0x10000u;
+    if (!group->turning && (S_UnitExecutionPaused(unit) || unit->stunned)) {
+        member->arrived=member->in_range=false; member->speed=0; member->heading=unit->s.angle;
+        return;
+    }
+    member->arrived=wc3_arrival_update(&arrival); member->in_range=arrival.in_range;
+    if (member->arrived) {
+        member->flags|=0x10000; member->forced_arrival=false;
+        member->speed=0; member->heading=heading;
+        /*16fbd0 retires pending work on every successful arrival, including
+         * forced arrival; cached routes and retry/delay remain owned here. */
+        move_unlink_requests(unit);
+        return;
+    }
+    unit->s.angle=heading;
+    if (arrival.in_range || (member->flags&0x200000)) {
+        /* Original16fbd0/16fd90 turn an in-range or held member with stop1
+         * before replacing its destination, retiring only scheduler work.
+         * A persistent target refresh must retain its cached route while
+         * the arrival-facing gate completes. The same early branch cancels its
+         * pending scheduler records; it does not run a fresh local route. */
+        float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+        unit_turn_toward(unit,wc3_vector_heading(x,y));
+        member->speed=0;member->heading=unit->s.angle;unit->s.angle=old_angle;
+        move_unlink_requests(unit);
+        return;
+    }
+    /* Native16fbd0 accepts a new path destination after arrival/held handling,
+     * before Path_Advance consumes a pending wait. Slot publication alone does
+     * not replace the path's cached destination or clear its retry state. */
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    bool changed=route->adaptive_points && move_destination_changed(route->adaptive_goal,member->destination);
+    bool ready=!changed || move_destination_ready(unit->movement.fine_request_time,route->adaptive_admission.time);
+    if (changed && ready) {
+        route->count=route->adaptive_count=0;
+        route->index=route->adaptive_index=UINT32_MAX;route->partial=false;route->adaptive_short=0;
+        unit->movement.retry_count=unit->movement.wait_delay=0;
+        unit->movement.path.valid=false;
+    }
+    if (wc3_yield_advance(&unit->movement.wait_delay,false)) {
+        move_hold_goal_heading(unit);
+        member->speed=0; member->heading=unit->s.angle; unit->s.angle=old_angle;
+        return;
+    }
+    float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+    vec2_t direction;
+    /* Native arrival can stop translation before its angular gate completes.
+     * In-range/forced members turn without another path or retry request.
+     * Original165ae0 checks a retained coarse point (165f10) before167070: one already in
+     * accelerator range is consumed and refilled by this visit's route update instead. */
+    uint32_t progress=G_UnitMoveAdaptiveWaypointDue(&unit->movement.fine_route,(vec2_t){pose.grid[0],pose.grid[1]}) ? 0 :
+        move_group_advance_endpoint(group,member,&pose,&direction,ready);
+    if (progress==2) {
+        /* Native returns the consumed fine point, including a zero vector.
+         * 16fbd0 passes stop1 for every nonzero Path_Advance status. */
+        unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
+        unit_turn_toward(unit,unit->movement.heading);
+        unit->movement.turn_blocked=true;
+    } else if (progress) {
+        unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
+    } else {
+        vec2_t goal=move_point_world(&group->goal);
+        if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&goal,S_MoveCollisionRadius(unit),MOVE_AVOID_GENERIC},&direction))) {
+            progress=move_group_advance_endpoint(group,member,&pose,&direction,ready);
+            if (progress==2) {
+                unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
+                unit_turn_toward(unit,unit->movement.heading);
+                unit->movement.turn_blocked=true;
+            } else if (progress) move_hold_goal_heading(unit);
+            else unit_apply_route_heading(unit, &direction, MOVE_AVOID_GENERIC, route_result);
+        }
+        else { unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true; }
+    }
+    member->speed=unit->movement.turn_blocked ? 0 : unit_effective_speed(unit);
+    member->heading=unit->s.angle; unit->s.angle=old_angle;
+}
+
+/* Original16a9bc mirrors the retained path after every decision, including
+ * arrival, wait and formation hold. The following owner visit classifies it.
+ * Consuming a gate does not erase the marker; a new coarse search replaces it. */
+static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
+    move_group_decide_route(group,member);
+    if (member->unit->movement.fine_route.warp_markers) member->flags|=0x80000u;
+    else member->flags&=~0x80000u;
+}
+
+/* Original16b120/16c4f0 regroup ordinary members before advancing the shared
+ * coarse point. Arrived members retain their zero velocity during this wait. */
+static void move_group_regroup(moveGroup_t *group) {
+    uint32_t arrived=0,near=0;
+    bool exempt=false;
+    float range=group->flags&0x100 ? 16 : 256;
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *member=group->members+i;
+        exempt|=member->unit->attack_speed_cap.active;
+        if (member->flags&0x10000) { arrived++; continue; }
+        wc3GridPose_t pose; unit_predicted_pose(member->unit,&pose);
+        float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+        if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<range) near++;
+    }
+    uint32_t status=arrived ? group->count-arrived-near : group->count;
+    if (arrived && (group->cooldown || exempt || (group->flags&4))) status=0;
+#ifdef BZ_TESTS
+    uint32_t trace[]={1,status,arrived,near,group->completion_counter};
+    if(move_test_group_regroup)move_test_group_regroup(group,trace);
+#endif
+    uint32_t limit=group->flags&0x100 ? (group->flags&0x20000 ? 396 : 198) : 99;
+    if (!status || group->completion_counter>limit) {
+        if (G_AdvanceUnitMoveGroupDestination(&group->route)) {
+            FOR_LOOP(i,group->count) {
+                moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
+                member->flags=0; member->forced_arrival=false;
+                moveFineRoute_t *route=&unit->movement.fine_route;
+                route->count=route->adaptive_count=0; route->index=route->adaptive_index=UINT32_MAX;
+                route->partial=false; route->adaptive_short=0; unit->movement.path.valid=false;
+                unit->movement.wait_delay=unit->movement.retry_count=0; unit->movement.wait_blocker=NULL;
+            }
+            group->age=group->completion_counter=0;
+            move_group_route(group); group->flags&=~0x20000u;
+        }
+    } else if (arrived) group->completion_counter++;
+}
+
+static int move_compare_group_visits(void const *a, void const *b) {
+    uint64_t x=((moveGroupVisit_t const *)a)->sequence,y=((moveGroupVisit_t const *)b)->sequence;
+    return x<y ? 1 : x>y ? -1 : 0;
+}
+
+/* Native169680 reloads after normal commits, but before failure stop commits.
+ * Both branches use the same cached destination and first-member prediction. */
+static void move_group_update_refresh(moveGroup_t *group) {
+    if (!group->target) return;
+    if (group->target_refresh==-1) {
+        /*169680 consumes only fine coordinates. Reuse the fine predictor,
+         * avoiding a world projection and a full pose-cache key per reload. */
+        float pose[2];S_PredictUnitFinePointAt(group->members[0].unit,&level.pathing_clock,pose);
+        vec2_t goal=group->route.group_goal;
+        float x=wc3_sub(goal.x,pose[0]),y=wc3_sub(goal.y,pose[1]);
+        float distance=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
+        int32_t reload=(int32_t)wc3_int_bits(wc3_float_bits(wc3_add(wc3_mul(distance,wc3_float(0x3ea8f5c3)),.5f)));
+        group->target_refresh=reload<16 ? 16 : reload>132 ? 132 : reload;
+        if (group->flags&0x400) group->target_refresh+=165;
+    } else if (group->target_refresh) group->target_refresh--;
+}
+
+/* Native16c5d0 retains the physical owner and coarse admission request.
+ * Every member integrates its old velocity before committing speed zero. */
+static void move_group_stop_members(moveGroup_t *group) {
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t *member=group->members+i;edict_t *unit=member->unit;
+        member->speed=0;member->heading=unit->s.angle;
+        moveStep_t step={.velocity={.heading=member->heading}};
+        unit_predicted_pose(unit,&step.pose);
+        unit_commit_motion(unit,&step);
+        move_unlink_requests(unit);
+    }
+}
+
+/*16c390 gives a far blocked member nineteen completion scans to retry.
+ *168740(-1,1,0,1) discards local points/results and retry state, retaining
+ * destinations, request timestamps, allocations and scheduler membership. */
+static bool move_group_retry_completion(moveGroup_t const *group, moveGroupMember_t const *member) {
+    edict_t *unit=member->unit;
+    if (!(member->flags&0x20000) || group->count<=1 || group->completion_counter>=20)
+        return false;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+    if (!(wc3_add(wc3_mul(x,x),wc3_mul(y,y))>256)) return false;
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    route->count=route->adaptive_count=0;
+    route->index=route->adaptive_index=UINT32_MAX;
+    route->partial=false;route->adaptive_short=0;
+    unit->movement.retry_count=unit->movement.wait_delay=0;
+    unit->movement.wait_blocker=NULL;
+    unit->movement.path.valid=false;
+    return true;
+}
+
+/* Completion callbacks run after all member commits and target refresh. */
+static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **finished, uint32_t count) {
+    if (!group->route.group_index) {
+        if (!(group->flags&1) || group->unseen_counter>32) group->completion_counter++;
+    } else move_group_regroup(group);
+    bool completed=false;
+    /* Original16c390 visits ready rows from first to last. A callback may
+     * remove/reorder later members, so retain the decision frontier. */
+    FOR_LOOP(i,count) {
+        moveGroupMember_t const *member=finished[i];edict_t *unit=member->unit;
+        if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id) {
+            if (move_group_retry_completion(group,member)) continue;
+            edict_t *target=group->target;
+            if(group->receiver) {
+                completed=true;
+                bool arrived=!(member->flags&0x20000);
+                edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
+                void (*complete)(edict_t *,edict_t *,bool)=group->complete;
+                bool ability_owned=group->owner_ability!=0;
+                group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
+                move_detach_group(unit);unit->movement.group_id=0;
+                if(!ability_owned)S_SetFollowTarget(unit,NULL);
+                if(receiver->inuse && receiver->spawn_time==spawn && !G_IsDeferredFree(receiver) && complete)
+                    complete(receiver,unit,arrived);
+                else unit_stand(unit);
+                continue;
+            }
+            if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
+            completed=true;
+            bool cant_path=(member->flags&0x20000)!=0;
+            vec2_t failed_goal=unit->goalentity ? unit->goalentity->s.origin2 : unit->s.origin2;
+            bool next_point=unit->movement.point_continuation;
+            vec2_t continuation=unit->movement.next_point;
+            bool follow=group->follow_continuation;
+            float range=group->follow_range;
+            move_detach_group(unit); unit->movement.group_id=0;
+            if(next_point) {
+                uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+                move_leave(unit);
+                if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+                   G_UnitMoveRevision(unit)!=revision)continue;
+                edict_t *goal=Waypoint_add(&continuation);
+                if(!goal){unit->stand(unit);continue;}
+                /* The current public head is already committed. A nested Stop
+                 * or replacement must remain authoritative across startup. */
+                if(move_begin_walk_checked(unit,goal,false,true) && unit->goalentity==goal)
+                    move_start_unassociated_point_group(unit,&continuation);
+                continue;
+            }
+            if (target) {
+                if (follow && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
+                    move_reset_local_path(unit);
+                    if(target->movement.captain_actor_type)move_start_follow_group(unit,target,true);
+                    else {
+                        /* The task captures authored range at construction;
+                         *05a5c0 reads live mover radii when it activates. */
+                        range=MAX(wc3_float(0x3efae148),
+                            wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target)),32));
+                        move_start_target_group(unit,target,true,range,false);
+                    }
+                }
+                else move_end_follow(unit);
+            }
+            else {
+                edict_t *actor=unit->movement.captain_home.roster_actor;
+                /* Native9d8a90 reissues an idle roster member while
+                 * the captain is outside its retained request range.
+                 * The all-entered200 point range does not replace the
+                 * retained GoHome500 range used by9cff90. */
+                bool follow=actor && (actor->unitinfo.move_flags&BZ_UNIT_SPEED_SET) &&
+                    !move_captain_near_home(actor,&unit->movement.captain_home.home);
+                if (follow) {
+                    typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
+                    unit->movement.captain_home.actor=NULL;
+                    S_TrackMoveTimers(unit);
+                    move_leave(unit); S_RecoverStoppedUnitPosition(unit);
+                    S_IssueMoveOrder(unit,unit->goalentity,G_OrderId("move"));
+                    unit->movement.captain_home=retained;
+                    S_TrackMoveTimers(unit);
+                    unit->movement.captain_home.actor=actor;
+                    S_TrackMoveTimers(unit);
+                    unit->movement.captain_home.active=true;
+                    move_start_follow_group(unit,actor,true);
+                } else if (!S_PatrolMoveArrive(unit)) {
+                    /* A Patrol leg's d0175 continuation owns completion. Completion
+                     * stops the mover through 171340, whose 170080 recovery moves a
+                     * member that ended overlapping a peer (retail RA 1713d8). */
+                    S_RecoverStoppedUnitPosition(unit);
+                    G_CreepGuardMoveArrived(unit);
+                    uint32_t completed_spawn=unit->spawn_time;
+                    unit->stand(unit);
+                    if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
+                    else if(cant_path && unit->inuse && unit->spawn_time==completed_spawn && !G_IsDeferredFree(unit) &&
+                            (unit->aiflags&AI_TOWN_OWNED) && !S_CargoTryFailedMove(unit,&failed_goal)) G_BotDispatchAIStop(unit);
+                }
+            }
+        }
+    }
+    /* The scan's incremented counter remains observable inside callbacks. */
+    if (completed) group->completion_counter=0;
+}
+
+static void move_group_prepare_members(moveGroup_t *group) {
+    /*16d1c0 prunes from the last captured row toward the first. */
+    for (uint32_t i=group->count;i>0;) {
+        i--;
+        moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
+        ability_t const *owner=group->owner_ability ? GetAbilityByIndex(group->owner_ability-1) : NULL;
+        bool owned=owner && unit && unit->currentmove && unit->currentmove->proc==owner->proc;
+        if (!unit || !unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
+            unit->movement.group_id!=group->id ||
+            (!group->turning && ((!owned && unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
+             !unit->goalentity))) {
+            if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
+                unit->movement.group_id=0;
+            if (unit) move_cancel_receiver(group,unit,group->owner_ability && group->target);
+            group->members[i]=group->members[--group->count]; continue;
+        }
+        if (!group->turning && !group->owner_ability && !S_UnitCanTranslate(unit)) {
+            unit->stand(unit);
+            group->members[i]=group->members[--group->count];
+        }
+    }
+}
+
+static void move_run_group_updates(void) {
+    move_update_shared();
+    move_prepare_group_order();
+    /* Freeze physical generations before callbacks can allocate or reuse slots.
+     * Native visits newest cohorts first; newly created owners wait one pass. */
+    uint32_t visits=0;
+    for(moveGroup_t *group=move_group_head;group;group=group->older) if(group->inuse) {
+        if(visits==move_group_visit_capacity) {
+            uint32_t capacity=move_group_visit_capacity ? move_group_visit_capacity*2 : 16;
+            if(capacity<move_group_visit_capacity)gi.error("Move: physical visit capacity exhausted");
+            moveGroupVisit_t *owners=realloc(move_group_visits,capacity*sizeof(*owners));
+            if(!owners)gi.error("Move: cannot allocate physical owner visits");
+            move_group_visits=owners;move_group_visit_capacity=capacity;
+#ifdef BZ_TESTS
+            move_owner_visit_allocations++;
+#endif
+        }
+        move_group_visits[visits++]=(moveGroupVisit_t){group,group->sequence};
+    }
+    moveGroupVisit_t const *owners=move_group_visits;
+    FOR_LOOP(g,visits) {
+        if (!(g & 7u)) gi.FrameCheckpoint();
+        moveGroup_t *group=owners[g].group;
+        if (!group->inuse || group->sequence!=owners[g].sequence) continue;
+        MOVE_OWNER_PHASE(MOVE_PHASE_GROUP,group->id);
+        group->ticking=true;
+        move_group_prepare_members(group);
+        if (!group->count) { move_release_group(group); continue; }
+        /* A Wisp leaving harvest starts inside its tree's footprint and has no
+         * legal route source; walk it out before physical group steering. */
+        if (!group->individual) FOR_LOOP(m,group->count) {
+            edict_t *unit=group->members[m].unit;
+            if (!unit || !move_wisp_egress_tree_valid(unit) || S_UnitExecutionPaused(unit) || unit->stunned) continue;
+            if (CM_PointIsPathableForRadiusFlags(&unit->s.origin2,S_MoveCollisionRadius(unit),M_UnitStaticPathingFlags(unit))) {
+                unit->movement.wisp_egress_tree=NULL;
+                unit->movement.wisp_egress_active=unit->movement.wisp_egress_target_valid=false;
+            } else { unit_changeangle(unit); unit_moveindirection(unit); }
+        }
+        if (group->individual) {
+            edict_t *unit=group->members[0].unit;
+            if (!S_UnitExecutionPaused(unit) && !unit->stunned) ai_move_walk(unit);
+            group->ticking=false;
+            continue;
+        }
+        if(group->owner_ability && !S_UnitCanTranslate(group->members[0].unit)) {
+            move_group_stop_members(group);group->ticking=false;continue;
+        }
+        if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
+                G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
+            for(uint32_t i=group->count;i>0;) {
+                edict_t *unit=group->members[--i].unit;
+                if (!unit) continue;
+                if(group->owner_ability) {move_leave(unit);continue;}
+                S_SetFollowTarget(unit,NULL); S_SetMoveGoal(unit, &unit->goalentity, NULL); unit_stand(unit);
+            }
+            move_release_group(group); continue;
+        }
+#ifdef BZ_TESTS
+        if (move_test_group_begin) move_test_group_begin(group);
+#endif
+        /* Original16bc10 samples each member's predicted region cell before
+         * route/decision work; actions dispatch after all owner commits. */
+        for(uint32_t i=group->count;i>0;i--) {
+            edict_t *unit=group->members[i-1].unit;
+            wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            vec2_t point={pose.world[0],pose.world[1]};
+            G_UnitRegionPositionChanged(unit,&point);
+        }
+        group->age++;
+        vec2_t sampled=group->initialized ? group->route.group_goal : group->goal;
+        bool visible=!group->target || group->target->movement.captain_actor_type ||
+            G_FowPlayerCanTrackUnit(group->members[0].unit->s.player,group->target);
+        group->unseen_counter=visible ? 0 : group->unseen_counter+1;
+        if (group->target && visible && !group->target_refresh) {
+            wc3GridPose_t pose; unit_predicted_pose(group->target,&pose);
+            sampled=(vec2_t){pose.grid[0],pose.grid[1]};
+            vec2_t old=group->initialized ? group->route.group_goal : group->goal;
+            /* A group path only searches coarse routes: its fine timestamp
+             * stays zero. A premature sample is discarded, then reloaded;
+             * it is not held as a new destination for the next visit. */
+            if (move_destination_changed(old,sampled) && move_destination_ready(0,group->route.group_admission.time))
+                group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
+            group->target_refresh=-1;
+        }
+        if (!move_group_route(group)) {
+            move_group_update_refresh(group);
+            move_group_stop_members(group);
+            group->ticking=false;continue;
+        }
+#ifdef BZ_TESTS
+        if (move_test_group_route) move_test_group_route(group,NULL);
+#endif
+        FOR_LOOP(i,group->count) group->members[i].flags&=~0x200000u;
+        if (group->count>1 && !(group->flags&0x200)) {
+            if (!group->cooldown && !(group->flags&2)) {
+                /* Original169b00 denies projected classification for adjusted,
+                 * forced or special members and member paths with a partial fine
+                 * or short coarse result (path+88 30000000). The
+                 * denial owns a66-tick regroup cooldown. Attack owns the
+                 * independent mover01000000 exemption lifetime. */
+                FOR_LOOP(i,group->count) if ((group->members[i].flags&0xe0000) ||
+                    group->members[i].unit->attack_speed_cap.active ||
+                    group->members[i].unit->movement.fine_route.partial ||
+                    group->members[i].unit->movement.fine_route.adaptive_short) {group->cooldown=66;break;}
+                if (!group->cooldown) move_group_classify(group);
+            }
+            /* Original16c630 keeps peers eligible after65 ticks, even when
+             * their current requested speed is zero. */
+            if (!(group->flags&0x20000) || group->age>65)
+                FOR_LOOP(i,group->count) group->members[i].flags|=0x100000;
+        }
+        move_deciding_group=group; move_deciding_excluded=0;
+        if (group->count>1 && !(group->flags&0x200)) FOR_LOOP(i,group->count)
+            if (!(group->members[i].flags&0x300000)) move_deciding_excluded|=1u<<i;
+        MOVE_OWNER_PHASE(MOVE_PHASE_DECIDE,group->id);
+        FOR_LOOP(i,group->count) move_group_decide(group,group->members+i);
+        /* Original16c250 publishes positive-request eligibility only for
+         * members excluded by the multi-member classification pass.
+         * Singleton and formation-bypass groups never enter that pass. */
+        FOR_LOOP(i,group->count) if ((move_deciding_excluded&(1u<<i)) && group->members[i].speed>0)
+            group->members[i].flags|=0x100000;
+        move_deciding_group=NULL; move_deciding_excluded=0;
+        float cap=FLT_MAX, fine_cap=FLT_MAX; bool share=!(group->flags&8);
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t const *member=group->members+i;
+            if ((member->flags&0x210000) || member->unit->attack_speed_cap.active) share=false;
+            float speed=unit_effective_speed(member->unit);
+            /*16b060 compares the published fine scalar, including exceptional public speeds. */
+            float fine_speed=wc3_mul(speed,1.0f/32);
+            if (!(member->flags&0x200000) && fine_speed<fine_cap) {cap=speed;fine_cap=fine_speed;}
+        }
+        moveShared_t *shared=move_group_shared(group);
+        if (shared && share) {
+            float next=shared->next_speed==FLT_MAX ? FLT_MAX : wc3_mul(shared->next_speed,1.0f/32);
+            if(fine_cap<next)shared->next_speed=cap;
+            if (shared->speed!=FLT_MAX) {cap=shared->speed;fine_cap=wc3_mul(cap,1.0f/32);}
+        }
+        MOVE_OWNER_PHASE(MOVE_PHASE_COMMIT,group->id);
+        moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
+            if (!group->turning && (S_UnitExecutionPaused(unit) || unit->stunned)) continue;
+            cstring_t animation=member->speed>0 ? "walk" : "stand";
+            if (!G_AnimationHasPrimary(unit->animation,animation)) unit_setanimation(unit,animation);
+            moveStep_t step={.velocity={.vel={unit->movement.velocity.x,unit->movement.velocity.y},
+                .speed=share && !(wc3_mul(member->speed,1.0f/32)<fine_cap) ? cap : member->speed,.heading=member->heading,.limit=unit_effective_speed(unit)}};
+            unit_grid_pose(unit,&step.pose);
+            float old[2]={unit->movement.velocity.x,unit->movement.velocity.y};
+            wc3_grid_step(&step.pose,old,unit->movement.clock_valid ? wc3_elapsed(&level.pathing_clock,&unit->movement.pose_clock) : 0);
+            if ((group->flags&0x800) && group->target && !group->unseen_counter) {
+                wc3GroupSpeed_t speed={.requested=wc3_mul(member->speed,1.0f/32),
+                    .cap=share ? fine_cap : FLT_MAX,
+                    .flags=group->flags,.target=true,
+                    .source={step.pose.grid[0],step.pose.grid[1]},
+                    .destination={sampled.x,sampled.y},.arrival_range=member->arrival_range,
+                    .target_maximum=wc3_mul(unit_effective_speed(group->target),1.0f/32),
+                    .target_velocity={wc3_mul(group->target->movement.velocity.x,1.0f/32),
+                                      wc3_mul(group->target->movement.velocity.y,1.0f/32)}};
+                step.velocity.speed=wc3_mul(wc3_group_commit_speed(&speed),32);
+            }
+#ifdef BZ_TESTS
+            moveGroupCommitTrace_t trace={share ? cap : FLT_MAX,step.velocity.speed};
+            if (move_test_group_commit) move_test_group_commit(group,member,&trace);
+#endif
+            wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
+            /* Native16c390 suppresses persistent completion for the first32
+             * hidden visits.5fa7a0/5ff8b0 validate when completion dispatches. */
+            if (member->arrived && !group->route.group_index &&
+                (!(group->flags&1) || group->unseen_counter>32))
+                finished[count++]=member;
+        }
+        group->flags&=~0x10000u;
+        move_group_update_refresh(group);
+        move_group_complete_members(group,finished,count);
+        if (group->cooldown) group->cooldown--;
+        group->ticking=false;
+        /*16c150 retains an owner emptied by completion callbacks. Its next
+         * preparation visit retires it, after shared publication. */
+    }
+    /* Retain the generation snapshot arena until map teardown. */
 }
 
 /* Handle a right-click move command from the client.
@@ -1958,19 +7080,65 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     if (num_units == 0) {
         return false;
     }
+    /* Native selected requests separate FLOAT and optional Alt current flight;
+     * all classes retain the clicked point. A UI singleton has no association. */
+    if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
+        bool queued=clent->client->menu.order_queued;
+        bool idle=true;
+        FOR_LOOP(i,num_units) {
+            if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
+        }
+        groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number,.selection_owner=clent};
+        FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        bool accepted=G_IssueGroupPointOrder(&request);
+        if (accepted) G_SendPointConfirmation(clent,location,false);
+        return accepted;
+    }
+    wc3FormationMember_t members[WC3_FORMATION_MEMBERS];
+    bool const retail_layout = num_units <= WC3_FORMATION_MEMBERS;
+    if (retail_layout) {
+        box2_t const bounds = CM_GetWorldBounds();
+        float mean[2] = {0};
+        FOR_LOOP(i, num_units) {
+            members[i].position[0] = wc3_grid_coordinate(units[i]->s.origin2.x, bounds.min.x, 32);
+            members[i].position[1] = wc3_grid_coordinate(units[i]->s.origin2.y, bounds.min.y, 32);
+            members[i].radius = wc3_div(S_MoveCollisionRadius(units[i]), 32);
+            members[i].rank = units[i]->movement.formation_rank;
+            FOR_LOOP(k, 2) mean[k] = wc3_add(mean[k], members[i].position[k]);
+        }
+        float const reciprocal = wc3_recip(wc3_float(wc3_from_int(num_units)));
+        float const dx = wc3_sub(wc3_grid_coordinate(location->x, bounds.min.x, 32), wc3_mul(mean[0], reciprocal));
+        float const dy = wc3_sub(wc3_grid_coordinate(location->y, bounds.min.y, 32), wc3_mul(mean[1], reciprocal));
+        wc3Formation_t formation = { members, num_units, dx == 0 && dy == 0 ? 0 : wc3_atan2(dy, dx) };
+        wc3_formation_layout(&formation);
+        /* TODO: FORM-03 owns the original clock prediction and refresh-to-motion
+         * chain. Initial engine orders use current committed fine positions. */
+    } else {
+        /* TODO: FORM-02.3 must establish the original twelve-slot bucket caller
+         * precondition before extending it to our larger engine selections. */
+        fprintf(stderr, "WC3 movement: %u-member formation exceeds verified retail domain; retaining source offsets\n",
+                num_units);
+    }
     /* A multi-unit move travels at the slowest member's speed so the group
      * stays together (WC3).  A lone unit keeps its own speed (cap 0). */
     float const group_speed = num_units > 1 ? move_group_speed(units, num_units) : 0;
+    uint32_t group_id = num_units > 1 && !clent->client->menu.order_queued ? move_allocate_group_id() : 0;
     route_waypoint = clent->client->menu.order_queued ? NULL : Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
         edict_t *ent = units[i];
-        vec2_t preferred = move_preferred_slot(ent, &center, location, spacing, num_units);
+        vec2_t preferred;
+        if (retail_layout) {
+            preferred.x = wc3_add(location->x, wc3_mul(members[i].offset[0], 32));
+            preferred.y = wc3_add(location->y, wc3_mul(members[i].offset[1], 32));
+        } else {
+            preferred = move_preferred_slot(ent, &center, location, spacing, num_units);
+        }
         vec2_t target;
 
         if (!move_find_reserved_slot(location,
                                      &preferred,
-                                     ent->collision,
+                                     S_MoveCollisionRadius(ent),
                                      M_UnitStaticPathingFlags(ent),
                                      spacing,
                                      num_units,
@@ -1978,13 +7146,19 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
                                      i,
                                      &target)) {
             target = *location;
-            CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
+            pathAccelParams_t query = { location, NULL, S_MoveCollisionRadius(ent), M_UnitStaticPathingFlags(ent) };
+            G_ClosestMovePathPoint(&query, &target);
         }
-        reserved[i] = (moveSlot_t){ target, ent->collision };
+        reserved[i] = (moveSlot_t){ target, S_MoveCollisionRadius(ent) };
         if (!have_confirmation) {
             confirmation = target;
             have_confirmation = true;
         }
+        /* Net6b93a0 replaces latest request history before append/admit. This
+         * player producer has no canonical association; the current physical
+         * owner remains independent, especially for Shift. Script orders do
+         * not pass through this publication boundary. */
+        ent->movement.previous_request_id=0;
         if (clent->client->menu.order_queued) {
             /* Queued units may reach this leg at different times, so retain the
              * resolved per-unit slot and speed in the unit's own FIFO. */
@@ -1994,12 +7168,15 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             }
         } else {
             edict_t *waypoint = Waypoint_add(&target);
-            waypoint->secondarygoal = route_waypoint;
+            S_SetMoveGoal(waypoint, &waypoint->secondarygoal, route_waypoint);
             G_ClearUnitOrderQueue(ent);
             ent->movement.holding_position = false;
-            order_move(ent, waypoint);
+            S_IssueMoveOrder(ent, waypoint, G_OrderId("move"));
             G_CreepGuardExplicitOrder(ent);
-            ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
+            if (ent->goalentity == waypoint && ent->currentmove == &move_move_walk) {
+                ent->movement.group_id = group_id;
+                ent->movement.group_speed = group_speed;
+            }
             S_UnitAbilityOrderAccepted(ent, "move");
             issued = true;
         }
@@ -2008,8 +7185,309 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     return issued;
 }
 
-BZ_COMMAND_PROC(AbilityMove) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_location_selected = move_selectlocation;
-    clent->client->menu.supports_order_queue = true;
+/* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
+BZ_ABILITY_PROC(CAbilityMove) {
+    switch (msg) {
+    case A_POINT_ORDER_ADMIT:
+        /* Public point packets require the attached class. The generic order
+         * dispatcher must not recreate a removed intrinsic Move owner. */
+        return move_class_removed(ent) ? ABILITY_ORDER_REJECTED : ABILITY_ORDER_UNHANDLED;
+    case A_TARGET_ORDER_ADMIT: {
+        if (!call || !call->issued_target_order.order) return ABILITY_ORDER_UNHANDLED;
+        cstring_t order=call->issued_target_order.order;
+        if (strcmp(order,"move") && strcmp(order,"smart")) return ABILITY_ORDER_UNHANDLED;
+        edict_t *target=call->issued_target_order.target;
+        if (!target || !(target->svflags&SVF_MONSTER)) return ABILITY_ORDER_UNHANDLED;
+        moveTargetResult_t status=S_MoveTargetStatus(ent,target);
+        if(status==MOVE_TARGET_VALID && target!=ent) {
+            /* The packet keeps an issue-time fallback independently of its
+             * target identity, including targets lost while queued. */
+            if(call->issued_target_order.point) {
+                wc3GridPose_t point;unit_predicted_pose(target,&point);
+                *call->issued_target_order.point=(vec2_t){point.world[0],point.world[1]};
+            }
+            return ABILITY_ORDER_UNHANDLED;
+        }
+        /* Native207160 flags6 admits a point after target rejection, including
+         * self/DD, hidden/AA and cargo/A9, as well as visibility/BA. Preserve
+         * the captured pose before replacing a task or appending the FIFO.
+         * A removed handle never reaches native validation. */
+        if(!strcmp(order,"move") && !G_IsDeferredFree(target) && call->issued_target_order.point) {
+            wc3GridPose_t point;unit_predicted_pose(target,&point);
+            *call->issued_target_order.point=(vec2_t){point.world[0],point.world[1]};
+            return ABILITY_ORDER_POINT;
+        }
+        return ABILITY_ORDER_REJECTED;
+    }
+    case A_UNIT_OWNED:
+        return ent && (ent->data.UnitBalance || ent->movement.captain_actor_type) && !M_UnitMoveDisabled(ent);
+    case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
+    case A_UNIT_EVENT_MASK: {
+        intptr_t result=UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
+            A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
+            A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
+            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED, A_TARGET_LOST,
+            A_TARGET_OWNER_CHANGED,
+            A_CHANNEL_STATE_CHANGED, A_UNIT_WORK_STATE_CHANGED, A_UNIT_TASK_COMPLETE);
+        /* Amov is the attached counted owner. The engine event row shares
+         * this procedure but must not contribute a second disable callback. */
+        if(result && call->item && call->item->ability &&
+           (call->item->ability->flags&AB_INTRINSIC))
+            {
+            call->unit_messages->bits[A_UNIT_SUSPEND/64]|=UINT64_C(1)<<(A_UNIT_SUSPEND%64);
+            call->unit_messages->bits[A_UNIT_RETIRE/64]|=UINT64_C(1)<<(A_UNIT_RETIRE%64);
+        }
+        return result;
+    }
+    case A_UNIT_SUSPEND:
+        /* Only the attached intrinsic owner subscribes (A_UNIT_EVENT_MASK). */
+        if(!ent || !call || !call->item || !call->item->ability ||
+           !(call->item->ability->flags&AB_INTRINSIC))return false;
+        /* Physical destruction follows semantic removal cleanup. The original
+         * RemoveUnit trace has no additional69a840 at deferred destruction. */
+        if(!call->retirement.destroying)move_suspend_physical_task(ent);
+        return true;
+    case A_DISABLE:
+        /* Explicit class removal also retires Move's user packet. Counted
+         * suspension above only stops its physical task and retains that head. */
+        if(ent && call && call->item && call->item->code==MAKEFOURCC('A','m','o','v') &&
+           !G_ActorHasAbilityCode(ent,call->item->code) &&
+           (ent->current_order_id==G_OrderId("move") || ent->current_order_id==G_OrderId("smart"))) {
+            S_SetFollowTarget(ent,NULL);S_SetMoveGoal(ent,&ent->goalentity,NULL);unit_stand(ent);
+        }
+        return false;
+    case A_MOVE_PARAMETERS_CHANGED: {
+        wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
+            .limit = unit_effective_speed(ent) };
+        if (wc3_velocity_cap_world(&velocity)) {
+            if (ent->movement.clock_valid) unit_commit_current_pose(ent);
+            ent->movement.velocity = (vec2_t){velocity.vel[0], velocity.vel[1]};
+        }
+        return true;
+    }
+    case A_DEATH:
+        /* unit_die already published Lost then Death before cancellation.
+         * Retain generic owner cleanup without publishing Lost twice. */
+        S_UnitTargetRemovedCleanup(ent);
+        return true;
+    case A_QUEUE_ORDER_START: {
+        unitOrder_t const *queued=call->queued_order;
+        if(queued->target_type==UNIT_ORDER_TARGET_ENTITY && queued->target_is_unit &&
+           !strcmp(queued->order,"move")) {
+            edict_t *target=queued->target_number<globals.num_edicts ?
+                globals.edicts+queued->target_number : NULL;
+            if(target && target!=ent && target->spawn_time==queued->target_spawn_time &&
+               S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID) {
+                if(S_WaygateIsGate(target))return S_IssueWaygateMoveOrder(ent,target,&queued->point,G_OrderId(queued->order));
+                return S_IssueFollowOrder(ent,target,G_OrderId(queued->order));
+            }
+            /* Original5fd270 uses the order's retained48/50 words after
+             * optional-target validation, including a failed identity lookup. */
+            edict_t *waypoint=Waypoint_add(&queued->point);
+            if(!waypoint)return false;
+            S_IssueMoveOrder(ent,waypoint,G_OrderId(queued->order));
+            return ent->currentmove==&move_move_walk && ent->goalentity;
+        }
+        return move_start_queued_group(ent,queued);
+    }
+    case A_GROUP_POINT_ORDER:
+        return move_group_point_order(call->group_order,0) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    case A_ORDER_ACCEPTED:
+        /* Retail point activation creates a physical singleton too. Route
+         * decisions, scheduler admission and retry RNG therefore follow the
+         * newest-first owner list rather than entity allocation order. A
+         * prepared packet installs its own owner after admission; independent
+         * nested point orders must still receive their physical singleton. */
+        if (ent->currentmove==&move_move_walk && ent->goalentity &&
+            (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent) &&
+            (ent->movement.group_isolation || !(move_group_admission.unit==ent &&
+              move_group_admission.point.x==ent->goalentity->s.origin2.x &&
+              move_group_admission.point.y==ent->goalentity->s.origin2.y)))
+        {
+            move_start_point_group(ent,&ent->goalentity->s.origin2,0);
+        }
+        return true;
+    case A_OWNER_BEGIN: move_update_fine_budget(); MOVE_OWNER_PHASE(MOVE_PHASE_SCHEDULER,0); return true;
+    case A_OWNER_UPDATE: move_run_group_updates(); move_visual_update(); move_repulse_owner_update(); return true;
+    case A_UNIT_TASK_COMPLETE:
+        if(ent->movement.pause_phase!=UNIT_PAUSE_WAITING || !ent->paused ||
+           ent->movement.repulse.disable_depth>0 || M_IsDead(ent) || G_IsDeferredFree(ent))return false;
+        ent->movement.pause_phase=UNIT_PAUSE_NONE;ent->paused=false;
+        S_SetUnitPaused(ent,true);return true;
+    case A_CHANNEL_STATE_CHANGED:
+    case A_UNIT_WORK_STATE_CHANGED:
+        /* 48ef40/48bca0 refresh after publishing the channel-work flag. */
+        move_repulse_init(ent); return true;
+    case A_UNIT_TYPE_CHANGING:
+        if (ent->currentmove==&move_move_walk) {
+            unit_commit_current_pose(ent);
+            move_reset_progress(ent);
+            ent->movement.pose_clock=level.pathing_clock;
+        }
+        return true;
+    case A_TIMERS_RESET:
+        if(ent)return 0;
+        move_follow_reset();
+        move_captain_reset_timers();
+        move_repulse_clear_links();
+        move_timer_members=move_visual_members=(entitySet_t){0};return true;
+    case A_TIMERS_REBUILD:
+        if(ent)return 0;
+        move_follow_rebuild();
+        move_captain_reset_timers();
+        move_timer_members=(entitySet_t){0};
+        move_visual_members=(entitySet_t){0};
+        FOR_LOOP(i,globals.num_edicts) {
+            S_TrackMoveTimers(g_edicts+i);
+            entity_set_put(&move_visual_members,i,g_edicts[i].inuse && g_edicts[i].movement.visual_active);
+        }
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        return !ent && call && call->primary_timer && move_captain_next_timer(call->primary_timer);
+    case A_PRIMARY_TIMER_FIRE:
+        if(ent)return false;
+        move_captain_fire_timer();return true;
+    case A_PRIMARY_TIMER:
+        S_RunMoveTimers(); return true;
+    case A_UNIT_TYPE_CHANGED:
+        /* 670d4d replaces the repulsor after binding the new authored policy. */
+        move_repulse_init(ent);
+        ent->movement.adaptive_disabled=G_UnitIsStructure(ent) || (ent->aiflags&AI_FLYING);
+        G_PublishMoveSpatialObject(ent);
+        /* Original670950 retires the physical task and reissues the retained
+         * point head after binding the replacement speed/radius. */
+        if (ent->currentmove==&move_move_walk && ent->goalentity) {
+            /* Scene64 original5fd270/5ffb60 run ten ms after670950, after
+             * any due movement owner. Generic timer arithmetic remains NUM-02.9. */
+            ent->movement.type_rebind_pending=true;
+            S_TrackMoveTimers(ent);
+            ent->movement.type_rebind_deadline=level.pathing_clock;
+            FOR_LOOP(i,2) wc3_clock_advance(&ent->movement.type_rebind_deadline,wc3_float(0x3ba3d70a),0);
+        }
+        return true;
+    case A_UNIT_INIT:
+        /* Native68a060 enables nonstructures before publishing movement type;
+         * a newly created flyer retains adaptive routing.670950 rebind differs. */
+        ent->movement.adaptive_disabled=G_UnitIsStructure(ent);
+        ent->movement.fine_class=ent->s.player;
+        move_repulse_init(ent); return true;
+    case A_UNIT_OWNER_CHANGING:
+        /* Original698d92 cancels ordinary Move while callbacks still see the old player. */
+        if (unit_is_walking(ent)) order_stop(ent);
+        move_unlink_requests(ent); return true;
+    case A_UNIT_OWNER_CHANGED:
+        /* Original05c800/168a80 publishes the new player class after cancellation. */
+        ent->movement.fine_class=ent->s.player;
+        move_repulse_init(ent); return true;
+    case A_UNIT_REMOVING:
+        /*694690 cancels the previous suspension before acquiring its own
+         * contribution. Hidden/pending identity is not66fc50 eligibility. */
+        if(ent->movement.pause_phase==UNIT_PAUSE_SUSPENDED)
+            S_SetUnitPauseFlag(ent,false);
+        else S_RefreshUnitPauseSuppression(ent);
+        if(ent->data.UnitBalance && !ent->movement.repulse.removal_suppression) {
+            ent->movement.repulse.removal_suppression=true;
+            S_AcquireUnitSeparationSuppression(ent);
+        }
+        /* RemoveUnit cancels its task now; the mover and its route storage
+         * remain owned until deferred removal, as in native694690/171340. */
+        if(call->item && call->item->ability && (call->item->ability->flags&AB_ENGINE_EVENTS) &&
+           G_ActorHasAbilityCode(ent,MAKEFOURCC('A','m','o','v')))
+            S_StopUnitMovementWithRecovery(ent); /* Removal d0144 construction. */
+        else move_leave(ent);
+        /* The counted transition already configures membership before target
+         * callbacks; do not substitute an unconditional unlink for its sign. */
+        move_cancel_displacement(ent);
+        S_SetMoveGoal(ent, &ent->goalentity, NULL);
+        S_SetFollowTarget(ent,NULL);
+        return true;
+    case A_UNIT_REMOVE:
+        /*69c510 completes inactivity and releases the removal count before
+         *16eb20 destroys its mover. Keep that transient configuration ordered. */
+        if(ent->movement.repulse.removal_suppression) {
+            ent->movement.repulse.removal_suppression=false;
+            S_ReleaseUnitSeparationSuppression(ent);
+        }
+        S_SetFollowTarget(ent,NULL);
+        move_remove_captain_roster_member(ent);
+        move_release_captain_reference(ent);
+        move_unlink_fine_request(ent);
+        move_detach_group(ent);
+        FILTER_EDICTS(other,other->inuse && other->movement.wait_blocker==ent)
+            other->movement.wait_blocker=NULL;
+        if (ent->movement.repulse.active) move_repulse_unlink(ent);
+        S_FreeMoveRoute(ent);
+        return true;
+    case A_COMMAND: {
+        edict_t *clent = call && call->client ? call->client : ent;
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_location_selected = move_selectlocation;
+        clent->client->menu.supports_order_queue = true;
+        return true;
+    }
+    case A_TARGET_OWNER_CHANGED:
+        if(!call)return false;
+        if(!ent) {move_follow_target_event(call->lost_target,msg);return true;}
+        if(ent->movement.follow_target!=call->lost_target)return false;
+        /*5fdfd0 clears retained target, then recovers the current task. A
+         * Smart approach has a pending Follow continuation; its recovery
+         * admits that continuation synchronously against the new owner.
+         * Persistent Follow has no continuation and completes the head. */
+        {
+            moveGroup_t *group=move_unit_group(ent);
+            if(move_is_following(ent) && group && !(group->flags&1) &&
+               S_MoveTargetStatus(ent,call->lost_target)==MOVE_TARGET_VALID) {
+                move_leave(ent);S_RecoverStoppedUnitPosition(ent);
+                move_reset_local_path(ent);
+                move_start_follow_group(ent,call->lost_target,true);
+                return true;
+            }
+        }
+        return CAbilityMove(ent,A_TARGET_REMOVED,&(abilityCall_t){.removed_target=call->lost_target});
+    case A_TARGET_LOST:
+        if(!call)return false;
+        if(!ent) {move_follow_target_event(call->lost_target,msg);return true;}
+        if(ent->movement.follow_target!=call->lost_target ||
+           S_MoveTargetStatus(ent,call->lost_target)==MOVE_TARGET_VALID)return false;
+        /*5ff490 snapshots the public head and internal task before recovery.
+         * An approach reissues its original point if the lost target cannot be
+         * seen; a persistent Follow has no such successor. Automatic combat
+         * retains a different owner and must retire only its Follow parent. */
+        {
+            moveGroup_t *group=move_unit_group(ent);
+            if(move_is_following(ent) && group && group->target==call->lost_target &&
+               !(group->flags&1) && ent->current_order_id) {
+                vec2_t point=ent->movement.follow_order_point;
+                if(G_FowPlayerCanTrackUnit(ent->s.player,call->lost_target)) {
+                    wc3GridPose_t pose;unit_predicted_pose(call->lost_target,&pose);
+                    point=(vec2_t){pose.world[0],pose.world[1]};
+                }
+                uint32_t order=ent->current_order_id;
+                edict_t *goal=Waypoint_add(&point);
+                if(goal) {
+                    S_IssueMoveOrder(ent,goal,order);
+                    /*5ff490 reissues a complete point task, including its
+                     * physical owner. This internal recovery has no public
+                     * command dispatcher to finish that admission for it. */
+                    CAbilityMove(ent,A_ORDER_ACCEPTED,NULL);
+                    return true;
+                }
+            }
+        }
+        return CAbilityMove(ent,A_TARGET_REMOVED,&(abilityCall_t){.removed_target=call->lost_target});
+    case A_TARGET_REMOVED:
+        if (!call || ent->movement.follow_target != call->removed_target) return false;
+        S_SetFollowTarget(ent,NULL);
+        ent->movement.follow_target_spawn_time = 0;
+        /* Attack can temporarily own Smart's task. Retire its Follow parent
+         * without completing the public head or advancing the pending FIFO. */
+        if (move_is_following(ent) || S_UnitTargetApproachReceiver(ent)) {
+            move_detach_group(ent); ent->movement.group_id=0;
+            if (ent->goalentity == call->removed_target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
+            unit_stand(ent);
+        }
+        return true;
+    default:
+        return false;
+    }
 }

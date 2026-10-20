@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "task": "ROUTE-04.1",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "sources": {
+    "tools/frida/research/route335_probe.j": "85098d4248fcb59d8879483dd11719d339ea26b6b09a7977346ee10f73e27316",
+    "tools/frida/research/route335_observer.js": "e6da7418a12f02c2f47af35cc095a113176049a39441cc81b157b05d26b3cd2d",
+    "tools/frida/research/route335_make_map.py": "31669b1a1a5c0ea252b034d0e7713e4faf1e149178b4e9ee816ba163b1fc0393",
+    "tools/frida/research/route336_probe.j": "26db4028052c8d734415d65c8ac331b6b7b1560f9a72138e9f39156e0ce45379",
+    "tools/frida/research/route336_observer.js": "e6da7418a12f02c2f47af35cc095a113176049a39441cc81b157b05d26b3cd2d",
+    "tools/frida/research/route336_make_map.py": "ce708ae6c881ffd5cd5681b29938d2bbac3d430595cbb84241ebe10b9e0c29e8",
+    "tools/frida/research/separation323_capture.py": "3796017c46a918c531ae1362c62021ee6abba9b2531cbb00a21f2406286b23d2",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149"
+  },
+  "scenes": {
+    "335": {
+      "map_sha256": "123aac46ad38e84515732194e56355bb070d81614c62e06b6c15a60f16655796",
+      "metadata_sha256": "1394f6d20430157e464702f94cbae879c5d3a08b6198bd1e8dc82219f034d0f3",
+      "observe1": {
+        "trace": "5c6518fc8eafbe66e578728e90de8ef4be65c71168afd7e58b0e09c0ef9f7b78",
+        "preload": "13a2bef15d93b9e9e1b4e0c42811905ff34ea53b47c1f0ab44dc89b8595fbb8a"
+      },
+      "markers": 1329,
+      "events": {
+        "marker": 1330,
+        "ensure-path": 16,
+        "stop-enter": 159,
+        "recover-enter": 123,
+        "recover-leave": 123,
+        "stop-leave": 159,
+        "bind": 24,
+        "index-enter": 83,
+        "index-leave": 83,
+        "advance-enter": 2605,
+        "fine-enter": 43,
+        "fine-leave": 43,
+        "advance-leave": 2605,
+        "commit-enter": 2630,
+        "commit-leave": 2630
+      },
+      "observe2": {
+        "trace": "8e3290eb6651607993a95a1db8943b9eba01e197bf003fa40a7a9f5a83ef8559",
+        "preload": "0e8971597577fd69640f2d52e807e3753dd843e50c2317ba1d2823424eddcff8"
+      },
+      "control": {
+        "trace": "0581f2d070003f847372eadd8360ebaffb60c770b17b118c3cfcc1d04d50c1cc",
+        "preload": "0e8971597577fd69640f2d52e807e3753dd843e50c2317ba1d2823424eddcff8"
+      }
+    },
+    "336": {
+      "map_sha256": "ef2c1fced2fdc9b01a8d40a0474544c0d10a58cbcdc40e4b2957f30635f981a5",
+      "metadata_sha256": "084554de000dc7486cc234070c8d635edfc2151e0318d7af1d0d668e9b320083",
+      "observe1": {
+        "trace": "ff10255841da76acb55951f7b0b595b4ea38e97d2154233bab207de4144210c6",
+        "preload": "7bcf512bf2d5a4d24b506785254eca2df056ec98335f22d8bc465463733bc7c7"
+      },
+      "markers": 1361,
+      "events": {
+        "marker": 1362,
+        "ensure-path": 16,
+        "stop-enter": 236,
+        "recover-enter": 180,
+        "recover-leave": 180,
+        "stop-leave": 236,
+        "bind": 40,
+        "index-enter": 83,
+        "index-leave": 83,
+        "advance-enter": 1476,
+        "fine-enter": 471,
+        "fine-leave": 471,
+        "advance-leave": 1476,
+        "commit-enter": 1492,
+        "commit-leave": 1492
+      },
+      "observe2": {
+        "trace": "c58b1a747d620779442e98176b83de86f73e625a1bc512f342db33506315c3d1",
+        "preload": "7bcf512bf2d5a4d24b506785254eca2df056ec98335f22d8bc465463733bc7c7"
+      },
+      "control": {
+        "trace": "7692d4515d7430c722b2c6382eae309b44b81fbc03b37809ef06beeefc95000d",
+        "preload": "7bcf512bf2d5a4d24b506785254eca2df056ec98335f22d8bc465463733bc7c7"
+      },
+      "rebuild_metadata_sha256": "5388a37e474261ba30cb3f97ef03e1bde98307bd7c939c16ebc4c6bae46ec0f1"
+    }
+  }
+}

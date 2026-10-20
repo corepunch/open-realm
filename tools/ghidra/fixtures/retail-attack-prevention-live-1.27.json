@@ -1,0 +1,4071 @@
+{
+ "version": 1,
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "map_sha256": "febdd040c9762028bb1079f77c86024288ae24b1a2bffd185fffe5f514e45830",
+ "captures": {
+  "v2-observe-2.jsonl": "8047e9689bf29b43d5a5dfc4069105ad225637a53da9acbe9493faac66032713",
+  "v2-observe-3.jsonl": "f05f28321930c9717f877e48a5270485ef9fcf8e2ce4922818f27b2a082c57b4",
+  "v2-control-1.jsonl": "e43a856da52de833ffbcefc82a1f29c492f95b60be30465845fe6bf083e10e0c"
+ },
+ "sources": {
+  "tools/frida/research/captain_prevention155_make_map.py": "b1b4eb39e1098163581dad1210c649fa6697ebf6417ca405616fcf05a351e5a5",
+  "tools/frida/research/captain_prevention155_probe.j": "8e0f692677f46b430ad3f8d74f417c9c9be8e28ae0534fb80fc65a43f9793179",
+  "tools/frida/research/captain_prevention155_observer.js": "9768df9893f84bd6d33e8cf448834cc9e48452003dc8106783e3fb50f2d9e0b6",
+  "tools/frida/research/GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88"
+ },
+ "normalized": {
+  "marker": [
+   {
+    "event": "marker",
+    "value": "RSG tick=0 label=start_prevention155"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=0 label=created"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=2 label=cast code=1095781681 target=1 accepted=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=10 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=10 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=10 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=20 label=cast code=1095781681 target=1 accepted=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=20 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=20 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=20 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=30 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=30 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=30 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=40 label=cast code=1095781682 target=1 accepted=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=40 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=40 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=40 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=50 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=50 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=50 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=60 label=remove-buff result=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=60 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=60 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=60 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=70 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=70 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=70 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=80 label=remove-attack result=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=80 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=80 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=80 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=90 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=90 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=90 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=100 label=cast code=1095781681 target=1 accepted=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=100 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=100 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=100 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=110 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=110 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=110 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=120 label=add-attack result=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=120 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=120 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=120 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=130 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=130 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=130 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=140 label=remove-buff result=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=140 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=140 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=140 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=150 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=150 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=150 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=160 label=cast code=1095781681 target=1 accepted=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=160 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=160 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=160 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=170 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=170 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=170 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=180 label=remove-buff result=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=180 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=180 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=180 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=190 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=190 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=190 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=200 label=cast code=1095781715 target=0 accepted=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=200 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=200 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=200 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=210 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=210 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=210 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=220 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=220 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=220 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=230 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=230 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=230 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=240 label=cast code=1095781688 target=2 accepted=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=240 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=240 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=240 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=250 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=250 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=250 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=260 label=remove-spell-buff result=1"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=260 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=260 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=260 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=270 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=270 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=270 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=280 label=sample u=0 x=-1936.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=280 label=sample u=1 x=-1656.000 y=-976.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=280 label=sample u=2 x=-1232.000 y=-848.000 o=0 buff=0"
+   },
+   {
+    "event": "marker",
+    "value": "RSG tick=280 label=complete"
+   }
+  ],
+  "state": [
+   {
+    "event": "state",
+    "tick": 2,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 10,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 20,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 30,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     1,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 40,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     1,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     1,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     1,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 50,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 60,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221105,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 70,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 80,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 90,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 100,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 110,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 120,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 130,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 140,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 150,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 160,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 170,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 180,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 190,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 200,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 210,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 220,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 230,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 240,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 1
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 1
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 250,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 1
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 260,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 270,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221105,
+    "attack": false,
+    "counts": null,
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221104,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   },
+   {
+    "event": "state",
+    "tick": 280,
+    "code": 1750221106,
+    "attack": true,
+    "counts": [
+     0,
+     0,
+     0
+    ],
+    "spells": 0
+   }
+  ],
+  "suppression": [
+   {
+    "event": "suppression",
+    "tick": 2,
+    "release": 0,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 2,
+    "release": 0,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 20,
+    "release": 1,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     1,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 20,
+    "release": 1,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     1,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 20,
+    "release": 0,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 20,
+    "release": 0,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 40,
+    "release": 1,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     1,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 40,
+    "release": 1,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     1,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 40,
+    "release": 0,
+    "masks": [
+     0,
+     1,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 40,
+    "release": 0,
+    "masks": [
+     0,
+     1,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 50,
+    "release": 1,
+    "masks": [
+     0,
+     1,
+     0
+    ],
+    "before": [
+     0,
+     1,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 100,
+    "release": 1,
+    "masks": [
+     0,
+     1,
+     0
+    ],
+    "before": [
+     0,
+     1,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 200,
+    "release": 0,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 200,
+    "release": 0,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     0,
+     0,
+     0
+    ],
+    "after": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 200,
+    "release": 1,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     1,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "event": "suppression",
+    "tick": 200,
+    "release": 1,
+    "masks": [
+     1,
+     0,
+     0
+    ],
+    "before": [
+     1,
+     0,
+     0
+    ],
+    "after": [
+     0,
+     0,
+     0
+    ]
+   }
+  ],
+  "spells": [
+   {
+    "event": "spells",
+    "tick": 240,
+    "enable": 1,
+    "before": 0,
+    "after": 1
+   },
+   {
+    "event": "spells",
+    "tick": 240,
+    "enable": 1,
+    "before": 0,
+    "after": 1
+   },
+   {
+    "event": "spells",
+    "tick": 250,
+    "enable": 0,
+    "before": 1,
+    "after": 0
+   }
+  ],
+  "buff": [
+   {
+    "event": "buff",
+    "tick": 2,
+    "name": "apply",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 2,
+    "name": "apply",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 20,
+    "name": "remove",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 20,
+    "name": "remove",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 20,
+    "name": "apply",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 20,
+    "name": "apply",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 40,
+    "name": "remove",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 40,
+    "name": "remove",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 40,
+    "name": "apply",
+    "mask": 2
+   },
+   {
+    "event": "buff",
+    "tick": 40,
+    "name": "apply",
+    "mask": 2
+   },
+   {
+    "event": "buff",
+    "tick": 50,
+    "name": "remove",
+    "mask": 2
+   },
+   {
+    "event": "buff",
+    "tick": 100,
+    "name": "remove",
+    "mask": 2
+   },
+   {
+    "event": "buff",
+    "tick": 200,
+    "name": "apply",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 200,
+    "name": "apply",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 200,
+    "name": "remove",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 200,
+    "name": "remove",
+    "mask": 1
+   },
+   {
+    "event": "buff",
+    "tick": 240,
+    "name": "apply",
+    "mask": 8
+   },
+   {
+    "event": "buff",
+    "tick": 240,
+    "name": "apply",
+    "mask": 8
+   },
+   {
+    "event": "buff",
+    "tick": 250,
+    "name": "remove",
+    "mask": 8
+   }
+  ]
+ }
+}

@@ -1,0 +1,999 @@
+{
+  "version": 1,
+  "task": "SEP-01.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_movement.pause379*",
+    "wc3_movement.removal304*",
+    "wc3_movement.scope300*",
+    "wc3_movement.pause287*",
+    "wc3_movement.pause288*",
+    "wc3_movement.pause289*",
+    "wc3_unit_releases.*"
+  ],
+  "pins": {
+    "tools/ghidra/research/Pause379OwnerReleaseEvidence.java": "09005de3cd3edddf352577929292d34ed24fa38d35327605c5a61ce1ec4349e0",
+    "tools/ghidra/verify_wc3_pathing_removal304.py": "f92cc52d45f971789df3d354b3d3bcb765764e02d116d19c5e007af7e2dc3bee",
+    "tools/ghidra/fixtures/retail-removal304-1.27.json": "56c364da299f0976c709908c264751264c62608aadc1b77b72fc36a7e9914f09",
+    "tools/ghidra/fixtures/retail-removal304-1.27.json.gz": "df19a83d95cfd07142657d02c41d1ca5dc21841cbe4bf8a680c6d57ad64c497a"
+  },
+  "instructions": {
+    "6f48c8c0": "55",
+    "6f48c8c1": "8bec",
+    "6f48c8c3": "8b5514",
+    "6f48c8c6": "33c0",
+    "6f48c8c8": "39450c",
+    "6f48c8cb": "53",
+    "6f48c8cc": "8b5d08",
+    "6f48c8cf": "0f95c0",
+    "6f48c8d2": "8d0445ffffffff",
+    "6f48c8d9": "85db",
+    "6f48c8db": "7422",
+    "6f48c8dd": "837d1000",
+    "6f48c8e1": "7408",
+    "6f48c8e3": "0181c8010000",
+    "6f48c8e9": "eb34",
+    "6f48c8eb": "85d2",
+    "6f48c8ed": "7408",
+    "6f48c8ef": "0181cc010000",
+    "6f48c8f5": "eb28",
+    "6f48c8f7": "0181c4010000",
+    "6f48c8fd": "eb20",
+    "6f48c8ff": "837d1000",
+    "6f48c903": "7408",
+    "6f48c905": "0181bc010000",
+    "6f48c90b": "eb12",
+    "6f48c90d": "85d2",
+    "6f48c90f": "7408",
+    "6f48c911": "0181c0010000",
+    "6f48c917": "eb06",
+    "6f48c919": "0181b8010000",
+    "6f48c91f": "8b81e0010000",
+    "6f48c925": "81c1dc010000",
+    "6f48c92b": "2301",
+    "6f48c92d": "83f8ff",
+    "6f48c930": "746d",
+    "6f48c932": "56",
+    "6f48c933": "e8e849bdff",
+    "6f48c938": "8bf0",
+    "6f48c93a": "85f6",
+    "6f48c93c": "7460",
+    "6f48c93e": "57",
+    "6f48c93f": "90",
+    "6f48c940": "8b4628",
+    "6f48c943": "8d4e24",
+    "6f48c946": "2301",
+    "6f48c948": "8bfe",
+    "6f48c94a": "83f8ff",
+    "6f48c94d": "7504",
+    "6f48c94f": "33f6",
+    "6f48c951": "eb07",
+    "6f48c953": "e8c849bdff",
+    "6f48c958": "8bf0",
+    "6f48c95a": "837d1000",
+    "6f48c95e": "740e",
+    "6f48c960": "8b07",
+    "6f48c962": "8bcf",
+    "6f48c964": "ff90d8010000",
+    "6f48c96a": "85c0",
+    "6f48c96c": "742b",
+    "6f48c96e": "837d1400",
+    "6f48c972": "740e",
+    "6f48c974": "8b07",
+    "6f48c976": "8bcf",
+    "6f48c978": "ff90dc010000",
+    "6f48c97e": "85c0",
+    "6f48c980": "7417",
+    "6f48c982": "837d0c00",
+    "6f48c986": "8bcf",
+    "6f48c988": "6a01",
+    "6f48c98a": "53",
+    "6f48c98b": "7407",
+    "6f48c98d": "e84eadf7ff",
+    "6f48c992": "eb05",
+    "6f48c994": "e867f1f7ff",
+    "6f48c999": "85f6",
+    "6f48c99b": "75a3",
+    "6f48c99d": "5f",
+    "6f48c99e": "5e",
+    "6f48c99f": "5b",
+    "6f48c9a0": "5d",
+    "6f48c9a1": "c21000",
+    "6f40bb00": "55",
+    "6f40bb01": "8bec",
+    "6f40bb03": "56",
+    "6f40bb04": "8bf1",
+    "6f40bb06": "8b06",
+    "6f40bb08": "ff90cc000000",
+    "6f40bb0e": "85c0",
+    "6f40bb10": "744f",
+    "6f40bb12": "837d0800",
+    "6f40bb16": "8b4d0c",
+    "6f40bb19": "7403",
+    "6f40bb1b": "294e40",
+    "6f40bb1e": "8b463c",
+    "6f40bb21": "294e3c",
+    "6f40bb24": "85c0",
+    "6f40bb26": "7e32",
+    "6f40bb28": "837e3c00",
+    "6f40bb2c": "7f2c",
+    "6f40bb2e": "8b06",
+    "6f40bb30": "8bce",
+    "6f40bb32": "ff90e4000000",
+    "6f40bb38": "8b4630",
+    "6f40bb3b": "85c0",
+    "6f40bb3d": "7507",
+    "6f40bb3f": "8bce",
+    "6f40bb41": "e87aa1c4ff",
+    "6f40bb46": "f6405c04",
+    "6f40bb4a": "740e",
+    "6f40bb4c": "834e2002",
+    "6f40bb50": "8bce",
+    "6f40bb52": "8b06",
+    "6f40bb54": "ff90c8000000",
+    "6f40bb5a": "8bce",
+    "6f40bb5c": "e83f64ffff",
+    "6f40bb61": "5e",
+    "6f40bb62": "5d",
+    "6f40bb63": "c20800",
+    "6f4076e0": "55",
+    "6f4076e1": "8bec",
+    "6f4076e3": "56",
+    "6f4076e4": "8bf1",
+    "6f4076e6": "8b06",
+    "6f4076e8": "ff90cc000000",
+    "6f4076ee": "85c0",
+    "6f4076f0": "743d",
+    "6f4076f2": "8b463c",
+    "6f4076f5": "57",
+    "6f4076f6": "8b7d0c",
+    "6f4076f9": "017e3c",
+    "6f4076fc": "85c0",
+    "6f4076fe": "7f1e",
+    "6f407700": "837e3c00",
+    "6f407704": "7e18",
+    "6f407706": "8b06",
+    "6f407708": "8bce",
+    "6f40770a": "ff90e0000000",
+    "6f407710": "836620fd",
+    "6f407714": "8bce",
+    "6f407716": "8b06",
+    "6f407718": "ff90c4000000",
+    "6f40771e": "837d0800",
+    "6f407722": "7403",
+    "6f407724": "017e40",
+    "6f407727": "8bce",
+    "6f407729": "e872a8ffff",
+    "6f40772e": "5f",
+    "6f40772f": "5e",
+    "6f407730": "5d",
+    "6f407731": "c20800",
+    "6f694690": "55",
+    "6f694691": "8bec",
+    "6f694693": "56",
+    "6f694694": "8bf1",
+    "6f694696": "0fb64633",
+    "6f69469a": "83c0bf",
+    "6f69469d": "83f819",
+    "6f6946a0": "770e",
+    "6f6946a2": "f7465c00000040",
+    "6f6946a9": "7505",
+    "6f6946ab": "e830040000",
+    "6f6946b0": "8bce",
+    "6f6946b2": "e859effdff",
+    "6f6946b7": "8bce",
+    "6f6946b9": "e8d246ffff",
+    "6f6946be": "837d0800",
+    "6f6946c2": "740c",
+    "6f6946c4": "685a010d00",
+    "6f6946c9": "8bce",
+    "6f6946cb": "e850d8ffff",
+    "6f6946d0": "6864010d00",
+    "6f6946d5": "8bce",
+    "6f6946d7": "e844d8ffff",
+    "6f6946dc": "837d0800",
+    "6f6946e0": "7412",
+    "6f6946e2": "837d0c00",
+    "6f6946e6": "740c",
+    "6f6946e8": "6856010d00",
+    "6f6946ed": "8bce",
+    "6f6946ef": "e82cd8ffff",
+    "6f6946f4": "6878010d00",
+    "6f6946f9": "8bce",
+    "6f6946fb": "e820d8ffff",
+    "6f694700": "6844010d00",
+    "6f694705": "8bce",
+    "6f694707": "e814d8ffff",
+    "6f69470c": "6a00",
+    "6f69470e": "8bce",
+    "6f694710": "e88be0ffff",
+    "6f694715": "8bce",
+    "6f694717": "e8e497feff",
+    "6f69471c": "5e",
+    "6f69471d": "5d",
+    "6f69471e": "c20800",
+    "6f673610": "53",
+    "6f673611": "56",
+    "6f673612": "8bd9",
+    "6f673614": "e867080000",
+    "6f673619": "f7435c00001000",
+    "6f673620": "7407",
+    "6f673622": "8bcb",
+    "6f673624": "e8b7aa0000",
+    "6f673629": "8bcb",
+    "6f67362b": "e8b0090000",
+    "6f673630": "8b83a0010000",
+    "6f673636": "8db39c010000",
+    "6f67363c": "2306",
+    "6f67363e": "83f8ff",
+    "6f673641": "743b",
+    "6f673643": "57",
+    "6f673644": "8bce",
+    "6f673646": "e8d5dc9eff",
+    "6f67364b": "8bf8",
+    "6f67364d": "85ff",
+    "6f67364f": "742c",
+    "6f673651": "8b4f30",
+    "6f673654": "234f2c",
+    "6f673657": "83f9ff",
+    "6f67365a": "7504",
+    "6f67365c": "33f6",
+    "6f67365e": "eb0a",
+    "6f673660": "8d4f2c",
+    "6f673663": "e8b8dc9eff",
+    "6f673668": "8bf0",
+    "6f67366a": "8b17",
+    "6f67366c": "8bcf",
+    "6f67366e": "ff525c",
+    "6f673671": "8bfe",
+    "6f673673": "85f6",
+    "6f673675": "75da",
+    "6f673677": "8db39c010000",
+    "6f67367d": "5f",
+    "6f67367e": "c74604ffffffff",
+    "6f673685": "c706ffffffff",
+    "6f67368b": "c783ac010000ffffffff",
+    "6f673695": "c783a8010000ffffffff",
+    "6f67369f": "5e",
+    "6f6736a0": "c783b401000000000000",
+    "6f6736aa": "5b",
+    "6f6736ab": "c3",
+    "6f6977f0": "56",
+    "6f6977f1": "6a00",
+    "6f6977f3": "6a00",
+    "6f6977f5": "6a00",
+    "6f6977f7": "6a01",
+    "6f6977f9": "8bf1",
+    "6f6977fb": "e8c050dfff",
+    "6f697800": "6a00",
+    "6f697802": "8bce",
+    "6f697804": "e8576cdfff",
+    "6f697809": "5e",
+    "6f69780a": "c3",
+    "6f6977a0": "56",
+    "6f6977a1": "6a01",
+    "6f6977a3": "8bf1",
+    "6f6977a5": "e8b66cdfff",
+    "6f6977aa": "6a00",
+    "6f6977ac": "6a00",
+    "6f6977ae": "6a01",
+    "6f6977b0": "6a01",
+    "6f6977b2": "8bce",
+    "6f6977b4": "e80751dfff",
+    "6f6977b9": "5e",
+    "6f6977ba": "c3",
+    "6f678590": "ff4954",
+    "6f678593": "751b",
+    "6f678595": "f7415c00001000",
+    "6f67859c": "7412",
+    "6f67859e": "51",
+    "6f67859f": "c7042400000000",
+    "6f6785a6": "68a453cd6f",
+    "6f6785ab": "e870400200",
+    "6f6785b0": "c3",
+    "6f48e460": "55",
+    "6f48e461": "8bec",
+    "6f48e463": "33c0",
+    "6f48e465": "53",
+    "6f48e466": "8b5d08",
+    "6f48e469": "85db",
+    "6f48e46b": "0f95c0",
+    "6f48e46e": "8d0445ffffffff",
+    "6f48e475": "0181d4010000",
+    "6f48e47b": "81c1dc010000",
+    "6f48e481": "8b4104",
+    "6f48e484": "2301",
+    "6f48e486": "83f8ff",
+    "6f48e489": "7445",
+    "6f48e48b": "56",
+    "6f48e48c": "e88f2ebdff",
+    "6f48e491": "8bf0",
+    "6f48e493": "85f6",
+    "6f48e495": "7438",
+    "6f48e497": "57",
+    "6f48e498": "8b4628",
+    "6f48e49b": "8d4e24",
+    "6f48e49e": "2301",
+    "6f48e4a0": "8bfe",
+    "6f48e4a2": "83f8ff",
+    "6f48e4a5": "7504",
+    "6f48e4a7": "33f6",
+    "6f48e4a9": "eb07",
+    "6f48e4ab": "e8702ebdff",
+    "6f48e4b0": "8bf0",
+    "6f48e4b2": "8b07",
+    "6f48e4b4": "8bcf",
+    "6f48e4b6": "6a01",
+    "6f48e4b8": "85db",
+    "6f48e4ba": "7408",
+    "6f48e4bc": "ff90bc000000",
+    "6f48e4c2": "eb06",
+    "6f48e4c4": "ff90c0000000",
+    "6f48e4ca": "85f6",
+    "6f48e4cc": "75ca",
+    "6f48e4ce": "5f",
+    "6f48e4cf": "5e",
+    "6f48e4d0": "5b",
+    "6f48e4d1": "5d",
+    "6f48e4d2": "c20400",
+    "6f69c510": "56",
+    "6f69c511": "8bf1",
+    "6f69c513": "6a00",
+    "6f69c515": "814e5c00010000",
+    "6f69c51c": "8b06",
+    "6f69c51e": "ff90a0000000",
+    "6f69c524": "8bce",
+    "6f69c526": "e875c4ffff",
+    "6f69c52b": "6a01",
+    "6f69c52d": "8d8e64010000",
+    "6f69c533": "e838fa9bff",
+    "6f69c538": "6844c7d36f",
+    "6f69c53d": "8d8e98000000",
+    "6f69c543": "e848bc9bff",
+    "6f69c548": "6aff",
+    "6f69c54a": "6aff",
+    "6f69c54c": "8bce",
+    "6f69c54e": "e8bd4afbff",
+    "6f69c553": "8bce",
+    "6f69c555": "e82648fbff",
+    "6f69c55a": "6a00",
+    "6f69c55c": "8bce",
+    "6f69c55e": "e86d7ffdff",
+    "6f69c563": "6a01",
+    "6f69c565": "8bce",
+    "6f69c567": "e8540c0000",
+    "6f69c56c": "8bce",
+    "6f69c56e": "5e",
+    "6f69c56f": "e94cc0fdff",
+    "6f5fc120": "56",
+    "6f5fc121": "57",
+    "6f5fc122": "8bf1",
+    "6f5fc124": "e847b3e0ff",
+    "6f5fc129": "8b7e30",
+    "6f5fc12c": "85ff",
+    "6f5fc12e": "7511",
+    "6f5fc130": "8bce",
+    "6f5fc132": "e8899ba5ff",
+    "6f5fc137": "8bf8",
+    "6f5fc139": "85ff",
+    "6f5fc13b": "0f84dc000000",
+    "6f5fc141": "8bce",
+    "6f5fc143": "e878feffff",
+    "6f5fc148": "8bce",
+    "6f5fc14a": "e851fdffff",
+    "6f5fc14f": "8d8e90000000",
+    "6f5fc155": "e86645a6ff",
+    "6f5fc15a": "56",
+    "6f5fc15b": "8bcf",
+    "6f5fc15d": "e85ea5a5ff",
+    "6f5fc162": "56",
+    "6f5fc163": "8bcf",
+    "6f5fc165": "e876a5a5ff",
+    "6f5fc16a": "56",
+    "6f5fc16b": "8bcf",
+    "6f5fc16d": "e8bea5a5ff",
+    "6f5fc172": "56",
+    "6f5fc173": "8bcf",
+    "6f5fc175": "e8d6a5a5ff",
+    "6f5fc17a": "6a02",
+    "6f5fc17c": "8bcf",
+    "6f5fc17e": "e89d840900",
+    "6f5fc183": "8bcf",
+    "6f5fc185": "e8b6e60900",
+    "6f5fc18a": "f7462000080000",
+    "6f5fc191": "740e",
+    "6f5fc193": "816620fff7ffff",
+    "6f5fc19a": "8bcf",
+    "6f5fc19c": "e80f970900",
+    "6f5fc1a1": "8b8688000000",
+    "6f5fc1a7": "238684000000",
+    "6f5fc1ad": "53",
+    "6f5fc1ae": "83f8ff",
+    "6f5fc1b1": "7445",
+    "6f5fc1b3": "8d8e84000000",
+    "6f5fc1b9": "e86251a6ff",
+    "6f5fc1be": "85c0",
+    "6f5fc1c0": "7436",
+    "6f5fc1c2": "6a01",
+    "6f5fc1c4": "6a01",
+    "6f5fc1c6": "6a00",
+    "6f5fc1c8": "6a01",
+    "6f5fc1ca": "6872616341",
+    "6f5fc1cf": "8bc8",
+    "6f5fc1d1": "e8aa09e9ff",
+    "6f5fc1d6": "85c0",
+    "6f5fc1d8": "740a",
+    "6f5fc1da": "6a01",
+    "6f5fc1dc": "57",
+    "6f5fc1dd": "8bc8",
+    "6f5fc1df": "e81c46faff",
+    "6f5fc1e4": "c78688000000ffffffff",
+    "6f5fc1ee": "c78684000000ffffffff",
+    "6f5fc1f8": "816620ffbfffff",
+    "6f5fc1ff": "f6462004",
+    "6f5fc203": "5b",
+    "6f5fc204": "7417",
+    "6f5fc206": "816620fbbfffff",
+    "6f5fc20d": "8bcf",
+    "6f5fc20f": "e84c500900",
+    "6f5fc214": "8bcf",
+    "6f5fc216": "5f",
+    "6f5fc217": "5e",
+    "6f5fc218": "e9e31c0800",
+    "6f5fc21d": "5f",
+    "6f5fc21e": "5e",
+    "6f5fc21f": "c3",
+    "6f600340": "56",
+    "6f600341": "8bf1",
+    "6f600343": "57",
+    "6f600344": "f6462004",
+    "6f600348": "7405",
+    "6f60034a": "e871bdffff",
+    "6f60034f": "8b7e30",
+    "6f600352": "85ff",
+    "6f600354": "7509",
+    "6f600356": "8bce",
+    "6f600358": "e86359a5ff",
+    "6f60035d": "8bf8",
+    "6f60035f": "6a02",
+    "6f600361": "8bcf",
+    "6f600363": "e8b8420900",
+    "6f600368": "8bce",
+    "6f60036a": "e851bcffff",
+    "6f60036f": "8bce",
+    "6f600371": "e82abbffff",
+    "6f600376": "8bcf",
+    "6f600378": "e823c30900",
+    "6f60037d": "85c0",
+    "6f60037f": "0f848c000000",
+    "6f600385": "8b4030",
+    "6f600388": "3d71010d00",
+    "6f60038d": "7423",
+    "6f60038f": "3d74010d00",
+    "6f600394": "741c",
+    "6f600396": "3d70010d00",
+    "6f60039b": "7415",
+    "6f60039d": "3d73010d00",
+    "6f6003a2": "740e",
+    "6f6003a4": "3d6b010d00",
+    "6f6003a9": "7407",
+    "6f6003ab": "3d9d020d00",
+    "6f6003b0": "755f",
+    "6f6003b2": "8b8688000000",
+    "6f6003b8": "238684000000",
+    "6f6003be": "53",
+    "6f6003bf": "83f8ff",
+    "6f6003c2": "7445",
+    "6f6003c4": "8d8e84000000",
+    "6f6003ca": "e8510fa6ff",
+    "6f6003cf": "85c0",
+    "6f6003d1": "7436",
+    "6f6003d3": "6a01",
+    "6f6003d5": "6a01",
+    "6f6003d7": "6a00",
+    "6f6003d9": "6a01",
+    "6f6003db": "6872616341",
+    "6f6003e0": "8bc8",
+    "6f6003e2": "e899c7e8ff",
+    "6f6003e7": "85c0",
+    "6f6003e9": "740a",
+    "6f6003eb": "6a01",
+    "6f6003ed": "57",
+    "6f6003ee": "8bc8",
+    "6f6003f0": "e80b04faff",
+    "6f6003f5": "c78688000000ffffffff",
+    "6f6003ff": "c78684000000ffffffff",
+    "6f600409": "816620ffbfffff",
+    "6f600410": "5b",
+    "6f600411": "8d8e90000000",
+    "6f600417": "e8a402a6ff",
+    "6f60041c": "56",
+    "6f60041d": "8bcf",
+    "6f60041f": "e89c62a5ff",
+    "6f600424": "56",
+    "6f600425": "8bcf",
+    "6f600427": "e8b462a5ff",
+    "6f60042c": "8bcf",
+    "6f60042e": "e80da40900",
+    "6f600433": "f7462000080000",
+    "6f60043a": "740e",
+    "6f60043c": "816620fff7ffff",
+    "6f600443": "8bcf",
+    "6f600445": "e866540900",
+    "6f60044a": "836620fb",
+    "6f60044e": "5f",
+    "6f60044f": "5e",
+    "6f600450": "c3"
+  },
+  "projection": [
+    {
+      "observation": 0,
+      "scene": 2,
+      "event": "remove-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 0,
+      "scene": 2,
+      "event": "remove-exit",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 0,
+      "scene": 2,
+      "event": "inactivity-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 0,
+      "scene": 3,
+      "event": "remove-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 0,
+      "scene": 3,
+      "event": "remove-exit",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 0,
+      "scene": 3,
+      "event": "inactivity-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 1,
+      "scene": 2,
+      "event": "remove-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 1,
+      "scene": 2,
+      "event": "remove-exit",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 1,
+      "scene": 2,
+      "event": "inactivity-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 1,
+      "scene": 3,
+      "event": "remove-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            1,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 1,
+      "scene": 3,
+      "event": "remove-exit",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "observation": 1,
+      "scene": 3,
+      "event": "inactivity-enter",
+      "owners": [
+        {
+          "classGetter": "0x55c520",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5e66f0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x4992a0",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "classGetter": "0x5fcd40",
+          "disabled": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ],
+  "scope": "Existing frozen304 public PauseUnit/RemoveUnit producer, two full read-only observations and one unhooked control, preserves all four native attached-owner3c/40 inverses before return and later first Move retirement. Engine warm/cold regression inspects every applicable minimal-fixture owner; its three-owner fixture is not claimed to match the native four-owner inventory. A separately labelled synthetic callback guards physical free and incarnation reuse. Other counted availability producers/acquire walks remain in existing SEP-01.2 scope; retail save-file parity is not claimed."
+}

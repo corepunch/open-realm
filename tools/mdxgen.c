@@ -45,6 +45,7 @@ static int gen_ui_panel(int, char **);
 static int gen_anim_pulse(int, char **);
 static int gen_anim_oneshot(int, char **);
 static int gen_morph(int, char **);
+static int gen_unit_death(int, char **);
 static int gen_doodad(int, char **);
 static int gen_doodad_birth(int, char **);
 
@@ -55,6 +56,7 @@ static const struct { const char *name; int (*gen)(int, char **); } presets[] = 
     { "anim_pulse", gen_anim_pulse },
     { "anim_oneshot", gen_anim_oneshot },
     { "morph", gen_morph },
+    { "unit_death", gen_unit_death },
     { "doodad", gen_doodad },
     { "doodad_birth", gen_doodad_birth },
 };
@@ -538,6 +540,15 @@ static int gen_morph(int argc, char **argv) {
     return build_model(argv[1], argv[2], "Morph", 0.5f, 0.5f, names, starts, ends, 6) ? 0 : 1;
 }
 
+/* Minimal lifecycle fixture with retail sequence timing only. */
+static int gen_unit_death(int argc, char **argv) {
+    const char *names[] = { "Stand", "Death" };
+    /* Retail Footman SEQS metadata, without its copyrighted geometry/art. */
+    uint32_t starts[] = { 0, 21333 }, ends[] = { 999, 24367 };
+    if (argc < 3) { fprintf(stderr, "usage: mdxgen unit_death <texture> <out.mdx>\n"); return 1; }
+    return build_model(argv[1], argv[2], "UnitDeath", 0.5f, 0.5f, names, starts, ends, 2) ? 0 : 1;
+}
+
 /* Nonzero Stand range and a separate portrait: frame zero is not a valid world pose. */
 static int gen_doodad(int argc, char **argv) {
     const char *names[] = { "Stand", "Portrait", "Death" };
@@ -570,6 +581,7 @@ static void usage(void) {
         "  mdxgen anim_pulse    <tex_path> <out.mdx>\n"
         "  mdxgen anim_oneshot <tex_path> <out.mdx>\n"
         "  mdxgen morph         <tex_path> <out.mdx>\n"
+        "  mdxgen unit_death    <tex_path> <out.mdx>\n"
         "\n"
         "Examples:\n"
         "  mdxgen quad_sprite   TestUI/Textures/checker_8x8.blp  quad_sprite.mdx\n"

@@ -170,3 +170,10 @@ installing Flatpak tooling with APT on the runner.
 ## Browser platform foundation
 
 The opt-in `make web-warcraft3-foundation` target builds only the Emscripten/SDL2/WebGL 2 smoke test. See [Browser platform](docs/platform/browser.md). Do not treat this as a Warcraft III runtime or substitute it for the native test suite.
+
+Local pathfinding checkpoint (Captain376 authored target-token parser): exact
+672e25 plus the parser/test source passes `make test TEST_JOBS=16`:9812 native
+tests/40396873 assertions,34 JUnit reports and2789 Python tests. All4880 frozen
+inputs stayed identical. New static evidence and corpus additions receive
+focused checks after that checkpoint; broader Captain376 production remains
+pending. Save215 and network contracts are unchanged.

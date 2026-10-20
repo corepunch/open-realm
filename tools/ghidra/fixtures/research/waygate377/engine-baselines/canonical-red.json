@@ -1,0 +1,54 @@
+{
+  "module_sha256": "6754857c937cc2ebeb87155a3b16bcd2b7dbccbedf2908090ff3825fd0230361",
+  "runner_sha256": "a7289ce1cbfc069bb089a384fa065d6cf5938acea4d23737ada7e4f011f89a1b",
+  "fixture_sha256": "4e7aca5c44273290394cc2aa9e06ce3800f05939f2c2c76a30aa393be36807aa",
+  "results": [
+    {
+      "variant": "classic",
+      "command": [
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/openwarcraft3-tests",
+        "-data",
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests",
+        "+dedicated",
+        "1",
+        "+test",
+        "wc3_movement.target377*"
+      ],
+      "exit": 1,
+      "log_sha256": "4f0c9007a109b71429e4332b521e5b411478f661b3cf9b5f947c9bf34ca2ca94",
+      "junit": {
+        "name": "OpenRealm",
+        "tests": "2",
+        "failures": "2",
+        "errors": "0",
+        "skipped": "0",
+        "assertions": "244"
+      },
+      "xml_sha256": "0a6d6f424816ae4234316e5364781f9e765f01dd0332dbf75827ba04dde0b1eb"
+    },
+    {
+      "variant": "tft",
+      "command": [
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/openwarcraft3-tests",
+        "-data",
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests",
+        "-tft",
+        "+dedicated",
+        "1",
+        "+test",
+        "wc3_movement.target377*"
+      ],
+      "exit": 1,
+      "log_sha256": "5c29de1fb587cbdf966408a510e71b320c8d7cd526c7adb6f43f7130e7a78e03",
+      "junit": {
+        "name": "OpenRealm",
+        "tests": "2",
+        "failures": "2",
+        "errors": "0",
+        "skipped": "0",
+        "assertions": "244"
+      },
+      "xml_sha256": "0a6d6f424816ae4234316e5364781f9e765f01dd0332dbf75827ba04dde0b1eb"
+    }
+  ]
+}

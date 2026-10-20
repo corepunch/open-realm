@@ -1,0 +1,9194 @@
+{
+ "A_child_states": {
+  "orders": [
+   {
+    "level_bytes_sha256": [
+     "c9dca227ab15000f7d1e30fce16fdd3d953cccbf40358594ef0a4f849114a1f3",
+     "42cf309c72ae0610dae37d8e93130eaf3764bedc49ffdf3165736eb9eeebcb8a",
+     "13f3b45e8de6373780b00c0a288c41725a51692b146db6acac50aee28fd34a03",
+     "718411b96e8ffd95c1150bb97ac2424bb7d21abde62863d1736ddf6eee667d4c"
+    ],
+    "marker_bytes_sha256": "669a7d232b7995d01e8f9c1730facc70c10b842c4868d908e095ca14cab37e30",
+    "order": "terrain-then-marker",
+    "witnesses": [
+     {
+      "base_xy": [
+       2,
+       2
+      ],
+      "classes": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "00010000",
+      "marker": 1,
+      "unmarked_word": "00000000"
+     },
+     {
+      "base_xy": [
+       4,
+       2
+      ],
+      "classes": [
+       0,
+       0,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       64
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "04020000",
+      "marker": 2,
+      "unmarked_word": "04000000"
+     },
+     {
+      "base_xy": [
+       6,
+       2
+      ],
+      "classes": [
+       0,
+       0,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       64
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "08030000",
+      "marker": 3,
+      "unmarked_word": "08000000"
+     },
+     {
+      "base_xy": [
+       8,
+       2
+      ],
+      "classes": [
+       0,
+       1,
+       0,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       128
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "10040000",
+      "marker": 4,
+      "unmarked_word": "10000000"
+     },
+     {
+      "base_xy": [
+       10,
+       2
+      ],
+      "classes": [
+       0,
+       1,
+       1,
+       0
+      ],
+      "fine_flags": [
+       192,
+       192,
+       192,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "14050000",
+      "marker": 5,
+      "unmarked_word": "14000000"
+     },
+     {
+      "base_xy": [
+       12,
+       2
+      ],
+      "classes": [
+       0,
+       1,
+       2,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "18060000",
+      "marker": 6,
+      "unmarked_word": "18000000"
+     },
+     {
+      "base_xy": [
+       14,
+       2
+      ],
+      "classes": [
+       0,
+       2,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       128
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "20070000",
+      "marker": 7,
+      "unmarked_word": "20000000"
+     },
+     {
+      "base_xy": [
+       16,
+       2
+      ],
+      "classes": [
+       0,
+       2,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "24080000",
+      "marker": 8,
+      "unmarked_word": "24000000"
+     },
+     {
+      "base_xy": [
+       18,
+       2
+      ],
+      "classes": [
+       0,
+       2,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "28090000",
+      "marker": 9,
+      "unmarked_word": "28000000"
+     },
+     {
+      "base_xy": [
+       2,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       0,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "400a0000",
+      "marker": 10,
+      "unmarked_word": "40000000"
+     },
+     {
+      "base_xy": [
+       4,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       0,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       4
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "410b0000",
+      "marker": 11,
+      "unmarked_word": "41000000"
+     },
+     {
+      "base_xy": [
+       6,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       0,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       4
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "420c0000",
+      "marker": 12,
+      "unmarked_word": "42000000"
+     },
+     {
+      "base_xy": [
+       8,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       1,
+       0
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "440d0000",
+      "marker": 13,
+      "unmarked_word": "44000000"
+     },
+     {
+      "base_xy": [
+       10,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       1,
+       1
+      ],
+      "fine_flags": [
+       68,
+       68,
+       68,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "450e0000",
+      "marker": 14,
+      "unmarked_word": "45000000"
+     },
+     {
+      "base_xy": [
+       12,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       1,
+       2
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "460f0000",
+      "marker": 15,
+      "unmarked_word": "46000000"
+     },
+     {
+      "base_xy": [
+       14,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       2,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "48100000",
+      "marker": 16,
+      "unmarked_word": "48000000"
+     },
+     {
+      "base_xy": [
+       16,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       2,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "49110000",
+      "marker": 17,
+      "unmarked_word": "49000000"
+     },
+     {
+      "base_xy": [
+       18,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       2,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "4a120000",
+      "marker": 18,
+      "unmarked_word": "4a000000"
+     },
+     {
+      "base_xy": [
+       2,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       0,
+       0
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "50130000",
+      "marker": 19,
+      "unmarked_word": "50000000"
+     },
+     {
+      "base_xy": [
+       4,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       0,
+       1
+      ],
+      "fine_flags": [
+       132,
+       132,
+       132,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "51140000",
+      "marker": 20,
+      "unmarked_word": "51000000"
+     },
+     {
+      "base_xy": [
+       6,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       0,
+       2
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "52150000",
+      "marker": 21,
+      "unmarked_word": "52000000"
+     },
+     {
+      "base_xy": [
+       8,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       1,
+       0
+      ],
+      "fine_flags": [
+       194,
+       194,
+       194,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "54160000",
+      "marker": 22,
+      "unmarked_word": "54000000"
+     },
+     {
+      "base_xy": [
+       10,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       1,
+       1
+      ],
+      "fine_flags": [
+       196,
+       196,
+       196,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "55170000",
+      "marker": 23,
+      "unmarked_word": "55000000"
+     },
+     {
+      "base_xy": [
+       12,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       1,
+       2
+      ],
+      "fine_flags": [
+       194,
+       194,
+       194,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "56180000",
+      "marker": 24,
+      "unmarked_word": "56000000"
+     },
+     {
+      "base_xy": [
+       14,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       2,
+       0
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "58190000",
+      "marker": 25,
+      "unmarked_word": "58000000"
+     },
+     {
+      "base_xy": [
+       16,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       2,
+       1
+      ],
+      "fine_flags": [
+       132,
+       132,
+       132,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "591a0000",
+      "marker": 26,
+      "unmarked_word": "59000000"
+     },
+     {
+      "base_xy": [
+       18,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       2,
+       2
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "5a1b0000",
+      "marker": 27,
+      "unmarked_word": "5a000000"
+     },
+     {
+      "base_xy": [
+       2,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       0,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "601c0000",
+      "marker": 28,
+      "unmarked_word": "60000000"
+     },
+     {
+      "base_xy": [
+       4,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       0,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "611d0000",
+      "marker": 29,
+      "unmarked_word": "61000000"
+     },
+     {
+      "base_xy": [
+       6,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       0,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "621e0000",
+      "marker": 30,
+      "unmarked_word": "62000000"
+     },
+     {
+      "base_xy": [
+       8,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       1,
+       0
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "641f0000",
+      "marker": 31,
+      "unmarked_word": "64000000"
+     },
+     {
+      "base_xy": [
+       10,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       1,
+       1
+      ],
+      "fine_flags": [
+       68,
+       68,
+       68,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "65200000",
+      "marker": 32,
+      "unmarked_word": "65000000"
+     },
+     {
+      "base_xy": [
+       12,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       1,
+       2
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "66210000",
+      "marker": 33,
+      "unmarked_word": "66000000"
+     },
+     {
+      "base_xy": [
+       14,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       2,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "68220000",
+      "marker": 34,
+      "unmarked_word": "68000000"
+     },
+     {
+      "base_xy": [
+       16,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       2,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "69230000",
+      "marker": 35,
+      "unmarked_word": "69000000"
+     },
+     {
+      "base_xy": [
+       18,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       2,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "6a240000",
+      "marker": 36,
+      "unmarked_word": "6a000000"
+     },
+     {
+      "base_xy": [
+       2,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       2
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "80250000",
+      "marker": 37,
+      "unmarked_word": "80000000"
+     },
+     {
+      "base_xy": [
+       4,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       0,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       4
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "82260000",
+      "marker": 38,
+      "unmarked_word": "82000000"
+     },
+     {
+      "base_xy": [
+       6,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "84270000",
+      "marker": 39,
+      "unmarked_word": "84000000"
+     },
+     {
+      "base_xy": [
+       8,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       1,
+       2
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "86280000",
+      "marker": 40,
+      "unmarked_word": "86000000"
+     },
+     {
+      "base_xy": [
+       10,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "88290000",
+      "marker": 41,
+      "unmarked_word": "88000000"
+     },
+     {
+      "base_xy": [
+       12,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       2,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "8a2a0000",
+      "marker": 42,
+      "unmarked_word": "8a000000"
+     },
+     {
+      "base_xy": [
+       14,
+       14
+      ],
+      "classes": [
+       2,
+       1,
+       0,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "902b0000",
+      "marker": 43,
+      "unmarked_word": "90000000"
+     },
+     {
+      "base_xy": [
+       16,
+       14
+      ],
+      "classes": [
+       2,
+       1,
+       0,
+       2
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "922c0000",
+      "marker": 44,
+      "unmarked_word": "92000000"
+     },
+     {
+      "base_xy": [
+       18,
+       14
+      ],
+      "classes": [
+       2,
+       1,
+       1,
+       0
+      ],
+      "fine_flags": [
+       192,
+       192,
+       192,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "942d0000",
+      "marker": 45,
+      "unmarked_word": "94000000"
+     },
+     {
+      "base_xy": [
+       2,
+       17
+      ],
+      "classes": [
+       2,
+       1,
+       1,
+       2
+      ],
+      "fine_flags": [
+       192,
+       192,
+       192,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "962e0000",
+      "marker": 46,
+      "unmarked_word": "96000000"
+     },
+     {
+      "base_xy": [
+       4,
+       17
+      ],
+      "classes": [
+       2,
+       1,
+       2,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "982f0000",
+      "marker": 47,
+      "unmarked_word": "98000000"
+     },
+     {
+      "base_xy": [
+       6,
+       17
+      ],
+      "classes": [
+       2,
+       1,
+       2,
+       2
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "9a300000",
+      "marker": 48,
+      "unmarked_word": "9a000000"
+     },
+     {
+      "base_xy": [
+       8,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a0310000",
+      "marker": 49,
+      "unmarked_word": "a0000000"
+     },
+     {
+      "base_xy": [
+       10,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       0,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a2320000",
+      "marker": 50,
+      "unmarked_word": "a2000000"
+     },
+     {
+      "base_xy": [
+       12,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a4330000",
+      "marker": 51,
+      "unmarked_word": "a4000000"
+     },
+     {
+      "base_xy": [
+       14,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       1,
+       2
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a6340000",
+      "marker": 52,
+      "unmarked_word": "a6000000"
+     },
+     {
+      "base_xy": [
+       16,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a8350000",
+      "marker": 53,
+      "unmarked_word": "a8000000"
+     },
+     {
+      "base_xy": [
+       18,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "aa360000",
+      "marker": 54,
+      "unmarked_word": "aa000000"
+     }
+    ]
+   },
+   {
+    "level_bytes_sha256": [
+     "c9dca227ab15000f7d1e30fce16fdd3d953cccbf40358594ef0a4f849114a1f3",
+     "42cf309c72ae0610dae37d8e93130eaf3764bedc49ffdf3165736eb9eeebcb8a",
+     "13f3b45e8de6373780b00c0a288c41725a51692b146db6acac50aee28fd34a03",
+     "718411b96e8ffd95c1150bb97ac2424bb7d21abde62863d1736ddf6eee667d4c"
+    ],
+    "marker_bytes_sha256": "669a7d232b7995d01e8f9c1730facc70c10b842c4868d908e095ca14cab37e30",
+    "order": "marker-then-terrain",
+    "witnesses": [
+     {
+      "base_xy": [
+       2,
+       2
+      ],
+      "classes": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "00010000",
+      "marker": 1,
+      "unmarked_word": "00000000"
+     },
+     {
+      "base_xy": [
+       4,
+       2
+      ],
+      "classes": [
+       0,
+       0,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       64
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "04020000",
+      "marker": 2,
+      "unmarked_word": "04000000"
+     },
+     {
+      "base_xy": [
+       6,
+       2
+      ],
+      "classes": [
+       0,
+       0,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       64
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "08030000",
+      "marker": 3,
+      "unmarked_word": "08000000"
+     },
+     {
+      "base_xy": [
+       8,
+       2
+      ],
+      "classes": [
+       0,
+       1,
+       0,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       128
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "10040000",
+      "marker": 4,
+      "unmarked_word": "10000000"
+     },
+     {
+      "base_xy": [
+       10,
+       2
+      ],
+      "classes": [
+       0,
+       1,
+       1,
+       0
+      ],
+      "fine_flags": [
+       192,
+       192,
+       192,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "14050000",
+      "marker": 5,
+      "unmarked_word": "14000000"
+     },
+     {
+      "base_xy": [
+       12,
+       2
+      ],
+      "classes": [
+       0,
+       1,
+       2,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "18060000",
+      "marker": 6,
+      "unmarked_word": "18000000"
+     },
+     {
+      "base_xy": [
+       14,
+       2
+      ],
+      "classes": [
+       0,
+       2,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       128
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "20070000",
+      "marker": 7,
+      "unmarked_word": "20000000"
+     },
+     {
+      "base_xy": [
+       16,
+       2
+      ],
+      "classes": [
+       0,
+       2,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "24080000",
+      "marker": 8,
+      "unmarked_word": "24000000"
+     },
+     {
+      "base_xy": [
+       18,
+       2
+      ],
+      "classes": [
+       0,
+       2,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       192
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "28090000",
+      "marker": 9,
+      "unmarked_word": "28000000"
+     },
+     {
+      "base_xy": [
+       2,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       0,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "400a0000",
+      "marker": 10,
+      "unmarked_word": "40000000"
+     },
+     {
+      "base_xy": [
+       4,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       0,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       4
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "410b0000",
+      "marker": 11,
+      "unmarked_word": "41000000"
+     },
+     {
+      "base_xy": [
+       6,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       0,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       4
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "420c0000",
+      "marker": 12,
+      "unmarked_word": "42000000"
+     },
+     {
+      "base_xy": [
+       8,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       1,
+       0
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "440d0000",
+      "marker": 13,
+      "unmarked_word": "44000000"
+     },
+     {
+      "base_xy": [
+       10,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       1,
+       1
+      ],
+      "fine_flags": [
+       68,
+       68,
+       68,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "450e0000",
+      "marker": 14,
+      "unmarked_word": "45000000"
+     },
+     {
+      "base_xy": [
+       12,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       1,
+       2
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "460f0000",
+      "marker": 15,
+      "unmarked_word": "46000000"
+     },
+     {
+      "base_xy": [
+       14,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       2,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "48100000",
+      "marker": 16,
+      "unmarked_word": "48000000"
+     },
+     {
+      "base_xy": [
+       16,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       2,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "49110000",
+      "marker": 17,
+      "unmarked_word": "49000000"
+     },
+     {
+      "base_xy": [
+       18,
+       5
+      ],
+      "classes": [
+       1,
+       0,
+       2,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "4a120000",
+      "marker": 18,
+      "unmarked_word": "4a000000"
+     },
+     {
+      "base_xy": [
+       2,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       0,
+       0
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "50130000",
+      "marker": 19,
+      "unmarked_word": "50000000"
+     },
+     {
+      "base_xy": [
+       4,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       0,
+       1
+      ],
+      "fine_flags": [
+       132,
+       132,
+       132,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "51140000",
+      "marker": 20,
+      "unmarked_word": "51000000"
+     },
+     {
+      "base_xy": [
+       6,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       0,
+       2
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "52150000",
+      "marker": 21,
+      "unmarked_word": "52000000"
+     },
+     {
+      "base_xy": [
+       8,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       1,
+       0
+      ],
+      "fine_flags": [
+       194,
+       194,
+       194,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "54160000",
+      "marker": 22,
+      "unmarked_word": "54000000"
+     },
+     {
+      "base_xy": [
+       10,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       1,
+       1
+      ],
+      "fine_flags": [
+       196,
+       196,
+       196,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "55170000",
+      "marker": 23,
+      "unmarked_word": "55000000"
+     },
+     {
+      "base_xy": [
+       12,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       1,
+       2
+      ],
+      "fine_flags": [
+       194,
+       194,
+       194,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "56180000",
+      "marker": 24,
+      "unmarked_word": "56000000"
+     },
+     {
+      "base_xy": [
+       14,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       2,
+       0
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "58190000",
+      "marker": 25,
+      "unmarked_word": "58000000"
+     },
+     {
+      "base_xy": [
+       16,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       2,
+       1
+      ],
+      "fine_flags": [
+       132,
+       132,
+       132,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "591a0000",
+      "marker": 26,
+      "unmarked_word": "59000000"
+     },
+     {
+      "base_xy": [
+       18,
+       8
+      ],
+      "classes": [
+       1,
+       1,
+       2,
+       2
+      ],
+      "fine_flags": [
+       130,
+       130,
+       130,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "5a1b0000",
+      "marker": 27,
+      "unmarked_word": "5a000000"
+     },
+     {
+      "base_xy": [
+       2,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       0,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "601c0000",
+      "marker": 28,
+      "unmarked_word": "60000000"
+     },
+     {
+      "base_xy": [
+       4,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       0,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "611d0000",
+      "marker": 29,
+      "unmarked_word": "61000000"
+     },
+     {
+      "base_xy": [
+       6,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       0,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "621e0000",
+      "marker": 30,
+      "unmarked_word": "62000000"
+     },
+     {
+      "base_xy": [
+       8,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       1,
+       0
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "641f0000",
+      "marker": 31,
+      "unmarked_word": "64000000"
+     },
+     {
+      "base_xy": [
+       10,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       1,
+       1
+      ],
+      "fine_flags": [
+       68,
+       68,
+       68,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "65200000",
+      "marker": 32,
+      "unmarked_word": "65000000"
+     },
+     {
+      "base_xy": [
+       12,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       1,
+       2
+      ],
+      "fine_flags": [
+       66,
+       66,
+       66,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "66210000",
+      "marker": 33,
+      "unmarked_word": "66000000"
+     },
+     {
+      "base_xy": [
+       14,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       2,
+       0
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "68220000",
+      "marker": 34,
+      "unmarked_word": "68000000"
+     },
+     {
+      "base_xy": [
+       16,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       2,
+       1
+      ],
+      "fine_flags": [
+       4,
+       4,
+       4,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "69230000",
+      "marker": 35,
+      "unmarked_word": "69000000"
+     },
+     {
+      "base_xy": [
+       18,
+       11
+      ],
+      "classes": [
+       1,
+       2,
+       2,
+       2
+      ],
+      "fine_flags": [
+       2,
+       2,
+       2,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "6a240000",
+      "marker": 36,
+      "unmarked_word": "6a000000"
+     },
+     {
+      "base_xy": [
+       2,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       2
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "80250000",
+      "marker": 37,
+      "unmarked_word": "80000000"
+     },
+     {
+      "base_xy": [
+       4,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       0,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       4
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "82260000",
+      "marker": 38,
+      "unmarked_word": "82000000"
+     },
+     {
+      "base_xy": [
+       6,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "84270000",
+      "marker": 39,
+      "unmarked_word": "84000000"
+     },
+     {
+      "base_xy": [
+       8,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       1,
+       2
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "86280000",
+      "marker": 40,
+      "unmarked_word": "86000000"
+     },
+     {
+      "base_xy": [
+       10,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       66
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "88290000",
+      "marker": 41,
+      "unmarked_word": "88000000"
+     },
+     {
+      "base_xy": [
+       12,
+       14
+      ],
+      "classes": [
+       2,
+       0,
+       2,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       68
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "8a2a0000",
+      "marker": 42,
+      "unmarked_word": "8a000000"
+     },
+     {
+      "base_xy": [
+       14,
+       14
+      ],
+      "classes": [
+       2,
+       1,
+       0,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "902b0000",
+      "marker": 43,
+      "unmarked_word": "90000000"
+     },
+     {
+      "base_xy": [
+       16,
+       14
+      ],
+      "classes": [
+       2,
+       1,
+       0,
+       2
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "922c0000",
+      "marker": 44,
+      "unmarked_word": "92000000"
+     },
+     {
+      "base_xy": [
+       18,
+       14
+      ],
+      "classes": [
+       2,
+       1,
+       1,
+       0
+      ],
+      "fine_flags": [
+       192,
+       192,
+       192,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "942d0000",
+      "marker": 45,
+      "unmarked_word": "94000000"
+     },
+     {
+      "base_xy": [
+       2,
+       17
+      ],
+      "classes": [
+       2,
+       1,
+       1,
+       2
+      ],
+      "fine_flags": [
+       192,
+       192,
+       192,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "962e0000",
+      "marker": 46,
+      "unmarked_word": "96000000"
+     },
+     {
+      "base_xy": [
+       4,
+       17
+      ],
+      "classes": [
+       2,
+       1,
+       2,
+       0
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "982f0000",
+      "marker": 47,
+      "unmarked_word": "98000000"
+     },
+     {
+      "base_xy": [
+       6,
+       17
+      ],
+      "classes": [
+       2,
+       1,
+       2,
+       2
+      ],
+      "fine_flags": [
+       128,
+       128,
+       128,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "9a300000",
+      "marker": 48,
+      "unmarked_word": "9a000000"
+     },
+     {
+      "base_xy": [
+       8,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       0,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       130
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a0310000",
+      "marker": 49,
+      "unmarked_word": "a0000000"
+     },
+     {
+      "base_xy": [
+       10,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       0,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       132
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a2320000",
+      "marker": 50,
+      "unmarked_word": "a2000000"
+     },
+     {
+      "base_xy": [
+       12,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       1,
+       0
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a4330000",
+      "marker": 51,
+      "unmarked_word": "a4000000"
+     },
+     {
+      "base_xy": [
+       14,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       1,
+       2
+      ],
+      "fine_flags": [
+       64,
+       64,
+       64,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a6340000",
+      "marker": 52,
+      "unmarked_word": "a6000000"
+     },
+     {
+      "base_xy": [
+       16,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       2,
+       0
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       194
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "a8350000",
+      "marker": 53,
+      "unmarked_word": "a8000000"
+     },
+     {
+      "base_xy": [
+       18,
+       17
+      ],
+      "classes": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "fine_flags": [
+       0,
+       0,
+       0,
+       196
+      ],
+      "level1_parent": [
+       2,
+       2,
+       2,
+       2
+      ],
+      "marked_word": "aa360000",
+      "marker": 54,
+      "unmarked_word": "aa000000"
+     }
+    ]
+   }
+  ],
+  "reachable_child_states": 108,
+  "statement": "54 ordinary four-lane base tuples x {marker 0, nonzero}; marker survives later full 15d360; classes unchanged by marker writes"
+ },
+ "B_reducer_paths": {
+  "cases": 96,
+  "rows": [
+   {
+    "child_words": [
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [],
+    "parent": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00000000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "00070000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "clear",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     0,
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55000000",
+     "55000000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55000000",
+     "55000000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55070000",
+     "55000000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55070000",
+     "55000000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55000000",
+     "55070000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     2
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55000000",
+     "55070000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     2
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55070000",
+     "55070000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     2
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55070000",
+     "55070000",
+     "55000000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     2
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55000000",
+     "55000000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55000000",
+     "55000000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55070000",
+     "55000000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55070000",
+     "55000000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55000000",
+     "55070000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55000000",
+     "55070000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "55070000",
+     "55070000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "55070000",
+     "55070000",
+     "55070000"
+    ],
+    "children": [
+     "blocked",
+     "blocked",
+     "blocked",
+     "blocked"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "parent_without_markers": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55000000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "55070000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "blocked",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa000000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "aa070000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "mixed",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40000000",
+     "40000000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [],
+    "parent": [
+     1,
+     0,
+     0,
+     0
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40000000",
+     "40000000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40070000",
+     "40000000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40070000",
+     "40000000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40000000",
+     "40070000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     2
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40000000",
+     "40070000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     2
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40070000",
+     "40070000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     2
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40070000",
+     "40070000",
+     "40000000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     2
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40000000",
+     "40000000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40000000",
+     "40000000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40070000",
+     "40000000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40070000",
+     "40000000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40000000",
+     "40070000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40000000",
+     "40070000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "40070000",
+     "40070000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "40070000",
+     "40070000",
+     "40070000"
+    ],
+    "children": [
+     "ground_only",
+     "ground_only",
+     "ground_only",
+     "ground_only"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [],
+    "marker_positions": [],
+    "parent": [
+     2,
+     0,
+     0,
+     0
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00070000",
+     "00000000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00000000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00070000",
+     "00070000",
+     "00000000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     2
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00000000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00070000",
+     "00000000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00000000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40000000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "child_words": [
+     "40070000",
+     "00070000",
+     "00070000",
+     "00070000"
+    ],
+    "children": [
+     "ground_only",
+     "clear",
+     "clear",
+     "clear"
+    ],
+    "marker_changed_lanes": [
+     2,
+     4,
+     6
+    ],
+    "marker_positions": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "parent": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "parent_without_markers": [
+     2,
+     0,
+     0,
+     0
+    ]
+   }
+  ],
+  "statement": "markers change a lane only when every child is clear in that lane (0 -> 2); blocked/mixed children ignore markers"
+ },
+ "C_levels": {
+  "after_zero_publication": [
+   [
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0,
+    0
+   ]
+  ],
+  "chain": [
+   {
+    "classes": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "level": 0,
+    "marker": 9,
+    "word": "00090000",
+    "xy": [
+     13,
+     13
+    ]
+   },
+   {
+    "classes": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "level": 1,
+    "marker": 0,
+    "word": "aa000000",
+    "xy": [
+     6,
+     6
+    ]
+   },
+   {
+    "classes": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "level": 2,
+    "marker": 0,
+    "word": "aa000000",
+    "xy": [
+     3,
+     3
+    ]
+   },
+   {
+    "classes": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "level": 3,
+    "marker": 0,
+    "word": "aa000000",
+    "xy": [
+     1,
+     1
+    ]
+   }
+  ],
+  "nonzero_marker_bytes_levels_1_3": [
+   0,
+   0,
+   0
+  ]
+ },
+ "D_parent_closure": {
+  "parent_tuples_with_markers": 54,
+  "parent_tuples_without_markers": 54,
+  "statement": "level-1 four-lane parent tuples with/without markers are exactly the 54 ordinary tuples; reducer model checked against original 15d1c0 in B and by the accepted 20,736-case oracle"
+ },
+ "E_search": {
+  "rows": [
+   {
+    "lane": 0,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "417c0000",
+     "417c0000",
+     "416c0000",
+     "416c0000",
+     "415c0000",
+     "415c0000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 0,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41820000",
+     "41820000",
+     "41740000",
+     "41740000",
+     "41640000",
+     "41640000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 2,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "417c0000",
+     "417c0000",
+     "416c0000",
+     "416c0000",
+     "415c0000",
+     "415c0000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 2,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41820000",
+     "41820000",
+     "41740000",
+     "41740000",
+     "41640000",
+     "41640000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 4,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "417c0000",
+     "417c0000",
+     "416c0000",
+     "416c0000",
+     "415c0000",
+     "415c0000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 4,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41820000",
+     "41820000",
+     "41740000",
+     "41740000",
+     "41640000",
+     "41640000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 6,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "417c0000",
+     "417c0000",
+     "416c0000",
+     "416c0000",
+     "415c0000",
+     "415c0000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 6,
+    "marked_nodes": 9,
+    "nodes": 28,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41820000",
+     "41820000",
+     "41740000",
+     "41740000",
+     "41640000",
+     "41640000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 8
+   },
+   {
+    "lane": 0,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 0,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 2,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 2,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 4,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 4,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 6,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "414c0000",
+     "414c0000",
+     "410c0000",
+     "410c0000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   },
+   {
+    "lane": 6,
+    "marked_nodes": 4,
+    "nodes": 11,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40a00000",
+     "41540000",
+     "41540000",
+     "41140000",
+     "41140000",
+     "40880000",
+     "40980000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 1,
+    "work": 4
+   }
+  ],
+  "statement": "marked clear cells only appear as level-0 nodes; node20 copies marker iff warp; node23 (incoming) equals the level-0 parent node20 and may sit on a marked or promoted node",
+  "warp_tags": [
+   {
+    "lane": 0,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "410c0000",
+     "410c0000",
+     "40f80000",
+     "40f80000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 0,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "416c0000",
+     "40980000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 0,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41140000",
+     "41140000",
+     "41040000",
+     "41040000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 0,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "41740000",
+     "40a80000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 2,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "410c0000",
+     "410c0000",
+     "40f80000",
+     "40f80000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 2,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "416c0000",
+     "40980000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 2,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41140000",
+     "41140000",
+     "41040000",
+     "41040000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 2,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "41740000",
+     "40a80000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 4,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "410c0000",
+     "410c0000",
+     "40f80000",
+     "40f80000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 4,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "416c0000",
+     "40980000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 4,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41140000",
+     "41140000",
+     "41040000",
+     "41040000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 4,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "41740000",
+     "40a80000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 6,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "41860000",
+     "41860000",
+     "410c0000",
+     "410c0000",
+     "40f80000",
+     "40f80000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 6,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "416c0000",
+     "40980000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 0,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   },
+   {
+    "lane": 6,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      0
+     ]
+    ],
+    "nodes": 22,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "418a0000",
+     "418a0000",
+     "41140000",
+     "41140000",
+     "41040000",
+     "41040000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 0,
+    "warp_count": 0,
+    "work": 5
+   },
+   {
+    "lane": 6,
+    "level_source_incoming": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      7,
+      6
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      0,
+      0
+     ],
+     [
+      3,
+      0,
+      7
+     ]
+    ],
+    "nodes": 14,
+    "result": 1,
+    "route_words": [
+     "41da0000",
+     "41de0000",
+     "c7fa0001",
+     "40e00000",
+     "41740000",
+     "40a80000",
+     "c7fa0001",
+     "40c00000",
+     "40c80000",
+     "40d80000"
+    ],
+    "size_input": 1,
+    "warp": 1,
+    "warp_count": 2,
+    "work": 3
+   }
+  ]
+ },
+ "F_object_control": {
+  "cases": 512,
+  "rows": [
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 0,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 0,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 0,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 0,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 0,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 0,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 0,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 0,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 2,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 2,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 2,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 2,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 2,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 2,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 2,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 2,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 4,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 4,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 4,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 4,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 4,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 4,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 4,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 4,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 6,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 6,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 6,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 6,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 6,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 6,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 6,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 6,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 64,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 64,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 64,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 64,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 64,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 64,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 64,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 64,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 66,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 66,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 66,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 66,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 66,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 66,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 66,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 66,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 68,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 68,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 68,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 68,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 68,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 68,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 68,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 68,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 70,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 70,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 70,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 70,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 70,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 70,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 70,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 70,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 128,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 128,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 128,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 128,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 128,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 128,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 128,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 128,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 130,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 130,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 130,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 130,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 130,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 130,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 130,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 130,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 132,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 132,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 132,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 132,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 132,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 132,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 132,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 132,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 134,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 134,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 134,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 134,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 134,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 134,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 134,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 134,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 192,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 192,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 192,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 192,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 192,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 192,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 192,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 192,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 194,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 194,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 194,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 194,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 194,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 194,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 194,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 194,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 196,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 196,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 196,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 196,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 196,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 196,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 196,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 196,
+    "preceding_links": 49,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 198,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "70000000",
+    "object34_low": 198,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "02000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 198,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "00000000",
+    "obj40": "10000000",
+    "object34_low": 198,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000001",
+    "object34_low": 198,
+    "preceding_links": 0,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 198,
+    "preceding_links": 0,
+    "stamp": -1
+   },
+   {
+    "clear_by_lane": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 198,
+    "preceding_links": 48,
+    "stamp": 0
+   },
+   {
+    "clear_by_lane": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "link_type": "01000000",
+    "obj34_flag": "01000000",
+    "obj40": "10000000",
+    "object34_low": 198,
+    "preceding_links": 49,
+    "stamp": 0
+   }
+  ],
+  "statement": "supplied link records (control): blocked(lane) iff eligible type-1 link within first 49 iterations has obj34 & lane mask; same per-cell effective {2,4,40,80} set as terrain flags, so no new four-lane tuple"
+ },
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "scope": "Original 04d870/054000, 15d360, 04e360->15c000->15bf60->15c030, 04e210, 04e550 and 162cb0 over supplied empty 64x64 fine storage and padded 41/20/10/5 headers; F supplies fine link/object records as a control for 148e90 via 1493d0."
+}

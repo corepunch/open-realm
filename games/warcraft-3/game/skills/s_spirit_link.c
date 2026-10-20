@@ -78,16 +78,16 @@ BZ_ABILITY_PROC(CAbilityItemSpiritLink) {
 
 static heroabilitystatus_t *spirit_link_slot(edict_t *unit) {
 	if (!unit) return NULL;
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
-		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL &&
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+		if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == BZ_BSPL &&
 		    (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time()))
 			return unit->abilstatus + i;
 	return NULL;
 }
 
 static void spirit_link_strip(edict_t *unit) {
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
-		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+		if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == BZ_BSPL)
 			unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
 }
 

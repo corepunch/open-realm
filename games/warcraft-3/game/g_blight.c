@@ -25,6 +25,7 @@ static bool G_SetBlightCell(int32_t x, int32_t y, bool add, uint32_t mask) {
     index = (uint32_t)x + (uint32_t)y * level.blight.width;
     if (level.blight.cells[index] == (uint8_t)(add != 0)) return false;
     level.blight.cells[index] = add ? 1 : 0;
+    G_SetTerrainBlightCell((uint32_t)x,(uint32_t)y,add);
     if (level.blight.dirty_rows) level.blight.dirty_rows[y] |= mask;
     return true;
 }
@@ -150,6 +151,12 @@ bool G_IsPointBlighted(vec2_t const *point) {
     return G_BlightCell(point, &x, &y) && level.blight.cells[x + y * level.blight.width] != 0;
 }
 
+/* Terrain pathing natives edit one32-unit cell, rather than SetBlight's
+ * authored128-unit corner raster. Keep the shared Blight state authoritative. */
+void G_SetBlightPathCell(uint32_t x, uint32_t y, bool add) {
+    G_SetBlightCell((int32_t)x,(int32_t)y,add,G_BlightConnectedMask());
+}
+
 void G_SetBlightPoint(vec2_t const *point, bool add) {
     float x, y;
     uint32_t mask;
@@ -212,6 +219,8 @@ bool G_SetBlightState(uint8_t const *data, uint32_t size) {
     uint32_t const mask = G_BlightConnectedMask();
     if (size != expected || (size && !data)) return false;
     if (size) memcpy(level.blight.cells, data, size);
+    FOR_LOOP(y,level.blight.height) FOR_LOOP(x,level.blight.width)
+        G_SetTerrainBlightCell(x,y,level.blight.cells[y*level.blight.width+x]!=0);
     if (level.blight.dirty_rows) FOR_LOOP(y, level.blight.height) level.blight.dirty_rows[y] |= mask;
     return true;
 }

@@ -1,0 +1,1971 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "d6562e9f5f2fcd54cd9084283e962a2c68511f80b2eed4ecd68c15a7128110ed",
+  "bundle_sha256": "4b1f097c4d80a611aae60df28089e7bdfec912537769b39c3709167a0c8b1a95",
+  "source_sha256": {
+    "tools/frida/research/teleport290_make_map.py": "6bea94b95e1b6c48b123cf6c6101ba6fd9155b18527d9641369ad1b10c2ae923",
+    "tools/frida/research/teleport290_probe.j": "738b6c80233b7472213af75e4c0d868b1d7e2e36ff93dcc8d574a8dbe3f3ff83",
+    "tools/frida/research/teleport290_probe.ai": "10fc0d9b883eb058a658bad49c846ddadf18c1e2839cb2e64a7708a0ddbbeb49",
+    "tools/frida/research/teleport290_observer.js": "d5290a71e74369fcb481da6133fb16186c9f0ccea400a4d591f0245b7ea28912",
+    "tools/frida/research/captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "tools/frida/research/GROUP-03.4.7.3_make_map.py": "c3c7cf4e09045ba804d02836e3788f991145f78f36d1e47d085a576ade8ef15f",
+    "tools/frida/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "tools/ghidra/research/teleport290_oracle.py": "9a3155c67b9dd74d3fa0a2340351bd3cffad927ae78586c3511ac0136ae9e614",
+    "tools/ghidra/research/Teleport290Evidence.java": "d8098c9d17284592344c197d73f8b642b327ca82d82dfe029c67bf4293a8d40a"
+  },
+  "public": [
+    "R290 tick=0 label=start_teleport290 variant=teleport",
+    "R290 tick=0 label=birth u=0",
+    "R290 tick=0 label=birth u=1",
+    "R290 tick=0 label=birth u=2",
+    "R290 tick=0 label=birth u=3",
+    "R290 tick=0 label=birth u=4",
+    "R290 tick=0 label=birth u=5",
+    "R290 tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+    "R290 tick=5 label=sample u=1 x=-1856.000 y=-976.000 o=0",
+    "R290 tick=5 label=sample u=2 x=-1776.000 y=-976.000 o=0",
+    "R290 tick=5 label=sample u=3 x=-1696.000 y=-976.000 o=0",
+    "R290 tick=5 label=sample u=4 x=-1936.000 y=-1056.000 o=0",
+    "R290 tick=5 label=sample u=5 x=-1856.000 y=-1056.000 o=0",
+    "R290 tick=9 label=start-ai",
+    "R290 tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+    "R290 tick=10 label=sample u=1 x=-1847.549 y=-959.096 o=851986",
+    "R290 tick=10 label=sample u=2 x=-1776.000 y=-957.100 o=851986",
+    "R290 tick=10 label=sample u=3 x=-1704.453 y=-959.096 o=851986",
+    "R290 tick=10 label=sample u=4 x=-1936.000 y=-1047.900 o=851986",
+    "R290 tick=10 label=sample u=5 x=-1853.439 y=-1048.316 o=851986",
+    "R290 tick=15 label=sample u=0 x=-1936.000 y=-822.103 o=851986",
+    "R290 tick=15 label=sample u=1 x=-1854.912 y=-825.040 o=851986",
+    "R290 tick=15 label=sample u=2 x=-1783.508 y=-822.322 o=851986",
+    "R290 tick=15 label=sample u=3 x=-1719.937 y=-907.457 o=851986",
+    "R290 tick=15 label=sample u=4 x=-1936.000 y=-942.602 o=851986",
+    "R290 tick=15 label=sample u=5 x=-1848.449 y=-944.872 o=851986",
+    "R290 tick=20 label=command phase=1",
+    "R290 tick=20 label=sample u=0 x=-1937.425 y=-692.697 o=851986",
+    "R290 tick=20 label=sample u=1 x=-1867.816 y=-696.455 o=851986",
+    "R290 tick=20 label=sample u=2 x=-1782.951 y=-694.769 o=851986",
+    "R290 tick=20 label=sample u=3 x=-1743.093 y=-821.439 o=851986",
+    "R290 tick=20 label=sample u=4 x=-1938.348 y=-813.210 o=851986",
+    "R290 tick=20 label=sample u=5 x=-1858.983 y=-815.733 o=851986",
+    "R290AI phase=1 before",
+    "R290AI goal=true",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=1 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=25 label=sample u=0 x=-1945.572 y=-792.088 o=851988",
+    "R290 tick=25 label=sample u=1 x=-1878.390 y=-795.787 o=851988",
+    "R290 tick=25 label=sample u=2 x=-1783.084 y=-793.967 o=851988",
+    "R290 tick=25 label=sample u=3 x=-1772.566 y=-924.467 o=851988",
+    "R290 tick=25 label=sample u=4 x=-1946.658 y=-912.762 o=851988",
+    "R290 tick=25 label=sample u=5 x=-1870.203 y=-914.999 o=851988",
+    "R290 tick=30 label=sample u=0 x=-1960.074 y=-926.305 o=851988",
+    "R290 tick=30 label=sample u=1 x=-1888.154 y=-889.778 o=851988",
+    "R290 tick=30 label=sample u=2 x=-1788.518 y=-896.419 o=851988",
+    "R290 tick=30 label=sample u=3 x=-1795.320 y=-1028.489 o=851988",
+    "R290 tick=30 label=sample u=4 x=-1957.889 y=-1047.291 o=851988",
+    "R290 tick=30 label=sample u=5 x=-1885.360 y=-1049.142 o=851988",
+    "R290 tick=35 label=sample u=0 x=-1974.570 y=-1060.521 o=851988",
+    "R290 tick=35 label=sample u=1 x=-1902.103 y=-1024.052 o=851988",
+    "R290 tick=35 label=sample u=2 x=-1797.467 y=-1014.145 o=851988",
+    "R290 tick=35 label=sample u=3 x=-1800.031 y=-1163.403 o=851988",
+    "R290 tick=35 label=sample u=4 x=-1969.119 y=-1181.819 o=851988",
+    "R290 tick=35 label=sample u=5 x=-1900.515 y=-1183.285 o=851988",
+    "R290 tick=40 label=command phase=2",
+    "R290 tick=40 label=sample u=0 x=-1989.064 y=-1194.737 o=851988",
+    "R290 tick=40 label=sample u=1 x=-1916.051 y=-1158.325 o=851988",
+    "R290 tick=40 label=sample u=2 x=-1802.513 y=-1149.047 o=851988",
+    "R290 tick=40 label=sample u=3 x=-1804.734 y=-1298.318 o=851988",
+    "R290 tick=40 label=sample u=4 x=-1980.341 y=-1316.346 o=851988",
+    "R290 tick=40 label=sample u=5 x=-1915.668 y=-1317.428 o=851988",
+    "R290AI phase=2 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=2 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=45 label=sample u=0 x=-2039.019 y=-1306.431 o=851988",
+    "R290 tick=45 label=sample u=1 x=-1930.000 y=-1292.592 o=851988",
+    "R290 tick=45 label=sample u=2 x=-1807.550 y=-1283.943 o=851988",
+    "R290 tick=45 label=sample u=3 x=-1781.808 y=-1427.123 o=851988",
+    "R290 tick=45 label=sample u=4 x=-1991.563 y=-1450.868 o=851988",
+    "R290 tick=45 label=sample u=5 x=-1926.275 y=-1411.324 o=851988",
+    "R290 tick=50 label=command phase=3",
+    "R290 tick=50 label=sample u=0 x=-2110.063 y=-1338.699 o=851988",
+    "R290 tick=50 label=sample u=1 x=-1935.409 y=-1295.038 o=851988",
+    "R290 tick=50 label=sample u=2 x=-1765.180 y=-1336.690 o=851988",
+    "R290 tick=50 label=sample u=3 x=-1746.063 y=-1447.843 o=851988",
+    "R290 tick=50 label=sample u=4 x=-2034.647 y=-1552.134 o=851988",
+    "R290 tick=50 label=sample u=5 x=-1934.962 y=-1462.199 o=851988",
+    "R290AI phase=3 before",
+    "R290AI goal=false",
+    "R290AI home=false",
+    "R290AI retreat=false",
+    "R290AI phase=3 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=55 label=sample u=0 x=-1995.170 y=-1287.313 o=851988",
+    "R290 tick=55 label=sample u=1 x=-1894.543 y=-1172.819 o=851988",
+    "R290 tick=55 label=sample u=2 x=-1809.326 y=-1225.931 o=851988",
+    "R290 tick=55 label=sample u=3 x=-1786.278 y=-1321.484 o=851988",
+    "R290 tick=55 label=sample u=4 x=-2019.850 y=-1550.130 o=851988",
+    "R290 tick=55 label=sample u=5 x=-1906.541 y=-1334.643 o=851988",
+    "R290 tick=60 label=sample u=0 x=-1940.556 y=-1211.182 o=851988",
+    "R290 tick=60 label=sample u=1 x=-1838.901 y=-1060.188 o=851988",
+    "R290 tick=60 label=sample u=2 x=-1808.996 y=-1163.838 o=851988",
+    "R290 tick=60 label=sample u=3 x=-1802.358 y=-1240.311 o=851988",
+    "R290 tick=60 label=sample u=4 x=-1957.706 y=-1448.118 o=851988",
+    "R290 tick=60 label=sample u=5 x=-1870.782 y=-1204.479 o=851988",
+    "R290 tick=65 label=sample u=0 x=-1921.876 y=-1130.334 o=851988",
+    "R290 tick=65 label=sample u=1 x=-1773.488 y=-945.669 o=851988",
+    "R290 tick=65 label=sample u=2 x=-1808.753 y=-1117.943 o=851988",
+    "R290 tick=65 label=sample u=3 x=-1835.700 y=-1258.385 o=851988",
+    "R290 tick=65 label=sample u=4 x=-1941.452 y=-1430.058 o=0",
+    "R290 tick=65 label=sample u=5 x=-1868.636 y=-1196.669 o=851988",
+    "R290 tick=70 label=command phase=4",
+    "R290 tick=70 label=sample u=0 x=-1873.369 y=-1046.757 o=851988",
+    "R290 tick=70 label=sample u=1 x=-1686.267 y=-882.002 o=851988",
+    "R290 tick=70 label=sample u=2 x=-1808.352 y=-1042.351 o=851988",
+    "R290 tick=70 label=sample u=3 x=-1927.352 y=-1263.520 o=851988",
+    "R290 tick=70 label=sample u=4 x=-1931.741 y=-1434.576 o=851988",
+    "R290 tick=70 label=sample u=5 x=-1860.052 y=-1165.431 o=851988",
+    "R290AI phase=4 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=4 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=75 label=sample u=0 x=-1948.589 y=-1151.081 o=851988",
+    "R290 tick=75 label=sample u=1 x=-1770.285 y=-969.698 o=851988",
+    "R290 tick=75 label=sample u=2 x=-1807.696 y=-1171.862 o=851988",
+    "R290 tick=75 label=sample u=3 x=-1958.491 y=-1380.939 o=851988",
+    "R290 tick=75 label=sample u=4 x=-1833.554 y=-1527.030 o=851988",
+    "R290 tick=75 label=sample u=5 x=-1955.661 y=-1252.566 o=851988",
+    "R290 tick=80 label=command phase=4",
+    "R290 tick=80 label=sample u=0 x=-1996.672 y=-1240.425 o=851988",
+    "R290 tick=80 label=sample u=1 x=-1807.989 y=-1053.182 o=851988",
+    "R290 tick=80 label=sample u=2 x=-1811.108 y=-1301.161 o=851988",
+    "R290 tick=80 label=sample u=3 x=-1973.851 y=-1478.604 o=851988",
+    "R290 tick=80 label=sample u=4 x=-1808.681 y=-1613.750 o=851988",
+    "R290 tick=80 label=sample u=5 x=-2043.900 y=-1312.532 o=851988",
+    "R290AI phase=4 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=4 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=85 label=sample u=0 x=-2004.031 y=-1284.459 o=851988",
+    "R290 tick=85 label=sample u=1 x=-1859.222 y=-1177.102 o=851988",
+    "R290 tick=85 label=sample u=2 x=-1842.953 y=-1432.328 o=851988",
+    "R290 tick=85 label=sample u=3 x=-2049.349 y=-1581.389 o=851988",
+    "R290 tick=85 label=sample u=4 x=-1817.882 y=-1734.200 o=851988",
+    "R290 tick=85 label=sample u=5 x=-2002.728 y=-1429.634 o=851988",
+    "R290 tick=90 label=sample u=0 x=-2005.109 y=-1385.510 o=851988",
+    "R290 tick=90 label=sample u=1 x=-1913.824 y=-1300.079 o=851988",
+    "R290 tick=90 label=sample u=2 x=-1925.206 y=-1506.529 o=851988",
+    "R290 tick=90 label=sample u=3 x=-2157.365 y=-1611.436 o=851988",
+    "R290 tick=90 label=sample u=4 x=-1943.423 y=-1744.025 o=851988",
+    "R290 tick=90 label=sample u=5 x=-2007.663 y=-1543.312 o=851988",
+    "R290 tick=95 label=sample u=0 x=-2002.627 y=-1466.457 o=851988",
+    "R290 tick=95 label=sample u=1 x=-1937.740 y=-1413.653 o=851988",
+    "R290 tick=95 label=sample u=2 x=-1993.596 y=-1536.349 o=851988",
+    "R290 tick=95 label=sample u=3 x=-2277.162 y=-1555.010 o=851988",
+    "R290 tick=95 label=sample u=4 x=-1999.748 y=-1666.605 o=851988",
+    "R290 tick=95 label=sample u=5 x=-2142.591 y=-1547.085 o=851988",
+    "R290 tick=100 label=command phase=5",
+    "R290 tick=100 label=sample u=0 x=-2001.550 y=-1477.194 o=851988",
+    "R290 tick=100 label=sample u=1 x=-1936.016 y=-1537.779 o=851988",
+    "R290 tick=100 label=sample u=2 x=-2118.699 y=-1543.890 o=851988",
+    "R290 tick=100 label=sample u=3 x=-2376.018 y=-1475.978 o=851988",
+    "R290 tick=100 label=sample u=4 x=-2088.765 y=-1608.687 o=851988",
+    "R290 tick=100 label=sample u=5 x=-2277.520 y=-1550.838 o=851988",
+    "R290AI phase=5 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=5 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=105 label=sample u=0 x=-2000.391 y=-1514.968 o=851988",
+    "R290 tick=105 label=sample u=1 x=-1938.441 y=-1510.857 o=851988",
+    "R290 tick=105 label=sample u=2 x=-2253.570 y=-1549.339 o=851988",
+    "R290 tick=105 label=sample u=3 x=-2460.574 y=-1370.769 o=851988",
+    "R290 tick=105 label=sample u=4 x=-2141.162 y=-1595.670 o=851988",
+    "R290 tick=105 label=sample u=5 x=-2376.040 y=-1472.457 o=851988",
+    "R290 tick=110 label=sample u=0 x=-2092.874 y=-1549.435 o=851988",
+    "R290 tick=110 label=sample u=1 x=-1965.139 y=-1513.926 o=851988",
+    "R290 tick=110 label=sample u=2 x=-2328.612 y=-1483.979 o=851988",
+    "R290 tick=110 label=sample u=3 x=-2494.333 y=-1250.941 o=851988",
+    "R290 tick=110 label=sample u=4 x=-2243.769 y=-1552.764 o=851988",
+    "R290 tick=110 label=sample u=5 x=-2388.465 y=-1354.987 o=851988",
+    "R290 tick=115 label=command phase=6",
+    "R290 tick=115 label=sample u=0 x=-2227.834 y=-1551.581 o=851988",
+    "R290 tick=115 label=sample u=1 x=-2085.873 y=-1548.835 o=851988",
+    "R290 tick=115 label=sample u=2 x=-2361.571 y=-1353.089 o=851988",
+    "R290 tick=115 label=sample u=3 x=-2518.902 y=-1118.222 o=851988",
+    "R290 tick=115 label=sample u=4 x=-2316.125 y=-1526.027 o=851988",
+    "R290 tick=115 label=sample u=5 x=-2387.521 y=-1220.016 o=851988",
+    "R290AI phase=6 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=6 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=120 label=sample u=0 x=-2305.914 y=-1551.627 o=851988",
+    "R290 tick=120 label=sample u=1 x=-2180.351 y=-1550.157 o=851988",
+    "R290 tick=120 label=sample u=2 x=-2381.310 y=-1220.487 o=851988",
+    "R290 tick=120 label=sample u=3 x=-2543.471 y=-985.503 o=851988",
+    "R290 tick=120 label=sample u=4 x=-2349.972 y=-1395.365 o=851988",
+    "R290 tick=120 label=sample u=5 x=-2386.575 y=-1085.045 o=851988",
+    "R290 tick=125 label=sample u=0 x=-2341.843 y=-1421.596 o=851988",
+    "R290 tick=125 label=sample u=1 x=-2306.932 y=-1551.629 o=851988",
+    "R290 tick=125 label=sample u=2 x=-2382.798 y=-1085.520 o=851988",
+    "R290 tick=125 label=sample u=3 x=-2568.040 y=-852.784 o=851988",
+    "R290 tick=125 label=sample u=4 x=-2380.594 y=-1264.273 o=851988",
+    "R290 tick=125 label=sample u=5 x=-2385.623 y=-950.075 o=851988",
+    "R290 tick=130 label=removed first=0 last=5",
+    "R290 tick=140 label=command phase=7",
+    "R290AI phase=7 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=7 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=150 label=command phase=1",
+    "R290AI phase=1 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=1 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=160 label=command phase=8",
+    "R290AI phase=8 before",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290AI phase=8 after",
+    "R290AI goal=false",
+    "R290AI home=true",
+    "R290AI retreat=false",
+    "R290 tick=200 label=complete"
+  ],
+  "native": [
+    {
+      "event": "teleport-enter",
+      "counter": 1157,
+      "xy": [
+        3304194048,
+        3293052928
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1126400000,
+            1117265547
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1259,
+            1679
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1157,
+      "xy": [
+        3304194048,
+        3293052928
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1126400000,
+            1116602368
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1259,
+            1679
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1190,
+      "xy": [
+        3301182464,
+        3289122816
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1126400000,
+            1115352438
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1259,
+            1679
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1190,
+      "xy": [
+        3301182464,
+        3289122816
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1127251968,
+            1117323264
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1259,
+            1679
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1257,
+      "xy": [
+        3305701376,
+        3290955776
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1127251968,
+            1117312205
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1501,
+            1957
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1257,
+      "xy": [
+        3305701376,
+        3290955776
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1125351424,
+            1119420416
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1501,
+            1957
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1290,
+      "xy": [
+        3305701376,
+        3290955776
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          0,
+          1,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1125351424,
+            1119420416
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1503,
+            1993
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1290,
+      "xy": [
+        3305701376,
+        3290955776
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          0,
+          1,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1125351424,
+            1119420416
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1503,
+            1993
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1407,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4105,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          0,
+          1,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1125351424,
+            1119420416
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1458,
+            2120
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1407,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4105,
+        "order": 851988,
+        "counts": [
+          6,
+          6,
+          6,
+          0,
+          1,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          1485,
+          1561
+        ],
+        "actor": {
+          "position": [
+            1126400000,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1458,
+            2120
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1490,
+      "xy": [
+        3301182464,
+        3289122816
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          4294967295,
+          4294967295
+        ],
+        "actor": {
+          "position": [
+            1126400000,
+            1117136996
+          ],
+          "velocity": [
+            2975411223,
+            3235458070
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1538,
+            2124
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1490,
+      "xy": [
+        3301182464,
+        3289122816
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          4294967295,
+          4294967295
+        ],
+        "actor": {
+          "position": [
+            1127251968,
+            1117323264
+          ],
+          "velocity": [
+            2975411223,
+            3235458070
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1538,
+            2124
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1557,
+      "xy": [
+        3304194048,
+        3293052928
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          4294967295,
+          4294967295
+        ],
+        "actor": {
+          "position": [
+            1127317504,
+            1117323264
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1509,
+            2190
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1557,
+      "xy": [
+        3304194048,
+        3293052928
+      ],
+      "recovery_calls": 0,
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "order": 851988,
+        "counts": [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "current": [
+          3304194048,
+          3299999744
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "requestRange": 1128792064,
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "targets": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ],
+        "roster": [
+          4294967295,
+          4294967295
+        ],
+        "actor": {
+          "position": [
+            1126400000,
+            1116602368
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "radius": 0,
+          "storedRange": 1086849024,
+          "group": [
+            1509,
+            2190
+          ],
+          "flags": 0
+        }
+      }
+    }
+  ],
+  "original": [
+    {
+      "xy": [
+        0,
+        0
+      ],
+      "controlled_placement_writes": false,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            0,
+            0
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        0,
+        0
+      ],
+      "controlled_placement_writes": true,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            0,
+            0
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        2147483648,
+        0
+      ],
+      "controlled_placement_writes": false,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            2147483648,
+            0
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        2147483648,
+        0
+      ],
+      "controlled_placement_writes": true,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            2147483648,
+            0
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        3304194048,
+        3293052928
+      ],
+      "controlled_placement_writes": false,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            3304194048,
+            3293052928
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        3304194048,
+        3293052928
+      ],
+      "controlled_placement_writes": true,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            3304194048,
+            3293052928
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        3301182464,
+        3289122816
+      ],
+      "controlled_placement_writes": false,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            3301182464,
+            3289122816
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        3301182464,
+        3289122816
+      ],
+      "controlled_placement_writes": true,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            3301182464,
+            3289122816
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        3305701376,
+        3290955776
+      ],
+      "controlled_placement_writes": false,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            3305701376,
+            3290955776
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        3305701376,
+        3290955776
+      ],
+      "controlled_placement_writes": true,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            3305701376,
+            3290955776
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        1123450880,
+        3279699968
+      ],
+      "controlled_placement_writes": false,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            1123450880,
+            3279699968
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    },
+    {
+      "xy": [
+        1123450880,
+        3279699968
+      ],
+      "controlled_placement_writes": true,
+      "lookups": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          11
+        ]
+      ],
+      "calls": [
+        {
+          "xy": [
+            1123450880,
+            3279699968
+          ],
+          "arguments": [
+            1,
+            1,
+            4294967295,
+            0,
+            0,
+            0,
+            0,
+            4294967295,
+            0
+          ]
+        }
+      ],
+      "stack": 4
+    }
+  ],
+  "instructions": {
+    "6f9c0490": "55",
+    "6f9c0491": "8bec",
+    "6f9c0493": "8b0dcc7ed76f",
+    "6f9c0499": "83c12c",
+    "6f9c049c": "8b4104",
+    "6f9c049f": "2301",
+    "6f9c04a1": "83f8ff",
+    "6f9c04a4": "7504",
+    "6f9c04a6": "33c0",
+    "6f9c04a8": "eb05",
+    "6f9c04aa": "e8710e6aff",
+    "6f9c04af": "ff750c",
+    "6f9c04b2": "8bc8",
+    "6f9c04b4": "ff7508",
+    "6f9c04b7": "e804600000",
+    "6f9c04bc": "8bc8",
+    "6f9c04be": "e8fd750100",
+    "6f9c04c3": "5d",
+    "6f9c04c4": "c3",
+    "6f9c64c0": "8b81b0020000",
+    "6f9c64c6": "81c1ac020000",
+    "6f9c64cc": "2301",
+    "6f9c64ce": "83f8ff",
+    "6f9c64d1": "7503",
+    "6f9c64d3": "33c0",
+    "6f9c64d5": "c3",
+    "6f9c64d6": "e945ae69ff",
+    "6f9d7ac0": "55",
+    "6f9d7ac1": "8bec",
+    "6f9d7ac3": "51",
+    "6f9d7ac4": "8b4508",
+    "6f9d7ac7": "6a00",
+    "6f9d7ac9": "6aff",
+    "6f9d7acb": "6a00",
+    "6f9d7acd": "8b00",
+    "6f9d7acf": "6a00",
+    "6f9d7ad1": "6a00",
+    "6f9d7ad3": "8945fc",
+    "6f9d7ad6": "8b450c",
+    "6f9d7ad9": "6a00",
+    "6f9d7adb": "6aff",
+    "6f9d7add": "6a01",
+    "6f9d7adf": "8b00",
+    "6f9d7ae1": "894508",
+    "6f9d7ae4": "8d4508",
+    "6f9d7ae7": "6a01",
+    "6f9d7ae9": "50",
+    "6f9d7aea": "8d45fc",
+    "6f9d7aed": "50",
+    "6f9d7aee": "e81dbac7ff",
+    "6f9d7af3": "8be5",
+    "6f9d7af5": "5d",
+    "6f9d7af6": "c20800",
+    "6f653510": "55",
+    "6f653511": "8bec",
+    "6f653513": "83ec14",
+    "6f653516": "53",
+    "6f653517": "8b5d08",
+    "6f65351a": "56",
+    "6f65351b": "8bf1",
+    "6f65351d": "8d4df8",
+    "6f653520": "57",
+    "6f653521": "8b03",
+    "6f653523": "8945f8",
+    "6f653526": "8b450c",
+    "6f653529": "8b00",
+    "6f65352b": "8945fc",
+    "6f65352e": "e8fd8d9fff",
+    "6f653533": "837d1000",
+    "6f653537": "742a",
+    "6f653539": "ff7530",
+    "6f65353c": "8b06",
+    "6f65353e": "8d4dfc",
+    "6f653541": "ff752c",
+    "6f653544": "6a00",
+    "6f653546": "6a00",
+    "6f653548": "ff7520",
+    "6f65354b": "ff751c",
+    "6f65354e": "6a01",
+    "6f653550": "ff7518",
+    "6f653553": "ff7514",
+    "6f653556": "51",
+    "6f653557": "8d4df8",
+    "6f65355a": "51",
+    "6f65355b": "8bce",
+    "6f65355d": "ff90dc000000",
+    "6f653563": "8b4e30",
+    "6f653566": "e875edceff",
+    "6f65356b": "8bf8",
+    "6f65356d": "85ff",
+    "6f65356f": "7442",
+    "6f653571": "8b4d28",
+    "6f653574": "85c9",
+    "6f653576": "7407",
+    "6f653578": "8b09",
+    "6f65357a": "894d08",
+    "6f65357d": "eb15",
+    "6f65357f": "8b06",
+    "6f653581": "8bce",
+    "6f653583": "ff90b8000000",
+    "6f653589": "8d4d08",
+    "6f65358c": "51",
+    "6f65358d": "8bc8",
+    "6f65358f": "8b10",
+    "6f653591": "ff521c",
+    "6f653594": "51",
+    "6f653595": "8bcc",
+    "6f653597": "8d4508",
+    "6f65359a": "8b00",
+    "6f65359c": "8901",
+    "6f65359e": "e88df5bfff",
+    "6f6535a3": "50",
+    "6f6535a4": "8d45fc",
+    "6f6535a7": "8bcf",
+    "6f6535a9": "50",
+    "6f6535aa": "8d45f8",
+    "6f6535ad": "50",
+    "6f6535ae": "e85dbebdff",
+    "6f6535b3": "8b45f8",
+    "6f6535b6": "8bce",
+    "6f6535b8": "8945ec",
+    "6f6535bb": "8b45fc",
+    "6f6535be": "8945f0",
+    "6f6535c1": "a144c7d36f",
+    "6f6535c6": "8945f4",
+    "6f6535c9": "33c0",
+    "6f6535cb": "394524",
+    "6f6535ce": "0f94c0",
+    "6f6535d1": "50",
+    "6f6535d2": "8d45ec",
+    "6f6535d5": "50",
+    "6f6535d6": "8b06",
+    "6f6535d8": "ff90b8000000",
+    "6f6535de": "8bc8",
+    "6f6535e0": "e81b8ca0ff",
+    "6f6535e5": "8b4d0c",
+    "6f6535e8": "8b45f8",
+    "6f6535eb": "5f",
+    "6f6535ec": "8903",
+    "6f6535ee": "8b45fc",
+    "6f6535f1": "5e",
+    "6f6535f2": "8901",
+    "6f6535f4": "5b",
+    "6f6535f5": "8be5",
+    "6f6535f7": "5d",
+    "6f6535f8": "c22c00",
+    "6f9d6ed0": "55",
+    "6f9d6ed1": "8bec",
+    "6f9d6ed3": "51",
+    "6f9d6ed4": "8b4508",
+    "6f9d6ed7": "56",
+    "6f9d6ed8": "6a00",
+    "6f9d6eda": "6aff",
+    "6f9d6edc": "8b4004",
+    "6f9d6edf": "8bf1",
+    "6f9d6ee1": "6a00",
+    "6f9d6ee3": "6a00",
+    "6f9d6ee5": "6a00",
+    "6f9d6ee7": "8945fc",
+    "6f9d6eea": "8b450c",
+    "6f9d6eed": "6a00",
+    "6f9d6eef": "6aff",
+    "6f9d6ef1": "6a01",
+    "6f9d6ef3": "8b4004",
+    "6f9d6ef6": "894508",
+    "6f9d6ef9": "8d4508",
+    "6f9d6efc": "6a01",
+    "6f9d6efe": "50",
+    "6f9d6eff": "8d45fc",
+    "6f9d6f02": "50",
+    "6f9d6f03": "e808c6c7ff",
+    "6f9d6f08": "8bce",
+    "6f9d6f0a": "e8f1060000",
+    "6f9d6f0f": "5e",
+    "6f9d6f10": "8be5",
+    "6f9d6f12": "5d",
+    "6f9d6f13": "c20800",
+    "6f9c9c10": "55",
+    "6f9c9c11": "8bec",
+    "6f9c9c13": "83ec08",
+    "6f9c9c16": "56",
+    "6f9c9c17": "57",
+    "6f9c9c18": "8bf9",
+    "6f9c9c1a": "8b8fb8010000",
+    "6f9c9c20": "e82b1bffff",
+    "6f9c9c25": "8bf0",
+    "6f9c9c27": "85f6",
+    "6f9c9c29": "0f8485000000",
+    "6f9c9c2f": "8bce",
+    "6f9c9c31": "e84a62ffff",
+    "6f9c9c36": "8b462c",
+    "6f9c9c39": "8b4e34",
+    "6f9c9c3c": "8945f8",
+    "6f9c9c3f": "8d45fc",
+    "6f9c9c42": "50",
+    "6f9c9c43": "8d45f8",
+    "6f9c9c46": "894dfc",
+    "6f9c9c49": "50",
+    "6f9c9c4a": "6a01",
+    "6f9c9c4c": "8bcf",
+    "6f9c9c4e": "e85d110000",
+    "6f9c9c53": "8b4634",
+    "6f9c9c56": "8bcf",
+    "6f9c9c58": "8945f8",
+    "6f9c9c5b": "8b462c",
+    "6f9c9c5e": "8945fc",
+    "6f9c9c61": "8d45f8",
+    "6f9c9c64": "50",
+    "6f9c9c65": "8d45fc",
+    "6f9c9c68": "50",
+    "6f9c9c69": "e852c8ffff",
+    "6f9c9c6e": "8bc8",
+    "6f9c9c70": "e84bde0000",
+    "6f9c9c75": "8b4644",
+    "6f9c9c78": "8bcf",
+    "6f9c9c7a": "8945f8",
+    "6f9c9c7d": "8b463c",
+    "6f9c9c80": "8945fc",
+    "6f9c9c83": "8d45f8",
+    "6f9c9c86": "50",
+    "6f9c9c87": "8d45fc",
+    "6f9c9c8a": "50",
+    "6f9c9c8b": "6a02",
+    "6f9c9c8d": "e81e110000",
+    "6f9c9c92": "8b4644",
+    "6f9c9c95": "8bcf",
+    "6f9c9c97": "8945f8",
+    "6f9c9c9a": "8b463c",
+    "6f9c9c9d": "8945fc",
+    "6f9c9ca0": "8d45f8",
+    "6f9c9ca3": "50",
+    "6f9c9ca4": "8d45fc",
+    "6f9c9ca7": "50",
+    "6f9c9ca8": "e833c9ffff",
+    "6f9c9cad": "8bc8",
+    "6f9c9caf": "e80cde0000",
+    "6f9c9cb4": "5f",
+    "6f9c9cb5": "5e",
+    "6f9c9cb6": "8be5",
+    "6f9c9cb8": "5d",
+    "6f9c9cb9": "c3",
+    "6f9bee60": "8b0dcc7ed76f",
+    "6f9bee66": "83c12c",
+    "6f9bee69": "8b4104",
+    "6f9bee6c": "2301",
+    "6f9bee6e": "83f8ff",
+    "6f9bee71": "7509",
+    "6f9bee73": "33c0",
+    "6f9bee75": "8bc8",
+    "6f9bee77": "e994ad0000",
+    "6f9bee7c": "e89f246aff",
+    "6f9bee81": "8bc8",
+    "6f9bee83": "e988ad0000"
+  },
+  "engine_tests": [
+    "wc3_movement.teleport290*",
+    "wc3_bot.*",
+    "wc3_movement.public_captain*",
+    "wc3_movement.capscope273*",
+    "wc3_save.*"
+  ],
+  "scope": [
+    "Two observed public AI repeats plus observer-free control. Seven existing-actor relocations preserve28 native boundaries and250 public markers. Raw extra periodic observations are retained but not certified across repeats.",
+    "Engine placement cases supply observed pre-call fine pose/velocity and the existing Human02 WPM/W3E geometry; they do not replay the complete preceding public journey. Cold engine saves are not retail-save evidence.",
+    "Original12-case native/selector/wrapper ABI executes unmodified bodies; identity payloads and terminal placement completion are controlled. Full placement/virtual dispatch is observed live, not emulated by this oracle.",
+    "Default Town/first actor creation, ResetCaptainLocs default-location selection, nonfinite/outside domains and wider combat/roster/goal lifetimes remain existingBASE-01.4/GROUP-03.4.7.3. No broad closure or performance claim."
+  ]
+}

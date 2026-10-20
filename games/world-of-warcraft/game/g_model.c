@@ -469,7 +469,7 @@ static bool M2AnimationNameExists(animation_t const *anims, uint32_t count, cstr
 static uint32_t M2AnimationSyncPoint(cstring_t name) {
     char buffer[80];
     memset(buffer, 0, sizeof(buffer));
-    strncpy(buffer, name, sizeof(buffer) - 1);
+    snprintf(buffer, sizeof(buffer), "%.*s", (int)sizeof(buffer) - 1, name);
     for (uint32_t i = 0; buffer[i]; i++)
         buffer[i] = (char)tolower(buffer[i]);
     return fnv1a32(buffer);
@@ -549,7 +549,7 @@ static animation_t *LoadModelM2(uint8_t const *data, uint32_t read_size, uint32_
         M2AnimationName(M2SequenceAnimId(src, classic), name, sizeof(name));
         if (!M2AnimationNameExists(animations, num, name)) {
             animation_t *dest = animations + num++;
-            strncpy(dest->name, name, sizeof(dest->name) - 1);
+            snprintf(dest->name, sizeof(dest->name), "%.*s", (int)sizeof(dest->name) - 1, name);
             dest->interval[0] = frame_base;
             dest->interval[1] = frame_base + length;
             dest->movespeed   = M2SequenceMoveSpeed(src, classic);

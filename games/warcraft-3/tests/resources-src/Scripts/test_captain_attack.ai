@@ -1,0 +1,6 @@
+function main takes nothing returns nothing
+    call CaptainAttack(1600.0,1024.0)
+    loop
+        call Sleep(10.0)
+    endloop
+endfunction

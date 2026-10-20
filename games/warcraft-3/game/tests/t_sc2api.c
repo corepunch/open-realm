@@ -1,6 +1,7 @@
 #if defined(BZ_TESTS) && defined(WC3_SC2API)
 
 #include "test.h"
+#include "jass/jass.h"
 #include "../sc2api/sc2api_compat.h"
 #include "../sc2api/sc2api_data.h"
 #include "../sc2api/sc2api_game.h"
@@ -12,6 +13,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t script);
 void unit_stand(edict_t *self);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 slkTestData_t *parse_slk_string(cstring_t text);
@@ -332,7 +334,9 @@ TEST(wc3_sc2api, raw_unit_observation_uses_player_filtered_game_state) {
     unit->mana.value = 17.0f;
     unit->mana.max_value = 30.0f;
 
+    T_NULL(unit->abilstatus);
     T_ASSERT(WC3_SC2API_FillRawUnit(0, unit, &raw));
+    T_NULL(unit->abilstatus); /* Observation must not allocate optional status storage. */
     T_EQ(raw.display_type, WC3_SC2_DISPLAY_VISIBLE);
     T_EQ(raw.alliance, WC3_SC2_ALLIANCE_SELF);
     T_EQ(raw.tag, WC3_SC2API_UnitTag(unit));
@@ -355,6 +359,7 @@ TEST(wc3_sc2api, raw_visible_unit_exports_active_buff_ids_without_duplicates) {
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 256.0f);
     unit->s.player = 0;
     unit->svflags |= SVF_MONSTER;
+    G_EnsureUnitStatusSlots(unit);
     unit->abilstatus[0] = (heroabilitystatus_t){ .code = buff, .level = 1 };
     unit->abilstatus[1] = (heroabilitystatus_t){ .code = buff, .level = 2 };
     unit->abilstatus[2] = (heroabilitystatus_t){ .code = MAKEFOURCC('B','o','l','d'), .level = 1, .timestamp = 1 };
@@ -728,6 +733,82 @@ TEST(wc3_sc2api, raw_orders_export_active_then_shift_queue_fifo) {
     T_EQ(raw.orders[1].ability_id, G_OrderId("move"));
     T_ASSERT(raw.orders[1].has_point);
     T_FEQ(raw.orders[1].point.x, WC3_SC2API_WorldToBoardPoint(&second).x, 0.001f);
+}
+
+TEST(wc3_sc2api, raw_point_callback_replacement_preserves_logical_order_head) {
+    FOR_LOOP(route, 3) FOR_LOOP(mode, 2) {
+        char script[4096];
+        wc3Sc2RawUnit_t raw;
+        edict_t *unit = NULL;
+        vec2_t outer = {192.0f,64.0f};
+        reset_entities();
+        setup_test_world();
+        game.clients[0].ps.number = 0;
+        g_edicts[0].client = game.clients;
+        snprintf(script, sizeof(script),
+            "globals\nunit subject=null\ntrigger listener=null\nboolean entered=false\ninteger visits=0\nendglobals\n"
+            "function issued takes nothing returns nothing\nset visits=visits+1\n"
+            "if not entered then\nset entered=true\n"
+            "call BJassAssert(GetOrderPointX()==192.0,\"outer immutable point\")\n"
+            "%s\n"
+            "call BJassAssert(GetOrderPointX()==192.0,\"outer payload restored after nested order\")\n"
+            "endif\nendfunction\n"
+            "function verify takes nothing returns nothing\n"
+            "call BJassAssert(entered and visits==%u,\"synchronous nested callback count\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(subject)==%u,\"callback-selected logical head survives outer return\")\n"
+            "call DestroyTrigger(listener)\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set subject=CreateUnit(Player(0),'hfoo',64.0,64.0,0.0)\n"
+            "call SetUnitUserData(subject,7921)\n%s\n"
+            "set listener=CreateTrigger()\n"
+            "call TriggerRegisterUnitEvent(listener,subject,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+            "call TriggerAddAction(listener,function issued)\nendfunction\n",
+            mode == 0 ? "call BJassAssert(IssuePointOrder(subject,\"move\",320.0,96.0),\"nested Move accepted\")" :
+                        "call BJassAssert(IssueImmediateOrder(subject,\"stop\"),\"nested Stop accepted\")",
+            mode == 0 ? 2u : 1u, mode == 0 ? G_OrderId("move") : 0u,
+            route ? "call BJassAssert(IssuePointOrder(subject,\"move\",512.0,64.0),\"initial Move accepted before successor listener\")" : "");
+        T_ASSERT(run_test_jass(script));
+        FILTER_EDICTS(candidate, candidate->inuse && candidate->user_data == 7921) unit = candidate;
+        T_NOT_NULL(unit);
+        if (!unit) continue;
+        if (route == 0) {
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&outer,false,0,0));
+        } else {
+            if (route == 1) {
+                T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&outer,true,0,0));
+            } else {
+                groupPointOrder_t request = {.count=1,.units={{unit,unit->spawn_time}},
+                    .point=&outer,.order="move",.order_id=G_OrderId("move"),.queued=true};
+                T_ASSERT(G_IssueGroupPointOrder(&request));
+            }
+            T_EQ(G_UnitQueuedOrderCount(unit),1);
+            unitOrder_t queued;
+            T_ASSERT(G_GetQueuedUnitOrder(unit,0,&queued));
+            if (route == 1) T_EQ(queued.owner_context,0);
+            else T_ASSERT(queued.owner_context != 0);
+            /* The real owner completion path advances the retained Shift
+             * packet and dispatches its public event before task creation. */
+            unit_stand(unit);
+            T_EQ(G_UnitQueuedOrderCount(unit),0);
+        }
+        jass_callbyname(level.vm,"verify",false);
+        T_ASSERT(WC3_SC2API_FillRawUnit(0, unit, &raw));
+        if (mode == 0) {
+            T_EQ(raw.order_count,1);
+            T_EQ(raw.orders[0].ability_id,G_OrderId("move"));
+            T_ASSERT(raw.orders[0].has_point);
+            T_FEQ(raw.orders[0].point.x,WC3_SC2API_WorldToBoardPoint(&(vec2_t){320.0f,96.0f}).x,0.001f);
+            T_FEQ(raw.orders[0].point.y,WC3_SC2API_WorldToBoardPoint(&(vec2_t){320.0f,96.0f}).y,0.001f);
+            T_NOT_NULL(unit->goalentity);
+            if (unit->goalentity) T_FEQ(unit->goalentity->s.origin2.x,320.0f,0.001f);
+        } else {
+            /* Instantaneous Stop retires the logical head even where retail
+             * resumes construction of the outer physical movement task. */
+            T_EQ(raw.order_count,0);
+            T_EQ(unit->current_order_id,0);
+            T_NOT_NULL(unit->goalentity);
+        }
+    }
 }
 
 TEST(wc3_sc2api, raw_stop_clears_active_order_and_hold_becomes_active_order) {

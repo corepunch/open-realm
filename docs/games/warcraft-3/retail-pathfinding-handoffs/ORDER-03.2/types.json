@@ -1,0 +1,172 @@
+{
+ "layouts": [
+  {
+   "name": "WC3ScriptEventPacket",
+   "length": 20,
+   "fields": [
+    {
+     "offset": 0,
+     "name": "vtable",
+     "type": "ptr:void",
+     "evidence": "67ae78/262d0a store 6fa9f7f4 (CScriptEvent RTTI). ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+    },
+    {
+     "offset": 4,
+     "name": "references",
+     "type": "u32",
+     "evidence": "Producer +1 (67ae90), released after dispatch (67af10); destroyed at zero. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+    },
+    {
+     "offset": 8,
+     "name": "event",
+     "type": "u32",
+     "evidence": "Producer event; 071e00 overwrites with each node's remapped event before the handler. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+    },
+    {
+     "offset": 12,
+     "name": "registration",
+     "type": "ptr:void",
+     "evidence": "Written by CUnitEventReg_OnEvent 27d1f0 (packet+C = reg); read by CTriggerWar3_OnEvent 298d82. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+    },
+    {
+     "offset": 16,
+     "name": "event_data",
+     "type": "ptr:void",
+     "evidence": "Counted reference to the CScriptEventData (e.g. CPlayerUnitPointOrderEventData) set by 67aecf..67aeee, released with the packet. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+    }
+   ]
+  }
+ ],
+ "methods": [
+  {
+   "address": "6f072190",
+   "name": "Agent_HasEventSubscriber",
+   "returns": "u32",
+   "convention": "__thiscall",
+   "evidence": "RET4 0721a5/0721ab; 0721d0(event,0). ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+   "parameters": [
+    {
+     "name": "agent",
+     "type": "ptr:void",
+     "storage": "ECX"
+    },
+    {
+     "name": "event",
+     "type": "u32",
+     "storage": 4
+    }
+   ]
+  },
+  {
+   "address": "6f0721d0",
+   "name": "EventTable_HasSubscriber",
+   "returns": "u32",
+   "convention": "__thiscall",
+   "evidence": "RET8 072284/072292. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+   "parameters": [
+    {
+     "name": "table",
+     "type": "ptr:WC3AgentEventTable",
+     "storage": "ECX"
+    },
+    {
+     "name": "event",
+     "type": "u32",
+     "storage": 4
+    },
+    {
+     "name": "callback",
+     "type": "ptr:void",
+     "storage": 8
+    }
+   ]
+  },
+  {
+   "address": "6f67c230",
+   "name": "Unit_FireIssuedPointOrderEvent",
+   "returns": "void",
+   "convention": "__thiscall",
+   "evidence": "RET4; ECX saved 67c25b, stack4 67c260. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+   "parameters": [
+    {
+     "name": "unit",
+     "type": "ptr:WC3UnitOrdersPrefix",
+     "storage": "ECX"
+    },
+    {
+     "name": "order",
+     "type": "ptr:WC3OrderPrefix",
+     "storage": 4
+    }
+   ]
+  },
+  {
+   "address": "6f67bd10",
+   "name": "Unit_FireIssuedOrderEvent",
+   "returns": "void",
+   "convention": "__thiscall",
+   "evidence": "RET4; ECX 67bd3b, stack4 67bd40. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+   "parameters": [
+    {
+     "name": "unit",
+     "type": "ptr:WC3UnitOrdersPrefix",
+     "storage": "ECX"
+    },
+    {
+     "name": "order",
+     "type": "ptr:WC3OrderPrefix",
+     "storage": 4
+    }
+   ]
+  },
+  {
+   "address": "6f67ae10",
+   "name": "Unit_FireScriptEvent",
+   "returns": "void",
+   "convention": "__thiscall",
+   "evidence": "RET8 67af2c. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+   "parameters": [
+    {
+     "name": "unit",
+     "type": "ptr:WC3UnitOrdersPrefix",
+     "storage": "ECX"
+    },
+    {
+     "name": "event",
+     "type": "u32",
+     "storage": 4
+    },
+    {
+     "name": "event_data",
+     "type": "ptr:void",
+     "storage": 8
+    }
+   ]
+  },
+  {
+   "address": "6f262cb0",
+   "name": "Player_FireScriptEvent",
+   "returns": "void",
+   "convention": "__thiscall",
+   "evidence": "RET8 262de6. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+   "parameters": [
+    {
+     "name": "player",
+     "type": "ptr:void",
+     "storage": "ECX"
+    },
+    {
+     "name": "event",
+     "type": "u32",
+     "storage": 4
+    },
+    {
+     "name": "event_data",
+     "type": "ptr:void",
+     "storage": 8
+    }
+   ]
+  }
+ ],
+ "globals": []
+}

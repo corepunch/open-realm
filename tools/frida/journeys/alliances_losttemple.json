@@ -1,0 +1,5 @@
+{
+ "name": "alliances_losttemple",
+ "probe": "alliances",
+ "base": "Maps/(4)LostTemple.w3m"
+}

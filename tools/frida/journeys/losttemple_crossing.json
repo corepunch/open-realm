@@ -1,0 +1,329 @@
+{
+ "name": "losttemple_crossing",
+ "base": "Maps/(4)LostTemple.w3m",
+ "ticks": 2400,
+ "sample_every": 2,
+ "camera": [
+  0.0,
+  0.0
+ ],
+ "units": [
+  {
+   "type": "hfoo",
+   "owner": 0,
+   "at": [
+    1088.0,
+    -6656.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hfoo",
+   "owner": 0,
+   "at": [
+    1216.0,
+    -6656.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hfoo",
+   "owner": 0,
+   "at": [
+    1344.0,
+    -6656.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hkni",
+   "owner": 0,
+   "at": [
+    1472.0,
+    -6656.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hkni",
+   "owner": 0,
+   "at": [
+    1088.0,
+    -6528.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hrif",
+   "owner": 0,
+   "at": [
+    1216.0,
+    -6528.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hrif",
+   "owner": 0,
+   "at": [
+    1344.0,
+    -6528.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "hsor",
+   "owner": 0,
+   "at": [
+    1472.0,
+    -6528.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "ogru",
+   "owner": 0,
+   "at": [
+    1088.0,
+    -6400.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "ogru",
+   "owner": 0,
+   "at": [
+    1216.0,
+    -6400.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "otau",
+   "owner": 0,
+   "at": [
+    1344.0,
+    -6400.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "uabo",
+   "owner": 0,
+   "at": [
+    1472.0,
+    -6400.0
+   ],
+   "facing": 90.0
+  },
+  {
+   "type": "earc",
+   "owner": 0,
+   "at": [
+    -6656.0,
+    -2944.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "earc",
+   "owner": 0,
+   "at": [
+    -6528.0,
+    -2944.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "esen",
+   "owner": 0,
+   "at": [
+    -6400.0,
+    -2944.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "esen",
+   "owner": 0,
+   "at": [
+    -6272.0,
+    -2944.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "ugho",
+   "owner": 0,
+   "at": [
+    -6656.0,
+    -2816.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "ugho",
+   "owner": 0,
+   "at": [
+    -6528.0,
+    -2816.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "ucry",
+   "owner": 0,
+   "at": [
+    -6400.0,
+    -2816.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "edry",
+   "owner": 0,
+   "at": [
+    -6272.0,
+    -2816.0
+   ],
+   "facing": 0.0
+  },
+  {
+   "type": "Hpal",
+   "at": [
+    6656.0,
+    1792.0
+   ],
+   "facing": 180.0
+  },
+  {
+   "type": "hgry",
+   "at": [
+    6656.0,
+    1536.0
+   ],
+   "facing": 180.0
+  },
+  {
+   "type": "hpea",
+   "at": [
+    -576.0,
+    6016.0
+   ],
+   "facing": 270.0
+  },
+  {
+   "type": "hmtm",
+   "at": [
+    -320.0,
+    6016.0
+   ],
+   "facing": 270.0
+  }
+ ],
+ "timeline": [
+  {
+   "tick": 10,
+   "group": [
+    0,
+    11
+   ],
+   "order": "move",
+   "to": [
+    -576.0,
+    6272.0
+   ]
+  },
+  {
+   "tick": 10,
+   "group": [
+    12,
+    19
+   ],
+   "order": "move",
+   "to": [
+    6848.0,
+    1792.0
+   ]
+  },
+  {
+   "tick": 10,
+   "unit": 20,
+   "order": "move",
+   "to": [
+    -6784.0,
+    -2752.0
+   ]
+  },
+  {
+   "tick": 10,
+   "unit": 21,
+   "order": "move",
+   "to": [
+    1280.0,
+    -6848.0
+   ]
+  },
+  {
+   "tick": 10,
+   "unit": 22,
+   "order": "move",
+   "to": [
+    1280.0,
+    -6848.0
+   ]
+  },
+  {
+   "tick": 10,
+   "unit": 23,
+   "order": "patrol",
+   "to": [
+    -6784.0,
+    -2752.0
+   ]
+  },
+  {
+   "tick": 900,
+   "group": [
+    0,
+    11
+   ],
+   "order": "move",
+   "to": [
+    -6784.0,
+    -2752.0
+   ]
+  },
+  {
+   "tick": 1200,
+   "unit": 20,
+   "order": "move",
+   "to": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "tick": 1500,
+   "unit": 12,
+   "immediate": "stop"
+  },
+  {
+   "tick": 1500,
+   "unit": 13,
+   "immediate": "stop"
+  },
+  {
+   "tick": 1600,
+   "group": [
+    14,
+    19
+   ],
+   "order": "move",
+   "to": [
+    1280.0,
+    -6848.0
+   ]
+  }
+ ]
+}

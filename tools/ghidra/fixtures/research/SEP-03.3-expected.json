@@ -1,0 +1,669 @@
+{
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "equal_membership_and_query": true,
+ "labelled_null_allocation": {
+  "data_pointer_after": "00000000",
+  "intervention": "labelled: Storm import returns NULL (retail Storm terminates instead)",
+  "link_count_before": 131054,
+  "outcome": {
+   "error": "original 0x6f14e770 faulted: Invalid memory write (UC_ERR_WRITE_UNMAPPED)",
+   "fault": {
+    "access": "00000014",
+    "address": "00100000",
+    "eip": "6f14e9d5"
+   },
+   "returned": false
+  },
+  "storm_calls": [
+   {
+    "kind": "realloc",
+    "size": 2097152
+   }
+  ],
+  "wrapper_pointer_after": "00000000"
+ },
+ "labelled_zero_growth": {
+  "after": {
+   "link_capacity": 131072,
+   "link_count": 131072,
+   "records": 131074
+  },
+  "before": {
+   "link_capacity": 131072,
+   "link_count": 131068,
+   "records": 131068
+  },
+  "cell_heads": [
+   {
+    "cell": 1235,
+    "head": 131068
+   },
+   {
+    "cell": 1236,
+    "head": 131069
+   },
+   {
+    "cell": 1237,
+    "head": 131070
+   },
+   {
+    "cell": 1299,
+    "head": 131071
+   },
+   {
+    "cell": 1300,
+    "head": 131072
+   },
+   {
+    "cell": 1301,
+    "head": 131072
+   }
+  ],
+  "dangling": [
+   {
+    "cell": 1300,
+    "head": 131072
+   },
+   {
+    "cell": 1301,
+    "head": 131072
+   }
+  ],
+  "intervention": "labelled: map +80 growth increment = 0",
+  "object_refs": 6,
+  "saved_rect": [
+   19,
+   19,
+   21,
+   22
+  ]
+ },
+ "pregrown_control": {
+  "after": {
+   "capacity": 262144,
+   "link_count": 153600,
+   "records": 131103
+  },
+  "before": {
+   "capacity": 262144,
+   "link_count": 153600,
+   "records": 131067
+  },
+  "c_member_cells": 36,
+  "c_refs": 36,
+  "chains": {
+   "1235": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1236": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1237": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1238": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1239": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1240": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1299": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1300": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1301": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1302": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1303": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1304": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1363": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1364": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1365": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1366": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1367": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1368": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1427": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1428": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1429": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1430": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1431": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1432": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1491": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1492": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1493": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1494": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1495": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1496": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1555": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1556": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1557": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1558": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1559": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1560": [
+    [
+     1,
+     "C"
+    ]
+   ]
+  },
+  "query": [
+   "C",
+   "B",
+   "A"
+  ],
+  "storm": []
+ },
+ "reachable_growth": {
+  "after": {
+   "capacity": 262144,
+   "link_count": 131103,
+   "records": 131103
+  },
+  "before": {
+   "capacity": 131072,
+   "link_count": 131067,
+   "records": 131067
+  },
+  "c_member_cells": 36,
+  "c_refs": 36,
+  "chains": {
+   "1235": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1236": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1237": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1238": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1239": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1240": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1299": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1300": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1301": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1302": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1303": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1304": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1363": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1364": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1365": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ],
+    [
+     1,
+     "A"
+    ]
+   ],
+   "1366": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1367": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1368": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1427": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1428": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1429": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1430": [
+    [
+     1,
+     "C"
+    ],
+    [
+     1,
+     "B"
+    ]
+   ],
+   "1431": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1432": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1491": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1492": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1493": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1494": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1495": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1496": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1555": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1556": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1557": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1558": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1559": [
+    [
+     1,
+     "C"
+    ]
+   ],
+   "1560": [
+    [
+     1,
+     "C"
+    ]
+   ]
+  },
+  "query": [
+   "C",
+   "B",
+   "A"
+  ],
+  "storm": [
+   {
+    "caller": "6f1c5170",
+    "op": "realloc",
+    "previous": 1048576,
+    "size": 2097152
+   }
+  ]
+ },
+ "scope": "SEP-03.3: spatial link growth during one rectangle update, and what a failure would do.\n\nreachable  - growth crosses the 0x20000-link boundary in the middle of one original\n             6f14e770 update (host storage behind Storm imports). Membership, chains and\n             the subsequent separation query must equal a pre-grown control.\nlabelled   - INTERVENTIONS, not retail behaviour:\n             (A) SMemReAlloc/SMemAlloc returns NULL at the boundary (retail Storm instead\n                 reports ERROR_NOT_ENOUGH_MEMORY and calls ExitProcess(1));\n             (B) map +80 growth increment forced to 0 so 6f14dde0 refuses the append\n                 (no retail writer sets it to 0; ctor 6f14c090 stores 0x20000).\n             Both record the exact partial state the original code leaves behind."
+}

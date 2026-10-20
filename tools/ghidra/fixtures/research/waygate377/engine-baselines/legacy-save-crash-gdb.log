@@ -1,0 +1,48 @@
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.archlinux.org>
+  <https://debuginfod.cachyos.org>
+Enable debuginfod for this session? (y or [n]) [answered N; input not from terminal]
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/libthread_db.so.1".
+
+OpenWarcraft3
+Platform: Linux
+Architecture: x86_64
+Byte ordering: little endian
+
+Added game directory '/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/../share/warcraft-3'.
+Added game directory '/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/../share'.
+Executing /GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/../share/warcraft-3/config.cfg
+Executing /home/lofcz/.local/share/warcraft-3/config.cfg
+Added game directory '/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests'.
+Added archive '/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests/resources/O.mpq'.
+Added archive '/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests/tests.mpq'.
+Game initialization.
+Game is starting up.
+Game is openwarcraft3 built on Oct 18 2026.
+WC3 movement: missing Misc.MinUnitSpeed; retaining retail startup limit 1
+WC3 movement: missing Misc.MaxUnitSpeed; retaining retail startup limit 522
+WC3 movement: missing Misc.MinBldgSpeed; retaining retail startup limit 1
+WC3 movement: missing Misc.MaxBldgSpeed; retaining retail startup limit 522
+SLK: failed to load 'Units\UnitWeapons.slk'
+SLK: failed to load 'Doodads\Doodads.slk'
+SLK: failed to load 'UI\SoundInfo\UnitAckSounds.slk'
+SLK: failed to load 'UI\SoundInfo\UnitCombatSounds.slk'
+SLK: failed to load 'Units\DestructableData.slk'
+Game initialized.
+
+=== running tests: wc3_save.waygate_state_and_inflight_approach_round_trip ===
+    FAIL [wc3_save.waygate_state_and_inflight_approach_round_trip] wc3_save_waygate_state_and_inflight_approach_round_trip_fn() [games/warcraft-3/game/tests/t_waygate.c:393]: (fix.unit->movement.waygate_goal) != 0
+
+Program received signal SIGSEGV, Segmentation fault.
+wc3_save_waygate_state_and_inflight_approach_round_trip_fn () at games/warcraft-3/game/tests/t_waygate.c:394
+394	    goal_number = fix.unit->movement.waygate_goal->s.number;
+#0  wc3_save_waygate_state_and_inflight_approach_round_trip_fn () at games/warcraft-3/game/tests/t_waygate.c:394
+#1  0x00007ffff7f720e7 in Test_Run (pattern=0x555556c5de00 <pattern> "wc3_save.waygate_state_and_inflight_approach_round_trip") at shared/test.c:273
+#2  0x00005555555b8713 in Com_Test_f () at common/common.c:1846
+#3  0x00005555555a6a76 in Cmd_ExecuteString (text=0x7fffffffc3e0 "test wc3_save.waygate_state_and_inflight_approach_round_trip") at common/cmd.c:319
+#4  0x00005555555a6cab in Cbuf_Execute () at common/cmd.c:373
+#5  0x00005555555bbbe7 in main (argc=7, argv=0x7fffffffcb98) at common/main.c:617

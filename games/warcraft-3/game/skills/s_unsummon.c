@@ -4,15 +4,15 @@
 
 static void unsummon_remove_status(edict_t *building) {
     if (!building) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        if (building->abilstatus[i].level && building->abilstatus[i].code == ID_UNSUMMON_BUFF)
+    FOR_LOOP(i, G_UnitStatusSlotCount(building)) {
+        if (building->abilstatus[i].level && G_UnitStatusClassCode(building->abilstatus+i) == ID_UNSUMMON_BUFF)
             unit_removestatus(building, building->abilstatus + i, STATUS_REMOVE_SCRIPT);
     }
     G_InvalidateUnitInfoPanel(building);
 }
 
 static void unsummon_add_status(edict_t *building) {
-    if (!building || G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return;
+    if (!building || G_UnitStatusClassLevel(building, ID_UNSUMMON_BUFF)) return;
     unit_addstatus(building, "Buns", 1);
 }
 
@@ -46,7 +46,7 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
     if (CM_FindApproachPointToFootprintForRadius(
             building, &worker->s.origin2, route_band, worker->collision, &approach) &&
         CM_DistanceToPathingFootprint(building, &approach) <= worker->collision) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
@@ -58,12 +58,12 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
     if (CM_FindInnerApproachPointToFootprintForRadius(
             building, &worker->s.origin2, worker->collision, 0.0f, &approach) &&
         (footprint = CM_DistanceToPathingFootprint(building, &approach)) <= worker->collision) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
     if (!building->pathtex) {
-        worker->goalentity = building;
+        S_SetMoveGoal(worker, &worker->goalentity, building);
         move_reset_progress(worker);
         return true;
     }
@@ -89,7 +89,7 @@ static void unsummon_cancel_approach(edict_t *worker) {
     worker->unsummon->target_spawn_time = 0;
     worker->unsummon->ability = worker->unsummon->level = 0;
     worker->unsummon->approaching = worker->unsummon->starting = false;
-    if (worker->goalentity) worker->goalentity = NULL;
+    if (worker->goalentity) S_SetMoveGoal(worker, &worker->goalentity, NULL);
     move_reset_progress(worker);
 }
 
@@ -103,7 +103,7 @@ static bool unsummon_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
     (void)spell;
     if (!caster || !building || !S_SpellIsAliveTarget(building) ||
         building->s.player != caster->s.player || !G_UnitIsStructure(building) ||
-        G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
+        G_UnitStatusClassLevel(building, ID_UNSUMMON_BUFF)) return false;
     /* Retail rejects incomplete structures before mana spend; the old path
      * treated every allied building as a valid Unsummon target. */
     if (building->construction) {
@@ -193,7 +193,7 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
     worker->unsummon->approaching = false;
     thinker->unsummon->approaching = false;
     worker->channel->origin = worker->s.origin2;
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     unit_setmove(worker, &unsummon_move_channel);
     worker->unsummon->starting = false;
     unsummon_add_status(building);
@@ -304,8 +304,8 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
         }
         thinker->unsummon->target = NULL;
         thinker->unsummon->approaching = false;
-        thinker->goalentity = NULL;
-        unsummon_cancel_approach(caster);
+        S_SetMoveGoal(thinker, &thinker->goalentity, NULL);
+        if (thinker->owner == caster) unsummon_cancel_approach(caster);
     }
 }
 

@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "public_outside_sources": 3,
+  "completing_runs": 3,
+  "observer_free_controls": 1,
+  "runs": [
+    {
+      "mode": "observe",
+      "markers": 137,
+      "complete": true,
+      "endpoints": [
+        {
+          "tick": 12,
+          "label": "after-outside",
+          "world": [
+            -112.0,
+            328.0
+          ],
+          "fine_words": [
+            3227516928,
+            1092878336
+          ]
+        },
+        {
+          "tick": 13,
+          "label": "outside-held",
+          "world": [
+            -112.0,
+            328.0
+          ],
+          "fine_words": [
+            3227516928,
+            1092878336
+          ]
+        },
+        {
+          "tick": 52,
+          "label": "after-outside",
+          "world": [
+            2248.0,
+            328.0
+          ],
+          "fine_words": [
+            1116504064,
+            1092878336
+          ]
+        },
+        {
+          "tick": 53,
+          "label": "outside-held",
+          "world": [
+            2248.0,
+            328.0
+          ],
+          "fine_words": [
+            1116504064,
+            1092878336
+          ]
+        },
+        {
+          "tick": 92,
+          "label": "after-outside",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        },
+        {
+          "tick": 93,
+          "label": "outside-held",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        },
+        {
+          "tick": 120,
+          "label": "complete",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "observe",
+      "markers": 137,
+      "complete": true,
+      "endpoints": [
+        {
+          "tick": 12,
+          "label": "after-outside",
+          "world": [
+            -112.0,
+            328.0
+          ],
+          "fine_words": [
+            3227516928,
+            1092878336
+          ]
+        },
+        {
+          "tick": 13,
+          "label": "outside-held",
+          "world": [
+            -112.0,
+            328.0
+          ],
+          "fine_words": [
+            3227516928,
+            1092878336
+          ]
+        },
+        {
+          "tick": 52,
+          "label": "after-outside",
+          "world": [
+            2248.0,
+            328.0
+          ],
+          "fine_words": [
+            1116504064,
+            1092878336
+          ]
+        },
+        {
+          "tick": 53,
+          "label": "outside-held",
+          "world": [
+            2248.0,
+            328.0
+          ],
+          "fine_words": [
+            1116504064,
+            1092878336
+          ]
+        },
+        {
+          "tick": 92,
+          "label": "after-outside",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        },
+        {
+          "tick": 93,
+          "label": "outside-held",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        },
+        {
+          "tick": 120,
+          "label": "complete",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "control",
+      "markers": 137,
+      "complete": true,
+      "endpoints": [
+        {
+          "tick": 12,
+          "label": "after-outside",
+          "world": [
+            -112.0,
+            328.0
+          ],
+          "fine_words": [
+            3227516928,
+            1092878336
+          ]
+        },
+        {
+          "tick": 13,
+          "label": "outside-held",
+          "world": [
+            -112.0,
+            328.0
+          ],
+          "fine_words": [
+            3227516928,
+            1092878336
+          ]
+        },
+        {
+          "tick": 52,
+          "label": "after-outside",
+          "world": [
+            2248.0,
+            328.0
+          ],
+          "fine_words": [
+            1116504064,
+            1092878336
+          ]
+        },
+        {
+          "tick": 53,
+          "label": "outside-held",
+          "world": [
+            2248.0,
+            328.0
+          ],
+          "fine_words": [
+            1116504064,
+            1092878336
+          ]
+        },
+        {
+          "tick": 92,
+          "label": "after-outside",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        },
+        {
+          "tick": 93,
+          "label": "outside-held",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        },
+        {
+          "tick": 120,
+          "label": "complete",
+          "world": [
+            328.0,
+            -16.0
+          ],
+          "fine_words": [
+            1092878336,
+            3204448256
+          ]
+        }
+      ]
+    }
+  ]
+}

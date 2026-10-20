@@ -19,6 +19,126 @@ static UnitAbilities_t const bot_attack_hall_abilities = { .abilList = "Argl" };
  * overlay and is intentionally excluded from ordinary worker harvesting. */
 static UnitAbilities_t const bot_mine_abilities = { .abilList = "Agld" };
 
+/* Retail admits the older unit after a real owner round-trip, but a same-owner
+ * call leaves the newer peer first. Edict order cannot represent this pool. */
+TEST(wc3_bot, public_owned_pool_recruitment_tracks_owner_insertion) {
+    FOR_LOOP(transfer,2) {
+        G_BotStop(0); reset_entities(); setup_test_world();
+        char script[1000];
+        snprintf(script,sizeof(script),
+            "globals\nunit first\nunit second\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set first=CreateUnit(Player(0),'hfoo',32,64,90)\n"
+            "set second=CreateUnit(Player(0),'hfoo',128,64,90)\n%s\n"
+            "call SetUnitOwner(first,Player(0),false)\n"
+            "call StartCampaignAI(Player(0),\"test_captain_pool.ai\")\nendfunction\n",
+            transfer ? "call SetUnitOwner(first,Player(1),false)" : "");
+        T_ASSERT(run_test_jass(script));
+        G_BotRunFrame();
+        edict_t *first=NULL,*second=NULL;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','f','o','o')) {
+            if(!first)first=unit;else second=unit;
+        }
+        T_NOT_NULL(first); T_NOT_NULL(second);
+        T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),1);
+        if(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)))
+            T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[0],transfer ? first : second);
+        T_EQ((transfer ? second : first)->current_order_id,0);
+    }
+    G_BotStop(0); reset_entities(); setup_test_world();
+}
+
+/* Native public computer/neutral controls: enrollment precedes script startup,
+ * genuine transfer clears/re-enrolls, same-owner retains, VM lifetime is separate. */
+TEST(wc3_bot, help_policy_follows_ai_enrollment_transfer_and_save) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){.25f,0,300};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    T_ASSERT(run_test_jass("globals\nunit victim\nunit helper\nunit source\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set victim=CreateUnit(Player(0),'hfoo',800,800,0)\n"
+        "set helper=CreateUnit(Player(1),'hfoo',1650,800,0)\n"
+        "set source=CreateUnit(Player(3),'hfoo',1800,1800,0)\nendfunction\n"));
+    edict_t *victim=NULL,*helper=NULL,*source=NULL;
+    FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','f','o','o')) {
+        if(unit->s.player==0)victim=unit;
+        if(unit->s.player==1)helper=unit;
+        if(unit->s.player==3)source=unit;
+    }
+    T_NOT_NULL(victim);T_NOT_NULL(helper);T_NOT_NULL(source);
+    if(!victim || !helper || !source)return;
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);T_ASSERT(!(helper->aiflags&AI_TOWN_OWNED));
+    float old=game.constants.callForHelp;game.constants.callForHelp=173;
+    victim->s.model=helper->s.model=1;victim->collision=helper->collision=31;
+    S_AttackProfileWrite(victim,0)->type=S_AttackProfileWrite(helper,0)->type=ATK_NORMAL;
+    G_PublishMoveSpatialObject(victim);G_PublishMoveSpatialObject(helper);
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[1].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[1].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    T_Damage(victim,source,0);
+    T_ASSERT(helper->attack_speed_cap.active);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(.75f));
+    uint32_t serial=victim->combat_help.sequence;
+    T_ASSERT(G_BotStart(&game.clients[0].ps,"test_idle.ai",BOT_CAMPAIGN));
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);G_BotStop(0);
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);
+    G_SetUnitPlayer(victim,2);T_ASSERT(!(victim->aiflags&AI_TOWN_OWNED));
+    T_EQ(victim->combat_help.sequence,serial);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(.75f));
+    G_SetUnitPlayer(victim,2);T_ASSERT(!(victim->aiflags&AI_TOWN_OWNED));
+    G_SetUnitPlayer(victim,0);T_ASSERT(victim->aiflags&AI_TOWN_OWNED);
+    cstring_t file=Test_TempPath("wc3-help-ai153.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);T_EQ(level.ai_owned_players,(1u<<0)|(1u<<PLAYER_NEUTRAL_AGGRESSIVE));
+    T_EQ(victim->combat_help.sequence,serial);
+    game.constants.callForHelp=old;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+/* Town membership belongs to CUnit, not every widget with a default data row. */
+TEST(wc3_bot, ai_enrollment_preserves_preplaced_identity_and_excludes_nonunits) {
+    reset_entities();setup_test_world();
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){0,0},0);
+    edict_t *ward=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){128,0},0);
+    edict_t *dead=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,0},0);
+    ward->targtype=TARG_WARD;dead->health.value=0;
+    edict_t *widget=G_Spawn();widget->class_id=MAKEFOURCC('L','T','l','t');
+    G_BindEntityData(widget);widget->health.value=100;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];
+    uint32_t sequence=unit->own_seq;
+    G_BotInitPlayers();
+    T_ASSERT(unit->aiflags&AI_TOWN_OWNED);T_EQ(unit->own_seq,sequence);
+    T_ASSERT(!(ward->aiflags&AI_TOWN_OWNED));T_ASSERT(!(dead->aiflags&AI_TOWN_OWNED));
+    T_ASSERT(!(widget->aiflags&AI_TOWN_OWNED));
+    G_BotUnitOwnerChanged(widget);T_ASSERT(!(widget->aiflags&AI_TOWN_OWNED));
+    game.clients[0].jass.removed=true;
+    game.clients[1].jass.controller=1;game.clients[1].mapplayer=&level.mapinfo->players[1];
+    G_BotInitPlayers();T_EQ(level.ai_owned_players,1u<<PLAYER_NEUTRAL_AGGRESSIVE);
+    cstring_t file=Test_TempPath("wc3-help-ai153-invalid.bin");
+    level.ai_owned_players|=1u<<PLAYER_NEUTRAL_PASSIVE;
+    T_ASSERT(!WriteGame(file));remove(file);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, neutral_help_policy_distinguishes_aggressive_and_passive) {
+    reset_entities();setup_test_world();G_BotInitPlayers();level.timer_clock_valid=false;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){.25f,0,300};
+    edict_t *aggressive=unit_create(PLAYER_NEUTRAL_AGGRESSIVE,MAKEFOURCC('h','f','o','o'),&(vec2_t){800,800},0);
+    edict_t *passive=unit_create(PLAYER_NEUTRAL_PASSIVE,MAKEFOURCC('h','f','o','o'),&(vec2_t){800,1200},0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1800,1800);G_SetUnitPlayer(source,3);
+    T_ASSERT(aggressive->aiflags&AI_TOWN_OWNED);T_ASSERT(!(passive->aiflags&AI_TOWN_OWNED));
+    T_Damage(aggressive,source,0);T_Damage(passive,source,0);
+    T_EQ(wc3_float_bits(aggressive->combat_help.deadline.time),wc3_float_bits(.75f));
+    T_EQ(wc3_float_bits(passive->combat_help.deadline.time),wc3_float_bits(3.25f));
+    G_SetUnitPlayer(aggressive,PLAYER_NEUTRAL_PASSIVE);T_ASSERT(!(aggressive->aiflags&AI_TOWN_OWNED));
+    G_SetUnitPlayer(passive,PLAYER_NEUTRAL_AGGRESSIVE);T_ASSERT(passive->aiflags&AI_TOWN_OWNED);
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     int32_t values[] = {12, -3, 7};
     char text[64], small[8];
@@ -35,8 +155,8 @@ static edict_t *make_bot_harvest_unit(uint32_t class_id, float x, float y, uint3
     edict_t *unit = alloc_test_unit(class_id, x, y);
     unit->s.player = player; unit->data.UnitAbilities = abilities;
     unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand;
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     unit->targtype = TARG_GROUND;
     return unit;
 }
@@ -79,13 +199,16 @@ TEST(wc3_bot, roots_are_independent_and_stop_individually) {
     T_NULL(level.bots[2].vm);
 }
 
-TEST(wc3_bot, replacement_and_missing_script_are_bounded) {
+TEST(wc3_bot, repeated_start_preserves_vm_and_missing_script_is_bounded) {
     player_t *player = &game.clients[0].ps;
 
     T_ASSERT(G_BotStart(player, "test_idle.ai", BOT_CAMPAIGN));
     T_ASSERT(G_BotStart(player, "Scripts\\test_idle.ai", BOT_MELEE));
     T_NOT_NULL(level.bots[0].vm);
-    T_EQ(level.bots[0].mode, BOT_MELEE);
+    T_EQ(level.bots[0].mode, BOT_CAMPAIGN);
+    T_ASSERT(!G_BotStart(player, "missing.ai", BOT_CAMPAIGN));
+    T_NOT_NULL(level.bots[0].vm);
+    G_BotStop(0);
     T_ASSERT(!G_BotStart(player, "missing.ai", BOT_CAMPAIGN));
     T_NULL(level.bots[0].vm);
     T_ASSERT(!G_BotStart(player, "test_no_main.ai", BOT_CAMPAIGN));
@@ -103,12 +226,12 @@ TEST(wc3_bot, deferred_stop_removes_only_requested_player) {
     T_NOT_NULL(level.bots[2].vm);
 }
 
-TEST(wc3_bot, replacement_requested_inside_ai_is_deferred) {
+TEST(wc3_bot, repeated_start_inside_ai_preserves_current_script) {
     T_ASSERT(G_BotStart(&game.clients[1].ps, "test_replace.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
     T_EQ(level.bots[1].mode, BOT_CAMPAIGN);
-    T_STREQ(level.bots[1].script, "Scripts\\test_idle.ai");
+    T_STREQ(level.bots[1].script, "Scripts\\test_replace.ai");
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
 }
@@ -553,7 +676,7 @@ TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     bot_t *ai;
     uint32_t enabled = BOT_TARGET_HEROES | BOT_HEROES_FLEE | BOT_IGNORE_INJURED |
         BOT_UNITS_FLEE | BOT_SLOW_CHOPPING | BOT_SMART_ARTILLERY | BOT_NEW_HEROES |
-        BOT_DEFEND_PLAYER;
+        BOT_DEFEND_PLAYER | BOT_GUARD_NEW_UNITS;
 
     T_ASSERT(G_BotStart(&game.clients[3].ps, "test_ai_settings.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
@@ -594,6 +717,7 @@ TEST(wc3_bot, campaign_difficulty_drives_ai_settings_defenders_and_wave_quantiti
             edict_t *unit = make_bot_harvest_unit(defender, 64.0f * (float)i, 0, 2, NULL);
             unit->svflags |= SVF_MONSTER;
         }
+        FOR_LOOP(i,5)make_bot_harvest_unit(MAKEFOURCC('o','h','u','n'), 64.0f * (float)i, 128, 2, NULL)->svflags |= SVF_MONSTER;
         level.setup.difficulty = difficulty;
         T_ASSERT(G_BotStart(player, "test_campaign_difficulty.ai", BOT_CAMPAIGN));
         G_BotRunFrame();
@@ -602,7 +726,7 @@ TEST(wc3_bot, campaign_difficulty_drives_ai_settings_defenders_and_wave_quantiti
         if (bot->vm) T_ASSERT(!jass_rterror_pending(bot->vm));
         T_EQ(bot->replacement_count, replacements[difficulty]);
         T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), defenders[difficulty]);
-        T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, attack_counts[difficulty]);
+        T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), attack_counts[difficulty]);
         T_ASSERT(!!(bot->flags & BOT_PEONS_REPAIR) == (difficulty == 2));
         G_BotStop(2);
     }
@@ -624,7 +748,7 @@ TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     bot_t *ai;
     uint32_t enabled = BOT_PEONS_REPAIR | BOT_WATCH_MEGA | BOT_HEROES_TAKE_ITEM |
         BOT_GROUPS_FLEE | BOT_CAPTAIN_CHANGES | BOT_GROUP_TIMED_LIFE |
-        BOT_RANDOM_PATHS | BOT_HEROES_BUY_ITEMS;
+        BOT_RANDOM_PATHS | BOT_HEROES_BUY_ITEMS | BOT_GUARD_NEW_UNITS;
 
     T_ASSERT(G_BotStart(&game.clients[4].ps, "test_ai_settings_inverse.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
@@ -750,7 +874,7 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     T_EQ(shop->stock->items[0].current, 0);
 }
 
-TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
+TEST(wc3_bot, stop_gathering_retains_active_harvest_orders_and_cargo) {
     static umove_t lumber_move = { "attack", NULL, NULL, CAbilityHarvest };
     static umove_t gold_move = { "attack", NULL, NULL, CAbilityGoldMine };
     static umove_t attack_move = { "attack", NULL, NULL, CAbilityAttack };
@@ -762,8 +886,8 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
 
     lumber->s.player = gold->s.player = fighter->s.player = 2; other->s.player = 1;
     lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
-    lumber->currentmove = &lumber_move; gold->currentmove = &gold_move;
-    other->currentmove = &lumber_move; fighter->currentmove = &attack_move;
+    M_SetMove(lumber,&lumber_move); M_SetMove(gold,&gold_move);
+    M_SetMove(other,&lumber_move); M_SetMove(fighter,&attack_move);
     if (!gold->goldmine) gold->goldmine = G_AllocGoldMine();
     assert(gold->goldmine);
     gold->goldmine->mine = mine; gold->goldmine->mine_spawn_time = mine->spawn_time;
@@ -772,14 +896,14 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_stop_gathering.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
-    T_NULL(lumber->currentmove->proc);
-    T_NULL(gold->currentmove->proc);
+    T_EQ(lumber->currentmove->proc, CAbilityHarvest);
+    T_EQ(gold->currentmove->proc, CAbilityGoldMine);
     T_EQ(lumber->harvested_lumber, 7);
     T_EQ(gold->harvested_gold, 5);
-    T_NULL(gold->goldmine->mine);
-    T_EQ(mine->peonsinside, 0);
-    T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!gold->invulnerable);
+    T_EQ(gold->goldmine->mine, mine);
+    T_EQ(mine->peonsinside, 1);
+    T_ASSERT(gold->s.renderfx & RF_HIDDEN);
+    T_ASSERT(gold->invulnerable);
     T_EQ(other->currentmove->proc, CAbilityHarvest);
     T_EQ(fighter->currentmove->proc, CAbilityAttack);
 }
@@ -815,7 +939,7 @@ TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
     edict_t *mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
     edict_t *tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
     mine->resources = 1000; tree->targtype = TARG_TREE;
-    first->currentmove = &gold_move; first->goalentity = mine;
+    M_SetMove(first,&gold_move); S_SetMoveGoal(first, &first->goalentity, mine);
 
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
@@ -862,17 +986,17 @@ TEST(wc3_bot, harvest_natives_execute_through_player_bot_vm) {
 TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
     bot_t *bot = level.bots + 2;
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
-    bot->captains[BOT_CAPTAIN_ATTACK].desired = 6;
+    bot->captains[BOT_CAPTAIN_ATTACK].full = true;
     bot->captains[BOT_CAPTAIN_ATTACK].home.x = 128;
-    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
-    bot->captains[BOT_CAPTAIN_DEFENSE].desired = 3;
+    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_TARGETED;
+    bot->captains[BOT_CAPTAIN_DEFENSE].full = true;
     bot->captains[BOT_CAPTAIN_DEFENSE].goal.y = 256;
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_create_captains.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
-        T_EQ(bot->captains[i].state, BOT_CAPTAIN_IDLE);
-        T_EQ(bot->captains[i].desired, 0);
+        T_EQ(bot->captains[i].state, i==BOT_CAPTAIN_ATTACK ? BOT_CAPTAIN_ACTIVE : BOT_CAPTAIN_FORMING);
+        T_ASSERT(!bot->captains[i].full);T_ASSERT(bot->captains[i].home_set);T_NOT_NULL(bot->captains[i].home_actor);
         T_EQ(ARRAY_COUNT(bot->captains[i].units), 0);
         T_NULL(bot->captains[i].units);
         T_FEQ(bot->captains[i].home.x, 0, 0.001f);
@@ -895,7 +1019,6 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     wrong_owner->s.player = 1;
     attack->health.value = defense->health.value = removed->health.value = wrong_type->health.value = 100;
     wrong_owner->health.value = 100; dead->health.value = 0; removed->inuse = false;
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
@@ -910,6 +1033,8 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','f','o','o')), 2);
     T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','r','i','f')), 1);
     T_EQ(G_BotIgnoredUnits(NULL, MAKEFOURCC('h','f','o','o')), 0);
+    /* main checks this roster during StartCampaignAI itself. */
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
@@ -933,23 +1058,25 @@ TEST(wc3_bot, captain_retreating_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
-TEST(wc3_bot, captain_retreating_reports_attack_captain_state_only) {
+TEST(wc3_bot, captain_retreating_reads_attack_policy_bit_independently_of_state) {
     bot_t *bot = level.bots + 2;
     player_t *player = &game.clients[2].ps;
 
     bot->player = player;
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
-    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
+    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_TARGETED;
     T_ASSERT(!G_BotCaptainRetreating(player));
 
-    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_RETREATING;
+    bot->captains[BOT_CAPTAIN_ATTACK].policy_flags = BOT_CAPTAIN_RETREAT_FLAG;
     T_ASSERT(G_BotCaptainRetreating(player));
 
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_IDLE;
+    T_ASSERT(G_BotCaptainRetreating(player));
+    bot->captains[BOT_CAPTAIN_ATTACK].policy_flags = 0;
     T_ASSERT(!G_BotCaptainRetreating(player));
 }
 
-TEST(wc3_bot, group_flee_enters_retreat_after_persistent_local_disadvantage_and_returns_home) {
+TEST(wc3_bot, group_flee_does_not_invent_a_frame_polled_power_timer) {
     static UnitBalance_t const friendly_balance = { .maxHealth = 100, .level = 1 };
     static UnitBalance_t const enemy_balance = { .maxHealth = 100, .level = 4 };
     static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
@@ -982,29 +1109,13 @@ TEST(wc3_bot, group_flee_enters_retreat_after_persistent_local_disadvantage_and_
     level.time = 1000;
     G_BotUpdateGroupFlee(player);
     T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-    T_ASSERT(captain->disadvantage_active);
-
-    level.time = 3499;
-    G_BotUpdateGroupFlee(player);
-    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-
+    T_ASSERT(!G_BotCaptainRetreating(player));
     level.time = 3500;
     G_BotUpdateGroupFlee(player);
-    T_EQ(captain->state, BOT_CAPTAIN_RETREATING);
-    T_ASSERT(G_BotCaptainRetreating(player));
-    T_NULL(first->combatentity); T_NULL(second->combatentity);
-    T_NOT_NULL(first->currentmove); T_EQ(first->currentmove->proc, CAbilityMove);
-    T_NOT_NULL(second->currentmove); T_EQ(second->currentmove->proc, CAbilityMove);
-    T_NOT_NULL(first->goalentity); T_EQ(second->goalentity, first->goalentity);
-    T_FEQ(first->goalentity->s.origin2.x, 0, 0.001f);
-    T_FEQ(first->goalentity->s.origin2.y, 0, 0.001f);
-
-    first->s.origin2 = MAKE(vec2_t, 32, 0);
-    second->s.origin2 = MAKE(vec2_t, 64, 0);
-    level.time = 3600;
-    G_BotUpdateGroupFlee(player);
-    T_EQ(captain->state, BOT_CAPTAIN_IDLE);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
     T_ASSERT(!G_BotCaptainRetreating(player));
+    T_EQ(first->combatentity,enemy);T_EQ(second->combatentity,enemy);
+
 }
 
 TEST(wc3_bot, group_flee_policy_disabled_does_not_enter_retreat) {
@@ -1031,7 +1142,7 @@ TEST(wc3_bot, group_flee_policy_disabled_does_not_enter_retreat) {
     level.time = 1000; G_BotUpdateGroupFlee(player);
     level.time = 10000; G_BotUpdateGroupFlee(player);
     T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-    T_ASSERT(!captain->disadvantage_active);
+    T_ASSERT(!G_BotCaptainRetreating(player));
 }
 
 TEST(wc3_bot, retreating_captain_rejects_attack_refresh_until_home) {
@@ -1044,14 +1155,16 @@ TEST(wc3_bot, retreating_captain_rejects_attack_refresh_until_home) {
     G_BotInitAssault(player);
     member = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 512, 0, 2, NULL);
     target = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 900, 0, 1, NULL);
-    bot->player = player; captain->state = BOT_CAPTAIN_RETREATING; captain->home = MAKE(vec2_t, 0, 0);
+    bot->player = player; captain->state = BOT_CAPTAIN_ACTIVE;
+    captain->policy_flags=BOT_CAPTAIN_RETREAT_FLAG;captain->home = MAKE(vec2_t, 0, 0);
     captain->units = gi.MemAlloc(sizeof(edict_t *)); ARRAY_COUNT(captain->units) = 1; captain->units[0] = member;
-    G_BotUpdateGroupFlee(player);
+    S_IssueMoveOrder(member,Waypoint_add(&captain->home),G_OrderId("move"));
     retreat_goal = member->goalentity;
     T_NOT_NULL(retreat_goal);
 
     G_BotAttackMoveKill(player, target);
-    T_EQ(captain->state, BOT_CAPTAIN_RETREATING);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+    T_ASSERT(G_BotCaptainRetreating(player));
     T_EQ(member->goalentity, retreat_goal);
     T_FEQ(captain->goal.x, 0, 0.001f);
     T_FEQ(captain->goal.y, 0, 0.001f);
@@ -1137,7 +1250,7 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 0, type));
 }
 
-TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
+TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
@@ -1149,20 +1262,38 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
+    /* The original owned pool admits newest first; the defense captain owns second. */
+    T_EQ(bot->captains[BOT_CAPTAIN_DEFENSE].units[0],second);
+    G_BotSetCaptainHome(&game.clients[2].ps, 1, 128, 256);
     G_BotInitAssault(&game.clients[2].ps);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], second);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], first);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 4);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
+    bot->captains[BOT_CAPTAIN_ATTACK].goal = (vec2_t){-321,456};
+    edict_t **members = bot->captains[BOT_CAPTAIN_ATTACK].units;
+    G_BotInitAssault(&game.clients[2].ps);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units, members);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);T_EQ(members[0], first);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, -321, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 456, 0.001f);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(first != second && building != enemy);
 }
 
-TEST(wc3_bot, add_assault_consumes_each_duplicate_common_ai_entry_additively) {
+TEST(wc3_bot, add_assault_duplicate_entries_reconcile_retained_type_total) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
 
@@ -1173,12 +1304,12 @@ TEST(wc3_bot, add_assault_consumes_each_duplicate_common_ai_entry_additively) {
 
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 3, type));
-    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 5);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 5);
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 3);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 3);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
 }
 
-TEST(wc3_bot, set_assault_group_form_group_uses_max_then_appends_duplicate_entry) {
+TEST(wc3_bot, set_assault_group_form_group_uses_max_with_retained_type_total) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
 
@@ -1192,8 +1323,8 @@ TEST(wc3_bot, set_assault_group_form_group_uses_max_then_appends_duplicate_entry
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
-    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 6);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 6);
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 5);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 5);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     G_BotStop(2);
 }
@@ -1216,14 +1347,17 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 3, type));
     T_ASSERT(!G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), true));
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 
+    vec2_t retained=bot->captains[BOT_CAPTAIN_ATTACK].goal;
     T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), false));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
-    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, 256, 0.001f);
-    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 128, 0.001f);
-    T_EQ(first->goalentity, enemy);
-    T_EQ(second->goalentity, enemy);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x,retained.x);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y,retained.y);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].selection.request.active);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].policy_flags&0x80);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].selection.player,1);
+    T_ASSERT(first->goalentity!=enemy);T_ASSERT(second->goalentity!=enemy);
     T_ASSERT(enemy != NULL);
 
     G_BotInitAssault(&game.clients[2].ps);
@@ -1232,7 +1366,7 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 }
 
-TEST(wc3_bot, suicide_player_skips_nearest_hidden_target_for_visible_enemy) {
+TEST(wc3_bot, suicide_player_preserves_member_orders_while_selection_is_pending) {
     bot_t *bot = level.bots + 2;
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
     uint32_t const type = MAKEFOURCC('h','f','o','o');
@@ -1252,13 +1386,17 @@ TEST(wc3_bot, suicide_player_skips_nearest_hidden_target_for_visible_enemy) {
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 1, type));
 
     T_ASSERT(S_UnitIsHiddenFromPlayer(hidden, 2));
-    /* Keep the hidden unit nearer so the regression fails if selection ignores visibility. */
+    /* Selection admission retains both candidates; the timer owns visibility
+     * checks and publication. Immediate member orders must remain intact. */
     T_ASSERT(Vector2_distance(&unit->s.origin2, &hidden->s.origin2) <
              Vector2_distance(&unit->s.origin2, &visible->s.origin2));
     T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, 1, false));
 
-    T_EQ(unit->goalentity, visible);
-    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].selection.request.active);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].selection.player,1);
+    T_NULL(bot->captains[BOT_CAPTAIN_ATTACK].target.unit);
+    T_ASSERT(unit->goalentity!=visible);
+    T_ASSERT(!unit->currentmove || unit->currentmove->proc!=CAbilityAttack);
 }
 
 TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
@@ -1270,38 +1408,104 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
     mapinfo->players[1].startingPosition = MAKE(vec2_t, 256, 128);
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
     G_BotCreateCaptains(&game.clients[2].ps);
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 1, MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
-    T_EQ(unit->goalentity, enemy);
+    T_ASSERT(bot->captains[BOT_CAPTAIN_ATTACK].selection.request.active);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].selection.player,1);
+    T_ASSERT(unit->goalentity!=enemy);
     T_ASSERT(enemy != NULL);
 }
 
-TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
-    bot_t *bot = level.bots + 2;
+TEST(wc3_bot, public_captain_go_home_near_home_keeps_the_actor_and_roster_request) {
+    setup_test_world();
+    player_t *player=&game.clients[2].ps;
+    /* Supply the original near-home actor creation state through its actual producer. */
+    ((mapInfo_t *)level.mapinfo)->players[player->start_location].startingPosition=(vec2_t){128,256};
+    edict_t *unit=make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'),32,64,2,NULL);
+    T_ASSERT(G_BotStart(player,"test_captain_go_home_near.ai",BOT_CAMPAIGN));
+    G_BotRunFrame();
+    botCaptain_t const *captain=level.bots[2].captains+BOT_CAPTAIN_ATTACK;
+    T_NOT_NULL(level.bots[2].vm); T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_NOT_NULL(captain->home_actor);
+    T_EQ(captain->home_actor->s.origin2.x,128); T_EQ(captain->home_actor->s.origin2.y,256);
+    T_EQ(captain->home_actor->movement.group_id,0);
+    T_EQ(unit->movement.captain_home.home.x,128);
+    T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
+    T_ASSERT(unit->movement.captain_home.active);
+    /* Recruitment can transfer a point owner to Follow. Near-home GoHome
+     * must preserve the resulting owner, independent of that allocation. */
+    uint64_t before=level.next_move_group_sequence;
+    uint32_t group=unit->movement.group_id;
+    edict_t *goal=unit->goalentity;
+    T_NE(group,0);
+    FOR_LOOP(i,2) {
+        G_BotCaptainGoHome(player);
+        T_EQ(level.next_move_group_sequence,before);
+        T_EQ(unit->movement.group_id,group);
+        T_EQ(unit->goalentity,goal);
+        T_EQ(captain->home_actor->s.origin2.x,128);
+        T_EQ(captain->home_actor->s.origin2.y,256);
+        T_EQ(captain->home_actor->movement.group_id,0);
+        T_EQ(unit->movement.captain_home.home.x,128);
+        T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
+        T_ASSERT(unit->movement.captain_home.active);
+    }
+}
+
+TEST(wc3_bot, captain_full_tracks_formation_retry_without_reordering_retained_members) {
+    player_t *player = &game.clients[2].ps;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+    edict_t *unit = make_bot_harvest_unit(type, 32, 64, 2, NULL);
+    G_BotCreateCaptains(player);
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    G_BotSetCaptainHome(player, 1, 192, 288);
+    G_BotInitAssault(player);
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(G_BotCaptainIsFull(player));
+    edict_t *goal = unit->goalentity;
+    T_NOT_NULL(goal);
+    T_ASSERT(!G_BotAddAssault(player, 2, type));
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    G_BotInitAssault(player);
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_EQ(G_BotCaptainGroupSize(player), 1);
+    T_EQ(unit->goalentity, goal);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_EQ(unit->goalentity, goal);
+    G_BotCreateCaptains(player);
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    T_EQ(G_BotCaptainGroupSize(player), 0);
+}
+
+TEST(wc3_bot, captain_size_counts_live_members_separately_from_formation_full) {
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
-    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 2);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     first->svflags |= SVF_DEADMONSTER;
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 1);
-    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     second->inuse = false;
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
-    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
 }
 
 TEST(wc3_bot, remove_injuries_drops_sub_half_health_assault_members_and_sends_them_home) {
@@ -1366,7 +1570,13 @@ TEST(wc3_bot, remove_injuries_native_runs_in_player_bound_ai_vm) {
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 0);
-    T_NULL(injured->goalentity);
+    /* Script startup preserves Town membership, so RemoveInjuries now
+     * actually withdraws this member and admits its existing return policy. */
+    T_NOT_NULL(injured->goalentity);
+    if (injured->goalentity) {
+        T_FEQ(injured->goalentity->s.origin2.x,hall->s.origin2.x,0.001f);
+        T_FEQ(injured->goalentity->s.origin2.y,hall->s.origin2.y,0.001f);
+    }
     T_NULL(hall->goalentity);
 }
 
@@ -1378,9 +1588,9 @@ TEST(wc3_bot, remove_siege_drops_siege_attack_members_without_ordering_them) {
     edict_t *normal = make_bot_harvest_unit(type, 320, 0, 2, NULL);
     edict_t *dead = make_bot_harvest_unit(type, 352, 0, 2, NULL);
 
-    siege1->attack1.type = ATK_SIEGE;
-    siege2->attack2.type = ATK_SIEGE;
-    normal->attack1.type = ATK_NORMAL;
+    S_AttackProfileWrite(siege1, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(siege2, 1)->type = ATK_SIEGE;
+    S_AttackProfileWrite(normal, 0)->type = ATK_NORMAL;
     dead->health.value = 0;
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(4 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 4;
@@ -1402,7 +1612,7 @@ TEST(wc3_bot, remove_siege_native_runs_in_player_bound_ai_vm) {
     bot_t *bot = level.bots + 2;
     edict_t *siege = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 0, 2, NULL);
 
-    siege->attack1.type = ATK_SIEGE;
+    S_AttackProfileWrite(siege, 0)->type = ATK_SIEGE;
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = siege;
@@ -1491,7 +1701,7 @@ TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
     T_EQ(bot->guards[0].unit, replacement); T_NULL(bot->guards[1].unit);
 }
 
-TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
+TEST(wc3_bot, return_guard_posts_attacks_home_but_preserves_combat) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *idle = alloc_test_unit(type, 0, 0), *fighting = alloc_test_unit(type, 0, 32);
@@ -1503,15 +1713,136 @@ TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
     G_BotAddGuardPost(&game.clients[2].ps, type, 256, 32);
     G_BotFillGuardPosts(&game.clients[2].ps);
     G_BotReturnGuardPosts(&game.clients[2].ps);
-    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->proc, CAbilityMove);
+    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->proc, CAbilityAttack);
+    T_EQ(idle->current_order_id,G_OrderId("attack"));
     T_FEQ(idle->goalentity->s.origin2.x, 256, 0.001f);
     T_EQ(bot->guards[1].unit, fighting); T_NULL(fighting->currentmove);
     G_BotReturnGuardPosts(&game.clients[3].ps);
     T_EQ(ARRAY_COUNT(level.bots[3].guards), 0);
 }
 
+TEST(wc3_bot, order344_guard_posts_survive_cold_load_and_release_removed_members) {
+    G_BotStop(2);reset_entities();setup_test_world();
+    edict_t *unit=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){32,64},90);
+    T_NOT_NULL(unit);
+    if(!unit)return;
+    uint32_t number=unit-g_edicts;
+    G_BotAddGuardPost(&game.clients[2].ps,unit->class_id,272,304);
+    G_BotFillGuardPosts(&game.clients[2].ps);
+    T_EQ(level.bots[2].guards[0].unit,unit);
+    cstring_t file=Test_TempPath("wc3-order344-guards.bin");
+    T_ASSERT(WriteGame(file));
+    G_BotStop(2);
+    T_ASSERT(ReadGame(file));
+    T_EQ(ARRAY_COUNT(level.bots[2].guards),1);
+    if(ARRAY_COUNT(level.bots[2].guards)==1) {
+        botGuardPost_t *post=level.bots[2].guards;
+        T_EQ(post->unit,g_edicts+number);
+        T_FEQ(post->origin.x,272,0);T_FEQ(post->origin.y,304,0);
+        G_BotRemoveCaptainUnit(g_edicts+number);
+        T_NULL(post->unit);
+    }
+    remove(file);G_BotStop(2);reset_entities();setup_test_world();
+}
+
+static uint32_t order344_reentry_events;
+void G_TestIssuedPointObserver(void (*)(edict_t *));
+static void order344_remove_posts_on_order(edict_t *unit) {
+    order344_reentry_events++;
+    if(order344_reentry_events!=1)return;
+    player_t *player=&game.clients[unit->s.player].ps;
+    G_BotRemoveAllGuardPositions(player);
+    FOR_LOOP(i,33)G_BotAddGuardPost(player,unit->class_id,800+i*32,800);
+    G_BotFillGuardPosts(player);
+}
+
+TEST(wc3_bot, order344_return_guard_callback_reallocation_invalidates_captured_posts) {
+    G_BotStop(2);reset_entities();setup_test_world();
+    edict_t *a=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){32,64},90);
+    edict_t *b=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){128,64},90);
+    T_NOT_NULL(a);T_NOT_NULL(b);
+    if(a && b) {
+        G_BotAddGuardPost(&game.clients[2].ps,a->class_id,600,600);
+        G_BotAddGuardPost(&game.clients[2].ps,b->class_id,700,700);
+        G_BotFillGuardPosts(&game.clients[2].ps);
+        order344_reentry_events=0;G_TestIssuedPointObserver(order344_remove_posts_on_order);
+        G_BotReturnGuardPosts(&game.clients[2].ps);
+        G_TestIssuedPointObserver(NULL);
+        T_EQ(order344_reentry_events,1);
+        T_EQ(ARRAY_COUNT(level.bots[2].guards),33);
+        T_EQ(a->current_order_id,0);T_EQ(b->current_order_id,G_OrderId("attack"));
+    }
+    G_BotStop(2);reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, order344_initial_guard_tracks_owner_transfer_and_removal) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    T_NOT_NULL(unit);T_EQ(ARRAY_COUNT(level.bots[0].guards),1);
+    if(unit && ARRAY_COUNT(level.bots[0].guards)==1) {
+        T_EQ(level.bots[0].guards[0].unit,unit);
+        S_SetUnitAxisPosition(unit,0,480);S_SetUnitAxisPosition(unit,1,512);
+        G_SetUnitPlayer(unit,1);T_NULL(level.bots[0].guards[0].unit);
+        G_SetUnitPlayer(unit,0);T_EQ(ARRAY_COUNT(level.bots[0].guards),2);
+        if(ARRAY_COUNT(level.bots[0].guards)==2) {
+            T_EQ(level.bots[0].guards[1].unit,unit);
+            T_FEQ(level.bots[0].guards[1].origin.x,480,0);
+            T_FEQ(level.bots[0].guards[1].origin.y,512,0);
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){800,800},false,0,0));
+            G_BotRemoveGuardPosition(unit);
+            T_EQ(unit->current_order_id,0);
+            T_ASSERT(!(unit->aiflags&AI_TOWN_OWNED));
+            T_EQ(ARRAY_COUNT(level.bots[0].guards),2);
+            if(ARRAY_COUNT(level.bots[0].guards)==2)T_NULL(level.bots[0].guards[1].unit);
+            G_SetUnitPlayer(unit,1);G_SetUnitPlayer(unit,0);
+            T_EQ(ARRAY_COUNT(level.bots[0].guards),2);
+            S_SetUnitAxisPosition(unit,0,800);S_SetUnitAxisPosition(unit,1,800);
+            G_BotRecycleGuardPosition(unit);
+            T_EQ(ARRAY_COUNT(level.bots[0].guards),3);
+            T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+            T_EQ(unit->current_order_id,0);
+            if(ARRAY_COUNT(level.bots[0].guards)==3) {
+                T_NULL(level.bots[0].guards[1].unit);
+                T_EQ(level.bots[0].guards[1].assignments,99999);
+                T_EQ(level.bots[0].guards[2].unit,unit);
+                T_FEQ(level.bots[0].guards[2].origin.x,800,0);
+                T_FEQ(level.bots[0].guards[2].origin.y,800,0);
+            }
+            G_FreeEdict(unit);
+            FOR_EACH_ARRAY(botGuardPost_t,post,level.bots[0].guards)T_NULL(post->unit);
+        }
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+}
+
+TEST(wc3_bot, order344_disabled_timed_life_retires_initial_guard) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    level.bots[0].flags&=~BOT_GROUP_TIMED_LIFE;
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    T_NOT_NULL(unit);T_EQ(ARRAY_COUNT(level.bots[0].guards),1);
+    if(unit && ARRAY_COUNT(level.bots[0].guards)==1) {
+        S_SetUnitAxisPosition(unit,0,800);S_SetUnitAxisPosition(unit,1,800);
+        S_ApplyTimedLife(unit,MAKEFOURCC('B','T','L','F'),10);
+        T_EQ(unit->current_order_id,0);
+        T_NULL(level.bots[0].guards[0].unit);
+        T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+}
+
 TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
         "call CommandAI(Player(2),10,20)\ncall CommandAI(Player(2),30,40)\n"
         "call CommandAI(Player(1),50,60)\nendfunction"));
@@ -1520,6 +1851,7 @@ TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
     T_EQ(G_BotLastCommand(&game.clients[1].ps), 50);
     T_EQ(G_BotLastData(&game.clients[1].ps), 60);
 
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[2].vm);
     T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
@@ -1749,7 +2081,7 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     hero->svflags |= SVF_MONSTER;
     hero->movetype = MOVETYPE_STEP;
     hero->health.value = hero->health.max_value = 1000.0f;
-    hero->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(hero, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     hero->targtype = TARG_GROUND;
     gi.LinkEntity(hero);
 
@@ -1788,19 +2120,19 @@ TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
 
     worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 3072, 0, 1, &bot_harvester_abilities);
-    worker->data.UnitWeapons = &enabled_attack; worker->attack1.type = ATK_NORMAL;
+    worker->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(worker, 0)->type = ATK_NORMAL;
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall); /* economy workers alone do not protect the main */
 
     defender = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 3100, 0, 1, NULL);
-    defender->data.UnitWeapons = &enabled_attack; defender->attack1.type = ATK_NORMAL;
+    defender->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(defender, 0)->type = ATK_NORMAL;
     T_NULL(G_BotGetMegaTarget(caller));
     defender->s.origin2.x = 5000;
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
 
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 3200, 0, 1, NULL);
-    tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE;
+    tower->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE;
     T_NULL(G_BotGetMegaTarget(caller));
-    tower->attack1.type = ATK_NONE;
+    S_AttackProfileWrite(tower, 0)->type = ATK_NONE;
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
 
     G_SetPlayerAlliance(caller, enemy, ALLIANCE_PASSIVE, true);
@@ -1823,12 +2155,12 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     assert(tower->ancient_root);
     tower->ancient_root->ability = 0;
     hall->data.UnitAbilities = &bot_hall_abilities;
-    tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE; tower->attack1.range = 0;
+    tower->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE; S_AttackProfileWrite(tower, 0)->range = 0;
 
     T_ASSERT(G_BotIsTowered(caller, target));
 
     /* Authored attack/acquisition ranges are not part of retail IsTowered classification. */
-    tower->attack1.range = 99999; tower->runtime.acquisition_range = 1;
+    S_AttackProfileWrite(tower, 0)->range = 99999; tower->runtime.acquisition_range = 1;
     T_ASSERT(G_BotIsTowered(caller, target));
 
     /* The target owner changes with the tower so the query tests its ownership filter. */
@@ -1838,8 +2170,8 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     tower->s.player = 1;
     target->s.player = 1;
 
-    tower->attack1.type = ATK_NONE;
-    tower->attack2.type = ATK_NONE;
+    S_AttackProfileWrite(tower, 0)->type = ATK_NONE;
+    S_AttackProfileWrite(tower, 1)->type = ATK_NONE;
     tower->data.UnitWeapons = &no_attack;
     target->s.player = 2;
     T_ASSERT(!G_BotIsTowered(caller, target));
@@ -1871,8 +2203,8 @@ TEST(wc3_bot, town_threatened_tracks_active_hostile_attacks_on_any_owned_unit) {
     enemy->stand = friendly->stand = unit_stand;
     unit->data.UnitWeapons = enemy->data.UnitWeapons = friendly->data.UnitWeapons = NULL;
     unit->targtype = building->targtype = TARG_GROUND;
-    enemy->attack1.type = ATK_NORMAL;
-    enemy->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(enemy, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(enemy, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
     enemy->targtype = TARG_GROUND;
     enemy->data.UnitWeapons = &(UnitWeapons_t const){ .attacksEnabled = 1 };
     G_SetPlayerAlliance(&game.clients[1].ps, player, ALLIANCE_PASSIVE, false);
@@ -1952,8 +2284,8 @@ TEST(wc3_bot, individual_flee_policy_moves_damaged_combat_unit_home) {
     unit->health.max_value = 100; unit->health.value = 20;
     unit->svflags |= SVF_MONSTER;
     enemy->svflags |= SVF_MONSTER;
-    unit->attack1.type = ATK_NORMAL;
-    enemy->attack1.type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(enemy, 0)->type = ATK_NORMAL;
     G_SetPlayerAlliance(player, &game.clients[1].ps, ALLIANCE_PASSIVE, false);
     level.bots[2].flags = BOT_UNITS_FLEE;
     level.time = 1000;
@@ -1984,8 +2316,8 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_ASSERT(G_BotAddDefenders(player, 1, defender->class_id));
     G_BotSetCaptainHome(player, 2, 0, 0);
     level.bots[2].flags = BOT_DEFEND_PLAYER;
-    attacker->goalentity = ally_unit;
-    attacker->currentmove = &attack_move;
+    S_SetMoveGoal(attacker, &attacker->goalentity, ally_unit);
+    M_SetMove(attacker,&attack_move);
     level.time = 1000;
 
     G_BotUpdateDefendPlayer(player);
@@ -1993,7 +2325,7 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_NOT_NULL(defender->currentmove);
     T_EQ(defender->currentmove->proc, CAbilityAttack);
 
-    attacker->currentmove = NULL;
+    M_SetMove(attacker,NULL);
     level.time += 600;
     G_BotUpdateDefendPlayer(player);
     T_EQ(level.bots[2].captains[BOT_CAPTAIN_DEFENSE].state, BOT_CAPTAIN_IDLE);
@@ -2001,28 +2333,31 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_EQ(defender->currentmove->proc, CAbilityMove);
 }
 
-/* These tests intentionally do not assume retail's undocumented captain
- * in-flight order/arrival tolerance; they assert independent engine-owned state. */
+/* Engine state controls; the frozen Teleport290 movement matrix separately
+ * checks observed retail placement words and retained physical owners. */
 TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
     player_t *player = &game.clients[2].ps;
     botCaptain_t *attack = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
     botCaptain_t *defense = &level.bots[2].captains[BOT_CAPTAIN_DEFENSE];
     reset_entities();
     memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    ((mapInfo_t *)level.mapinfo)->players[player->start_location].startingPosition=(vec2_t){100,200};
+    G_BotCreateCaptains(player);
     G_BotSetCaptainHome(player, 1, 100.0f, 200.0f);
     G_BotSetCaptainHome(player, 2, 700.0f, 800.0f);
-    G_BotCaptainAttack(player, 400.0f, 500.0f);
+    G_BotCaptainAttack(player, &(vec2_t){400.0f, 500.0f});
     G_BotTeleportCaptain(player, 400.0f, 500.0f);
-    T_ASSERT(attack->position_valid);
-    T_FEQ(attack->position.x, 400.0f, 0.01f);
-    T_FEQ(attack->position.y, 500.0f, 0.01f);
+    T_ASSERT(!attack->position_valid);
+    T_FEQ(attack->home_actor->s.origin2.x, 400.0f, 0.01f);
+    T_FEQ(attack->home_actor->s.origin2.y, 500.0f, 0.01f);
     T_FEQ(attack->goal.x, 400.0f, 0.01f);
     T_FEQ(attack->home.x, 100.0f, 0.01f);
     T_FEQ(defense->home.x, 700.0f, 0.01f);
     T_ASSERT(!defense->position_valid);
     T_ASSERT(G_BotCaptainAtGoal(player));
     G_BotResetCaptainLocs(player);
-    T_FEQ(attack->position.x, 100.0f, 0.01f);
+    T_FEQ(attack->home_actor->s.origin2.x,100,0);
+    T_ASSERT(!attack->position_valid);
     T_ASSERT(G_BotCaptainIsHome(player));
 }
 
@@ -2047,7 +2382,10 @@ TEST(wc3_bot, teleport_captain_affects_arrival_even_with_assigned_units) {
     memset(level.bots + 2, 0, sizeof(level.bots[2]));
     footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
     T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
-    captain->goal = MAKE(vec2_t, 1500.0f, 2000.0f);
+    box2_t bounds={{0,0},{4096,4096}};static uint8_t cells[128*128];
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+    G_BotSetCaptainHome(player,1,64.0f,128.0f);
+    G_BotCaptainAttack(player,&(vec2_t){1500.0f,2000.0f});
     G_BotTeleportCaptain(player, 1500.0f, 2000.0f);
     T_ASSERT(G_BotCaptainAtGoal(player));
     T_ASSERT(!G_BotCaptainIsHome(player));
@@ -2055,6 +2393,7 @@ TEST(wc3_bot, teleport_captain_affects_arrival_even_with_assigned_units) {
     G_BotCaptainGoHome(player);
     T_ASSERT(!captain->position_valid);
     G_BotCreateCaptains(player);
+    setup_test_world();
 }
 
 TEST(wc3_bot, amphibious_route_policy_does_not_change_unit_pathing) {
@@ -2068,63 +2407,197 @@ TEST(wc3_bot, amphibious_route_policy_does_not_change_unit_pathing) {
     level.bots[2].flags |= BOT_AMPHIBIOUS | BOT_DISABLE_PATHING;
     T_EQ(M_UnitStaticPathingFlags(footman), movement_flags);
     T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
-    G_BotCaptainAttack(player, 320.0f, 384.0f);
+    G_BotCaptainAttack(player, &(vec2_t){320.0f, 384.0f});
     T_EQ(M_UnitStaticPathingFlags(footman), movement_flags);
     G_BotCreateCaptains(player);
 }
 
-TEST(wc3_bot, captain_arrival_uses_per_member_reachable_destinations) {
+TEST(wc3_bot, captain_goal_query_uses_move_owned_actor) {
     player_t *player = &game.clients[2].ps;
     botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
-    edict_t *a;
-    reset_entities();
+    reset_entities();setup_test_world();
     memset(level.bots + 2, 0, sizeof(level.bots[2]));
-    a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
-    make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 250.0f, 128.0f, 2, NULL);
-    T_ASSERT(G_BotAddAssault(player, 2, a->class_id));
+    G_BotSetCaptainHome(player, 1, 128, 128);
+    edict_t *unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 128, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 1, unit->class_id));
     level.bots[2].flags = BOT_AMPHIBIOUS | BOT_DISABLE_PATHING;
-    G_BotCaptainAttack(player, 4000.0f, 5000.0f);
-    T_EQ(ARRAY_COUNT(captain->routes), 2u);
+    vec2_t goal={1000,1000};
+    G_BotCaptainAttack(player, &goal);
+    T_NOT_NULL(captain->home_actor);
     T_ASSERT(!G_BotCaptainAtGoal(player));
-    /* Simulate the actual reachable edge issued by the amphibious planner.
-     * The original common captain goal remains across the water. */
-    FOR_LOOP(i, ARRAY_COUNT(captain->routes)) {
-        botCaptainRoute_t *route = captain->routes + i;
-        route->destination = route->unit->s.origin2;
-        route->partial = true;
-    }
+    T_EQ(captain->goal.x,goal.x);T_EQ(captain->goal.y,goal.y);
+    /* Public pose mutation updates the actual retained actor; no separate
+     * per-unit route table can declare a remote objective completed. */
+    S_SetUnitPosition(captain->home_actor,&goal);
     T_ASSERT(G_BotCaptainAtGoal(player));
-    T_FEQ(captain->goal.x, 4000.0f, 0.01f);
-    T_FEQ(captain->goal.y, 5000.0f, 0.01f);
-    captain->state = BOT_CAPTAIN_ACTIVE;
+    T_ASSERT(!G_BotCaptainIsHome(player));
+    T_EQ(unit->s.origin2.x,64);T_EQ(unit->s.origin2.y,128);
     G_BotClearCaptainTargets(player);
-    T_EQ(ARRAY_COUNT(captain->routes), 0u);
-    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE); /* current soldier orders persist */
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
     G_BotCreateCaptains(player);
 }
 
-TEST(wc3_bot, captain_targeting_selects_one_visible_group_objective) {
-    player_t *player = &game.clients[2].ps;
-    player_t *enemy_player = &game.clients[3].ps;
-    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
-    edict_t *a, *b, *enemy_a, *enemy_b;
-    uint32_t rdflags = player->rdflags;
-    reset_entities();
-    memset(level.bots + 2, 0, sizeof(level.bots[2]));
-    a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 128, 2, NULL);
-    b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 640, 128, 2, NULL);
-    enemy_a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 96, 128, 3, NULL);
-    enemy_b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 608, 128, 3, NULL);
-    enemy_a->svflags |= SVF_MONSTER;
-    enemy_b->svflags |= SVF_MONSTER;
-    T_ASSERT(G_BotAddAssault(player, 2, a->class_id));
-    player->rdflags |= RDF_NOFOG; /* isolate target-scoring from fog fixture */
-    G_BotCaptainVsUnits(player, enemy_player);
-    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-    T_FEQ(captain->goal.x, enemy_a->s.origin2.x, 0.01f);
-    T_ASSERT(a->goalentity == enemy_a && b->goalentity == enemy_a);
-    player->rdflags = rdflags;
-    G_BotCreateCaptains(player);
+/* Retail369 replaces the former immediate nearest-member heuristic: query
+ * order is reverse class birth, while distance is from the Captain actor. */
+TEST(wc3_bot, captain_targeting_selects_one_deferred_group_objective) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    static uint8_t cells[64*64];memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.timer_clock_valid=false;
+    FOR_LOOP(p,4) {
+        ((mapInfo_t *)level.mapinfo)->players[p].used=true;
+        ((mapInfo_t *)level.mapinfo)->players[p].playerType=kPlayerTypeHuman;
+        game.clients[p].mapplayer=level.mapinfo->players+p;
+    }
+    player_t *player=&game.clients[2].ps,*enemy_player=&game.clients[3].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,128,128);
+    edict_t *a=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,256},0);
+    edict_t *b=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){640,256},0);
+    edict_t *enemy_a=unit_create(3,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,128},0);
+    edict_t *enemy_b=unit_create(3,MAKEFOURCC('h','f','o','o'),&(vec2_t){896,128},0);
+    S_SetUnitPaused(enemy_a,true);S_SetUnitPaused(enemy_b,true);
+    T_ASSERT(G_BotAddAssault(player,2,a->class_id));
+    botCaptain_t *captain=level.bots[2].captains;
+    vec2_t retained={128,1024};G_BotCaptainAttack(player,&retained);
+    G_BotCaptainVsPlayer(player,enemy_player);
+    T_EQ(captain->goal.x,retained.x);T_EQ(captain->goal.y,retained.y);
+    T_NULL(captain->target.unit);T_ASSERT(captain->selection.request.active);
+    T_EQ(ARRAY_COUNT(captain->selection.pending),2);
+    T_EQ(captain->selection.pending[0].unit,enemy_b);
+    T_EQ(captain->selection.pending[1].unit,enemy_a);
+    level.pathing_clock.time=wc3_float(0x3dcccccd);
+    CAbilityCaptainSelection(NULL,A_PRIMARY_TIMER,NULL);
+    T_EQ(ARRAY_COUNT(captain->selection.pending),1);T_NULL(captain->target.unit);
+    T_EQ(captain->goal.x,retained.x);T_ASSERT(captain->selection.request.active);
+    level.pathing_clock.time=wc3_add(level.pathing_clock.time,wc3_float(0x3dcccccd));
+    CAbilityCaptainSelection(NULL,A_PRIMARY_TIMER,NULL);
+    T_EQ(captain->target.unit,enemy_a);T_EQ(captain->state,BOT_CAPTAIN_TARGETED);
+    T_EQ(captain->goal.x,enemy_a->s.origin2.x);T_EQ(captain->goal.y,enemy_a->s.origin2.y);
+    T_ASSERT(!captain->selection.request.active);
+    T_ASSERT(a->attack_target!=enemy_a);T_ASSERT(b->attack_target!=enemy_a);
+    G_BotStop(2);reset_entities();setup_test_world();
+}
+
+
+/* Public bare-town producer observed in Captain291: Create uses the player's
+ * assigned start-location slot. Reset restores that default, independently of
+ * subsequent authored homes, and relocates actual actors. */
+TEST(wc3_bot, captain291_default_start_and_reset_move_both_actors) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    static uint8_t cells[256*256];
+    box2_t bounds={{-3072,-3072},{5120,5120}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(256,256,cells);
+    level.pathing_clock=(wc3Clock_t){.time=10,.span=300};
+    gameClient_t *client=G_GetPlayerClientByNumber(0);
+    uint32_t old_start=client->ps.start_location;
+    mapInfo_t *map=(mapInfo_t *)level.mapinfo;
+    vec2_t old_position=map->players[2].startingPosition;
+    client->ps.start_location=2;
+    map->players[2].startingPosition=(vec2_t){-2192,-144};
+    edict_t *units[3];
+    FOR_LOOP(i,3) units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){-2064.0f+80.0f*i,-144},0);
+    G_BotCreateCaptains(&client->ps);
+    botCaptain_t *attack=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    botCaptain_t *defense=level.bots[0].captains+BOT_CAPTAIN_DEFENSE;
+    T_NOT_NULL(attack->home_actor);T_NOT_NULL(defense->home_actor);
+    T_FEQ(attack->home.x,-2192,0);T_FEQ(attack->home.y,-144,0);
+    T_FEQ(defense->home.x,-2192,0);T_FEQ(defense->home.y,-144,0);
+    if (attack->home_actor && defense->home_actor) {
+        T_NE(attack->home_actor,defense->home_actor);
+        T_ASSERT(G_BotAddAssault(&client->ps,3,MAKEFOURCC('h','f','o','o')));
+        G_BotSetCaptainHome(&client->ps,3,-1936,-560);
+        G_BotCaptainAttack(&client->ps,&(vec2_t){-1936,-1424});
+        vec2_t poses[3];FOR_LOOP(i,3)poses[i]=units[i]->s.origin2;
+        vec2_t request=attack->goal;
+        G_BotResetCaptainLocs(&client->ps);
+        T_FEQ(attack->home.x,-2192,0);T_FEQ(attack->home.y,-144,0);
+        T_FEQ(defense->home.x,-2192,0);T_FEQ(defense->home.y,-144,0);
+        T_FEQ(attack->home_actor->s.origin2.x,-2192,0);
+        T_FEQ(attack->home_actor->s.origin2.y,-144,0);
+        T_FEQ(defense->home_actor->s.origin2.x,-2192,0);
+        /* The attack actor occupies the exact point; defense undergoes its
+         * own ordinary admission, as observed in the retail two-actor trace. */
+        T_ASSERT(S_CaptainNearHome(defense));
+        T_ASSERT(defense->home_actor->s.origin2.y!=-560);
+        T_FEQ(attack->goal.x,request.x,0);T_FEQ(attack->goal.y,request.y,0);
+        T_ASSERT(!attack->position_valid && !defense->position_valid);
+        FOR_LOOP(i,3) {
+            T_FEQ(units[i]->s.origin2.x,poses[i].x,0);
+            T_FEQ(units[i]->s.origin2.y,poses[i].y,0);
+            T_EQ(units[i]->movement.captain_home.roster_actor,attack->home_actor);
+        }
+    }
+    client->ps.start_location=old_start;map->players[2].startingPosition=old_position;
+    G_BotShutdown();reset_entities();setup_test_world();
+}
+
+/* Separate clock domains must also retain Captain event ownership over a
+ * span boundary, cold restore, and actor-slot replacement. */
+TEST(wc3_bot, shared315_captain_timer_wrap_restore_and_retirement) {
+    G_BotShutdown();reset_entities();setup_test_world();G_FowShutdown();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.pathing_clock=(wc3Clock_t){.time=299.5f,.span=300};level.timer_clock_valid=false;
+    player_t *player=&game.clients[0].ps;G_BotCreateCaptains(player);
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    T_NOT_NULL(captain->home_actor);if(!captain->home_actor)goto done;
+    uint32_t sequence=captain->home_actor->movement.captain_home.sequence;
+    T_ASSERT(sequence!=0);T_FEQ(captain->update_due.time,0.5f,0);T_EQ(captain->update_due.epoch,1u);
+    cstring_t file=Test_TempPath("shared315-captain-span.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    T_EQ(captain->home_actor->movement.captain_home.sequence,sequence);
+    level.pathing_clock.time=wc3_float(0x4395ffff);level.scheduled_frame=true;G_RunTimers();
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY));
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    T_EQ(level.pathing_clock.epoch,1u);
+    level.pathing_clock.time=0.49f;G_RunTimers();
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY));
+    level.pathing_clock.time=0.5f;G_RunTimers();
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY);
+    T_FEQ(captain->update_due.time,1.5f,0);T_EQ(captain->update_due.epoch,1u);
+    T_EQ(captain->home_actor->movement.captain_home.sequence,sequence);
+    /* Recreated actors must cancel old registrations even if slots repeat. */
+    level.scheduled_frame=false;level.pathing_clock.time=0.75f;level.timer_clock_valid=false;
+    G_BotCreateCaptains(player);captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    T_NE(captain->home_actor->movement.captain_home.sequence,sequence);
+    level.scheduled_frame=true;level.pathing_clock.time=1.5f;G_RunTimers();
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY));
+    level.pathing_clock.time=1.75f;G_RunTimers();
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY);
+done:
+    level.scheduled_frame=false;G_BotShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, shared315_captain_timer_rejects_invalid_saved_registration) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){.time=5,.span=300};level.timer_clock_valid=false;
+    G_BotCreateCaptains(&game.clients[0].ps);
+    botCaptain_t *captains=level.bots[0].captains;
+    edict_t *actor=captains[BOT_CAPTAIN_ATTACK].home_actor,*peer=captains[BOT_CAPTAIN_DEFENSE].home_actor;
+    T_NOT_NULL(actor);T_NOT_NULL(peer);
+    if(actor && peer) {
+        uint32_t saved=actor->movement.captain_home.sequence;
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=0;T_ASSERT(!S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=level.timer_sequence+1;T_ASSERT(!S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=peer->movement.captain_home.sequence;T_ASSERT(!S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=saved;T_ASSERT(S_ValidateCaptainHomeActors(false));
+    }
+    G_BotShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, shared315_initial_captain_command_and_near_home_return) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){.time=5,.span=300};level.timer_clock_valid=false;
+    player_t *player=&game.clients[0].ps;G_BotCreateCaptains(player);
+    FOR_LOOP(i,BOT_CAPTAIN_COUNT)T_EQ(level.bots[0].captains[i].point_order,851988u);
+    G_BotCaptainGoHome(player);
+    T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].point_order,851988u);
+    cstring_t file=Test_TempPath("shared315-initial-command.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    FOR_LOOP(i,BOT_CAPTAIN_COUNT)T_EQ(level.bots[0].captains[i].point_order,851988u);
+    G_BotShutdown();reset_entities();setup_test_world();
 }
 
 #endif /* BZ_TESTS */

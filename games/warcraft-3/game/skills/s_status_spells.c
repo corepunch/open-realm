@@ -46,17 +46,17 @@ BZ_VALIDATED_SPELL_PROC(AbilityCripple, cripple_validate, status_execute)
 
 /* DataA = movement speed reduction fraction; DataB = attack rate reduction; DataC = damage reduction. */
 float S_CrippleMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
+    uint32_t level = G_QueryUnitStatusClassLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 1) : 0.0f;
 }
 
 float S_CrippleAttackReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 2) : 0.0f;
 }
 
 float S_CrippleDamageReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
+    uint32_t level = G_UnitStatusClassLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 3) : 0.0f;
 }
 
@@ -69,7 +69,16 @@ float S_CrippleDamageReduction(edict_t const *unit) {
 
 /* BNsi (Silence) and BNso (Soul Burn) both reject spell casts with "Silenced." */
 bool S_UnitIsSilenced(edict_t const *unit) {
-    return unit_hasstatusstate(unit, WC3_STATUS_STATE_SILENCED);
+    if (!unit) return false;
+    if (unit->abilstatus) {
+        unitStatusStorage_t const *state = (unitStatusStorage_t const *)unit->abilstatus;
+        if (state->spell_prevention && state->spell_prevention <= INT32_MAX) return true;
+    }
+    /* Retain unowned legacy Silence slots. Authored prevention owners use the
+     * captured mask, so a Silence with mask0 does not acquire a spell lock. */
+    heroabilitystatus_t *silence = unit_findstatusclass((edict_t *)unit, BZ_SILENCE_BUFF);
+    return (silence && !silence->data && S_UnitHasStatus(unit, BZ_SILENCE_BUFF)) ||
+        S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF);
 }
 
 static bool soul_burn_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -81,12 +90,12 @@ BZ_VALIDATED_SPELL_PROC(AbilitySoulBurn, soul_burn_validate, status_execute)
 
 /* DataA = damage per second; DataC = attack damage reduction fraction. */
 float S_SoulBurnDamageRate(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, BZ_SOUL_BURN_BUFF);
+    uint32_t level = G_UnitStatusClassLevel(unit, BZ_SOUL_BURN_BUFF);
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 1) : 0.0f;
 }
 
 float S_SoulBurnDamageReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, BZ_SOUL_BURN_BUFF);
+    uint32_t level = G_UnitStatusClassLevel(unit, BZ_SOUL_BURN_BUFF);
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 3) : 0.0f;
 }
 
@@ -163,7 +172,7 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
         if (seen[i] == code) return;
     buffs = poison_buffs(code);
     if (!buffs) return;
-    level = MAX(1, G_UnitAbilityLevel(attacker, code));
+    level = MAX(1, G_UnitAbilityClassLevel(attacker, code));
     seen[(*count)++] = code;
     for (uint32_t buff_index = 0;; buff_index++) {
         cstring_t buff = S_SpellBuffToken(buffs, buff_index);
@@ -172,7 +181,7 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
 
         if (!buff) break;
         if (buff_index == 0) {
-            slot = unit_findstatus(target, FS_SLKKey(buff));
+            slot = unit_findstatusclass(target, FS_SLKKey(buff));
             if (slot && slot->data == code && slot->source == attacker &&
                 slot->source_spawn_time == attacker->spawn_time) next_tick = slot->next_tick;
         }
@@ -207,7 +216,7 @@ void S_PoisonOnHit(edict_t *attacker, edict_t *target) {
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
     FOR_LOOP(o, sizeof(poison_codes) / sizeof(poison_codes[0]))
-        if (G_UnitAbilityLevel(attacker, poison_codes[o])) poison_apply(attacker, target, poison_codes[o], seen, &count);
+        if (G_UnitAbilityClassLevel(attacker, poison_codes[o])) poison_apply(attacker, target, poison_codes[o], seen, &count);
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t *item = attacker->inventory[i];

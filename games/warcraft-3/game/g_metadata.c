@@ -1,6 +1,7 @@
 #include "g_local.h"
 #include "common/stb_slk.h"
 #include "g_unitrow.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 cstring_t config_files[] = {
     "UI\\WorldEditGameStrings.txt",
@@ -223,14 +224,15 @@ static slkField_t const balance_schema[] = {
     { "AGIplus",          offsetof(UnitBalance_t, agilityPerLevel), STB_SLK_FLOAT },
     { "Primary",          offsetof(UnitBalance_t, primaryAttribute),STB_SLK_STR   },
     { "upgrades",         offsetof(UnitBalance_t, upgrades),        STB_SLK_STR   },
-    { "collision",        offsetof(UnitBalance_t, collision),       STB_SLK_FLOAT }, /* TFT */
+    { "collision",        offsetof(UnitBalance_t, collision), STB_SLK_FLOAT,
+      .presence_offset = offsetof(UnitBalance_t, has_collision) }, /* TFT */
     { "isbldg",           offsetof(UnitBalance_t, isBuilding),      STB_SLK_BOOL  }, /* TFT */
     { "nbrandom",         offsetof(UnitBalance_t, nbrandom),        STB_SLK_INT   }, /* TFT */
     { "preventPlace",     offsetof(UnitBalance_t, preventPlace),    STB_SLK_STR   }, /* TFT */
     { "reptm",            offsetof(UnitBalance_t, reptm),           STB_SLK_INT   }, /* TFT */
     { "repulse",          offsetof(UnitBalance_t, repulse),         STB_SLK_INT   }, /* TFT */
     { "repulseGroup",     offsetof(UnitBalance_t, repulseGroup),    STB_SLK_INT   }, /* TFT */
-    { "repulseParam",     offsetof(UnitBalance_t, repulseParam),    STB_SLK_FLOAT }, /* TFT */
+    { "repulseParam",     offsetof(UnitBalance_t, repulseParam),    STB_SLK_INT   }, /* TFT */
     { "repulsePrio",      offsetof(UnitBalance_t, repulsePrio),     STB_SLK_INT   }, /* TFT */
     { "requirePlace",     offsetof(UnitBalance_t, requirePlace),    STB_SLK_STR   }, /* TFT */
     { "tilesets",         offsetof(UnitBalance_t, tilesets),        STB_SLK_STR   }, /* TFT */
@@ -450,6 +452,7 @@ static slkField_t const ability_meta_schema[] = {
 
 #define AB_F(NAME, FIELD, LEVEL, TYPE) { NAME, offsetof(AbilityData_t, level[LEVEL].FIELD), TYPE }
 #define AB_D(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].number), STB_SLK_FLOAT }
+#define AB_TEXT(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].text), STB_SLK_STR }
 #define AB_ID(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].id), STB_SLK_FOURCC }
 #define AB_F_LEVELS(NAME, FIELD, TYPE) \
     AB_F(NAME "1", FIELD, 0, TYPE), AB_F(NAME "2", FIELD, 1, TYPE), \
@@ -457,6 +460,9 @@ static slkField_t const ability_meta_schema[] = {
 #define AB_D_LEVELS(NAME, SLOT) \
     AB_D(NAME "1", 0, SLOT), AB_D(NAME "2", 1, SLOT), \
     AB_D(NAME "3", 2, SLOT), AB_D(NAME "4", 3, SLOT)
+#define AB_TEXT_LEVELS(NAME, SLOT) \
+    AB_TEXT(NAME "1", 0, SLOT), AB_TEXT(NAME "2", 1, SLOT), \
+    AB_TEXT(NAME "3", 2, SLOT), AB_TEXT(NAME "4", 3, SLOT)
 #define AB_ID_LEVELS(NAME, SLOT) \
     AB_ID(NAME "1", 0, SLOT), AB_ID(NAME "2", 1, SLOT), \
     AB_ID(NAME "3", 2, SLOT), AB_ID(NAME "4", 3, SLOT)
@@ -507,6 +513,11 @@ static slkField_t const ability_schema[] = {
     AB_ID_LEVELS("DataA", 0), AB_ID_LEVELS("DataB", 1), AB_ID_LEVELS("DataC", 2),
     AB_ID_LEVELS("DataD", 3), AB_ID_LEVELS("DataE", 4), AB_ID_LEVELS("DataF", 5),
     AB_ID_LEVELS("DataG", 6), AB_ID_LEVELS("DataH", 7), AB_ID_LEVELS("DataI", 8),
+    /* Data fields can contain order names as well as numbers/object IDs. */
+    BZ_AB_ROW("Data1", 0, AB_TEXT), BZ_AB_ROW("Data2", 1, AB_TEXT), BZ_AB_ROW("Data3", 2, AB_TEXT),
+    AB_TEXT_LEVELS("DataA", 0), AB_TEXT_LEVELS("DataB", 1), AB_TEXT_LEVELS("DataC", 2),
+    AB_TEXT_LEVELS("DataD", 3), AB_TEXT_LEVELS("DataE", 4), AB_TEXT_LEVELS("DataF", 5),
+    AB_TEXT_LEVELS("DataG", 6), AB_TEXT_LEVELS("DataH", 7), AB_TEXT_LEVELS("DataI", 8),
     AB_F_LEVELS("UnitID", unitID, STB_SLK_FOURCC),
     AB_F_LEVELS("BuffID", buffID, STB_SLK_STR),
     AB_F_LEVELS("EfctID", efctID, STB_SLK_STR),
@@ -520,6 +531,8 @@ static slkField_t const ability_schema[] = {
     { "InBeta",       offsetof(AbilityData_t, InBeta),       STB_SLK_BOOL }, /* TFT */
     { NULL, 0, 0 }
 };
+#undef AB_TEXT
+#undef AB_TEXT_LEVELS
 #undef AB_ID
 #undef AB_D
 #undef AB_F
@@ -606,7 +619,7 @@ static slkField_t const doodad_schema[] = {
 
 static slkField_t const water_schema[] = {
     { "",       offsetof(WaterData_t, id),     STB_SLK_FOURCC },
-    { "height", offsetof(WaterData_t, height), STB_SLK_FLOAT  },
+    { "height", offsetof(WaterData_t, height), STB_SLK_STR    },
     { NULL, 0, 0 },
 };
 
@@ -757,7 +770,7 @@ static slkField_t const dest_schema[] = {
     { "useClickHelper",   offsetof(DestructableData_t, useClickHelper),   STB_SLK_BOOL  },
     { "showInMM",         offsetof(DestructableData_t, showInMM),         STB_SLK_BOOL  },
     { "useMMColor",       offsetof(DestructableData_t, useMMColor),       STB_SLK_BOOL  },
-    { "fixedRot",         offsetof(DestructableData_t, fixedRot),         STB_SLK_BOOL  },
+    { "fixedRot",         offsetof(DestructableData_t, fixedRot),         STB_SLK_FLOAT, NULL, "-1" },
     { "selectable",       offsetof(DestructableData_t, selectable),       STB_SLK_BOOL  }, /* TFT */
     { "MMRed",            offsetof(DestructableData_t, MMRed),            STB_SLK_INT   },
     { "MMGreen",          offsetof(DestructableData_t, MMGreen),          STB_SLK_INT   },
@@ -810,6 +823,60 @@ static slkField_t const upgrade_schema[] = {
 
 
 static uint32_t ParseWeaponTargetMask(cstring_t text) {
+    /* Original ce61b8..ce6348 target-token table, before default expansion. */
+    static struct {cstring_t name;uint32_t bits;} const tokens[]={
+        {"air",0x4u},
+        {"aliv",0x1000000u},
+        {"alive",0x1000000u},
+        {"alli",0x4000u},
+        {"allies",0x4000u},
+        {"ally",0x4000u},
+        {"ancient",0x80000000u},
+        {"bridge",0x400u},
+        {"dead",0x2000000u},
+        {"deco",0x200u},
+        {"decoration",0x200u},
+        {"debr",0x100u},
+        {"debris",0x100u},
+        {"enem",0x10000u},
+        {"enemies",0x10000u},
+        {"enemy",0x10000u},
+        {"grou",0x2u},
+        {"ground",0x2u},
+        {"frie",0x6000u},
+        {"friend",0x6000u},
+        {"hero",0x400000u},
+        {"invu",0x200000u},
+        {"invulnerable",0x200000u},
+        {"item",0x20u},
+        {"mech",0x8000000u},
+        {"mechanical",0x8000000u},
+        {"neut",0x8000u},
+        {"neutral",0x8000u},
+        {"none",0x1u},
+        {"nonancient",0x40000000u},
+        {"nonh",0x800000u},
+        {"nonhero",0x800000u},
+        {"nonsapper",0x10000000u},
+        {"nots",0x1e000u},
+        {"notself",0x1e000u},
+        {"orga",0x4000000u},
+        {"organic",0x4000000u},
+        {"play",0x2000u},
+        {"player",0x2000u},
+        {"sapper",0x20000000u},
+        {"self",0x1000u},
+        {"stru",0x8u},
+        {"structure",0x8u},
+        {"tote",0x10u},
+        {"totem",0x10u},
+        {"tree",0x40u},
+        {"vuln",0x100000u},
+        {"vulnerable",0x100000u},
+        {"wall",0x80u},
+        {"ward",0x10u},
+        {"_",0xfdd1f00eu},
+    };
     uint32_t mask = 0;
     cstring_t p = text;
     char *end = NULL;
@@ -828,22 +895,20 @@ static uint32_t ParseWeaponTargetMask(cstring_t text) {
         while (*p && *p != ',' && len + 1 < sizeof(token)) token[len++] = *p++;
         while (len && (token[len - 1] == ' ' || token[len - 1] == '\t')) len--;
         token[len] = '\0';
-        if (!strcasecmp(token, "none"))            mask |= WC3_TARGET_FLAG_NONE;
-        else if (!strcasecmp(token, "ground"))     mask |= WC3_TARGET_FLAG_GROUND;
-        else if (!strcasecmp(token, "air"))        mask |= WC3_TARGET_FLAG_AIR;
-        else if (!strcasecmp(token, "structure"))  mask |= WC3_TARGET_FLAG_STRUCTURE;
-        else if (!strcasecmp(token, "ward"))       mask |= WC3_TARGET_FLAG_WARD;
-        else if (!strcasecmp(token, "item"))       mask |= WC3_TARGET_FLAG_ITEM;
-        else if (!strcasecmp(token, "tree"))       mask |= WC3_TARGET_FLAG_TREE;
-        else if (!strcasecmp(token, "wall"))       mask |= WC3_TARGET_FLAG_WALL;
-        else if (!strcasecmp(token, "debris"))     mask |= WC3_TARGET_FLAG_DEBRIS;
-        else if (!strcasecmp(token, "decoration")) mask |= WC3_TARGET_FLAG_DECORATION;
-        else if (!strcasecmp(token, "bridge"))     mask |= WC3_TARGET_FLAG_BRIDGE;
+        FOR_LOOP(i,sizeof(tokens)/sizeof(tokens[0])) {
+            if (!strcasecmp(token,tokens[i].name)) {
+                mask|=tokens[i].bits;
+                break;
+            }
+        }
         while (*p && *p != ',') p++;
         if (*p == ',') p++;
     }
     return mask;
 }
+
+/* Raw parsing is shared by targeted-as and requested masks. */
+uint32_t G_ParseTargetMask(cstring_t text) { return ParseWeaponTargetMask(text); }
 
 static void NormalizeWeaponTargetMasks(UnitWeapons_t *rows, uint32_t count) {
     if (!rows) return;
@@ -887,6 +952,11 @@ typedef struct {
 
 typedef struct {
     uint32_t id;
+    UnitWeapons_t row;
+} mapUnitWeaponsOverride_t;
+
+typedef struct {
+    uint32_t id;
     UnitProfile_t row;
 } mapUnitProfileOverride_t;
 
@@ -924,19 +994,23 @@ typedef struct {
     uint32_t id, num_levels;
     AbilityData_t row;
     abilityLevel_t *extra_levels;
+    cstring_t requires, requires_amount;
     bool has_unit_id_override;
 } mapAbilityOverride_t;
 
+
+static mapUnitDataOverride_t *map_unit_data_overrides;
+static uint32_t map_unit_data_override_count;
 static mapUnitBalanceOverride_t *map_unit_balance_overrides;
 static uint32_t map_unit_balance_override_count;
+static mapUnitWeaponsOverride_t *map_unit_weapons_overrides;
+static uint32_t map_unit_weapons_override_count;
 static mapUnitProfileOverride_t *map_unit_profile_overrides;
 static uint32_t map_unit_profile_override_count;
 static mapUnitUIOverride_t *map_unit_ui_overrides;
 static uint32_t map_unit_ui_override_count;
 static mapUnitAbilitiesOverride_t *map_unit_abilities_overrides;
 static uint32_t map_unit_abilities_override_count;
-static mapUnitDataOverride_t *map_unit_data_overrides;
-static uint32_t map_unit_data_override_count;
 static mapItemDataOverride_t *map_item_data_overrides;
 static uint32_t map_item_data_override_count;
 static mapDestructableDataOverride_t *map_destructable_data_overrides;
@@ -946,6 +1020,128 @@ static uint32_t map_doodad_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static uint32_t map_ability_override_count;
 static uint32_t ability_data_generation;
+static uint32_t unit_data_generation;
+uint32_t G_UnitDataGeneration(void) { return unit_data_generation; }
+
+typedef struct unitAbilityCodes_s {
+    UnitAbilities_t const *row;
+    cstring_t list;
+    uint32_t generation, ability_generation, count, token_count;
+    uint64_t membership;
+    uint32_t *codes;
+    unitAbilityToken_t *tokens;
+    struct unitAbilityCodes_s *next;
+} unitAbilityCodes_t;
+static unitAbilityCodes_t *unit_ability_codes[512];
+
+#ifdef BZ_TESTS
+static uint32_t compiled_ability_queries;
+static uint32_t authored_membership_visits;
+void G_TestRecordAuthoredMembershipVisit(void) { authored_membership_visits++; }
+uint32_t G_TestAuthoredMembershipVisits(bool reset) {
+    uint32_t count = authored_membership_visits;
+    if (reset) authored_membership_visits = 0;
+    return count;
+}
+uint32_t G_TestCompiledAbilityQueries(bool reset) {
+    uint32_t count = compiled_ability_queries;
+    if (reset) compiled_ability_queries = 0;
+    return count;
+}
+#endif
+
+void G_ResetUnitAbilityCodes(void) {
+    FOR_LOOP(i, sizeof(unit_ability_codes) / sizeof(*unit_ability_codes)) {
+        unitAbilityCodes_t *entry = unit_ability_codes[i];
+        while (entry) {
+            unitAbilityCodes_t *next = entry->next;
+            free(entry->codes);
+            free(entry->tokens);
+            free(entry);
+            entry = next;
+        }
+    }
+    memset(unit_ability_codes, 0, sizeof(unit_ability_codes));
+}
+
+static unitAbilityCodes_t *G_CompiledUnitAbilities(UnitAbilities_t const *row) {
+#ifdef BZ_TESTS
+    compiled_ability_queries++;
+#endif
+    if (!row || !row->abilList) return NULL;
+    uintptr_t hash = (uintptr_t)row >> 4;
+    hash ^= hash >> 16;
+    uint32_t slot = hash % 512;
+    unitAbilityCodes_t *cached;
+    for (cached = unit_ability_codes[slot]; cached; cached = cached->next)
+        if (cached->row == row && cached->list == row->abilList && cached->generation == unit_data_generation && cached->ability_generation == ability_data_generation) break;
+    if (!cached) {
+        size_t capacity = 1;
+        for (cstring_t p = row->abilList; *p; p++) if (*p == ',') capacity++;
+        if (capacity > UINT32_MAX || capacity > SIZE_MAX / sizeof(unitAbilityToken_t)) {
+            gi.error("Unit ability list capacity overflow");
+            abort();
+        }
+        cached = malloc(sizeof(*cached));
+        if (!cached) { gi.error("Unit ability descriptor allocation failed"); abort(); }
+        *cached = (unitAbilityCodes_t){ .row = row, .list = row->abilList, .generation = unit_data_generation, .ability_generation = ability_data_generation,
+            .codes = malloc(capacity * sizeof(uint32_t)),
+            .tokens = malloc(capacity * sizeof(unitAbilityToken_t)), .next = unit_ability_codes[slot] };
+        if (!cached->codes || !cached->tokens) { gi.error("Unit ability list allocation failed"); abort(); }
+        char token[PARSER_MAX_SEGMENT];
+        wordExtractor_t parser = { .buffer = row->abilList, .delimiters = "" };
+        while (parse_segment_into(&parser, token)) {
+#ifdef BZ_TESTS
+            G_TestRecordStaticAbilityToken();
+#endif
+            unitAbilityToken_t decoded = { .code = FS_SLKKey(token), .length = strlen(token) };
+            decoded.base = G_AbilityCode(decoded.code);
+            cached->tokens[cached->token_count++] = decoded;
+            if (decoded.length == 4) {
+                cached->codes[cached->count++] = decoded.code;
+                cached->membership |= G_AbilityMembershipBit(decoded.code);
+            }
+        }
+        unit_ability_codes[slot] = cached;
+    }
+    return cached;
+}
+
+uint32_t const *G_UnitAbilityCodes(UnitAbilities_t const *row, uint32_t *count) {
+    unitAbilityCodes_t *cached = G_CompiledUnitAbilities(row);
+    *count = cached ? cached->count : 0;
+    return cached ? cached->codes : NULL;
+}
+
+/* Pure query scopes borrow the ordered array and its rejection filter together,
+ * avoiding a metadata lookup or linear negative scan for each ability family. */
+uint32_t const *G_UnitAbilityCodeSet(UnitAbilities_t const *row, uint32_t *count, uint64_t *membership) {
+    unitAbilityCodes_t const *cached = G_CompiledUnitAbilities(row);
+    *count = cached ? cached->count : 0;
+    *membership = cached ? cached->membership : 0;
+    return cached ? cached->codes : NULL;
+}
+
+/* A constant-size rejection filter accelerates the frequent negative query.
+ * A set bit still requires exact rawcode equality; collisions never grant an
+ * ability. The ordered arrays remain authoritative for callback enumeration. */
+bool G_UnitHasAuthoredAbility(UnitAbilities_t const *row, uint32_t code) {
+    unitAbilityCodes_t const *cached = G_CompiledUnitAbilities(row);
+    if (!cached || !(cached->membership & G_AbilityMembershipBit(code))) return false;
+    FOR_LOOP(i, cached->count) {
+#ifdef BZ_TESTS
+        G_TestRecordAuthoredMembershipVisit();
+#endif
+        if (cached->codes[i] == code) return true;
+    }
+    return false;
+}
+
+unitAbilityToken_t const *G_UnitAbilityTokens(UnitAbilities_t const *row, uint32_t *count) {
+    unitAbilityCodes_t *cached = G_CompiledUnitAbilities(row);
+    *count = cached ? cached->token_count : 0;
+    return cached ? cached->tokens : NULL;
+}
 
 typedef struct {
     cstring_t name, path;
@@ -998,6 +1194,8 @@ bool G_SLKStoreOptional(cstring_t name) {
     return false;
 }
 
+static void reset_sound_catalog_indexes(void);
+
 slkTestData_t *G_SetSLKRows(cstring_t slk, slkTestData_t *data) {
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
@@ -1005,10 +1203,14 @@ slkTestData_t *G_SetSLKRows(cstring_t slk, slkTestData_t *data) {
             slkTestData_t *old = calloc(1, sizeof(*old));
             if (!old) return NULL;
             old->rows = *store->rows; old->count = *store->count;
-            if (!data->rows) {
+            /* Restoring an absent fixture table is an empty replacement,
+             * not a request to parse NULL and retain the previous stack rows. */
+            if (!data->rows && data->text) {
                 data->count = Stb_SlkLoadBuffer(data->text, store->schema, &data->rows, store->row_size);
                 if (!data->count) { free(old); return NULL; }
             }
+            reset_sound_catalog_indexes();
+            unit_data_generation++;
             FS_SLKFreeIndex(store->idx);
             *store->rows = data->rows; *store->count = data->count;
             if (!strcmp(store->name, "UnitWeapons"))
@@ -1037,6 +1239,7 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
         data->count = Stb_SlkLoadBuffer(data->text, profile_schema, &data->rows, sizeof(*g_UnitProfile));
         if (!data->count) { free(old); return NULL; }
     }
+    unit_data_generation++;
     FS_SLKFreeIndex(&profile_idx);
     g_UnitProfile = data->rows; g_UnitProfileCount = data->count;
     FS_SLKBuildIndex(&profile_idx, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
@@ -1046,7 +1249,10 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
 #endif
 
 #define M(id,table,member,kind) \
-    { id, offsetof(edict_t, data.table), offsetof(table##_t, member), kind }
+    { id, offsetof(edict_t, data.table), offsetof(table##_t, member), kind, UNIT_META_SCALAR }
+#define MT(id,member) \
+    { id, offsetof(edict_t, data.UnitWeapons), offsetof(UnitWeapons_t, member), \
+        BZ_FIELD_U32, UNIT_META_WEAPON_TARGETS }
 
 unitMeta_t const UnitsMetaData[] = {
     M("iabi",ItemData,abilList,BZ_FIELD_CSTR),
@@ -1204,7 +1410,7 @@ unitMeta_t const UnitsMetaData[] = {
     M("urtm",UnitBalance,reptm,BZ_FIELD_U32),
     M("urpo",UnitBalance,repulse,BZ_FIELD_U32),
     M("urpg",UnitBalance,repulseGroup,BZ_FIELD_U32),
-    M("urpp",UnitBalance,repulseParam,BZ_FIELD_FLOAT),
+    M("urpp",UnitBalance,repulseParam,BZ_FIELD_U32),
     M("urpr",UnitBalance,repulsePrio,BZ_FIELD_U32),
     M("upar",UnitBalance,requirePlace,BZ_FIELD_CSTR),
     M("usid",UnitBalance,sightRadius,BZ_FIELD_FLOAT),
@@ -1336,8 +1542,8 @@ unitMeta_t const UnitsMetaData[] = {
     M("ua2p",UnitWeapons,attack2.areaTargets,BZ_FIELD_U32),
     M("utc1",UnitWeapons,attack1.maxTargets,BZ_FIELD_U32),
     M("utc2",UnitWeapons,attack2.maxTargets,BZ_FIELD_U32),
-    M("ua1g",UnitWeapons,attack1.targetsAllowed,BZ_FIELD_U32),
-    M("ua2g",UnitWeapons,attack2.targetsAllowed,BZ_FIELD_U32),
+    MT("ua1g",attack1.targetsAllowed),
+    MT("ua2g",attack2.targetsAllowed),
     M("uaen",UnitWeapons,attacksEnabled,BZ_FIELD_U32),
     M("ua1w",UnitWeapons,attack1.weaponType,BZ_FIELD_CSTR),
     M("ua2w",UnitWeapons,attack2.weaponType,BZ_FIELD_CSTR),
@@ -1347,6 +1553,7 @@ unitMeta_t const UnitsMetaData[] = {
 };
 
 #undef M
+#undef MT
 
 /* =========================================================================
  * Map-local object typed-row overrides.
@@ -1354,13 +1561,29 @@ unitMeta_t const UnitsMetaData[] = {
  * war3map.w3u/w3t records are owned by CM/mapInfo for the lifetime of a map.
  * A spawned edict keeps immutable typed-row pointers, so overrides must live
  * in stable per-map rows rather than a shared scratch object. UnitBalance,
- * UnitProfile, UnitUI, UnitAbilities, and ItemData have per-map merges; other
- * typed unit tables still resolve custom IDs to their base row.
+ * UnitData, UnitWeapons, UnitProfile, UnitUI, UnitAbilities and ItemData have per-map merges;
+ * other typed unit tables resolve custom IDs to their base row.
  * =========================================================================*/
+static UnitData_t const *FindMapUnitDataOverride(uint32_t id) {
+    FOR_LOOP(i, map_unit_data_override_count) {
+        if (map_unit_data_overrides[i].id == id)
+            return &map_unit_data_overrides[i].row;
+    }
+    return NULL;
+}
+
 static UnitBalance_t const *FindMapUnitBalanceOverride(uint32_t id) {
     FOR_LOOP(i, map_unit_balance_override_count) {
         if (map_unit_balance_overrides[i].id == id)
             return &map_unit_balance_overrides[i].row;
+    }
+    return NULL;
+}
+
+static UnitWeapons_t const *FindMapUnitWeaponsOverride(uint32_t id) {
+    FOR_LOOP(i, map_unit_weapons_override_count) {
+        if (map_unit_weapons_overrides[i].id == id)
+            return &map_unit_weapons_overrides[i].row;
     }
     return NULL;
 }
@@ -1389,13 +1612,6 @@ static UnitAbilities_t const *FindMapUnitAbilitiesOverride(uint32_t id) {
     return NULL;
 }
 
-static UnitData_t const *FindMapUnitDataOverride(uint32_t id) {
-    FOR_LOOP(i, map_unit_data_override_count) {
-        if (map_unit_data_overrides[i].id == id)
-            return &map_unit_data_overrides[i].row;
-    }
-    return NULL;
-}
 
 static ItemData_t const *FindMapItemDataOverride(uint32_t id) {
     FOR_LOOP(i, map_item_data_override_count) {
@@ -1460,6 +1676,10 @@ static void ApplyMapObjectTypedField(void *row, size_t row_offset, unitModificat
     case BZ_FIELD_FLOAT:
         if (mod->type == mod_real || mod->type == mod_unreal)
             *(float *)dest = *(float const *)mod->data;
+        /* Retail UnitMetaData authors umvs/umis/umas as integers, while our
+         * typed UnitBalance keeps their simulation values as scalars. */
+        else if (mod->type == mod_int)
+            *(float *)dest = wc3_float(wc3_from_int(*(uint32_t const *)mod->data));
         break;
     case BZ_FIELD_BOOL:
         if (mod->type == mod_int)
@@ -1468,7 +1688,9 @@ static void ApplyMapObjectTypedField(void *row, size_t row_offset, unitModificat
             *(bool *)dest = *(uint8_t const *)mod->data != 0;
         break;
     case BZ_FIELD_U32:
-        if (mod->type == mod_int)
+        if (metadata->format == UNIT_META_WEAPON_TARGETS && UnitModificationString(mod))
+            *(uint32_t *)dest = ParseWeaponTargetMask((cstring_t)mod->data);
+        else if (mod->type == mod_int)
             *(uint32_t *)dest = *(uint32_t const *)mod->data;
         else if (mod->type == mod_bool || mod->type == mod_char)
             *(uint32_t *)dest = *(uint8_t const *)mod->data;
@@ -1482,6 +1704,24 @@ static void ApplyMapObjectTypedField(void *row, size_t row_offset, unitModificat
     }
 }
 
+static void AddMapUnitDataOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
+    UnitData_t const *base = FindMapUnitDataOverride(base_id);
+    mapUnitDataOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&data_idx, base_id);
+    if (!base)
+        fprintf(stderr, "G_SetMapUnitOverrides: missing UnitData base %.4s for %08x\n", GetClassName(base_id), target_id);
+    override = map_unit_data_overrides + map_unit_data_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, unit->numbeOfModifications)
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitData), unit->modifications + i);
+    S_CompileMovementData(&override->row);
+}
+
 static void AddMapUnitBalanceOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
     UnitBalance_t const *base = FindMapUnitBalanceOverride(base_id);
     mapUnitBalanceOverride_t *override;
@@ -1493,8 +1733,28 @@ static void AddMapUnitBalanceOverride(unitData_t const *unit, uint32_t target_id
     override->id = target_id;
     override->row.id = target_id;
 
+    FOR_LOOP(i, unit->numbeOfModifications) {
+        unitModification_t const *mod = unit->modifications + i;
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitBalance), mod);
+        if (mod->modID == MAKEFOURCC('u','c','o','l') && mod->data &&
+            (mod->type == mod_int || mod->type == mod_real || mod->type == mod_unreal))
+            override->row.has_collision = true;
+    }
+}
+
+static void AddMapUnitWeaponsOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
+    UnitWeapons_t const *base = FindMapUnitWeaponsOverride(base_id);
+    mapUnitWeaponsOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&weapons_idx, base_id);
+    override = map_unit_weapons_overrides + map_unit_weapons_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
     FOR_LOOP(i, unit->numbeOfModifications)
-        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitBalance), unit->modifications + i);
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitWeapons), unit->modifications + i);
 }
 
 static void AddMapUnitProfileOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
@@ -1542,19 +1802,6 @@ static void AddMapUnitAbilitiesOverride(unitData_t const *unit, uint32_t target_
         ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitAbilities), unit->modifications + i);
 }
 
-static void AddMapUnitDataOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
-    UnitData_t const *base = FindMapUnitDataOverride(base_id);
-    mapUnitDataOverride_t *override;
-
-    if (!base) base = FS_SLKLookup(&data_idx, base_id);
-    override = map_unit_data_overrides + map_unit_data_override_count++;
-    memset(&override->row, 0, sizeof(override->row));
-    if (base) override->row = *base;
-    override->id = target_id;
-
-    FOR_LOOP(i, unit->numbeOfModifications)
-        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitData), unit->modifications + i);
-}
 
 static void AddMapItemDataOverride(unitData_t const *item, uint32_t target_id, uint32_t base_id) {
     ItemData_t const *base = FindMapItemDataOverride(base_id);
@@ -1618,11 +1865,18 @@ static void AddMapDoodadOverride(unitData_t const *object, uint32_t target_id, u
 }
 
 void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
+    unit_data_generation++;
     uint32_t unit_capacity, item_capacity, destructable_capacity, doodad_capacity;
 
+    free(map_unit_data_overrides);
+    map_unit_data_overrides = NULL;
+    map_unit_data_override_count = 0;
     free(map_unit_balance_overrides);
     map_unit_balance_overrides = NULL;
     map_unit_balance_override_count = 0;
+    free(map_unit_weapons_overrides);
+    map_unit_weapons_overrides = NULL;
+    map_unit_weapons_override_count = 0;
     free(map_unit_profile_overrides);
     map_unit_profile_overrides = NULL;
     map_unit_profile_override_count = 0;
@@ -1632,9 +1886,6 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     free(map_unit_abilities_overrides);
     map_unit_abilities_overrides = NULL;
     map_unit_abilities_override_count = 0;
-    free(map_unit_data_overrides);
-    map_unit_data_overrides = NULL;
-    map_unit_data_override_count = 0;
     free(map_item_data_overrides);
     map_item_data_overrides = NULL;
     map_item_data_override_count = 0;
@@ -1652,11 +1903,12 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     doodad_capacity = mapinfo->num_originalDoodads + mapinfo->num_userCreatedDoodads;
     if (!unit_capacity && !item_capacity && !destructable_capacity && !doodad_capacity) return;
     if (unit_capacity) {
+        map_unit_data_overrides = calloc(unit_capacity, sizeof(*map_unit_data_overrides));
         map_unit_balance_overrides = calloc(unit_capacity, sizeof(*map_unit_balance_overrides));
+        map_unit_weapons_overrides = calloc(unit_capacity, sizeof(*map_unit_weapons_overrides));
         map_unit_profile_overrides = calloc(unit_capacity, sizeof(*map_unit_profile_overrides));
         map_unit_ui_overrides = calloc(unit_capacity, sizeof(*map_unit_ui_overrides));
         map_unit_abilities_overrides = calloc(unit_capacity, sizeof(*map_unit_abilities_overrides));
-        map_unit_data_overrides = calloc(unit_capacity, sizeof(*map_unit_data_overrides));
     }
     if (item_capacity)
         map_item_data_overrides = calloc(item_capacity, sizeof(*map_item_data_overrides));
@@ -1664,12 +1916,14 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
         map_destructable_data_overrides = calloc(destructable_capacity, sizeof(*map_destructable_data_overrides));
     if (doodad_capacity)
         map_doodad_overrides = calloc(doodad_capacity, sizeof(*map_doodad_overrides));
-    if ((unit_capacity && (!map_unit_balance_overrides || !map_unit_profile_overrides ||
+    if ((unit_capacity && (!map_unit_weapons_overrides || !map_unit_balance_overrides || !map_unit_profile_overrides ||
                            !map_unit_ui_overrides || !map_unit_abilities_overrides || !map_unit_data_overrides)) ||
         (item_capacity && !map_item_data_overrides) ||
         (destructable_capacity && !map_destructable_data_overrides) ||
         (doodad_capacity && !map_doodad_overrides)) {
+        fprintf(stderr, "G_SetMapUnitOverrides: allocation failed for object rows\n");
         free(map_unit_balance_overrides); map_unit_balance_overrides = NULL;
+        free(map_unit_weapons_overrides); map_unit_weapons_overrides = NULL;
         free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
         free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
         free(map_unit_abilities_overrides); map_unit_abilities_overrides = NULL;
@@ -1683,19 +1937,21 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     /* Original-object edits become the inheritance source for custom objects. */
     FOR_LOOP(i, mapinfo->num_originalUnits) {
         unitData_t const *unit = mapinfo->originalUnits + i;
+        AddMapUnitDataOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitBalanceOverride(unit, unit->originalUnitID, unit->originalUnitID);
+        AddMapUnitWeaponsOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitProfileOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitAbilitiesOverride(unit, unit->originalUnitID, unit->originalUnitID);
-        AddMapUnitDataOverride(unit, unit->originalUnitID, unit->originalUnitID);
     }
     FOR_LOOP(i, mapinfo->num_userCreatedUnits) {
         unitData_t const *unit = mapinfo->userCreatedUnits + i;
+        AddMapUnitDataOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitBalanceOverride(unit, unit->newUnitID, unit->originalUnitID);
+        AddMapUnitWeaponsOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitProfileOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitAbilitiesOverride(unit, unit->newUnitID, unit->originalUnitID);
-        AddMapUnitDataOverride(unit, unit->newUnitID, unit->originalUnitID);
     }
     FOR_LOOP(i, mapinfo->num_originalItems) {
         unitData_t const *item = mapinfo->originalItems + i;
@@ -1729,6 +1985,14 @@ static mapAbilityOverride_t const *FindMapAbilityOverride(uint32_t id) {
     FOR_LOOP(i, map_ability_override_count)
         if (map_ability_overrides[i].id == id) return map_ability_overrides + i;
     return NULL;
+}
+
+/* W3A requirement profiles inherit the actual parent rawcode; an authored
+ * empty Requires list must not fall back to the stock research gate. */
+cstring_t G_AbilityRequirementField(uint32_t code, bool amounts) {
+    mapAbilityOverride_t const *row = FindMapAbilityOverride(code);
+    if (row) return amounts ? row->requires_amount : row->requires;
+    return FindConfigValue(GetClassName(code), amounts ? "Requiresamount" : "Requires");
 }
 
 static abilityLevel_t *MapAbilityOverrideLevel(mapAbilityOverride_t *override, uint32_t level) {
@@ -1873,6 +2137,16 @@ static void ApplyMapAbilityMod(mapAbilityOverride_t *override, unitModification_
     case MAKEFOURCC('a','p','r','i'):
         if (mod->type == mod_int) override->row.priority = (int32_t)*(uint32_t const *)mod->data;
         return;
+    case MAKEFOURCC('a','r','e','q'):
+        if (UnitModificationString(mod)) override->requires = mod->data;
+        return;
+    case MAKEFOURCC('a','r','q','a'):
+        if (UnitModificationString(mod)) override->requires_amount = mod->data;
+        return;
+    case MAKEFOURCC('C','h','a','1'):
+        if (UnitModificationString(mod) && (slot = MapAbilityOverrideLevel(override, mod->level)))
+            slot->unitID = FS_SLKKey(mod->data);
+        return;
     case MAKEFOURCC('a','t','a','r'):
         if (UnitModificationString(mod) && (slot = MapAbilityOverrideLevel(override, mod->level)))
             slot->targs = (cstring_t)mod->data;
@@ -1907,6 +2181,9 @@ static void ApplyMapAbilityMod(mapAbilityOverride_t *override, unitModification_
             slot->data[mod->dataPointer - 1].id = *(uint32_t const *)mod->data;
         } else if (mod->type == mod_real || mod->type == mod_unreal) {
             slot->data[mod->dataPointer - 1].number = *(float const *)mod->data;
+        } else if(UnitModificationString(mod)) {
+            slot->data[mod->dataPointer - 1].text = (cstring_t)mod->data;
+            slot->data[mod->dataPointer - 1].id = FS_SLKKey(mod->data);
         }
     }
 }
@@ -1961,6 +2238,8 @@ static void AddMapAbilityOverride(unitData_t const *ability, uint32_t target_id,
             : SLKAbilityLevelForInheritance(base, i + 5);
         if (level) override->extra_levels[i] = *level;
     }
+    override->requires = base_override ? base_override->requires : FindConfigValue(GetClassName(base_id), "Requires");
+    override->requires_amount = base_override ? base_override->requires_amount : FindConfigValue(GetClassName(base_id), "Requiresamount");
     override->row.id = target_id;
 
     FOR_LOOP(i, ability->numbeOfModifications)
@@ -2107,10 +2386,8 @@ UnitProfile_t const *G_UnitProfile(uint32_t id) {
 }
 UnitData_t const *G_UnitData(uint32_t id) {
     static UnitData_t zero;
-    UnitData_t const *override = FindMapUnitDataOverride(id);
-    UnitData_t *row;
-    if (override) return override;
-    row = FS_SLKLookup(&data_idx, ResolveUnitID(id));
+    UnitData_t const *row = FindMapUnitDataOverride(id);
+    if (!row) row = FS_SLKLookup(&data_idx, ResolveUnitID(id));
     return row ? row : &zero;
 }
 UnitUI_t const *G_UnitUI(uint32_t id) {
@@ -2121,7 +2398,12 @@ UnitUI_t const *G_UnitUI(uint32_t id) {
     row = FS_SLKLookup(&ui_idx, ResolveUnitID(id));
     return row ? row : &zero;
 }
-UnitWeapons_t const *G_UnitWeapons(uint32_t id) { static UnitWeapons_t zero; UnitWeapons_t *row = FS_SLKLookup(&weapons_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitWeapons_t const *G_UnitWeapons(uint32_t id) {
+    static UnitWeapons_t zero;
+    UnitWeapons_t const *row = FindMapUnitWeaponsOverride(id);
+    if (!row) row = FS_SLKLookup(&weapons_idx, ResolveUnitID(id));
+    return row ? row : &zero;
+}
 UnitAbilities_t const *G_UnitAbil(uint32_t id) {
     static UnitAbilities_t zero;
     UnitAbilities_t const *override = FindMapUnitAbilitiesOverride(id);
@@ -2183,64 +2465,106 @@ Doodads_t const *G_Doodad(uint32_t id) {
 }
 WaterData_t const *G_WaterData(uint32_t id) { static WaterData_t zero; WaterData_t *row = FS_SLKLookup(&water_idx, id); return row ? row : &zero; }
 UberSplatData_t const *G_UberSplat(uint32_t id) { static UberSplatData_t zero; UberSplatData_t *row = FS_SLKLookup(&uber_idx, id); return row ? row : &zero; }
+#ifdef BZ_TESTS
+static uint32_t sound_row_comparisons;
+uint32_t G_TestSoundRowComparisons(void) { return sound_row_comparisons; }
+#define SOUND_ROW_COMPARE() sound_row_comparisons++
+#else
+#define SOUND_ROW_COMPARE() ((void)0)
+#endif
+/* Sound labels are full case-sensitive names rather than FOURCC keys.
+ * Catalogs are immutable until replacement; indexes preserve the first row. */
+typedef struct {
+    UnitAckSounds_t const *rows;
+    uint32_t count, mask;
+    uint32_t *slots;
+} soundCatalogIndex_t;
+static soundCatalogIndex_t sound_catalogs[7];
+static uint32_t sound_catalog_generation;
+uint32_t G_SoundCatalogGeneration(void) { return sound_catalog_generation; }
+
+static void reset_sound_catalog_indexes(void) {
+    sound_catalog_generation++;
+    FOR_LOOP(i, sizeof(sound_catalogs) / sizeof(*sound_catalogs)) free(sound_catalogs[i].slots);
+    memset(sound_catalogs, 0, sizeof(sound_catalogs));
+}
+
+static uint32_t sound_catalog_hash(cstring_t name) {
+    uint32_t hash = 2166136261u;
+    for (unsigned char const *p = (unsigned char const *)name; *p; p++) hash = (hash ^ *p) * 16777619u;
+    return hash;
+}
+
+static uint32_t sound_catalog_slot(soundCatalogIndex_t const *index, cstring_t name) {
+    uint32_t slot = sound_catalog_hash(name) & index->mask;
+    while (index->slots[slot]) {
+        SOUND_ROW_COMPARE();
+        if (!strcmp(index->rows[index->slots[slot] - 1].name, name)) break;
+        slot = (slot + 1) & index->mask;
+    }
+    return slot;
+}
+
+static UnitAckSounds_t const *sound_catalog_lookup(uint32_t catalog, UnitAckSounds_t const *rows,
+                                                 uint32_t count, cstring_t name) {
+    soundCatalogIndex_t *index = sound_catalogs + catalog;
+    if (!name || !*name || !count) return NULL;
+    if (index->rows != rows || index->count != count) {
+        uint32_t capacity = 2;
+        if (count > UINT32_MAX / 4) { gi.error("Sound catalog is too large"); abort(); }
+        while (capacity < count * 2) capacity <<= 1;
+        free(index->slots);
+        *index = (soundCatalogIndex_t){ .rows = rows, .count = count, .mask = capacity - 1 };
+        index->slots = calloc(capacity, sizeof(*index->slots));
+        if (!index->slots) { gi.error("Cannot allocate sound catalog index"); abort(); }
+        FOR_LOOP(i, count) {
+            if (!rows[i].name) continue;
+            uint32_t slot = sound_catalog_slot(index, rows[i].name);
+            if (!index->slots[slot]) index->slots[slot] = i + 1;
+        }
+    }
+    uint32_t found = index->slots[sound_catalog_slot(index, name)];
+    return found ? rows + found - 1 : NULL;
+}
+
 UnitAckSounds_t const *G_UnitAckSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_UnitAckSoundsCount)
-        if (g_UnitAckSounds[i].name && !strcmp(g_UnitAckSounds[i].name, name)) return g_UnitAckSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(0, g_UnitAckSounds, g_UnitAckSoundsCount, name);
+    return row ? row : &zero;
 }
 UnitAckSounds_t const *G_UnitCombatSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_UnitCombatSoundsCount)
-        if (g_UnitCombatSounds[i].name && !strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(1, g_UnitCombatSounds, g_UnitCombatSoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_UISound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_UISoundsCount)
-        if (g_UISounds[i].name && !strcmp(g_UISounds[i].name, name)) return g_UISounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(2, g_UISounds, g_UISoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_AmbienceSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_AmbienceSoundsCount)
-        if (g_AmbienceSounds[i].name && !strcmp(g_AmbienceSounds[i].name, name)) return g_AmbienceSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(3, g_AmbienceSounds, g_AmbienceSoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_AbilitySound(cstring_t name) {
     static UnitAckSounds_t zero;
-    UnitAckSounds_t const *row;
-
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_AbilitySoundsCount)
-        if (g_AbilitySounds[i].name && !strcmp(g_AbilitySounds[i].name, name)) return g_AbilitySounds + i;
+    UnitAckSounds_t const *row = sound_catalog_lookup(4, g_AbilitySounds, g_AbilitySoundsCount, name);
+    if (row) return row;
     row = G_AmbienceSound(name);
     if (row->name && row->name[0]) return row;
     row = G_UISound(name);
     return row->name && row->name[0] ? row : &zero;
 }
-
 UnitAckSounds_t const *G_AnimSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_AnimSoundsCount)
-        if (g_AnimSounds[i].name && !strcmp(g_AnimSounds[i].name, name)) return g_AnimSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(5, g_AnimSounds, g_AnimSoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_DialogSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_DialogSoundsCount)
-        if (g_DialogSounds[i].name && !strcmp(g_DialogSounds[i].name, name)) return g_DialogSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(6, g_DialogSounds, g_DialogSoundsCount, name);
+    return row ? row : &zero;
 }
 
 UnitAckSounds_t const *G_KeyedSound(cstring_t name) {
@@ -2320,12 +2644,16 @@ DestructableData_t const *G_DestructableData(uint32_t id) {
     return row ? row : &zero;
 }
 
+/* Source presence is independent of the scalar value. These bound rows are
+ * shared type data; placement must not substitute the physical mover minimum. */
+float G_UnitCollisionFromRows(UnitBalance_t const *balance, UnitData_t const *data) {
+    return balance && balance->has_collision ? balance->collision : data ? data->collision : 0;
+}
+
 /* TFT stores collision in UnitBalance; ROC stores it in UnitData. */
 float G_UnitCollision(uint32_t id) {
     UnitBalance_t const *b = G_UnitBalance(id);
-    if (b && b->collision > 0.f) return b->collision;
-    UnitData_t const *d = G_UnitData(id);
-    return d ? d->collision : 0.f;
+    return G_UnitCollisionFromRows(b, b && b->has_collision ? NULL : G_UnitData(id));
 }
 
 /* Unit classification moved from UnitData (ROC) to UnitBalance (TFT). */
@@ -2337,6 +2665,48 @@ int32_t G_UnitClassification(uint32_t id) {
         type = d ? d->unitClassification : NULL;
     }
     return type ? atoi(type) : 0;
+}
+
+/* Original1f89c0: public UnitAddType/RemoveType accept exactly nine IDs. */
+uint32_t G_UnitTypeClassificationFlag(uint32_t type) {
+    switch(type) {
+    case 9:return WC3_UNIT_CLASS_GIANT;
+    case 10:return WC3_UNIT_CLASS_SUMMONED;
+    case 14:return WC3_UNIT_CLASS_UNDEAD;
+    case 15:return WC3_UNIT_CLASS_MECHANICAL;
+    case 16:return WC3_UNIT_CLASS_PEON;
+    case 17:return WC3_UNIT_CLASS_SAPPER;
+    case 18:return WC3_UNIT_CLASS_TOWNHALL;
+    case 19:return WC3_UNIT_CLASS_ANCIENT;
+    case 20:return WC3_UNIT_CLASS_TAUREN;
+    default:return 0;
+    }
+}
+
+/*684340's twelve authored names feed profile+5c, then liveUnit248.
+ * Construction/rebind installs this value; load-time table binding must not. */
+uint32_t G_UnitClassificationFlagsFromRows(UnitBalance_t const *balance,UnitData_t const *data) {
+    static struct {cstring_t name;uint32_t flag;} const names[]={
+        {"giant",WC3_UNIT_CLASS_GIANT},{"undead",WC3_UNIT_CLASS_UNDEAD},
+        {"summoned",WC3_UNIT_CLASS_SUMMONED},{"mechanical",WC3_UNIT_CLASS_MECHANICAL},
+        {"peon",WC3_UNIT_CLASS_PEON},{"sapper",WC3_UNIT_CLASS_SAPPER},
+        {"townhall",WC3_UNIT_CLASS_TOWNHALL},{"ancient",WC3_UNIT_CLASS_ANCIENT},
+        {"neutral",WC3_UNIT_CLASS_NEUTRAL},{"ward",WC3_UNIT_CLASS_WARD},
+        {"standon",WC3_UNIT_CLASS_STANDON},{"tauren",WC3_UNIT_CLASS_TAUREN},
+    };
+    cstring_t text=balance ? balance->type : NULL;
+    if(!text || !*text)text=data ? data->unitClassification : NULL;
+    if(!text || !*text || *text=='_' || *text=='-')return 0;
+    uint32_t flags=0;
+    while(*text) {
+        text+=strspn(text," ,\t-");
+        size_t length=strcspn(text," ,\t-");
+        if(!length)break;
+        char token[16];size_t copy=MIN(length,sizeof(token)-1);
+        memcpy(token,text,copy);token[copy]=0;text+=length;
+        FOR_LOOP(i,sizeof(names)/sizeof(names[0]))if(!strcasecmp(token,names[i].name)){flags|=names[i].flag;break;}
+    }
+    return flags;
 }
 
 /* Cast timings moved from UnitData (ROC) to UnitWeapons (TFT). */
@@ -2470,6 +2840,9 @@ static void NormalizeArmorTypes(void) {
 }
 
 void InitUnitData(void) {
+    G_ResetUnitAbilityCodes();
+    unit_data_generation++;
+    reset_sound_catalog_indexes();
     stbIniCache_t profile_ini = { 0 };
 
     commandFuncConfig = NULL;
@@ -2496,6 +2869,8 @@ void InitUnitData(void) {
         slkStore_t *store = slk_stores + i;
         *store->count = Stb_SlkLoad(store->path, store->schema, store->rows, store->row_size);
         if (!*store->count && !store->optional) fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
+        if (!strcmp(store->name, "UnitData"))
+            FOR_LOOP(j, g_UnitDataCount) S_CompileMovementData(g_UnitData + j);
         if (!strcmp(store->name, "UnitWeapons"))
             NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
@@ -2507,6 +2882,9 @@ void InitUnitData(void) {
 uint32_t G_AbilityDataGeneration(void) { return ability_data_generation; }
 
 void ShutdownUnitData(void) {
+    G_ResetUnitAbilityCodes();
+    unit_data_generation++;
+    reset_sound_catalog_indexes();
     G_SetMapUnitOverrides(NULL);
     G_SetMapAbilityOverrides(NULL);
     FS_SLKFreeIndex(&profile_idx);

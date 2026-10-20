@@ -1,0 +1,22 @@
+{
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f66fc50",
+      "note": "Payoff147/SEP-01.2: complete unmodified66fc50 plus original rawcode lookup passes432 supplied-field cases. Successful eligibility returns literal1 at66fc88, not raw repulse; no speed or Move-ability test. Public RS-SEP-01.2-immobile147b creates authored umvs=0/urpo=1 ground and fly units: retained repulsors update and remain candidates. Engine public CreateUnit/owner/pause/save regression fails10 checks before removing M_UnitMoveDisabled from repulsor creation. Counted suppression and Mechanical Critter gameplay trigger remain open."
+    },
+    {
+      "address": "6f693d50",
+      "note": "Payoff147/SEP-01.2: complete unmodified66fc50 plus original rawcode lookup passes432 supplied-field cases. Successful eligibility returns literal1 at66fc88, not raw repulse; no speed or Move-ability test. Public RS-SEP-01.2-immobile147b creates authored umvs=0/urpo=1 ground and fly units: retained repulsors update and remain candidates. Engine public CreateUnit/owner/pause/save regression fails10 checks before removing M_UnitMoveDisabled from repulsor creation. Counted suppression and Mechanical Critter gameplay trigger remain open."
+    },
+    {
+      "address": "6f688d90",
+      "note": "Payoff147/SEP-01.2 follow-up inventory: suppression is not pause-only. Original direct calls688d90 also use ability owner Unit+30:435f10 (RTTI CAbilityItemTeleport/ItemTownPortal slot384),4eebb0 (CAbilityChannel slot384),544140 (NeutralBuild/OrcBuild/NagaBuild slot340), and unit argument562030 (CAbilityEntangleCargo slot330).4eecd0/569e20 and9bd6e0 also acquire. Concrete public lifecycle and inverse capture remain open; these xrefs are not an engine integration or full producer-parity claim."
+    },
+    {
+      "address": "6f6785c0",
+      "note": "Payoff147/SEP-01.2 follow-up inventory: suppression is not pause-only. Original direct calls688d90 also use ability owner Unit+30:435f10 (RTTI CAbilityItemTeleport/ItemTownPortal slot384),4eebb0 (CAbilityChannel slot384),544140 (NeutralBuild/OrcBuild/NagaBuild slot340), and unit argument562030 (CAbilityEntangleCargo slot330).4eecd0/569e20 and9bd6e0 also acquire. Concrete public lifecycle and inverse capture remain open; these xrefs are not an engine integration or full producer-parity claim."
+    }
+  ]
+}

@@ -35,7 +35,7 @@ The command path rejects an unavailable spell before opening a target cursor and
 
 ## Runtime behavior
 
-A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. `edict_t.polymorph` snapshots the model handle, model scale, and base movement speed needed for restoration. The configured morph unit contributes its model/scale and authored movement speed while the Polymorph buff is live.
+A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. `edict_t.polymorph` snapshots the original model handle and scale. The configured form contributes its model/scale, a form-minus-original authored speed delta, and its own minimum/maximum speed bounds. Public default speed continues to use the original type. See [Payoff271 retail evidence](retail-pathfinding-engine.md#polymorph-owns-a-temporary-movement-profile-payoff271).
 
 The morph interrupts the current incompatible action and queued orders. While `polymorph.active` is set, attack orders and new spell casts are rejected. Fresh movement orders remain legal, using the temporary movement speed. `S_HumanCanAttack()` also rejects autonomous attacks so acquisition cannot bypass order validation.
 
@@ -49,7 +49,7 @@ This patch does not synthesize the separate Dark Wizard summoned-unit destructio
 
 ## Buff removal and death
 
-The configured timed buff owns the reversible transformation. Normal expiry calls `S_HumanStatusExpired()`, which restores the saved presentation/movement state. Dispel Magic and Spell Steal now run the same status-expiry hook before deleting a timed status, preventing reversible status effects such as Polymorph from becoming visually stuck.
+The configured timed buff owns the reversible transformation. Normal expiry calls `S_HumanStatusExpired()`, which restores presentation and adds the original-minus-form authored speed delta to the current Move base. A speed setter during the buff replaces that current base; removal preserves its result rather than restoring the pre-cast snapshot. Public negative `UnitRemoveBuffs` uses the applying Polymorph owner’s negative/magic policy. Removal retains an active Move, its goal and pending commands. Dispel Magic and Spell Steal now run the same status-expiry hook before deleting a timed status, preventing reversible status effects such as Polymorph from becoming visually stuck.
 
 Death retires the active restore contract so an expired timer cannot revive or remorph a dead unit. The death presentation already selected at death is left intact.
 
@@ -61,13 +61,13 @@ Death retires the active restore contract so an expired timer cannot revive or r
 
 ## Save/load
 
-Save format 18 serializes the Polymorph restoration record (`ability`, `buff`, selected form type, original model/scale/movement speed, and active state). The timed buff itself already round-trips in `abilstatus[]`, so a loaded active Polymorph retains both its remaining duration and the state required to restore the original presentation. `original_model` and the morphed `s.model` are map configstring indexes, so load re-registers both from the unit's and the form's `UnitUI.modelFile` (see [save-load](save-load.md)).
+The save format serializes the Polymorph restoration record (`ability`, `buff`, selected form type, original model/scale and the historical entry-speed snapshot). The timed buff and applying ability round-trip in `abilstatus[]`; the selected form and current Move base reconstruct the inverse after load. The entry-speed snapshot remains in the existing record but does not drive movement restoration.
 
 ## Known boundaries
 
 - The implementation consumes the first rawcode from each `Ply2`-`Ply5` unit-list field; multi-entry morph-list selection is not yet modeled.
 - Variant-specific summoned-unit destruction is not implemented.
-- Exact retail queue preservation after the transformation is not claimed; incompatible current/queued actions are cleared conservatively.
+- Initial application still clears incompatible current/queued actions conservatively. Payoff271 certifies retention of a subsequently issued active Move on removal; full initial interruption and mixed queues are not claimed.
 - Polymorph does not replace the target's full UnitData/UnitBalance row. This is deliberate for the modern Warcraft behavior where the existing unit identity/statistics survive and the temporary form supplies presentation and movement speed.
 
 ## Regression coverage

@@ -1,0 +1,2956 @@
+{
+ "task": "TARGET-03.2",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "captures": [
+  {
+   "name": "observe-r-1",
+   "report": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/analysis/observe-r-1.json",
+   "capture": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-r-1.jsonl",
+   "capture_sha256": "ef0f12b643c5abf5904e34b0d51935a718e0767704f283a4520431de3eea284a"
+  },
+  {
+   "name": "observe-r-2",
+   "report": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/analysis/observe-r-2.json",
+   "capture": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-r-2.jsonl",
+   "capture_sha256": "4cff08ac9bf17f453306bf54d5c02cf116d74ec862968de15a0f3aa3d2a98af8"
+  }
+ ],
+ "repeats_identical": true,
+ "compared_fields": [
+  "public_transitions",
+  "tasks",
+  "groups",
+  "target_lost",
+  "handler",
+  "validate",
+  "visibility_queries",
+  "group_hidden",
+  "counts",
+  "markers",
+  "hidden_episodes"
+ ],
+ "preload_compare": {
+  "reference": {
+   "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-r-1-preload.txt",
+   "markers": 1067,
+   "sha256": "f9db3758dc9835f8d13783503708d8af75ae9f1184673db2f03ad6541cd576eb"
+  },
+  "compared": [
+   {
+    "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-r-2-preload.txt",
+    "markers": 1067,
+    "sha256": "f9db3758dc9835f8d13783503708d8af75ae9f1184673db2f03ad6541cd576eb",
+    "identical": true,
+    "first_difference": null,
+    "reference_line": null,
+    "other_line": null
+   },
+   {
+    "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/control-r-1-preload.txt",
+    "markers": 1067,
+    "sha256": "f9db3758dc9835f8d13783503708d8af75ae9f1184673db2f03ad6541cd576eb",
+    "identical": true,
+    "first_difference": null,
+    "reference_line": null,
+    "other_line": null
+   }
+  ]
+ },
+ "notes": "counters are path-owner +538 visits; destinations are fine-cell floats; validate results: 0 keep, 0xdd invisible/fogged/dead/null, 0xaa hidden or removed, 0xa9 loaded cargo",
+ "scenes": [
+  {
+   "scene": 0,
+   "name": "fog_blip_persist",
+   "producer": "FOGGED modifier 60..63, neutral target, Smart, follower persistent",
+   "policy": "fog blip",
+   "window": [
+    1090,
+    1740
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "361.497"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1517.757",
+      "744.525"
+     ],
+     "target": [
+      "1568.000",
+      "1186.441"
+     ]
+    },
+    {
+     "local": 65,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1528.740",
+      "860.233"
+     ],
+     "target": [
+      "1568.000",
+      "1261.426"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1531.562",
+      "901.454"
+     ],
+     "target": [
+      "1568.000",
+      "1300.419"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1531.562",
+      "901.454"
+     ],
+     "target": [
+      "1568.000",
+      "1300.419"
+     ]
+    },
+    {
+     "local": 139,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1542.175",
+      "737.321"
+     ],
+     "target": [
+      "1568.138",
+      "301.647"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1542.960",
+      "710.337"
+     ],
+     "target": [
+      "1568.138",
+      "301.647"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1544.252",
+      "662.663"
+     ],
+     "target": [
+      "1590.913",
+      "983.629"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 20,
+     "local": 0,
+     "c": 1090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 20,
+     "local": 0,
+     "c": 1090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 25,
+     "local": 5,
+     "c": 1107,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 25,
+     "local": 5,
+     "c": 1107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 80,
+     "local": 60,
+     "c": 1290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 80,
+     "local": 60,
+     "c": 1290,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.757,744.525,851971 t=1568.000,1186.441,851986"
+    },
+    {
+     "tick": 83,
+     "local": 63,
+     "c": 1300,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 83,
+     "local": 63,
+     "c": 1300,
+     "label": "end-undo",
+     "rest": "ok=1 f=1525.315,823.876,851971 t=1568.000,1231.432,851986"
+    },
+    {
+     "tick": 210,
+     "local": 190,
+     "c": 1724,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 210,
+     "local": 190,
+     "c": 1724,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 215,
+     "local": 195,
+     "c": 1740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 215,
+     "local": 195,
+     "c": 1740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 1107,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.8749,
+     "persistent": 0
+    },
+    {
+     "c": 1119,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 1740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 1740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 1119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 603,
+     "first": {
+      "c": 1108,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 1119,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 14,
+     "first": {
+      "c": 1291,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 1291,
+    "last": 1304,
+    "visits": 14,
+    "unseen_max": 14,
+    "reacquired": {
+     "c": 1306,
+     "prior_unseen": 14
+    }
+   },
+   "hidden_episodes": [
+    {
+     "gi": 1,
+     "group_identity": "910,935",
+     "first": 1291,
+     "cd_first": 16,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      34.592094
+     ],
+     "visits": 14,
+     "last": 1304,
+     "cd_last": 3,
+     "unseen_last_entry": 13,
+     "dest_hidden": [
+      49.0,
+      36.982525
+     ],
+     "member_dest_hidden": [
+      49.0,
+      36.982525
+     ],
+     "reacquired": {
+      "c": 1305,
+      "unseen_entry": 14,
+      "cd_entry": 2,
+      "dest": [
+       49.0,
+       36.982525
+      ]
+     },
+     "first_destination_change": {
+      "c": 1308,
+      "dest": [
+       49.0,
+       39.372707
+      ],
+      "visits_after_reacquire": 3
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      1108,
+      1120
+     ],
+     "target": [
+      874,
+      877
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 606,
+     "c": [
+      1120,
+      1725
+     ],
+     "target": [
+      874,
+      877
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 1,
+   "name": "fog_blip_approach",
+   "producer": "FOGGED modifier 60..70, follower west of the wall (approach phase)",
+   "policy": "fog blip approach",
+   "window": [
+    1757,
+    2407
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "480.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "480.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "359.987"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "942.711",
+      "1621.335"
+     ],
+     "target": [
+      "1568.000",
+      "1184.840"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1134.407",
+      "1643.488"
+     ],
+     "target": [
+      "1568.000",
+      "1300.318"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1171.418",
+      "1604.180"
+     ],
+     "target": [
+      "1568.000",
+      "1300.318"
+     ]
+    },
+    {
+     "local": 73,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1228.630",
+      "1547.008"
+     ],
+     "target": [
+      "1567.378",
+      "1274.867"
+     ]
+    },
+    {
+     "local": 138,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1499.781",
+      "741.223"
+     ],
+     "target": [
+      "1567.990",
+      "302.492"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1502.701",
+      "687.333"
+     ],
+     "target": [
+      "1567.990",
+      "302.492"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1503.576",
+      "671.165"
+     ],
+     "target": [
+      "1568.166",
+      "1029.543"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 220,
+     "local": 0,
+     "c": 1757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 220,
+     "local": 0,
+     "c": 1757,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048688 v=1"
+    },
+    {
+     "tick": 225,
+     "local": 5,
+     "c": 1774,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 225,
+     "local": 5,
+     "c": 1774,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 280,
+     "local": 60,
+     "c": 1957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 280,
+     "local": 60,
+     "c": 1957,
+     "label": "end-produce",
+     "rest": "ok=0 f=942.711,1621.335,851971 t=1568.000,1184.840,851986"
+    },
+    {
+     "tick": 290,
+     "local": 70,
+     "c": 1990,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 290,
+     "local": 70,
+     "c": 1990,
+     "label": "end-undo",
+     "rest": "ok=1 f=1171.418,1604.180,851971 t=1568.000,1300.318,851986"
+    },
+    {
+     "tick": 410,
+     "local": 190,
+     "c": 2390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 410,
+     "local": 190,
+     "c": 2390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 415,
+     "local": 195,
+     "c": 2407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 415,
+     "local": 195,
+     "c": 2407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 1774,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 0
+    },
+    {
+     "c": 2009,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 2407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 2407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 2009,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 576,
+     "first": {
+      "c": 1775,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 40,
+     "first": {
+      "c": 1958,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 2009,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 1958,
+    "last": 1997,
+    "visits": 40,
+    "unseen_max": 40,
+    "reacquired": {
+     "c": 1999,
+     "prior_unseen": 40
+    }
+   },
+   "hidden_episodes": [
+    {
+     "gi": 0,
+     "group_identity": "905,1099",
+     "first": 1958,
+     "cd_first": 4,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      35.292194
+     ],
+     "visits": 40,
+     "last": 1997,
+     "cd_last": 0,
+     "unseen_last_entry": 39,
+     "dest_hidden": [
+      49.0,
+      35.292194
+     ],
+     "member_dest_hidden": [
+      49.0,
+      35.292194
+     ],
+     "reacquired": {
+      "c": 1998,
+      "unseen_entry": 40,
+      "cd_entry": 0,
+      "dest": [
+       49.0,
+       35.292194
+      ]
+     },
+     "first_destination_change": {
+      "c": 1999,
+      "dest": [
+       48.980331,
+       40.214531
+      ],
+      "visits_after_reacquire": 1
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 236,
+     "c": [
+      1775,
+      2010
+     ],
+     "target": [
+      872,
+      1044
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 382,
+     "c": [
+      2010,
+      2391
+     ],
+     "target": [
+      872,
+      1044
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 2,
+   "name": "fog_short_persist",
+   "producer": "FOGGED modifier 60..66, Smart, follower persistent",
+   "policy": "fog short",
+   "window": [
+    2424,
+    3074
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "358.461"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1514.917",
+      "741.177"
+     ],
+     "target": [
+      "1568.000",
+      "1183.749"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1536.477",
+      "952.133"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 69,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1536.752",
+      "954.818"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1536.752",
+      "954.818"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 139,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1544.416",
+      "722.425"
+     ],
+     "target": [
+      "1568.995",
+      "300.111"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1544.844",
+      "703.540"
+     ],
+     "target": [
+      "1568.995",
+      "300.111"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1545.775",
+      "659.924"
+     ],
+     "target": [
+      "1590.690",
+      "992.122"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 420,
+     "local": 0,
+     "c": 2424,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 420,
+     "local": 0,
+     "c": 2424,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 425,
+     "local": 5,
+     "c": 2440,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 425,
+     "local": 5,
+     "c": 2440,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 480,
+     "local": 60,
+     "c": 2624,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 480,
+     "local": 60,
+     "c": 2624,
+     "label": "end-produce",
+     "rest": "ok=0 f=1514.917,741.177,851971 t=1568.000,1183.749,851986"
+    },
+    {
+     "tick": 486,
+     "local": 66,
+     "c": 2644,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 486,
+     "local": 66,
+     "c": 2644,
+     "label": "end-undo",
+     "rest": "ok=1 f=1530.990,898.444,851971 t=1568.000,1273.698,851986"
+    },
+    {
+     "tick": 610,
+     "local": 190,
+     "c": 3057,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 610,
+     "local": 190,
+     "c": 3057,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 615,
+     "local": 195,
+     "c": 3074,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 615,
+     "local": 195,
+     "c": 3074,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 2440,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.412,
+     "persistent": 0
+    },
+    {
+     "c": 2452,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 3074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 3074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 2452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 591,
+     "first": {
+      "c": 2441,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 2452,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 26,
+     "first": {
+      "c": 2625,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 2625,
+    "last": 2650,
+    "visits": 26,
+    "unseen_max": 26,
+    "reacquired": {
+     "c": 2652,
+     "prior_unseen": 26
+    }
+   },
+   "hidden_episodes": [
+    {
+     "gi": 1,
+     "group_identity": "903,1269",
+     "first": 2625,
+     "cd_first": 15,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      36.851624
+     ],
+     "visits": 26,
+     "last": 2650,
+     "cd_last": 0,
+     "unseen_last_entry": 25,
+     "dest_hidden": [
+      49.0,
+      36.851624
+     ],
+     "member_dest_hidden": [
+      49.0,
+      36.851624
+     ],
+     "reacquired": {
+      "c": 2651,
+      "unseen_entry": 26,
+      "cd_entry": 0,
+      "dest": [
+       49.0,
+       36.851624
+      ]
+     },
+     "first_destination_change": {
+      "c": 2652,
+      "dest": [
+       49.0,
+       40.646336
+      ],
+      "visits_after_reacquire": 1
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      2441,
+      2453
+     ],
+     "target": [
+      912,
+      1211
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 606,
+     "c": [
+      2453,
+      3058
+     ],
+     "target": [
+      912,
+      1211
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 3,
+   "name": "attack_fog_blip",
+   "producer": "enemy target, Attack at 5, FOGGED modifier 60..63",
+   "policy": "attack + fog blip",
+   "window": [
+    3090,
+    3740
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851983",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1404.466",
+      "293.499"
+     ],
+     "target": [
+      "1568.000",
+      "362.209"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851983",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1549.466",
+      "869.093"
+     ],
+     "target": [
+      "1568.000",
+      "1186.747"
+     ]
+    },
+    {
+     "local": 65,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1550.643",
+      "995.916"
+     ],
+     "target": [
+      "1568.000",
+      "1261.704"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1551.281",
+      "1076.867"
+     ],
+     "target": [
+      "1568.000",
+      "1300.682"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.515",
+      "1106.549"
+     ],
+     "target": [
+      "1568.000",
+      "1300.682"
+     ]
+    },
+    {
+     "local": 139,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1552.349",
+      "547.931"
+     ],
+     "target": [
+      "1568.771",
+      "300.959"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1552.280",
+      "520.947"
+     ],
+     "target": [
+      "1568.771",
+      "300.959"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1580.147",
+      "757.405"
+     ],
+     "target": [
+      "1584.768",
+      "1010.861"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 620,
+     "local": 0,
+     "c": 3090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 620,
+     "local": 0,
+     "c": 3090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048688 v=1"
+    },
+    {
+     "tick": 625,
+     "local": 5,
+     "c": 3107,
+     "label": "begin-order",
+     "rest": "v=1 o=attack"
+    },
+    {
+     "tick": 625,
+     "local": 5,
+     "c": 3107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851983"
+    },
+    {
+     "tick": 680,
+     "local": 60,
+     "c": 3290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 680,
+     "local": 60,
+     "c": 3290,
+     "label": "end-produce",
+     "rest": "ok=0 f=1549.466,869.093,851983 t=1568.000,1186.747,851986"
+    },
+    {
+     "tick": 683,
+     "local": 63,
+     "c": 3300,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 683,
+     "local": 63,
+     "c": 3300,
+     "label": "end-undo",
+     "rest": "ok=1 f=1550.163,941.948,851983 t=1568.000,1231.721,851986"
+    },
+    {
+     "tick": 810,
+     "local": 190,
+     "c": 3724,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 810,
+     "local": 190,
+     "c": 3724,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 815,
+     "local": 195,
+     "c": 3740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 815,
+     "local": 195,
+     "c": 3740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 3099,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3109,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3147,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3159,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3203,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3215,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3279,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3291,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3354,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 3366,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 3401,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 3413,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3452,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3464,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3526,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3538,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3553,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3599,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 3611,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 3646,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3658,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3699,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3711,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3730,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 3731,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 3740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x208"
+    },
+    {
+     "c": 3740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 273,
+     "first": {
+      "c": 3100,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 14,
+     "first": {
+      "c": 3291,
+      "tw": [
+       "0x20001446",
+       "0x240",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 3291,
+    "last": 3304,
+    "visits": 14,
+    "unseen_max": 13,
+    "reacquired": {
+     "c": 3306,
+     "prior_unseen": 13
+    }
+   },
+   "hidden_episodes": [
+    {
+     "gi": 7,
+     "group_identity": "877,1456",
+     "first": 3291,
+     "cd_first": 6,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      35.493004
+     ],
+     "visits": 1,
+     "last": 3291,
+     "cd_last": 6,
+     "unseen_last_entry": 0,
+     "dest_hidden": [
+      49.0,
+      35.493004
+     ],
+     "member_dest_hidden": [
+      49.0,
+      35.493004
+     ],
+     "reacquired": null,
+     "ended": {
+      "c": 3292,
+      "unseen_entry": 1,
+      "cd_entry": 5,
+      "member_visit": true,
+      "group_flags_after": "0x21000"
+     }
+    },
+    {
+     "gi": 8,
+     "group_identity": "881,1460",
+     "first": 3292,
+     "cd_first": 0,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      37.132694
+     ],
+     "visits": 13,
+     "last": 3304,
+     "cd_last": 0,
+     "unseen_last_entry": 12,
+     "dest_hidden": [
+      49.0,
+      37.132694
+     ],
+     "member_dest_hidden": [
+      49.0,
+      37.132694
+     ],
+     "reacquired": {
+      "c": 3305,
+      "unseen_entry": 13,
+      "cd_entry": 0,
+      "dest": [
+       49.0,
+       37.132694
+      ]
+     },
+     "first_destination_change": {
+      "c": 3306,
+      "dest": [
+       49.0,
+       39.100323
+      ],
+      "visits_after_reacquire": 1
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x10000",
+     "visits": 226,
+     "c": [
+      3091,
+      3316
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 9,
+     "c": [
+      3100,
+      3108
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 6,
+     "c": [
+      3110,
+      3115
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3148,
+      3160
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 12,
+     "c": [
+      3160,
+      3171
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3204,
+      3216
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 32,
+     "c": [
+      3216,
+      3247
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3280,
+      3292
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 31,
+     "c": [
+      3292,
+      3322
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 228,
+     "c": [
+      3325,
+      3552
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 3,
+     "c": [
+      3355,
+      3357
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 3,
+     "c": [
+      3367,
+      3369
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 5,
+     "c": [
+      3402,
+      3406
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 7,
+     "c": [
+      3414,
+      3420
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3453,
+      3465
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 30,
+     "c": [
+      3465,
+      3494
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3527,
+      3539
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 29,
+     "c": [
+      3539,
+      3567
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 5,
+     "c": [
+      3554,
+      3558
+     ],
+     "target": [
+      860,
+      1360
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 168,
+     "c": [
+      3558,
+      3725
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 5,
+     "c": [
+      3600,
+      3604
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 3,
+     "c": [
+      3612,
+      3614
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 10,
+     "c": [
+      3647,
+      3656
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 9,
+     "c": [
+      3659,
+      3667
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3700,
+      3712
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 14,
+     "c": [
+      3712,
+      3725
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 10,
+     "c": [
+      3731,
+      3740
+     ],
+     "target": [
+      860,
+      1360
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 9,
+     "c": [
+      3732,
+      3740
+     ],
+     "target": [
+      861,
+      1378
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 4,
+   "name": "move_fog_blip",
+   "producer": "neutral target, Move (persistent from the start), FOGGED modifier 60..63",
+   "policy": "move + fog blip",
+   "window": [
+    3757,
+    4407
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851986",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851986",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "360.710"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851986",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1517.572",
+      "742.879"
+     ],
+     "target": [
+      "1568.000",
+      "1185.249"
+     ]
+    },
+    {
+     "local": 65,
+     "follower_order": "851986",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1527.830",
+      "850.479"
+     ],
+     "target": [
+      "1568.000",
+      "1260.206"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851986",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1530.777",
+      "893.104"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851986",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1531.336",
+      "901.180"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 138,
+     "follower_order": "851986",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1541.969",
+      "743.404"
+     ],
+     "target": [
+      "1568.149",
+      "301.247"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851986",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1543.545",
+      "689.457"
+     ],
+     "target": [
+      "1568.149",
+      "301.247"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1544.341",
+      "660.009"
+     ],
+     "target": [
+      "1591.380",
+      "979.494"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 820,
+     "local": 0,
+     "c": 3757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 820,
+     "local": 0,
+     "c": 3757,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 825,
+     "local": 5,
+     "c": 3774,
+     "label": "begin-order",
+     "rest": "v=1 o=move"
+    },
+    {
+     "tick": 825,
+     "local": 5,
+     "c": 3774,
+     "label": "end-order",
+     "rest": "accepted=1 order=851986"
+    },
+    {
+     "tick": 880,
+     "local": 60,
+     "c": 3957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 880,
+     "local": 60,
+     "c": 3957,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.572,742.879,851986 t=1568.000,1185.249,851986"
+    },
+    {
+     "tick": 883,
+     "local": 63,
+     "c": 3967,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 883,
+     "local": 63,
+     "c": 3967,
+     "label": "end-undo",
+     "rest": "ok=1 f=1525.013,820.930,851986 t=1568.000,1230.223,851986"
+    },
+    {
+     "tick": 1010,
+     "local": 190,
+     "c": 4390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1010,
+     "local": 190,
+     "c": 4390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1015,
+     "local": 195,
+     "c": 4407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 1015,
+     "local": 195,
+     "c": 4407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 3774,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.7538,
+     "persistent": 0
+    },
+    {
+     "c": 3786,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 4407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 4407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 3786,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 603,
+     "first": {
+      "c": 3775,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 3786,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 13,
+     "first": {
+      "c": 3958,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 3958,
+    "last": 3970,
+    "visits": 13,
+    "unseen_max": 13,
+    "reacquired": {
+     "c": 3972,
+     "prior_unseen": 13
+    }
+   },
+   "hidden_episodes": [
+    {
+     "gi": 1,
+     "group_identity": "863,1693",
+     "first": 3958,
+     "cd_first": 16,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      34.602905
+     ],
+     "visits": 13,
+     "last": 3970,
+     "cd_last": 4,
+     "unseen_last_entry": 12,
+     "dest_hidden": [
+      49.0,
+      36.992168
+     ],
+     "member_dest_hidden": [
+      49.0,
+      36.992168
+     ],
+     "reacquired": {
+      "c": 3971,
+      "unseen_entry": 13,
+      "cd_entry": 3,
+      "dest": [
+       49.0,
+       36.992168
+      ]
+     },
+     "first_destination_change": {
+      "c": 3975,
+      "dest": [
+       49.0,
+       39.381432
+      ],
+      "visits_after_reacquire": 4
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3775,
+      3787
+     ],
+     "target": [
+      867,
+      1638
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 605,
+     "c": [
+      3787,
+      4391
+     ],
+     "target": [
+      867,
+      1638
+     ]
+    }
+   ]
+  }
+ ]
+}

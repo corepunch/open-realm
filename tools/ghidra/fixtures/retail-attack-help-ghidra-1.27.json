@@ -1,0 +1,612 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "rows": [
+    [
+      "6f49bb50",
+      "Attack_OnAllyCombatAlert",
+      "ECX Attack, stack4 attacker/8 victim, RET8. ability220<1; victim695200(helper owner) HelpRequest, helper695600(victim owner) HelpResponse, helper68bd60(attacker) enemy.6a2dd0 builds zero packet(type10,flags4), virtualfc enters4935e0.192 complete constructed native callback chains; three gate masks execute their original registry/diplomacy bodies. Fresh public directional matrix only case3 reaches the helper. Engine typed ally notification preserves explicit Move head."
+    ],
+    [
+      "6f66e700",
+      "Unit_CallForHelp",
+      "ECX victim, stack4 attacker/8 AI propagation mode. Null source, unit5c bit40 (suppression), unit20 bit1 deny. Read committed world position,688060 radius,67e790 query tokens b/17/16/1f. Recipients execute synchronously before69c810, bit40 and d01b3 request on unit7c. Normal delay3; AI/Town-owned5c bit4 delay0.5. Fresh zero-damage live hits10/11/39/40/41: normal admissions10/41. Engine normal source request shares indexed Attack timer storage and Save128."
+    ],
+    [
+      "6f688060",
+      "Unit_GetCallForHelpRadius",
+      "ECX scalar output, EDX unit: owner>=12 first reads Misc CreepCallForHelp; otherwise unit5c bit4 uses initialized900, else Misc CallForHelp. Public map overrides173/229 captured as exact words. AI ownership is not a Hero/building test."
+    ],
+    [
+      "6f66e9e0",
+      "Unit_VisitHelpRecipient",
+      "ECX helper, EDX context attacker/victim/AI mode. Non-AI self takes separate AI-notification branch; peers call695030 and all ability virtual100(attacker,victim). AI self can also reach the ally callback. Recipient ordering is materialized before callbacks."
+    ],
+    [
+      "6f695030",
+      "Unit_DispatchAllyCombatAlert",
+      "Iterates unit abilities and calls each virtual100 with attacker and victim. Attack implementation49bb50 performs engagement/directional/enemy gates; zero notification occurs before retaliation decisions."
+    ],
+    [
+      "6f695200",
+      "Unit_AllowsHelpRequestToOwner",
+      "Victim request permission: original owner getter685da0,1e7910; diplomacy48 canonical mask payload78. Read-only native matrix executes actual registry054530/056a40; no fake owner/alliance returns."
+    ],
+    [
+      "6f695600",
+      "Unit_AllowsHelpResponseToOwner",
+      "Responder permission: original owner getter685da0,1e8150; diplomacy58 canonical mask payload78. The victim must request from the helper AND helper respond to victim; opposite-direction settings do not substitute."
+    ],
+    [
+      "6f68bd60",
+      "Unit_TreatsSourceAsEnemy",
+      "Uses helper diplomacy38 passive mask through1e2b90/1e2b60. Does not test map player-slot enablement. Engine ally alert uses directional player relation rather than spell validation."
+    ],
+    [
+      "6f05ce60",
+      "WidgetQuery_VisitUnitsTouchingCircle",
+      "Called by token b via04c5a0 ->05f230. Subtract world origin then guarded raw exponent divide32 for center/radius. Query bounding rectangle center+/-radius on unit map scale1/8. Materialize05eb20/05f010 candidates, then compare retained mover78/7c squared distance <= (radius+mover90)^2, software Add/Multiply. Active owner20==0 and live unit payload54 required. Candidate collision radius explains live helper(976,880) accepted by source(800,800), radius173. Center-only05d680 is the OTHER mode, not CallForHelp."
+    ],
+    [
+      "6f05f010",
+      "UnitMap_CollectRectangleCandidates",
+      "Unit widget-query map: X outer, Y inner; newest effective cell entry first, first-cell dedup. Distinct from separation16f570 Y/X order. Engine help queries share proximity publications but select X/Y traversal. Actual zero-damage regression reproduces wrong row-first recipient serial order before fix."
+    ],
+    [
+      "6f04c5a0",
+      "WidgetQuery_DispatchPointCircle",
+      "Second argument nonzero (token b) selects05f230, candidate-radius-inclusive queries; zero selects05f290 center-only. Query tokens are produced in67e790; do not confuse geometrically similar functions."
+    ],
+    [
+      "6f05f230",
+      "WidgetQuery_DispatchTouchingCircle",
+      "Generic class zero/-1 selects05ce60; concrete class selects05cba0, derived class05d110. CallForHelp uses generic05ce60."
+    ],
+    [
+      "6f9b9230",
+      "Unit_RefreshAIOwnedPoolMembership",
+      "Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains GROUP03.2."
+    ],
+    [
+      "6f69b380",
+      "Unit_ApplyDamageAndNotifyAbilities",
+      "All ability virtualfc notifications precede help and damage amount rejection. Packet flags4,2,40 skip help. Other packets call66e700 even for zero amount, before damage scaling/health. AI propagation mode additionally depends on source enemy relation and packet200. Engine ordinary T_Damage broadcasts immediately after target notification."
+    ],
+    [
+      "6f001c80",
+      "Math_InitializeCallForHelpSuppression",
+      "Registered native startup initializer writes software integer3 to global6fd3c750. Ordinary Unit_CallForHelp suppression uses this word; AI/Town-owned unit5c bit4 uses Math_RoundHalf instead. Fresh read-only globals and delay pointers confirm3.0/0.5."
+    ],
+    [
+      "6f001d70",
+      "Math_InitializeAICallForHelpRadius",
+      "Registered native startup initializer writes software integer900 to global6fd3c7f4. Unit_GetCallForHelpRadius uses it for non-neutral AI/Town-owned units; owner>=12 selects Misc CreepCallForHelp first."
+    ]
+  ],
+  "readback": [
+    {
+      "address": "6f49bb50",
+      "name": "Attack_OnAllyCombatAlert",
+      "comments": {
+        "address": "6f49bb50",
+        "plate": "\nPayoff151 read-only assembly: ECX Attack, stack4 attacker,stack8 victim,RET8. Gate ability220; victim695200(helper owner),helper695600(victim owner), helper68bd60(attacker); create zero packet(type10,flags4) then virtualfc. This producer remains to integrate; do not replace it with an unconditional radius/owner test.\nPayoff152: ECX Attack, stack4 attacker/8 victim, RET8. ability220<1; victim695200(helper owner) HelpRequest, helper695600(victim owner) HelpResponse, helper68bd60(attacker) enemy.6a2dd0 builds zero packet(type10,flags4), virtualfc enters4935e0.192 complete constructed native callback chains; three gate masks execute their original registry/diplomacy bodies. Fresh public directional matrix only case3 reaches the helper. Engine typed ally notification preserves explicit Move head.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff151 read-only assembly: ECX Attack, stack4 attacker,stack8 victim,RET8. Gate ability220; victim695200(helper owner),helper695600(victim owner), helper68bd60(attacker); create zero packet(type10,flags4) then virtualfc. This producer remains to integrate; do not replace it with an unconditional radius/owner test.\nPayoff152: ECX Attack, stack4 attacker/8 victim, RET8. ability220<1; victim695200(helper owner) HelpRequest, helper695600(victim owner) HelpResponse, helper68bd60(attacker) enemy.6a2dd0 builds zero packet(type10,flags4), virtualfc enters4935e0.192 complete constructed native callback chains; three gate masks execute their original registry/diplomacy bodies. Fresh public directional matrix only case3 reaches the helper. Engine typed ally notification preserves explicit Move head.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f66e700",
+      "name": "Unit_CallForHelp",
+      "comments": {
+        "address": "6f66e700",
+        "plate": "Payoff152: ECX victim, stack4 attacker/8 AI propagation mode. Null source, unit5c bit40 (suppression), unit20 bit1 deny. Read committed world position,688060 radius,67e790 query tokens b/17/16/1f. Recipients execute synchronously before69c810, bit40 and d01b3 request on unit7c. Normal delay3; AI/Town-owned5c bit4 delay0.5. Fresh zero-damage live hits10/11/39/40/41: normal admissions10/41. Engine normal source request shares indexed Attack timer storage and Save128.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: ECX victim, stack4 attacker/8 AI propagation mode. Null source, unit5c bit40 (suppression), unit20 bit1 deny. Read committed world position,688060 radius,67e790 query tokens b/17/16/1f. Recipients execute synchronously before69c810, bit40 and d01b3 request on unit7c. Normal delay3; AI/Town-owned5c bit4 delay0.5. Fresh zero-damage live hits10/11/39/40/41: normal admissions10/41. Engine normal source request shares indexed Attack timer storage and Save128.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f688060",
+      "name": "Unit_GetCallForHelpRadius",
+      "comments": {
+        "address": "6f688060",
+        "plate": "Payoff152: ECX scalar output, EDX unit: owner>=12 first reads Misc CreepCallForHelp; otherwise unit5c bit4 uses initialized900, else Misc CallForHelp. Public map overrides173/229 captured as exact words. AI ownership is not a Hero/building test.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: ECX scalar output, EDX unit: owner>=12 first reads Misc CreepCallForHelp; otherwise unit5c bit4 uses initialized900, else Misc CallForHelp. Public map overrides173/229 captured as exact words. AI ownership is not a Hero/building test.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f66e9e0",
+      "name": "Unit_VisitHelpRecipient",
+      "comments": {
+        "address": "6f66e9e0",
+        "plate": "Payoff152: ECX helper, EDX context attacker/victim/AI mode. Non-AI self takes separate AI-notification branch; peers call695030 and all ability virtual100(attacker,victim). AI self can also reach the ally callback. Recipient ordering is materialized before callbacks.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: ECX helper, EDX context attacker/victim/AI mode. Non-AI self takes separate AI-notification branch; peers call695030 and all ability virtual100(attacker,victim). AI self can also reach the ally callback. Recipient ordering is materialized before callbacks.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f695030",
+      "name": "Unit_DispatchAllyCombatAlert",
+      "comments": {
+        "address": "6f695030",
+        "plate": "Payoff152: Iterates unit abilities and calls each virtual100 with attacker and victim. Attack implementation49bb50 performs engagement/directional/enemy gates; zero notification occurs before retaliation decisions.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Iterates unit abilities and calls each virtual100 with attacker and victim. Attack implementation49bb50 performs engagement/directional/enemy gates; zero notification occurs before retaliation decisions.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f695200",
+      "name": "Unit_AllowsHelpRequestToOwner",
+      "comments": {
+        "address": "6f695200",
+        "plate": "Payoff152: Victim request permission: original owner getter685da0,1e7910; diplomacy48 canonical mask payload78. Read-only native matrix executes actual registry054530/056a40; no fake owner/alliance returns.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Victim request permission: original owner getter685da0,1e7910; diplomacy48 canonical mask payload78. Read-only native matrix executes actual registry054530/056a40; no fake owner/alliance returns.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f695600",
+      "name": "Unit_AllowsHelpResponseToOwner",
+      "comments": {
+        "address": "6f695600",
+        "plate": "Payoff152: Responder permission: original owner getter685da0,1e8150; diplomacy58 canonical mask payload78. The victim must request from the helper AND helper respond to victim; opposite-direction settings do not substitute.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Responder permission: original owner getter685da0,1e8150; diplomacy58 canonical mask payload78. The victim must request from the helper AND helper respond to victim; opposite-direction settings do not substitute.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f68bd60",
+      "name": "Unit_TreatsSourceAsEnemy",
+      "comments": {
+        "address": "6f68bd60",
+        "plate": "Payoff152: Uses helper diplomacy38 passive mask through1e2b90/1e2b60. Does not test map player-slot enablement. Engine ally alert uses directional player relation rather than spell validation.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Uses helper diplomacy38 passive mask through1e2b90/1e2b60. Does not test map player-slot enablement. Engine ally alert uses directional player relation rather than spell validation.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f05ce60",
+      "name": "WidgetQuery_VisitUnitsTouchingCircle",
+      "comments": {
+        "address": "6f05ce60",
+        "plate": "Payoff152: Called by token b via04c5a0 ->05f230. Subtract world origin then guarded raw exponent divide32 for center/radius. Query bounding rectangle center+/-radius on unit map scale1/8. Materialize05eb20/05f010 candidates, then compare retained mover78/7c squared distance <= (radius+mover90)^2, software Add/Multiply. Active owner20==0 and live unit payload54 required. Candidate collision radius explains live helper(976,880) accepted by source(800,800), radius173. Center-only05d680 is the OTHER mode, not CallForHelp.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Called by token b via04c5a0 ->05f230. Subtract world origin then guarded raw exponent divide32 for center/radius. Query bounding rectangle center+/-radius on unit map scale1/8. Materialize05eb20/05f010 candidates, then compare retained mover78/7c squared distance <= (radius+mover90)^2, software Add/Multiply. Active owner20==0 and live unit payload54 required. Candidate collision radius explains live helper(976,880) accepted by source(800,800), radius173. Center-only05d680 is the OTHER mode, not CallForHelp.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f05f010",
+      "name": "UnitMap_CollectRectangleCandidates",
+      "comments": {
+        "address": "6f05f010",
+        "plate": "Payoff152: Unit widget-query map: X outer, Y inner; newest effective cell entry first, first-cell dedup. Distinct from separation16f570 Y/X order. Engine help queries share proximity publications but select X/Y traversal. Actual zero-damage regression reproduces wrong row-first recipient serial order before fix.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Unit widget-query map: X outer, Y inner; newest effective cell entry first, first-cell dedup. Distinct from separation16f570 Y/X order. Engine help queries share proximity publications but select X/Y traversal. Actual zero-damage regression reproduces wrong row-first recipient serial order before fix.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f04c5a0",
+      "name": "WidgetQuery_DispatchPointCircle",
+      "comments": {
+        "address": "6f04c5a0",
+        "plate": "Payoff152: Second argument nonzero (token b) selects05f230, candidate-radius-inclusive queries; zero selects05f290 center-only. Query tokens are produced in67e790; do not confuse geometrically similar functions.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Second argument nonzero (token b) selects05f230, candidate-radius-inclusive queries; zero selects05f290 center-only. Query tokens are produced in67e790; do not confuse geometrically similar functions.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f05f230",
+      "name": "WidgetQuery_DispatchTouchingCircle",
+      "comments": {
+        "address": "6f05f230",
+        "plate": "Payoff152: Generic class zero/-1 selects05ce60; concrete class selects05cba0, derived class05d110. CallForHelp uses generic05ce60.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Generic class zero/-1 selects05ce60; concrete class selects05cba0, derived class05d110. CallForHelp uses generic05ce60.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f9b9230",
+      "name": "Unit_RefreshAIOwnedPoolMembership",
+      "comments": {
+        "address": "6f9b9230",
+        "plate": "Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is a no-op. Broader neutral/town lifecycle remains outside this control.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff152: Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains GROUP03.2.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is a no-op. Broader neutral/town lifecycle remains outside this control.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff152: Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains GROUP03.2.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f69b380",
+      "name": "Unit_ApplyDamageAndNotifyAbilities",
+      "comments": {
+        "address": "6f69b380",
+        "plate": "\nPayoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice.\nPayoff152: All ability virtualfc notifications precede help and damage amount rejection. Packet flags4,2,40 skip help. Other packets call66e700 even for zero amount, before damage scaling/health. AI propagation mode additionally depends on source enemy relation and packet200. Engine ordinary T_Damage broadcasts immediately after target notification.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice.\nPayoff152: All ability virtualfc notifications precede help and damage amount rejection. Packet flags4,2,40 skip help. Other packets call66e700 even for zero amount, before damage scaling/health. AI propagation mode additionally depends on source enemy relation and packet200. Engine ordinary T_Damage broadcasts immediately after target notification.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f4935e0",
+      "comments": {
+        "address": "6f4935e0",
+        "plate": "\nPayoff151: pre-retaliation guards ability3c>0, unit5c bits100000/200000, unit54 suspension>0, null packet0 source, packet+c bit2.72 original prefix states. Accepted calls49bc40 BEFORE retaliation/refusal and damage outcomes. Public UnitDamageTarget amount0 reaches this with packetflags100; therefore post-positive A_DAMAGED is too late.\nPayoff152 correction: original unit+5c is the status word; old151 oracle wrote+20 and failed to exercise these two guards. Regenerated72-state fixture corrects four accepted states; timer/group results are unchanged.",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff151: pre-retaliation guards ability3c>0, unit5c bits100000/200000, unit54 suspension>0, null packet0 source, packet+c bit2.72 original prefix states. Accepted calls49bc40 BEFORE retaliation/refusal and damage outcomes. Public UnitDamageTarget amount0 reaches this with packetflags100; therefore post-positive A_DAMAGED is too late.\nPayoff152 correction: original unit+5c is the status word; old151 oracle wrote+20 and failed to exercise these two guards. Regenerated72-state fixture corrects four accepted states; timer/group results are unchanged.",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f001c80",
+      "name": "Math_InitializeCallForHelpSuppression",
+      "comments": {
+        "address": "6f001c80",
+        "plate": "Payoff152: Registered native startup initializer writes software integer3 to global6fd3c750. Ordinary Unit_CallForHelp suppression uses this word; AI/Town-owned unit5c bit4 uses Math_RoundHalf instead. Fresh read-only globals and delay pointers confirm3.0/0.5.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Registered native startup initializer writes software integer3 to global6fd3c750. Ordinary Unit_CallForHelp suppression uses this word; AI/Town-owned unit5c bit4 uses Math_RoundHalf instead. Fresh read-only globals and delay pointers confirm3.0/0.5.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f001d70",
+      "name": "Math_InitializeAICallForHelpRadius",
+      "comments": {
+        "address": "6f001d70",
+        "plate": "Payoff152: Registered native startup initializer writes software integer900 to global6fd3c7f4. Unit_GetCallForHelpRadius uses it for non-neutral AI/Town-owned units; owner>=12 selects Misc CreepCallForHelp first.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: Registered native startup initializer writes software integer900 to global6fd3c7f4. Unit_GetCallForHelpRadius uses it for non-neutral AI/Town-owned units; owner>=12 selects Misc CreepCallForHelp first.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    }
+  ],
+  "writes": [
+    {
+      "op": "rename-function",
+      "va": "6f49bb50",
+      "new": "Attack_OnAllyCombatAlert",
+      "result": "unchanged",
+      "time": "2026-10-07T12:19:20"
+    },
+    {
+      "op": "comment",
+      "va": "6f49bb50",
+      "kind": "plate",
+      "previous": "\nPayoff151 read-only assembly: ECX Attack, stack4 attacker,stack8 victim,RET8. Gate ability220; victim695200(helper owner),helper695600(victim owner), helper68bd60(attacker); create zero packet(type10,flags4) then virtualfc. This producer remains to integrate; do not replace it with an unconditional radius/owner test.",
+      "comment": "\nPayoff151 read-only assembly: ECX Attack, stack4 attacker,stack8 victim,RET8. Gate ability220; victim695200(helper owner),helper695600(victim owner), helper68bd60(attacker); create zero packet(type10,flags4) then virtualfc. This producer remains to integrate; do not replace it with an unconditional radius/owner test.\nPayoff152: ECX Attack, stack4 attacker/8 victim, RET8. ability220<1; victim695200(helper owner) HelpRequest, helper695600(victim owner) HelpResponse, helper68bd60(attacker) enemy.6a2dd0 builds zero packet(type10,flags4), virtualfc enters4935e0.192 complete constructed native callback chains; three gate masks execute their original registry/diplomacy bodies. Fresh public directional matrix only case3 reaches the helper. Engine typed ally notification preserves explicit Move head.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f49bb50\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:20"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f66e700",
+      "old": "FUN_6f66e700",
+      "new": "Unit_CallForHelp",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f66e700 from 'FUN_6f66e700' to 'Unit_CallForHelp'\",\"warnings\":[\"Function name 'Unit_CallForHelp' \u2014 main part 'Unit_CallForHelp' is not PascalCase. Expected: UnitCallforhelp\",\"Function name 'Unit_CallForHelp' \u2014 main part 'Unit_CallForHelp' contains underscores. Use PascalCase after the module prefix.\",\"Function name 'Unit_CallForHelp'",
+      "time": "2026-10-07T12:19:20"
+    },
+    {
+      "op": "comment",
+      "va": "6f66e700",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: ECX victim, stack4 attacker/8 AI propagation mode. Null source, unit5c bit40 (suppression), unit20 bit1 deny. Read committed world position,688060 radius,67e790 query tokens b/17/16/1f. Recipients execute synchronously before69c810, bit40 and d01b3 request on unit7c. Normal delay3; AI/Town-owned5c bit4 delay0.5. Fresh zero-damage live hits10/11/39/40/41: normal admissions10/41. Engine normal source request shares indexed Attack timer storage and Save128.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f66e700\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:20"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f688060",
+      "old": "FUN_6f688060",
+      "new": "Unit_GetCallForHelpRadius",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f688060 from 'FUN_6f688060' to 'Unit_GetCallForHelpRadius'\",\"warnings\":[\"Function name 'Unit_GetCallForHelpRadius' \u2014 main part 'Unit_GetCallForHelpRadius' is not PascalCase. Expected: UnitGetcallforhelpradius\",\"Function name 'Unit_GetCallForHelpRadius' \u2014 main part 'Unit_GetCallForHelpRadius' contains underscores. Use PascalCase after",
+      "time": "2026-10-07T12:19:21"
+    },
+    {
+      "op": "comment",
+      "va": "6f688060",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: ECX scalar output, EDX unit: owner>=12 first reads Misc CreepCallForHelp; otherwise unit5c bit4 uses initialized900, else Misc CallForHelp. Public map overrides173/229 captured as exact words. AI ownership is not a Hero/building test.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f688060\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:21"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f66e9e0",
+      "old": "FUN_6f66e9e0",
+      "new": "Unit_VisitHelpRecipient",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f66e9e0 from 'FUN_6f66e9e0' to 'Unit_VisitHelpRecipient'\",\"warnings\":[\"Function name 'Unit_VisitHelpRecipient' \u2014 main part 'Unit_VisitHelpRecipient' is not PascalCase. Expected: UnitVisithelprecipient\",\"Function name 'Unit_VisitHelpRecipient' \u2014 main part 'Unit_VisitHelpRecipient' contains underscores. Use PascalCase after the module ",
+      "time": "2026-10-07T12:19:21"
+    },
+    {
+      "op": "comment",
+      "va": "6f66e9e0",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: ECX helper, EDX context attacker/victim/AI mode. Non-AI self takes separate AI-notification branch; peers call695030 and all ability virtual100(attacker,victim). AI self can also reach the ally callback. Recipient ordering is materialized before callbacks.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f66e9e0\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:21"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f695030",
+      "old": "FUN_6f695030",
+      "new": "Unit_DispatchAllyCombatAlert",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f695030 from 'FUN_6f695030' to 'Unit_DispatchAllyCombatAlert'\",\"warnings\":[\"Function name 'Unit_DispatchAllyCombatAlert' \u2014 main part 'Unit_DispatchAllyCombatAlert' is not PascalCase. Expected: UnitDispatchallycombatalert\",\"Function name 'Unit_DispatchAllyCombatAlert' \u2014 main part 'Unit_DispatchAllyCombatAlert' contains underscores. Us",
+      "time": "2026-10-07T12:19:22"
+    },
+    {
+      "op": "comment",
+      "va": "6f695030",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Iterates unit abilities and calls each virtual100 with attacker and victim. Attack implementation49bb50 performs engagement/directional/enemy gates; zero notification occurs before retaliation decisions.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f695030\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:22"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f695200",
+      "old": "FUN_6f695200",
+      "new": "Unit_AllowsHelpRequestToOwner",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f695200 from 'FUN_6f695200' to 'Unit_AllowsHelpRequestToOwner'\",\"warnings\":[\"Function name 'Unit_AllowsHelpRequestToOwner' \u2014 main part 'Unit_AllowsHelpRequestToOwner' is not PascalCase. Expected: UnitAllowshelprequesttoowner\",\"Function name 'Unit_AllowsHelpRequestToOwner' \u2014 main part 'Unit_AllowsHelpRequestToOwner' contains underscor",
+      "time": "2026-10-07T12:19:22"
+    },
+    {
+      "op": "comment",
+      "va": "6f695200",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Victim request permission: original owner getter685da0,1e7910; diplomacy48 canonical mask payload78. Read-only native matrix executes actual registry054530/056a40; no fake owner/alliance returns.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f695200\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:22"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f695600",
+      "old": "FUN_6f695600",
+      "new": "Unit_AllowsHelpResponseToOwner",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f695600 from 'FUN_6f695600' to 'Unit_AllowsHelpResponseToOwner'\",\"warnings\":[\"Function name 'Unit_AllowsHelpResponseToOwner' \u2014 main part 'Unit_AllowsHelpResponseToOwner' is not PascalCase. Expected: UnitAllowshelpresponsetoowner\",\"Function name 'Unit_AllowsHelpResponseToOwner' \u2014 main part 'Unit_AllowsHelpResponseToOwner' contains und",
+      "time": "2026-10-07T12:19:23"
+    },
+    {
+      "op": "comment",
+      "va": "6f695600",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Responder permission: original owner getter685da0,1e8150; diplomacy58 canonical mask payload78. The victim must request from the helper AND helper respond to victim; opposite-direction settings do not substitute.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f695600\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:23"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f68bd60",
+      "old": "FUN_6f68bd60",
+      "new": "Unit_TreatsSourceAsEnemy",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f68bd60 from 'FUN_6f68bd60' to 'Unit_TreatsSourceAsEnemy'\",\"warnings\":[\"Function name 'Unit_TreatsSourceAsEnemy' \u2014 main part 'Unit_TreatsSourceAsEnemy' is not PascalCase. Expected: UnitTreatssourceasenemy\",\"Function name 'Unit_TreatsSourceAsEnemy' \u2014 main part 'Unit_TreatsSourceAsEnemy' contains underscores. Use PascalCase after the m",
+      "time": "2026-10-07T12:19:24"
+    },
+    {
+      "op": "comment",
+      "va": "6f68bd60",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Uses helper diplomacy38 passive mask through1e2b90/1e2b60. Does not test map player-slot enablement. Engine ally alert uses directional player relation rather than spell validation.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f68bd60\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:24"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f05ce60",
+      "old": "FUN_6f05ce60",
+      "new": "WidgetQuery_VisitUnitsTouchingCircle",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f05ce60 from 'FUN_6f05ce60' to 'WidgetQuery_VisitUnitsTouchingCircle'\",\"warnings\":[\"Function name 'WidgetQuery_VisitUnitsTouchingCircle' \u2014 main part 'WidgetQuery_VisitUnitsTouchingCircle' is not PascalCase. Expected: WidgetqueryVisitunitstouchingcircle\",\"Function name 'WidgetQuery_VisitUnitsTouchingCircle' \u2014 main part 'WidgetQuery_Vi",
+      "time": "2026-10-07T12:19:24"
+    },
+    {
+      "op": "comment",
+      "va": "6f05ce60",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Called by token b via04c5a0 ->05f230. Subtract world origin then guarded raw exponent divide32 for center/radius. Query bounding rectangle center+/-radius on unit map scale1/8. Materialize05eb20/05f010 candidates, then compare retained mover78/7c squared distance <= (radius+mover90)^2, software Add/Multiply. Active owner20==0 and live unit payload54 required. Candidate collision radius explains live helper(976,880) accepted by source(800,800), radius173. Center-only05d680 is the OTHER mode, not CallForHelp.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f05ce60\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:24"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f05f010",
+      "old": "FUN_6f05f010",
+      "new": "UnitMap_CollectRectangleCandidates",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f05f010 from 'FUN_6f05f010' to 'UnitMap_CollectRectangleCandidates'\",\"warnings\":[\"Function name 'UnitMap_CollectRectangleCandidates' \u2014 main part 'UnitMap_CollectRectangleCandidates' is not PascalCase. Expected: UnitmapCollectrectanglecandidates\",\"Function name 'UnitMap_CollectRectangleCandidates' \u2014 main part 'UnitMap_CollectRectangle",
+      "time": "2026-10-07T12:19:25"
+    },
+    {
+      "op": "comment",
+      "va": "6f05f010",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Unit widget-query map: X outer, Y inner; newest effective cell entry first, first-cell dedup. Distinct from separation16f570 Y/X order. Engine help queries share proximity publications but select X/Y traversal. Actual zero-damage regression reproduces wrong row-first recipient serial order before fix.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f05f010\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:25"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f04c5a0",
+      "old": "FUN_6f04c5a0",
+      "new": "WidgetQuery_DispatchPointCircle",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f04c5a0 from 'FUN_6f04c5a0' to 'WidgetQuery_DispatchPointCircle'\",\"warnings\":[\"Function name 'WidgetQuery_DispatchPointCircle' \u2014 main part 'WidgetQuery_DispatchPointCircle' is not PascalCase. Expected: WidgetqueryDispatchpointcircle\",\"Function name 'WidgetQuery_DispatchPointCircle' \u2014 main part 'WidgetQuery_DispatchPointCircle' contai",
+      "time": "2026-10-07T12:19:26"
+    },
+    {
+      "op": "comment",
+      "va": "6f04c5a0",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Second argument nonzero (token b) selects05f230, candidate-radius-inclusive queries; zero selects05f290 center-only. Query tokens are produced in67e790; do not confuse geometrically similar functions.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f04c5a0\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:26"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f05f230",
+      "old": "FUN_6f05f230",
+      "new": "WidgetQuery_DispatchTouchingCircle",
+      "result": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f05f230 from 'FUN_6f05f230' to 'WidgetQuery_DispatchTouchingCircle'\",\"warnings\":[\"Function name 'WidgetQuery_DispatchTouchingCircle' \u2014 main part 'WidgetQuery_DispatchTouchingCircle' is not PascalCase. Expected: WidgetqueryDispatchtouchingcircle\",\"Function name 'WidgetQuery_DispatchTouchingCircle' \u2014 main part 'WidgetQuery_DispatchTouc",
+      "time": "2026-10-07T12:19:26"
+    },
+    {
+      "op": "comment",
+      "va": "6f05f230",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Generic class zero/-1 selects05ce60; concrete class selects05cba0, derived class05d110. CallForHelp uses generic05ce60.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f05f230\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:26"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f9b9230",
+      "new": "Unit_RefreshAIOwnedPoolMembership",
+      "result": "unchanged",
+      "time": "2026-10-07T12:19:26"
+    },
+    {
+      "op": "comment",
+      "va": "6f9b9230",
+      "kind": "plate",
+      "previous": "Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is a no-op. Broader neutral/town lifecycle remains outside this control.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "comment": "Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is a no-op. Broader neutral/town lifecycle remains outside this control.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff152: Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains GROUP03.2.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f9b9230\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:27"
+    },
+    {
+      "op": "rename-function",
+      "va": "6f69b380",
+      "new": "Unit_ApplyDamageAndNotifyAbilities",
+      "result": "unchanged",
+      "time": "2026-10-07T12:19:27"
+    },
+    {
+      "op": "comment",
+      "va": "6f69b380",
+      "kind": "plate",
+      "previous": "\nPayoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice.",
+      "comment": "\nPayoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice.\nPayoff152: All ability virtualfc notifications precede help and damage amount rejection. Packet flags4,2,40 skip help. Other packets call66e700 even for zero amount, before damage scaling/health. AI propagation mode additionally depends on source enemy relation and packet200. Engine ordinary T_Damage broadcasts immediately after target notification.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f69b380\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:27"
+    },
+    {
+      "op": "replace-comment",
+      "va": "6f4935e0",
+      "kind": "plate",
+      "previous": "\nPayoff151: pre-retaliation guards ability3c>0, unit20 bits100000/200000, unit54 suspension>0, null packet0 source, packet+c bit2.72 original prefix states. Accepted calls49bc40 BEFORE retaliation/refusal and damage outcomes. Public UnitDamageTarget amount0 reaches this with packetflags100; therefore post-positive A_DAMAGED is too late.",
+      "comment": "\nPayoff151: pre-retaliation guards ability3c>0, unit5c bits100000/200000, unit54 suspension>0, null packet0 source, packet+c bit2.72 original prefix states. Accepted calls49bc40 BEFORE retaliation/refusal and damage outcomes. Public UnitDamageTarget amount0 reaches this with packetflags100; therefore post-positive A_DAMAGED is too late.\nPayoff152 correction: original unit+5c is the status word; old151 oracle wrote+20 and failed to exercise these two guards. Regenerated72-state fixture corrects four accepted states; timer/group results are unchanged.",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f4935e0\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:19:27"
+    },
+    {
+      "op": "save",
+      "result": "{\"success\":true,\"program\":\"game.dll\",\"message\":\"Program saved successfully\"}",
+      "time": "2026-10-07T12:19:27"
+    },
+    {
+      "op": "create-function",
+      "va": "6f001c80",
+      "name": "Math_InitializeCallForHelpSuppression",
+      "result": "{\"success\":true,\"address\":\"6f001c80\",\"function_name\":\"Math_InitializeCallForHelpSuppression\",\"entry_point\":\"6f001c80\",\"body_size\":15,\"message\":\"Function created successfully at 6f001c80\",\"warnings\":[\"Function name 'Math_InitializeCallForHelpSuppression' \u2014 main part 'Math_InitializeCallForHelpSuppression' is not PascalCase. Expected: MathInitializecallforhelpsuppression\",\"Function name 'Math_InitializeCallForHelpSuppression' \u2014 main part 'Math_InitializeCallForHelpSuppression' contains underscores. Use PascalCase after the module prefix.\",\"Function name 'Math_InitializeCallForHelpSuppression' does not start with a recognized verb. First word 'Math_' not in allowed list. Common verbs: Get, Set, Initialize, Process, Calculate, Find, Check, Handle\"]}",
+      "time": "2026-10-07T12:26:37"
+    },
+    {
+      "op": "comment",
+      "va": "6f001c80",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Registered native startup initializer writes software integer3 to global6fd3c750. Ordinary Unit_CallForHelp suppression uses this word; AI/Town-owned unit5c bit4 uses Math_RoundHalf instead. Fresh read-only globals and delay pointers confirm3.0/0.5.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f001c80\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:26:37"
+    },
+    {
+      "op": "create-function",
+      "va": "6f001d70",
+      "name": "Math_InitializeAICallForHelpRadius",
+      "result": "{\"success\":true,\"address\":\"6f001d70\",\"function_name\":\"Math_InitializeAICallForHelpRadius\",\"entry_point\":\"6f001d70\",\"body_size\":15,\"message\":\"Function created successfully at 6f001d70\",\"warnings\":[\"Function name 'Math_InitializeAICallForHelpRadius' \u2014 main part 'Math_InitializeAICallForHelpRadius' is not PascalCase. Expected: MathInitializeaicallforhelpradius\",\"Function name 'Math_InitializeAICallForHelpRadius' \u2014 main part 'Math_InitializeAICallForHelpRadius' contains underscores. Use PascalCase after the module prefix.\",\"Function name 'Math_InitializeAICallForHelpRadius' does not start with a recognized verb. First word 'Math_' not in allowed list. Common verbs: Get, Set, Initialize, Process, Calculate, Find, Check, Handle\"]}",
+      "time": "2026-10-07T12:26:37"
+    },
+    {
+      "op": "comment",
+      "va": "6f001d70",
+      "kind": "plate",
+      "previous": "",
+      "comment": "Payoff152: Registered native startup initializer writes software integer900 to global6fd3c7f4. Unit_GetCallForHelpRadius uses it for non-neutral AI/Town-owned units; owner>=12 selects Misc CreepCallForHelp first.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f001d70\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}",
+      "time": "2026-10-07T12:26:37"
+    },
+    {
+      "op": "save",
+      "result": "{\"success\":true,\"program\":\"game.dll\",\"message\":\"Program saved successfully\"}",
+      "time": "2026-10-07T12:26:37"
+    }
+  ]
+}

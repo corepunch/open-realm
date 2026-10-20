@@ -109,3 +109,365 @@ build/bin/xctraceprof --top 30 build/test-time-profile.xml
 ```
 
 The final engine-test profile sampled `Test_Run` and showed `__bzero` as the largest leaf symbol, followed by JASS setup and test-specific work. This profile covers the engine-backed WC3 process; aggregate wall timing is required for the full multi-suite target.
+
+
+## Linux SDL compatibility-layer text-event crash
+
+On a host with`sdl2-compat 2.32.72` and`SDL3 3.4.16`, the unchanged
+`client_input.menu_sdl_input_is_exclusive_with_world_presentation` test crashes
+inside`SDL_PushEvent` for its`SDL_TEXTINPUT` event, even in isolation. A minimal
+SDL-only reproducer also crashes with the dummy video driver and a hidden
+window. This is separate from the Way Gate serialization diagnostics printed
+earlier by the aggregate suite.
+
+The compatibility layer's`Event2to3` returns NULL for text input, and its
+`SDL_PushEvent` forwards that result to SDL3. See the
+[upstream conversion](https://github.com/libsdl-org/sdl2-compat/blob/main/src/sdl2_compat.c).
+Keep the real queued text-input regression. For verification on this host,
+build native SDL2 in an isolated directory and select it for the test process:
+
+```sh
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build:$LD_LIBRARY_PATH make test
+```
+
+This does not replace system libraries or change production input handling.
+
+### Route modes335/336: second implementation commit after332
+
+ROUTE-04.1 closes with two game-local fixes: the post-type-change Move timer
+recreates its physical point group, and the flying next-step collector respects
+no-fly terrain after query restoration. Both failures are preserved before the
+fixes; the accepted native inputs are unchanged. Two repeated/control public
+matrices cover4122 commits and4081 cache states, with four cold continuations
+per matrix. Classic/TFT each pass888 tests /8471883 assertions across full
+movement647, unit/morph142, pathfinding97 and blocker-scope2. Production/test
+builds pass without warnings. The576-case original cache oracle and strict
+fresh route335 corpus report pass. Seven new evidence tests,37 corpus tests
+and12 ownership tests pass. All559 older corpus entries remain unchanged.
+
+This is implementation commit2/12 after the332 full checkpoint; it does not
+reset that cadence or claim another full repository suite. Logs, JUnit, native
+accepted/rejected captures and the patch are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.1/`.
+
+### Arrival composition337: third implementation commit after332
+
+ROUTE-04.2 closes with unconditional scheduler cancellation on successful
+physical arrival. The initial regression failed36 checks; final72 queue/cache
+cases, half with cold saves, pass2412 assertions. Both Classic and TFT pass
+all648 movement tests /8099511 assertions. The unchanged goal310
+verifier separately passes194 tests /829108 assertions per edition plus its
+713 native instruction guards,96 public scenes and nine perimeter completions.
+Two read-only retail repeats match18600 events and1329 public markers, including
+25 cache-preserving arrival unlinks; the original caller matrix passes1536 cases.
+Five new Python evidence tests,37 corpus tests and12 ownership tests pass, along
+with warning-free production/test builds and the fresh strict corpus entry.
+All560 prior corpus entries are unchanged. Initial invalid make target names
+and the rejected UINT32_MAX save-fixture counters are retained as diagnostics.
+
+This is implementation commit3/12 after checkpoint332. It does not reset the
+full-suite cadence. Logs, JUnit, raw native repeats and the patch are archived
+under `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.2/payoff337/`.
+
+### Acquisition ranking338: fourth implementation commit after332
+
+GROUP-03.2 advances without a new split or closure. The integration fixes
+attacker-owned neutral levels, directional victim spell grants, artillery
+collateral/veto, normal-player Town ranking and Roots priority/current speed.
+The final verifier passes306 tests /32600 assertions in each of Classic and
+TFT, including actual owner-change delivery, status removal, spell approach
+ownership and cold saves. Original evidence comprises3198 normal events,
+3916 hard-Town events with38 candidate words, and476 control-effect events;
+each pair matches its uninstrumented public control. Original scalar blocks
+check9 health and36 multiplier boundary cases. Failing-first health and Roots
+runs are retained, including the separate speed-zero failure after the mobility
+fix. Production and test builds pass;14 evidence rejection/validation tests,37 corpus
+tests and12 exclusion-ownership tests pass. The fresh strict corpus entry and
+staged corpus/ownership inventory pass; all561 older entries are unchanged.
+
+This is implementation commit4/12 after checkpoint332. Full-suite cadence is
+unchanged. Eight updated function annotations are saved in Ghidra. Raw captures,
+source maps, diagnostic attempts, JUnit and fresh reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff338/verified/`.
+
+### Acquisition control effects339: fifth implementation commit after332
+
+Three failing-first regressions (58 failures /328 assertions) now pass, covering
+Sleep admission, natural-sleep scans and five Ensnare/Web binding IDs with
+removal/ability/save inverses. The affected suites pass343 tests /32998 assertions
+in each of Classic and TFT. Two complete1372-event retail captures agree with
+98 public markers from an uninstrumented control. The verifier checks427 original
+instructions and fresh class hierarchy extraction. Eight evidence tests,37 corpus
+tests and12 ownership tests pass; production and test builds pass. A fresh strict
+oracle-group339 report verifies the registered evidence. Existing562 corpus
+entries remain unchanged. GROUP-03.2 remains open without another task split.
+
+Cadence is5/12 since full checkpoint332; no full-suite claim for this chunk.
+Five annotations are saved in Ghidra. Reports, diagnostic attempts, maps, failing
+and passing logs are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff339/`.
+
+### Availability minimum range340: sixth implementation commit after332
+
+The24-scene public minimum-range matrix has two complete matching1065-event
+captures and146 public markers equal to the uninstrumented control. The engine
+regression first failed32/640 assertions; all640 now pass across fresh/cold saves,
+movement-disabled forms and removal of the minimum-range restriction. Focused
+Classic/TFT checks each pass344 tests /33638 assertions. Original verification
+checks812 instructions; eight evidence tests,37 corpus tests and12 ownership
+tests pass, as does the fresh strict oracle-group340 entry. Production and test
+builds pass. The563 older corpus entries remain unchanged.
+
+Cadence is6/12 after full checkpoint332. GROUP-03.2 remains open, with no new
+TODO split. Five function annotations are saved; failed observer attempts,
+accepted repeats/control, maps, builds and reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff340/`.
+
+### Alternative lifetime341: seventh implementation commit after332
+
+Production/test builds pass. `verify_wc3_pathing_group341.py` runs349 tests /34409 assertions in each Classic/TFT mode, including the296-assertion lifecycle regression and save format/layout rejection. The retail check requires two1065-event repeats, an82-marker uninstrumented control and737 original instruction guards. Evidence/corpus/ownership suites pass8/37/12 tests. This is focused validation; full-suite cadence is7/12 since full332.
+
+### Exclusion coverage342: upstream checkpoint and fresh scope audit
+
+Upstream merge `3a19ff3ee` passed `make test`: 9,087 native tests and 2,194
+pathfinding tooling tests, plus WC3/WoW/SC2 debug and release builds. That full
+suite tested the merge commit before restoring the pending342 engine changes.
+After restoration, production/test builds and 531 focused tests per edition
+passed. The subsequent342 closure audit reran all17 required native entries
+against that restored engine and joined1,358 distinct Classic/TFT tests each,
+including all32 required restoration tests across12 scopes (11 reachable).
+The extra scope matrix contributes8 tests/1,428,238 assertions per edition.
+
+The new held-filter regression first failed48 assertions after its fixture was
+corrected; the accepted-action continuation separately failed12 assertions.
+The final fresh/restored eight-scene matrix passes1,600 assertions per edition.
+Report discovery also has a failing-first test for single-report and sharded
+JUnit output. The final coverage result pins native reports, verifier sources,
+current engine fingerprints and executed JUnit files. Save194 and network layout
+are unchanged by342. Archive: `research/MAP-04.2/payoff342/` under the retail
+report root. The closure uses focused validation after the full upstream
+checkpoint; it does not claim a second full suite on the pending342 changes.
+
+### ORDER343 decay cancellation validation
+
+Second implementation commit after upstream merge checkpoint3a19ff3ee (following342).
+Classic/TFT each pass146 tests /16,346 assertions: unit lifecycle, suspended and
+resumed saves, prior-version and layout rejection. Eight evidence corruption
+checks and37 corpus checks pass. Production and test libraries build; no full
+suite repeated. Two842-record original traces, unhooked187-marker control and476
+original instruction guards pass the strict verifier. Logs: `/tmp/order343/`;
+archive: `research/ORDER-01.2/order343/` under the1.27 report root.
+
+## ORDER346 arrival/failure closure checkpoint (2026-10-15)
+
+`make test TEST_JOBS=8` passed:9359 native tests across32 JUnit reports, zero
+failures/errors;2250 Python pathfinding evidence tests in705.896 seconds.
+Final focused ORDER346 verification passed1097 tests/127193 assertions per
+Classic/TFT edition, including ten naval tests/3748 assertions per edition.
+The production release build passed without warnings. The earlier full run
+passed all native tests but caught the corpus oracle count still set to288;
+updating the inventory expectation to289 fixed that failure. The accepted full
+run includes the subsequent failing-first AI shore-phase exclusion fix.
+
+Evidence: `ORDER-01.2/order346/resume-1015/make-test-accepted.log`,
+`accepted-native-junit.json`, `accepted-junit/`, `order346-final.json` and
+`release-accepted-build.log` in the local retail research report archive.
+ORDER-01.2 is closed;299/336 backlog tasks are done,37 remain.
+
+## FOOT347 radius producer closure checkpoint (2026-10-15)
+
+`make test TEST_JOBS=8` passed9363 native tests in32 JUnit reports, with zero
+failures/errors, and2258 Python pathfinding evidence tests in721.686 seconds.
+The focused radius producer suite passed28 tests/434088 assertions in each
+Classic/TFT edition. Its two new public fresh/save cases contribute19975
+assertions per edition and compare1209 getter states/253 shared-cache states.
+The strict corpus runner verified `oracle-foot347` from fresh output.
+The regression build emitted no warnings; production code is unchanged.
+
+Reports: `FOOT-01.3/foot347/full-checkpoint.log`, `accepted.json`,
+`strict-corpus/`, `accepted-native-junit.json` and `accepted-junit/` in the
+local retail research report archive. FOOT-01.3 is closed:300/336 done,36
+remain. This is a completed full-suite checkpoint for subsequent iterations.
+
+### Move348 parameter overwrite checkpoint
+
+MOVE-01.3 closes with301/336 leaves done. The repeated retail public scene
+matches2885 native records,549 public markers and488 raw getter states.
+`verify_wc3_pathing_move348.py` passes8 focused tests/58003 assertions per
+Classic/TFT, including the same JASS script across a cold save during timed
+facing. Seven evidence rejection tests and37 corpus checks pass; the ownership
+audit assigns all743 exclusions across291 oracle contracts.
+
+`make test TEST_JOBS=8` ran2265 Python evidence tests successfully (654.555s).
+Its first native sweep exposed a void-notification return-contract error in
+`A_DISABLE`; after correction, all29 dispatcher tests passed and the entire
+failed Classic shard3 was rerun:1006 tests/4757816 assertions, zero failures.
+The final32 JUnit reports contain9369 native tests, zero failures/errors/skips.
+The aggregate invocation itself retains its nonzero status from that original
+shard; the fresh shard report is the final acceptance, not an edited report.
+Debug tests and isolated optimized production game module builds pass without
+compiler warnings. Logs, red baselines and final reports are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MOVE-01.3/move348/`.
+A parallel production rebuild initially raced MPQ tools loading `libgame.so`;
+the final suite ran after that build. Avoid rebuilding that library while
+archive-generation tools are running.
+
+### Power349 Pow caller checkpoint
+
+NUM-01.19 closes with302/336 leaves done and34 remaining. The portable
+original-code verifier checks38 functions/2387 instructions,209 complete caller
+cases and1111 nested arithmetic results. Two read-only retail streams match3615
+records and1351 scalar calls; the control agrees428 public markers. The engine
+matches422 immutable getter rows fresh and through a cold save. The minimal
+common.j omissions are supplied by the harness; actual JASS life/R2S values are
+checked alongside raw unit state.
+
+`make test TEST_JOBS=8` completed successfully:9379 native tests across32 JUnit
+reports, and2273 Python evidence tests (602.129s). The final health-death
+regression then reproduced four failures: the cached positive regeneration could
+raise a dead unit's health. Terminal writes now retire that prediction. All eight
+Classic/TFT shards were rerun after the fix; their fresh reports preserve the
+9379-test aggregate with zero failures/errors/skips. No Python implementation
+changed after the completed sweep; the corpus/catalog checks are rerun after
+final documentation and pin updates. Debug production/test targets and the
+isolated optimized game module build pass. The earlier optimized renderer build
+retains its existing blockHeader warnings in unchanged r_mdx_load.c; the changed
+game module builds without warnings.
+
+Logs, red reproducers, original captures, focused verifier reports and final
+JUnit files are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.19/power349/`.
+`full-accepted.log` records the aggregate sweep;
+`native-after-death-fix.log` and `full-accepted-junit/` record the final native
+acceptance. The guard for unbound temporary entities and the cross-BuffID
+single-owner regression are retained with their original failing logs. Save199
+round trips active status/health state and an in-flight callback, and rejects
+older layouts. No new TODOs; no push.
+
+### Power350 public-native lifetime checkpoint
+
+NUM-01.14 closes with303/336 leaves done and33 remaining. Eight read-only retail
+observations and four observer-free controls agree;295 thread samples remain in
+the original guarded integer-power/multiply loop. The saved Ghidra inventory
+covers eight complete functions/1574 instructions. The original engine failure
+returned a recoverable VM error; actual public native invocation now retains
+synchronous arithmetic execution with signed-SAR semantics. The checked numeric
+facade stays bounded and does not assign a result to nonreturning inputs.
+
+The final debug and optimized production/test builds pass. All eight bounded
+Classic/TFT workers pass in each build, matching complete public marker/counter
+sequences. `make test TEST_JOBS=8` passes9379 native tests plus eight new bounded
+process-lifetime checks across33 JUnit reports, with zero failures/errors/skips.
+The Python discovery passes2283 tests in583.278s. Eight controller tests
+added after discovery started pass separately; they verify rejected evidence,
+process ownership/cleanup and inherited test-environment isolation. Debug/O2
+workers use the final constant-control loop, preserving C forward-progress
+semantics. The existing renderer blockHeader warnings remain in unchanged code;
+the changed game code builds without warnings.
+
+The fresh O0 numeric oracle verifies24423 calls and preserves the prior outcome
+digest; the fresh O2 corpus passes oracle-power, oracle-power349 and
+oracle-power350. Original VM behavior is separate from emulator instruction
+budgets. The permanent `test-wc3-power-lifetime` target bounds startup and native
+hold in owned children and is included in `make test`; do not invoke the stress
+worker directly. The archive/evidence tests reject altered counters, PCs,
+conversion/sign/order, source/map provenance, missing controls and instruction
+guards. The exclusion ownership audit has zero unassigned statements.
+
+Acceptance logs, red regressions, final build logs, O2 worker report,
+`full-test.log`, `full-junit/`, and `corpus-accepted/` are retained under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.14/power350/`.
+The committed portable bundle preserves all12 captures and rebuildable map
+inputs. Network and save formats are unchanged. No new TODOs; no push.
+
+### Trig351 caller-storage checkpoint
+
+NUM-01.18 closes after the complete140-site/70-function/6897-instruction audit.
+Two read-only traces agree on454 scalar and394 caller lifetimes;98 observer-free
+markers agree. The original forwarding harness checks1170 contexts with40
+forced sign-loss controls. All observed disjoint scalar results already match
+production, so this chunk adds evidence and engine regressions without inventing
+a production arithmetic change.
+
+Debug and optimized test targets build successfully. All84 literal retail native
+returns pass through the real JASS VM (252 assertions per edition/build).
+The complete verifier also runs the established facing/Move/save cases:
+4 tests/14560 assertions in each edition, at O0 and O2. Eleven new evidence/rejection
+tests pass. An initial optimized verifier invocation lacked the custom library
+directory and exited127 before running tests; its failed log remains preserved.
+The accepted optimized invocation explicitly supplies
+`LD_LIBRARY_PATH=/run/media/lofcz/ssd_external/GitHub/open-realm/build/move348-release/lib`.
+
+The immediately preceding Power350 full checkpoint remains9379 native tests,
+eight bounded lifetime checks and2283 Python checks; that full sweep is not
+claimed again for this evidence/test-only chunk. Logs, raw captures, original
+inventory and focused acceptance are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.18/trig351/`.
+`corpus-final-frozen/trig351-callers.json` and `verification-o2-proof-accepted.json`
+record the original,
+independent-model and engine comparisons. Ghidra saved; no wire/save-format
+change and no new TODOs.
+
+### Basic352 formatter and caller checkpoint
+
+NUM-01.17 closes with the complete7097-reference/2008-function/179722-instruction
+inventory,6912 CFG basic operand/destination records,34038 original alias contexts
+(16470 partial overlaps),199 original startup thunks and5124 formatter contexts.
+All O0/O2 original/model/C comparisons agree, including63656 captured scalar
+calls. Two public formatting traces repeat9553 records/423 lifetimes/3714 nested
+scalars;426 public markers match observer-free control. Broad query traces outside
+the2272-record synchronous callback remain diagnostic, not full-frame parity.
+
+The actual R2SW/S2R/Move regression fails516 assertions before the fix.
+Production/test debug and optimized builds complete without new warnings.
+Three focused tests pass2231 assertions per Classic/TFT edition, including420
+literal public strings, cold-save Move targets/direction and transactional output
+bounds. The combined native/compiled-expression/facing suites pass15 tests and
+17716 assertions per edition at O0/O2. Thirteen evidence/rejection tests pass.
+The original overflowing native-buffer/fault lifetime remains NUM-01.2; engine
+bounds are a safety contract. No network or save-layout change is involved.
+
+`LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 make test TEST_JOBS=8
+TEST_JUNIT_DIR=<report-root>/full-junit` passes. All33 JUnit reports are green:
+9387 regular native tests plus eight bounded lifetime checks,9395 total.
+The required pathfinding Python discovery passes2315 tests in672.253s.
+Fresh corpus entries oracle-basic352, oracle-numeric and oracle-trig351 pass.
+Catalog validation covers295 executable contracts/576 entries/2509 pinned inputs;
+exclusion ownership has zero unassigned statements. Ghidra is saved.
+
+A separate broader `python3 -m unittest discover -s tests -p 'test_*.py'`
+includes optional local-binary integration classes outside the redistributable
+fixture suite. Their setup reports two missing-file errors for
+`data/warcraft3demo/game.dll` and `data/Warcraft III/Warcraft III.exe` (TFT1.29.2).
+These binaries are absent; no fixture substitutes or skipped-test edits were
+introduced. Its diagnostic result is recorded separately from passing required
+`make test` and focused evidence. Failed early verifier invocations (wrong DLL
+filename, Python without Unicorn, and an empty native filter) remain in the
+report history; accepted runs use verify-venv and the correct nonempty filter.
+
+All build, failing-first, complete verifier, corpus, full-suite and Python logs
+are retained under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.17/basic352/`.
+The portable bundle preserves all six owned captures and source/map inputs.
+No probe remains live. Upstream/main is already an ancestor after a fresh fetch;
+no merge or push is needed. No new TODOs.
+
+### Upstream synchronization, 2026-10-18
+
+The pathfinding branch integrates upstream/main at `8853d069c`, retaining the
+verified physical-owner order/arrival contracts and deferred trigger release.
+Save format213 combines the pathfinding layout with upstream score attribution,
+item overrides, campaign difficulty and timed Omniscience deadlines. Completed
+fog planes retain their existing snapshot contract; timed deadlines now persist
+beside them. Optional SC2API order observation uses the sparse queue capacity.
+
+Production game and test-runner builds pass. Thirty-four focused Classic/TFT
+runs pass108 tests/10644 assertions, covering score, item pools, difficulty,
+trigger retirement, visibility, explosions, construction, path distance, Ground
+and Captain behavior. The complete Ground verifier additionally passes43 tests/
+11838 assertions per edition with2757 original guards; Captain passes6/139 per
+edition with3611 guards. Core, server networking, commands, menu and JASS header
+dependency checks pass. The fixture inventory contains all13 committed maps;
+uncommitted generated Morph maps were preserved outside the clean fixture pack.
+This integration check is not a new full-suite checkpoint; the previously
+recorded Captain subscription and paused-removal failures remain separate work.

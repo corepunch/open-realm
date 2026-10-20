@@ -60,7 +60,11 @@ static char const sd_slk[] =
 
 static sdFix_t sd_setup(uint32_t code) {
 	sdFix_t fix;
-	reset_entities(); setup_test_world(); level.time = 1000;
+	reset_entities(); setup_test_world(); level.time = level.pathing_msec = 1000;
+    level.pathing_clock = (wc3Clock_t){.span = 300};
+    level.pathing_owner_clock_valid = false;
+    level.pathing_phase = 0; level.pathing_due = false;
+    level.timer_clock_valid = false;
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
@@ -75,6 +79,11 @@ static sdFix_t sd_setup(uint32_t code) {
 	fix.near_enemy->health.value = fix.near_enemy->health.max_value = 500;
 	fix.far_enemy->health.value = fix.far_enemy->health.max_value = 500;
 	fix.goblin->armor_value = 0; fix.near_enemy->armor_value = 0; fix.far_enemy->armor_value = 0;
+	/* ncgb has no UnitData row in the minimal archive. Supply the movement
+	 * profile explicitly, including setter flags retained by save/load. */
+	fix.goblin->unitinfo.TurnSpeed = .6f;
+	fix.goblin->unitinfo.PropWindow = DEG2RAD(60);
+	fix.goblin->unitinfo.move_flags |= BZ_UNIT_TURN_SET | BZ_UNIT_WINDOW_SET;
 	fix.goblin->die = unit_die;
 	T_ASSERT(G_ActorAddSkill(fix.goblin, code));
 	return fix;
@@ -224,10 +233,7 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
 
     T_ASSERT(fix.goblin->health.value > 0);
     T_ASSERT(!column->destructable->dead);
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == fix.goblin && ent->think == S_SpellTargetApproachThink) {
-        approach = ent;
-        break;
-    }
+    approach = S_UnitTargetApproachReceiver(fix.goblin);
     T_NOT_NULL(approach);
     T_NOT_NULL(fix.goblin->goalentity);
     if (!approach || !fix.goblin->goalentity) { sd_done(fix); return; }
@@ -289,7 +295,11 @@ TEST(wc3_spell, self_destruct_pocket_factory_goblin_btlf_detonates) {
 	slkTestData_t *rows = parse_slk_string(both), *old;
 	edict_t *caster, *goblin = NULL, *enemy;
 	vec2_t point = { 128, 128 };
-	reset_entities(); setup_test_world(); level.time = 1000;
+	reset_entities(); setup_test_world(); level.time = level.pathing_msec = 1000;
+    level.pathing_clock = (wc3Clock_t){.span = 300};
+    level.pathing_owner_clock_valid = false;
+    level.pathing_phase = 0; level.pathing_due = false;
+    level.timer_clock_valid = false;
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
@@ -336,8 +346,7 @@ static sdFix_t self_destruct_select_mobile_target(void) {
     fix.goblin->unitinfo.MoveSpeed = 270;
     unit_stand(fix.goblin);
     gi.LinkEntity(fix.goblin);
-    fix.near_enemy->s.origin2 = MAKE(vec2_t, 200, 0);
-    gi.LinkEntity(fix.near_enemy);
+    S_SetUnitPosition(fix.near_enemy, &(vec2_t){200, 0});
     G_SelectEntity(client, fix.goblin);
     G_ClientCommand(clent, 2, button);
     snprintf(number, sizeof(number), "%u", fix.near_enemy->s.number);
@@ -350,8 +359,7 @@ static sdFix_t self_destruct_select_mobile_target(void) {
 
 TEST(wc3_spell, self_destruct_entity_target_tracks_motion) {
     sdFix_t fix = self_destruct_select_mobile_target();
-    fix.near_enemy->s.origin2 = MAKE(vec2_t, 500, 0);
-    gi.LinkEntity(fix.near_enemy);
+    S_SetUnitPosition(fix.near_enemy, &(vec2_t){500, 0});
     self_destruct_run_frames(100);
     T_ASSERT(M_IsDead(fix.goblin));
     T_ASSERT(fix.near_enemy->health.value < 500);
@@ -395,19 +403,17 @@ TEST(wc3_spell, self_destruct_entity_target_survives_save_load) {
         cstring_t filename = Test_TempPath("wc3-sapper-approach.bin");
         edict_t *approach = NULL;
         ((mapInfo_t *)level.mapinfo)->fileFormat = formats[i];
-        FILTER_EDICTS(ent, ent->inuse && ent->owner == fix.goblin && ent->think == S_SpellTargetApproachThink)
-            approach = ent;
+        approach = S_UnitTargetApproachReceiver(fix.goblin);
         T_NOT_NULL(approach);
         T_ASSERT(WriteGame(filename));
         T_ASSERT(ReadGame(filename));
         if (approach) {
-            T_ASSERT(approach->inuse && approach->think == S_SpellTargetApproachThink);
+            T_ASSERT(approach->inuse && S_UnitTargetApproachReceiver(fix.goblin) == approach);
             T_ASSERT(S_SpellChannelOwner(approach) == fix.goblin);
             T_ASSERT(S_SpellChannelTarget(approach) == fix.near_enemy);
         }
         T_ASSERT(fix.goblin->goalentity == fix.near_enemy);
-        fix.near_enemy->s.origin2 = MAKE(vec2_t, 500, 0);
-        gi.LinkEntity(fix.near_enemy);
+        S_SetUnitPosition(fix.near_enemy, &(vec2_t){500, 0});
         self_destruct_run_frames(100);
         T_ASSERT(M_IsDead(fix.goblin));
         T_ASSERT(fix.near_enemy->health.value < 500);

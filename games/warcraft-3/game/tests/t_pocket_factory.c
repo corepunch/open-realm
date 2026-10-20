@@ -176,7 +176,7 @@ TEST(wc3_spell, pocket_factory_datae_leash_returns_clockwerk) {
     goblin->health.value = goblin->health.max_value = 100;
     goblin->s.origin2.x = point.x + 400.0f; goblin->s.origin2.y = point.y;
     goblin->s.origin.x = goblin->s.origin2.x; goblin->s.origin.y = goblin->s.origin2.y;
-    goblin->goalentity = NULL;
+    S_SetMoveGoal(goblin, &goblin->goalentity, NULL);
     pf_tick(1);
     T_NOT_NULL(goblin->goalentity);
     if (!goblin->goalentity) { pf_done(fix); return; }

@@ -1,0 +1,18 @@
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call Preload("R292AI label=stop-before")
+    call StopGathering()
+    call Preload("R292AI label=stop-after")
+    call CreateCaptains()
+    call Preload("R292AI label=create-after")
+    loop
+        if CommandsWaiting()>0 then
+            call PopLastCommand()
+            call Preload("R292AI label=repeat-before")
+            call StopGathering()
+            call ResetCaptainLocs()
+            call Preload("R292AI label=repeat-after")
+        endif
+        call Sleep(0.1)
+    endloop
+endfunction

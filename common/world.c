@@ -516,7 +516,6 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
                 doodad->hitPoints = (uint32_t)-1;
                 doodad->manaPoints = (uint32_t)-1;
                 doodad->droppedItemSetPtr = (uint32_t)-1;
-                doodad->goldAmount = 12500;
                 doodad->targetAcquisition = -1.0f;
                 doodad->scale = (vec3_t){ 1.0f, 1.0f, 1.0f };
                 doodad->flags = 2;

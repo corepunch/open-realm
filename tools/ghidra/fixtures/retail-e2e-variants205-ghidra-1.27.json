@@ -1,0 +1,19 @@
+{
+  "program": "game.dll",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "6f16c150",
+      "comment": "Payoff205 E2E-01.4 combined acceptance binds completed FORM-05.1 selection/independent and FORM-05.2 passage to unchanged original raw-word headers. Actual game journeys repeat fresh/cold-save trajectories twice per edition, preserving owner/member/route/regroup ordering and final order/positions. Supplied owner-clock/WPM and inferred-final-clock/pre-commit exclusions remain unchanged. This is combined acceptance of existing complete captures, not new live evidence or a new gameplay policy."
+    },
+    {
+      "address": "6f1702f0",
+      "comment": "Payoff205 E2E-01.4 retains SEP-04 mixed and enabled/disabled crowd child contracts:2255/1336 globally ordered visits,3228/1182 contributions,76/66 retries, endpoint/pose/RNG/occupancy/public output and saved engine continuation. Complete original body replay and captured repeats/controls remain unchanged. Four blocked mixed-crowd orders are unfinished at the final pre-removal sample; fixture completion must not be called arrival."
+    },
+    {
+      "address": "6f165f10",
+      "comment": "Payoff205 E2E-01.4 joins public GATE open group/disabled cached skip, sole-edge disconnection and chained four-activation variants. Unchanged complete captures retain610/635/575 commits and the actual consumer/retry ordering; game repeats each fresh/save journey twice per edition. Parent static/disconnected route contract remains separately pinned. No new portal-policy, retail save/load, whole-world or full-RNG claim."
+    }
+  ],
+  "scope": "Saved combined acceptance annotations; existing native functions and structures, no new retail behavior claim."
+}

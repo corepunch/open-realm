@@ -43,11 +43,18 @@ static edict_t *give_item(edict_t *hero, uint32_t class_id, uint32_t slot, uint3
     return item;
 }
 
+/* Public Move is owned by the scheduled physical-group pipeline. Advancing
+ * only the entity animation callback cannot advance that owner. */
+static void step_move_owner(void) {
+    wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    M_RunScheduledThinks();
+}
+
 static void step_walk(edict_t *hero, uint32_t frames) {
     uint32_t i;
     for (i = 0; i < frames; i++) {
         if (!hero->currentmove || !hero->currentmove->think) break;
-        hero->currentmove->think(hero);
+        step_move_owner();
         level.time += FRAMETIME;
     }
 }
@@ -56,14 +63,23 @@ static cstring_t hero_audit_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_hero_saveload_audit") ? "1" : fallback;
 }
 
+/* Full-suite shards must not replace one another's diagnostic save slot. */
+static void hero_audit_save_path(cstring_t name, string_t out, uint32_t size) {
+    strlcpy(out, Test_TempPath(name), size);
+}
+
 static void step_hero_audit(uint32_t frames) {
+    void (*old_save_path)(cstring_t, string_t, uint32_t) = gi.SavePath;
     uint32_t i;
+    gi.SavePath = hero_audit_save_path;
     for (i = 0; i < frames; i++) {
+        step_move_owner();
         G_RunEntities();
         CM_ProcessPathJobs(65536);
         G_HeroSaveLoadAuditFrame();
         level.time += FRAMETIME;
     }
+    gi.SavePath = old_save_path;
 }
 
 static void arm_hero_audit(cstring_t map) {
@@ -97,7 +113,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_ASSERT(unit_issueorder(hero, "move", &dest));
     T_NOT_NULL(hero->currentmove);
     T_STREQ(hero->currentmove->animation, "walk");
-    /* MoveSpeed 270 → ~27 units/frame; two steps stay mid-walk on an 80-unit order. */
+    /* First owner publishes velocity; the next moves ~27 units, still mid-walk. */
     step_walk(hero, 2);
     T_ASSERT(hero->s.origin.x > 1.0f);
     T_STREQ(hero->currentmove->animation, "walk");

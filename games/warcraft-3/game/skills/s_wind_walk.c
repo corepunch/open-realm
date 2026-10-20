@@ -8,15 +8,15 @@
  */
 static heroabilitystatus_t *wind_walk_status(edict_t *unit) {
     if (!unit) return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (unit->abilstatus[i].level && unit->abilstatus[i].code == WW_ID_BOWK)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == WW_ID_BOWK)
             return unit->abilstatus + i;
     return NULL;
 }
 
 static bool wind_walk_event_status(abilityCall_t const *call) {
     return call && call->status.slot && call->status.slot->level &&
-           call->status.slot->code == WW_ID_BOWK;
+           G_UnitStatusClassCode(call->status.slot) == WW_ID_BOWK;
 }
 
 static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) {
@@ -24,10 +24,10 @@ static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) 
     if (!status->data) {
         fprintf(stderr, "WC3 Wind Walk: status on unit %u has no applying ability rawcode\n",
                 unit->s.number);
-        if (!S_UnitHasTemporaryInvisibility(unit, status)) unit->s.renderfx &= ~RF_HIDDEN;
+        if (!S_UnitHasTemporaryInvisibility(unit, status)) G_SetEntityHidden(unit,false);
         return;
     }
-    if (!S_UnitHasTemporaryInvisibility(unit, status)) unit->s.renderfx &= ~RF_HIDDEN;
+    if (!S_UnitHasTemporaryInvisibility(unit, status)) G_SetEntityHidden(unit,false);
     S_SpellStartCooldown(unit, status->data, status->level);
     G_InvalidateUnitInfoPanel(unit);
 }
@@ -43,8 +43,9 @@ static bool wind_walk_validate(edict_t *unit, abilityCall_t const *call) {
     uint32_t level;
 
     if (!unit || !call || !call->item) return false;
+    if (!unit->abilstatus) has_slot = true;
     if (!has_slot) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES)
+        FOR_LOOP(i, G_UnitStatusSlotCount(unit))
             if (!unit->abilstatus[i].level) { has_slot = true; break; }
     }
     level = S_SpellLevel(unit, call->item->code);
@@ -63,7 +64,7 @@ static void wind_walk_execute(edict_t *unit, abilityitem_t const *spell) {
         return;
     }
     status->data = spell->code;
-    unit->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(unit,true);
 }
 
 BZ_ABILITY_PROC(CAbilityWindWalk) {

@@ -1,0 +1,23 @@
+{
+  "source": "const m=Process.enumerateModules().find(m=>m.name.toLowerCase()==='game.dll'); send({event:'formation-spacing-globals',base:m.base.toString(),words:Array.from({length:6},(_,i)=>m.base.add(0xd541bc+i*4).readU32())});",
+  "source_sha256": "ad8241af20e37791fcbac23f31774514651b2d961195e42e4e6c908f87722d9e",
+  "native_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "pid": 1096,
+  "records": [
+    {
+      "type": "send",
+      "payload": {
+        "event": "formation-spacing-globals",
+        "base": "0x74f90000",
+        "words": [
+          1085276161,
+          1073741824,
+          1075838976,
+          1085276161,
+          1073741824,
+          1075838976
+        ]
+      }
+    }
+  ]
+}

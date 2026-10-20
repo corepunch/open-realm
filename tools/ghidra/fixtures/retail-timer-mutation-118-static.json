@@ -1,0 +1,1742 @@
+{
+  "program": "game.dll",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "functions": [
+    {
+      "address": "6f0542d0",
+      "name": "SimClock_DispatchTimerRequest",
+      "prototype": "void __fastcall SimClock_DispatchTimerRequest(WC3TimerRequestPrefix * request)",
+      "comment": "FastcallECX request, plainRET. Skip canceled10000; receiver virtualc executes before rearm. Periodic uncanceled1 reinserts SAME request/serial through053630; otherwise original free-list reclamation. Native118163 full dispatch pairs per repeat include cancel/restart during callbacks and50 zero-period catch-up callbacks in the first quantum.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "request",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f054300",
+          "cleanup": 0
+        },
+        {
+          "address": "6f054313",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f05231c",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    },
+    {
+      "address": "6f2402d0",
+      "name": "ScriptTimer_DispatchClockEvent",
+      "prototype": "uint __thiscall ScriptTimer_DispatchClockEvent(WC3ScriptTimerScalarPrefix * timer, uint * event)",
+      "comment": "ThiscallECX script timer, stack4 uint event packet,RET4/EAX handled.80204 dispatches240350;80272 dispatches240350 then2403f0. Two native118 repeats expose both resume phases and exact callback-issued Move.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "event",
+          "type": "/uint *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f2402ec",
+          "cleanup": 4
+        },
+        {
+          "address": "6f240305",
+          "cleanup": 4
+        },
+        {
+          "address": "6f240317",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6fa9f1c0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "address": "6f240350",
+      "name": "ScriptTimer_RunExpiryCallbacks",
+      "prototype": "void __thiscall ScriptTimer_RunExpiryCallbacks(WC3ScriptTimerScalarPrefix * timer, uint * event)",
+      "comment": "ThiscallECX script timer, stack4 event packet,RET4 void. Push expired timer context5; overwrite packet8\u003d80204; virtual10 broadcasts trigger conditions/actions BEFORE callback holder40 invokes1f83e0. Pop context afterward.348 repeated public rows distinguish conditions, trigger actions and direct handlers.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "event",
+          "type": "/uint *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f2403d6",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f2402f2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f24030b",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    },
+    {
+      "address": "6f2403f0",
+      "name": "ScriptTimer_RestartAuthoredAfterResume",
+      "prototype": "void __fastcall ScriptTimer_RestartAuthoredAfterResume(WC3ScriptTimerScalarPrefix * timer)",
+      "comment": "FastcallECX script timer, plainRET. Read CURRENT holder40 function24; nonzero calls249ca0 with CURRENT authored48 and control34 periodic2. A resumed handler that pauses itself still receives the follow-up authored-timeout phase; ordinary null handler does not restart.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f24041a",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f2402f9",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    },
+    {
+      "address": "6f1fd1d0",
+      "name": "JassTimer_RequestDestroy",
+      "prototype": "void __cdecl JassTimer_RequestDestroy(uint handle)",
+      "comment": "Cdecl stack4 public timer handle, plainRET.1ee810 resolve then tail timer vtable5c\u003d0557b0. Public lookup withdraws when wrapper release20 is queued; current scalar catch-up retains callbacks until separate simulation-clock release04c2c0. Two bounded native retirement windows each retain four queue/commit pairs, including self zero-period and shared-deadline peer destroy.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "handle",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f1fd1e8",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f207e9f",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "address": "6f0522e0",
+      "name": "SimClock_DrainDueTimers",
+      "prototype": "void __fastcall SimClock_DrainDueTimers(WC3SimulationClockPrefix * clock)",
+      "comment": "ECX timer clock,RET plain. Heapcount20\u003e1 and first deadline\u003c\u003dtime40: pop04f1a0, temporarilysetclock40\u003drequestdeadline4, clear20000, execute0542d0; repeat then restore entryclocktime. Timercallbacks can therefore observe their deadline before other clock domains advance. Payoff35 authentic periodic public spawns see the prior primary clock; at420/1620/2820 advances the due owner has already run, so newly created Move starts on the next owner callback. This relative order is now consumed in engine RunFrame.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3SimulationClockPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f05232f",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f0532e9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f05330a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0540ca",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0540de",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f054441",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f054455",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    },
+    {
+      "address": "6f053630",
+      "name": "SimClock_RearmPeriodicTimer",
+      "prototype": "void __thiscall SimClock_RearmPeriodicTimer(WC3SimulationClockPrefix * clock, WC3TimerRequestPrefix * request)",
+      "comment": "Thiscall ECX clock,stack4 request,RET4. Math_Add(clock40,request8 period) writes request4 deadline, clears cancelled10000, sets queued20000, heap-inserts04f830.0542d0 executes callback then rearms only periodic bit1 and uncancelled high bit. Drain0522e0 temporarily sets clock40 to due deadline, so periodic rearm retains deadline arithmetic rather than current publication time. Public scene64 first410/510/610/710/810 callback drift exposes integer-millisecond engine mismatch; broader heap tie/catch-up mutation remains NUM-02.10.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3SimulationClockPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "request",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f05366a",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f0542fa",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    },
+    {
+      "address": "6f0557b0",
+      "name": "Agent_RequestDeferredRelease",
+      "prototype": "undefined Agent_RequestDeferredRelease()",
+      "comment": "COrder/COrderPoint/COrderTarget slot5c. Resolve thisC/10 wrapper, require type2b61676c, tail15e0e0.432 complete queue pops plus432 repeat releases verify scheduled inactivity, not immediate registry removal.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [],
+      "returns": [
+        {
+          "address": "6f0557d3",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f22df33",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f406dea",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f406f23",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f406f4a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f407021",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c8699",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3b89",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6da631",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22dbbe",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22dbee",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22df63",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22df97",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6fa7ee1c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa7ee98",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa80b6c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa94cc4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa94d54",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa94de0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa94e8c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa94f1c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa94fac",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9503c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9df84",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e5a8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e010",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e0b0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e13c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e2dc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e378",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e404",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e62c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e6e0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e764",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9eecc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f210",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e884",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9e958",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9eb64",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9ee34",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f01c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f170",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f3a8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f464",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f764",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f7ec",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f884",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f8f8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f96c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9f9e0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fa54",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fac8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fb3c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fbb0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fc2c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fca8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fd24",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fda0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fe1c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9fe98",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9ff14",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa9ff90",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa000c",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0088",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0104",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0180",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa01fc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0278",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa02f4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0370",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa03ec",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0468",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa04e4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0560",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa05dc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0658",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa06d4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0750",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa07cc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0848",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa08c4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0940",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa09bc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa0c28",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1ef0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa14ac",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1538",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa15c8",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1658",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa16ec",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1794",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1808",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2044",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa217c",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2218",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1cf0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1e64",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa23e8",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1ba8",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa18b4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1940",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa19b4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1a40",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2348",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1c48",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1db4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa1fa0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa20e0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa22a4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2484",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2538",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2930",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa275c",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa27d0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa2844",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa3240",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa31b4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa32cc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faa336c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fab8ebc",
+          "type": "DATA"
+        },
+        {
+          "from": "6f406db0",
+          "type": "UNCONDITIONAL_JUMP"
+        },
+        {
+          "from": "6fac2fb4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fac44b4",
+          "type": "DATA"
+        },
+        {
+          "from": "6facc160",
+          "type": "DATA"
+        },
+        {
+          "from": "6fad0464",
+          "type": "DATA"
+        },
+        {
+          "from": "6fad0528",
+          "type": "DATA"
+        },
+        {
+          "from": "6fad1394",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadb4ec",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadb58c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fade014",
+          "type": "DATA"
+        },
+        {
+          "from": "6fade0e0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fade1b4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fade288",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadeedc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadefb4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadf098",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadf59c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fadfe40",
+          "type": "DATA"
+        },
+        {
+          "from": "6fae06e8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fae1780",
+          "type": "DATA"
+        },
+        {
+          "from": "6fae39d0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fae4ef4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faeaaf0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faedcdc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faeddc4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faefcfc",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf0a20",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf2df4",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf36b0",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf3f80",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf6a0c",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf6ac8",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf7c48",
+          "type": "DATA"
+        },
+        {
+          "from": "6faf9d90",
+          "type": "DATA"
+        },
+        {
+          "from": "6fafa9f0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fafaad8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fafabcc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fafacb4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fafb854",
+          "type": "DATA"
+        },
+        {
+          "from": "6fafb93c",
+          "type": "DATA"
+        },
+        {
+          "from": "6faff474",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb06cb0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb06d7c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb07720",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb07fb0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb08bc4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb09494",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb09d40",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb0f4ec",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb0fca8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb10bac",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb14268",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb15a00",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb15d9c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb1966c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb1bc44",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb23ce4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2a07c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2ab10",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2abf8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2b7dc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2b8c4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2cb10",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2cbf8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2d02c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb2d114",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb30230",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3030c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb32d08",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb33230",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb33d88",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb37ea4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb386a0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb38ea0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3a7e8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3a8c4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3b084",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3b168",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3b954",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb3ba3c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb41700",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb41b6c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb42d30",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb43824",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb43c6c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb43d58",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb43e40",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb44630",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb44718",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb47af4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb4a914",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb4b524",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb4cea4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb4db48",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb50368",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb52c44",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb52d54",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5a390",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5abf8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5bc70",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5bd44",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5c650",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5e670",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb5f824",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb61ac8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb6984c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb6c8e8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb6c9d0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb6f25c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb71b98",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb73338",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb74430",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb75810",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb77690",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7761c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb77764",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb77930",
+          "type": "DATA"
+        },
+        {
+          "from": "6f657c60",
+          "type": "UNCONDITIONAL_JUMP"
+        },
+        {
+          "from": "6f6799a0",
+          "type": "UNCONDITIONAL_JUMP"
+        },
+        {
+          "from": "6fb78c38",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78838",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb788c8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb789f0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb780f8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78184",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a420",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7895c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78a84",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78b18",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78ba8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78ccc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78d60",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78df4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78e88",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78f1c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb78fb8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79054",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb790f4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7918c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79224",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79340",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb793b8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79430",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb794a8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79520",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79598",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79610",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79688",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79700",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79778",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb797f0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79868",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb798e0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79958",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb799d0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79a48",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79ac0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79b38",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79bb0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79c28",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79ca0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79d18",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79d90",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79e08",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79e80",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79ef8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79f70",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb79fe8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a060",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a0d8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a150",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a1c8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a240",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a498",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a510",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7a588",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7bddc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7be70",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7bf04",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7bf98",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c02c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c0c0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c154",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c1e8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c27c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c310",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c3a4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c438",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c4cc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c560",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c5f4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c688",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c71c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c7b0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c844",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c8d8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7c96c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7ca00",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7ca94",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cb28",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cbbc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cc50",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cce4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cd78",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7ce0c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cea0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cf34",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7cfc8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7d05c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7d0f0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7d764",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7dbf8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7dd24",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7de64",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7e144",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7e214",
+          "type": "DATA"
+        },
+        {
+          "from": "6fb7e2d8",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbdfce0",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbdfc54",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbdfe30",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbdfda4",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbdfebc",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbdff90",
+          "type": "DATA"
+        },
+        {
+          "from": "6fbe005c",
+          "type": "DATA"
+        },
+        {
+          "from": "6f25f831",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f25f881",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    },
+    {
+      "address": "6f04c2c0",
+      "name": "AgentPayload_ReleaseFromWrapper",
+      "prototype": "undefined AgentPayload_ReleaseFromWrapper()",
+      "comment": "Resolve wrapper; payload54 gets event40190064 via virtual10, virtual34 cleanup, subscriptions cleared, identity invalidated, refs4 decremented; zero calls virtual0.216 full cases verify refs2-\u003e1, event/sender and identity invalidation; separate lifetime oracle executes zero-ref factory reclaim/reuse.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "decompiled": true,
+      "parameters": [],
+      "returns": [
+        {
+          "address": "6f04c329",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f04da16",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ]
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3ScriptTimerScalarPrefix",
+      "length": 84,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "root_vtable",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerRootTablePrefix *32"
+        },
+        {
+          "offset": 12,
+          "name": "agent_index",
+          "type": "/uint"
+        },
+        {
+          "offset": 16,
+          "name": "agent_generation",
+          "type": "/uint"
+        },
+        {
+          "offset": 36,
+          "name": "event_clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix"
+        },
+        {
+          "offset": 64,
+          "name": "callback_holder",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerCallbackPrefix *32"
+        },
+        {
+          "offset": 68,
+          "name": "timeout_writer_vtable",
+          "type": "/void *32"
+        },
+        {
+          "offset": 72,
+          "name": "authored_timeout",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 76,
+          "name": "paused_writer_vtable",
+          "type": "/void *32"
+        },
+        {
+          "offset": 80,
+          "name": "paused_remaining",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        }
+      ]
+    },
+    {
+      "name": "WC3ScriptTimerCallbackPrefix",
+      "length": 40,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "handler_function_id",
+          "type": "/uint"
+        }
+      ]
+    },
+    {
+      "name": "WC3ScriptTimerRootTablePrefix",
+      "length": 96,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "clock_event_method",
+          "type": "/void *32"
+        },
+        {
+          "offset": 16,
+          "name": "broadcast_method",
+          "type": "/void *32"
+        },
+        {
+          "offset": 92,
+          "name": "request_destroy_method",
+          "type": "/void *32"
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

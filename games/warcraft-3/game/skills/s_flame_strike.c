@@ -4,7 +4,7 @@
  * Hfs2/Hfs4 are pulse intervals, Cast is the delay and HeroDur is the full-damage phase. */
 void flame_strike_tick(edict_t *ent) {
     uint32_t now = G_Time(), rank = ent->resources, code = ent->class_id;
-    float delay = S_SpellNumber(code, ABILITY_NUMBER_CAST, rank);
+    float delay = ent->wait;
     float age = (now - ent->spawn_time) / 1000.0f - delay;
     float duration = S_SpellDuration(code, rank, false);
     float limit = S_SpellData(code, rank, 6);
@@ -43,15 +43,35 @@ static bool flame_strike_validate(edict_t *caster, spellTarget_t st, abilityitem
 }
 
 /* The authored delay and intervals schedule persistent ground damage independently of the caster's next order. */
-static void flame_strike_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+static void flame_strike_apply(edict_t *caster, spellTarget_t st, abilityitem_t const *spell, bool ordered) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     edict_t *ent = G_Spawn();
     ent->owner = caster; ent->class_id = spell->code; ent->resources = rank;
     ent->s.origin2 = st.point; ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     ent->spawn_time = G_Time();
-    ent->freetime = G_Time() + (uint32_t)(S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, rank) * 1000.0f);
+    ent->wait=ordered ? 0 : S_SpellNumber(spell->code,ABILITY_NUMBER_CAST,rank);
+    ent->freetime = G_Time() + (uint32_t)(ent->wait*1000.0f);
     ent->think = flame_strike_tick;
 }
 
+static void flame_strike_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    flame_strike_apply(caster,st,spell,false);
+}
 BZ_VALIDATED_SPELL_PROC(AbilityFlameStrikeNeutral, flame_strike_validate, flame_strike_execute)
-BZ_VALIDATED_SPELL_PROC(AbilityFlameStrike, flame_strike_validate, flame_strike_execute)
+/* Original Flame Strike keeps84 zero and replaces94 with authored Cast at
+ * effect dispatch; its area is created by v39c after that delay. Aliases use
+ * the same procedure, never a central rawcode exception. */
+BZ_ABILITY_PROC(CAbilityFlameStrike) {
+    switch(msg) {
+    case A_CAST_PROFILE:
+        S_DefaultSpellCastProfile(ent,call->item->code,call->cast_profile);
+        call->cast_profile->backswing=call->cast_profile->channel_delay;
+        call->cast_profile->channel_delay=0;call->cast_profile->effect_at_finish=true;
+        return true;
+    case A_VALIDATE:return flame_strike_validate(ent,*call->target,call->item);
+    case A_EXECUTE:
+        flame_strike_apply(ent,*call->target,call->item,call->ordered_cast);
+        return true;
+    default:return CAbilitySimpleSpell(ent,msg,call);
+    }
+}

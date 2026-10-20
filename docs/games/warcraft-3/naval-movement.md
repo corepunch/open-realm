@@ -2,40 +2,63 @@
 
 ## Contract
 
-Warcraft III movement comes from `UnitData.slk` `movetp`. OpenRealm recognizes the retail/Warsmash values `foot`, `horse`, `fly`, `hover`, `float`, and `amph`; unknown authored values remain movement-disabled. Routing must preserve the movement type instead of treating every non-flyer as a ground unit.
+Warcraft III movement comes from `UnitData.slk` `movetp`. Move compiles the
+movement category with the runtime unit definition. Public retail getter and
+publication captures establish the following masks:
 
-The shared WPM cell already stores `nowalk`, `nofly`, and `nowater`. WC3 routing exposes these policies through `M_UnitStaticPathingFlags()`:
-
-| `movetp` | Static route is blocked when |
+| `movetp` | Blocking lane |
 |---|---|
-| `foot`, `horse`, `hover` | `nowalk` |
-| `fly` | `nofly` |
-| `float` | `nowater` |
-| `amph` | `nowalk && nowater` |
+| `foot`, `horse`, `hover` | `0x02` |
+| `fly` | `0x04` |
+| `float` | `0x40` |
+| `amph` | `0x80` |
 
-The shared router exposes `CM_PATHING_UNSWIMMABLE` for `nowater` and the generic `CM_PATHING_REQUIRE_ALL` query modifier. WC3 represents `amph` as `REQUIRE_ALL | UNWALKABLE | UNSWIMMABLE`, so the route is rejected only when both terrain channels are blocked. The shared router does not contain an amphibious gameplay type. This follows Warsmash `MovementType.AMPHIBIOUS`, whose pathability is `!UNWALKABLE || !UNSWIMABLE`.
+The amphibious lane is independent mutable pathing state. The retail WPM loader
+initially derives it when both walking and floating are blocked; later terrain
+edits update the selected lane without recomputing it from the other two. The
+router therefore tests the actual supplied byte mask. `0x80` cannot double as a
+require-all query modifier. See [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries)
+and the BASE-02 terrain-mutation evidence in that ledger.
 
-## Pathing Textures
+The upstream water summed-area table is retained: static floating-radius queries
+use four prefix reads instead of rescanning every covered cell. Native lane
+semantics, fine/adaptive searches and saved routing state remain unchanged.
 
-WC3 pathing-texture red blocking applies to both land and naval movement. In OpenRealm's decoded `color32_t` representation the existing red-source blocking channel is `COLOR32.b`; stamping a blocked pixel sets both `nowalk` and `nowater`. The green-source channel remains `nofly`.
+## Pathing Textures And Occupancy
 
-A live walkable bridge is special: a clear authored deck may clear terrain `nowalk` so ground units can cross, but it must not clear terrain `nowater`. `FLOAT` therefore continues to use the river/water route and never gains a naval route across the bridge deck. Blocked bridge pixels still block both land and water.
+Original widget blue coverage publishes category `0xc2`, blocking walking,
+floating and amphibious queries. In the decoded `color32_t` representation this
+coverage is `COLOR32.b`; green-source coverage retains the flight lane. A
+walkable bridge preserves the authored terrain lanes. Four completed MAP-02.2
+file loads retain every top byte after bridge creation: deep-water WPM `0a`
+still blocks walking below the deck, while `00`/`08` allows a crossing. Widget
+regions add restrictions independently. Payoff139 removes the engine's inferred
+deck override; see [evidence and remaining support gaps](retail-pathfinding-engine.md#bridges-preserve-authored-terrain-payoff139).
 
-## Dynamic Collision
+The encountered unit's query mask is separate from its occupancy category.
+Captured Footman, horse, hover, float and amphibious units publish category
+`0xca`; flyers publish zero. Command-time occupancy consequently blocks the three
+ground query lanes even when the encountered unit has a different movement type.
+Move-time circle collision retains its existing air/non-air separation and precise
+`BoxEdicts` broad phase. The upstream ground/sea domain approximation is not used
+because it contradicts these category publications.
 
-Warsmash separates moving-unit collision into ground, sea, and air domains. OpenRealm keeps its existing precise `BoxEdicts` broad phase but applies the same domain semantics in `skills/s_move.c`:
+## Height And Consumers
 
-| Movement | Collision domain |
-|---|---|
-| `foot`, `horse`, `hover` | ground |
-| `float` | sea |
-| `amph` | ground + sea |
-| `fly` | air |
-| disabled | none |
+Support height is independent of pathability. Move accepts higher deck support
+for FLOAT as well as other ground profiles. AMPH uses the previous refresh's
+deep-water flag before publishing the new terrain classification. Ordinary idle
+physics retains the current height; explicit writers force a refresh. See
+[ground support state](retail-pathfinding-engine.md#ground-support-refresh-state-payoff145).
+Exact deck geometry, terrain/water sampling and the alternate flyer field remain
+open. Render-water detection does not authorize movement.
 
-Two ordinary units block one another when their domain masks overlap. Structures remain precise blockers for ground and sea movement in addition to their authored/coarse static footprint; this preserves OpenRealm's existing protection against leaking through coarse 32-unit building pathing cells. Flyers retain their prior separation from structures in this move-time circle test and rely on authored `nofly` pathing where present.
+Move, Patrol, Attack/chase, formation slots, spawn placement, Way Gates, Blink,
+construction approaches and cargo routing consume `M_UnitStaticPathingFlags()`.
+Repair's naval range bonus remains owned by Repair. Cargo's existing last-resort
+unload placement remains unresolved retail work.
 
-Command-time dynamic obstacle stamping is requester-aware. The shared router passes the requesting pathing policy back to WC3's `M_UnitDynamicPathingFlags()`: ground movers see ground/amphibious blockers, sea movers see sea/amphibious blockers, flyers see air blockers, and amphibious movers see either ground or sea blockers. For an amphibious request, any overlapping ground/sea blocker stamps both selected channels so the static `REQUIRE_ALL` terrain rule cannot incorrectly treat a lone unit as passable. Static terrain semantics stay generic while dynamic collision-domain policy remains game-owned.
+## Verification And Limits
 
 ## Rendering
 
@@ -71,4 +94,9 @@ Automated coverage belongs in `games/warcraft-3/game/tests/t_pathfinding.c` and 
 - amphibious move-time collision collides with both ground and sea units;
 - existing water-height/bridge tests continue to cover `FLOAT` presentation.
 
-Per repository policy, build affected targets and run `make test` before committing code changes.
+Asset-free tests cover all four independent mask bits, authored movement-type
+selection, real Move detours, widget footprint publication/release and command
+occupancy. The upstream connected-water detour test is retained. Bridge/altitude
+tests exercise height separately. Public retail captures and the original fine
+search oracle establish these mask/category contracts; complete boat/amphibious
+trajectories and numerical support geometry remain MAP-02.2/E2E work in the retail backlog.

@@ -1,0 +1,1312 @@
+{
+ "task": "TARGET-03.1",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "sources": [
+  {
+   "file": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/expected-TARGET-03.2.json",
+   "sha256": "8b4a3508e787992de79e9bac26d6e96f4893a2539b80e1e56b98d8ca51ed9a98"
+  },
+  {
+   "file": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/expected-TARGET-03.2-reacquire.json",
+   "sha256": "aff1f640faba12600b354cf1da71268f0c4e98d790cb33cdcbc9ac9c359fd8a9"
+  }
+ ],
+ "rows": [
+  {
+   "id": "V1",
+   "function": "6f5fb940",
+   "condition": "target null",
+   "result": "0xdd",
+   "asm": "5fb969/5fb96d",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 3,
+     "scene_name": "invis_np",
+     "c": 3357,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": null
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 6,
+     "scene_name": "remove",
+     "c": 5290,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": null
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 7,
+     "scene_name": "kill",
+     "c": 5957,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": null
+    }
+   ],
+   "witness_scenes": 7
+  },
+  {
+   "id": "V2",
+   "function": "6f5fb940",
+   "condition": "CUnit_IsDead (vt+13c, +5c&0x100)",
+   "result": "0xdd",
+   "asm": "5fb989..991",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 7,
+     "scene_name": "kill",
+     "c": 5957,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "target_words": [
+      "0x20001444",
+      "0x320"
+     ]
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "V3",
+   "function": "6f5fb940",
+   "condition": "non-unit widget (1d73b0 cast null) with +20&1",
+   "result": "0xaa",
+   "asm": "5fb9a6..9b0",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "V4",
+   "function": "6f5fb940",
+   "condition": "unit +20&1, not +20&0x800000, +5c&0x10 (loaded cargo)",
+   "result": "0xa9",
+   "asm": "5fb9c8..9e4",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 9,
+     "scene_name": "cargo",
+     "c": 7269,
+     "caller": "0x5ff56b",
+     "result": "0xa9",
+     "target_words": [
+      "0x1645",
+      "0x219"
+     ]
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "V5",
+   "function": "6f5fb940",
+   "condition": "unit +20&1, not +20&0x800000, not +5c&0x10 (RemoveUnit / ShowUnit false)",
+   "result": "0xaa",
+   "asm": "5fb9c8..9e4",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 6,
+     "scene_name": "remove",
+     "c": 5290,
+     "caller": "0x5ff56b",
+     "result": "0xaa",
+     "target_words": [
+      "0x20001445",
+      "0x208"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 8,
+     "scene_name": "hide",
+     "c": 6624,
+     "caller": "0x5ff56b",
+     "result": "0xaa",
+     "target_words": [
+      "0x20001445",
+      "0x208"
+     ]
+    }
+   ],
+   "witness_scenes": 2
+  },
+  {
+   "id": "V6",
+   "function": "6f5fb940",
+   "condition": "unit +20&0x800000 (set only around morph/blink TargetLost) bypasses the hidden test",
+   "result": "visibility query",
+   "asm": "5fb9d0",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 10,
+     "scene_name": "blink",
+     "c": 7968,
+     "caller": "0x5ff56b",
+     "result": "0x0",
+     "target_words": [
+      "0x800406",
+      "0x1200"
+     ]
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "V7",
+   "function": "6f5fb940",
+   "condition": "CUnit_IsWidgetVisibleToOwner(mover, target, 0, 4) != 0",
+   "result": "0",
+   "asm": "5fb9ec..a06",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "c": 1119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "c": 2452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 3,
+     "scene_name": "invis_np",
+     "c": 3119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "witness_scenes": 17
+  },
+  {
+   "id": "V8a",
+   "function": "6f5fb940",
+   "condition": "visibility query 0: fogged (detected)",
+   "result": "0xdd",
+   "asm": "5fb9ff",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "c": 1345,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 1,
+     "scene_name": "fog_approach",
+     "c": 2068,
+     "caller": "0x5ff98c",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "c": 2679,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "witness_scenes": 3
+  },
+  {
+   "id": "V8b",
+   "function": "6f5fb940",
+   "condition": "visibility query 0: invisible and undetected",
+   "result": "0xdd",
+   "asm": "5fb9ff",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 3,
+     "scene_name": "invis_np",
+     "c": 3357,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x1000200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 14,
+     "scene_name": "order_invisible",
+     "c": 10496,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x1000200"
+     ]
+    }
+   ],
+   "witness_scenes": 2
+  },
+  {
+   "id": "Q1",
+   "function": "6f66fdd0",
+   "condition": "game d687a8 null or game+3e0 == 0",
+   "result": "0 (not visible)",
+   "asm": "66fdd4..de5",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "Q2",
+   "function": "6f66fdd0",
+   "condition": "TLS slot 0xd record flag 0x200 set",
+   "result": "flags |= 1 (skip fog)",
+   "asm": "66fdf0..e26",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "Q3",
+   "function": "6f66fdd0",
+   "condition": "flags 0, target not invisible",
+   "result": "detect = 1 -> fog test",
+   "asm": "1ddff0 5f/1de03c",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "c": 1108,
+     "role": "group-callback",
+     "flags": 0,
+     "result": 1,
+     "count": 183,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 1,
+     "scene_name": "fog_approach",
+     "c": 1775,
+     "role": "group-callback",
+     "flags": 0,
+     "result": 1,
+     "count": 183,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "c": 2441,
+     "role": "group-callback",
+     "flags": 0,
+     "result": 1,
+     "count": 184,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ]
+    }
+   ],
+   "witness_scenes": 21
+  },
+  {
+   "id": "Q4",
+   "function": "6f66fdd0",
+   "condition": "invisible target, owner bit in observer player +2e0 mask (own unit or vision shared by the owner)",
+   "result": "detect = 1",
+   "asm": "1de004..01f",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 4,
+     "scene_name": "invis_own",
+     "c": 4023,
+     "caller": "0x5ff56b",
+     "result": "0x0",
+     "target_words": [
+      "0x20001446",
+      "0x1000200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 5,
+     "scene_name": "invis_shared",
+     "c": 4690,
+     "caller": "0x5ff56b",
+     "result": "0x0",
+     "target_words": [
+      "0x1446",
+      "0x1000200"
+     ]
+    }
+   ],
+   "witness_scenes": 2
+  },
+  {
+   "id": "Q5",
+   "function": "6f66fdd0",
+   "condition": "invisible target, CUnit_GetDetectionMask(target,1) & mask",
+   "result": "detect = 1",
+   "asm": "1de027..032",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "Q6",
+   "function": "6f66fdd0",
+   "condition": "invisible, undetected",
+   "result": "1dd920 = 0 -> CUnit_IsRevealedToPlayer",
+   "asm": "1de034",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 3,
+     "scene_name": "invis_np",
+     "c": 3357,
+     "role": "validate",
+     "flags": 0,
+     "result": 0,
+     "count": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 14,
+     "scene_name": "order_invisible",
+     "c": 10496,
+     "role": "validate",
+     "flags": 0,
+     "result": 0,
+     "count": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ]
+    }
+   ],
+   "witness_scenes": 2
+  },
+  {
+   "id": "Q7",
+   "function": "6f66fdd0",
+   "condition": "detected, vision cell (fine>>2) not visible for the observer player (mode 4)",
+   "result": "1dd920 = 0 -> CUnit_IsRevealedToPlayer",
+   "asm": "1dd9b9 / 1ddee0",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "c": 1291,
+     "role": "group-callback",
+     "flags": 0,
+     "result": 0,
+     "count": 55,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 1,
+     "scene_name": "fog_approach",
+     "c": 1958,
+     "role": "group-callback",
+     "flags": 0,
+     "result": 0,
+     "count": 111,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "c": 2625,
+     "role": "group-callback",
+     "flags": 0,
+     "result": 0,
+     "count": 55,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ]
+    }
+   ],
+   "witness_scenes": 9
+  },
+  {
+   "id": "Q8",
+   "function": "6f66fdd0",
+   "condition": "CUnit_IsRevealedToPlayer: (1<<player) & (+148|+14c)",
+   "result": "1",
+   "asm": "66fe3b / 699b20",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "Q9",
+   "function": "6f66fdd0",
+   "condition": "flags & 1 (Move_CreateTasksFromOrder 5fd35f, 50453f): fog skipped",
+   "result": "detection only",
+   "asm": "1dd97a",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "Q10",
+   "function": "6f66fdd0",
+   "condition": "flags & 2 (CAbilityMove vt63 5fa49b): detection skipped",
+   "result": "fog only",
+   "asm": "1dd957",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "O1",
+   "function": "6f5fbad0",
+   "condition": "CAbilityMove_CheckTargetOrder: visibility query 0 fails",
+   "result": "0xba (order refused)",
+   "asm": "5fbbfd..c10",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 13,
+     "scene_name": "order_fogged",
+     "outcome": {
+      "kind": "order-rejected",
+      "order": null
+     }
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "O2",
+   "function": "6f5fbad0",
+   "condition": "target +20&1 at order time",
+   "result": "0xa9 cargo / 0xaa",
+   "asm": "5fbbc0..be1",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "O3",
+   "function": "6f5fd270",
+   "condition": "Move_CreateTasksFromOrder 5fd33b: self, dead, hidden, or undetected (flags 1) target dropped -> point task",
+   "result": "target 0",
+   "asm": "5fd33b..368",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "O4",
+   "function": "6f5fd270",
+   "condition": "Move_CreateTasksFromOrder 5fd4e2: target fails flags-0 query -> point branch",
+   "result": "point task",
+   "asm": "5fd4e2..4f0",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "L1",
+   "function": "6f651010",
+   "condition": "Unit_RetireWorldPresence (RemoveUnit, ShowUnit false, cargo load)",
+   "result": "TargetLost",
+   "asm": "688373",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "c": 1740,
+     "caller": "0x688373",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 1,
+     "scene_name": "fog_approach",
+     "c": 2407,
+     "caller": "0x688373",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "c": 3074,
+     "caller": "0x688373",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "witness_scenes": 22
+  },
+  {
+   "id": "L2",
+   "function": "6f651010",
+   "condition": "Unit_BeginDeathTasks",
+   "result": "TargetLost",
+   "asm": "679c2f",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 7,
+     "scene_name": "kill",
+     "c": 5957,
+     "caller": "0x679c2f",
+     "w20": "0x20001444",
+     "w5c": "0x320"
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "L3",
+   "function": "6f651010",
+   "condition": "CUnit_RefreshInvisibility (+114 != 0 -> +5c|0x01000000)",
+   "result": "TargetLost",
+   "asm": "68b7d8",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 3,
+     "scene_name": "invis_np",
+     "c": 3357,
+     "caller": "0x68b7d8",
+     "w20": "0x1446",
+     "w5c": "0x1000200"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 4,
+     "scene_name": "invis_own",
+     "c": 4023,
+     "caller": "0x68b7d8",
+     "w20": "0x20001446",
+     "w5c": "0x1000200"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 5,
+     "scene_name": "invis_shared",
+     "c": 4690,
+     "caller": "0x68b7d8",
+     "w20": "0x1446",
+     "w5c": "0x1000200"
+    }
+   ],
+   "witness_scenes": 5
+  },
+  {
+   "id": "L4",
+   "function": "6f651010",
+   "condition": "CAbilityBlink_MoveCaster (+20|0x800000 around the call)",
+   "result": "TargetLost",
+   "asm": "4c9634",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 10,
+     "scene_name": "blink",
+     "c": 7968,
+     "caller": "0x4c9634",
+     "w20": "0x800406",
+     "w5c": "0x1200"
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "L5",
+   "function": "6f651010",
+   "condition": "69c510 unit event (RemoveUnit second notification)",
+   "result": "TargetLost",
+   "asm": "69c553",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 6,
+     "scene_name": "remove",
+     "c": 5290,
+     "caller": "0x69c553",
+     "w20": "0x1445",
+     "w5c": "0x309"
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "L6",
+   "function": "6f651010",
+   "condition": "remaining 16 producers (morph 3f9da6, 48b7f0/48b850/48b890, 4e47e0, 56b4a0, 5fc300, 657920, 658930, 669570, 670070, 678150, CUnit_SetTargetedAs 699860, 69ced0, 6c0890)",
+   "result": "TargetLost",
+   "asm": "see Ghidra plate",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "H1",
+   "function": "6f5ff490",
+   "condition": "CAbilityMove_OnTargetLost: validate == 0",
+   "result": "order retained",
+   "asm": "5ff56d",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 4,
+     "scene_name": "invis_own",
+     "c": 4023,
+     "caller": "0x5ff56b",
+     "result": "0x0"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 5,
+     "scene_name": "invis_shared",
+     "c": 4690,
+     "caller": "0x5ff56b",
+     "result": "0x0"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 10,
+     "scene_name": "blink",
+     "c": 7968,
+     "caller": "0x5ff56b",
+     "result": "0x0"
+    }
+   ],
+   "witness_scenes": 3
+  },
+  {
+   "id": "H2",
+   "function": "6f5ff490",
+   "condition": "validate != 0, no queued order / internal task 0 or d0173",
+   "result": "move tasks stopped, order ends",
+   "asm": "5ff5d9..64e",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 3,
+     "scene_name": "invis_np",
+     "c": 3357,
+     "caller": "0x5ff56b",
+     "result": "0xdd"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 6,
+     "scene_name": "remove",
+     "c": 5290,
+     "caller": "0x5ff56b",
+     "result": "0xaa"
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 7,
+     "scene_name": "kill",
+     "c": 5957,
+     "caller": "0x5ff56b",
+     "result": "0xdd"
+    }
+   ],
+   "witness_scenes": 6
+  },
+  {
+   "id": "H3",
+   "function": "6f5ff490",
+   "condition": "validate != 0 and a queued order with task id not 0/d0173",
+   "result": "reissue to point (live target position when still visible, else stored point)",
+   "asm": "5ff654..6c4",
+   "evidence": "A",
+   "witnesses": [],
+   "witness_scenes": 0
+  },
+  {
+   "id": "A1",
+   "function": "6f5fa7b0",
+   "condition": "CAbilityMove_OnArrival: validate != 0",
+   "result": "order ends at arrival",
+   "asm": "5fa80f",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "c": 1345,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "c": 2679,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "witness_scenes": 2
+  },
+  {
+   "id": "T1",
+   "function": "6f5ff8b0",
+   "condition": "Move_HandleTargetTask (approach arrival / persistent): validate != 0",
+   "result": "order ends",
+   "asm": "5ff97a..98e",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 1,
+     "scene_name": "fog_approach",
+     "c": 2068,
+     "caller": "0x5ff98c",
+     "result": "0xdd",
+     "target_words": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "witness_scenes": 1
+  },
+  {
+   "id": "G1",
+   "function": "6f23a760",
+   "condition": "PathGroup_IsTargetNotVisible: member0 query fails",
+   "result": "unseen+1, cached destination kept, countdown untouched",
+   "asm": "23a7e4",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 0,
+     "scene_name": "fog_persist",
+     "episode": {
+      "gi": 1,
+      "group_identity": "910,935",
+      "first": 1291,
+      "cd_first": 16,
+      "unseen_first": 0,
+      "dest_before": [
+       49.0,
+       34.592094
+      ],
+      "visits": 55,
+      "last": 1345,
+      "cd_last": 0,
+      "unseen_last_entry": 54,
+      "dest_hidden": [
+       49.0,
+       36.982525
+      ],
+      "member_dest_hidden": [
+       49.0,
+       36.982525
+      ],
+      "reacquired": null,
+      "ended": {
+       "c": 1346,
+       "unseen_entry": 55,
+       "cd_entry": 0,
+       "member_visit": false,
+       "group_flags_after": "0x21801"
+      }
+     }
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 1,
+     "scene_name": "fog_approach",
+     "episode": {
+      "gi": 0,
+      "group_identity": "900,1099",
+      "first": 1958,
+      "cd_first": 4,
+      "unseen_first": 0,
+      "dest_before": [
+       49.0,
+       35.292194
+      ],
+      "visits": 111,
+      "last": 2068,
+      "cd_last": 0,
+      "unseen_last_entry": 110,
+      "dest_hidden": [
+       49.0,
+       35.292194
+      ],
+      "member_dest_hidden": [
+       49.0,
+       35.292194
+      ],
+      "reacquired": null,
+      "ended": {
+       "c": 2069,
+       "unseen_entry": 111,
+       "cd_entry": 0,
+       "member_visit": false,
+       "group_flags_after": "0x21000"
+      }
+     }
+    },
+    {
+     "file": "expected-TARGET-03.2.json",
+     "scene": 2,
+     "scene_name": "fog_shared",
+     "episode": {
+      "gi": 1,
+      "group_identity": "865,1266",
+      "first": 2625,
+      "cd_first": 15,
+      "unseen_first": 0,
+      "dest_before": [
+       49.0,
+       36.851624
+      ],
+      "visits": 55,
+      "last": 2679,
+      "cd_last": 0,
+      "unseen_last_entry": 54,
+      "dest_hidden": [
+       49.0,
+       36.851624
+      ],
+      "member_dest_hidden": [
+       49.0,
+       36.851624
+      ],
+      "reacquired": null,
+      "ended": {
+       "c": 2680,
+       "unseen_entry": 55,
+       "cd_entry": 0,
+       "member_visit": false,
+       "group_flags_after": "0x21801"
+      }
+     }
+    }
+   ],
+   "witness_scenes": 9
+  },
+  {
+   "id": "G2",
+   "function": "6f23a760",
+   "condition": "query succeeds after hidden visits",
+   "result": "unseen=0; sample when countdown 0",
+   "asm": "23a7e4",
+   "evidence": "A+L",
+   "witnesses": [
+    {
+     "file": "expected-TARGET-03.2-reacquire.json",
+     "scene": 0,
+     "scene_name": "fog_blip_persist",
+     "episode": {
+      "gi": 1,
+      "group_identity": "910,935",
+      "first": 1291,
+      "cd_first": 16,
+      "unseen_first": 0,
+      "dest_before": [
+       49.0,
+       34.592094
+      ],
+      "visits": 14,
+      "last": 1304,
+      "cd_last": 3,
+      "unseen_last_entry": 13,
+      "dest_hidden": [
+       49.0,
+       36.982525
+      ],
+      "member_dest_hidden": [
+       49.0,
+       36.982525
+      ],
+      "reacquired": {
+       "c": 1305,
+       "unseen_entry": 14,
+       "cd_entry": 2,
+       "dest": [
+        49.0,
+        36.982525
+       ]
+      },
+      "first_destination_change": {
+       "c": 1308,
+       "dest": [
+        49.0,
+        39.372707
+       ],
+       "visits_after_reacquire": 3
+      }
+     }
+    },
+    {
+     "file": "expected-TARGET-03.2-reacquire.json",
+     "scene": 1,
+     "scene_name": "fog_blip_approach",
+     "episode": {
+      "gi": 0,
+      "group_identity": "905,1099",
+      "first": 1958,
+      "cd_first": 4,
+      "unseen_first": 0,
+      "dest_before": [
+       49.0,
+       35.292194
+      ],
+      "visits": 40,
+      "last": 1997,
+      "cd_last": 0,
+      "unseen_last_entry": 39,
+      "dest_hidden": [
+       49.0,
+       35.292194
+      ],
+      "member_dest_hidden": [
+       49.0,
+       35.292194
+      ],
+      "reacquired": {
+       "c": 1998,
+       "unseen_entry": 40,
+       "cd_entry": 0,
+       "dest": [
+        49.0,
+        35.292194
+       ]
+      },
+      "first_destination_change": {
+       "c": 1999,
+       "dest": [
+        48.980331,
+        40.214531
+       ],
+       "visits_after_reacquire": 1
+      }
+     }
+    },
+    {
+     "file": "expected-TARGET-03.2-reacquire.json",
+     "scene": 2,
+     "scene_name": "fog_short_persist",
+     "episode": {
+      "gi": 1,
+      "group_identity": "903,1269",
+      "first": 2625,
+      "cd_first": 15,
+      "unseen_first": 0,
+      "dest_before": [
+       49.0,
+       36.851624
+      ],
+      "visits": 26,
+      "last": 2650,
+      "cd_last": 0,
+      "unseen_last_entry": 25,
+      "dest_hidden": [
+       49.0,
+       36.851624
+      ],
+      "member_dest_hidden": [
+       49.0,
+       36.851624
+      ],
+      "reacquired": {
+       "c": 2651,
+       "unseen_entry": 26,
+       "cd_entry": 0,
+       "dest": [
+        49.0,
+        36.851624
+       ]
+      },
+      "first_destination_change": {
+       "c": 2652,
+       "dest": [
+        49.0,
+        40.646336
+       ],
+       "visits_after_reacquire": 1
+      }
+     }
+    }
+   ],
+   "witness_scenes": 5
+  }
+ ]
+}

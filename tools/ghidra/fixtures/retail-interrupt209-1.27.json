@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "task": "ORDER-06.4 / payoff209",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "rows": 2768,
+  "mutation_counter": 1140,
+  "public_markers": 152,
+  "release_callbacks": 1,
+  "completed_members": 2,
+  "destroyed_wrappers": 196,
+  "removed_units": 4,
+  "owner_intervals": 400,
+  "engine_tests": [
+    "wc3_interrupt.pending_removal_retains_all_order_shapes_and_saved_head",
+    "wc3_interrupt.actual_spell_completion_replaces_owner_and_releases_removed_peers_once"
+  ],
+  "archive_pins": {
+    "runtime/payoff209/final-observe-1.jsonl": "e3e72bf6efbc6b6b18534513560bb37c31d1f82de6873464fa0b1aec245e4c8f",
+    "runtime/payoff209/final-observe-1-preload.txt": "e34c16001ebcc89d3a1226aa0253e4de542500fd7216eac4b71ee213fee71a6d",
+    "runtime/payoff209/final-observe-2.jsonl": "0eefdb19b024bb76d335e551ff8432c4e7607dad08b6ae5c1b1c2876ada82b82",
+    "runtime/payoff209/final-observe-2-preload.txt": "dd956c6e34529df729054e18d980d612f7e4357c5dc75a078d6c8eb121791649",
+    "runtime/payoff209/final-control-1.jsonl": "59b6f154ce632ec39eb064cefa7554ce907dde22614910000016ec3b4b6969b7",
+    "runtime/payoff209/final-control-1-preload.txt": "f5df712273f0b5f6aebe1b3b3c37798f67559d4e0241e769d43716aaaa63033e",
+    "runtime/payoff209/Interrupt209b.j": "9816c682340841cad71861f8e0aae44d77a8f9bc612ae27865feba18b64e0f5f",
+    "runtime/payoff209/Interrupt209b.wpm": "166ff49c3509548c9fceaa834b390c0017e88712ab8b47a58760e8ec916203f6",
+    "runtime/payoff209/Interrupt209b.json": "1f9a0ad7d751770eeace7bb3b89d8224f6d63809cff9f4b6d31be02768d2cc20",
+    "runtime/payoff209/Interrupt209b.w3m": "8e1f7684289a2cf3047d80dce294a7d84b0e1e2e38df5a459b0c126d6203983f",
+    "runtime/payoff209/209initial-ghidra.json": "402bb5df13c101c459f8fb6f38a8b28964f36d133684b3d5e43c3a8ba8b43968",
+    "runtime/payoff209/209completion-ghidra.json": "e06d393f990cb55ffd8cd27374bec201e73cdcb983dbb673bc1e712edb87b284",
+    "runtime/payoff209/209channel-producers.json": "25d1c67f6a65a7ae17d0c72858244572ea724d8806d595a9b296490ccb5247a2",
+    "runtime/payoff209/209channel-sites.json": "b55ddd37a9e0f7465a36561cca987c4d4c6e0b7f8ee709e70e00121d1e461eb2",
+    "runtime/payoff209/209spell-approach.json": "620e4e1ac2e4d1dc12c58f3a690b8070c79bd3c1ad64b58d4b1575ada7194964",
+    "runtime/payoff209/sources/swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+    "runtime/payoff209/sources/spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+    "runtime/payoff209/sources/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "runtime/payoff209/sources/interrupt209_probe.j": "8f22c9e90b95eadbfbda729d39d9984383ae6a8b6ea563932574bc3b392a2c4e",
+    "runtime/payoff209/sources/interrupt209_observer.js": "86ec4599bbf240c85c9bfabdea74460e3ae65f42b6267de73bdcd025c2b665b9",
+    "runtime/payoff209/sources/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf"
+  },
+  "captures": {
+    "runtime/payoff209/final-observe-1.jsonl": {
+      "metadata": {
+        "event": "metadata",
+        "task": "ORDER-06.4/payoff209",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+          "interrupt209_observer.js": "86ec4599bbf240c85c9bfabdea74460e3ae65f42b6267de73bdcd025c2b665b9",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "interrupt209_probe.j": "8f22c9e90b95eadbfbda729d39d9984383ae6a8b6ea563932574bc3b392a2c4e",
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "map": "8e1f7684289a2cf3047d80dce294a7d84b0e1e2e38df5a459b0c126d6203983f"
+        },
+        "map": "Maps\\Interrupt209b.w3m",
+        "seconds": 90.0,
+        "continue_at": 8.0,
+        "display": ":99",
+        "remote": "127.0.0.1:27050",
+        "env": "C",
+        "input": [],
+        "input_seconds": null,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "I209 "
+      },
+      "sha256": "e3e72bf6efbc6b6b18534513560bb37c31d1f82de6873464fa0b1aec245e4c8f",
+      "bytes": 600364
+    },
+    "runtime/payoff209/final-observe-2.jsonl": {
+      "metadata": {
+        "event": "metadata",
+        "task": "ORDER-06.4/payoff209",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+          "interrupt209_observer.js": "86ec4599bbf240c85c9bfabdea74460e3ae65f42b6267de73bdcd025c2b665b9",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "interrupt209_probe.j": "8f22c9e90b95eadbfbda729d39d9984383ae6a8b6ea563932574bc3b392a2c4e",
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "map": "8e1f7684289a2cf3047d80dce294a7d84b0e1e2e38df5a459b0c126d6203983f"
+        },
+        "map": "Maps\\Interrupt209b.w3m",
+        "seconds": 90.0,
+        "continue_at": 8.0,
+        "display": ":99",
+        "remote": "127.0.0.1:27050",
+        "env": "C",
+        "input": [],
+        "input_seconds": null,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "I209 "
+      },
+      "sha256": "0eefdb19b024bb76d335e551ff8432c4e7607dad08b6ae5c1b1c2876ada82b82",
+      "bytes": 600363
+    },
+    "runtime/payoff209/final-control-1.jsonl": {
+      "metadata": {
+        "event": "metadata",
+        "task": "ORDER-06.4/payoff209",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+          "interrupt209_observer.js": "86ec4599bbf240c85c9bfabdea74460e3ae65f42b6267de73bdcd025c2b665b9",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "interrupt209_probe.j": "8f22c9e90b95eadbfbda729d39d9984383ae6a8b6ea563932574bc3b392a2c4e",
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "map": "8e1f7684289a2cf3047d80dce294a7d84b0e1e2e38df5a459b0c126d6203983f"
+        },
+        "map": "Maps\\Interrupt209b.w3m",
+        "seconds": 90.0,
+        "continue_at": 8.0,
+        "display": ":99",
+        "remote": "127.0.0.1:27050",
+        "env": "C",
+        "input": [],
+        "input_seconds": null,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "I209 "
+      },
+      "sha256": "59b6f154ce632ec39eb064cefa7554ce907dde22614910000016ec3b4b6969b7",
+      "bytes": 1391
+    }
+  },
+  "sources": {
+    "tools/frida/research/swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+    "tools/frida/research/spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/research/interrupt209_probe.j": "8f22c9e90b95eadbfbda729d39d9984383ae6a8b6ea563932574bc3b392a2c4e",
+    "tools/frida/research/interrupt209_observer.js": "86ec4599bbf240c85c9bfabdea74460e3ae65f42b6267de73bdcd025c2b665b9"
+  },
+  "portable_sha256": "ee5317349248136bb8f5a9302284781bab4c233fa8e3c34c61f7a29ab42d3a8d",
+  "timeline_sha256": "b4630361900ec45ca31163e3818af7446785366cc501f9db8c1e9e5734a5c4a1",
+  "exclusions": [
+    "Full CAST/EFFECT/FINISH/ENDCAST timing, point/air/structure approaches and in-range spell start are not certified.",
+    "Engine minimal-data/nonstock spell fixture checks lifecycle and ownership; full retail numerical trajectories remain covered separately.",
+    "Private member tombstone representation and arbitrary reentrant FIFO edits are separate leaves."
+  ]
+}

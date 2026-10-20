@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "task": "E2E-01.4",
+  "parent": "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "pins": {
+    "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json": "53987a235e33469671b080a68bd645c3ddc2eae94b8f702bc95803050abf8619",
+    "tools/ghidra/fixtures/retail-formation-passage169-1.27.json": "6fb41668030e50941e5f28591c327cb330fdff64f24ac03a3afb30c81da3a540",
+    "tools/ghidra/fixtures/retail-formation-selection170-1.27.json": "02e928aea677fcd9cddae3db77050f1092593deb5162c0e79c33fa342a1369ec",
+    "games/warcraft-3/game/tests/fixtures/retail_formation_passage_169.h": "efce0a3311ea8ffa7e04acc52388b78cb40f3af071b88177b2dd2baecf867891",
+    "games/warcraft-3/game/tests/fixtures/retail_formation_selection_170.h": "cbc1b5fe80296648229494a110f43bc48b481f818282679eb5a8b65eb4fd6464",
+    "tools/ghidra/fixtures/retail-separation-crowds-1.27.json.gz": "37965588b517f035e934f772bf6e13e4b145da015962dd01b2c2ab8ead9cd385",
+    "tools/ghidra/fixtures/retail-separation-crowd-inputs-1.27.json.gz": "cc54541059d3f55d824e1f17296441930f7c533ab2a01bdbbc5dc59e7168bd72",
+    "games/warcraft-3/game/tests/retail_separation_crowds.h": "74f05e3cbe351fea1da064ea971c06f702af65c0af28d1c7bee47a144712bae3",
+    "tools/ghidra/fixtures/retail-gate-group-open-live-1.27.json": "49418fa145061edbf830abffa88caf8d1dbf1d41f904a274aaf57f04e7f52f4d",
+    "tools/ghidra/fixtures/retail-gate-group-wall-live-1.27.json": "6cfe27a0301169c972c86540921085d40b1222ddd625a3690c2ef51a5e086a74",
+    "tools/ghidra/fixtures/retail-gate-chain-live-1.27.json": "a2fb20fb99369246bf7d4687e93aa89633a1d8bc64c90c5be4a4fe85c1688899",
+    "games/warcraft-3/game/tests/retail_gate_group.h": "ef4c495ef221ade0ad112440a5869e0866b2ea819064ba0b4a82a9e8c6d0f72a",
+    "games/warcraft-3/game/tests/retail_gate_chain.h": "0a4a76e01535cae3fe81bc669d30f90f291ff1e7d3bf9e2c7f6fe39d989b3100"
+  },
+  "engine_repeats": 2,
+  "engine_editions": [
+    "classic",
+    "tft"
+  ],
+  "categories": [
+    {
+      "id": "formation",
+      "test": "wc3_e2e205.selected_independent_and_passage_formations",
+      "entries": [
+        "live-selected-formation-passage",
+        "live-formation-selection-independent"
+      ],
+      "entry_sha256": {
+        "live-selected-formation-passage": "eb38082a36e295ec3f726916de2b6ea5627052690d13bc3401db4569e5280519",
+        "live-formation-selection-independent": "61f3b911e4e7f0bab3dcb97b215c41bc7577238627f111310756b3b8af1ca610"
+      },
+      "scope": "FORM-05 selected mixed-rank order, independent singleton controls, narrow passage, classification, caps, offsets, route/regroup state and saved complete suffixes.",
+      "completion": "Each captured selection/independent journey ends with order zero and its frozen final public positions."
+    },
+    {
+      "id": "crowd",
+      "test": "wc3_e2e205.mixed_and_disabled_crowds_with_saved_continuation",
+      "entries": [
+        "oracle-crowds"
+      ],
+      "entry_sha256": {
+        "oracle-crowds": "123364be2f49a5c22382ca0d175f39e4c63260025909d3956fd46f302f2e28ff"
+      },
+      "scope": "SEP-04 mixed owner/radius/rank/selector wall crowd plus enabled/disabled ground controls; ordered contributions, PRNG, endpoints, occupancy, retries and saved mid-order continuation.",
+      "completion": "Complete original owner/public stream through scripted Stop/removal; four blocked mixed-crowd orders remain unfinished at the final pre-removal sample. Completion is not inferred from the fixture ending."
+    },
+    {
+      "id": "gate",
+      "test": "wc3_e2e205.group_gate_skip_disconnection_and_chained_activation",
+      "entries": [
+        "live-gate-group-open-captures-261004",
+        "live-gate-group-wall-captures-261004",
+        "live-gate-chain-captures-261004"
+      ],
+      "entry_sha256": {
+        "live-gate-group-open-captures-261004": "ee46078a186d296daefcb027985e4089cc1597331fdddce49d15c947564e639c",
+        "live-gate-group-wall-captures-261004": "aa6da73a638dd9ee7ebf6f1edf8e33c8301d985ffc2a260814440e0421b4119f",
+        "live-gate-chain-captures-261004": "7e0534287a70bf6dfc5aedde593d6a10ef28547d25b220e2f05e0e1d7866805e"
+      },
+      "scope": "GATE group crossing, cached disabled-edge skip, sole crossing disconnection, chained activation combinations, complete motion/retry/consumer order and saved suffixes.",
+      "completion": "Open skip walks and regroups; disconnected case retries then force-completes; chains preserve route/consumer ordering for all four activation combinations."
+    }
+  ],
+  "exclusions": [
+    "No new live or gameplay-policy claim; complete original child contracts are freshly revalidated unchanged.",
+    "The parent static/disconnected source pins and routes are validated; its complete original runner remains a separate corpus entry.",
+    "Formation tests supply original owner clocks and WPM geometry. Final inferred clock and pre-commit versus post-commit limitations remain exactly those of FORM-05 child contracts.",
+    "Selection no-hook click timing controls retain their original bounded exclusions; combined acceptance cannot strengthen them.",
+    "Crowd completion does not imply every blocked order arrived. First blocking identity remains inferred where recorded.",
+    "Engine saved continuations are not retail save/load proof. No whole-world, full-RNG, all-scenario determinism or frame-budget claim."
+  ]
+}

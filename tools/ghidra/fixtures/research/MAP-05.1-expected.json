@@ -1,0 +1,639 @@
+{
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "link_boundary_and_reuse": {
+  "c_object_recycled": true,
+  "c_records": {
+   "1235": [
+    131067
+   ],
+   "1236": [
+    131068
+   ],
+   "1237": [
+    131069
+   ],
+   "1238": [
+    131070
+   ],
+   "1239": [
+    131071
+   ],
+   "1240": [
+    131072
+   ],
+   "1299": [
+    131073
+   ],
+   "1300": [
+    131074
+   ],
+   "1301": [
+    131075
+   ],
+   "1302": [
+    131076
+   ],
+   "1303": [
+    131077
+   ],
+   "1304": [
+    131078
+   ],
+   "1363": [
+    131079
+   ],
+   "1364": [
+    131080
+   ],
+   "1365": [
+    131081
+   ],
+   "1366": [
+    131082
+   ],
+   "1367": [
+    131083
+   ],
+   "1368": [
+    131084
+   ],
+   "1427": [
+    131085
+   ],
+   "1428": [
+    131086
+   ],
+   "1429": [
+    131087
+   ],
+   "1430": [
+    131088
+   ],
+   "1431": [
+    131089
+   ],
+   "1432": [
+    131090
+   ],
+   "1491": [
+    131091
+   ],
+   "1492": [
+    131092
+   ],
+   "1493": [
+    131093
+   ],
+   "1494": [
+    131094
+   ],
+   "1495": [
+    131095
+   ],
+   "1496": [
+    131096
+   ],
+   "1555": [
+    131097
+   ],
+   "1556": [
+    131098
+   ],
+   "1557": [
+    131099
+   ],
+   "1558": [
+    131100
+   ],
+   "1559": [
+    131101
+   ],
+   "1560": [
+    131102
+   ]
+  },
+  "c_removal_records": {
+   "1235": [
+    131103
+   ],
+   "1236": [
+    131104
+   ],
+   "1237": [
+    131105
+   ],
+   "1238": [
+    131106
+   ],
+   "1239": [
+    131107
+   ],
+   "1240": [
+    131108
+   ],
+   "1299": [
+    131109
+   ],
+   "1300": [
+    131110
+   ],
+   "1301": [
+    131111
+   ],
+   "1302": [
+    131112
+   ],
+   "1303": [
+    131113
+   ],
+   "1304": [
+    131114
+   ],
+   "1363": [
+    131115
+   ],
+   "1364": [
+    131116
+   ],
+   "1365": [
+    131117
+   ],
+   "1366": [
+    131118
+   ],
+   "1367": [
+    131119
+   ],
+   "1368": [
+    131120
+   ],
+   "1427": [
+    131121
+   ],
+   "1428": [
+    131122
+   ],
+   "1429": [
+    131123
+   ],
+   "1430": [
+    131124
+   ],
+   "1431": [
+    131125
+   ],
+   "1432": [
+    131126
+   ],
+   "1491": [
+    131127
+   ],
+   "1492": [
+    131128
+   ],
+   "1493": [
+    131129
+   ],
+   "1494": [
+    131130
+   ],
+   "1495": [
+    131131
+   ],
+   "1496": [
+    131132
+   ],
+   "1555": [
+    131133
+   ],
+   "1556": [
+    131134
+   ],
+   "1557": [
+    131135
+   ],
+   "1558": [
+    131136
+   ],
+   "1559": [
+    131137
+   ],
+   "1560": [
+    131138
+   ]
+  },
+  "capacity": 262144,
+  "cells": [
+   {
+    "cell": 1300,
+    "chain": [
+     [
+      130831,
+      1,
+      "D"
+     ],
+     [
+      131058,
+      1,
+      "B"
+     ],
+     [
+      131054,
+      1,
+      "A"
+     ]
+    ]
+   },
+   {
+    "cell": 1302,
+    "chain": [
+     [
+      130835,
+      1,
+      "D"
+     ],
+     [
+      131060,
+      1,
+      "B"
+     ]
+    ]
+   },
+   {
+    "cell": 1560,
+    "chain": [
+     [
+      130887,
+      1,
+      "D"
+     ]
+    ]
+   }
+  ],
+  "d_object_is_c_memory": true,
+  "d_records": {
+   "1235": [
+    130818
+   ],
+   "1236": [
+    130819
+   ],
+   "1237": [
+    130822
+   ],
+   "1238": [
+    130823
+   ],
+   "1239": [
+    130826
+   ],
+   "1240": [
+    130827
+   ],
+   "1299": [
+    130830
+   ],
+   "1300": [
+    130831
+   ],
+   "1301": [
+    130834
+   ],
+   "1302": [
+    130835
+   ],
+   "1303": [
+    130838
+   ],
+   "1304": [
+    130839
+   ],
+   "1363": [
+    130842
+   ],
+   "1364": [
+    130843
+   ],
+   "1365": [
+    130846
+   ],
+   "1366": [
+    130847
+   ],
+   "1367": [
+    130850
+   ],
+   "1368": [
+    130851
+   ],
+   "1427": [
+    130854
+   ],
+   "1428": [
+    130855
+   ],
+   "1429": [
+    130858
+   ],
+   "1430": [
+    130859
+   ],
+   "1431": [
+    130862
+   ],
+   "1432": [
+    130863
+   ],
+   "1491": [
+    130866
+   ],
+   "1492": [
+    130867
+   ],
+   "1493": [
+    130870
+   ],
+   "1494": [
+    130871
+   ],
+   "1495": [
+    130874
+   ],
+   "1496": [
+    130875
+   ],
+   "1555": [
+    130878
+   ],
+   "1556": [
+    130879
+   ],
+   "1557": [
+    130882
+   ],
+   "1558": [
+    130883
+   ],
+   "1559": [
+    130886
+   ],
+   "1560": [
+    130887
+   ]
+  },
+  "d_takes_free_list_in_emission_order": true,
+  "dirty_cells_compacted": 550,
+  "free_list_after_cleanup_head": [
+   130818,
+   130819,
+   130822,
+   130823,
+   130826,
+   130827,
+   130830,
+   130831,
+   130834,
+   130835,
+   130838,
+   130839,
+   130842,
+   130843,
+   130846,
+   130847,
+   130850,
+   130851,
+   130854,
+   130855,
+   130858,
+   130859,
+   130862,
+   130863,
+   130866,
+   130867,
+   130870,
+   130871,
+   130874,
+   130875,
+   130878,
+   130879,
+   130882,
+   130883,
+   130886,
+   130887,
+   130890,
+   130891,
+   130894,
+   130895,
+   130898,
+   130899,
+   130902,
+   130903,
+   130906,
+   130907,
+   130910,
+   130911,
+   130914,
+   130915,
+   130918,
+   130919,
+   130922,
+   130923,
+   130926,
+   130927,
+   130930,
+   130931,
+   130934,
+   130935,
+   130938,
+   130939,
+   130942,
+   130943,
+   130946,
+   130947,
+   130950,
+   130951,
+   130954,
+   130955,
+   130958,
+   130959,
+   130962,
+   130963,
+   130966,
+   130967,
+   130970,
+   130971,
+   130974,
+   130975
+  ],
+  "free_list_length": 130868,
+  "growth": [
+   {
+    "caller": "6f1c5170",
+    "op": "realloc",
+    "previous": 1048576,
+    "size": 2097152
+   }
+  ],
+  "high_water": 131139,
+  "query": [
+   "D",
+   "B",
+   "A"
+  ],
+  "reclaimed_count": 130868,
+  "reclaimed_equals_c_records": true,
+  "storm_calls_during_reuse": 0
+ },
+ "live_objects_before_release": {
+  "A": {
+   "map": true,
+   "refs": 4
+  },
+  "B": {
+   "map": true,
+   "refs": 9
+  },
+  "D": {
+   "map": true,
+   "refs": 36
+  }
+ },
+ "map_identity": {
+  "first": "40016008",
+  "pool_after_create": {
+   "created": 1,
+   "element_size": 200,
+   "live": 1,
+   "per_block": 64,
+   "recycled": []
+  }
+ },
+ "map_release_and_reuse": {
+  "released": {
+   "link_fields": {
+    "free_head": 130890,
+    "link_capacity": 0,
+    "link_count": 0,
+    "records": 307
+   },
+   "map_pool": {
+    "created": 1,
+    "element_size": 200,
+    "live": 0,
+    "per_block": 64,
+    "recycled": [
+     1073831944
+    ]
+   },
+   "map_timer_field": 0,
+   "old_request_flags": "00030001",
+   "stale_object_refs": {
+    "A": 4,
+    "B": 9,
+    "D": 36
+   },
+   "storm": [
+    {
+     "caller": "6f1c5197",
+     "op": "free",
+     "size": 2097152
+    },
+    {
+     "caller": "6f1c5197",
+     "op": "free",
+     "size": 516
+    },
+    {
+     "caller": "6f1c5197",
+     "op": "free",
+     "size": 16384
+    }
+   ]
+  },
+  "reused": {
+   "callbacks_after_drain": [
+    "40016008"
+   ],
+   "fields": {
+    "cells": 1024,
+    "dirty_data": 1077063680,
+    "dirty_words": 33,
+    "free_head": 16777215,
+    "link_capacity": 0,
+    "link_count": 0,
+    "link_data": 4294967295,
+    "link_growth": 131072,
+    "records": 307,
+    "stamp": 0,
+    "timer_request": 1073885228
+   },
+   "map_pool": {
+    "created": 2,
+    "element_size": 200,
+    "live": 1,
+    "per_block": 64,
+    "recycled": []
+   },
+   "new_request": "4002302c",
+   "new_request_is_old": false,
+   "old_request_flags_after_drain": "00010001",
+   "same_identity": true,
+   "second": "40016008"
+  }
+ },
+ "object_block_boundary": {
+  "block_allocations": [
+   {
+    "at_object": 59,
+    "caller": "6f06a366",
+    "object_offset_in_block": 8,
+    "raw_allocated_after": 65,
+    "size": 4612
+   },
+   {
+    "at_object": 123,
+    "caller": "6f06a366",
+    "object_offset_in_block": 8,
+    "raw_allocated_after": 129,
+    "size": 4612
+   }
+  ],
+  "objects_created": 123,
+  "pool_after": {
+   "created": 134,
+   "element_size": 72,
+   "live": 130,
+   "per_block": 64,
+   "raw_allocated": 130
+  },
+  "pool_before": {
+   "created": 7,
+   "live": 6,
+   "raw_allocated": 6
+  },
+  "recycled_after_retire": [
+   122,
+   121,
+   120
+  ],
+  "reuse_order": [
+   122,
+   121,
+   120,
+   "raw"
+  ]
+ },
+ "scope": "MAP-05.1: cross the spatial link-vector and object-pool allocation boundaries, free the\nstorage and reuse it; assert record identity (link index / object address), links and cells.\n\nAll operations are original game.dll code: map factory 6f14efe0 (owner+598 pool), object\nfactory 6f14cf20 (owner+5d8 pool, 64x72-byte blocks), 6f14e770 updates, 6f14dae0 retire,\n6f14df20 compaction, map virtual release 6f14cac0, maintenance drain 6f0523d0, separation\nquery 6f170c00. Only the Storm memory imports receive host storage. The final section\n(stale object across map release) is reachable only if a spatial object outlives\nPathMaps_Release; MAP-06.1 measures whether retail does that.",
+ "stale_object_across_release": {
+  "a_recycled": false,
+  "a_refs_after_compaction": 4,
+  "a_refs_after_retire": 8,
+  "dirty": [
+   660,
+   661,
+   692,
+   693
+  ],
+  "records_in_new_map_after_stale_retire": 4
+ }
+}

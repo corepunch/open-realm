@@ -1,0 +1,39 @@
+{
+  "module_sha256": "dd28506d0578bb6a1eef5749fe7bbb55f723a554366a83cd02bbe1eba2f3dd42",
+  "runner_sha256": "a7289ce1cbfc069bb089a384fa065d6cf5938acea4d23737ada7e4f011f89a1b",
+  "fixture_sha256": "4e7aca5c44273290394cc2aa9e06ce3800f05939f2c2c76a30aa393be36807aa",
+  "test_sha256": "5a2f93bc8f88b4c3edb2df07a82ad392a396608c12ed29fa18d12277f45e1b18",
+  "results": [
+    {
+      "variant": "classic",
+      "command": [
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/openwarcraft3-tests",
+        "-data",
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests",
+        "+dedicated",
+        "1",
+        "+test",
+        "wc3_save.waygate_state_and_inflight_approach_round_trip"
+      ],
+      "exit": -11,
+      "log_sha256": "8b715497006e9cc071937a7a598d984d4c99433b21e5932ae5464964d1d6ee9b",
+      "assertion_failures": 1
+    },
+    {
+      "variant": "tft",
+      "command": [
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/bin/openwarcraft3-tests",
+        "-data",
+        "/GitHub/wc3-analysis/runtime/target377-canonical-red214/source/build/tests",
+        "-tft",
+        "+dedicated",
+        "1",
+        "+test",
+        "wc3_save.waygate_state_and_inflight_approach_round_trip"
+      ],
+      "exit": -11,
+      "log_sha256": "8b715497006e9cc071937a7a598d984d4c99433b21e5932ae5464964d1d6ee9b",
+      "assertion_failures": 1
+    }
+  ]
+}

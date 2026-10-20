@@ -1,0 +1,114 @@
+{
+ "task": "BASE-02.2",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "object_table": [
+  {
+   "kind": "unit mover (CUnit), movetp foot/horse/hover/float/amph",
+   "map": "owner+238 fine",
+   "producer": "15ed40 (14cf20 + OR +34 01000000) ; category 05c7b0 via 6945a0/699200",
+   "w34": "010000ca",
+   "w40": "0 + runtime 20000000 moving / 40000000 group / low28 suppression",
+   "static": false,
+   "payload_tag10": "60706375",
+   "evidence": "instruction (685e30 table, 05c7b0) + live hfoo 010000ca (this capture and BASE-02.4)"
+  },
+  {
+   "kind": "unit mover, movetp fly",
+   "w34": "01000000",
+   "static": false,
+   "payload_tag10": "60706375",
+   "producer": "same; 685e30(fly,1)=0",
+   "evidence": "instruction + live hgry (BASE-02.4)"
+  },
+  {
+   "kind": "unit mover, movetp unbuild",
+   "w34": "01000008",
+   "static": false,
+   "producer": "685e30(40,1)=8",
+   "evidence": "instruction"
+  },
+  {
+   "kind": "unit mover, movetp none/_/multi-bit (incl. buildings, wards without movetp)",
+   "w34": "01000000",
+   "static": false,
+   "producer": "685e30 default 0",
+   "evidence": "instruction; building own-mover active via Widget_ApplyPathing(1,1,1)"
+  },
+  {
+   "kind": "unit runtime edits",
+   "w34": "Burrow/Ghost: category^02,08 toggles; Submerge: c2/08; TornadoWander 0/4; WispHarvest 0/0; LandMine 8/8; Locust 0/0; SetUnitPathing false: query0 category kept; 699260: |10 both",
+   "static": false,
+   "evidence": "instruction (vtable owners via RTTI)"
+  },
+  {
+   "kind": "item mover (CItem)",
+   "w34": "01000018",
+   "query": "10",
+   "static": false,
+   "payload_tag10": "60706f73",
+   "producer": "Widget_ApplyPathing(1,1,1) -> CItem_RefreshMoverPathingProfile 65a8a0 -> SetCategory(18)",
+   "evidence": "instruction + live ratf probe item +34 01000018/00000018"
+  },
+  {
+   "kind": "CaptainAI virtual actor",
+   "w34": "01000002 at init, then (table&~8)",
+   "static": false,
+   "producer": "9d2f90 (05c660(0), 05c7e0(2,2)); 9d6e60",
+   "evidence": "instruction + live (payoff56 01000002)"
+  },
+  {
+   "kind": "missile movers",
+   "w34": "CArtilleryLine/CMissileLine 0/0; CMissile caller-supplied",
+   "static": false,
+   "evidence": "instruction; activity of their fine objects not established"
+  },
+  {
+   "kind": "destructable own mover (CDestructable)",
+   "w34": "active, category never published by any found producer (vtable+16c no-op; vtable+160=0a unused)",
+   "static": false,
+   "evidence": "instruction (absence); no record observed at shared cell live"
+  },
+  {
+   "kind": "widget pathing regions (building/destructable/gold mine/Way Gate pathTex; death texture for dead destructables)",
+   "map": "owner+238 fine",
+   "producer": "Widget_ApplyPathing 6501a0 / 653800 -> RegionCollection_ResizeWithCategories 064460 -> 14cf70; raster PathTexture_RasterizeRotated 22e9c0 + WidgetRaster_InsertRegionCell 652b40",
+   "w34": "010000c2, 01000010, 01000008 (+01000004 when texture resource+64 bit0)",
+   "w40": "10000000 (+ low28 suppression via 063d10)",
+   "static": true,
+   "payload": "widget agent (tag2b61676c at +c)",
+   "evidence": "instruction + oracle + live LTcr (3 regions, 16 records each)"
+  },
+  {
+   "kind": "CTriggerRegion region object",
+   "w34": "00000000 (inactive)",
+   "w40": "10000000",
+   "static": true,
+   "producer": "CTriggerRegion_CreateSpatialObject 05f970 -> 14cf70; records Region_SetWorldCell/Rectangle",
+   "evidence": "instruction"
+  }
+ ],
+ "consumers": {
+  "fine search 1489a0 (d4=0)": "blocks iff active, live, kind1, (+40&8fffffff)==0, not 20000000/40000000, category&query; static regions included",
+  "segment checks 149440..149cc0/148c70/148de0 (inherit d4)": "same predicate as fine search with inherited mode",
+  "endpoint validation 1492b0/149370/149320 (d4 forced 1)": "same predicate, moving/group-transient objects included; callers suppress self via +40",
+  "hierarchy 148e90 via 15d0e0": "only static (10000000) active live objects; units/items/captain never; 49-link cap",
+  "collector 148ad0 (segment yielding)": "same eligibility as mode1 minus target; token = unit mover, else NULL (regions, items)",
+  "category union 149170 (04c650 world flags; not one of four)": "OR of all eligible categories regardless of query"
+ },
+ "lanes": {
+  "query_words": {
+   "foot/horse/hover": "02000002",
+   "fly": "04000004",
+   "float": "40000040",
+   "amph": "80000080",
+   "build placement": "08 (query8)",
+   "item admission": "10000010 (query 10)"
+  },
+  "hierarchy_lane_masks": [
+   "06000006",
+   "80000080",
+   "40000040",
+   "04000004"
+  ]
+ }
+}

@@ -1,0 +1,41 @@
+{
+  "provenance": "tools/ghidra/fixtures/retail-formation-passage169-1.27.json",
+  "sources": [
+    "FORM-05.1/captures/a-observe-1.jsonl",
+    "FORM-05.1/captures/a-observe-2.jsonl",
+    "FORM-05.1/captures/b-observe-1.jsonl"
+  ],
+  "independent_repeat": "FORM-05.1/captures/b-observe-2.jsonl",
+  "header_sha256": "cbc1b5fe80296648229494a110f43bc48b481f818282679eb5a8b65eb4fd6464",
+  "scenes": [
+    {
+      "owner_visits": 340,
+      "member_commits": 1825,
+      "groups": 1,
+      "saved_suffix_visits": 280,
+      "saved_suffix_commits": 1465
+    },
+    {
+      "owner_visits": 340,
+      "member_commits": 1825,
+      "groups": 1,
+      "saved_suffix_visits": 280,
+      "saved_suffix_commits": 1465
+    },
+    {
+      "owner_visits": 1719,
+      "member_commits": 1719,
+      "groups": 6,
+      "saved_suffix_visits": 1359,
+      "saved_suffix_commits": 1359
+    }
+  ],
+  "exclusions": [
+    "Observed primary owner clocks and frozen WPM geometry are supplied; general clock admission and MPQ scene construction remain open.",
+    "Final owner clocks are inferred from verified six-5ms progression; raw commits contain pre-commit pose and decision inputs, not unobserved post-commit words.",
+    "Initial pre-owner age is normalized to the engine initialization convention.",
+    "Both selected click phases are preserved separately; observer-free selection control is bounded by its captured click timing differences.",
+    "No new live capture is claimed; existing complete Frida archives provide retail expectations.",
+    "Selections above six, wider policy flags, AI producers and membership mutation retain their owning tasks."
+  ]
+}

@@ -24,8 +24,8 @@ typedef struct {
 
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code) {
     if (!unit) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (unit->abilstatus[i].level && unit->abilstatus[i].code == code &&
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == code &&
             (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time())) return true;
     return false;
 }
@@ -93,7 +93,7 @@ static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, flo
 }
 
 float S_EarthquakeMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
+    uint32_t level = G_QueryUnitStatusClassLevel(unit, ID_EARTHQUAKE_BUFF);
     if (!level) return 0.0f;
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
@@ -193,12 +193,12 @@ void morph_end(edict_t *thinker) {
 }
 
 int S_BlackArrowDamage(edict_t *attacker, int damage) {
-    uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
+    uint32_t level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('A','N','b','a'));
     return level ? damage + (int)S_SpellData(MAKEFOURCC('A','N','b','a'), level, 1) : damage;
 }
 
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target) {
-    uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
+    uint32_t level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('A','N','b','a'));
     if (level && target && M_IsDead(target))
         S_SummonAbilityAt(attacker, MAKEFOURCC('A','N','b','a'),
                           S_SpellUnitId(MAKEFOURCC('A','N','b','a'), level), &target->s.origin2,
@@ -304,7 +304,7 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
     if (!marker->channel) marker->channel = G_AllocChannel();
     assert(marker->channel);
     marker->channel->owner_spawn_time = thinker->spawn_time;
-    marker->goalentity = target;
+    S_SetMoveGoal(marker, &marker->goalentity, target);
     marker->resources = target->spawn_time;
 }
 
@@ -367,7 +367,7 @@ void chain_lightning_think(edict_t *thinker) {
     S_SpellDamage(next, caster, (int)MAX(1.0f, thinker->wait));
     G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, next, NULL, true);
     chain_lightning_mark_visited(thinker, next);
-    thinker->goalentity = next;
+    S_SetMoveGoal(thinker, &thinker->goalentity, next);
     thinker->damage = next->spawn_time;
     thinker->s.origin2 = next->s.origin2;
     thinker->wait *= thinker->velocity;
@@ -404,7 +404,7 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->s.origin2 = st.entity->s.origin2;
-    thinker->goalentity = st.entity;
+    S_SetMoveGoal(thinker, &thinker->goalentity, st.entity);
     thinker->damage = st.entity->spawn_time;
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     thinker->wait = damage * (1.0f - S_SpellData(spell->code, level, 3));
@@ -427,7 +427,7 @@ void S_ReincarnationOnDeath(edict_t *unit) {
     static uint32_t const codes[] = { MAKEFOURCC('A','O','r','e'), MAKEFOURCC('A','C','r','n'), MAKEFOURCC('A','N','r','n') };
     uint32_t code = 0, level = 0;
     edict_t *thinker;
-    FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
+    FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityClassLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
     thinker = G_Spawn(); thinker->owner = unit; thinker->class_id = code; thinker->s.origin2 = unit->s.origin2;
     thinker->channel = G_AllocChannel();
@@ -471,7 +471,7 @@ static void mass_teleport_cleanup(edict_t *thinker) {
                 break;
             }
         }
-        if (!newer_pause_owner) target->paused = false;
+        if (!newer_pause_owner) S_SetUnitPauseFlag(target,false);
     }
     /* Owned effects are keyed to the thinker and may be retired repeatedly. */
     G_DestroyOwnedEffects(thinker);
@@ -566,7 +566,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         G_SpawnOwnedAbilityEffectAtPoint(thinker, spell->code, WC3_EFFECT_AREA_EFFECT, 0, &ent->s.origin2);
         G_SpawnOwnedAbilityEffectAtPoint(thinker, spell->code, WC3_EFFECT_AREA_EFFECT, 0, &target->s.origin2);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, ent, NULL, true);
-        target->paused = true;
+        S_SetUnitPauseFlag(target,true);
         mass_teleport_think(thinker);
         return true;
     }
@@ -652,14 +652,23 @@ BZ_SIMPLE_SPELL_PROC(AbilityPoisonArrows) { toggle_status_execute(caster, st, sp
 /* Name=Silence
  * Ubertip="Stops enemy units in an area from casting spells."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
+static void silence_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+        if (buff) S_ApplyAttackPrevention(caster, target, spell, buff,
+            S_SpellHeroDuration(spell->code, level, target));
     }
+}
+
+BZ_ABILITY_PROC(CAbilitySilence) {
+    if (msg == A_EXECUTE) {
+        if (call && call->item && call->target) silence_execute(ent, *call->target, call->item);
+        return true;
+    }
+    return CAbilityAttackPrevention(ent, msg, call);
 }
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
  * ties retain the stable entity-enumeration order until a stricter retail tie-break
@@ -822,21 +831,358 @@ BZ_VALIDATED_SPELL_PROC(AbilityDeathPact, death_pact_validate, death_pact_execut
 /* Name=Metamorphosis
  * Ubertip="Transforms the Demon Hunter into a powerful demon."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
-    uint32_t level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level), original = caster->class_id;
-    float duration = S_SpellDuration(spell->code, level, true);
-    if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
-    edict_t *thinker = G_Spawn();
-    thinker->owner = caster; thinker->resources = original;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
-    thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f); thinker->think = morph_end;
+/* Ground timed forms use the common primary transition owner. Forward and
+ * inverse animations are presentation; neither can release the counted lock. */
+static bool metamorphosis_physical_held(edict_t *unit,uint32_t code) {
+    abilityitem_t item=S_AbilityItem(code);
+    return item.ability && !strcmp(item.ability->classname,"AEme") && S_UnitExecutionPaused(unit);
+}
+static void metamorphosis_animation_end(edict_t *unit) {
+    if(!S_HoldMorphAnimation(unit) && !metamorphosis_physical_held(unit,unit->morph ? unit->morph->code : 0))unit_stand(unit);
+}
+static umove_t metamorphosis_forward={"morph",NULL,metamorphosis_animation_end,CAbilityMetamorphosis};
+static umove_t metamorphosis_reverse={"morph alternate",NULL,metamorphosis_animation_end,CAbilityMetamorphosis};
+
+static bool metamorphosis_timed_ground(abilityitem_t const *item) {
+    return item && item->ability && (!strcmp(item->ability->classname,"AEme") ||
+                                     !strcmp(item->ability->classname,"ANcr"));
+}
+static uint32_t const metamorphosis_buff=MAKEFOURCC('B','E','m','e');
+static bool metamorphosis_is_chemical(abilityCall_t const *call) {
+    return !strcmp(call->item->ability->classname,"ANcr");
+}
+static bool metamorphosis_owned_buff(edict_t *unit,heroabilitystatus_t const *status,uint32_t code) {
+    return status && status->level && status->class_code==metamorphosis_buff &&
+        status->source_ability==code && status->source==unit && status->source_spawn_time==unit->spawn_time;
+}
+static edict_t *metamorphosis_timer_heap[MAX_ENTITIES];
+static uint32_t metamorphosis_timer_positions[MAX_ENTITIES],metamorphosis_timer_count;
+
+static heroabilitystatus_t *metamorphosis_timer_next(edict_t const *unit) {
+    heroabilitystatus_t *best=NULL;
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *s=unit->abilstatus+i;
+        if(!s->level || s->class_code!=metamorphosis_buff || !s->class_timer.active)continue;
+        abilityPrimaryTimer_t *a=&s->class_timer,*b=best ? &best->class_timer : NULL;
+        if(!b || a->deadline.time<b->deadline.time ||
+           (a->deadline.time==b->deadline.time && a->sequence<b->sequence))best=s;
+    }
+    return best;
+}
+static bool metamorphosis_timer_less(edict_t const *a,edict_t const *b) {
+    abilityPrimaryTimer_t *x=&metamorphosis_timer_next(a)->class_timer,*y=&metamorphosis_timer_next(b)->class_timer;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void metamorphosis_timer_put(uint32_t pos,edict_t *unit) {
+    metamorphosis_timer_heap[pos]=unit;metamorphosis_timer_positions[unit-g_edicts]=pos+1;
+}
+void S_ForgetMetamorphosisOwner(edict_t *unit) {
+    uint32_t pos=metamorphosis_timer_positions[unit-g_edicts];
+    if(!pos)return;
+    metamorphosis_timer_positions[unit-g_edicts]=0;pos--;
+    edict_t *last=metamorphosis_timer_heap[--metamorphosis_timer_count];
+    if(pos==metamorphosis_timer_count)return;
+    while(pos && metamorphosis_timer_less(last,metamorphosis_timer_heap[(pos-1)/2])) {
+        metamorphosis_timer_put(pos,metamorphosis_timer_heap[(pos-1)/2]);pos=(pos-1)/2;
+    }
+    while(pos*2+1<metamorphosis_timer_count) {
+        uint32_t child=pos*2+1;
+        if(child+1<metamorphosis_timer_count && metamorphosis_timer_less(metamorphosis_timer_heap[child+1],metamorphosis_timer_heap[child]))child++;
+        if(!metamorphosis_timer_less(metamorphosis_timer_heap[child],last))break;
+        metamorphosis_timer_put(pos,metamorphosis_timer_heap[child]);pos=child;
+    }
+    metamorphosis_timer_put(pos,last);
+}
+static void metamorphosis_timer_insert(edict_t *unit) {
+    if(!unit || !unit->inuse)return;
+    if(!metamorphosis_timer_next(unit) || metamorphosis_timer_positions[unit-g_edicts])return;
+    uint32_t pos=metamorphosis_timer_count++;
+    while(pos && metamorphosis_timer_less(unit,metamorphosis_timer_heap[(pos-1)/2])) {
+        metamorphosis_timer_put(pos,metamorphosis_timer_heap[(pos-1)/2]);pos=(pos-1)/2;
+    }
+    metamorphosis_timer_put(pos,unit);
+}
+static void metamorphosis_timer_schedule(heroabilitystatus_t *slot,wc3Clock_t now,float duration) {
+    slot->class_timer=(abilityPrimaryTimer_t){.deadline=now,.sequence=++level.timer_sequence,.active=true};
+    slot->class_timer.deadline.time=wc3_add(now.time,MAX(duration,G_ClockMinimumDelay()));
+}
+
+/* Public Pause owns a separate Ability48 contribution. Native382W proves
+ * Unpause resumes these clocks while physicalSleep Unit54 remains positive;
+ * neither ordinary3c/40 disabling nor internal suspension owns this clock. */
+void S_SetMetamorphosisClocksPaused(edict_t *unit,bool paused) {
+    if(!unit)return;
+    S_ForgetMetamorphosisOwner(unit);
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *status=unit->abilstatus+i;
+        if(!status->level || status->class_code!=metamorphosis_buff)continue;
+        if(paused && !status->class_clock_depth) {
+            status->class_clock_depth=1;
+            status->class_timer_remaining=status->class_timer.active ? MAX(0,wc3_elapsed(&status->class_timer.deadline,&now)) : 0;
+            status->class_timer.active=false;
+        } else if(!paused && status->class_clock_depth) {
+            status->class_clock_depth=0;
+            if(status->class_timer_remaining>0)metamorphosis_timer_schedule(status,now,status->class_timer_remaining);
+            status->class_timer_remaining=0;
+        }
+    }
+    metamorphosis_timer_insert(unit);
+    abilityitem_t source=S_AbilityItem(unit->morph ? unit->morph->code : 0);
+    if(source.ability && !strcmp(source.ability->classname,"AEme") && G_ActorHasAbilityCode(unit,source.code))
+        S_SetMorphExpirationPaused(unit,paused);
+}
+static void metamorphosis_remove_buff(edict_t *unit,uint32_t code) {
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *status=unit->abilstatus+i;
+        if(metamorphosis_owned_buff(unit,status,code))unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);
+    }
+}
+static edict_t *metamorphosis_creating; /* Synchronous concrete forward callback. */
+static bool metamorphosis_create_buff(edict_t *unit,uint32_t code,bool initial) {
+    uint32_t rank=S_SpellLevel(unit,code);
+    abilityLevel_t const *data=G_AbilityLevel(code,rank);
+    cstring_t token=S_SpellBuffToken(data->buffID,0);
+    uint32_t buff=token ? FS_SLKKey(token) : metamorphosis_buff;
+    if(!buff)buff=metamorphosis_buff;
+    char name[5]={0};memcpy(name,&buff,4);
+    status_application_t app={.buff=name,.class_code=metamorphosis_buff,.level=1,
+        .source_ability=code,.source=unit,.rank=rank};
+    if(data->heroDur>0 && unit_status_checkapplication(unit,&app)==WC3_STATUS_APPLY_FULL) {
+        bool replaceable=false;
+        FOR_LOOP(i,G_UnitStatusSlotCount(unit))
+            if(unit->abilstatus[i].level && unit->abilstatus[i].class_code==metamorphosis_buff)replaceable=true;
+        if(!replaceable)return false;
+    }
+    /*62dff0 retires any prior concreteBEme before attaching its successor.
+     * BuffData.code and raw public BuffID cannot choose the concrete class. */
+    edict_t *previous_creation=metamorphosis_creating;metamorphosis_creating=unit;
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *existing=unit->abilstatus+i;
+        if(existing->level && existing->class_code==metamorphosis_buff)
+            unit_removestatus(unit,existing,STATUS_REMOVE_REPLACED);
+    }
+    metamorphosis_creating=previous_creation;
+    if(data->heroDur<=0)return true;
+    heroabilitystatus_t *status=unit_applystatus(unit,&app);
+    if(!status)return false;
+    S_ForgetMetamorphosisOwner(unit);
+    float duration=wc3_add(data->heroDur,.01f);
+    status->duration_ms=(uint32_t)(duration*1000);
+    metamorphosis_timer_schedule(status,G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL),duration);
+    metamorphosis_timer_insert(unit);
+    S_AttachStatusAbilityAvailability(unit,buff,metamorphosis_buff);
+    if(initial)for(unitAbilityDisable_t const *owner=unit->ability_disables;owner;owner=owner->next)
+        if(!owner->class_code && owner->code==code && owner->morph_owned) {
+            S_AdjustAbilityAvailability(unit,buff,metamorphosis_buff,false,true);break;
+        }
+    if(unit->paused)S_SetMetamorphosisClocksPaused(unit,true);
+    return true;
+}
+static void metamorphosis_timer_fire(void) {
+    edict_t *unit=metamorphosis_timer_heap[0];
+    heroabilitystatus_t *status=metamorphosis_timer_next(unit);
+    S_ForgetMetamorphosisOwner(unit);status->class_timer.active=false;
+    unit_removestatus(unit,status,STATUS_REMOVE_EXPIRE);
+    metamorphosis_timer_insert(unit);
+}
+BZ_ABILITY_PROC(CBuffMetamorphosis) {
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+        if(ent)S_ForgetMetamorphosisOwner(ent);
+        return true;
+    case A_TIMERS_RESET:
+        metamorphosis_timer_count=0;memset(metamorphosis_timer_positions,0,sizeof(metamorphosis_timer_positions));return true;
+    case A_TIMERS_REBUILD:
+        metamorphosis_timer_count=0;memset(metamorphosis_timer_positions,0,sizeof(metamorphosis_timer_positions));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse)metamorphosis_timer_insert(g_edicts+i);
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!metamorphosis_timer_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){metamorphosis_timer_next(metamorphosis_timer_heap[0])->class_timer.deadline,
+            metamorphosis_timer_next(metamorphosis_timer_heap[0])->class_timer.sequence,CBuffMetamorphosis};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(metamorphosis_timer_count)metamorphosis_timer_fire();
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,metamorphosis_timer_count)FOR_LOOP(j,G_UnitStatusSlotCount(metamorphosis_timer_heap[i])) {
+            heroabilitystatus_t *status=metamorphosis_timer_heap[i]->abilstatus+j;
+            abilityPrimaryTimer_t *t=&status->class_timer;
+            if(status->class_code==metamorphosis_buff && t->active) {t->deadline.time=wc3_sub(t->deadline.time,call->clock_span);t->deadline.epoch++;}
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        if(!level.scheduled_frame)while(metamorphosis_timer_count) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(metamorphosis_timer_next(metamorphosis_timer_heap[0])->class_timer.deadline.time>now.time)break;
+            metamorphosis_timer_fire();
+        }
+        return true;
+    default:return false;
+    }
+}
+/* Pools and source F_EDICT fixups must be restored before this cross-check.
+ * Concreteclass is explicit; BuffData.code does not participate. */
+bool S_ValidateMetamorphosisOwners(void) {
+    FOR_LOOP(n,globals.num_edicts) {
+        edict_t *unit=g_edicts+n;if(!unit->inuse)continue;
+        FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+            heroabilitystatus_t const *status=unit->abilstatus+i;
+            if(!status->class_code) {
+                if(status->class_timer.active || status->class_timer_remaining || status->class_clock_depth)return false;
+                continue;
+            }
+            if(status->class_code!=metamorphosis_buff || !status->level || !status->code ||
+               status->source!=unit || status->source_spawn_time!=unit->spawn_time ||
+               !G_ActorHasAbilityCode(unit,status->source_ability))return false;
+            abilityitem_t item=S_AbilityItem(status->source_ability);
+            if(!item.ability || strcmp(item.ability->classname,"AEme"))return false;
+            if(!isfinite(status->class_timer_remaining) || status->class_timer_remaining<0 ||
+               status->class_clock_depth<0 || status->class_clock_depth>1 ||
+               (status->class_clock_depth && status->class_timer.active) ||
+               (!status->class_clock_depth && status->class_timer_remaining))return false;
+            if(status->class_timer.active && (!isfinite(status->class_timer.deadline.time) ||
+               !status->class_timer.sequence || status->class_timer.sequence>level.timer_sequence))return false;
+            unsigned owners=0;
+            for(unitAbilityDisable_t const *owner=unit->ability_disables;owner;owner=owner->next)
+                if(owner->code==status->code && owner->class_code==status->class_code)owners++;
+            if(owners!=1)return false;
+        }
+        for(unitAbilityDisable_t const *owner=unit->ability_disables;owner;owner=owner->next) {
+            if(!owner->class_code)continue;
+            if(owner->class_code!=metamorphosis_buff || owner->morph_owned || owner->exclusive_owned ||
+               owner->exclusive_inventory || owner->ethereal_initialized || owner->ethereal_owned ||
+               owner->burrow_initialized || owner->burrow_owned)return false;
+            unsigned statuses=0;
+            FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+                heroabilitystatus_t const *status=unit->abilstatus+i;
+                if(status->level && status->code==owner->code && status->class_code==owner->class_code)statuses++;
+            }
+            if(statuses!=1)return false;
+        }
+        if(unit->morph && (unit->morph->expiration_remaining || unit->morph->expiration_paused)) {
+            abilityitem_t item=S_AbilityItem(unit->morph->code);
+            if(!item.ability || strcmp(item.ability->classname,"AEme") ||
+               !G_ActorHasAbilityCode(unit,unit->morph->code) ||
+               !isfinite(unit->morph->expiration_remaining) || unit->morph->expiration_remaining<0 ||
+               !unit->morph->expiration_paused || unit->morph->expiration.active)return false;
+        }
+    }
+    return true;
+}
+static bool metamorphosis_begin(edict_t *unit,uint32_t code,bool reverse) {
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
+    uint32_t base=reverse && unit->morph ? unit->morph->base_type : unit->class_id;
+    uint32_t target=reverse ? base : data->unitID;
+    if(!target || target==unit->class_id)return false;
+    bool physical_held=metamorphosis_physical_held(unit,code);
+    if(!physical_held)order_stop_cleanup(unit);
+    unit_setmove(unit,reverse ? &metamorphosis_reverse : &metamorphosis_forward);
+    if(!physical_held)unit->current_order_id=S_SpellOrderId(unit,code);
+    S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
+    return true;
+}
+/* ChemicalRage55d380 enters552120 synchronously when attached to its authored
+ * alternate form. The concrete producer starts its authored lifetime here,
+ * without a transition hold. Existing state distinguishes a type refresh. */
+static void timed_ground_initialize_lifetime(edict_t *unit,uint32_t code) {
+    if(!unit)return;
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
+    if(!data->unitID || unit->class_id!=data->unitID || (unit->morph && unit->morph->code==code))return;
+    if(!unit->morph)unit->morph=G_AllocMorph();
+    assert(unit->morph);
+    unit->morph->code=code;unit->morph->base_type=data->data[0].id;unit->morph->target_type=data->unitID;
+    abilityitem_t item=S_AbilityItem(code);
+    bool chemical=item.ability && !strcmp(item.ability->classname,"ANcr");
+    if(!chemical) {
+        /* The attaching walk contributes execution without orders before the
+         * final inherited1,1 store: initial configured AEme ends at1,0. */
+        for(unitAbilityDisable_t const *owner=unit->ability_disables;owner;owner=owner->next)
+            if(!owner->class_code && owner->code==code && owner->morph_owned) {
+                S_AdjustAbilityAvailability(unit,code,0,true,false);break;
+            }
+        if(!metamorphosis_create_buff(unit,code,true))return;
+    }
+    S_ScheduleMorphExpiration(unit,data->heroDur);
+}
+BZ_ABILITY_PROC(CAbilityMetamorphosis) {
+    if(!call || !call->item)return false;
+    /* Preserve the conversion-owner identity used by AI while sharing the
+     * reversible ground transition and public-order dispatch. */
+    if(call->item->ability && !strcmp(call->item->ability->classname,"ANrg"))
+        return CAbilityGroundMorph(ent,msg,call);
+    uint32_t code=call->item->code;
+    if(!metamorphosis_timed_ground(call->item))return CAbilityAvengerForm(ent,msg,call);
+    bool chemical=metamorphosis_is_chemical(call);
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT,
+            A_ENABLE,A_UNIT_INIT,A_UNIT_TYPE_CHANGED);
+    case A_ENABLE:case A_UNIT_INIT:case A_UNIT_TYPE_CHANGED:
+        S_InitializeConfiguredMorphAvailability(ent,call);
+        timed_ground_initialize_lifetime(ent,code);return true;
+    case A_VALIDATE:
+        return ent && !(ent->morph && ent->morph->transition.active) &&
+            G_AbilityLevel(code,S_SpellLevel(ent,code))->unitID &&
+            G_AbilityLevel(code,S_SpellLevel(ent,code))->unitID!=ent->class_id;
+    case A_EXECUTE:return metamorphosis_begin(ent,code,false);
+    case A_MORPH_COMPLETE:
+        S_CompleteConfiguredMorphAvailability(ent,call);
+        if(!chemical && !call->enabled && !metamorphosis_create_buff(ent,code,false))return false;
+        if(!call->enabled)S_ScheduleMorphExpiration(ent,S_SpellDuration(code,S_SpellLevel(ent,code),true));
+        if(chemical || !S_UnitExecutionPaused(ent))unit_stand(ent);
+        return true;
+    case A_MORPH_EXPIRE:
+        if(!chemical) {
+            /* Native sets10000 before removing BEme; that notification must
+             * not turn natural expiry into the public immediate inverse. */
+            if(ent->morph && ent->morph->code==code)ent->morph->reverse=true;
+            metamorphosis_remove_buff(ent,code);
+        }
+        return metamorphosis_begin(ent,code,chemical || ent->class_id!=ent->morph->base_type);
+    case A_STATUS_REMOVE:case A_STATUS_REPLACE:
+        if(!chemical && metamorphosis_owned_buff(ent,call->status.slot,code)) {
+            S_ForgetMetamorphosisOwner(ent);
+            call->status.slot->class_timer.active=false;
+            S_DetachStatusAbilityAvailability(ent,call->status.slot->code,metamorphosis_buff);
+            metamorphosis_timer_insert(ent);
+        }
+        return true;
+    case A_STATUS_DEATH:
+        if(!chemical && metamorphosis_owned_buff(ent,call->status.slot,code))
+            unit_removestatus(ent,call->status.slot,STATUS_REMOVE_DEATH);
+        return true;
+    case A_STATUS_REMOVED:
+        if(!chemical && ent && !M_IsDead(ent) && !G_IsDeferredFree(ent) &&
+           metamorphosis_creating!=ent && metamorphosis_owned_buff(ent,call->status.removed,code) &&
+           G_ActorHasAbilityCode(ent,code) && ent->morph && ent->morph->code==code &&
+           !ent->morph->reverse && !ent->morph->transition.active) {
+            /*647a00/5698a0 inverse cancels the live request, but does not
+             * erase194/198 captured by an earlier private-clock suspension. */
+            float remaining=ent->morph->expiration_remaining;
+            bool paused=ent->morph->expiration_paused;
+            if(!S_UnitExecutionPaused(ent))order_stop_cleanup(ent);
+            S_DetachConfiguredMorphAvailability(ent,call);
+            if(!S_UnitExecutionPaused(ent))unit_stand(ent);
+            ent->morph->expiration_remaining=remaining;ent->morph->expiration_paused=paused;
+        }
+        return true;
+    case A_DISABLE:
+        if(!chemical && ent && !M_IsDead(ent) && !G_IsDeferredFree(ent)) {
+            S_CompleteMorphDetachTransition(ent,code);
+            if(ent->morph && ent->morph->code==code)ent->morph->reverse=true;
+            metamorphosis_remove_buff(ent,code);
+        }
+        S_DetachConfiguredMorphAvailability(ent,call);
+        return true;
+    default:return CAbilitySimpleSpell(ent,msg,call);
+    }
 }
 /* Name=Sleep
  * Ubertip="Puts a target enemy unit to sleep."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySleep) { target_status_execute(caster, st, spell); }
+/* Concrete Sleep and initial-guard owners are implemented in s_sleep.c. */
 
 /* Neutral direct-damage bolt; unlike Fire Bolt it has no authored stun. */
 BZ_ABILITY_PROC(CAbilityFingerOfDeath) {
@@ -960,7 +1306,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze) { target_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDrunkenHaze) {
+    if (msg == A_EXECUTE) {
+        if (call && call->item && call->target && call->target->entity) {
+            uint32_t rank = S_SpellLevel(ent, call->item->code);
+            cstring_t buff = spell_buff(call->item, rank);
+            S_ApplyAttackPrevention(ent, call->target->entity, call->item, buff,
+                S_SpellHeroDuration(call->item->code, rank, call->target->entity));
+        }
+        return true;
+    }
+    return CAbilityAttackPrevention(ent, msg, call);
+}
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, preventing it from casting spells and damaging it over time."
  */
@@ -1002,7 +1359,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     edict_t *thinker;
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
+    thinker = G_Spawn(); thinker->owner = caster; S_SetMoveGoal(thinker, &thinker->goalentity, st.entity); thinker->class_id = spell->code;
     thinker->channel = G_AllocChannel();
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;

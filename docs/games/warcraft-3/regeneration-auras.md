@@ -23,7 +23,7 @@ piece of recipient state.
 source unit ability alias
   -> AbilityData.code (`Aoar`, `Aabr`, or `Aarm`)
   -> alias level Area / targs / DataA / DataB
-  -> live source scan in s_hero_passives.c
+  -> ordered provider index in s_hero_passives.c
   -> strongest matching contribution for that base-code family
   -> G_RunEntity regeneration in g_phys.c
 ```
@@ -129,3 +129,9 @@ selection, mechanical exclusion, range, passive registrations, and shared hidden
 source and recipient rejection. `t_combat.c` verifies that an external health-regeneration
 aura still heals a unit whose natural `uhrt` mode is `none`, and that Endurance Aura's
 attack-speed consumer follows the same hidden/invisible eligibility rule.
+
+Provider ownership is updated by `S_MarkAuraSource` for local changes; metadata
+and save/load use `S_InvalidateAuraSources`. Recipient values still follow the
+existing refresh clock. Discovery no longer scans unrelated edicts after each
+provider addition. See [performance](performance.md#incremental-aura-ownership-runtime342)
+for invalidation, overlay recovery and scaling checks.

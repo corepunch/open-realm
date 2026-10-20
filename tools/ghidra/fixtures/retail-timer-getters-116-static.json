@@ -1,0 +1,501 @@
+{
+  "program": "game.dll",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "functions": [
+    {
+      "address": "6f233d50",
+      "name": "ScriptTimer_GetAuthoredTimeout",
+      "prototype": "WC3PathScalar * __thiscall ScriptTimer_GetAuthoredTimeout(WC3ScriptTimerScalarPrefix * timer, WC3PathScalar * output)",
+      "comment": "ECX timer,stack4 output,RET4/EAX output. Direct scalar48 copy;729 complete getter calls and13 public values across41 reads each. Engine timeout retains exact authored word.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f233d5c",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f216c5a",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f232500",
+      "name": "ScriptTimer_GetElapsed",
+      "prototype": "WC3PathScalar * __thiscall ScriptTimer_GetElapsed(WC3ScriptTimerScalarPrefix * timer, WC3PathScalar * output)",
+      "comment": "ECX timer,stack4 output,RET4/EAX output. Live uncanceled request invokes event clock24 virtual1c; otherwise subtract authored48 minus cached remaining50. Whole original calls verified, engine elapsed port pending.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f232528",
+          "cleanup": 4
+        },
+        {
+          "address": "6f232557",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f216bfa",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f233190",
+      "name": "ScriptTimer_GetRemaining",
+      "prototype": "WC3PathScalar * __thiscall ScriptTimer_GetRemaining(WC3ScriptTimerScalarPrefix * timer, WC3PathScalar * output)",
+      "comment": "ECX timer,stack4 output,RET4/EAX output. Request30 and clear canceled10000 invokes clock24 virtual18; otherwise copies cached50. Pointer presence alone is not running state. Whole original calls verified; engine remaining port pending.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f2331b1",
+          "cleanup": 4
+        },
+        {
+          "address": "6f2331bd",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f24042b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f232531",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f216c2a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3c9801",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f216c40",
+      "name": "Jass_TimerGetTimeout",
+      "prototype": "WC3PathScalar __cdecl Jass_TimerGetTimeout(uint handle)",
+      "comment": "Registered public cdecl timer handle at stack4; plainRET; raw scalar word in EAX, zero for unresolved handle. Calls 233d50. Read-only repeated public116 capture; no host FPU return.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "handle",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f216c53",
+          "cleanup": 0
+        },
+        {
+          "address": "6f216c64",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f207ec7",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f216be0",
+      "name": "Jass_TimerGetElapsed",
+      "prototype": "WC3PathScalar __cdecl Jass_TimerGetElapsed(uint handle)",
+      "comment": "Registered public cdecl timer handle at stack4; plainRET; raw scalar word in EAX, zero for unresolved handle. Calls 232500. Read-only repeated public116 capture; no host FPU return.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "handle",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f216bf3",
+          "cleanup": 0
+        },
+        {
+          "address": "6f216c04",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f207edb",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f216c10",
+      "name": "Jass_TimerGetRemaining",
+      "prototype": "WC3PathScalar __cdecl Jass_TimerGetRemaining(uint handle)",
+      "comment": "Registered public cdecl timer handle at stack4; plainRET; raw scalar word in EAX, zero for unresolved handle. Calls 233190. Read-only repeated public116 capture; no host FPU return.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "handle",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f216c23",
+          "cleanup": 0
+        },
+        {
+          "address": "6f216c34",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f207eef",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060ad0",
+      "name": "EventClock_GetRemaining",
+      "prototype": "WC3PathScalar * __thiscall EventClock_GetRemaining(WC3EventClockControlPrefix * control, WC3PathScalar * output)",
+      "comment": "ECX control,stack4 output,RET4/EAX output. No request gives zero; segment_count14 invokes full-span/residual composition with remaining_segments16; otherwise060a90. Live huge timeout49742404 returns49742403 initially. No full large-timeout scheduling port.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f060aee",
+          "cleanup": 4
+        },
+        {
+          "address": "6f060b84",
+          "cleanup": 4
+        },
+        {
+          "address": "6f060b96",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6fa80bc8",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060a90",
+      "name": "EventClock_GetRequestRemaining",
+      "prototype": "WC3PathScalar * __thiscall EventClock_GetRequestRemaining(WC3EventClockControlPrefix * control, WC3PathScalar * output)",
+      "comment": "ECX control,stack4 output,RET4/EAX output. No request gives original zero; else softwareSubtract(request4 deadline,requestc clock40 time). Callback draining temporarily sets clock to due deadline; do not use primary publication time.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f060aa6",
+          "cleanup": 4
+        },
+        {
+          "address": "6f060abf",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f060b8a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6c27d3",
+          "type": "COMPUTED_CALL"
+        },
+        {
+          "from": "6fa80678",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060630",
+      "name": "EventClock_GetElapsed",
+      "prototype": "WC3PathScalar * __thiscall EventClock_GetElapsed(WC3EventClockControlPrefix * control, WC3PathScalar * output)",
+      "comment": "ECX control,stack4 output,RET4/EAX output. Virtual18 remaining then virtual10 effective duration; softwareSubtract(duration,remaining). Signed zero requires both operations; original +0 period/deadline/time returns +0 elapsed.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f060661",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6fa8067c",
+          "type": "DATA"
+        },
+        {
+          "from": "6fa80bcc",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f0605c0",
+      "name": "EventClock_GetEffectiveDuration",
+      "prototype": "WC3PathScalar * __thiscall EventClock_GetEffectiveDuration(WC3EventClockControlPrefix * control, WC3PathScalar * output)",
+      "comment": "ECX control,stack4 output,RET4/EAX output. No request zero; segment_count14 nonzero uses originalFromInteger(count)*span plus residual18; else060590 request period. Effective period differs from authored timeout.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f0605da",
+          "cleanup": 4
+        },
+        {
+          "address": "6f060615",
+          "cleanup": 4
+        },
+        {
+          "address": "6f06062b",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6fa80bc0",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060590",
+      "name": "EventClock_GetRequestPeriod",
+      "prototype": "WC3PathScalar * __thiscall EventClock_GetRequestPeriod(WC3EventClockControlPrefix * control, WC3PathScalar * output)",
+      "comment": "ECX control,stack4 output,RET4/EAX output. No request original zero; otherwise request8 period. Minimum scheduling period cd539c38d1b717 is distinct from script authored timeout.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "output",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f0605a6",
+          "cleanup": 4
+        },
+        {
+          "address": "6f0605af",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f06061c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f06082c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6fa80670",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3EventClockControlPrefix",
+      "length": 28,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "/void *32",
+          "length": 4,
+          "comment": "Payoff116 complete233190/232500 virtual calls; repeated embedded clock method RVAs."
+        },
+        {
+          "offset": 12,
+          "name": "request",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32",
+          "length": 4,
+          "comment": "Payoff116 direct060a90/060590 deadline/period getters and public core request snapshots."
+        },
+        {
+          "offset": 20,
+          "name": "segment_count",
+          "type": "/ushort",
+          "length": 2,
+          "comment": "0605c0 effective duration uses unsigned16-bit total segments;060ad0 tests this field."
+        },
+        {
+          "offset": 22,
+          "name": "remaining_segments",
+          "type": "/ushort",
+          "length": 2,
+          "comment": "060ad0 uses unsigned16-bit remaining segments, subtracting one before full-span accumulation."
+        },
+        {
+          "offset": 24,
+          "name": "residual",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4,
+          "comment": "0605c0/060ad0 add residual after original span arithmetic. Large public timeout is not a single float deadline."
+        }
+      ]
+    },
+    {
+      "name": "WC3ScriptTimerScalarPrefix",
+      "length": 84,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "event_clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix",
+          "length": 28,
+          "comment": "249ca0 queue0609b0 and232500/233190 virtual getters receive script timer+24. Prefix only, not complete object size."
+        },
+        {
+          "offset": 64,
+          "name": "callback_holder",
+          "type": "/void *32",
+          "length": 4,
+          "comment": "249ca0 installs handler through this holder before publishing timeout."
+        },
+        {
+          "offset": 68,
+          "name": "timeout_writer_vtable",
+          "type": "/void *32",
+          "length": 4,
+          "comment": "249ca0 scalar writer44 virtual0 publishes authored timeout48."
+        },
+        {
+          "offset": 72,
+          "name": "authored_timeout",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4,
+          "comment": "233d50 directly copies48 regardless of request lifetime;13 public timeouts each41 reads include pause/resume. Engine116 retains this value."
+        },
+        {
+          "offset": 76,
+          "name": "paused_writer_vtable",
+          "type": "/void *32",
+          "length": 4,
+          "comment": "240420 gets233190 remaining then scalar writer4c virtual0 stores frozen remaining50."
+        },
+        {
+          "offset": 80,
+          "name": "paused_remaining",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4,
+          "comment": "233190 no-request/canceled fallback;232500 subtracts this from authored48. Engine elapsed/remaining port is still pending."
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

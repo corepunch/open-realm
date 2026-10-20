@@ -1,0 +1,51 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "comments": {
+    "6f170080": "Payoff183: complete original170080 controlled-boundary matrix48 cases confirms every clear/admitted/exhausted result preserves captured self occupancy40 across149370 and14a1e0 AND05c820 publication. INC170133 and DEC1701d2 bracket publication1701c4; restored pointer is ESI captured from mover98 before any callback, not re-read identity. Endpoint mode is1 only for initial149370, restored before placement; result1 means source blocked including placement failure. Existing public Stop repeats and prepared MAP04.2 live LIFO scopes are independently reverified. Move engine now holds the pooled record through native fine-pose commit; no full arbitrary notification reentrancy claim. RET14hex confirmed1701e6.",
+    "6f05ca50": "Payoff183 scope distinction:05ca50 outer bridge exclusion surrounds171340, while inner170080 captures and holds its own self record through placement and05c820 publication. Engine integrates inner hold lifetime without claiming complete outer bridge notification/reentrancy equivalence. Prepared MAP04.2 live scopes show24 stop and24 embedded scopes per capture, nested LIFO. Broader unresolved notification exits remain MAP04.2."
+  },
+  "records": [
+    {
+      "address": "6f170080",
+      "name": "Mover_RecoverEmbeddedFinePoint",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f170080\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "address": "6f05ca50",
+      "name": "MoverBridge_StopWithRecovery",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f05ca50\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "saved": "{\"success\":true,\"program\":\"game.dll\",\"message\":\"Program saved successfully\"}"
+    },
+    {
+      "address": "6f170080",
+      "name": "Mover_RecoverEmbeddedFinePoint",
+      "readback": {
+        "address": "6f170080",
+        "plate": "ThiscallECX mover,stack4 mask,8 attemptlimit,c callback,10 context,14 policy,RET14hex. Predict05bdd0 at currentclock; temporarily increment ownfine40 suppression; endpoint-mode footprint check. If blocked,14a1e0 point/rings then05c820 applies admittedfinepoint. Return1 means sourceblocked even if bounded searchfailed; clear/queryzero returns0. Two full publicStop repeats: eight calls, three five-attempt searches, exact clear/embedded/disabled/exhausted controls. Engine payoff27 ports five-attempt recovery and native fine commit.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff183: complete original170080 controlled-boundary matrix48 cases confirms every clear/admitted/exhausted result preserves captured self occupancy40 across149370 and14a1e0 AND05c820 publication. INC170133 and DEC1701d2 bracket publication1701c4; restored pointer is ESI captured from mover98 before any callback, not re-read identity. Endpoint mode is1 only for initial149370, restored before placement; result1 means source blocked including placement failure. Existing public Stop repeats and prepared MAP04.2 live LIFO scopes are independently reverified. Move engine now holds the pooled record through native fine-pose commit; no full arbitrary notification reentrancy claim. RET14hex confirmed1701e6.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "ThiscallECX mover,stack4 mask,8 attemptlimit,c callback,10 context,14 policy,RET14hex. Predict05bdd0 at currentclock; temporarily increment ownfine40 suppression; endpoint-mode footprint check. If blocked,14a1e0 point/rings then05c820 applies admittedfinepoint. Return1 means sourceblocked even if bounded searchfailed; clear/queryzero returns0. Two full publicStop repeats: eight calls, three five-attempt searches, exact clear/embedded/disabled/exhausted controls. Engine payoff27 ports five-attempt recovery and native fine commit.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff183: complete original170080 controlled-boundary matrix48 cases confirms every clear/admitted/exhausted result preserves captured self occupancy40 across149370 and14a1e0 AND05c820 publication. INC170133 and DEC1701d2 bracket publication1701c4; restored pointer is ESI captured from mover98 before any callback, not re-read identity. Endpoint mode is1 only for initial149370, restored before placement; result1 means source blocked including placement failure. Existing public Stop repeats and prepared MAP04.2 live LIFO scopes are independently reverified. Move engine now holds the pooled record through native fine-pose commit; no full arbitrary notification reentrancy claim. RET14hex confirmed1701e6.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f05ca50",
+      "name": "MoverBridge_StopWithRecovery",
+      "readback": {
+        "address": "6f05ca50",
+        "plate": "ThiscallECX WC3UnitMoverBridge; stack4 callback,8 context,RET8. Canonical mover through bridge8/c;05bd30 suppresses bridge notifications around171340(1,0,0,0, callback?5:0, callback,context). Captain9d123f replaces each private approach through this chain. Native moving recruit7 at9-second handoff relocates from embedded fine source to166.5/78.5 before shared bind. Payoff63 Move consumes old motion, stops/detaches and uses bounded recovery before captain shared point admission.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff183 scope distinction:05ca50 outer bridge exclusion surrounds171340, while inner170080 captures and holds its own self record through placement and05c820 publication. Engine integrates inner hold lifetime without claiming complete outer bridge notification/reentrancy equivalence. Prepared MAP04.2 live scopes show24 stop and24 embedded scopes per capture, nested LIFO. Broader unresolved notification exits remain MAP04.2.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "ThiscallECX WC3UnitMoverBridge; stack4 callback,8 context,RET8. Canonical mover through bridge8/c;05bd30 suppresses bridge notifications around171340(1,0,0,0, callback?5:0, callback,context). Captain9d123f replaces each private approach through this chain. Native moving recruit7 at9-second handoff relocates from embedded fine source to166.5/78.5 before shared bind. Payoff63 Move consumes old motion, stops/detaches and uses bounded recovery before captain shared point admission.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff183 scope distinction:05ca50 outer bridge exclusion surrounds171340, while inner170080 captures and holds its own self record through placement and05c820 publication. Engine integrates inner hold lifetime without claiming complete outer bridge notification/reentrancy equivalence. Prepared MAP04.2 live scopes show24 stop and24 embedded scopes per capture, nested LIFO. Broader unresolved notification exits remain MAP04.2.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    }
+  ]
+}

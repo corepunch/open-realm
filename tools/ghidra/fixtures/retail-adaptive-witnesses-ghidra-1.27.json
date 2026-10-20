@@ -1,0 +1,745 @@
+{
+  "functions": [
+    {
+      "address": "6f159cd0",
+      "name": "PathOwner_GetAdaptiveMap",
+      "signature": "WC3AdaptiveMapPrefix * __thiscall PathOwner_GetAdaptiveMap(void * owner, uint level)",
+      "convention": "__thiscall",
+      "returns": "WC3AdaptiveMapPrefix *32",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "void *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "level",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "comment": "[ACC-02.2] ECX path owner,stack4 level,RET4/EAX owner+23c+4*level adaptive map."
+    },
+    {
+      "address": "6f15d1c0",
+      "name": "PathMaps_ClassifyParent",
+      "signature": "undefined PathMaps_ClassifyParent()",
+      "convention": "unknown",
+      "returns": "undefined",
+      "parameters": [],
+      "comment": "Four child classifications; special byte +6 forces mixed. Verified against 20,736 original-x86 cases. [ACC-02.2] [ACC-02.2] Constructor dimensions (level side \u003d base side \u003e\u003e level) make the missing-child (out-of-range) path unreachable; marked clear child is the only way to get class2 over four class0 children."
+    },
+    {
+      "address": "6f162730",
+      "name": "PathAcc_CloseNode",
+      "signature": "void __thiscall PathAcc_CloseNode(WC3AdaptiveSearchPrefix * adaptive, uint index)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "index",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Close node: ECX adaptive,stack4 index,RET4. Generation++, prepend to closed list head 94 (prev -1). First closed node is the start."
+    },
+    {
+      "address": "6f162f20",
+      "name": "PathMaps_LoadAdaptiveCells",
+      "signature": "void __thiscall PathMaps_LoadAdaptiveCells(WC3AdaptiveMapPrefix * map, void * stream)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "map",
+          "type": "WC3AdaptiveMapPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "stream",
+          "type": "void *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "comment": "[ACC-02.2] Load adaptive map cells: ECX map,stack4 stream,RET4. Per cell: dword0 stamp :\u003d 0, dword4 :\u003d saved ushort \u003c\u003c 16 (node index 0, marker byte6 and class byte7 restored)."
+    },
+    {
+      "address": "6f163120",
+      "name": "PathMaps_SaveAdaptiveCells",
+      "signature": "void __thiscall PathMaps_SaveAdaptiveCells(WC3AdaptiveMapPrefix * map, void * stream)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "map",
+          "type": "WC3AdaptiveMapPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "stream",
+          "type": "void *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "comment": "[ACC-02.2] Save adaptive map cells: ECX map,stack4 stream,RET4. Writes ushort cell+6 (marker and class bytes) per cell."
+    },
+    {
+      "address": "6f1631e0",
+      "name": "PathAcc_Size2BaseEastStrip",
+      "signature": "uint __thiscall PathAcc_Size2BaseEastStrip(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Size2 base east strip: ECX adaptive,stack x,y(\u003dnode x+1,y),RET8/EAX. Requires (x+1,y),(x+1,y+1) class pair 0."
+    },
+    {
+      "address": "6f163260",
+      "name": "PathAcc_ExpandEastSide",
+      "signature": "undefined PathAcc_ExpandEastSide()",
+      "convention": "unknown",
+      "returns": "undefined",
+      "parameters": [],
+      "comment": "Recursively subdivides a mixed east neighbour; checks size class 2. Payoff126: producer-built branch/transition witnesses support eliminating redundant interior size2 base-cell reads in the engine side walker. Boundary and corner predicates remain; searches beyond uint16 identity range keep the literal fallback."
+    },
+    {
+      "address": "6f1635b0",
+      "name": "PathAcc_Size2EastBoundary",
+      "signature": "uint __thiscall PathAcc_Size2EastBoundary(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Ordinary occupancy plus (A\u0026B)|(C\u0026D)|(D\u0026A), A\u003d(0,-1), B\u003d(1,-1), C\u003d(-2,1), D\u003d(-1,1). Verified causal veto at (18,13) in reduced synthetic map. [ACC-01.1] [ACC-01.1] y\u003d0 (A out of range) reaches the second block only with a level-0 segment whose level-1 block is mixed solely by a byte6 marker; witnessed with marker (9,1)."
+    },
+    {
+      "address": "6f1638c0",
+      "name": "PathAcc_RelaxBaseNorthEast",
+      "signature": "void __thiscall PathAcc_RelaxBaseNorthEast(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Base NE corner, only after N and E relaxed. ECX adaptive,stack parent,x+1,y-1,RET0xc. Size2 163910 (corner x+1,y) clear."
+    },
+    {
+      "address": "6f163970",
+      "name": "PathAcc_RelaxCoarseNorthEast",
+      "signature": "void __thiscall PathAcc_RelaxCoarseNorthEast(WC3AdaptiveSearchPrefix * adaptive, uint parent, uint level, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "level",
+          "type": "uint",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x10]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Coarse NE corner (X0+s,Y0-1), gated by North east-end and East north-end flags. ECX adaptive,stack parent,level,x,y,RET0x10. Lookup at node level; -2 descends one level at the same coordinate; -1 stops. Size2 1639e0 (x+1,y) clear."
+    },
+    {
+      "address": "6f163a40",
+      "name": "PathAcc_RelaxBaseNorthWest",
+      "signature": "void __thiscall PathAcc_RelaxBaseNorthWest(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Base NW corner after W and N. ECX adaptive,stack parent,x-1,y-1,RET0xc. No size2 check."
+    },
+    {
+      "address": "6f163a80",
+      "name": "PathAcc_RelaxCoarseNorthWest",
+      "signature": "void __thiscall PathAcc_RelaxCoarseNorthWest(WC3AdaptiveSearchPrefix * adaptive, uint parent, uint level, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "level",
+          "type": "uint",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x10]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Coarse NW corner (X0-1,Y0-1), gated by West north-end and North west-end flags. RET0x10. Descend on -2. No size2 check."
+    },
+    {
+      "address": "6f163ae0",
+      "name": "PathAcc_RelaxBaseNorth",
+      "signature": "uint __thiscall PathAcc_RelaxBaseNorth(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] ECX adaptive,stack4 parent node,8 x,c y(\u003dnode y-1),RET0xc/EAX 1 relaxed else 0. Level-0 lookup may return a promoted node. Size2: (x+1,y) clear; odd x into a promoted node also calls 163d40, which always accepts in search context (odd x inside an even-aligned clear square has (x-1,y) clear) unless ushort node-index alias. 1643d0 visits N,E,S,W then gated NE,SE,SW,NW."
+    },
+    {
+      "address": "6f163bc0",
+      "name": "PathAcc_ExpandNorthSide",
+      "signature": "undefined PathAcc_ExpandNorthSide()",
+      "convention": "unknown",
+      "returns": "undefined",
+      "parameters": [],
+      "comment": "Mixed-level recursive tangent subdivision, first half before second; coarse admitted edge-end flags gate corners. Size2 interior/right and boundary strip preconditions. Payoff126: producer-built branch/transition witnesses support eliminating redundant interior size2 base-cell reads in the engine side walker. Boundary and corner predicates remain; searches beyond uint16 identity range keep the literal fallback."
+    },
+    {
+      "address": "6f163cd0",
+      "name": "PathAcc_Size2NorthRight",
+      "signature": "uint __thiscall PathAcc_Size2NorthRight(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Coarse north side interior requires right clear; level-boundary uses163dd0 instead. [ACC-01.1] [ACC-01.1] In search context the interior candidate is not the last column of its clear level-l cell, so (x+1,y) is always clear: always accepts."
+    },
+    {
+      "address": "6f163d40",
+      "name": "PathAcc_Size2BaseNorthPromotedOdd",
+      "signature": "uint __thiscall PathAcc_Size2BaseNorthPromotedOdd(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Odd-X promoted base north additionally requires right/up2 OR left. Representative coordinates remain the first lookup input. [ACC-01.1] [ACC-01.1] Called only for odd x into a promoted node: (x-1,y) lies in the same clear square, so it always accepts unless ushort node-index alias."
+    },
+    {
+      "address": "6f164020",
+      "name": "PathAcc_RelaxNode",
+      "signature": "void __thiscall PathAcc_RelaxNode(WC3AdaptiveSearchPrefix * adaptive, uint child, uint parent)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "child",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Edge and goal distances use integer sqrt of squared coordinate differences scaled by 24. [ACC-04.1] [ACC-04.1] Nearest node updated only on first discovery (state -1) with unscaled squared representative distance, strict \u003c, ties keep the earlier discovery; equal candidate g never replaces a parent. 188/188 producer-built goal routes equal the Dijkstra optimum over the search\u0027s own relaxations."
+    },
+    {
+      "address": "6f1641d0",
+      "name": "PathAcc_UnlinkClosedNode",
+      "signature": "void __thiscall PathAcc_UnlinkClosedNode(WC3AdaptiveSearchPrefix * adaptive, uint index)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "index",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Unlink closed node for reopen: ECX adaptive,stack4 index,RET4. Generation++, links -1; repairs head/next. Tail unlink unreachable (tail is the start, g\u003d0). Head reopen witnessed (ordinary and special)."
+    },
+    {
+      "address": "6f1642b0",
+      "name": "PathAcc_RelaxBaseSouthEast",
+      "signature": "void __thiscall PathAcc_RelaxBaseSouthEast(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Base SE corner after E and S. ECX adaptive,stack parent,x+1,y+1,RET0xc. Size2 164300 (corner x+1,y+1) clear."
+    },
+    {
+      "address": "6f164350",
+      "name": "PathAcc_RelaxCoarseSouthEast",
+      "signature": "void __thiscall PathAcc_RelaxCoarseSouthEast(WC3AdaptiveSearchPrefix * adaptive, uint parent, uint level, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "level",
+          "type": "uint",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x10]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Coarse SE corner (X0+s,Y0+s), gated by East south-end and South east-end flags. RET0x10. Descend on -2. Size2 163370; a size2 level-0 descent needs a marker (the level-1 block is otherwise clear)."
+    },
+    {
+      "address": "6f164670",
+      "name": "PathAcc_RelaxBaseSouthWest",
+      "signature": "void __thiscall PathAcc_RelaxBaseSouthWest(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Base SW corner after S and W. ECX adaptive,stack parent,x-1,y+1,RET0xc. Size2 inline (corner x,y+1) clear."
+    },
+    {
+      "address": "6f164730",
+      "name": "PathAcc_RelaxCoarseSouthWest",
+      "signature": "void __thiscall PathAcc_RelaxCoarseSouthWest(WC3AdaptiveSearchPrefix * adaptive, uint parent, uint level, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "level",
+          "type": "uint",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x10]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Coarse SW corner (X0-1,Y0+s), gated by South west-end and West south-end flags. RET0x10. Descend on -2. Size2 inline (x,y+1) clear."
+    },
+    {
+      "address": "6f164810",
+      "name": "PathAcc_RelaxBaseSouth",
+      "signature": "uint __thiscall PathAcc_RelaxBaseSouth(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] ECX adaptive,stack4 parent,8 x,c y(\u003dnode y+1),RET0xc/EAX relaxed flag. Size2 164870: (x,y+1),(x+1,y+1) clear."
+    },
+    {
+      "address": "6f1648f0",
+      "name": "PathAcc_ExpandSouthSide",
+      "signature": "undefined PathAcc_ExpandSouthSide()",
+      "convention": "unknown",
+      "returns": "undefined",
+      "parameters": [],
+      "comment": "Mixed-level recursive tangent subdivision; size2 interior positive2x2 square and asymmetric south boundary policy. Payoff126: producer-built branch/transition witnesses support eliminating redundant interior size2 base-cell reads in the engine side walker. Boundary and corner predicates remain; searches beyond uint16 identity range keep the literal fallback."
+    },
+    {
+      "address": "6f164e50",
+      "name": "PathAcc_Size2SouthBoundary",
+      "signature": "uint __thiscall PathAcc_Size2SouthBoundary(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Require positive square plus (left AND left/down) OR (right/up2 AND right/up) OR (right/up AND left). [ACC-01.1] [ACC-01.1] x\u003d0 left-cell bound failure needs a marker-mixed level-1 block (witnessed with marker (1,9)); y-2/y-1 bounds cannot fail (South y\u003e\u003d2)."
+    },
+    {
+      "address": "6f164f90",
+      "name": "PathAcc_RelaxBaseWest",
+      "signature": "uint __thiscall PathAcc_RelaxBaseWest(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] ECX adaptive,stack4 parent,8 x(\u003dnode x-1),c y,RET0xc/EAX relaxed flag. Size2: (x,y+1) clear; odd y into a promoted node calls 1653e0, which always accepts in search context (alias excepted)."
+    },
+    {
+      "address": "6f165090",
+      "name": "PathAcc_ExpandWestSide",
+      "signature": "undefined PathAcc_ExpandWestSide()",
+      "convention": "unknown",
+      "returns": "undefined",
+      "parameters": [],
+      "comment": "Mixed-level recursive tangent subdivision; size2 interior/down and asymmetric west boundary policy. Payoff126: producer-built branch/transition witnesses support eliminating redundant interior size2 base-cell reads in the engine side walker. Boundary and corner predicates remain; searches beyond uint16 identity range keep the literal fallback."
+    },
+    {
+      "address": "6f1651a0",
+      "name": "PathAcc_Size2WestDown",
+      "signature": "uint __thiscall PathAcc_Size2WestDown(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Base/coarse west interior requires down cell clear. [ACC-01.1] [ACC-01.1] In search context the interior candidate is not the last row of its clear level-l cell: always accepts."
+    },
+    {
+      "address": "6f1653a0",
+      "name": "PathAcc_RelaxSpecialDestination",
+      "signature": "void __thiscall PathAcc_RelaxSpecialDestination(WC3AdaptiveSearchPrefix * adaptive, uint parent, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "parent",
+          "type": "uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "comment": "[ACC-01.1] Special destination: ECX adaptive,stack parent,x,y(record destination),RET0xc. Level-0 lookup (may promote, never -2); -1 (blocked/mixed/outside) skips 165220."
+    },
+    {
+      "address": "6f1653e0",
+      "name": "PathAcc_Size2BaseWestPromotedOdd",
+      "signature": "uint __thiscall PathAcc_Size2BaseWestPromotedOdd(WC3AdaptiveSearchPrefix * adaptive, int x, int y)",
+      "convention": "__thiscall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "WC3AdaptiveSearchPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "comment": "Odd-Y promoted base west additionally requires left2/down OR up. [ACC-01.1] [ACC-01.1] Called only for odd y into a promoted node: (x,y-1) lies in the same clear square, so it always accepts unless alias."
+    },
+    {
+      "address": "6f1d58e0",
+      "name": "PathAcc_IntegerSquareRoot",
+      "signature": "uint __fastcall PathAcc_IntegerSquareRoot(uint value)",
+      "convention": "__fastcall",
+      "returns": "uint",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "uint",
+          "storage": "ECX:4"
+        }
+      ],
+      "comment": "Integer Newton initial estimate n/12+1, n/200+21, or n/26743+444; stop when signed delta/2 is zero. Cost scales coordinate differences by24 before wrapped squared sum.712 complete original/C ordinary requests match route words, node counts and charged pops. [ACC-04.1] [ACC-04.1] ECX n,EAX result,plain RET. Equals floor(sqrt(n)) for all 135981 inputs (24a)^2+(24b)^2, 0\u003c\u003db\u003c\u003da\u003c\u003d520."
+    }
+  ],
+  "unsaved_changes": false
+}

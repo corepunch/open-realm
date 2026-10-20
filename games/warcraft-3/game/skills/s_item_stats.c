@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* Passive item stat bonuses — apply on pickup, reverse on drop.
  * Follows WarSmash pattern: CAbilityItemAttackBonus.onAdd/onRemove,
@@ -29,6 +30,7 @@ static void apply_stat(edict_t *unit, uint32_t code, float sign) {
         return;
     }
     unit->hero.str = (uint32_t)MAX(0, (int32_t)unit->hero.str + (int32_t)str);
+    unit->hero_item_agility += (int32_t)agi;
     unit->hero.agi = (uint32_t)MAX(0, (int32_t)unit->hero.agi + (int32_t)agi);
     unit->hero.intel = (uint32_t)MAX(0, (int32_t)unit->hero.intel + (int32_t)intel);
     G_RecomputeHeroStats(unit);
@@ -58,12 +60,44 @@ BZ_ABILITY_PROC(CAbilityAttributeBonus) {
     return true;
 }
 
+/* Original AIms virtual184 returns its authored DataA. The unit's attached
+ * ability list reduces these contributions by maximum, never by addition. */
+BZ_ABILITY_PROC(CAbilityMoveSpeedBonus) {
+    if (msg == A_ITEM_ADD || msg == A_ITEM_REMOVE) return true;
+    if (msg != A_MOVE_SPEED_BONUS) return CAbilityPassive(ent, msg, call);
+    if (!ent || !call || !call->item || !call->move_speed_bonus) return false;
+    uint32_t level = call->source_item ? 1 : MAX(1, G_UnitAbilityClassLevel(ent, call->item->code));
+    float bonus = S_SpellData(call->item->code, level, 1);
+    *call->move_speed_bonus = wc3_speed_bonus_max(*call->move_speed_bonus, bonus);
+    return true;
+}
+
+float S_MoveSpeedBonus(edict_t *unit) {
+    float bonus = 0;
+    abilityCall_t query = MAKE(abilityCall_t, .move_speed_bonus = &bonus);
+    if (!unit) return 0;
+    S_UnitAbilityMessage(unit, A_MOVE_SPEED_BONUS, &query);
+    if (!G_InventoryCanUseItems(unit)) return bonus;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        edict_t *item = unit->inventory[i];
+        cstring_t abilities = G_ItemAbilityList(item);
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            abilityitem_t entry = S_AbilityItem(FS_SLKKey(name));
+            if (!entry.ability || !(entry.ability->flags & AB_MOVE_SPEED_BONUS)) continue;
+            abilityCall_t call = MAKE(abilityCall_t, .item = &entry, .source_item = item, .move_speed_bonus = &bonus);
+            S_AbilityMessage(unit, A_MOVE_SPEED_BONUS, &call);
+        }
+    }
+    return bonus;
+}
+
 /* Item orb family (AIfb/AIlb/AIob/AIpb/AIcb/AIzb, retail parent AIDB).
  * Bonus damage rides CAbilityAttackBonus pickup handling via DataA; this owns
  * the on-hit BuffID state next to S_SlowPoisonOnHit. ROC omits BuffID, so the
  * three buffed orbs fall back to their TFT tokens. AIfb/AIlb/AIpb author no
- * buff in either version. Buffs are state-only like Frost Nova's Bfro: no
- * movement/armor consumer reads Bfro/BIcb/Bfre yet. */
+ * buff in either version. Freeze owns counted execution/order suppression;
+ * the other orb statuses retain their existing consumers. */
 #define ID_ORB_FIRE MAKEFOURCC('A', 'I', 'f', 'b')
 #define ID_ORB_LIGHTNING MAKEFOURCC('A', 'I', 'l', 'b')
 #define ID_ORB_FROST MAKEFOURCC('A', 'I', 'o', 'b')
@@ -95,19 +129,22 @@ static void orb_apply(edict_t *attacker, edict_t *target, uint32_t orb, uint32_t
         if (seen[i] == orb) return;
     buff = orb_buff(orb);
     if (!buff) return;
-    level = MAX(1, G_UnitAbilityLevel(attacker, orb));
+    level = MAX(1, G_UnitAbilityClassLevel(attacker, orb));
     seen[(*count)++] = orb;
-    S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
+    if(orb==ID_ORB_FREEZE)S_ApplyFreezeStatus(attacker,target,orb,level,buff,S_SpellHeroDuration(orb,level,target),true);
+    else S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
 }
 
-/* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
- * orb ownership and held orb items; the same orb from both sources applies once. */
-void S_OrbOnHit(edict_t *attacker, edict_t *target) {
+/* Freeze attaches before weapon damage so the lethal hit's death transaction
+ * removes it. Other orb producers retain their post-damage phase. Native and
+ * held-item copies of the same orb contribute once within their owned phase. */
+void S_OrbOnHit(edict_t *attacker, edict_t *target,bool before_damage) {
     uint32_t seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
     FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
-        if (G_UnitAbilityLevel(attacker, orb_codes[o])) orb_apply(attacker, target, orb_codes[o], seen, &count);
+        if ((orb_codes[o]==ID_ORB_FREEZE)==before_damage && G_UnitAbilityClassLevel(attacker, orb_codes[o]))
+            orb_apply(attacker, target, orb_codes[o], seen, &count);
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t *item = attacker->inventory[i];
@@ -118,7 +155,8 @@ void S_OrbOnHit(edict_t *attacker, edict_t *target) {
         PARSE_LIST(abilities, name, parse_segment) {
             uint32_t code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
             FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
-                if (code && code == orb_codes[o]) orb_apply(attacker, target, code, seen, &count);
+                if (code && code == orb_codes[o] && (code==ID_ORB_FREEZE)==before_damage)
+                    orb_apply(attacker, target, code, seen, &count);
         }
     }
 }

@@ -1,0 +1,21 @@
+// NUM-04.6 — applied to Ghidra via gw.py (research/NUM-04.6/ghidra-writes.jsonl); mirror into tools/ghidra/MapPathfinding.java.
+// New rows:
+        {"6f693710", "RandData_ReseedStreams", "CRandData (TLS slot 0xd registry entry 3, vtable 6fb7a69c) reseed: ECX seed, plain RET. local=Seed(ECX); stream[i]=Seed(Next(local)) at table+4+8*i, i=0..44. Callers 64f9a0 (game seed from 29e300/29dfb0) and 214140 tail (first owner draw). NUM-04.6 Unicorn oracle 8 seeds + 4 SetRandomSeed bodies word-exact; live war3 and tick-seed tables equal."},
+        {"6f693660", "RandData_StreamRange", "ECX stream index, EDX span; EAX=mulhi(Next(stream),span), plain RET. Oracle 18 calls. ChooseRandomCreep 32, ChooseRandomNPBuilding 34, ChooseRandomItem/Ex 35 (live), MechanicalCritter 33, PhoenixFire 38, 39."},
+        {"6f6936a0", "RandData_StreamUnitReal", "ECX out scalar*, EDX stream index; out=0+((Next&7fffff|3f800000)-1)*(1-0) software scalar; plain RET, EAX=out. Oracle 16 calls. Stream 2 attack attach jitter (live), stream 9 ReactionDelay (live), ability/buff procs."},
+        {"6f695c70", "RandData_RollDice", "ECX out*, EDX stream, stack4 dice, 8 sides, 0c bonus, 10 scale*, RET10. dice<1 -> 0 and 'Bogus request to roll 0 dice'; else scale*(dice+PathRandom_RollDiceSum(sides,dice,stream)+bonus). Oracle 10 calls (dice 1..16). AbilityAttack_GetDamageAmount stream 2 (live)."},
+        {"6f1ec180", "PathRandom_RollDiceSum", "ECX sides, EDX dice, stack4 state, RET4, EAX. dice<=16: sum mulhi(Next,sides); dice>16: one Gaussian 1d12e0 sample around (sides-1)*dice/2, +0.5 truncated, clamped to (sides-1)*dice."},
+        {"6f65c7c0", "RandData_Construct", "ECX registry index (3); alloc 0x16c, vtable 6fb7a69c, 45x Seed(0), store [TlsSlots_Get(0xd)+10][index]. Live: 45 seeds at 6f65c839 during boot."},
+        {"6f693690", "RandData_Create", "ECX=3, EDX=0, jmp RandData_Construct; called by game-session init 64f970."},
+        {"6f693620", "RandData_Destroy", "Frees registry entry 3 and clears it; called by 64f900 teardown."},
+        {"6f64f9a0", "RandData_ReseedForGame", "ECX game seed -> RandData_ReseedStreams, jmp empty 6744c0. Callers 29ec35 (locked 77617233 or record seed) and 29e2b9."},
+        {"6f06c180", "TlsSlots_Get", "ECX slot; EAX=TlsGetValue([6fd3cb98])[slot] or 0. Slot 0xd: engine registry (045240), data [+10], entry 3 CRandData."},
+        {"6f06c1e0", "TlsSlots_Set", "ECX slot, EDX value; stores into the current thread's slot array."},
+        {"6f06c1b0", "TlsSlots_AllocIndex", "TlsAlloc -> [6fd3cb98], TlsSetValue(index,0), [6fd3cb94]=1."},
+        {"6f498960", "AbilityAttack_GetDamageAmount", "Original method name in 32d100 debug string. ECX ability, stack4 out*, RET4: RandData_RollDice(stream 2, dice [+88+4w], sides [+94+4w], base+bonus [+a0+4w]+[+ac+4w], 1.0), w=[+2b8]; clamp >=0."},
+// New globals (labels):
+        {"6fd685ac", "SpriteAnimationRandom", "CRT Seed(0x53705269), never reseeded by game seed; Sprite_ResolvePendingAnimation path; live counts differ between identical runs."},
+        {"6fd6a674", "AudioRandom", "CRT Seed(0) then 3575be Seed(GetTickCount) at boot; Audio_ChooseVariant/PlayLabel/PlayWarcryResponse; live counts differ between identical runs."},
+        {"6fd77d18", "LightningJitterRandom", "CRT Seed(0); 9a3b40 three draws per lightning point."},
+        {"6fb7a69c", "CRandData_vftable", "RTTI .?AVCRandData@@; 672050 empty, 679ac0 'Random val: %u' dump."},
+// Comments only (existing/default names): 6f4993b0 (CAbilityAttack vfunc 194 attach jitter, stream 2), 6f49ea80 Attack_HandleReactionDelayTask (stream 9; existing ORDER-01.10 name kept, gw refused rename), 6f045240, 6f64f970.

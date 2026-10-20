@@ -3,6 +3,50 @@
 
 #define MAX_SEGMENT_SIZE 16384  /* Galaxy scripts contain long string literals */
 
+static bool jlex_digit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+static bool jlex_hex_digit(char c) {
+    return jlex_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+/* Original9249d0: longest accepted numeric prefix. A decimal point may
+ * extend an otherwise invalid octal prefix (089.5); exponents do not. */
+static size_t jlex_number_prefix(cstring_t text, jlexNumberKind_t *kind) {
+    size_t n = 0, accepted = 0;
+
+    *kind = JLEX_NOT_NUMBER;
+    if (text[0] == '$') {
+        for (n = 1; jlex_hex_digit(text[n]); n++);
+        if (n == 1) return 0;
+    } else if (text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+        for (n = 2; jlex_hex_digit(text[n]); n++);
+        /* The '0' remains an octal token when no hex digit follows. */
+        if (n == 2) n = 1;
+    } else {
+        while (jlex_digit(text[n])) n++;
+        if (text[n] == '.' && (n || jlex_digit(text[n + 1]))) {
+            for (n++; jlex_digit(text[n]); n++);
+            *kind = JLEX_REAL;
+            return n;
+        }
+        if (!n) return 0;
+        if (text[0] == '0') {
+            for (accepted = 1; text[accepted] >= '0' && text[accepted] <= '7'; accepted++);
+            n = accepted;
+        }
+    }
+    *kind = JLEX_INTEGER;
+    return n;
+}
+
+jlexNumberKind_t jlex_number_kind(cstring_t text) {
+    jlexNumberKind_t kind;
+    size_t n = jlex_number_prefix(text, &kind);
+    return n && !text[n] ? kind : JLEX_NOT_NUMBER;
+}
+
 bool eat_token(wordExtractor_t *p, cstring_t value) {
     cstring_t tok = peek_token(p);
     if (!strcmp(tok, value)) {
@@ -43,6 +87,18 @@ cstring_t parse_token(wordExtractor_t *p) {
             word[1] = *(p->buffer++);
             word[2] = '\0';
         }
+        return word;
+    } else if (p->retail_numbers && (*p->buffer == '$' || *p->buffer == '.' || jlex_digit(*p->buffer))) {
+        jlexNumberKind_t kind;
+        size_t n = jlex_number_prefix(p->buffer, &kind);
+        if (!n) n = 1; /* Bare '$' and '.' are punctuation, not numbers. */
+        if (n >= MAX_SEGMENT_SIZE) {
+            parser_error(p);
+            n = MAX_SEGMENT_SIZE - 1;
+        }
+        memcpy(word, p->buffer, n);
+        word[n] = '\0';
+        p->buffer += n;
         return word;
     } else if (*p->buffer == '$' || isdigit((unsigned char)*p->buffer) || (*p->buffer == '.' && isdigit((unsigned char)p->buffer[1]))) {
         /* Minified JASS glues 851983then / 0x hex; keep $hex and 0xhex as one token. */

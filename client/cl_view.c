@@ -276,6 +276,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     /* model is a uint16_t and MAX_MODELS bounds the configstring lookup. */
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
+    re.pose_offset.yaw = LerpRotation(ent->prev.pose_offset.yaw, ent->current.pose_offset.yaw, cl.viewDef.lerpfrac);
+    re.pose_offset.pitch = LerpRotation(ent->prev.pose_offset.pitch, ent->current.pose_offset.pitch, cl.viewDef.lerpfrac);
+    re.pose_offset.roll = LerpRotation(ent->prev.pose_offset.roll, ent->current.pose_offset.roll, cl.viewDef.lerpfrac);
 #ifdef WOW
     re.rotation = Vector3_lerp(&ent->prev.rotation, &ent->current.rotation, cl.viewDef.lerpfrac);
 #endif

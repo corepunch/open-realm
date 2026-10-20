@@ -5086,3 +5086,23 @@ TEST(net, eos_addresses_round_trip_and_compare_complete_identity) {
     T_ASSERT(!NET_StringToAdr("eos:123", 0, &copy));
     T_ASSERT(!NET_StringToAdr("eos:0123456789abcdef0123456789abcdeg", 0, &copy));
 }
+
+TEST(net, entity_delta_preserves_game_authored_pose_offset) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = {0}, to = {.number = 9, .model = 1,
+        .pose_offset = {.yaw = -0.013f, .pitch = 0.05235988f, .roll = -0.08726647f}}, out = {0};
+    uint32_t bits;
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    int number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+    T_EQ(number, 9);
+    T_ASSERT(!memcmp(&out.pose_offset, &to.pose_offset, sizeof(to.pose_offset)));
+    from = out; to.pose_offset = (orientation_t){0};
+    sb.cursize = sb.readcount = 0;
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+    T_ASSERT(!memcmp(&out.pose_offset, &to.pose_offset, sizeof(to.pose_offset)));
+}

@@ -1,0 +1,8646 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "d68709e756d6e1bffe581e34fb5f1fb153dd01f22bf3a0c6b57f01193a7463e0",
+  "bare_map_sha256": "e484f9034a286c2bb2cbd58aff9955ab489773ce89dd2d5d04a551eb18df73ee",
+  "bundle_sha256": "8d6427e32c3c11d298bf52e05bc699f3edb05d7e06450fb1ff8eb2b43bf1ace1",
+  "source_sha256": {
+    "tools/frida/research/captain291_make_map.py": "f34c07652cca7c767142a21d7ad678660bcde9bff36ebeadbff5c51193e9721a",
+    "tools/frida/research/captain291_probe.j": "73b27f2fc07bbd995ab43c9dd587f627d348b4c76be60646e3dd87e066eae365",
+    "tools/frida/research/captain291_probe.ai": "4d516cf1a03b78367e784d66650a4ed84da3502e1e20ae48270344f0307230be",
+    "tools/frida/research/captain291_observer.js": "11055c92941edbd48497ce5442268963c62cccc7aa47b3c09ffae48b5fcf62d2",
+    "tools/frida/research/captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "tools/ghidra/research/captain291_oracle.py": "81a7c179244882c65a8e968ce5cf0d359f353bbc5b05e13376fd2a2f02fbc448",
+    "tools/ghidra/research/Captain291Evidence.java": "92f9df97d84a23b8d31fba3d5c677a3d2f433a509c0b50f11041d68a576de833",
+    "tools/ghidra/fixtures/retail-captain291-types-1.27.json": "ada84861d2123231c7b5a07ec6011ceb2e8609a49e97d67cdbdcd2caf1a44693"
+  },
+  "public": [
+    "R291 tick=0 label=start",
+    "R291 tick=5 label=start-ai",
+    "R291AI create-before",
+    "R291AI create-after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=5 label=sample u=0 x=-2064.000 y=-144.000 o=851986",
+    "R291 tick=5 label=sample u=1 x=-1984.000 y=-144.000 o=851986",
+    "R291 tick=5 label=sample u=2 x=-1904.000 y=-144.000 o=851986",
+    "R291 tick=10 label=sample u=0 x=-2030.234 y=-251.119 o=851986",
+    "R291 tick=10 label=sample u=1 x=-1961.694 y=-196.047 o=851986",
+    "R291 tick=10 label=sample u=2 x=-1883.924 y=-265.696 o=851986",
+    "R291 tick=15 label=command phase=1",
+    "R291 tick=15 label=sample u=0 x=-2010.972 y=-291.876 o=851986",
+    "R291 tick=15 label=sample u=1 x=-1923.318 y=-293.147 o=851986",
+    "R291 tick=15 label=sample u=2 x=-1858.151 y=-398.211 o=851986",
+    "R291AI phase=1 before",
+    "R291AI phase=1 after",
+    "R291AI home=false",
+    "R291AI goal=true",
+    "R291 tick=20 label=sample u=0 x=-1984.601 y=-318.955 o=851988",
+    "R291 tick=20 label=sample u=1 x=-1895.585 y=-411.328 o=851988",
+    "R291 tick=20 label=sample u=2 x=-1842.440 y=-520.215 o=851988",
+    "R291 tick=25 label=command phase=2",
+    "R291 tick=25 label=sample u=0 x=-1920.346 y=-437.178 o=851988",
+    "R291 tick=25 label=sample u=1 x=-1842.029 y=-535.246 o=851988",
+    "R291 tick=25 label=sample u=2 x=-1807.891 y=-650.235 o=851988",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=30 label=sample u=0 x=-1977.051 y=-358.241 o=851988",
+    "R291 tick=30 label=sample u=1 x=-1864.728 y=-440.743 o=851988",
+    "R291 tick=30 label=sample u=2 x=-1807.962 y=-544.943 o=851988",
+    "R291 tick=35 label=hall-create-before",
+    "R291 tick=35 label=hall-create-after x=-1920.000 y=-960.000",
+    "R291 tick=35 label=command phase=2",
+    "R291 tick=35 label=sample u=0 x=-2055.806 y=-248.599 o=851988",
+    "R291 tick=35 label=sample u=1 x=-1896.255 y=-309.485 o=851988",
+    "R291 tick=35 label=sample u=2 x=-1807.978 y=-409.949 o=851988",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=40 label=sample u=0 x=-2118.807 y=-160.884 o=851986",
+    "R291 tick=40 label=sample u=1 x=-1927.782 y=-178.225 o=851988",
+    "R291 tick=40 label=sample u=2 x=-1807.996 y=-274.956 o=851988",
+    "R291 tick=45 label=sample u=0 x=-2008.821 y=-155.348 o=851986",
+    "R291 tick=45 label=sample u=1 x=-1932.825 y=-157.224 o=0",
+    "R291 tick=45 label=sample u=2 x=-1757.264 y=-151.954 o=851988",
+    "R291 tick=50 label=mine-create-before",
+    "R291 tick=50 label=mine-create-after x=-1744.000 y=-976.000",
+    "R291 tick=50 label=command phase=2",
+    "R291 tick=50 label=sample u=0 x=-1988.920 y=-250.030 o=851988",
+    "R291 tick=50 label=sample u=1 x=-1913.891 y=-255.891 o=851988",
+    "R291 tick=50 label=sample u=2 x=-1771.453 y=-256.309 o=851988",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=55 label=sample u=0 x=-1968.281 y=-364.272 o=851988",
+    "R291 tick=55 label=sample u=1 x=-1879.359 y=-386.388 o=851988",
+    "R291 tick=55 label=sample u=2 x=-1804.361 y=-365.771 o=851988",
+    "R291 tick=60 label=sample u=0 x=-1944.282 y=-497.109 o=851988",
+    "R291 tick=60 label=sample u=1 x=-1863.471 y=-446.417 o=851988",
+    "R291 tick=60 label=sample u=2 x=-1806.053 y=-500.752 o=851988",
+    "R291 tick=65 label=mine-move-before",
+    "R291 tick=65 label=mine-move-after x=-1568.000 y=-560.000",
+    "R291 tick=65 label=command phase=2",
+    "R291 tick=65 label=sample u=0 x=-1920.277 y=-629.946 o=851988",
+    "R291 tick=65 label=sample u=1 x=-1841.367 y=-529.935 o=851988",
+    "R291 tick=65 label=sample u=2 x=-1807.746 y=-635.734 o=851988",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=70 label=sample u=0 x=-1960.462 y=-538.573 o=851988",
+    "R291 tick=70 label=sample u=1 x=-1864.389 y=-432.860 o=851988",
+    "R291 tick=70 label=sample u=2 x=-1808.213 y=-535.980 o=851988",
+    "R291 tick=75 label=sample u=0 x=-2016.069 y=-415.571 o=851988",
+    "R291 tick=75 label=sample u=1 x=-1896.874 y=-301.838 o=851988",
+    "R291 tick=75 label=sample u=2 x=-1808.129 y=-400.995 o=851988",
+    "R291 tick=80 label=mine-remove-before",
+    "R291 tick=80 label=mine-remove-after",
+    "R291 tick=80 label=command phase=2",
+    "R291 tick=80 label=sample u=0 x=-1947.561 y=-490.673 o=851988",
+    "R291 tick=80 label=sample u=1 x=-1881.156 y=-400.232 o=851988",
+    "R291 tick=80 label=sample u=2 x=-1807.563 y=-495.318 o=851988",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=85 label=sample u=0 x=-1876.715 y=-572.164 o=851988",
+    "R291 tick=85 label=sample u=1 x=-1855.917 y=-488.478 o=851988",
+    "R291 tick=85 label=sample u=2 x=-1807.931 y=-630.295 o=851988",
+    "R291 tick=90 label=sample u=0 x=-1906.889 y=-524.170 o=851988",
+    "R291 tick=90 label=sample u=1 x=-1877.924 y=-393.823 o=851988",
+    "R291 tick=90 label=sample u=2 x=-1808.133 y=-533.319 o=851988",
+    "R291 tick=95 label=hall-remove-before",
+    "R291 tick=95 label=hall-remove-after",
+    "R291 tick=95 label=command phase=2",
+    "R291 tick=95 label=sample u=0 x=-1978.727 y=-409.900 o=851988",
+    "R291 tick=95 label=sample u=1 x=-1908.491 y=-262.353 o=851988",
+    "R291 tick=95 label=sample u=2 x=-1808.082 y=-398.345 o=851988",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=100 label=sample u=0 x=-2050.562 y=-295.630 o=851988",
+    "R291 tick=100 label=sample u=1 x=-1932.938 y=-157.177 o=851988",
+    "R291 tick=100 label=sample u=2 x=-1808.024 y=-263.372 o=851988",
+    "R291 tick=105 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=105 label=sample u=1 x=-1931.393 y=-278.311 o=851988",
+    "R291 tick=105 label=sample u=2 x=-1769.786 y=-137.014 o=851988",
+    "R291 tick=110 label=command phase=3",
+    "R291 tick=110 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=110 label=sample u=1 x=-1901.114 y=-407.063 o=851988",
+    "R291 tick=110 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291AI phase=3 before",
+    "R291AI phase=3 after",
+    "R291AI home=true",
+    "R291AI goal=true",
+    "R291 tick=115 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=115 label=sample u=1 x=-1848.171 y=-525.750 o=851988",
+    "R291 tick=115 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291 tick=120 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=120 label=sample u=1 x=-1848.171 y=-525.750 o=851988",
+    "R291 tick=120 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291 tick=125 label=command phase=1",
+    "R291 tick=125 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=125 label=sample u=1 x=-1848.171 y=-525.750 o=851988",
+    "R291 tick=125 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291AI phase=1 before",
+    "R291AI phase=1 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=130 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=130 label=sample u=1 x=-1848.055 y=-523.054 o=851988",
+    "R291 tick=130 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291 tick=135 label=command phase=2",
+    "R291 tick=135 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=135 label=sample u=1 x=-1845.386 y=-461.024 o=851988",
+    "R291 tick=135 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291AI phase=2 before",
+    "R291AI phase=2 after",
+    "R291AI home=true",
+    "R291AI goal=false",
+    "R291 tick=140 label=sample u=0 x=-2113.775 y=-195.070 o=0",
+    "R291 tick=140 label=sample u=1 x=-1845.386 y=-461.024 o=851988",
+    "R291 tick=140 label=sample u=2 x=-1759.362 y=-115.069 o=0",
+    "R291 tick=145 label=complete"
+  ],
+  "native": [
+    {
+      "event": "location-init",
+      "counter": 1024,
+      "index": 0,
+      "xy": [
+        3288334336,
+        3304062976
+      ],
+      "location": {
+        "index": 0,
+        "attack": [
+          3288334336,
+          3304062976
+        ],
+        "defense": [
+          3288334336,
+          3304062976
+        ],
+        "anchors": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1024,
+      "reset": 0,
+      "before": {
+        "index": 0,
+        "attack": [
+          3288334336,
+          3304062976
+        ],
+        "defense": [
+          3288334336,
+          3304062976
+        ],
+        "anchors": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3288334336,
+          3304062976
+        ],
+        "defense": [
+          3288334336,
+          3304062976
+        ],
+        "anchors": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "town-admit-enter",
+      "counter": 1024,
+      "xyz": null,
+      "owner": {
+        "player": 0,
+        "locations": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          4294967295,
+          4294967295
+        ],
+        "defense": [
+          4294967295,
+          4294967295
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3288334336,
+            3304062976
+          ],
+          "defense": [
+            3288334336,
+            3304062976
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1024,
+      "reset": 0,
+      "before": {
+        "index": 0,
+        "attack": [
+          3288334336,
+          3304062976
+        ],
+        "defense": [
+          3288334336,
+          3304062976
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "town-admit-leave",
+      "counter": 1024,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          4294967295,
+          4294967295
+        ],
+        "defense": [
+          4294967295,
+          4294967295
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "event": "create-enter",
+      "counter": 1040,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          4294967295,
+          4294967295
+        ],
+        "defense": [
+          4294967295,
+          4294967295
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "offset": 1133903872
+    },
+    {
+      "event": "actor-create",
+      "counter": 1040,
+      "player": 0,
+      "type": 2,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "captain": {
+        "state": 2,
+        "player": 0,
+        "flags": 0,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3305811010,
+          3295229369
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126203392,
+            1113980928
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "actor-create",
+      "counter": 1040,
+      "player": 0,
+      "type": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "captain": {
+        "state": 1,
+        "player": 0,
+        "flags": 0,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "create-leave",
+      "counter": 1040,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "event": "home-enter",
+      "counter": 1074,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 1,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3305811010,
+          3295229369
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126203392,
+            1113980928
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1074,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 1,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3305811010,
+          3295229369
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126203392,
+            1113980928
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1074,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 0,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1074,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 0,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126400000,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1151,
+            1489
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1107,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            1,
+            3,
+            0
+          ],
+          "home": [
+            3304194048,
+            3272605696
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1112699299
+            ],
+            "velocity": [
+              2978414460,
+              3238461307
+            ],
+            "group": [
+              1152,
+              1542
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3304194048,
+            3272605696
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126400000,
+              1119289344
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1107,
+      "reset": 1,
+      "before": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1107,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          1,
+          3,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1112699299
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1152,
+            1542
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1107,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          1,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1112699299
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1152,
+            1542
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1107,
+      "reset": 1,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          1,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1112699299
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1152,
+            1542
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1107,
+      "reset": 1,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          1,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1113980928
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1152,
+            1542
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1107,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126400000,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1107,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1429,
+            1546
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1107,
+      "reset": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1429,
+            1546
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1107,
+      "reset": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1429,
+            1546
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1107,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            1,
+            3,
+            0
+          ],
+          "home": [
+            3305811010,
+            3295229369
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1113980928
+            ],
+            "velocity": [
+              2978414460,
+              3238461307
+            ],
+            "group": [
+              1152,
+              1542
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3303342080,
+            3295805440
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              1429,
+              1546
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1140,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            3,
+            3,
+            0
+          ],
+          "home": [
+            3305811010,
+            3295229369
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1111857632
+            ],
+            "velocity": [
+              2978414460,
+              3238461307
+            ],
+            "group": [
+              1417,
+              1550
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3303342080,
+            3295805440
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1140,
+      "reset": 1,
+      "before": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1140,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1111857632
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1140,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1111857632
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1140,
+      "reset": 1,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1111857632
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1140,
+      "reset": 1,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1113980928
+          ],
+          "velocity": [
+            2978414460,
+            3238461307
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1140,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1140,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1140,
+      "reset": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1140,
+      "reset": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1140,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            3,
+            3,
+            0
+          ],
+          "home": [
+            3305811010,
+            3295229369
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1113980928
+            ],
+            "velocity": [
+              2978414460,
+              3238461307
+            ],
+            "group": [
+              1417,
+              1550
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3303342080,
+            3295805440
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1190,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3305811010,
+            3295229369
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126126655,
+              1111448723
+            ],
+            "velocity": [
+              3234868098,
+              3197198368
+            ],
+            "group": [
+              1417,
+              1550
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3303342080,
+            3295805440
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1190,
+      "reset": 1,
+      "before": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1190,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126126655,
+            1111448723
+          ],
+          "velocity": [
+            3234868098,
+            3197198368
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1190,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126126655,
+            1111448723
+          ],
+          "velocity": [
+            3234868098,
+            3197198368
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1190,
+      "reset": 1,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126126655,
+            1111448723
+          ],
+          "velocity": [
+            3234868098,
+            3197198368
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1190,
+      "reset": 1,
+      "xy": [
+        3305811010,
+        3295229369
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1113980928
+          ],
+          "velocity": [
+            3234868098,
+            3197198368
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1190,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1190,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1190,
+      "reset": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1190,
+      "reset": 1,
+      "xy": [
+        3303342080,
+        3295805440
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1190,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3305811010,
+            3295229369
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1113980928
+            ],
+            "velocity": [
+              3234868098,
+              3197198368
+            ],
+            "group": [
+              1417,
+              1550
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3303342080,
+            3295805440
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1240,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305811010,
+            3295229369
+          ],
+          "defense": [
+            3303342080,
+            3295805440
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            0,
+            3,
+            0
+          ],
+          "home": [
+            3305811010,
+            3295229369
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203163,
+              1111676282
+            ],
+            "velocity": [
+              1016748180,
+              3234881031
+            ],
+            "group": [
+              1417,
+              1550
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3303342080,
+            3295805440
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1240,
+      "reset": 1,
+      "before": {
+        "index": 0,
+        "attack": [
+          3305811010,
+          3295229369
+        ],
+        "defense": [
+          3303342080,
+          3295805440
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3305399043,
+          3298043609
+        ],
+        "defense": [
+          3302621184,
+          3292397568
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            1109,
+            1109
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1240,
+      "xy": [
+        3305399043,
+        3298043609
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          3,
+          0
+        ],
+        "home": [
+          3305811010,
+          3295229369
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203163,
+            1111676282
+          ],
+          "velocity": [
+            1016748180,
+            3234881031
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1240,
+      "xy": [
+        3305399043,
+        3298043609
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          3,
+          0
+        ],
+        "home": [
+          3305399043,
+          3298043609
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203163,
+            1111676282
+          ],
+          "velocity": [
+            1016748180,
+            3234881031
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1240,
+      "reset": 1,
+      "xy": [
+        3305399043,
+        3298043609
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          3,
+          0
+        ],
+        "home": [
+          3305399043,
+          3298043609
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203163,
+            1111676282
+          ],
+          "velocity": [
+            1016748180,
+            3234881031
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1240,
+      "reset": 1,
+      "xy": [
+        3305399043,
+        3298043609
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          3,
+          0
+        ],
+        "home": [
+          3305399043,
+          3298043609
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1114243072
+          ],
+          "velocity": [
+            1016748180,
+            3234881031
+          ],
+          "group": [
+            1417,
+            1550
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1240,
+      "xy": [
+        3302621184,
+        3292397568
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3303342080,
+          3295805440
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1240,
+      "xy": [
+        3302621184,
+        3292397568
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3302621184,
+          3292397568
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1240,
+      "reset": 1,
+      "xy": [
+        3302621184,
+        3292397568
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3302621184,
+          3292397568
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1240,
+      "reset": 1,
+      "xy": [
+        3302621184,
+        3292397568
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3302621184,
+          3292397568
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126793216,
+            1116766208
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1240,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305399043,
+            3298043609
+          ],
+          "defense": [
+            3302621184,
+            3292397568
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              1109,
+              1109
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            0,
+            3,
+            0
+          ],
+          "home": [
+            3305399043,
+            3298043609
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1114243072
+            ],
+            "velocity": [
+              1016748180,
+              3234881031
+            ],
+            "group": [
+              1417,
+              1550
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3302621184,
+            3292397568
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126793216,
+              1116766208
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1290,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3305399043,
+            3298043609
+          ],
+          "defense": [
+            3302621184,
+            3292397568
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            0,
+            2,
+            0
+          ],
+          "home": [
+            3305399043,
+            3298043609
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126203392,
+              1111438511
+            ],
+            "velocity": [
+              3234873401,
+              3193942569
+            ],
+            "group": [
+              1427,
+              1703
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3302621184,
+            3292397568
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126793216,
+              1116766208
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1290,
+      "reset": 1,
+      "before": {
+        "index": 0,
+        "attack": [
+          3305399043,
+          3298043609
+        ],
+        "defense": [
+          3302621184,
+          3292397568
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3304062976,
+          3295674368
+        ],
+        "defense": [
+          3304062976,
+          3295674368
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1290,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          2,
+          0
+        ],
+        "home": [
+          3305399043,
+          3298043609
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1111438511
+          ],
+          "velocity": [
+            3234873401,
+            3193942569
+          ],
+          "group": [
+            1427,
+            1703
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1290,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          2,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1111438511
+          ],
+          "velocity": [
+            3234873401,
+            3193942569
+          ],
+          "group": [
+            1427,
+            1703
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1290,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          2,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126203392,
+            1111438511
+          ],
+          "velocity": [
+            3234873401,
+            3193942569
+          ],
+          "group": [
+            1427,
+            1703
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1290,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          0,
+          2,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115750400
+          ],
+          "velocity": [
+            3234873401,
+            3193942569
+          ],
+          "group": [
+            1427,
+            1703
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1290,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3302621184,
+          3292397568
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126793216,
+            1116766208
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1290,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126793216,
+            1116766208
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1290,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126793216,
+            1116766208
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1290,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115881472
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1290,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            0,
+            2,
+            0
+          ],
+          "home": [
+            3304062976,
+            3295674368
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115750400
+            ],
+            "velocity": [
+              3234873401,
+              3193942569
+            ],
+            "group": [
+              1427,
+              1703
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3304062976,
+            3295674368
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115881472
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1340,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            3,
+            3,
+            0
+          ],
+          "home": [
+            3304062976,
+            3295674368
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126875703,
+              1116590124
+            ],
+            "velocity": [
+              3215788981,
+              1090863350
+            ],
+            "group": [
+              1109,
+              1805
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3304062976,
+            3295674368
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126858752,
+              1115881472
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1340,
+      "reset": 1,
+      "before": {
+        "index": 0,
+        "attack": [
+          3304062976,
+          3295674368
+        ],
+        "defense": [
+          3304062976,
+          3295674368
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 0,
+        "attack": [
+          3304062976,
+          3295674368
+        ],
+        "defense": [
+          3304062976,
+          3295674368
+        ],
+        "anchors": [
+          [
+            1132,
+            1132
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1340,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126875703,
+            1116590124
+          ],
+          "velocity": [
+            3215788981,
+            1090863350
+          ],
+          "group": [
+            1109,
+            1805
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1340,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126875703,
+            1116590124
+          ],
+          "velocity": [
+            3215788981,
+            1090863350
+          ],
+          "group": [
+            1109,
+            1805
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1340,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126875703,
+            1116590124
+          ],
+          "velocity": [
+            3215788981,
+            1090863350
+          ],
+          "group": [
+            1109,
+            1805
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1340,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4097,
+        "counts": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3304194048,
+          3272605696
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126432768,
+            1115947008
+          ],
+          "velocity": [
+            3215788981,
+            1090863350
+          ],
+          "group": [
+            1109,
+            1805
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1340,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115881472
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1340,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115881472
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1340,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126858752,
+            1115881472
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1340,
+      "reset": 1,
+      "xy": [
+        3304062976,
+        3295674368
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304062976,
+          3295674368
+        ],
+        "request": [
+          3303342080,
+          3295805440
+        ],
+        "range": 1140457472,
+        "actor": {
+          "position": [
+            1126465536,
+            1115881472
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1340,
+      "owner": {
+        "player": 0,
+        "locations": [
+          0,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              1132,
+              1132
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4097,
+          "counts": [
+            3,
+            3,
+            3,
+            3,
+            3,
+            0
+          ],
+          "home": [
+            3304062976,
+            3295674368
+          ],
+          "request": [
+            3304194048,
+            3272605696
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126432768,
+              1115947008
+            ],
+            "velocity": [
+              3215788981,
+              1090863350
+            ],
+            "group": [
+              1109,
+              1805
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3304062976,
+            3295674368
+          ],
+          "request": [
+            3303342080,
+            3295805440
+          ],
+          "range": 1140457472,
+          "actor": {
+            "position": [
+              1126465536,
+              1115881472
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "create-enter",
+      "counter": 1390,
+      "owner": {
+        "player": 0,
+        "locations": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "offset": 1133903872
+    },
+    {
+      "event": "town-admit-enter",
+      "counter": 1390,
+      "xyz": [
+        3305701376,
+        3272605696,
+        0
+      ],
+      "owner": {
+        "player": 0,
+        "locations": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "event": "location-init",
+      "counter": 1390,
+      "index": 1,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "location": {
+        "index": 1,
+        "attack": [
+          3305701376,
+          3272605696
+        ],
+        "defense": [
+          3305701376,
+          3272605696
+        ],
+        "anchors": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "town-admit-leave",
+      "counter": 1390,
+      "owner": {
+        "player": 0,
+        "locations": [
+          1,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1263,
+          1410
+        ],
+        "defense": [
+          1251,
+          1419
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        },
+        {
+          "index": 1,
+          "attack": [
+            3305701376,
+            3272605696
+          ],
+          "defense": [
+            3305701376,
+            3272605696
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "event": "actor-create",
+      "counter": 1390,
+      "player": 0,
+      "type": 2,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "captain": {
+        "state": 2,
+        "player": 0,
+        "flags": 0,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119158272
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "actor-create",
+      "counter": 1390,
+      "player": 0,
+      "type": 1,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "captain": {
+        "state": 1,
+        "player": 0,
+        "flags": 0,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "create-leave",
+      "counter": 1390,
+      "owner": {
+        "player": 0,
+        "locations": [
+          1,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1420,
+          1879
+        ],
+        "defense": [
+          1161,
+          1888
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        },
+        {
+          "index": 1,
+          "attack": [
+            3305701376,
+            3272605696
+          ],
+          "defense": [
+            3305701376,
+            3272605696
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "event": "home-enter",
+      "counter": 1440,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119158272
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1440,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119158272
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1440,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1440,
+      "xy": [
+        3304194048,
+        3272605696
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-enter",
+      "counter": 1474,
+      "owner": {
+        "player": 0,
+        "locations": [
+          1,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1420,
+          1879
+        ],
+        "defense": [
+          1161,
+          1888
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        },
+        {
+          "index": 1,
+          "attack": [
+            3305701376,
+            3272605696
+          ],
+          "defense": [
+            3305701376,
+            3272605696
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3304194048,
+            3272605696
+          ],
+          "request": [
+            3304194048,
+            3299999744
+          ],
+          "range": 1128792064,
+          "actor": {
+            "position": [
+              1126197733,
+              1117642221
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              1140,
+              1898
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3304194048,
+            3272605696
+          ],
+          "request": [
+            3305701376,
+            3272605696
+          ],
+          "range": 1128792064,
+          "actor": {
+            "position": [
+              1125941248,
+              1119289344
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    },
+    {
+      "event": "location-refresh",
+      "counter": 1474,
+      "reset": 1,
+      "before": {
+        "index": 1,
+        "attack": [
+          3305701376,
+          3272605696
+        ],
+        "defense": [
+          3305701376,
+          3272605696
+        ],
+        "anchors": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      },
+      "after": {
+        "index": 1,
+        "attack": [
+          3305701376,
+          3272605696
+        ],
+        "defense": [
+          3305701376,
+          3272605696
+        ],
+        "anchors": [
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ],
+          [
+            4294967295,
+            4294967295
+          ]
+        ]
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1474,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126197733,
+            1117642221
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1140,
+            1898
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1474,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126197733,
+            1117642221
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1140,
+            1898
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1474,
+      "reset": 1,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "before": {
+        "state": 2,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1126197733,
+            1117642221
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1140,
+            1898
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1474,
+      "reset": 1,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "after": {
+        "state": 2,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3304194048,
+          3299999744
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119158272
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            1140,
+            1898
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-enter",
+      "counter": 1474,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3304194048,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "home-leave",
+      "counter": 1474,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-enter",
+      "counter": 1474,
+      "reset": 1,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "before": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "teleport-leave",
+      "counter": 1474,
+      "reset": 1,
+      "xy": [
+        3305701376,
+        3272605696
+      ],
+      "after": {
+        "state": 1,
+        "player": 0,
+        "flags": 4096,
+        "counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "home": [
+          3305701376,
+          3272605696
+        ],
+        "request": [
+          3305701376,
+          3272605696
+        ],
+        "range": 1128792064,
+        "actor": {
+          "position": [
+            1125941248,
+            1119289344
+          ],
+          "velocity": [
+            0,
+            0
+          ],
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "flags": 0
+        }
+      }
+    },
+    {
+      "event": "reset-leave",
+      "counter": 1474,
+      "owner": {
+        "player": 0,
+        "locations": [
+          1,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "attack": [
+          1420,
+          1879
+        ],
+        "defense": [
+          1161,
+          1888
+        ]
+      },
+      "locations": [
+        {
+          "index": 0,
+          "attack": [
+            3304062976,
+            3295674368
+          ],
+          "defense": [
+            3304062976,
+            3295674368
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        },
+        {
+          "index": 1,
+          "attack": [
+            3305701376,
+            3272605696
+          ],
+          "defense": [
+            3305701376,
+            3272605696
+          ],
+          "anchors": [
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ],
+            [
+              4294967295,
+              4294967295
+            ]
+          ]
+        }
+      ],
+      "captains": [
+        {
+          "state": 2,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3305701376,
+            3272605696
+          ],
+          "request": [
+            3304194048,
+            3299999744
+          ],
+          "range": 1128792064,
+          "actor": {
+            "position": [
+              1125941248,
+              1119158272
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              1140,
+              1898
+            ],
+            "flags": 0
+          }
+        },
+        {
+          "state": 1,
+          "player": 0,
+          "flags": 4096,
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "home": [
+            3305701376,
+            3272605696
+          ],
+          "request": [
+            3305701376,
+            3272605696
+          ],
+          "range": 1128792064,
+          "actor": {
+            "position": [
+              1125941248,
+              1119289344
+            ],
+            "velocity": [
+              0,
+              0
+            ],
+            "group": [
+              4294967295,
+              4294967295
+            ],
+            "flags": 0
+          }
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "before": [
+        3288334336,
+        3304062976,
+        3288334336,
+        3304062976
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3288334336,
+        3304062976,
+        0
+      ],
+      "building": null
+    },
+    {
+      "before": [
+        3288334336,
+        3304062976,
+        3288334336,
+        3304062976
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3301179392,
+        3289120768,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3305399043,
+        3298043609,
+        3302621184,
+        3292397568
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3304062976,
+        3295674368,
+        3304062976,
+        3295674368
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ]
+    },
+    {
+      "before": [
+        3305701376,
+        3272605696,
+        3305701376,
+        3272605696
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": null
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": null
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": [
+        1092747264,
+        3253993472,
+        1082130432
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1073741824,
+        3238002688,
+        1077936128
+      ],
+      "building": null
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1094975488,
+        1111359488,
+        0
+      ],
+      "building": [
+        1094975488,
+        1111359488,
+        0
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1094975488,
+        1111359488,
+        0
+      ],
+      "building": [
+        1105788928,
+        1114701824,
+        1126170624
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        2147483648,
+        3187671040,
+        1092616192
+      ],
+      "building": [
+        1048576000,
+        1052770304,
+        1101004800
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1259902592,
+        1259902592,
+        0
+      ],
+      "building": [
+        1259902595,
+        1259902597,
+        1077936128
+      ]
+    }
+  ],
+  "original": [
+    {
+      "before": [
+        3288334336,
+        3304062976,
+        3288334336,
+        3304062976
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3288334336,
+        3304062976,
+        0
+      ],
+      "building": null,
+      "after": [
+        3288334336,
+        3304062976,
+        3288334336,
+        3304062976
+      ],
+      "writes": [
+        [
+          44,
+          3288334336
+        ],
+        [
+          60,
+          3288334336
+        ],
+        [
+          52,
+          3304062976
+        ],
+        [
+          68,
+          3304062976
+        ]
+      ],
+      "queries": [
+        [
+          3288334336,
+          3304062976,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3288334336,
+        3304062976,
+        3288334336,
+        3304062976
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "writes": [
+        [
+          60,
+          3303342080
+        ],
+        [
+          68,
+          3295805440
+        ],
+        [
+          44,
+          3305811010
+        ],
+        [
+          52,
+          3295229369
+        ]
+      ],
+      "queries": [
+        [
+          3302621184,
+          3295936512,
+          0
+        ],
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "writes": [
+        [
+          60,
+          3303342080
+        ],
+        [
+          68,
+          3295805440
+        ],
+        [
+          44,
+          3305811010
+        ],
+        [
+          52,
+          3295229369
+        ]
+      ],
+      "queries": [
+        [
+          3302621184,
+          3295936512,
+          0
+        ],
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "writes": [
+        [
+          60,
+          3303342080
+        ],
+        [
+          68,
+          3295805440
+        ],
+        [
+          44,
+          3305811010
+        ],
+        [
+          52,
+          3295229369
+        ]
+      ],
+      "queries": [
+        [
+          3302621184,
+          3295936512,
+          0
+        ],
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3302621184,
+        3295936512,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "writes": [
+        [
+          60,
+          3303342080
+        ],
+        [
+          68,
+          3295805440
+        ],
+        [
+          44,
+          3305811010
+        ],
+        [
+          52,
+          3295229369
+        ]
+      ],
+      "queries": [
+        [
+          3302621184,
+          3295936512,
+          0
+        ],
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3305811010,
+        3295229369,
+        3303342080,
+        3295805440
+      ],
+      "offset": 1133903872,
+      "mine": [
+        3301179392,
+        3289120768,
+        0
+      ],
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3305399043,
+        3298043609,
+        3302621184,
+        3292397568
+      ],
+      "writes": [
+        [
+          60,
+          3302621184
+        ],
+        [
+          68,
+          3292397568
+        ],
+        [
+          44,
+          3305399043
+        ],
+        [
+          52,
+          3298043609
+        ]
+      ],
+      "queries": [
+        [
+          3301179392,
+          3289120768,
+          0
+        ],
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3305399043,
+        3298043609,
+        3302621184,
+        3292397568
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3304062976,
+        3295674368,
+        3304062976,
+        3295674368
+      ],
+      "writes": [
+        [
+          44,
+          3304062976
+        ],
+        [
+          60,
+          3304062976
+        ],
+        [
+          52,
+          3295674368
+        ],
+        [
+          68,
+          3295674368
+        ]
+      ],
+      "queries": [
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3304062976,
+        3295674368,
+        3304062976,
+        3295674368
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": [
+        3304062976,
+        3295674368,
+        0
+      ],
+      "after": [
+        3304062976,
+        3295674368,
+        3304062976,
+        3295674368
+      ],
+      "writes": [
+        [
+          44,
+          3304062976
+        ],
+        [
+          60,
+          3304062976
+        ],
+        [
+          52,
+          3295674368
+        ],
+        [
+          68,
+          3295674368
+        ]
+      ],
+      "queries": [
+        [
+          3304062976,
+          3295674368,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        3305701376,
+        3272605696,
+        3305701376,
+        3272605696
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": null,
+      "after": [
+        3305701376,
+        3272605696,
+        3305701376,
+        3272605696
+      ],
+      "writes": [],
+      "queries": []
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": null,
+      "after": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "writes": [],
+      "queries": []
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": null,
+      "building": [
+        1092747264,
+        3253993472,
+        1082130432
+      ],
+      "after": [
+        1092747264,
+        3253993472,
+        1092747264,
+        3253993472
+      ],
+      "writes": [
+        [
+          44,
+          1092747264
+        ],
+        [
+          60,
+          1092747264
+        ],
+        [
+          52,
+          3253993472
+        ],
+        [
+          68,
+          3253993472
+        ]
+      ],
+      "queries": [
+        [
+          1092747264,
+          3253993472,
+          1082130432
+        ]
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1073741824,
+        3238002688,
+        1077936128
+      ],
+      "building": null,
+      "after": [
+        1073741824,
+        3238002688,
+        1073741824,
+        3238002688
+      ],
+      "writes": [
+        [
+          44,
+          1073741824
+        ],
+        [
+          60,
+          1073741824
+        ],
+        [
+          52,
+          3238002688
+        ],
+        [
+          68,
+          3238002688
+        ]
+      ],
+      "queries": [
+        [
+          1073741824,
+          3238002688,
+          1077936128
+        ]
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1094975488,
+        1111359488,
+        0
+      ],
+      "building": [
+        1094975488,
+        1111359488,
+        0
+      ],
+      "after": [
+        1094975488,
+        1111359488,
+        1094975488,
+        1111359488
+      ],
+      "writes": [
+        [
+          60,
+          1094975488
+        ],
+        [
+          68,
+          1111359488
+        ],
+        [
+          44,
+          1094975488
+        ],
+        [
+          52,
+          1111359488
+        ]
+      ],
+      "queries": [
+        [
+          1094975488,
+          1111359488,
+          0
+        ],
+        [
+          1094975488,
+          1111359488,
+          0
+        ]
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1094975488,
+        1111359488,
+        0
+      ],
+      "building": [
+        1105788928,
+        1114701824,
+        1126170624
+      ],
+      "after": [
+        1114765339,
+        1118299715,
+        1101365248,
+        1113030656
+      ],
+      "writes": [
+        [
+          60,
+          1101365248
+        ],
+        [
+          68,
+          1113030656
+        ],
+        [
+          44,
+          1114765339
+        ],
+        [
+          52,
+          1118299715
+        ]
+      ],
+      "queries": [
+        [
+          1094975488,
+          1111359488,
+          0
+        ],
+        [
+          1105788928,
+          1114701824,
+          1126170624
+        ]
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        2147483648,
+        3187671040,
+        1092616192
+      ],
+      "building": [
+        1048576000,
+        1052770304,
+        1101004800
+      ],
+      "after": [
+        1089970144,
+        1098227680,
+        1040187392,
+        1040187392
+      ],
+      "writes": [
+        [
+          60,
+          1040187392
+        ],
+        [
+          68,
+          1040187392
+        ],
+        [
+          44,
+          1089970144
+        ],
+        [
+          52,
+          1098227680
+        ]
+      ],
+      "queries": [
+        [
+          2147483648,
+          3187671040,
+          1092616192
+        ],
+        [
+          1048576000,
+          1052770304,
+          1101004800
+        ]
+      ]
+    },
+    {
+      "before": [
+        1093664768,
+        1102053376,
+        1107558400,
+        1110441984
+      ],
+      "offset": 1133903872,
+      "mine": [
+        1259902592,
+        1259902592,
+        0
+      ],
+      "building": [
+        1259902595,
+        1259902597,
+        1077936128
+      ],
+      "after": [
+        1259902732,
+        1259902825,
+        1259902592,
+        1259902594
+      ],
+      "writes": [
+        [
+          60,
+          1259902592
+        ],
+        [
+          68,
+          1259902594
+        ],
+        [
+          44,
+          1259902732
+        ],
+        [
+          52,
+          1259902825
+        ]
+      ],
+      "queries": [
+        [
+          1259902592,
+          1259902592,
+          0
+        ],
+        [
+          1259902595,
+          1259902597,
+          1077936128
+        ]
+      ]
+    }
+  ],
+  "instructions": {
+    "6f9bb750": "a1747ed76f",
+    "6f9bb755": "8b0488",
+    "6f9bb758": "c3",
+    "6f9bc1c0": "55",
+    "6f9bc1c1": "8bec",
+    "6f9bc1c3": "8b4508",
+    "6f9bc1c6": "56",
+    "6f9bc1c7": "57",
+    "6f9bc1c8": "8bf9",
+    "6f9bc1ca": "6a01",
+    "6f9bc1cc": "ff750c",
+    "6f9bc1cf": "894724",
+    "6f9bc1d2": "8d4f28",
+    "6f9bc1d5": "8b4728",
+    "6f9bc1d8": "ff10",
+    "6f9bc1da": "8b5738",
+    "6f9bc1dd": "8d4f38",
+    "6f9bc1e0": "6a01",
+    "6f9bc1e2": "8d472c",
+    "6f9bc1e5": "50",
+    "6f9bc1e6": "ff12",
+    "6f9bc1e8": "8b4730",
+    "6f9bc1eb": "8d4f30",
+    "6f9bc1ee": "6a01",
+    "6f9bc1f0": "ff7510",
+    "6f9bc1f3": "ff10",
+    "6f9bc1f5": "8b5740",
+    "6f9bc1f8": "8d4f40",
+    "6f9bc1fb": "6a01",
+    "6f9bc1fd": "8d4734",
+    "6f9bc200": "50",
+    "6f9bc201": "ff12",
+    "6f9bc203": "c74758ffffffff",
+    "6f9bc20a": "c74754ffffffff",
+    "6f9bc211": "c74764ffffffff",
+    "6f9bc218": "c74760ffffffff",
+    "6f9bc21f": "5f",
+    "6f9bc220": "5e",
+    "6f9bc221": "5d",
+    "6f9bc222": "c20c00",
+    "6f9bfe80": "55",
+    "6f9bfe81": "8bec",
+    "6f9bfe83": "83ec40",
+    "6f9bfe86": "53",
+    "6f9bfe87": "8bd9",
+    "6f9bfe89": "8b4358",
+    "6f9bfe8c": "8d4b54",
+    "6f9bfe8f": "2301",
+    "6f9bfe91": "56",
+    "6f9bfe92": "57",
+    "6f9bfe93": "83f8ff",
+    "6f9bfe96": "7504",
+    "6f9bfe98": "33ff",
+    "6f9bfe9a": "eb07",
+    "6f9bfe9c": "e87f146aff",
+    "6f9bfea1": "8bf8",
+    "6f9bfea3": "8b4b4c",
+    "6f9bfea6": "234b48",
+    "6f9bfea9": "83f9ff",
+    "6f9bfeac": "7504",
+    "6f9bfeae": "33f6",
+    "6f9bfeb0": "eb0a",
+    "6f9bfeb2": "8d4b48",
+    "6f9bfeb5": "e866146aff",
+    "6f9bfeba": "8bf0",
+    "6f9bfebc": "85ff",
+    "6f9bfebe": "0f8473010000",
+    "6f9bfec4": "8bcf",
+    "6f9bfec6": "85f6",
+    "6f9bfec8": "0f8465010000",
+    "6f9bfece": "8d45c0",
+    "6f9bfed1": "50",
+    "6f9bfed2": "8b07",
+    "6f9bfed4": "ff90b8000000",
+    "6f9bfeda": "8bc8",
+    "6f9bfedc": "e81f8a69ff",
+    "6f9bfee1": "8b45c0",
+    "6f9bfee4": "8bce",
+    "6f9bfee6": "8945e4",
+    "6f9bfee9": "8b45c4",
+    "6f9bfeec": "8945e8",
+    "6f9bfeef": "8b45c8",
+    "6f9bfef2": "8945ec",
+    "6f9bfef5": "8d45c0",
+    "6f9bfef8": "50",
+    "6f9bfef9": "8b06",
+    "6f9bfefb": "ff90b8000000",
+    "6f9bff01": "8bc8",
+    "6f9bff03": "e8f88969ff",
+    "6f9bff08": "8b45c0",
+    "6f9bff0b": "8d55d4",
+    "6f9bff0e": "8945cc",
+    "6f9bff11": "8d4df8",
+    "6f9bff14": "8b45c4",
+    "6f9bff17": "8945d0",
+    "6f9bff1a": "8b45c8",
+    "6f9bff1d": "8945d4",
+    "6f9bff20": "8d45ec",
+    "6f9bff23": "50",
+    "6f9bff24": "e867fb6aff",
+    "6f9bff29": "8bf8",
+    "6f9bff2b": "8d55d0",
+    "6f9bff2e": "8d45e8",
+    "6f9bff31": "50",
+    "6f9bff32": "8d4df4",
+    "6f9bff35": "e856fb6aff",
+    "6f9bff3a": "8bf0",
+    "6f9bff3c": "8d55cc",
+    "6f9bff3f": "8d45e4",
+    "6f9bff42": "50",
+    "6f9bff43": "8d4df0",
+    "6f9bff46": "e845fb6aff",
+    "6f9bff4b": "68f453cd6f",
+    "6f9bff50": "8d55d8",
+    "6f9bff53": "8b08",
+    "6f9bff55": "894dd8",
+    "6f9bff58": "8d4df0",
+    "6f9bff5b": "8b06",
+    "6f9bff5d": "8945dc",
+    "6f9bff60": "8b07",
+    "6f9bff62": "8945e0",
+    "6f9bff65": "e856fa6aff",
+    "6f9bff6a": "50",
+    "6f9bff6b": "8d55e4",
+    "6f9bff6e": "8d4df4",
+    "6f9bff71": "e83afc6aff",
+    "6f9bff76": "8b5338",
+    "6f9bff79": "8d4b38",
+    "6f9bff7c": "6a01",
+    "6f9bff7e": "50",
+    "6f9bff7f": "ff12",
+    "6f9bff81": "68f453cd6f",
+    "6f9bff86": "8d55dc",
+    "6f9bff89": "8d4df0",
+    "6f9bff8c": "e82ffa6aff",
+    "6f9bff91": "50",
+    "6f9bff92": "8d55e8",
+    "6f9bff95": "8d4df4",
+    "6f9bff98": "e813fc6aff",
+    "6f9bff9d": "8b5340",
+    "6f9bffa0": "8d4b40",
+    "6f9bffa3": "6a01",
+    "6f9bffa5": "50",
+    "6f9bffa6": "ff12",
+    "6f9bffa8": "8d45f0",
+    "6f9bffab": "50",
+    "6f9bffac": "8d4dd8",
+    "6f9bffaf": "e81c139aff",
+    "6f9bffb4": "50",
+    "6f9bffb5": "ba48c7d36f",
+    "6f9bffba": "8d4dfc",
+    "6f9bffbd": "e80efd6aff",
+    "6f9bffc2": "8d45fc",
+    "6f9bffc5": "50",
+    "6f9bffc6": "68d8c7d36f",
+    "6f9bffcb": "8d55d8",
+    "6f9bffce": "8d4df0",
+    "6f9bffd1": "e8eaf96aff",
+    "6f9bffd6": "8bd0",
+    "6f9bffd8": "8d4df4",
+    "6f9bffdb": "e8e0f96aff",
+    "6f9bffe0": "50",
+    "6f9bffe1": "8d55cc",
+    "6f9bffe4": "8d4df8",
+    "6f9bffe7": "e8c4fb6aff",
+    "6f9bffec": "8b5328",
+    "6f9bffef": "8d4b28",
+    "6f9bfff2": "6a01",
+    "6f9bfff4": "50",
+    "6f9bfff5": "ff12",
+    "6f9bfff7": "8d45fc",
+    "6f9bfffa": "50",
+    "6f9bfffb": "68d8c7d36f",
+    "6f9c0000": "8d55dc",
+    "6f9c0003": "8d4df0",
+    "6f9c0006": "e8b5f96aff",
+    "6f9c000b": "8bd0",
+    "6f9c000d": "8d4df4",
+    "6f9c0010": "e8abf96aff",
+    "6f9c0015": "50",
+    "6f9c0016": "8d55d0",
+    "6f9c0019": "8d4df8",
+    "6f9c001c": "e88ffb6aff",
+    "6f9c0021": "8b5330",
+    "6f9c0024": "8d4b30",
+    "6f9c0027": "6a01",
+    "6f9c0029": "50",
+    "6f9c002a": "ff12",
+    "6f9c002c": "5f",
+    "6f9c002d": "5e",
+    "6f9c002e": "5b",
+    "6f9c002f": "8be5",
+    "6f9c0031": "5d",
+    "6f9c0032": "c3",
+    "6f9c0033": "8b07",
+    "6f9c0035": "eb08",
+    "6f9c0037": "85f6",
+    "6f9c0039": "745f",
+    "6f9c003b": "8b06",
+    "6f9c003d": "8bce",
+    "6f9c003f": "ff90b8000000",
+    "6f9c0045": "8d4dc0",
+    "6f9c0048": "51",
+    "6f9c0049": "8bc8",
+    "6f9c004b": "e8b08869ff",
+    "6f9c0050": "8b45c0",
+    "6f9c0053": "8d4dcc",
+    "6f9c0056": "8945cc",
+    "6f9c0059": "8b45c4",
+    "6f9c005c": "8945d0",
+    "6f9c005f": "8b45c8",
+    "6f9c0062": "8945d4",
+    "6f9c0065": "8b4328",
+    "6f9c0068": "6a01",
+    "6f9c006a": "51",
+    "6f9c006b": "8d4b28",
+    "6f9c006e": "ff10",
+    "6f9c0070": "8b5338",
+    "6f9c0073": "8d4b38",
+    "6f9c0076": "6a01",
+    "6f9c0078": "8d432c",
+    "6f9c007b": "50",
+    "6f9c007c": "ff12",
+    "6f9c007e": "8b4330",
+    "6f9c0081": "8d4dd0",
+    "6f9c0084": "6a01",
+    "6f9c0086": "51",
+    "6f9c0087": "8d4b30",
+    "6f9c008a": "ff10",
+    "6f9c008c": "8b5340",
+    "6f9c008f": "8d4b40",
+    "6f9c0092": "8d4334",
+    "6f9c0095": "6a01",
+    "6f9c0097": "50",
+    "6f9c0098": "ff12",
+    "6f9c009a": "5f",
+    "6f9c009b": "5e",
+    "6f9c009c": "5b",
+    "6f9c009d": "8be5",
+    "6f9c009f": "5d",
+    "6f9c00a0": "c3",
+    "6f9bd2a0": "55",
+    "6f9bd2a1": "8bec",
+    "6f9bd2a3": "83ec38",
+    "6f9bd2a6": "a19c68ce6f",
+    "6f9bd2ab": "33c5",
+    "6f9bd2ad": "8945fc",
+    "6f9bd2b0": "53",
+    "6f9bd2b1": "56",
+    "6f9bd2b2": "57",
+    "6f9bd2b3": "6a00",
+    "6f9bd2b5": "ff35587ed76f",
+    "6f9bd2bb": "894dcc",
+    "6f9bd2be": "b96c7ed76f",
+    "6f9bd2c3": "8955c8",
+    "6f9bd2c6": "e8d5e9ffff",
+    "6f9bd2cb": "8b0d587ed76f",
+    "6f9bd2d1": "a1747ed76f",
+    "6f9bd2d6": "8d1c88",
+    "6f9bd2d9": "e8029a0000",
+    "6f9bd2de": "8bc8",
+    "6f9bd2e0": "e80b1868ff",
+    "6f9bd2e5": "ff7070",
+    "6f9bd2e8": "e8f3990000",
+    "6f9bd2ed": "8bd0",
+    "6f9bd2ef": "8d4dd0",
+    "6f9bd2f2": "e8098a69ff",
+    "6f9bd2f7": "6a01",
+    "6f9bd2f9": "ba01000000",
+    "6f9bd2fe": "c745f4ffffffff",
+    "6f9bd305": "8d4dd0",
+    "6f9bd308": "e8537879ff",
+    "6f9bd30d": "8b7854",
+    "6f9bd310": "85ff",
+    "6f9bd312": "741f",
+    "6f9bd314": "e8c7990000",
+    "6f9bd319": "8b17",
+    "6f9bd31b": "8bcf",
+    "6f9bd31d": "8bf0",
+    "6f9bd31f": "ff521c",
+    "6f9bd322": "8bd6",
+    "6f9bd324": "8bc8",
+    "6f9bd326": "e8a5fa68ff",
+    "6f9bd32b": "85c0",
+    "6f9bd32d": "7404",
+    "6f9bd32f": "8bf7",
+    "6f9bd331": "eb02",
+    "6f9bd333": "33f6",
+    "6f9bd335": "8b0b",
+    "6f9bd337": "3bce",
+    "6f9bd339": "741a",
+    "6f9bd33b": "85c9",
+    "6f9bd33d": "7409",
+    "6f9bd33f": "ff4904",
+    "6f9bd342": "7504",
+    "6f9bd344": "8b01",
+    "6f9bd346": "ff10",
+    "6f9bd348": "85f6",
+    "6f9bd34a": "7407",
+    "6f9bd34c": "85ff",
+    "6f9bd34e": "7403",
+    "6f9bd350": "ff4704",
+    "6f9bd353": "8933",
+    "6f9bd355": "8b0d587ed76f",
+    "6f9bd35b": "8bd1",
+    "6f9bd35d": "a1747ed76f",
+    "6f9bd362": "ff75c8",
+    "6f9bd365": "ff75cc",
+    "6f9bd368": "8b3488",
+    "6f9bd36b": "41",
+    "6f9bd36c": "890d587ed76f",
+    "6f9bd372": "8bce",
+    "6f9bd374": "52",
+    "6f9bd375": "e846eeffff",
+    "6f9bd37a": "8b4dfc",
+    "6f9bd37d": "8bc6",
+    "6f9bd37f": "5f",
+    "6f9bd380": "5e",
+    "6f9bd381": "33cd",
+    "6f9bd383": "5b",
+    "6f9bd384": "e8cc14ddff",
+    "6f9bd389": "8be5",
+    "6f9bd38b": "5d",
+    "6f9bd38c": "c3",
+    "6f9bd390": "55",
+    "6f9bd391": "8bec",
+    "6f9bd393": "83ec18",
+    "6f9bd396": "53",
+    "6f9bd397": "56",
+    "6f9bd398": "8bda",
+    "6f9bd39a": "8d45e8",
+    "6f9bd39d": "57",
+    "6f9bd39e": "50",
+    "6f9bd39f": "8bf1",
+    "6f9bd3a1": "8bcb",
+    "6f9bd3a3": "8b03",
+    "6f9bd3a5": "ff90b8000000",
+    "6f9bd3ab": "8bc8",
+    "6f9bd3ad": "e84eb569ff",
+    "6f9bd3b2": "8b45e8",
+    "6f9bd3b5": "8d55f8",
+    "6f9bd3b8": "8945f4",
+    "6f9bd3bb": "8d4df4",
+    "6f9bd3be": "8b45ec",
+    "6f9bd3c1": "8945f8",
+    "6f9bd3c4": "8b45f0",
+    "6f9bd3c7": "8945fc",
+    "6f9bd3ca": "e8d1feffff",
+    "6f9bd3cf": "8bf8",
+    "6f9bd3d1": "8bcf",
+    "6f9bd3d3": "53",
+    "6f9bd3d4": "85f6",
+    "6f9bd3d6": "740e",
+    "6f9bd3d8": "e843a9ffff",
+    "6f9bd3dd": "8bc7",
+    "6f9bd3df": "5f",
+    "6f9bd3e0": "5e",
+    "6f9bd3e1": "5b",
+    "6f9bd3e2": "8be5",
+    "6f9bd3e4": "5d",
+    "6f9bd3e5": "c3",
+    "6f9bd3e6": "e8d5220000",
+    "6f9bd3eb": "8bc7",
+    "6f9bd3ed": "5f",
+    "6f9bd3ee": "5e",
+    "6f9bd3ef": "5b",
+    "6f9bd3f0": "8be5",
+    "6f9bd3f2": "5d",
+    "6f9bd3f3": "c3",
+    "6f9bf6c0": "55",
+    "6f9bf6c1": "8bec",
+    "6f9bf6c3": "53",
+    "6f9bf6c4": "56",
+    "6f9bf6c5": "57",
+    "6f9bf6c6": "8bf9",
+    "6f9bf6c8": "8b474c",
+    "6f9bf6cb": "234748",
+    "6f9bf6ce": "83f8ff",
+    "6f9bf6d1": "7416",
+    "6f9bf6d3": "8d4f48",
+    "6f9bf6d6": "e8451c6aff",
+    "6f9bf6db": "85c0",
+    "6f9bf6dd": "740a",
+    "6f9bf6df": "6a00",
+    "6f9bf6e1": "57",
+    "6f9bf6e2": "8bc8",
+    "6f9bf6e4": "e8c735c9ff",
+    "6f9bf6e9": "8b5d08",
+    "6f9bf6ec": "85db",
+    "6f9bf6ee": "742d",
+    "6f9bf6f0": "8b5310",
+    "6f9bf6f3": "8b4b0c",
+    "6f9bf6f6": "e8354e69ff",
+    "6f9bf6fb": "85c0",
+    "6f9bf6fd": "741e",
+    "6f9bf6ff": "33c9",
+    "6f9bf701": "81780c6c67612b",
+    "6f9bf708": "0f44c8",
+    "6f9bf70b": "85c9",
+    "6f9bf70d": "740e",
+    "6f9bf70f": "8b4114",
+    "6f9bf712": "894748",
+    "6f9bf715": "8b4118",
+    "6f9bf718": "89474c",
+    "6f9bf71b": "eb0e",
+    "6f9bf71d": "c7474cffffffff",
+    "6f9bf724": "c74748ffffffff",
+    "6f9bf72b": "6a01",
+    "6f9bf72d": "57",
+    "6f9bf72e": "8bcb",
+    "6f9bf730": "e87b35c9ff",
+    "6f9bf735": "8bcf",
+    "6f9bf737": "e844070000",
+    "6f9bf73c": "5f",
+    "6f9bf73d": "5e",
+    "6f9bf73e": "5b",
+    "6f9bf73f": "5d",
+    "6f9bf740": "c20400",
+    "6f9b7d20": "55",
+    "6f9b7d21": "8bec",
+    "6f9b7d23": "53",
+    "6f9b7d24": "56",
+    "6f9b7d25": "57",
+    "6f9b7d26": "8b7d08",
+    "6f9b7d29": "8bd9",
+    "6f9b7d2b": "6a01",
+    "6f9b7d2d": "53",
+    "6f9b7d2e": "8bcf",
+    "6f9b7d30": "e87bafc9ff",
+    "6f9b7d35": "6a01",
+    "6f9b7d37": "53",
+    "6f9b7d38": "8bcf",
+    "6f9b7d3a": "e891b0c9ff",
+    "6f9b7d3f": "8b4358",
+    "6f9b7d42": "234354",
+    "6f9b7d45": "83f8ff",
+    "6f9b7d48": "7420",
+    "6f9b7d4a": "8d4b54",
+    "6f9b7d4d": "e8ce956aff",
+    "6f9b7d52": "85c0",
+    "6f9b7d54": "7414",
+    "6f9b7d56": "3bc7",
+    "6f9b7d58": "7462",
+    "6f9b7d5a": "57",
+    "6f9b7d5b": "8d4b60",
+    "6f9b7d5e": "e8adc586ff",
+    "6f9b7d63": "5f",
+    "6f9b7d64": "5e",
+    "6f9b7d65": "5b",
+    "6f9b7d66": "5d",
+    "6f9b7d67": "c20400",
+    "6f9b7d6a": "85ff",
+    "6f9b7d6c": "7439",
+    "6f9b7d6e": "8b5710",
+    "6f9b7d71": "8b4f0c",
+    "6f9b7d74": "e8b7c769ff",
+    "6f9b7d79": "85c0",
+    "6f9b7d7b": "742a",
+    "6f9b7d7d": "33c9",
+    "6f9b7d7f": "81780c6c67612b",
+    "6f9b7d86": "0f44c8",
+    "6f9b7d89": "85c9",
+    "6f9b7d8b": "741a",
+    "6f9b7d8d": "8b4114",
+    "6f9b7d90": "894354",
+    "6f9b7d93": "8b4118",
+    "6f9b7d96": "8bcb",
+    "6f9b7d98": "894358",
+    "6f9b7d9b": "e8e0800000",
+    "6f9b7da0": "5f",
+    "6f9b7da1": "5e",
+    "6f9b7da2": "5b",
+    "6f9b7da3": "5d",
+    "6f9b7da4": "c20400",
+    "6f9b7da7": "8bcb",
+    "6f9b7da9": "c74358ffffffff",
+    "6f9b7db0": "c74354ffffffff",
+    "6f9b7db7": "e8c4800000",
+    "6f9b7dbc": "5f",
+    "6f9b7dbd": "5e",
+    "6f9b7dbe": "5b",
+    "6f9b7dbf": "5d",
+    "6f9b7dc0": "c20400",
+    "6f9b7c10": "56",
+    "6f9b7c11": "6a00",
+    "6f9b7c13": "33d2",
+    "6f9b7c15": "8bf1",
+    "6f9b7c17": "e8742b0000",
+    "6f9b7c1c": "85c0",
+    "6f9b7c1e": "7811",
+    "6f9b7c20": "8b0d747ed76f",
+    "6f9b7c26": "56",
+    "6f9b7c27": "8b0c81",
+    "6f9b7c2a": "e8f1000000",
+    "6f9b7c2f": "5e",
+    "6f9b7c30": "c3",
+    "6f9b7c31": "8bd6",
+    "6f9b7c33": "b901000000",
+    "6f9b7c38": "5e",
+    "6f9b7c39": "e952570000",
+    "6f9ba5d0": "55",
+    "6f9ba5d1": "8bec",
+    "6f9ba5d3": "83ec20",
+    "6f9ba5d6": "53",
+    "6f9ba5d7": "56",
+    "6f9ba5d8": "57",
+    "6f9ba5d9": "8955ec",
+    "6f9ba5dc": "33ff",
+    "6f9ba5de": "83caff",
+    "6f9ba5e1": "c745f450000000",
+    "6f9ba5e8": "8bf1",
+    "6f9ba5ea": "8955fc",
+    "6f9ba5ed": "bb96000000",
+    "6f9ba5f2": "8975f8",
+    "6f9ba5f5": "393d587ed76f",
+    "6f9ba5fb": "0f8eb7000000",
+    "6f9ba601": "8b0d747ed76f",
+    "6f9ba607": "8b0cb9",
+    "6f9ba60a": "83c154",
+    "6f9ba60d": "8b4104",
+    "6f9ba610": "2301",
+    "6f9ba612": "83f8ff",
+    "6f9ba615": "0f8490000000",
+    "6f9ba61b": "e8006d6aff",
+    "6f9ba620": "8945f0",
+    "6f9ba623": "85c0",
+    "6f9ba625": "7479",
+    "6f9ba627": "8d8864010000",
+    "6f9ba62d": "85f6",
+    "6f9ba62f": "7430",
+    "6f9ba631": "81c664010000",
+    "6f9ba637": "8d45e0",
+    "6f9ba63a": "50",
+    "6f9ba63b": "8bce",
+    "6f9ba63d": "e8bee269ff",
+    "6f9ba642": "8b45f8",
+    "6f9ba645": "6a00",
+    "6f9ba647": "6a01",
+    "6f9ba649": "ff7034",
+    "6f9ba64c": "8b45f0",
+    "6f9ba64f": "56",
+    "6f9ba650": "ff7034",
+    "6f9ba653": "8d8864010000",
+    "6f9ba659": "51",
+    "6f9ba65a": "53",
+    "6f9ba65b": "8d45e0",
+    "6f9ba65e": "50",
+    "6f9ba65f": "eb10",
+    "6f9ba661": "6a00",
+    "6f9ba663": "6a01",
+    "6f9ba665": "6a00",
+    "6f9ba667": "6a00",
+    "6f9ba669": "ff7034",
+    "6f9ba66c": "51",
+    "6f9ba66d": "53",
+    "6f9ba66e": "ff75ec",
+    "6f9ba671": "e87aee69ff",
+    "6f9ba676": "8b0d483ad56f",
+    "6f9ba67c": "8bf0",
+    "6f9ba67e": "e85d097aff",
+    "6f9ba683": "8b809c000000",
+    "6f9ba689": "83c032",
+    "6f9ba68c": "3bc3",
+    "6f9ba68e": "0f42d8",
+    "6f9ba691": "3b75f4",
+    "6f9ba694": "730f",
+    "6f9ba696": "8bd7",
+    "6f9ba698": "8975f4",
+    "6f9ba69b": "8955fc",
+    "6f9ba69e": "eb08",
+    "6f9ba6a0": "8b55fc",
+    "6f9ba6a3": "eb06",
+    "6f9ba6a5": "8b55fc",
+    "6f9ba6a8": "8b75f8",
+    "6f9ba6ab": "47",
+    "6f9ba6ac": "3b3d587ed76f",
+    "6f9ba6b2": "0f8c49ffffff",
+    "6f9ba6b8": "5f",
+    "6f9ba6b9": "5e",
+    "6f9ba6ba": "8bc2",
+    "6f9ba6bc": "5b",
+    "6f9ba6bd": "8be5",
+    "6f9ba6bf": "5d",
+    "6f9ba6c0": "c3",
+    "6f9ba790": "55",
+    "6f9ba791": "8bec",
+    "6f9ba793": "81ec8c000000",
+    "6f9ba799": "53",
+    "6f9ba79a": "8bc1",
+    "6f9ba79c": "8955d0",
+    "6f9ba79f": "56",
+    "6f9ba7a0": "8945f4",
+    "6f9ba7a3": "83ceff",
+    "6f9ba7a6": "0564010000",
+    "6f9ba7ab": "c745ecffffffff",
+    "6f9ba7b2": "57",
+    "6f9ba7b3": "33db",
+    "6f9ba7b5": "8945d4",
+    "6f9ba7b8": "bf88130000",
+    "6f9ba7bd": "a18054cd6f",
+    "6f9ba7c2": "c745e046000000",
+    "6f9ba7c9": "897dfc",
+    "6f9ba7cc": "8975e8",
+    "6f9ba7cf": "8945e4",
+    "6f9ba7d2": "391d587ed76f",
+    "6f9ba7d8": "0f8e22020000",
+    "6f9ba7de": "8bff",
+    "6f9ba7e0": "85d2",
+    "6f9ba7e2": "7522",
+    "6f9ba7e4": "a1747ed76f",
+    "6f9ba7e9": "8b0c98",
+    "6f9ba7ec": "8b4164",
+    "6f9ba7ef": "83c160",
+    "6f9ba7f2": "2301",
+    "6f9ba7f4": "83f8ff",
+    "6f9ba7f7": "740d",
+    "6f9ba7f9": "e8226b6aff",
+    "6f9ba7fe": "85c0",
+    "6f9ba800": "0f85d7010000",
+    "6f9ba806": "a1747ed76f",
+    "6f9ba80b": "8b0c98",
+    "6f9ba80e": "8b4158",
+    "6f9ba811": "83c154",
+    "6f9ba814": "2301",
+    "6f9ba816": "83f8ff",
+    "6f9ba819": "740c",
+    "6f9ba81b": "e8006b6aff",
+    "6f9ba820": "8945f8",
+    "6f9ba823": "85c0",
+    "6f9ba825": "7521",
+    "6f9ba827": "a1747ed76f",
+    "6f9ba82c": "8b0c98",
+    "6f9ba82f": "8b414c",
+    "6f9ba832": "83c148",
+    "6f9ba835": "2301",
+    "6f9ba837": "83f8ff",
+    "6f9ba83a": "7504",
+    "6f9ba83c": "33c0",
+    "6f9ba83e": "eb05",
+    "6f9ba840": "e8db6a6aff",
+    "6f9ba845": "8945f8",
+    "6f9ba848": "8b3544c7d36f",
+    "6f9ba84e": "8975f0",
+    "6f9ba851": "85c0",
+    "6f9ba853": "0f84a5000000",
+    "6f9ba859": "8db864010000",
+    "6f9ba85f": "8d8574ffffff",
+    "6f9ba865": "8bcf",
+    "6f9ba867": "50",
+    "6f9ba868": "e893e069ff",
+    "6f9ba86d": "8b45f4",
+    "6f9ba870": "6a00",
+    "6f9ba872": "6a01",
+    "6f9ba874": "ff7034",
+    "6f9ba877": "8d8864010000",
+    "6f9ba87d": "8b45f8",
+    "6f9ba880": "51",
+    "6f9ba881": "ff7034",
+    "6f9ba884": "8d8574ffffff",
+    "6f9ba88a": "57",
+    "6f9ba88b": "ff75fc",
+    "6f9ba88e": "50",
+    "6f9ba88f": "e85cec69ff",
+    "6f9ba894": "8b4d08",
+    "6f9ba897": "8bf8",
+    "6f9ba899": "85c9",
+    "6f9ba89b": "0f84e6000000",
+    "6f9ba8a1": "8d4580",
+    "6f9ba8a4": "50",
+    "6f9ba8a5": "8b45f8",
+    "6f9ba8a8": "8bc8",
+    "6f9ba8aa": "8b10",
+    "6f9ba8ac": "ff92b8000000",
+    "6f9ba8b2": "8bc8",
+    "6f9ba8b4": "e847e069ff",
+    "6f9ba8b9": "8b4580",
+    "6f9ba8bc": "8b4df4",
+    "6f9ba8bf": "8945b8",
+    "6f9ba8c2": "8b4584",
+    "6f9ba8c5": "8945bc",
+    "6f9ba8c8": "8d4598",
+    "6f9ba8cb": "50",
+    "6f9ba8cc": "8b01",
+    "6f9ba8ce": "ff90b8000000",
+    "6f9ba8d4": "8bc8",
+    "6f9ba8d6": "e825e069ff",
+    "6f9ba8db": "8b4598",
+    "6f9ba8de": "8d55b8",
+    "6f9ba8e1": "8945c0",
+    "6f9ba8e4": "8d4dd8",
+    "6f9ba8e7": "8b459c",
+    "6f9ba8ea": "8945c4",
+    "6f9ba8ed": "8d45c0",
+    "6f9ba8f0": "50",
+    "6f9ba8f1": "e85a5f6bff",
+    "6f9ba8f6": "8b75d8",
+    "6f9ba8f9": "e986000000",
+    "6f9ba8fe": "a1747ed76f",
+    "6f9ba903": "6a00",
+    "6f9ba905": "6a01",
+    "6f9ba907": "6a00",
+    "6f9ba909": "8b0c98",
+    "6f9ba90c": "6a00",
+    "6f9ba90e": "8b4144",
+    "6f9ba911": "8b493c",
+    "6f9ba914": "8945a8",
+    "6f9ba917": "8b45f4",
+    "6f9ba91a": "894da4",
+    "6f9ba91d": "8d4da4",
+    "6f9ba920": "8975ac",
+    "6f9ba923": "ff7034",
+    "6f9ba926": "8b45d4",
+    "6f9ba929": "50",
+    "6f9ba92a": "57",
+    "6f9ba92b": "51",
+    "6f9ba92c": "8bc8",
+    "6f9ba92e": "e8bdeb69ff",
+    "6f9ba933": "8b4d08",
+    "6f9ba936": "8bf8",
+    "6f9ba938": "85c9",
+    "6f9ba93a": "744b",
+    "6f9ba93c": "a1747ed76f",
+    "6f9ba941": "8b0c98",
+    "6f9ba944": "8b4144",
+    "6f9ba947": "8b493c",
+    "6f9ba94a": "894db0",
+    "6f9ba94d": "8b4df4",
+    "6f9ba950": "8945b4",
+    "6f9ba953": "8d458c",
+    "6f9ba956": "50",
+    "6f9ba957": "8b01",
+    "6f9ba959": "ff90b8000000",
+    "6f9ba95f": "8bc8",
+    "6f9ba961": "e89adf69ff",
+    "6f9ba966": "8b458c",
+    "6f9ba969": "8d55b0",
+    "6f9ba96c": "8945c8",
+    "6f9ba96f": "8d4ddc",
+    "6f9ba972": "8b4590",
+    "6f9ba975": "8945cc",
+    "6f9ba978": "8d45c8",
+    "6f9ba97b": "50",
+    "6f9ba97c": "e8cf5e6bff",
+    "6f9ba981": "8b75dc",
+    "6f9ba984": "8975f0",
+    "6f9ba987": "8b0d483ad56f",
+    "6f9ba98d": "e84e067aff",
+    "6f9ba992": "8b4dfc",
+    "6f9ba995": "8b809c000000",
+    "6f9ba99b": "83c064",
+    "6f9ba99e": "3bc1",
+    "6f9ba9a0": "0f42c8",
+    "6f9ba9a3": "837d0800",
+    "6f9ba9a7": "894dfc",
+    "6f9ba9aa": "7415",
+    "6f9ba9ac": "f30f1045e4",
+    "6f9ba9b1": "0f2f45f0",
+    "6f9ba9b5": "760a",
+    "6f9ba9b7": "8975e4",
+    "6f9ba9ba": "8bf3",
+    "6f9ba9bc": "8975e8",
+    "6f9ba9bf": "eb03",
+    "6f9ba9c1": "8b75e8",
+    "6f9ba9c4": "3b7de0",
+    "6f9ba9c7": "7311",
+    "6f9ba9c9": "897de0",
+    "6f9ba9cc": "8bcb",
+    "6f9ba9ce": "894dec",
+    "6f9ba9d1": "85ff",
+    "6f9ba9d3": "741b",
+    "6f9ba9d5": "8b7dfc",
+    "6f9ba9d8": "eb06",
+    "6f9ba9da": "8b7dfc",
+    "6f9ba9dd": "8b4dec",
+    "6f9ba9e0": "8b55d0",
+    "6f9ba9e3": "43",
+    "6f9ba9e4": "3b1d587ed76f",
+    "6f9ba9ea": "0f8cf0fdffff",
+    "6f9ba9f0": "83f9ff",
+    "6f9ba9f3": "740b",
+    "6f9ba9f5": "5f",
+    "6f9ba9f6": "5e",
+    "6f9ba9f7": "8bc1",
+    "6f9ba9f9": "5b",
+    "6f9ba9fa": "8be5",
+    "6f9ba9fc": "5d",
+    "6f9ba9fd": "c20400",
+    "6f9baa00": "8b4d08",
+    "6f9baa03": "83c8ff",
+    "6f9baa06": "85c9",
+    "6f9baa08": "5f",
+    "6f9baa09": "0f45c6",
+    "6f9baa0c": "5e",
+    "6f9baa0d": "5b",
+    "6f9baa0e": "8be5",
+    "6f9baa10": "5d",
+    "6f9baa11": "c20400",
+    "6f9ccb60": "55",
+    "6f9ccb61": "8bec",
+    "6f9ccb63": "56",
+    "6f9ccb64": "8d91b8010000",
+    "6f9ccb6a": "33f6",
+    "6f9ccb6c": "57",
+    "6f9ccb6d": "8b7d08",
+    "6f9ccb70": "8bc2",
+    "6f9ccb72": "3938",
+    "6f9ccb74": "7426",
+    "6f9ccb76": "46",
+    "6f9ccb77": "83c004",
+    "6f9ccb7a": "83fe04",
+    "6f9ccb7d": "7cf3",
+    "6f9ccb7f": "33c0",
+    "6f9ccb81": "833aff",
+    "6f9ccb84": "740f",
+    "6f9ccb86": "40",
+    "6f9ccb87": "83c204",
+    "6f9ccb8a": "83f804",
+    "6f9ccb8d": "7cf2",
+    "6f9ccb8f": "5f",
+    "6f9ccb90": "5e",
+    "6f9ccb91": "5d",
+    "6f9ccb92": "c20400",
+    "6f9ccb95": "89bc81b8010000",
+    "6f9ccb9c": "5f",
+    "6f9ccb9d": "5e",
+    "6f9ccb9e": "5d",
+    "6f9ccb9f": "c20400",
+    "6f9c01f0": "55",
+    "6f9c01f1": "8bec",
+    "6f9c01f3": "51",
+    "6f9c01f4": "53",
+    "6f9c01f5": "8b5d0c",
+    "6f9c01f8": "8bd3",
+    "6f9c01fa": "56",
+    "6f9c01fb": "8b7508",
+    "6f9c01fe": "894dfc",
+    "6f9c0201": "8bce",
+    "6f9c0203": "57",
+    "6f9c0204": "e8c7a3ffff",
+    "6f9c0209": "8bf8",
+    "6f9c020b": "83ffff",
+    "6f9c020e": "7541",
+    "6f9c0210": "8b3d587ed76f",
+    "6f9c0216": "85f6",
+    "6f9c0218": "741b",
+    "6f9c021a": "8bd6",
+    "6f9c021c": "33c9",
+    "6f9c021e": "e86dd1ffff",
+    "6f9c0223": "8b4dfc",
+    "6f9c0226": "57",
+    "6f9c0227": "e834c90000",
+    "6f9c022c": "5f",
+    "6f9c022d": "5e",
+    "6f9c022e": "5b",
+    "6f9c022f": "8be5",
+    "6f9c0231": "5d",
+    "6f9c0232": "c20800",
+    "6f9c0235": "8d5304",
+    "6f9c0238": "8bcb",
+    "6f9c023a": "e861d0ffff",
+    "6f9c023f": "8b4dfc",
+    "6f9c0242": "57",
+    "6f9c0243": "e818c90000",
+    "6f9c0248": "5f",
+    "6f9c0249": "5e",
+    "6f9c024a": "5b",
+    "6f9c024b": "8be5",
+    "6f9c024d": "5d",
+    "6f9c024e": "c20800",
+    "6f9c0251": "85f6",
+    "6f9c0253": "740f",
+    "6f9c0255": "8b0d747ed76f",
+    "6f9c025b": "56",
+    "6f9c025c": "8b0cb9",
+    "6f9c025f": "e85cf4ffff",
+    "6f9c0264": "8b4dfc",
+    "6f9c0267": "57",
+    "6f9c0268": "e8f3c80000",
+    "6f9c026d": "5f",
+    "6f9c026e": "5e",
+    "6f9c026f": "5b",
+    "6f9c0270": "8be5",
+    "6f9c0272": "5d",
+    "6f9c0273": "c20800",
+    "6f9c4a20": "55",
+    "6f9c4a21": "8bec",
+    "6f9c4a23": "83ec24",
+    "6f9c4a26": "83b9b8010000ff",
+    "6f9c4a2d": "57",
+    "6f9c4a2e": "8db9b8010000",
+    "6f9c4a34": "897df4",
+    "6f9c4a37": "7511",
+    "6f9c4a39": "6a00",
+    "6f9c4a3b": "ff7508",
+    "6f9c4a3e": "e8ed46ffff",
+    "6f9c4a43": "5f",
+    "6f9c4a44": "8be5",
+    "6f9c4a46": "5d",
+    "6f9c4a47": "c20400",
+    "6f9c4a4a": "53",
+    "6f9c4a4b": "33d2",
+    "6f9c4a4d": "c745f888130000",
+    "6f9c4a54": "33db",
+    "6f9c4a56": "8955fc",
+    "6f9c4a59": "33c0",
+    "6f9c4a5b": "c745e804000000",
+    "6f9c4a62": "56",
+    "6f9c4a63": "8945ec",
+    "6f9c4a66": "eb08",
+    "6f9c4a70": "8b0f",
+    "6f9c4a72": "83f9ff",
+    "6f9c4a75": "0f84b8000000",
+    "6f9c4a7b": "e8d06cffff",
+    "6f9c4a80": "8bf0",
+    "6f9c4a82": "85f6",
+    "6f9c4a84": "0f84a6000000",
+    "6f9c4a8a": "8b464c",
+    "6f9c4a8d": "8d4e48",
+    "6f9c4a90": "85db",
+    "6f9c4a92": "0f44de",
+    "6f9c4a95": "2301",
+    "6f9c4a97": "83f8ff",
+    "6f9c4a9a": "740c",
+    "6f9c4a9c": "e87fc869ff",
+    "6f9c4aa1": "8945f0",
+    "6f9c4aa4": "85c0",
+    "6f9c4aa6": "7519",
+    "6f9c4aa8": "8b4658",
+    "6f9c4aab": "8d4e54",
+    "6f9c4aae": "2301",
+    "6f9c4ab0": "83f8ff",
+    "6f9c4ab3": "747b",
+    "6f9c4ab5": "e866c869ff",
+    "6f9c4aba": "8945f0",
+    "6f9c4abd": "85c0",
+    "6f9c4abf": "746f",
+    "6f9c4ac1": "8db864010000",
+    "6f9c4ac7": "8d45dc",
+    "6f9c4aca": "8bcf",
+    "6f9c4acc": "50",
+    "6f9c4acd": "e82e3e69ff",
+    "6f9c4ad2": "8b4508",
+    "6f9c4ad5": "6a00",
+    "6f9c4ad7": "6a01",
+    "6f9c4ad9": "ff7034",
+    "6f9c4adc": "8d8864010000",
+    "6f9c4ae2": "8b45f0",
+    "6f9c4ae5": "51",
+    "6f9c4ae6": "ff7034",
+    "6f9c4ae9": "8d45dc",
+    "6f9c4aec": "57",
+    "6f9c4aed": "ff75f8",
+    "6f9c4af0": "50",
+    "6f9c4af1": "e8fa4969ff",
+    "6f9c4af6": "8b0d483ad56f",
+    "6f9c4afc": "8bf8",
+    "6f9c4afe": "e8dd6479ff",
+    "6f9c4b03": "8b55fc",
+    "6f9c4b06": "8b889c000000",
+    "6f9c4b0c": "8b45f8",
+    "6f9c4b0f": "83c164",
+    "6f9c4b12": "3bc8",
+    "6f9c4b14": "0f42c1",
+    "6f9c4b17": "8945f8",
+    "6f9c4b1a": "85d2",
+    "6f9c4b1c": "7405",
+    "6f9c4b1e": "3b7dec",
+    "6f9c4b21": "7308",
+    "6f9c4b23": "8bd6",
+    "6f9c4b25": "897dec",
+    "6f9c4b28": "8955fc",
+    "6f9c4b2b": "8b7df4",
+    "6f9c4b2e": "eb03",
+    "6f9c4b30": "8b55fc",
+    "6f9c4b33": "83c704",
+    "6f9c4b36": "ff4de8",
+    "6f9c4b39": "897df4",
+    "6f9c4b3c": "0f852effffff",
+    "6f9c4b42": "85d2",
+    "6f9c4b44": "5e",
+    "6f9c4b45": "0f45da",
+    "6f9c4b48": "8bc3",
+    "6f9c4b4a": "5b",
+    "6f9c4b4b": "5f",
+    "6f9c4b4c": "8be5",
+    "6f9c4b4e": "5d",
+    "6f9c4b4f": "c20400",
+    "6f9c4280": "55",
+    "6f9c4281": "8bec",
+    "6f9c4283": "83ec2c",
+    "6f9c4286": "a19c68ce6f",
+    "6f9c428b": "33c5",
+    "6f9c428d": "8945fc",
+    "6f9c4290": "33c0",
+    "6f9c4292": "894de4",
+    "6f9c4295": "83b9b8010000ff",
+    "6f9c429c": "56",
+    "6f9c429d": "0f95c0",
+    "6f9c42a0": "57",
+    "6f9c42a1": "8db9b8010000",
+    "6f9c42a7": "8945d4",
+    "6f9c42aa": "8945ec",
+    "6f9c42ad": "33c0",
+    "6f9c42af": "83b9bc010000ff",
+    "6f9c42b6": "0f95c0",
+    "6f9c42b9": "8945dc",
+    "6f9c42bc": "8945f0",
+    "6f9c42bf": "33c0",
+    "6f9c42c1": "83b9c0010000ff",
+    "6f9c42c8": "0f95c0",
+    "6f9c42cb": "8945d8",
+    "6f9c42ce": "8945f4",
+    "6f9c42d1": "33c0",
+    "6f9c42d3": "83b9c4010000ff",
+    "6f9c42da": "0f95c0",
+    "6f9c42dd": "83c128",
+    "6f9c42e0": "8945e0",
+    "6f9c42e3": "8945f8",
+    "6f9c42e6": "8b4104",
+    "6f9c42e9": "2301",
+    "6f9c42eb": "83f8ff",
+    "6f9c42ee": "7545",
+    "6f9c42f0": "33f6",
+    "6f9c42f2": "33c9",
+    "6f9c42f4": "53",
+    "6f9c42f5": "33db",
+    "6f9c42f7": "85c9",
+    "6f9c42f9": "0f84a2000000",
+    "6f9c42ff": "90",
+    "6f9c4300": "e81b2dccff",
+    "6f9c4305": "85c0",
+    "6f9c4307": "744a",
+    "6f9c4309": "8d4848",
+    "6f9c430c": "8b4104",
+    "6f9c430f": "2301",
+    "6f9c4311": "83f8ff",
+    "6f9c4314": "743d",
+    "6f9c4316": "e805d069ff",
+    "6f9c431b": "85c0",
+    "6f9c431d": "7434",
+    "6f9c431f": "8b5024",
+    "6f9c4322": "8bcf",
+    "6f9c4324": "33c0",
+    "6f9c4326": "3911",
+    "6f9c4328": "7421",
+    "6f9c432a": "40",
+    "6f9c432b": "83c104",
+    "6f9c432e": "83f804",
+    "6f9c4331": "7cf3",
+    "6f9c4333": "eb1e",
+    "6f9c4335": "e8e6cf69ff",
+    "6f9c433a": "8bf0",
+    "6f9c433c": "85f6",
+    "6f9c433e": "74b2",
+    "6f9c4340": "8bce",
+    "6f9c4342": "e8791969ff",
+    "6f9c4347": "8bc8",
+    "6f9c4349": "eba9",
+    "6f9c434b": "c74485ec00000000",
+    "6f9c4353": "85f6",
+    "6f9c4355": "7427",
+    "6f9c4357": "8b4628",
+    "6f9c435a": "8d4e24",
+    "6f9c435d": "2301",
+    "6f9c435f": "83f8ff",
+    "6f9c4362": "7504",
+    "6f9c4364": "33f6",
+    "6f9c4366": "eb07",
+    "6f9c4368": "e8b3cf69ff",
+    "6f9c436d": "8bf0",
+    "6f9c436f": "85f6",
+    "6f9c4371": "740d",
+    "6f9c4373": "8bce",
+    "6f9c4375": "e8461969ff",
+    "6f9c437a": "8bc8",
+    "6f9c437c": "eb04",
+    "6f9c437e": "33f6",
+    "6f9c4380": "8bcb",
+    "6f9c4382": "33c0",
+    "6f9c4384": "85f6",
+    "6f9c4386": "0f45c3",
+    "6f9c4389": "8bd8",
+    "6f9c438b": "85c9",
+    "6f9c438d": "0f856dffffff",
+    "6f9c4393": "8b4df8",
+    "6f9c4396": "8b75f4",
+    "6f9c4399": "8b55f0",
+    "6f9c439c": "8b45ec",
+    "6f9c439f": "eb0c",
+    "6f9c43a1": "8b45d4",
+    "6f9c43a4": "8b4de0",
+    "6f9c43a7": "8b75d8",
+    "6f9c43aa": "8b55dc",
+    "6f9c43ad": "5b",
+    "6f9c43ae": "85c0",
+    "6f9c43b0": "7406",
+    "6f9c43b2": "c707ffffffff",
+    "6f9c43b8": "85d2",
+    "6f9c43ba": "8b55e4",
+    "6f9c43bd": "740a",
+    "6f9c43bf": "c782bc010000ffffffff",
+    "6f9c43c9": "85f6",
+    "6f9c43cb": "740a",
+    "6f9c43cd": "c782c0010000ffffffff",
+    "6f9c43d7": "85c9",
+    "6f9c43d9": "740a",
+    "6f9c43db": "c782c4010000ffffffff",
+    "6f9c43e5": "33f6",
+    "6f9c43e7": "833fff",
+    "6f9c43ea": "7538",
+    "6f9c43ec": "8d4601",
+    "6f9c43ef": "83f804",
+    "6f9c43f2": "7d30",
+    "6f9c43f4": "8d4f04",
+    "6f9c43f7": "8339ff",
+    "6f9c43fa": "750b",
+    "6f9c43fc": "40",
+    "6f9c43fd": "83c104",
+    "6f9c4400": "83f804",
+    "6f9c4403": "7cf2",
+    "6f9c4405": "eb1d",
+    "6f9c4407": "8b8c82b8010000",
+    "6f9c440e": "890f",
+    "6f9c4410": "8bca",
+    "6f9c4412": "56",
+    "6f9c4413": "50",
+    "6f9c4414": "c78482b8010000ffffffff",
+    "6f9c441f": "e8bc7f0000",
+    "6f9c4424": "8b55e4",
+    "6f9c4427": "46",
+    "6f9c4428": "83c704",
+    "6f9c442b": "83fe03",
+    "6f9c442e": "7cb7",
+    "6f9c4430": "8b4dfc",
+    "6f9c4433": "5f",
+    "6f9c4434": "33cd",
+    "6f9c4436": "5e",
+    "6f9c4437": "e819a4dcff",
+    "6f9c443c": "8be5",
+    "6f9c443e": "5d",
+    "6f9c443f": "c3",
+    "6f9bd610": "55",
+    "6f9bd611": "8bec",
+    "6f9bd613": "53",
+    "6f9bd614": "8b5d08",
+    "6f9bd617": "56",
+    "6f9bd618": "8bf1",
+    "6f9bd61a": "8b4308",
+    "6f9bd61d": "3da0010d00",
+    "6f9bd622": "740f",
+    "6f9bd624": "3da4010d00",
+    "6f9bd629": "7408",
+    "6f9bd62b": "5e",
+    "6f9bd62c": "33c0",
+    "6f9bd62e": "5b",
+    "6f9bd62f": "5d",
+    "6f9bd630": "c20400",
+    "6f9bd633": "8b5b0c",
+    "6f9bd636": "8bcb",
+    "6f9bd638": "57",
+    "6f9bd639": "6a00",
+    "6f9bd63b": "56",
+    "6f9bd63c": "e86f56c9ff",
+    "6f9bd641": "6a00",
+    "6f9bd643": "56",
+    "6f9bd644": "8bcb",
+    "6f9bd646": "e88557c9ff",
+    "6f9bd64b": "8b4658",
+    "6f9bd64e": "234654",
+    "6f9bd651": "83f8ff",
+    "6f9bd654": "7504",
+    "6f9bd656": "33c0",
+    "6f9bd658": "eb08",
+    "6f9bd65a": "8d4e54",
+    "6f9bd65d": "e8be3c6aff",
+    "6f9bd662": "3bc3",
+    "6f9bd664": "8b4664",
+    "6f9bd667": "7537",
+    "6f9bd669": "234660",
+    "6f9bd66c": "83f8ff",
+    "6f9bd66f": "7504",
+    "6f9bd671": "33c0",
+    "6f9bd673": "eb08",
+    "6f9bd675": "8d4e60",
+    "6f9bd678": "e8a33c6aff",
+    "6f9bd67d": "50",
+    "6f9bd67e": "8d4e54",
+    "6f9bd681": "e88a6c86ff",
+    "6f9bd686": "c74664ffffffff",
+    "6f9bd68d": "b801000000",
+    "6f9bd692": "5f",
+    "6f9bd693": "c74660ffffffff",
+    "6f9bd69a": "5e",
+    "6f9bd69b": "5b",
+    "6f9bd69c": "5d",
+    "6f9bd69d": "c20400",
+    "6f9bd6a0": "234660",
+    "6f9bd6a3": "83f8ff",
+    "6f9bd6a6": "7504",
+    "6f9bd6a8": "33c0",
+    "6f9bd6aa": "eb08",
+    "6f9bd6ac": "8d4e60",
+    "6f9bd6af": "e86c3c6aff",
+    "6f9bd6b4": "3bc3",
+    "6f9bd6b6": "74ce",
+    "6f9bd6b8": "5f",
+    "6f9bd6b9": "c7464cffffffff",
+    "6f9bd6c0": "b801000000",
+    "6f9bd6c5": "c74648ffffffff",
+    "6f9bd6cc": "5e",
+    "6f9bd6cd": "5b",
+    "6f9bd6ce": "5d",
+    "6f9bd6cf": "c20400",
+    "6f9c5360": "55",
+    "6f9c5361": "8bec",
+    "6f9c5363": "83ec14",
+    "6f9c5366": "56",
+    "6f9c5367": "57",
+    "6f9c5368": "8bf9",
+    "6f9c536a": "83bfb8010000ff",
+    "6f9c5371": "753f",
+    "6f9c5373": "8b35a887d66f",
+    "6f9c5379": "8bce",
+    "6f9c537b": "ff7724",
+    "6f9c537e": "e81dbb81ff",
+    "6f9c5383": "6b88740200002c",
+    "6f9c538a": "8b8431ac000000",
+    "6f9c5391": "8945ec",
+    "6f9c5394": "8b8431b0000000",
+    "6f9c539b": "8bcf",
+    "6f9c539d": "8945f0",
+    "6f9c53a0": "8d45ec",
+    "6f9c53a3": "50",
+    "6f9c53a4": "6a00",
+    "6f9c53a6": "c745f400000000",
+    "6f9c53ad": "e83eaeffff",
+    "6f9c53b2": "8b8fb8010000",
+    "6f9c53b8": "e89363ffff",
+    "6f9c53bd": "8bf0",
+    "6f9c53bf": "85f6",
+    "6f9c53c1": "0f840a010000",
+    "6f9c53c7": "8b4e3c",
+    "6f9c53ca": "8d45fc",
+    "6f9c53cd": "8b9754010000",
+    "6f9c53d3": "894dfc",
+    "6f9c53d6": "8d8f54010000",
+    "6f9c53dc": "6a01",
+    "6f9c53de": "50",
+    "6f9c53df": "ff12",
+    "6f9c53e1": "8b4644",
+    "6f9c53e4": "8d8f5c010000",
+    "6f9c53ea": "8945fc",
+    "6f9c53ed": "8d55fc",
+    "6f9c53f0": "8b01",
+    "6f9c53f2": "6a01",
+    "6f9c53f4": "52",
+    "6f9c53f5": "ff10",
+    "6f9c53f7": "8b4634",
+    "6f9c53fa": "8bcf",
+    "6f9c53fc": "8945fc",
+    "6f9c53ff": "8b462c",
+    "6f9c5402": "8945f8",
+    "6f9c5405": "8d45fc",
+    "6f9c5408": "50",
+    "6f9c5409": "8d45f8",
+    "6f9c540c": "50",
+    "6f9c540d": "6a02",
+    "6f9c540f": "ff7724",
+    "6f9c5412": "e859feffff",
+    "6f9c5417": "85c0",
+    "6f9c5419": "7433",
+    "6f9c541b": "8b5010",
+    "6f9c541e": "8b480c",
+    "6f9c5421": "e80af168ff",
+    "6f9c5426": "85c0",
+    "6f9c5428": "7424",
+    "6f9c542a": "33c9",
+    "6f9c542c": "81780c6c67612b",
+    "6f9c5433": "0f44c8",
+    "6f9c5436": "85c9",
+    "6f9c5438": "7414",
+    "6f9c543a": "8b4114",
+    "6f9c543d": "8987ac020000",
+    "6f9c5443": "8b4118",
+    "6f9c5446": "8987b0020000",
+    "6f9c544c": "eb14",
+    "6f9c544e": "c787b0020000ffffffff",
+    "6f9c5458": "c787ac020000ffffffff",
+    "6f9c5462": "8b4644",
+    "6f9c5465": "8bcf",
+    "6f9c5467": "8945f8",
+    "6f9c546a": "8b463c",
+    "6f9c546d": "8945fc",
+    "6f9c5470": "8d45f8",
+    "6f9c5473": "50",
+    "6f9c5474": "8d45fc",
+    "6f9c5477": "50",
+    "6f9c5478": "6a01",
+    "6f9c547a": "ff7724",
+    "6f9c547d": "e8eefdffff",
+    "6f9c5482": "85c0",
+    "6f9c5484": "7437",
+    "6f9c5486": "8b5010",
+    "6f9c5489": "8b480c",
+    "6f9c548c": "e89ff068ff",
+    "6f9c5491": "85c0",
+    "6f9c5493": "7428",
+    "6f9c5495": "33c9",
+    "6f9c5497": "81780c6c67612b",
+    "6f9c549e": "0f44c8",
+    "6f9c54a1": "85c9",
+    "6f9c54a3": "7418",
+    "6f9c54a5": "8b4114",
+    "6f9c54a8": "8987b8020000",
+    "6f9c54ae": "8b4118",
+    "6f9c54b1": "8987bc020000",
+    "6f9c54b7": "5f",
+    "6f9c54b8": "5e",
+    "6f9c54b9": "8be5",
+    "6f9c54bb": "5d",
+    "6f9c54bc": "c3",
+    "6f9c54bd": "c787bc020000ffffffff",
+    "6f9c54c7": "c787b8020000ffffffff",
+    "6f9c54d1": "5f",
+    "6f9c54d2": "5e",
+    "6f9c54d3": "8be5",
+    "6f9c54d5": "5d",
+    "6f9c54d6": "c3",
+    "6f9c9c10": "55",
+    "6f9c9c11": "8bec",
+    "6f9c9c13": "83ec08",
+    "6f9c9c16": "56",
+    "6f9c9c17": "57",
+    "6f9c9c18": "8bf9",
+    "6f9c9c1a": "8b8fb8010000",
+    "6f9c9c20": "e82b1bffff",
+    "6f9c9c25": "8bf0",
+    "6f9c9c27": "85f6",
+    "6f9c9c29": "0f8485000000",
+    "6f9c9c2f": "8bce",
+    "6f9c9c31": "e84a62ffff",
+    "6f9c9c36": "8b462c",
+    "6f9c9c39": "8b4e34",
+    "6f9c9c3c": "8945f8",
+    "6f9c9c3f": "8d45fc",
+    "6f9c9c42": "50",
+    "6f9c9c43": "8d45f8",
+    "6f9c9c46": "894dfc",
+    "6f9c9c49": "50",
+    "6f9c9c4a": "6a01",
+    "6f9c9c4c": "8bcf",
+    "6f9c9c4e": "e85d110000",
+    "6f9c9c53": "8b4634",
+    "6f9c9c56": "8bcf",
+    "6f9c9c58": "8945f8",
+    "6f9c9c5b": "8b462c",
+    "6f9c9c5e": "8945fc",
+    "6f9c9c61": "8d45f8",
+    "6f9c9c64": "50",
+    "6f9c9c65": "8d45fc",
+    "6f9c9c68": "50",
+    "6f9c9c69": "e852c8ffff",
+    "6f9c9c6e": "8bc8",
+    "6f9c9c70": "e84bde0000",
+    "6f9c9c75": "8b4644",
+    "6f9c9c78": "8bcf",
+    "6f9c9c7a": "8945f8",
+    "6f9c9c7d": "8b463c",
+    "6f9c9c80": "8945fc",
+    "6f9c9c83": "8d45f8",
+    "6f9c9c86": "50",
+    "6f9c9c87": "8d45fc",
+    "6f9c9c8a": "50",
+    "6f9c9c8b": "6a02",
+    "6f9c9c8d": "e81e110000",
+    "6f9c9c92": "8b4644",
+    "6f9c9c95": "8bcf",
+    "6f9c9c97": "8945f8",
+    "6f9c9c9a": "8b463c",
+    "6f9c9c9d": "8945fc",
+    "6f9c9ca0": "8d45f8",
+    "6f9c9ca3": "50",
+    "6f9c9ca4": "8d45fc",
+    "6f9c9ca7": "50",
+    "6f9c9ca8": "e833c9ffff",
+    "6f9c9cad": "8bc8",
+    "6f9c9caf": "e80cde0000",
+    "6f9c9cb4": "5f",
+    "6f9c9cb5": "5e",
+    "6f9c9cb6": "8be5",
+    "6f9c9cb8": "5d",
+    "6f9c9cb9": "c3",
+    "6f9bee60": "8b0dcc7ed76f",
+    "6f9bee66": "83c12c",
+    "6f9bee69": "8b4104",
+    "6f9bee6c": "2301",
+    "6f9bee6e": "83f8ff",
+    "6f9bee71": "7509",
+    "6f9bee73": "33c0",
+    "6f9bee75": "8bc8",
+    "6f9bee77": "e994ad0000",
+    "6f9bee7c": "e89f246aff",
+    "6f9bee81": "8bc8",
+    "6f9bee83": "e988ad0000",
+    "6f3612d0": "55",
+    "6f3612d1": "8bec",
+    "6f3612d3": "83ec14",
+    "6f3612d6": "56",
+    "6f3612d7": "57",
+    "6f3612d8": "8bf9",
+    "6f3612da": "8d4df8",
+    "6f3612dd": "8d5708",
+    "6f3612e0": "52",
+    "6f3612e1": "8d7704",
+    "6f3612e4": "e8d7e6d0ff",
+    "6f3612e9": "50",
+    "6f3612ea": "56",
+    "6f3612eb": "8bd6",
+    "6f3612ed": "8d4df4",
+    "6f3612f0": "e8cbe6d0ff",
+    "6f3612f5": "50",
+    "6f3612f6": "57",
+    "6f3612f7": "8bd7",
+    "6f3612f9": "8d4df0",
+    "6f3612fc": "e8bfe6d0ff",
+    "6f361301": "8bd0",
+    "6f361303": "8d4dec",
+    "6f361306": "e8a5e8d0ff",
+    "6f36130b": "8bd0",
+    "6f36130d": "8d4dfc",
+    "6f361310": "e89be8d0ff",
+    "6f361315": "8b4d08",
+    "6f361318": "8d55fc",
+    "6f36131b": "e86001d1ff",
+    "6f361320": "8b4508",
+    "6f361323": "5f",
+    "6f361324": "5e",
+    "6f361325": "8be5",
+    "6f361327": "5d",
+    "6f361328": "c20400",
+    "6f9cc6b0": "55",
+    "6f9cc6b1": "8bec",
+    "6f9cc6b3": "83ec0c",
+    "6f9cc6b6": "8bc1",
+    "6f9cc6b8": "8945f4",
+    "6f9cc6bb": "83a0d0020000fe",
+    "6f9cc6c2": "83b8b8010000ff",
+    "6f9cc6c9": "0f85bb000000",
+    "6f9cc6cf": "8d4828",
+    "6f9cc6d2": "c745f800000000",
+    "6f9cc6d9": "8b4104",
+    "6f9cc6dc": "2301",
+    "6f9cc6de": "c745fc00000000",
+    "6f9cc6e5": "56",
+    "6f9cc6e6": "57",
+    "6f9cc6e7": "83f8ff",
+    "6f9cc6ea": "752c",
+    "6f9cc6ec": "33ff",
+    "6f9cc6ee": "33f6",
+    "6f9cc6f0": "53",
+    "6f9cc6f1": "33db",
+    "6f9cc6f3": "85f6",
+    "6f9cc6f5": "7476",
+    "6f9cc6f7": "f6462001",
+    "6f9cc6fb": "7534",
+    "6f9cc6fd": "f6864802000010",
+    "6f9cc704": "7576",
+    "6f9cc706": "6a01",
+    "6f9cc708": "8bce",
+    "6f9cc70a": "e881facbff",
+    "6f9cc70f": "85c0",
+    "6f9cc711": "741b",
+    "6f9cc713": "8975f8",
+    "6f9cc716": "eb19",
+    "6f9cc718": "e8034c69ff",
+    "6f9cc71d": "8bf8",
+    "6f9cc71f": "85ff",
+    "6f9cc721": "74cb",
+    "6f9cc723": "8bcf",
+    "6f9cc725": "e8969568ff",
+    "6f9cc72a": "8bf0",
+    "6f9cc72c": "ebc2",
+    "6f9cc72e": "8975fc",
+    "6f9cc731": "85ff",
+    "6f9cc733": "7427",
+    "6f9cc735": "8b4728",
+    "6f9cc738": "8d4f24",
+    "6f9cc73b": "2301",
+    "6f9cc73d": "83f8ff",
+    "6f9cc740": "7504",
+    "6f9cc742": "33ff",
+    "6f9cc744": "eb07",
+    "6f9cc746": "e8d54b69ff",
+    "6f9cc74b": "8bf8",
+    "6f9cc74d": "85ff",
+    "6f9cc74f": "740d",
+    "6f9cc751": "8bcf",
+    "6f9cc753": "e8689568ff",
+    "6f9cc758": "8bf0",
+    "6f9cc75a": "eb04",
+    "6f9cc75c": "33ff",
+    "6f9cc75e": "8bf3",
+    "6f9cc760": "33c0",
+    "6f9cc762": "85ff",
+    "6f9cc764": "0f45c3",
+    "6f9cc767": "8bd8",
+    "6f9cc769": "85f6",
+    "6f9cc76b": "758a",
+    "6f9cc76d": "8b45f8",
+    "6f9cc770": "85c0",
+    "6f9cc772": "8b75fc",
+    "6f9cc775": "0f45f0",
+    "6f9cc778": "85f6",
+    "6f9cc77a": "740b",
+    "6f9cc77c": "8b4df4",
+    "6f9cc77f": "6a00",
+    "6f9cc781": "56",
+    "6f9cc782": "e8693affff",
+    "6f9cc787": "5b",
+    "6f9cc788": "5f",
+    "6f9cc789": "5e",
+    "6f9cc78a": "8be5",
+    "6f9cc78c": "5d",
+    "6f9cc78d": "c3",
+    "6f9c0280": "55",
+    "6f9c0281": "8bec",
+    "6f9c0283": "56",
+    "6f9c0284": "8bf1",
+    "6f9c0286": "33d2",
+    "6f9c0288": "8b4d08",
+    "6f9c028b": "e840a3ffff",
+    "6f9c0290": "50",
+    "6f9c0291": "8bce",
+    "6f9c0293": "e8c8c80000",
+    "6f9c0298": "5e",
+    "6f9c0299": "5d",
+    "6f9c029a": "c20400"
+  },
+  "engine_tests": [
+    "wc3_bot.*",
+    "wc3_movement.public_captain*",
+    "wc3_movement.capscope273*",
+    "wc3_save.*"
+  ],
+  "scope": [
+    "Two observed original-terrain public AI repeats and observer-free control preserve151 public markers and101 ordered native boundaries each; bare map is one additional exploratory observation, not independently repeated.",
+    "Sixteen original unmodified refresh calls control external identity/bridge/notification completion. First nine outputs match live captures; seven supplied pre-call cases are labelled arithmetic domains, not public placement journeys.",
+    "Engine fixtures exercise actual stock capability classification with a supplied authored htow Argd row (absent from minimal test archive), creation, owner-excluding hierarchy selection, actor placement/reset, removal and cold engine saves. They do not certify full preceding retail unit trajectories or retail save equivalence.",
+    "Independent initial Town-selection timer, ugol overlay producer, moved-slot owner policy inverses and broader combat/roster defaults remain BASE-01.4/GROUP-03.4.7.3. No broad task closure or performance claim."
+  ]
+}

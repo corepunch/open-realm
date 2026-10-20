@@ -54,7 +54,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign) { campaign_toggle_execute(caster, 
 BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = 0; float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, count < (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES) if (unit_status_can_magic_dispel(target->abilstatus + i))
+        FOR_LOOP(i, G_UnitStatusSlotCount(target)) if (unit_status_can_magic_dispel(target->abilstatus + i))
             unit_removestatus_deferred(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
         unit_refreshstatusflags(target);
         G_InvalidateUnitInfoPanel(target);
@@ -75,18 +75,18 @@ static bool submerge_base_code(uint32_t code) {
 
 static heroabilitystatus_t *submerge_status(edict_t *unit) {
     if (!unit) return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
-        if (status->level && submerge_base_code(status->code)) return status;
+        if (status->level && submerge_base_code(G_UnitStatusClassCode(status))) return status;
     }
     return NULL;
 }
 
 bool S_UnitIsSubmerged(edict_t const *unit) {
     if (!unit) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
-        if (status->level && submerge_base_code(status->code)) return true;
+        if (status->level && submerge_base_code(G_UnitStatusClassCode(status))) return true;
     }
     return false;
 }
@@ -107,25 +107,25 @@ static bool submerge_deep_water(edict_t const *unit) {
 static uint32_t submerge_find_code(edict_t const *unit) {
     char const *abilities;
     if (!unit) return 0;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
-        if (status->level && submerge_base_code(status->code)) return status->code;
+        if (status->level && submerge_base_code(G_UnitStatusClassCode(status))) return G_UnitStatusClassCode(status);
     }
     if ((abilities = unit->data.UnitAbilities ? unit->data.UnitAbilities->abilList : NULL)) {
         PARSE_LIST(abilities, token, parse_segment) {
             uint32_t code = 0;
             if (strlen(token) != 4) continue;
             memcpy(&code, token, 4);
-            if (submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+            if (submerge_base_code(code) && G_UnitAbilityClassLevel(unit, code)) return code;
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(unit->abilities.added)) {
         uint32_t const code = unit->abilities.added[i];
-        if (code && submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+        if (code && submerge_base_code(code) && G_UnitAbilityClassLevel(unit, code)) return code;
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         uint32_t const code = unit->heroabilities[i].level ? unit->heroabilities[i].code : 0;
-        if (code && submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+        if (code && submerge_base_code(code) && G_UnitAbilityClassLevel(unit, code)) return code;
     }
     return 0;
 }
@@ -133,34 +133,46 @@ static uint32_t submerge_find_code(edict_t const *unit) {
 static bool submerge_validate(edict_t *unit, uint32_t code) {
     uint32_t normal, submerged;
     heroabilitystatus_t *status;
-    if (!unit || !submerge_types(code, &normal, &submerged)) return false;
+    if (!unit || !submerge_types(code, &normal, &submerged) ||
+        (unit->morph && unit->morph->transition.active)) return false;
     status = submerge_status(unit);
     if (status) return unit->class_id == submerged;
     return unit->class_id == normal && submerge_deep_water(unit);
 }
 
-static bool submerge_execute(edict_t *unit, uint32_t code) {
-    uint32_t normal, submerged, level;
-    bool const active = S_UnitIsSubmerged(unit);
-    if (!unit || !submerge_types(code, &normal, &submerged)) return false;
-    if (!active && !submerge_deep_water(unit)) return false;
-    if ((active && unit->class_id != submerged) || (!active && unit->class_id != normal)) return false;
-    level = G_UnitAbilityLevel(unit, code);
-    if (!level) level = 1;
-    if (!G_TransformUnitType(unit, active ? normal : submerged)) return false;
-    if (active) {
-        S_ToggleUnitAbilityStatus(unit, code, level);
-        unit->s.renderfx &= ~RF_HIDDEN;
-    } else {
-        S_ToggleUnitAbilityStatus(unit, code, level);
-        unit->s.renderfx |= RF_HIDDEN;
+/*4ba940 changes occupancy c2 while preserving the query and bit8. */
+static void submerge_category(edict_t *unit,bool hidden) {
+    if(!unit->morph && hidden) {
+        unit->morph=G_AllocMorph();assert(unit->morph);
     }
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
-    move_reset_progress(unit);
-    unit_stand(unit);
+    if(unit->morph) {
+        unit->morph->category_clear=hidden ? 0xc2 : 0;
+        unit->morph->category_set=hidden ? 8 : 0xca;
+    }
     gi.LinkEntity(unit);
-    return true;
+}
+static void submerge_publish(edict_t *unit,uint32_t code,bool hidden) {
+    bool before=S_UnitHasInvisibilityState(unit);
+    if(S_UnitIsSubmerged(unit)!=hidden)
+        S_ToggleUnitAbilityStatus(unit,code,MAX(1,G_UnitAbilityClassLevel(unit,code)));
+    if(hidden)unit->s.renderfx|=RF_HIDDEN;
+    else if(!S_UnitHasInvisibilityState(unit))unit->s.renderfx&=~RF_HIDDEN;
+    submerge_category(unit,hidden);
+    bool after=S_UnitHasInvisibilityState(unit);
+    if(!before && after)S_UnitTargetLost(unit);
+    else if(before && !after)S_UnitTargetAvailable(unit);
+}
+static bool submerge_execute(edict_t *unit,abilityCall_t const *call) {
+    uint32_t code=call->item->code,normal,submerged;
+    bool active=S_UnitIsSubmerged(unit);
+    if(!unit || !submerge_types(code,&normal,&submerged) ||
+       (!active && !submerge_deep_water(unit)) ||
+       unit->class_id!=(active ? submerged : normal))return false;
+    /* Original virtual410 publishes the inverse BEFORE the reverse hold. */
+    if(active)submerge_publish(unit,code,false);
+    bool accepted=CAbilityGroundMorph(unit,A_EXECUTE,call);
+    if(accepted && active)submerge_category(unit,false);
+    return accepted;
 }
 
 static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
@@ -170,6 +182,20 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
     if (!code) code = submerge_find_code(ent);
     active = S_UnitIsSubmerged(ent);
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_UNIT_INIT,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+    case A_ENABLE:case A_UNIT_INIT: {
+        uint32_t normal,submerged;
+        if(ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged &&
+           (!ent->morph || ent->morph->code!=code)) {
+            CAbilityGroundMorph(ent,A_UNIT_INIT,call);
+            /* Own the active-form suspension before publishing hidden state.
+             * Runtime attachment inherits this aggregate after A_ENABLE. */
+            S_SetMorphAbilityDisables(ent,code,true);
+            submerge_publish(ent,code,true);
+        }
+        return true;
+    }
     case A_COMMAND: {
         gameClient_t *client;
         uint32_t subgroup_class;
@@ -202,7 +228,32 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
     case A_VALIDATE:
         return code && submerge_validate(ent, code);
     case A_EXECUTE:
-        return code && submerge_execute(ent, code);
+        return code && submerge_execute(ent, call);
+    case A_MORPH_COMPLETE: {
+        bool hidden=!call->enabled && G_ActorHasAbilityCode(ent,code);
+        /* Detach has already removed membership when it forces completion;
+         * acquire its forward source so the immediate inverse also resumes passives. */
+        if(!call->enabled)S_SetMorphAbilityDisables(ent,code,true);
+        submerge_publish(ent,code,hidden);
+        /* Reverse admission removed the subtype source, but the passive
+         * remains suspended until this authored reverse completion. */
+        if(call->enabled)S_SetMorphAbilityDisables(ent,code,false);
+        return CAbilityGroundMorph(ent,msg,call);
+    }
+    case A_MORPH_EXPIRE:
+        return code && submerge_execute(ent,call);
+    case A_DISABLE: {
+        uint32_t normal,submerged;
+        /* A pending forward completion can acquire the form owner. Finish
+         * it before testing the alternate-type detach inverse. */
+        S_CompleteMorphDetachTransition(ent,code);
+        bool release=ent && submerge_types(code,&normal,&submerged) && ent->class_id==submerged;
+        if(ent && S_UnitIsSubmerged(ent))submerge_publish(ent,code,false);
+        intptr_t result=CAbilityGroundMorph(ent,msg,call);
+        /* Restore the base while its passive owner is still suspended. */
+        if(release)S_SetMorphAbilityDisables(ent,code,false);
+        return result;
+    }
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }
@@ -222,10 +273,10 @@ static bool ensnare_is_flyer(edict_t const *unit) {
 
 static heroabilitystatus_t *ensnare_status(edict_t *unit) {
     if (!unit) return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *slot = unit->abilstatus + i;
         if (!slot->level) continue;
-        if (S_StatusIsEnsnare(slot->code))
+        if (S_StatusIsEnsnare(G_UnitStatusClassCode(slot)))
             return slot;
     }
     return NULL;
@@ -299,8 +350,8 @@ bool S_StatusIsEnsnare(uint32_t code) {
 bool S_UnitIsEnsnared(edict_t const *unit) {
     /* Ensnare/Web remain distinct from Entangling Roots (which also disarms).
      * They are bound status families, so avoid making ROOTED mean Ensnared. */
-    if (unit) FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
+    if (unit) FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+        if (S_StatusIsEnsnare(G_UnitStatusClassCode(unit->abilstatus+i)) && S_UnitHasStatus(unit, G_UnitStatusClassCode(unit->abilstatus+i))) return true;
     return false;
 }
 
@@ -353,9 +404,9 @@ static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
     float adjust, target;
     if (!unit || !expiring) return;
     /* Web and Ensnare share one height transition: removing either cannot release the other. */
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *slot = unit->abilstatus + i;
-        if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) return;
+        if (slot->level && slot != expiring && S_StatusIsEnsnare(G_UnitStatusClassCode(slot))) return;
     }
     if (ensnare_is_flyer(unit)) {
         adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : (unit->ensnare ? unit->ensnare->adjust : 0.0f);
@@ -395,11 +446,13 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
                            WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
     ensnare_begin_land(st.entity, spell->code, level);
     ensnare_refresh(st.entity);
-    st.entity->goalentity = NULL;
+    S_SetMoveGoal(st.entity, &st.entity->goalentity, NULL);
 }
 
 /* Name=Ensnare — bind; air takes Bena and lands via DataA/B (AB_UPDATE advances height). */
 BZ_ABILITY_PROC(CAbilityEnsnare) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return UNIT_UPDATE_POINTER(ensnare);
     if (msg == A_UPDATE) { ensnare_update(ent); return true; }
     if (msg == A_STATUS_REFRESH) { ensnare_refresh(ent); return true; }
     if (msg == A_STATUS_REMOVE) {
@@ -469,7 +522,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     if (!M_IsDead(st.entity)) S_SpellApplyStun(st.entity, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDrunkenHazeCampaign) { return CAbilityDrunkenHaze(ent, msg, call); }
 BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign) { campaign_status_execute(caster, st, spell); }

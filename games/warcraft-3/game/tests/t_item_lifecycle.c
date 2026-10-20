@@ -8,7 +8,7 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
-TEST(wc3_item_lifecycle, all_item_attack_bonus_aliases_resolve_to_one_handler) {
+TEST(wc3_item_lifecycle, item_attack_bonus_aliases_resolve_to_native_families) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y20;X2\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
@@ -40,7 +40,9 @@ TEST(wc3_item_lifecycle, all_item_attack_bonus_aliases_resolve_to_one_handler) {
     FOR_LOOP(i, sizeof(aliases) / sizeof(aliases[0])) {
         abilityitem_t item = S_AbilityItem(FS_SLKKey(aliases[i]));
         T_ASSERT(item.ability);
-        T_ASSERT(item.ability->proc == CAbilityAttackBonus);
+        /* Native Freeze has a concrete subclass with the common item bonus. */
+        T_ASSERT(item.ability->proc == (!strcmp(aliases[i],"AIzb") ?
+            CAbilityFreezeDamageBonus : CAbilityAttackBonus));
     }
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -68,7 +70,7 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
     setup_test_world();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
+    S_AttackProfileWrite(unit, 0)->temporaryDamageBonus = S_AttackProfileWrite(unit, 1)->temporaryDamageBonus = 0;
     unit->temporary_armor_bonus = 0;
     FOR_LOOP(i, 3) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
@@ -79,23 +81,23 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
         item->item->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
     }
-    T_FEQ(unit->attack1.temporaryDamageBonus, 7, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 7, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 7, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 7, 0.001f);
     T_FEQ(unit->temporary_armor_bonus, 1, 0.001f);
     uint32_t index = unit->s.number;
     T_ASSERT(WriteGame(path));
     T_ASSERT(ReadGame(path));
     unit = g_edicts + index;
-    T_FEQ(unit->attack1.temporaryDamageBonus, 7, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 7, 0.001f);
     T_FEQ(unit->temporary_armor_bonus, 1, 0.001f);
     T_ASSERT(G_DropItem(unit, 1));
-    T_FEQ(unit->attack1.temporaryDamageBonus, 1, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 1, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 1, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 1, 0.001f);
     T_ASSERT(G_DropItem(unit, 2));
     T_FEQ(unit->temporary_armor_bonus, 0, 0.001f);
     T_ASSERT(G_DropItem(unit, 0));
-    T_FEQ(unit->attack1.temporaryDamageBonus, 0, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 0, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 0, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 0, 0.001f);
     remove(path);
     G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -126,7 +128,7 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
+    S_AttackProfileWrite(unit, 0)->temporaryDamageBonus = S_AttackProfileWrite(unit, 1)->temporaryDamageBonus = 0;
     item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 0);
     item->targtype = TARG_ITEM;
     if (!item->item) item->item = G_AllocItem();
@@ -136,16 +138,16 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
 
     T_ASSERT(G_InventoryCanUseItems(unit));
     T_ASSERT(G_AddItemToSlot(unit, item, 0));
-    T_FEQ(unit->attack1.temporaryDamageBonus, 3, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 3, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 3, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 3, 0.001f);
 
     {
         slkTestData_t *disabled = parse_slk_string(disabled_slk);
         slkTestData_t *replaced = G_SetSLKRows("AbilityData", disabled);
         T_ASSERT(!G_InventoryCanUseItems(unit));
         T_ASSERT(G_DropItem(unit, 0));
-        T_FEQ(unit->attack1.temporaryDamageBonus, 0, 0.001f);
-        T_FEQ(unit->attack2.temporaryDamageBonus, 0, 0.001f);
+        T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 0, 0.001f);
+        T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 0, 0.001f);
         free_slk_rows(disabled);
         free_slk_rows(replaced);
     }
@@ -246,45 +248,53 @@ TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-/* Orb data is non-stock (ROC AIfb DataA=12, AIob DataA=6); pickup must apply the
- * item's own row and drop must reverse it, like CAbilityAttackBonus aliases. */
+/* Authored bonuses11/13/17 cover both column schemas and Freeze's
+ * inherited pickup/drop behavior independently of its concrete handler. */
 TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y4;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
-        "C;Y1;X4;K\"DataC1\"\n"
-        "C;Y2;X1;K\"AIfb\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"11\"\n"
-        "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"13\"\n"
-        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nC;Y4;X4;K\"1\"\nE\n";
-    const char items[] =
-        "ID;PWXL;N;EBB;Y3;X3\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
-        "C;Y2;X1;K\"orbf\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"true\"\n"
-        "C;Y3;X1;K\"orbr\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"true\"\nE\n";
-    uint32_t codes[] = { MAKEFOURCC('o','r','b','f'), MAKEFOURCC('o','r','b','r') };
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
-    setup_test_world();
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
-    FOR_LOOP(i, 2) {
-        edict_t *item = alloc_test_unit(codes[i], 32, 0);
-        item->targtype = TARG_ITEM;
-        if (!item->item) item->item = G_AllocItem();
-        assert(item->item);
-        item->item->in_world = true;
-        item->item->inventory_slot = -1;
-        T_ASSERT(G_AddItemToSlot(unit, item, i));
+    FOR_LOOP(schema,2) {
+        char slk[1800];snprintf(slk,sizeof(slk),
+            "ID;PWXL;N;EBB;Y5;X4\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"%s\"\n"
+            "C;Y1;X4;K\"%s\"\n"
+            "C;Y2;X1;K\"AIfb\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"11\"\n"
+            "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"13\"\n"
+            "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nC;Y4;X4;K\"1\"\n"
+            "C;Y5;X1;K\"AIzb\"\nC;Y5;X2;K\"AIzb\"\nC;Y5;X3;K\"17\"\nE\n",
+            schema ? "DataA1" : "Data11",schema ? "DataC1" : "Data13");
+        const char items[] =
+            "ID;PWXL;N;EBB;Y4;X3\n"
+            "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+            "C;Y2;X1;K\"orbf\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"true\"\n"
+            "C;Y3;X1;K\"orbr\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"true\"\n"
+            "C;Y4;X1;K\"orbz\"\nC;Y4;X2;K\"AIzb\"\nC;Y4;X3;K\"true\"\nE\n";
+        uint32_t codes[] = { MAKEFOURCC('o','r','b','f'), MAKEFOURCC('o','r','b','r'), MAKEFOURCC('o','r','b','z') };
+        slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+        slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
+        setup_test_world();
+        edict_t *unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+        S_AttackProfileWrite(unit, 0)->temporaryDamageBonus = S_AttackProfileWrite(unit, 1)->temporaryDamageBonus = 0;
+        FOR_LOOP(i, 3) {
+            edict_t *item = alloc_test_unit(codes[i], 32, 0);
+            item->targtype = TARG_ITEM;
+            if (!item->item) item->item = G_AllocItem();
+            assert(item->item);
+            item->item->in_world = true;
+            item->item->inventory_slot = -1;
+            T_ASSERT(G_AddItemToSlot(unit, item, i));
+        }
+        T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 41, 0.001f);
+        T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 41, 0.001f);
+        T_ASSERT(G_DropItem(unit, 0));
+        T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 30, 0.001f);
+        T_ASSERT(G_DropItem(unit, 1));
+        T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 17, 0.001f);
+        T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 17, 0.001f);
+        T_ASSERT(G_DropItem(unit, 2));
+        T_FEQ(S_AttackProfileRead(unit, 0)->temporaryDamageBonus, 0, 0.001f);
+        T_FEQ(S_AttackProfileRead(unit, 1)->temporaryDamageBonus, 0, 0.001f);
+        G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     }
-    T_FEQ(unit->attack1.temporaryDamageBonus, 24, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 24, 0.001f);
-    T_ASSERT(G_DropItem(unit, 0));
-    T_FEQ(unit->attack1.temporaryDamageBonus, 13, 0.001f);
-    T_ASSERT(G_DropItem(unit, 1));
-    T_FEQ(unit->attack1.temporaryDamageBonus, 0, 0.001f);
-    T_FEQ(unit->attack2.temporaryDamageBonus, 0, 0.001f);
-    G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
-    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* ROC omits orb BuffID; AIob/AIcb/AIzb must apply Bfro/BIcb/Bfre with authored
@@ -334,7 +344,8 @@ TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
     item->item->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(attacker, item, 0));
     T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
-    S_OrbOnHit(attacker, target);
+    S_OrbOnHit(attacker,target,true);
+    S_OrbOnHit(attacker,target,false);
     T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
     T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','c','b')));
     T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','e')));
@@ -359,7 +370,7 @@ TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
     edict_t *effect = G_Spawn();
-    effect->owner = effect->goalentity = creep;
+    effect->owner = S_SetMoveGoal(effect, &effect->goalentity, creep);
     effect->summon_ability = MAKEFOURCC('A','o','a','r');
     FOR_LOOP(i, 3) {
         ai_stand(creep);

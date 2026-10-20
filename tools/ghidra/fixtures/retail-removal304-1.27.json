@@ -1,0 +1,3410 @@
+{
+  "version": 1,
+  "task": "MAP-04.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_movement.removal304*",
+    "wc3_movement.owner303*",
+    "wc3_movement.scope301*",
+    "wc3_movement.scope300*",
+    "wc3_ability_dispatch.*",
+    "wc3_order_lifecycle.*",
+    "wc3_repulsion_policy.*",
+    "wc3_unit_releases.*",
+    "wc3_save.*",
+    "wc3_building.*"
+  ],
+  "pins": {
+    "tools/frida/research/removal304_capture.py": "c110c6229d5d2e06b8e7d9f7e916f7f643e34b0b253887171e6fc86a1d581a51",
+    "tools/frida/research/removal304_observer.js": "5cbe190a94e9e83fc7e8752769c141f26ab43a359d022dd5cf084183ab966a97",
+    "tools/frida/research/removal304_make_map.py": "658df1bfb5a37db191d8c30d6ccac9d940cb02348e427f5b12d0966b693b2135",
+    "tools/frida/research/removal304_probe.j": "613c12bb16be7ffc2c1c0c09a79e48f8f50e0dc4418b6119922820c769c2d6cb",
+    "tools/ghidra/research/Removal304Evidence.java": "d9e7e3bbcd8213fbd31096892472a1fe7ea5dab74fc0dd6851e274b5dcebb535",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/research/sep_research_map.py": "ac652093f75423ad6ce9af7ce327029e8a5c8895cf5f9f73f756dfdd9561dd2d",
+    "tools/frida/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "tools/frida/research/smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+    "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "tools/frida/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19"
+  },
+  "bundle_sha256": "df19a83d95cfd07142657d02c41d1ca5dc21841cbe4bf8a680c6d57ad64c497a",
+  "map_sha256": "8dfb06da0ba9d6e7f0bdf3bdc21bdb03e24502eaa51c60aace1317562810bee8",
+  "helper_sha256": {
+    "owned-ui-input.exe": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+    "owned-ui-input.exe.so": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1"
+  },
+  "markers": [
+    "R304 tick=0 scene=0 label=start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=0 scene=0 label=scene-start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=0 scene=0 label=created type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=2 scene=0 label=before type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=2 scene=0 label=after type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=4 scene=0 label=settled type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=6 scene=1 label=scene-start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=6 scene=1 label=created type=1748185139 order=851986 life=420.000 x=656.000 y=656.000",
+    "R304 tick=8 scene=1 label=before type=1748185139 order=851986 life=420.000 x=682.999 y=656.005",
+    "R304 tick=8 scene=1 label=after type=1748185139 order=0 life=420.000 x=682.999 y=656.005",
+    "R304 tick=10 scene=1 label=settled type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=12 scene=2 label=scene-start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=12 scene=2 label=created type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=14 scene=2 label=before type=1748185139 order=851973 life=420.000 x=656.000 y=656.000",
+    "R304 tick=14 scene=2 label=after type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=16 scene=2 label=settled type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=18 scene=3 label=scene-start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=18 scene=3 label=created type=1748185139 order=851986 life=420.000 x=656.000 y=656.000",
+    "R304 tick=20 scene=3 label=before type=1748185139 order=851973 life=420.000 x=668.000 y=656.014",
+    "R304 tick=20 scene=3 label=after type=1748185139 order=0 life=420.000 x=668.000 y=656.014",
+    "R304 tick=22 scene=3 label=settled type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=24 scene=4 label=scene-start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=24 scene=4 label=created type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=26 scene=4 label=before type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=26 scene=4 label=nested-before type=1748185139 order=851972 life=420.000 x=656.000 y=656.000",
+    "R304 tick=26 scene=4 label=nested-after type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=26 scene=4 label=after type=1748185139 order=0 life=420.000 x=656.000 y=656.000",
+    "R304 tick=28 scene=4 label=settled type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=30 scene=5 label=scene-start type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=30 scene=5 label=created type=1748185139 order=851986 life=420.000 x=656.000 y=656.000",
+    "R304 tick=32 scene=5 label=before type=1748185139 order=851986 life=420.000 x=682.999 y=656.008",
+    "R304 tick=32 scene=5 label=nested-before type=1748185139 order=851972 life=420.000 x=682.999 y=656.008",
+    "R304 tick=32 scene=5 label=nested-after type=1748185139 order=0 life=420.000 x=682.999 y=656.008",
+    "R304 tick=32 scene=5 label=after type=1748185139 order=0 life=420.000 x=682.999 y=656.008",
+    "R304 tick=34 scene=5 label=settled type=0 order=0 life=0.000 x=0.000 y=0.000",
+    "R304 tick=35 scene=6 label=complete type=0 order=0 life=0.000 x=0.000 y=0.000"
+  ],
+  "stages": [
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 3146248,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 3146248,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 513,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 512,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ]
+  ],
+  "instructions": {
+    "6f69c510": "56",
+    "6f69c511": "8bf1",
+    "6f69c513": "6a00",
+    "6f69c515": "814e5c00010000",
+    "6f69c51c": "8b06",
+    "6f69c51e": "ff90a0000000",
+    "6f69c524": "8bce",
+    "6f69c526": "e875c4ffff",
+    "6f69c52b": "6a01",
+    "6f69c52d": "8d8e64010000",
+    "6f69c533": "e838fa9bff",
+    "6f69c538": "6844c7d36f",
+    "6f69c53d": "8d8e98000000",
+    "6f69c543": "e848bc9bff",
+    "6f69c548": "6aff",
+    "6f69c54a": "6aff",
+    "6f69c54c": "8bce",
+    "6f69c54e": "e8bd4afbff",
+    "6f69c553": "8bce",
+    "6f69c555": "e82648fbff",
+    "6f69c55a": "6a00",
+    "6f69c55c": "8bce",
+    "6f69c55e": "e86d7ffdff",
+    "6f69c563": "6a01",
+    "6f69c565": "8bce",
+    "6f69c567": "e8540c0000",
+    "6f69c56c": "8bce",
+    "6f69c56e": "5e",
+    "6f69c56f": "e94cc0fdff",
+    "6f6744d0": "55",
+    "6f6744d1": "8bec",
+    "6f6744d3": "51",
+    "6f6744d4": "53",
+    "6f6744d5": "8bd9",
+    "6f6744d7": "56",
+    "6f6744d8": "57",
+    "6f6744d9": "8b03",
+    "6f6744db": "ff9098000000",
+    "6f6744e1": "8bcb",
+    "6f6744e3": "e8a81dd0ff",
+    "6f6744e8": "8b03",
+    "6f6744ea": "8bcb",
+    "6f6744ec": "6a00",
+    "6f6744ee": "68ffff0000",
+    "6f6744f3": "ff90cc010000",
+    "6f6744f9": "6a01",
+    "6f6744fb": "6a00",
+    "6f6744fd": "6a01",
+    "6f6744ff": "6a01",
+    "6f674501": "6a00",
+    "6f674503": "6a01",
+    "6f674505": "6a01",
+    "6f674507": "6a00",
+    "6f674509": "6a00",
+    "6f67450b": "8bcb",
+    "6f67450d": "e8fea5e1ff",
+    "6f674512": "8b03",
+    "6f674514": "8bcb",
+    "6f674516": "8b35a887d66f",
+    "6f67451c": "ff90ec000000",
+    "6f674522": "50",
+    "6f674523": "8bce",
+    "6f674525": "e876c9b6ff",
+    "6f67452a": "8bf8",
+    "6f67452c": "53",
+    "6f67452d": "8bcf",
+    "6f67452f": "897dfc",
+    "6f674532": "e8a955bfff",
+    "6f674537": "6a00",
+    "6f674539": "8bcb",
+    "6f67453b": "e8808c0200",
+    "6f674540": "8bcb",
+    "6f674542": "e8e981e1ff",
+    "6f674547": "8b4364",
+    "6f67454a": "a808",
+    "6f67454c": "7412",
+    "6f67454e": "6a00",
+    "6f674550": "ff7330",
+    "6f674553": "8bcf",
+    "6f674555": "e8067dbeff",
+    "6f67455a": "836364f6",
+    "6f67455e": "eb12",
+    "6f674560": "a810",
+    "6f674562": "740e",
+    "6f674564": "ff7330",
+    "6f674567": "8bcf",
+    "6f674569": "e8022abfff",
+    "6f67456e": "836364ed",
+    "6f674572": "f7436400080000",
+    "6f674579": "7444",
+    "6f67457b": "8b4b30",
+    "6f67457e": "e8adba0000",
+    "6f674583": "8bf0",
+    "6f674585": "83ef80",
+    "6f674588": "8bcf",
+    "6f67458a": "f7de",
+    "6f67458c": "e8af249eff",
+    "6f674591": "03c6",
+    "6f674593": "8bcf",
+    "6f674595": "50",
+    "6f674596": "e845259eff",
+    "6f67459b": "8b75fc",
+    "6f67459e": "8bcf",
+    "6f6745a0": "8bb648020000",
+    "6f6745a6": "e895249eff",
+    "6f6745ab": "8b7dfc",
+    "6f6745ae": "3bc6",
+    "6f6745b0": "7606",
+    "6f6745b2": "898748020000",
+    "6f6745b8": "816364fff3ffff",
+    "6f6745bf": "f7436400020000",
+    "6f6745c6": "7419",
+    "6f6745c8": "8b4b30",
+    "6f6745cb": "e8c0ba0000",
+    "6f6745d0": "f7d8",
+    "6f6745d2": "8bcf",
+    "6f6745d4": "50",
+    "6f6745d5": "e81671beff",
+    "6f6745da": "816364fffcffff",
+    "6f6745e1": "6a00",
+    "6f6745e3": "6a00",
+    "6f6745e5": "6a01",
+    "6f6745e7": "6a01",
+    "6f6745e9": "8bcb",
+    "6f6745eb": "e8d082e1ff",
+    "6f6745f0": "6a1a",
+    "6f6745f2": "8bcb",
+    "6f6745f4": "e8f7070200",
+    "6f6745f9": "8bcb",
+    "6f6745fb": "e8c0070200",
+    "6f674600": "6a00",
+    "6f674602": "6a00",
+    "6f674604": "8bcb",
+    "6f674606": "e80553ffff",
+    "6f67460b": "8bcb",
+    "6f67460d": "e83e080200",
+    "6f674612": "8bcb",
+    "6f674614": "e8478d0200",
+    "6f674619": "8bcb",
+    "6f67461b": "e8608e0200",
+    "6f674620": "8d8ba8000000",
+    "6f674626": "e8a5f5d6ff",
+    "6f67462b": "83bb1401000000",
+    "6f674632": "b944c7d36f",
+    "6f674637": "b848c7d36f",
+    "6f67463c": "0f4ec1",
+    "6f67463f": "8d8b18010000",
+    "6f674645": "50",
+    "6f674646": "e8453b9eff",
+    "6f67464b": "8d8b28010000",
+    "6f674651": "e8aaf5d6ff",
+    "6f674656": "8d8b2c010000",
+    "6f67465c": "e86ff5d6ff",
+    "6f674661": "8d8b24020000",
+    "6f674667": "e894f5d6ff",
+    "6f67466c": "81635cff3fffff",
+    "6f674673": "8d4b7c",
+    "6f674676": "e845c09eff",
+    "6f67467b": "8b03",
+    "6f67467d": "8bcb",
+    "6f67467f": "6a01",
+    "6f674681": "6a00",
+    "6f674683": "ff904c010000",
+    "6f674689": "f6834802000010",
+    "6f674690": "7409",
+    "6f674692": "6a01",
+    "6f674694": "8bcb",
+    "6f674696": "e8d58f0200",
+    "6f67469b": "f6834802000040",
+    "6f6746a2": "7409",
+    "6f6746a4": "6a01",
+    "6f6746a6": "8bcb",
+    "6f6746a8": "e813940200",
+    "6f6746ad": "6a01",
+    "6f6746af": "8bcb",
+    "6f6746b1": "e8da7a0100",
+    "6f6746b6": "85c0",
+    "6f6746b8": "7415",
+    "6f6746ba": "8b0da887d66f",
+    "6f6746c0": "6a00",
+    "6f6746c2": "6a00",
+    "6f6746c4": "6a01",
+    "6f6746c6": "8b4934",
+    "6f6746c9": "53",
+    "6f6746ca": "e821d1bdff",
+    "6f6746cf": "8b03",
+    "6f6746d1": "8bcb",
+    "6f6746d3": "6a00",
+    "6f6746d5": "ff90a0000000",
+    "6f6746db": "837d0800",
+    "6f6746df": "7433",
+    "6f6746e1": "8b8354020000",
+    "6f6746e7": "8d8b50020000",
+    "6f6746ed": "2301",
+    "6f6746ef": "83f8ff",
+    "6f6746f2": "7513",
+    "6f6746f4": "33c0",
+    "6f6746f6": "8bcb",
+    "6f6746f8": "50",
+    "6f6746f9": "e8a2710000",
+    "6f6746fe": "5f",
+    "6f6746ff": "5e",
+    "6f674700": "5b",
+    "6f674701": "8be5",
+    "6f674703": "5d",
+    "6f674704": "c20400",
+    "6f674707": "e814cc9eff",
+    "6f67470c": "50",
+    "6f67470d": "8bcb",
+    "6f67470f": "e88c710000",
+    "6f674714": "5f",
+    "6f674715": "5e",
+    "6f674716": "5b",
+    "6f674717": "8be5",
+    "6f674719": "5d",
+    "6f67471a": "c20400",
+    "6f4076e0": "55",
+    "6f4076e1": "8bec",
+    "6f4076e3": "56",
+    "6f4076e4": "8bf1",
+    "6f4076e6": "8b06",
+    "6f4076e8": "ff90cc000000",
+    "6f4076ee": "85c0",
+    "6f4076f0": "743d",
+    "6f4076f2": "8b463c",
+    "6f4076f5": "57",
+    "6f4076f6": "8b7d0c",
+    "6f4076f9": "017e3c",
+    "6f4076fc": "85c0",
+    "6f4076fe": "7f1e",
+    "6f407700": "837e3c00",
+    "6f407704": "7e18",
+    "6f407706": "8b06",
+    "6f407708": "8bce",
+    "6f40770a": "ff90e0000000",
+    "6f407710": "836620fd",
+    "6f407714": "8bce",
+    "6f407716": "8b06",
+    "6f407718": "ff90c4000000",
+    "6f40771e": "837d0800",
+    "6f407722": "7403",
+    "6f407724": "017e40",
+    "6f407727": "8bce",
+    "6f407729": "e872a8ffff",
+    "6f40772e": "5f",
+    "6f40772f": "5e",
+    "6f407730": "5d",
+    "6f407731": "c20800",
+    "6f5fc120": "56",
+    "6f5fc121": "57",
+    "6f5fc122": "8bf1",
+    "6f5fc124": "e847b3e0ff",
+    "6f5fc129": "8b7e30",
+    "6f5fc12c": "85ff",
+    "6f5fc12e": "7511",
+    "6f5fc130": "8bce",
+    "6f5fc132": "e8899ba5ff",
+    "6f5fc137": "8bf8",
+    "6f5fc139": "85ff",
+    "6f5fc13b": "0f84dc000000",
+    "6f5fc141": "8bce",
+    "6f5fc143": "e878feffff",
+    "6f5fc148": "8bce",
+    "6f5fc14a": "e851fdffff",
+    "6f5fc14f": "8d8e90000000",
+    "6f5fc155": "e86645a6ff",
+    "6f5fc15a": "56",
+    "6f5fc15b": "8bcf",
+    "6f5fc15d": "e85ea5a5ff",
+    "6f5fc162": "56",
+    "6f5fc163": "8bcf",
+    "6f5fc165": "e876a5a5ff",
+    "6f5fc16a": "56",
+    "6f5fc16b": "8bcf",
+    "6f5fc16d": "e8bea5a5ff",
+    "6f5fc172": "56",
+    "6f5fc173": "8bcf",
+    "6f5fc175": "e8d6a5a5ff",
+    "6f5fc17a": "6a02",
+    "6f5fc17c": "8bcf",
+    "6f5fc17e": "e89d840900",
+    "6f5fc183": "8bcf",
+    "6f5fc185": "e8b6e60900",
+    "6f5fc18a": "f7462000080000",
+    "6f5fc191": "740e",
+    "6f5fc193": "816620fff7ffff",
+    "6f5fc19a": "8bcf",
+    "6f5fc19c": "e80f970900",
+    "6f5fc1a1": "8b8688000000",
+    "6f5fc1a7": "238684000000",
+    "6f5fc1ad": "53",
+    "6f5fc1ae": "83f8ff",
+    "6f5fc1b1": "7445",
+    "6f5fc1b3": "8d8e84000000",
+    "6f5fc1b9": "e86251a6ff",
+    "6f5fc1be": "85c0",
+    "6f5fc1c0": "7436",
+    "6f5fc1c2": "6a01",
+    "6f5fc1c4": "6a01",
+    "6f5fc1c6": "6a00",
+    "6f5fc1c8": "6a01",
+    "6f5fc1ca": "6872616341",
+    "6f5fc1cf": "8bc8",
+    "6f5fc1d1": "e8aa09e9ff",
+    "6f5fc1d6": "85c0",
+    "6f5fc1d8": "740a",
+    "6f5fc1da": "6a01",
+    "6f5fc1dc": "57",
+    "6f5fc1dd": "8bc8",
+    "6f5fc1df": "e81c46faff",
+    "6f5fc1e4": "c78688000000ffffffff",
+    "6f5fc1ee": "c78684000000ffffffff",
+    "6f5fc1f8": "816620ffbfffff",
+    "6f5fc1ff": "f6462004",
+    "6f5fc203": "5b",
+    "6f5fc204": "7417",
+    "6f5fc206": "816620fbbfffff",
+    "6f5fc20d": "8bcf",
+    "6f5fc20f": "e84c500900",
+    "6f5fc214": "8bcf",
+    "6f5fc216": "5f",
+    "6f5fc217": "5e",
+    "6f5fc218": "e9e31c0800",
+    "6f5fc21d": "5f",
+    "6f5fc21e": "5e",
+    "6f5fc21f": "c3"
+  },
+  "instruction_count": 326,
+  "function_count": 4,
+  "limits": [
+    "This chunk integrates scheduled first-disable during final removal; complete MAP-04.2 exit inventory remains open.",
+    "Fresh/saved engine controls cover continuation; no new retail save/load capture is claimed.",
+    "Observer fine resolver returned null: no retail fine-geometry claim.",
+    "Earlier Stop284 native-return marker fixtures are unchanged; a post-return engine-only absence assertion was outside that evidence window."
+  ]
+}

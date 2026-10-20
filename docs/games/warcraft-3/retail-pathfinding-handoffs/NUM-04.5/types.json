@@ -1,0 +1,21 @@
+{
+ "layouts": [
+  {"name": "WC3GameSetupRecord", "length": 18, "fields": [
+   {"offset": 4, "name": "slotCount", "type": "u32", "evidence": "2a1170 reads +4 as count and walks 9-byte rows from +8; 29e300 sets it zero before 96c8c0 fills it"},
+   {"offset": 8, "name": "slots", "type": "ptr:u8", "evidence": "2a1170 9-byte stride rows (+0 id, +2 status, +3 flag); 29e300 copies row bytes"},
+   {"offset": 12, "name": "randomSeed", "type": "u32", "evidence": "29e300 [ebp-0x3c50] (record at [ebp-0x3c5c]) seeds owner/streams when mapflag 0x8000 is clear; 2a46a0 stamps GetTickCount at +0x24 of the lobby (record at +0x18); NUM-04.5 live equality in 9/9 probed startups"}
+  ]}
+ ],
+ "methods": [
+  {"address": "6f71d580", "name": "WorldEditPref_GetBool", "returns": "u32", "convention": "__fastcall", "parameters": [{"name": "index", "type": "u32", "storage": "ECX"}, {"name": "useDefault", "type": "u32", "storage": "EDX"}]},
+  {"address": "6f71d5d0", "name": "WorldEditPref_GetDword", "returns": "u32", "convention": "__fastcall", "parameters": [{"name": "index", "type": "u32", "storage": "ECX"}, {"name": "useDefault", "type": "u32", "storage": "EDX"}]},
+  {"address": "6f2a46a0", "name": "GameLobby_StampSeedAndBroadcast", "returns": "void", "convention": "__fastcall", "parameters": [{"name": "lobby", "type": "ptr:void", "storage": "ECX"}]},
+  {"address": "6f96c8c0", "name": "GameSetupRecord_Deserialize", "returns": "u32", "convention": "__fastcall", "parameters": [{"name": "record", "type": "ptr:WC3GameSetupRecord", "storage": "ECX"}, {"name": "blob", "type": "ptr:u16", "storage": "EDX"}]},
+  {"address": "6f2a0c80", "name": "GameSetup_ApplyDescriptor", "returns": "u32", "convention": "__fastcall", "parameters": [{"name": "descriptor", "type": "ptr:void", "storage": "ECX"}]},
+  {"address": "6f2e2850", "name": "LoadFile_StartPendingFile", "returns": "void", "convention": "__fastcall", "parameters": [{"name": "frame", "type": "ptr:void", "storage": "ECX"}]}
+ ],
+ "globals": [
+  {"address": "6fce50b4", "name": "LoadFile_GameFlags", "type": "u32", "evidence": "2e2850 or 0x8000 / and ~0x8000 from WorldEditPref_GetBool(0x6a); NUM-04.5 live descriptor +0x34 0x02008000"},
+  {"address": "6fd69b10", "name": "LoadFile_PendingPath", "type": "u8", "evidence": "2e2850 tests first byte, copies with Storm strcpy and clears it"}
+ ]
+}
