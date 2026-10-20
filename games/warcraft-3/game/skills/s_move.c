@@ -79,6 +79,13 @@ static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleto
 static void (*move_test_group_begin)(moveGroup_t const *group);
 enum { MOVE_PHASE_SCHEDULER, MOVE_PHASE_PUBLISH, MOVE_PHASE_RADIUS, MOVE_PHASE_GROUP, MOVE_PHASE_DECIDE, MOVE_PHASE_COMMIT, MOVE_PHASE_SEPARATE };
 static void (*move_test_owner_phase)(unsigned phase,uint64_t id);
+/* Observe logical membership and physical retirement independently. These
+ * callbacks report committed production mutations and never drive owners. */
+enum { MOVE_LEDGER_BIND, MOVE_LEDGER_DETACH, MOVE_LEDGER_RELEASE };
+static void (*move_test_owner_ledger)(unsigned event,edict_t *unit,
+    moveGroup_t const *previous,moveGroup_t const *next);
+#define MOVE_OWNER_LEDGER(event,unit,previous,next) do { if(move_test_owner_ledger) \
+    move_test_owner_ledger(event,unit,previous,next); } while(0)
 static uint32_t move_owner_visit_allocations;
 #define MOVE_OWNER_PHASE(phase,id) do { if(move_test_owner_phase)move_test_owner_phase(phase,id); } while(0)
 typedef struct { float cap, speed; } moveGroupCommitTrace_t;
@@ -93,6 +100,7 @@ static uint32_t move_retry_member_visits;
 
 #ifndef BZ_TESTS
 #define MOVE_OWNER_PHASE(phase,id) ((void)0)
+#define MOVE_OWNER_LEDGER(event,unit,previous,next) ((void)0)
 #endif
 
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
@@ -740,6 +748,7 @@ static void move_free_group_routes(moveGroup_t *group) {
 
 /* Retire route allocations independently of the originating JASS collection. */
 static void move_release_group(moveGroup_t *group) {
+    MOVE_OWNER_LEDGER(MOVE_LEDGER_RELEASE,NULL,group,NULL);
     moveShared_t *shared=move_group_shared(group);
     if (shared) {
         if (!shared->references) gi.error("Move: shared parameter reference underflow");
@@ -813,6 +822,7 @@ static void move_detach_group(edict_t *unit) {
         /* Native171340 detaches now, but16c150 retires the empty owner at its
          * next visit. Its coarse FIFO entry and allocations remain until then,
          * for ordinary groups as well as groups with shared parameters. */
+        MOVE_OWNER_LEDGER(MOVE_LEDGER_DETACH,unit,group,NULL);
         move_cancel_receiver(group,unit,ability_chase);
         return;
     }
@@ -5817,6 +5827,7 @@ static void move_group_bind_ready(moveGroup_t *group,moveReadyCohort_t *ready,un
     }
     group->members[group->count++]=member;
     member.unit->movement.group_id=group->id;move_unit_groups[member.unit-g_edicts]=group;
+    MOVE_OWNER_LEDGER(MOVE_LEDGER_BIND,member.unit,previous,group);
     group->radius=MAX(group->radius,S_MoveCollisionRadius(member.unit));
     if(group->flags&0x200)return;
     wc3GridPose_t source;unit_predicted_pose(member.unit,&source);

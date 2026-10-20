@@ -328,7 +328,8 @@
     "oracle-waygate377",
     "oracle-target-tokens",
     "oracle-morph382",
-    "oracle-captain376-preferred-suicide"
+    "oracle-captain376-preferred-suicide",
+    "oracle-group012"
   ],
   "entries": [
     {
@@ -362,7 +363,7 @@
         },
         {
           "index": 2,
-          "text": "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2\u21921, final owned-object destruction untested",
+          "text": "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2→1, final owned-object destruction untested",
           "task": "BASE-03.1",
           "disposition": "reachability",
           "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
@@ -7353,6 +7354,25 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "The unchanged existing Captain leaf retains composed journeys, remaining help/transport and retail save/load; this producer chunk does not close them."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group012",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Broader moving Captain combat/retreat policy remains GROUP-03.4/03.4.7.3; arbitrary callback/category/storage compositions and canonical member storage remain GROUP-04.6.",
+          "task": "GROUP-04.6",
+          "disposition": "behavior",
+          "rationale": "GROUP-01.2 closes producer membership/route ownership only; moving Captain policy stays GROUP-03.4/03.4.7.3 and canonical storage/callback compositions stay GROUP-04.6."
+        },
+        {
+          "index": 1,
+          "text": "No new retail captures or observer-free controls; only projected binding/path associations of the two accepted captures are compared, not whole rows.",
+          "task": "GROUP-04.6",
+          "disposition": "evidence-boundary",
+          "rationale": "The projection reuses accepted complete captures; whole-row equality of later storage replacement is owned by GROUP-04.6."
         }
       ]
     }

@@ -15113,6 +15113,12 @@ static void selected_queued_input_link(edict_t *unit) {
  * and motion then come from ordinary engine frames, without replaying decisions. */
 typedef enum { SELECTED_START_SINGLE, SELECTED_START_SHARED, SELECTED_START_INDEPENDENT } selectedStart_t;
 
+enum { SELECTED_LEDGER_BEGIN, SELECTED_LEDGER_FRAME, SELECTED_LEDGER_SAVE,
+       SELECTED_LEDGER_LOAD, SELECTED_LEDGER_END };
+static void (*selected_queued_journey_observe)(unsigned event,unsigned slot,edict_t **units);
+#define SELECTED_LEDGER(event,slot) do { if(selected_queued_journey_observe) \
+    selected_queued_journey_observe(event,slot,units); } while(0)
+
 static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input_count,
         uint32_t const (*motion)[7], unsigned commit_count, unsigned cases, selectedStart_t initial_peer,
         unsigned const save_steps[2]) {
@@ -15171,12 +15177,14 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
         selected_queued_input=(typeof(selected_queued_input)){.link=gi.LinkEntity,.client=clent,
             .units={units[0],units[1]},.inputs=inputs+c*input_count,.count=input_count};
         gi.LinkEntity=selected_queued_input_link;
+        SELECTED_LEDGER(SELECTED_LEDGER_BEGIN,0);
         bool mismatch=false; unsigned saved_inputs[2]={0}; uint32_t saved_history[2][2]={{0}};
         cstring_t saves[]={Test_TempPath("wc3-selected-queued-moving.bin"),Test_TempPath("wc3-selected-queued-arrival.bin")};
         FOR_LOOP(pass,3) {
             if (pass) {
                 if (mismatch) break;
                 T_ASSERT(ReadGame(saves[pass-1])); steps=save_steps[pass-1]; selected_queued_input.index=saved_inputs[pass-1]; mismatch=false;
+                SELECTED_LEDGER(SELECTED_LEDGER_LOAD,pass-1);
                 FOR_LOOP(i,2) {
                     T_EQ(units[i]->movement.previous_request_id,saved_history[pass-1][i]);
                 }
@@ -15184,6 +15192,7 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
             }
             while (level.time<30000 && !mismatch) {
                 level.time+=5; globals.RunFrame();
+                SELECTED_LEDGER(SELECTED_LEDGER_FRAME,0);
                 if (!selected_queued_input.index && level.time<1000) continue;
                 unsigned visited=0;
                 while (steps<commit_count) {
@@ -15207,6 +15216,7 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
                             T_EQ(units[0]->movement.previous_request_id,units[1]->movement.previous_request_id);
                         }
                         T_ASSERT(WriteGame(saves[slot]));
+                        SELECTED_LEDGER(SELECTED_LEDGER_SAVE,slot);
                     }
                     if (mismatch) {
                         fprintf(stderr,"Selected queued case%u commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",c,steps-1,
@@ -15215,6 +15225,7 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
                     }
                 }
             }
+            SELECTED_LEDGER(SELECTED_LEDGER_END,pass);
             T_EQ(selected_queued_input.index,input_count); T_EQ(steps,commit_count);
             if (!mismatch) {
                 FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
@@ -15248,6 +15259,140 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
     FOR_LOOP(c,sizeof(selected_independent_cases)/sizeof(*selected_independent_cases))
         selected_queued_journeys(selected_independent_inputs+c,1,selected_independent_cases[c].motion,
             selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
+}
+
+
+/* Both original independent-Shift observations contain exactly these nine
+ * binding changes. Native identities follow entity creation order; this
+ * journey's motion normalization puts native U1 in units[0]. The transient
+ * third owner receives no motion update before the fresh shared fourth owner
+ * inherits its member. Observe publication, not just final poses. */
+typedef struct {
+    uint32_t id;
+    uint64_t sequence;
+    unsigned released;
+} selectedLedgerOwner_t;
+typedef struct {
+    edict_t *units[2];
+    selectedLedgerOwner_t owners[4];
+    unsigned count,events,releases;
+    int binding[2];
+    uint32_t visiting;
+} selectedOwnerLedger_t;
+static selectedOwnerLedger_t selected_owner_ledger,selected_owner_ledger_saved[2];
+static unsigned selected_owner_ledger_cases;
+
+static int selected_ledger_owner(moveGroup_t const *group,bool create) {
+    if(!group)return -1;
+    FOR_LOOP(i,selected_owner_ledger.count)
+        if(selected_owner_ledger.owners[i].id==group->id &&
+           selected_owner_ledger.owners[i].sequence==group->sequence)return i;
+    T_ASSERT(create);
+    if(!create || selected_owner_ledger.count==4) {T_ASSERT(false);return -1;}
+    unsigned index=selected_owner_ledger.count++;
+    FOR_LOOP(i,index) {
+        T_ASSERT(selected_owner_ledger.owners[i].id!=group->id);
+        T_ASSERT(selected_owner_ledger.owners[i].sequence!=group->sequence);
+        moveGroup_t const *other=move_find_group(selected_owner_ledger.owners[i].id);
+        if(other)T_ASSERT(&other->route!=&group->route);
+    }
+    selected_owner_ledger.owners[index]=(selectedLedgerOwner_t){group->id,group->sequence,0};
+    return index;
+}
+
+static void selected_ledger_event(unsigned event,edict_t *unit,
+        moveGroup_t const *previous,moveGroup_t const *next) {
+    if(event==MOVE_LEDGER_RELEASE) {
+        int owner=selected_ledger_owner(previous,false);
+        if(owner<0)return;
+        T_EQ(selected_owner_ledger.visiting,previous->id);
+        T_EQ(previous->count,0);
+        FOR_LOOP(i,2)T_ASSERT(selected_owner_ledger.binding[i]!=owner);
+        T_EQ(selected_owner_ledger.owners[owner].released,0);
+        selected_owner_ledger.owners[owner].released=1;
+        selected_owner_ledger.releases++;
+        return;
+    }
+    int member=unit==selected_owner_ledger.units[1] ? 0 :
+        unit==selected_owner_ledger.units[0] ? 1 : -1;
+    if(member<0)return;
+    int before=selected_ledger_owner(previous,false);
+    int after=selected_ledger_owner(next,true);
+    static int const expected[9][3]={
+        {0,-1,0},{1,-1,1},{1,1,-1},{1,-1,2},{0,0,-1},
+        {0,-1,3},{1,2,3},{1,3,-1},{0,3,-1},
+    };
+    unsigned index=selected_owner_ledger.events++;
+    T_ASSERT(index<9);
+    if(index<9) {
+        T_EQ(member,expected[index][0]);T_EQ(before,expected[index][1]);T_EQ(after,expected[index][2]);
+    }
+    T_EQ(selected_owner_ledger.binding[member],before);
+    selected_owner_ledger.binding[member]=after;
+    if(next) {
+        T_EQ(unit->movement.group_id,next->id);
+        T_ASSERT(move_unit_group(unit)==next);
+    }
+    if(previous) {
+        /* Logical departure does not synchronously free the old route owner.
+         * Its row may be invalid or marked retired until preparation. */
+        T_ASSERT(previous->inuse);
+        if(before>=0)T_EQ(selected_owner_ledger.owners[before].released,0);
+    }
+}
+
+static void selected_ledger_phase(unsigned phase,uint64_t id) {
+    if(phase==MOVE_PHASE_GROUP)selected_owner_ledger.visiting=id;
+}
+
+static void selected_ledger_checkpoint(unsigned event,unsigned slot,edict_t **units) {
+    if(event==SELECTED_LEDGER_BEGIN) {
+        selected_owner_ledger=(selectedOwnerLedger_t){.units={units[0],units[1]},.binding={-1,-1}};
+        memset(selected_owner_ledger_saved,0,sizeof(selected_owner_ledger_saved));
+        selected_owner_ledger_cases++;
+        return;
+    }
+    if(event==SELECTED_LEDGER_SAVE) {
+        T_ASSERT(slot<2);
+        selected_owner_ledger_saved[slot]=selected_owner_ledger;
+        return;
+    }
+    if(event==SELECTED_LEDGER_LOAD) {
+        T_ASSERT(slot<2);
+        selected_owner_ledger=selected_owner_ledger_saved[slot];
+        selected_owner_ledger.units[0]=units[0];selected_owner_ledger.units[1]=units[1];
+        selected_owner_ledger.visiting=0;
+        T_ASSERT(selected_owner_ledger.events>=2 && selected_owner_ledger.events<=9);
+    }
+    if(event==SELECTED_LEDGER_END) {
+        T_EQ(selected_owner_ledger.events,9);T_EQ(selected_owner_ledger.count,4);
+        T_EQ(selected_owner_ledger.releases,4);
+    }
+    /* Reacquire every owner by serialized identity. No pre-load group or route
+     * pointer survives ReadGame, and row count is not live membership. */
+    FOR_LOOP(i,selected_owner_ledger.count) {
+        selectedLedgerOwner_t const *owner=selected_owner_ledger.owners+i;
+        moveGroup_t const *group=move_find_group(owner->id);
+        if(owner->released)T_ASSERT(!group);
+        else {T_ASSERT(group);if(group)T_EQ(group->sequence,owner->sequence);}
+    }
+    FOR_LOOP(native,2) {
+        int owner=selected_owner_ledger.binding[native];
+        T_EQ(units[1-native]->movement.group_id,owner<0 ? 0 : selected_owner_ledger.owners[owner].id);
+    }
+}
+
+TEST(wc3_movement, group012_independent_shift_preserves_nine_transitions_and_four_route_owners) {
+    T_ASSERT(!move_test_owner_ledger && !move_test_owner_phase && !selected_queued_journey_observe);
+    selected_owner_ledger_cases=0;
+    move_test_owner_ledger=selected_ledger_event;
+    move_test_owner_phase=selected_ledger_phase;
+    selected_queued_journey_observe=selected_ledger_checkpoint;
+    FOR_LOOP(c,(sizeof(selected_independent_cases)/sizeof(*selected_independent_cases)))
+        selected_queued_journeys(selected_independent_inputs+c,1,selected_independent_cases[c].motion,
+            selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
+    selected_queued_journey_observe=NULL;move_test_owner_phase=NULL;move_test_owner_ledger=NULL;
+    T_EQ(selected_owner_ledger_cases,(sizeof(selected_independent_cases)/sizeof(*selected_independent_cases)));
 }
 
 /* Test-only adapter: observe the committed production state, never expected rows.

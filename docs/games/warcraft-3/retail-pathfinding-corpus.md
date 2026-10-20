@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Captain376, the inventory has **607 entries**: **326** oracle contracts
-(including variants) supplied by **254** distinct verifier scripts, **121**
+As of Group012, the inventory has **608 entries**: **327** oracle contracts
+(including variants) supplied by **255** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2493,3 +2493,5 @@ health bonuses and restoration/evidence boundaries stay explicit in SEP-01.2.
 See [the behavior and evidence limits](metamorphosis-availability.md).
 
 Captain 376 registers preferred-primary, public SuicideUnit and live-classification ownership. Strict acceptance: 53 tests / 3330 assertions per edition. There are 28 distinct observed captures, 12 distinct controls and 14 family/control comparisons; O retains its explicitly bounded acceptance interval. Existing GROUP-03.4.7.3 retains the remaining composed journey and retail-save requirements.
+
+Group 012 registers the finite GROUP-01.2 producer-transition matrix. The two accepted original independent-Shift captures retain nine binding changes across four physical/path owners; the frame-driven engine owner ledger and nineteen existing producer journeys pass 20 tests / 1,146,726 assertions per edition. No gameplay behavior changed; moving Captain policy and canonical storage compositions stay in GROUP-03.4/03.4.7.3/04.6. See [the transition ledger](retail-pathfinding-queued-cohorts.md#producer-transitions-retain-membership-and-route-ownership-group-012).

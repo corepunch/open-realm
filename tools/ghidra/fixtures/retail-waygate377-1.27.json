@@ -17,7 +17,7 @@
     "games/warcraft-3/game/g_local.h": "abe3b72f599c62293e312f4db51c60821689b7161715ec60102a7cabc732a268",
     "games/warcraft-3/game/g_save.c": "92a2c9a81324ca43a6b8c7df6a40ed22b93dad8b38e0c09d1a38bed92bd81759",
     "games/warcraft-3/game/m_unit.c": "8fa7a1e36253c92072244ae1d10ff348f0669f4ab08e7a5f7163089a2e0d8a51",
-    "games/warcraft-3/game/skills/s_move.c": "a7d95926a0eaa093c68ee4040001ed5bfdd7d1242aafba3b5de71dd58eb4fc47",
+    "games/warcraft-3/game/skills/s_move.c": "369d331822092fa48c6c33eeef14eb1ab8b1e2c2389ecaf411a36f8b93539bb2",
     "games/warcraft-3/game/skills/s_waygate.c": "241e6c59997b44c89ad54486f3291d038b06496e4ceb27881a1ce4b7ba5b8514",
     "games/warcraft-3/game/tests/t_target377.c": "9f9a8f874db9bd224682a09c2b41c936d8f98f5801677b2ad8628ef2097b7fed",
     "games/warcraft-3/game/tests/t_waygate.c": "89df75a999334045ddc91f3df01e024ccc5dfc5b5fd106801e559c0c44917a65",

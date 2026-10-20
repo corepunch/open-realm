@@ -844,3 +844,34 @@ prebinds a physical owner during recipient admission. Target/member counted fine
 exclusions cover partition and route seeding; shared references begin only at
 physical publication. The older `move_group_publish_ready` adapter is removed.
 See [scope evidence and limits](retail-pathfinding-exclusions.md#captain-publication-uses-canonical-exclusions-payoff273).
+
+## Producer transitions retain membership and route ownership (GROUP-01.2)
+
+The finite producer inventory from GROUP-01.1 now has explicit transition
+checks. This closes the producer membership/route-ownership leaf; it does not
+close the broader moving Captain or arbitrary canonical-storage tasks.
+
+| Producer | Transition and ownership acceptance |
+|---|---|
+| Selected ordinary and independent JASS requests | Both original independent-Shift observations record exactly nine changes: two distinct singleton owners, first natural departure and a transient singleton, second natural departure and a fresh shared owner, direct inheritance of the transient member, then both final departures. Four original physical identities each retain their own path association. The new regression observes all nine changes at the actual mutation boundaries, checks four distinct owner generations and route objects, and checks retirement only during the scheduled empty-owner preparation visit. The original complete motion and warm, pre-merge save and post-merge save continuations remain unchanged. |
+| Selected ordinary/Alt class split and replacement | The existing ordinary and Alt tests assert primary/flight membership, distinct request identity where required, physical sequence and flags, goals, queued contexts and cold restore. Stopping one flyer leaves both ground bindings intact. The native partition test asserts a near pair and distant singleton, then saved restoration and one-member departure. Pair-to-singleton history and the complete mixed Alt/Shift journey retain independent public JASS replacement. Alt flight is a separate request, not an invented singleton for every flyer. |
+| Public JASS group adapters | Name, ById, Loc and ByIdLoc retain the established twelve-member admission limit and common physical publication path. Collection destruction preserves active movement. These original adapter captures were capped; their role is admission and ownership, while the complete independent and mixed journeys provide the motion continuation. |
+| Captain AI | Public thirteen-member mixed, reentry, early/late Stop, removal, retarget and final-binding journeys retain the actual campaign-AI producer and cold continuations. They assert physical departure, retained empty owners, shared reference counts through two, one and zero, cached route radius, release and subsequent shared publication at captured frontiers. The separate canonical partition test checks two physical owners sharing one parameter identity and preserves the surviving bindings after save and Stop; it is explicitly a kernel check, not a substitute for the public AI journeys. |
+
+Normal Classic/TFT execution passes **20 tests and 1,146,726 assertions per
+edition**, including the new owner-ledger test's 206,156 assertions. The two
+original traces retain their raw row ordinals, pointer/identity alias maps and
+physical-path associations. The transition comparison is a projection of those
+accepted complete captures, not a new whole-row equality claim or a newly
+collected observer-free control. The same nine transitions are checked after
+each applicable saved continuation. No missing production behavior was exposed,
+so no gameplay implementation changed and no artificial failing-first claim is
+made. BZ_TESTS observers only report existing membership and release mutations.
+
+The finite gate consists of `group012_independent_shift_preserves_nine_transitions_and_four_route_owners`,
+the unchanged independent journey, ordinary/Alt class and singleton checks,
+public and Captain partition checks, the two public JASS adapter/ownership
+checks, exact 24/25-member Captain batching/removal and Alt nested replacement,
+and the seven public Captain complete/Stop/removal/retarget/partial-save
+checks. Broader Captain combat/retreat policy remains GROUP-03.4/03.4.7.3;
+arbitrary callback/category/storage compositions remain GROUP-04.6.

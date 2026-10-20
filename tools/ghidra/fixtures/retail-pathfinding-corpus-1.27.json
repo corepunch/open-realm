@@ -243,7 +243,7 @@
       "exclusions": [
         "Preallocated CDataAllocator blocks; external heap growth not executed",
         "Manually registered wrapper and class table; live wrapper/class registration not executed",
-        "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2\u21921, final owned-object destruction untested",
+        "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2→1, final owned-object destruction untested",
         "Positive handle domain; no nested callbacks or nonempty request heap"
       ]
     },
@@ -318,7 +318,7 @@
         "O",
         "C"
       ],
-      "scope": "Original 78b0a0\u21927425a0\u219273db20 bounds producer; original 04c860\u219215ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted. Additional2500 complete original all-corner adjacent-word/decimal boundary edits, exact fine/cell/inverse outputs and production coordinate comparisons use unchanged constructed map origins. Four-lane corner edits, full padded classes and exact reversal are frozen across all25 maps.",
+      "scope": "Original 78b0a0→7425a0→73db20 bounds producer; original 04c860→15ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted. Additional2500 complete original all-corner adjacent-word/decimal boundary edits, exact fine/cell/inverse outputs and production coordinate comparisons use unchanged constructed map origins. Four-lane corner edits, full padded classes and exact reversal are frozen across all25 maps.",
       "exclusions": []
     },
     {
@@ -57431,6 +57431,66 @@
       "exclusions": [
         "Complete moving Captain engagement, retreat and arrival journeys; remaining nonstructure/allied help and transport consumers; actual retail midjourney save/load remain in existing GROUP-03.4.7.3."
       ]
+    },
+    {
+      "id": "oracle-group012",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_group012.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "group012.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "native": {
+          "equal": {
+            "captures": 2,
+            "transitions_per_capture": 9,
+            "physical_owners_per_capture": 4,
+            "original_rows": [
+              5734,
+              5734
+            ],
+            "motion_commits": [
+              511,
+              511
+            ]
+          }
+        },
+        "instructions": {
+          "equal": 348
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 20,
+              "assertions": 1146726
+            },
+            "tft": {
+              "tests": 20,
+              "assertions": 1146726
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-01.2 finite producer transition matrix: selected ordinary/Alt/singleton, independent JASS and 24/25-member Captain producers. The two accepted original independent-Shift captures retain the same nine binding changes across four physical/path owners; a frame-driven engine owner ledger checks every intermediate publication and deferred retirement with unchanged complete motion and warm/pre-merge/post-merge saved continuations.",
+      "exclusions": [
+        "Broader moving Captain combat/retreat policy remains GROUP-03.4/03.4.7.3; arbitrary callback/category/storage compositions and canonical member storage remain GROUP-04.6.",
+        "No new retail captures or observer-free controls; only projected binding/path associations of the two accepted captures are compared, not whole rows."
+      ]
     }
   ],
   "fixtures": [
@@ -58329,7 +58389,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "061b82a2b2ae1b9da7b8d93f62b6be01e47aeeded8f7083d88296a03a7d68082"
+      "sha256": "7d59ebeb996000e73c762d56809816e49026ad9a4cc962012ab68f76fea8cd54"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59185,7 +59245,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "a7d95926a0eaa093c68ee4040001ed5bfdd7d1242aafba3b5de71dd58eb4fc47"
+      "sha256": "369d331822092fa48c6c33eeef14eb1ab8b1e2c2389ecaf411a36f8b93539bb2"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -59877,7 +59937,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "80dd51e6ec949d4b99aff1eb3ab0d999cb6c7a9e794591096c5ccf431eb76655"
+      "sha256": "15ab3c3afe73cecd281cd41620b995e80b291ab775dce5e5fc3d2d8995a90fdd"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -60121,7 +60181,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "d6000356c70d73632e9747d25b73ba82f02d7e6f0ca6ffb93bb8a8307612702f"
+      "sha256": "62897576fc4f3f795699fe7b6fea9e5c4b34ee8d3f73edaea92ec42001858b23"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -60137,7 +60197,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "9728b6add598f2889c3af5996d2f23eb0d503e46258d4fe8be773c92c75c65bf"
+      "sha256": "062f24351d75ad6c846906cb3a5f800cee57fd122889e1575374e09cff7e87ca"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -63081,7 +63141,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "6a6fd410656518dd017ab32703e9005a651b41c55c31aaf95a945d4411ded2c9"
+      "sha256": "313100468ee23cc708630e8fd21a3639f8229195c493a154b5418e72dc618349"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -65137,7 +65197,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "4890c1833de19076aa20a7b7a5ef91e065d0e1224011b7d0603d6796769a84cb"
+      "sha256": "28c1377b8f285434c4e16fecd65e9b42420e5597175bf91e36c5c5917c2e2d70"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -66993,7 +67053,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "ede15dc212a5b504c6f3a7a2b5a292844497a51ca4cd5522aab3d9e9e0f9c60d"
+      "sha256": "05955e498be6a517e3bc468bb3591c14bc73ab82de92352f2ec59854cd263b92"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -69265,7 +69325,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "c7cfae4a64a7e760726e9d3dfa9b1f455dd0429ed6e31dc2f3a36b518043212e"
+      "sha256": "bc02674bba86fda43f3ea4e4203a5db5f392cfac0f24adff8ea3ed67dd7b4adc"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -69609,7 +69669,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain376-1.27.json",
-      "sha256": "39ba4eb02fbcb76a30b4ab42a56beb59004bffb13d8b152e2a72ac4392e9ba54"
+      "sha256": "ad75337e525c32278037a3d833107c963cf8a8bb0346ba7aa65a63ea6970260c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain376-native-1.27.json.gz",
@@ -69622,6 +69682,26 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_captain376.py",
       "sha256": "0f59beeff10ea9c277625f901ab64890c1d9b552a7a96ccdd2df1270869803c4"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_group012.py",
+      "sha256": "c706277f208357016bdf00a840729bbcb197ec42aea77c8f16b354c340bffba9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
+      "sha256": "6fa7c11903bbbaeebb1b63c20bd86743356e73d732de9e7048634e7eb8ac71ac"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
+      "sha256": "628bf5b1a7203311ba6e4cd532761d1943cd769c7c674cfa005b08f4fd4a3dac"
+    },
+    {
+      "path": "tools/ghidra/research/Group012OwnerLedgerEvidence.java",
+      "sha256": "13c715e4334238b36206cc10438dd3afc2fcadbfc120bbac70e90198ead2cf24"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_group012.py",
+      "sha256": "545cd5f7e18e4755d1342d72e91655de08120da26a1eaa053266210a272bc5a9"
     }
   ]
 }

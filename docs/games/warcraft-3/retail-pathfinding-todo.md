@@ -8,6 +8,10 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Execution order for the remaining 30 (2026-10-18)
 
+**Current closure result: 307/336 complete, 29 open.** GROUP-01.2 is now verified
+across its existing producer matrix. The execution plan below retains its
+original 30-leaf baseline and milestone counts as planning history.
+
 **Baseline: 306/336 complete, 30 open.** Morph382 is committed as
 `c415f758`; Captain376 is integrated by this delivery. Moon381 remains a
 private integration candidate.
@@ -91,6 +95,15 @@ until the remaining matrices are frozen; test counts and research volume do not
 substitute for leaf closure.
 
 ## Progress
+
+Group012 closes GROUP-01.2 by verifying existing behavior across the finite
+selected ordinary/Alt/singleton, independent JASS and Captain producer matrix.
+Two original independent-Shift captures retain nine binding changes and four
+physical/path owners; a new frame-driven owner ledger checks every intermediate
+publication and deferred retirement with warm/pre-merge/post-merge saves.
+Strict acceptance: 20 tests / 1,146,726 assertions per edition; 348 instruction
+guards. No gameplay change. **29 tasks remain.**
+[Evidence](retail-pathfinding-queued-cohorts.md#producer-transitions-retain-membership-and-route-ownership-group-012).
 
 Captain 376 integrates Town preferred-primary ownership and the public SuicideUnit producer, typed core/point admission, raw target masks, mutable classifications and AI-record/publisher lifetimes. Save 217 rejects 216 before loading the changed meaning. Strict acceptance: 53 tests / 3330 assertions per edition; 7801 instruction guards, 16 data guards, 28 observed captures and 12 unique controls across 14 family/control comparisons. Full moving Captain journeys, remaining help/transport consumers and retail save/load stay in the existing leaf. [Evidence](retail-pathfinding-captain376.md).
 
@@ -2164,7 +2177,7 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 ### GROUP-01 — Group producers
 
 - [x] **GROUP-01.1** [Payoff239](retail-pathfinding-queued-cohorts.md#player-singleton-publication-clears-shared-history-payoff239): selected ordinary/Alt and singleton, independent JASS and24/25-member Captain producer inventory records sharing, twelve-member physical limits and distinct flags/policies. Two new singleton and two pair-to-singleton retail repeats expose unconditional history clearing before admission. Engine now clears player-only unassociated request history; failing-first immediate/Shift/Alt/independent/save tests and unchanged producer journeys pass. Wider canonical owner behavior remains GROUP-04.6.
-- [ ] **GROUP-01.2** Trigger join/leave/merge/split through those producers; assert membership and route ownership after each transition.
+- [x] **GROUP-01.2** Trigger join/leave/merge/split through the existing selected ordinary/Alt, independent JASS and Captain producers; assert membership and route ownership after each transition. The original independent-Shift repeats retain the same nine binding changes across four distinct physical/path owners; the new frame-driven owner ledger checks each intermediate publication and deferred retirement, with unchanged complete motion and warm/pre-merge/post-merge saved continuations. Existing class split, public JASS adapters, Captain shared partitions, early/late departure and last-binding release complete the finite producer matrix. Classic/TFT: 20 tests and 1,146,726 assertions per edition, all passing. This verifies existing behavior and adds no gameplay change. Broader moving Captain combat/retreat and arbitrary canonical callback/storage compositions remain GROUP-03.4/03.4.7.3/04.6. [Transition ledger](retail-pathfinding-queued-cohorts.md#producer-transitions-retain-membership-and-route-ownership-group-012).
 
 - [x] **GROUP-01.3** Explicitly split public JASS point-order admission from01.1: map name/ById/Loc/ByIdLoc to one native leaf, verify twelve-member insertion-order admission and all-candidate attach before order validation, and implement the bounded snapshot plus missing numeric/Loc engine dispatch. Evidence: [payoff37](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members), two complete scene46 admission captures, four shared original requests per capture/48 admitted/eight excluded members; engine regression reproduces the over-limit failure then passes allfour forms and invalid adapters. Ghidra retains nine producer/callback/snapshot roles and the44-byte request context. Persistent physical shared groups and complete trajectories remain04.6; selected/independent JASS/AI distinctions and flags remain01.1. Motion observer cap is explicit and certifies no whole trajectory.
 
