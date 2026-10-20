@@ -1046,6 +1046,20 @@ typedef enum {
     WC3_EFFECT_LIGHTNING = 6,
 } wc3EffectType_t;
 
+typedef enum { PLAYER_ORDER_REPLACE, PLAYER_ORDER_APPEND, PLAYER_ORDER_FALLBACK } playerOrderMode_t;
+/* A player packet owns these decisions only until synchronous dispatch returns. */
+typedef struct {
+    struct {
+        edict_t *unit;
+        uint32_t spawn;
+        playerOrderMode_t mode;
+        unitOrder_t target;
+        bool target_ready, target_rally;
+    } units[MAX_SELECTED_ENTITIES];
+    gameClient_t *client;
+    uint32_t count;
+} playerOrderSelection_t;
+
 /* The producer retains insertion order and generations before any order callbacks. */
 typedef struct {
     struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
@@ -1186,6 +1200,7 @@ typedef enum {
     A_SPELL_APPROACH_RANGE, /* Spell query: ability-specific distance for the shared approach behavior. */
     A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
     A_UNIT_RESUME, /* Execution contribution returned to nonpositive; owner restarts its policy. */
+    A_PLAYER_ORDER_WORK, /* Pure query on the active cast owner: native Unit20 channel-work state. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -4109,6 +4124,14 @@ void S_CancelUnitMoveFineRequest(edict_t *unit);
 void S_InitMoveFineScheduler(void);
 void S_ClearMoveFineRequests(void);
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
+/* Ordinary player packet only; snapshot before invoking any recipient. */
+bool G_PlayerSelectionAllWorking(gameClient_t *client);
+bool G_PlayerOrderFallback(edict_t const *unit,uint32_t command,bool all_working);
+void G_SnapshotPlayerOrderSelection(gameClient_t *client,uint32_t command,bool queued,playerOrderSelection_t *out);
+edict_t *G_PlayerOrderSelectionUnit(playerOrderSelection_t const *selection,uint32_t index);
+bool G_IssuePlayerPointOrder(edict_t *unit,cstring_t order,vec2_t const *point,playerOrderMode_t mode,uint32_t issuer,float speed);
+void G_PreparePlayerTargetOrders(playerOrderSelection_t *selection,cstring_t order,edict_t *target);
+bool G_IssuePlayerTargetOrder(playerOrderSelection_t const *selection,uint32_t index);
 typedef struct { bool prepared; } moveCohortQuery_t;
 uint32_t G_MoveCohortDistance(moveCohortQuery_t *,edict_t const *,edict_t const *,float const [2],float const [2],uint32_t);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);

@@ -6119,10 +6119,18 @@ static bool move_group_selected_point_order(groupPointOrder_t const *request) {
         }
         indices[j]=index;
     }
+    bool fallback[BZ_WC3_GROUP_ORDER_UNITS]={0};
+    bool all_working=request->selection_owner &&
+        G_PlayerSelectionAllWorking(request->selection_owner->client);
+    if(request->selection_owner)FOR_LOOP(i,request->count)
+        fallback[i]=G_PlayerOrderFallback(request->units[i].unit,request->order_id,all_working);
     bool any=false;
     FOR_LOOP(n,request->count) {
         unsigned i=indices[n],slot=slots[i];
-        if(request->queued) {
+        if(request->queued || fallback[i]) {
+            /* Shift appends; ordinary fallback cuts successors, retains the
+             * spell/work head, and inserts silently behind it (6b93a0). */
+            if(!request->queued)G_CancelUnitOrderSuccessors(request->units[i].unit);
             if(move_queue_group_candidate(request,i,prepared[slot].id,prepared+slot))any=true;
             else move_request_drop(prepared+slot,request->units[i].unit);
         } else if(move_request_admit(prepared+slot,request,i))any=true;
@@ -7190,6 +7198,9 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     uint32_t group_id = num_units > 1 && !clent->client->menu.order_queued ? move_allocate_group_id() : 0;
     route_waypoint = clent->client->menu.order_queued ? NULL : Waypoint_add(location);
 
+    bool fallback[MAX_SELECTED_ENTITIES]={0};
+    bool all_working=G_PlayerSelectionAllWorking(clent->client);
+    FOR_LOOP(i,num_units)fallback[i]=G_PlayerOrderFallback(units[i],G_OrderId("move"),all_working);
     FOR_LOOP(i, num_units) {
         edict_t *ent = units[i];
         vec2_t preferred;
@@ -7224,11 +7235,11 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
          * owner remains independent, especially for Shift. Script orders do
          * not pass through this publication boundary. */
         ent->movement.previous_request_id=0;
-        if (clent->client->menu.order_queued) {
-            /* Queued units may reach this leg at different times, so retain the
-             * resolved per-unit slot and speed in the unit's own FIFO. */
-            if (G_IssueUnitPointOrder(ent, "move", &target, true,
-                                      clent->client->ps.number, group_speed)) {
+        if (clent->client->menu.order_queued || fallback[i]) {
+            /* Capture the point and issuing identity before cancellation can
+             * recycle this unit. Shift keeps its ordinary append policy. */
+            playerOrderMode_t mode=clent->client->menu.order_queued ? PLAYER_ORDER_APPEND : PLAYER_ORDER_FALLBACK;
+            if (G_IssuePlayerPointOrder(ent,"move",&target,mode,clent->client->ps.number,group_speed)) {
                 issued = true;
             }
         } else {

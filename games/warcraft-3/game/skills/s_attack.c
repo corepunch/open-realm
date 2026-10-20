@@ -1990,11 +1990,11 @@ bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
         (!S_SpellIsEnemy(ent, target) && !S_SpellIsFriend(ent, target)))) {
         return false;
     }
-    FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
-        if (e == target) continue;
-        if (G_IssueUnitTargetOrder(e, "attack", target,
-                                   ent->client->menu.order_queued,
-                                   ent->client->ps.number)) {
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(ent->client,G_OrderId("attack"),ent->client->menu.order_queued,&selection);
+    G_PreparePlayerTargetOrders(&selection,"attack",target);
+    FOR_LOOP(i,selection.count) {
+        if (G_IssuePlayerTargetOrder(&selection,i)) {
             issued = true;
         }
     }
@@ -2472,15 +2472,17 @@ void order_attackmove(edict_t *self, edict_t *waypoint) {
 static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
-    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(clent->client,G_OrderId("attack"),clent->client->menu.order_queued,&selection);
+    FOR_LOOP(i,selection.count) {
+        edict_t *ent=G_PlayerOrderSelectionUnit(&selection,i);
+        if(!ent)continue;
         vec2_t target = *location;
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
         CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
-        if (G_IssueUnitPointOrder(ent, "attack", &target,
-                                  clent->client->menu.order_queued,
-                                  clent->client->ps.number, 0.0f)) {
+        if (G_IssuePlayerPointOrder(ent,"attack",&target,selection.units[i].mode,clent->client->ps.number,0)) {
             any = true;
         }
     }
@@ -2557,7 +2559,10 @@ BZ_ABILITY_PROC(CAbilityAttack) {
            !strcmp(call->order,"patrol") || !strcmp(call->order,"holdposition") ||
            !strcmp(call->order,"attack") || !strcmp(call->order,"attackonce") ||
            !strcmp(call->order,"attackground"))attack_set_alternative(ent,NULL);
-        if (((!strcmp(call->order,"attack") || !strcmp(call->order,"attackonce")) &&
+        /* Native enemy Smart owns851971 even when Attack executes its task.
+         * Omitting Smart here retained the previous spell head (or idle0).
+         * The physical-owner check preserves callback-installed replacements. */
+        if (((!strcmp(call->order,"attack") || !strcmp(call->order,"attackonce") || !strcmp(call->order,"smart")) &&
              ent->currentmove->proc==CAbilityAttack) ||
             (!strcmp(call->order,"attackground") && ent->currentmove->proc==CAbilityAttackGround)) {
             ent->current_order_id=G_OrderId(call->order);
@@ -2675,11 +2680,13 @@ static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location)
     bool any = false;
 
     if (!clent || !clent->client || !location) return false;
-    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(clent->client,G_OrderId("attackground"),clent->client->menu.order_queued,&selection);
+    FOR_LOOP(i,selection.count) {
+        edict_t *ent=G_PlayerOrderSelectionUnit(&selection,i);
+        if(!ent)continue;
         if (S_AttackProfileRead(ent, 0)->weapon != WPN_ARTILLERY) continue;
-        if (G_IssueUnitPointOrder(ent, "attackground", location,
-                                  clent->client->menu.order_queued,
-                                  clent->client->ps.number, 0.0f)) any = true;
+        if (G_IssuePlayerPointOrder(ent,"attackground",location,selection.units[i].mode,clent->client->ps.number,0)) any = true;
     }
     if (any) G_SendPointConfirmation(clent, location, true);
     return any;

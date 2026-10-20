@@ -93,6 +93,13 @@ BZ_ABILITY_PROC(CAbilityItemTeleport) {
     case A_VALIDATE:
         return call->target && call->target->type==SPELL_TARGET_UNIT &&
             item_teleport_destination(ent,call->target->entity);
+    case A_PLAYER_ORDER_WORK:
+        /* Query the saved owner contribution, including the inverse before
+         * ENDCAST. Merely entering CHANNEL has not acquired this work yet. */
+        for(unitAbilityDisable_t const *state=ent->ability_disables;state;state=state->next)
+            if(!state->class_code && state->code==code)
+                return state->exclusive_owned && state->exclusive_inventory;
+        return false;
     case A_CAST_BEGIN:S_AcquireItemAbilityDisables(ent,code);return true;
     case A_CAST_END:return S_ReleaseItemAbilityDisables(ent,code);
     case A_UNIT_SUSPEND:case A_DISABLE:

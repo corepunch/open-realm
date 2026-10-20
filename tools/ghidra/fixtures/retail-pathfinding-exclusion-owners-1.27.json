@@ -7525,7 +7525,7 @@
       "exclusions": [
         {
           "index": 0,
-          "text": "Cast protection is captured but not implemented by this owner-change/Repair batch; subgroup and wider internal ownership remain ORDER-02.2.",
+          "text": "Other player control bits, subgroup producers and broader held-order/working-owner compositions remain ORDER-02.2.",
           "task": "ORDER-02.2",
           "disposition": "behavior",
           "rationale": "This finite recovered producer batch leaves the named behavior or evidence boundary open."

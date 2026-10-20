@@ -4472,6 +4472,7 @@ TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion)
     T_ASSERT(G_AddItemToSlot(unit,item,0));
     edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
     level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(!S_PlayerOrderWorking(unit));
     G_UseItem(unit,0);
     T_NOT_NULL(player->client->menu.on_entity_selected);
     if(player->client->menu.on_entity_selected) {
@@ -4479,6 +4480,8 @@ TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion)
         cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
     }
     T_EQ(unit->current_order_id,852008);
+    T_ASSERT(S_PlayerOrderWorking(unit));
+    T_ASSERT(S_PlayerOrderCastProtected(unit));
     T_EQ(unit->movement.repulse.disable_depth,1);
     T_EQ(G_ItemCharges(item),4);
     T_ASSERT(unit_issueimmediateorder(unit,"stop"));
@@ -4491,6 +4494,8 @@ TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion)
         abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
     }
     T_EQ(unit->movement.repulse.disable_depth,0);
+    T_ASSERT(!S_PlayerOrderWorking(unit));
+    T_ASSERT(!S_PlayerOrderCastProtected(unit));
     T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
     T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);

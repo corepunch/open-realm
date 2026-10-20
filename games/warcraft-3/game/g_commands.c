@@ -1141,14 +1141,23 @@ CLIENTCOMMAND(Smart) {
         click_point = (vec2_t){ strtof(argv[2], NULL), strtof(argv[3], NULL) };
         have_click_point = true;
     }
-    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
-        /* A queued Smart target is otherwise accepted into the FIFO before
-         * its destructable semantics are evaluated, preventing the clicked
-         * walkable surface from falling back to the queued ground move. */
-        if (queued && have_click_point && G_DestructableIsWalkable(target) &&
-            !G_DestructableAcceptsSmartAttack(ent, target)) continue;
-        if (G_IssueUnitTargetOrder(ent, "smart", target, queued, client->ps.number)) {
-            if (G_UnitHasRally(ent)) rallied = true;
+    uint32_t const target_spawn=target->spawn_time;
+    bool const walkable=have_click_point && G_DestructableIsWalkable(target);
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(client,G_OrderId("smart"),queued,&selection);
+    G_PreparePlayerTargetOrders(&selection,"smart",target);
+    /* Filter the clicked walkable surface before a recipient can mutate it. */
+    FOR_LOOP(i,selection.count) {
+        edict_t *ent=G_PlayerOrderSelectionUnit(&selection,i);
+        if(!ent)continue;
+        /* All prepared modes admit before physical dispatch. Reject this
+         * widget candidate now so a non-attackable walkable surface still
+         * selects the clicked ground point, including immediate Smart. */
+        if (walkable && !G_DestructableAcceptsSmartAttack(ent,target))selection.units[i].target_ready=false;
+    }
+    FOR_LOOP(i,selection.count) {
+        if (G_IssuePlayerTargetOrder(&selection,i)) {
+            if (selection.units[i].target_rally) rallied = true;
             issued = true;
         }
     }
@@ -1156,7 +1165,7 @@ CLIENTCOMMAND(Smart) {
      * Smart action was rejected, preserve the world point under the cursor and
      * run the normal formation-aware ground Smart path instead. Keep the
      * gameplay decision on destructable state rather than presentation flags. */
-    if (!issued && have_click_point && G_DestructableIsWalkable(target)) {
+    if (!issued && walkable) {
         bool const old_queued = client->menu.order_queued;
         client->menu.order_queued = queued;
         issued = move_selectlocation(clent, &click_point);
@@ -1166,7 +1175,10 @@ CLIENTCOMMAND(Smart) {
         /* Retail briefly flashes the clicked unit's selection ring after a
          * successful Smart target order. The relationship colour is local to
          * the issuing player and the existing indicator event owns timing. */
-        if (target->svflags & SVF_MONSTER)
+        /* The clicked incarnation owns acknowledgement; a callback can replace
+         * this slot before the final selected recipient returns. */
+        if (target->inuse && target->spawn_time==target_spawn && !G_IsDeferredFree(target) &&
+            (target->svflags & SVF_MONSTER))
             G_SendWidgetIndicator(target, G_SmartTargetIndicatorColor(client->ps.number, target), &client->ps);
         G_QueueOrderSound(G_GetMainControllableUnit(client));
         if (rallied) G_PlayUISoundForPlayer(clent, "RallyPointPlace");

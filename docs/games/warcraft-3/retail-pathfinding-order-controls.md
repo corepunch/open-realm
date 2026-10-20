@@ -179,3 +179,253 @@ fixes; existing format rejection remains mandatory in the broader checkpoint.
 
 See also [order queues](order-queue.md), [Repair admission](retail-pathfinding-engine.md#repair-families-own-admission-work-and-pending-activation),
 [remaining work](retail-pathfinding-todo.md), and [save/load](save-load.md).
+
+
+## Unmerged player-packet continuation
+
+The separate `/tmp/open-realm-takeover-order022-ui` worktree now starts from
+accepted commit `28e64f588`. Its current changes are **not merged or accepted**.
+The original `6b8cc0` selector has been executed for10,560 input combinations
+against its PE-verified bytes. The engine's pure selector header agrees at
+both O0 and O2; real `6bccc0` also executes for8,191 selection masks up to12 units.
+Head resolution and primary-subgroup queries are explicit boundary inputs;
+this does not execute replacement models of the native order container.
+
+Production Move and Attack point/target paths now call that selector. The cast
+query derives protection from the existing saved phase/commit state, including
+EFFECT callbacks and the concrete effect body. Work queries use the channel
+owner, primary Human construction owner, and ItemTeleport's saved exclusive
+contribution. A generic spell backswing is not classified as work. Player-only
+replace/append/fallback modes keep script admission independent. Recipient and
+wait decisions are retained before callbacks, with generation/control checks at
+actual admission. No new saved state or Save218 layout change is introduced.
+
+The built Move matrix passes836 assertions, including two authored timing
+profiles, saves, Shift, Stop/Hold, all-working and scripted controls, successor
+replacement, an immobile selected non-worker, and repeated targeted clicks.
+The repeated-click fixture must press CmdMove again after its first completed
+point exits target mode. A debugger confirmed that omitting this step leaves a
+null callback and ignores the second point; that fixture failure remains
+preserved and is not engine evidence.
+
+New Attack point/target tests first fail140 assertions per edition. The
+player-mode implementation then passes all3 UI tests /2,092 assertions and,
+with five ItemTeleport and98 order-lifecycle controls,106 tests /22,032
+assertions per edition (`takeover-ui-attack-fixed7.json`). Those results precede
+the latest Smart changes and cannot certify them. Full checkpoint, source-pin
+updates and broader UI/spell/item producer coverage are still required.
+
+The exploratory Smart target test initially assumed Attack851983 after an enemy
+right-click. That expectation was held unaccepted and checked against a fresh
+retail arena. Two read-only observations and an unhooked control now agree on
+all72 public head markers each, after removing only tick/age. Literal asset
+preloads, marker timestamps and complete observer streams are preserved in
+`retail-order022-smart-head-1.27.json.gz`, together with the actual authored map
+and owned-window input helper. They establish these separate producers:
+
+| Producer | Public/current head | Admission |
+|---|---|---|
+| JASS Smart on an enemy | 851971 | Synchronous, including target notification |
+| JASS explicit Attack | 851983 | Synchronous |
+| Real enemy right-click from idle | 851971 | Synchronous |
+| Real enemy right-click during spell windup | 851971 | Silent insertion after the protected spell; later notification |
+| JASS Smart during spell windup | 851971 | Replaces the spell synchronously |
+
+The owned helper now supports an actual right mouse button. It remains confined
+to the launched game's PID/window. Input pixel650,300 was calibrated from the
+previous native Move capture's world point1277.12097,511.36835; target user-data2
+in every issued event verifies the click actually hit the intended unit.
+The two observations use research environments B/C; neither the owner's A
+session nor its display is accessed. All three captures finish normally and
+both observed callback stacks unwind to zero. These are public head/admission
+contracts, not numerical trajectory or arbitrary spell/item queue parity.
+
+The original test expectation851983 is corrected to native851971. The corrected
+UI matrix plus a new real JASS/notification/save/next-frame regression then
+reproduces34 actual stale-head failures per edition. Attack's accepted-order
+hook previously omitted Smart, leaving the old spell ID (or idle0) while Attack
+already executed. That hook now publishes Smart851971 only while Attack still
+owns the physical task, preserving the existing guard against callback-installed
+replacement owners. Automatic acquisition does not pass through this public
+accepted-order hook and keeps its parent command.
+
+The updated focused native/engine gate passes295 tests /75,523 assertions per
+edition (`takeover-ui-native-smart-fixed11.json`). It includes six UI tests,
+all owner/order/unit/trained-unit regressions and ItemTeleport controls. The
+new14 evidence rejection tests reject an Attack ID substituted for Smart,
+lost real right-click input, changed native head/task state, hooked controls,
+broken provenance and altered literal bytes. A full UI checkpoint, source-pin
+updates and the remaining callback/producer work are still required.
+
+The cancellation continuation now drives the actual Attack target producer
+while a spell is protected and an old Move successor is pending. A real
+cancellation procedure callback frees/reuses the target or subject through
+`SP_SpawnAtLocation`, including the allocator cooldown, or removes the target
+without replacement. The replacement subject owns a separate Move777 queue as
+a control. Each case also runs through cold save and natural spell completion.
+
+The first fixture omitted the minimal UnitData ground category and map-startup
+waypoint reservation; its23 failures and waypoint errors are rejected fixture
+evidence. After correcting those preconditions, the valid test fails17
+assertions; adding the replacement subject's own queue control fails18/140 per
+edition. It reproduces capture of the new target generation after cancellation,
+loss of a removed-target command, and old admission/cleanup touching the reused
+subject's queue.
+
+Packet construction is now shared with ordinary append but runs **before**
+player fallback cancellation. The retained target number, generation, category
+and issue-time point survive callbacks. Subject liveness/generation is checked
+after cancellation, before insertion. Both full and suspended-successor queue
+clearing stop when a callback changes the subject generation, so the old clear
+cannot erase the new actor's queue. Singleton Move fallback uses this same
+player admission path. No queue layout or saved field changes are introduced.
+The strengthened callback regression passes155 assertions. The complete gate
+passes296 tests /75,678 assertions per edition
+(`takeover-ui-cancel-fixed16.json`), including all7 UI tests /3,605 assertions.
+
+The selected-group pending-request suspicion did not reproduce. The expanded
+callback regression drives single Move and selected Move with a protected caster
+and idle peer, reuses the caster during successor cancellation and gives the
+replacement its own Move777 queue. Both editions pass267 assertions, including
+the surviving peer's singleton group, request/history identity, cold save,
+natural arrival and release (`takeover-ui-selected-reuse17-*`). Although
+`move_request_drop` sees the new live generation, `move_request_publish` filters
+the old candidate through `move_request_member` before counting pending members.
+Do not change that path based on the earlier suspicion.
+
+### Selected target removal during synchronous publication
+
+`retail-order022-selected-target-1.27.json.gz` preserves two complete read-only
+retail observations and an unhooked control, their literal JSONL/preload bytes,
+the actual map and owned-window helper binaries. Two selected Footmen receive
+real right-click Smart and A+left-click Attack. The first issued-target callback
+removes target user-data2 and creates user-data4 elsewhere. Both recipients
+still publish a target event for user-data2, in the same order, with the first
+recipient's new public head still visible in the second callback. Smart owns
+851971; Attack owns851983. All30 notification-contract markers agree across the
+three captures after removing tick/age. All84 public markers are retained;
+sample and terminal trajectories are not compared or certified.
+
+The observed `net-order` caller6ba4c9 lies in
+`NetOrder_DispatchPointSelectionWithTarget`6b9f70. It resolves and retains the
+target before selection, runs `NetOrder_AdmitPointTargetCandidate`6ba800 for all
+recipients, sorts the rows, then constructs/publishes each order using the same
+retained target. The target reference is released after publication. The two
+packets in each observed scene retain identical original canonical target and
+point words, including the packet published after the removal callback. Cached
+decompilations are in `runtime/claude-order022/raw/` under
+`/GitHub/wc3-analysis/`; the6ba800 export from this continuation is
+`c_decompile_function_address-0x6f6ba800-selected-target.json`.
+
+The matching real `G_ClientCommand`/JASS engine regression is
+`wc3_order022_ui.selected_target_notifications_retain_original_target_after_callback_remove`.
+It first fails2/19 assertions per edition (`takeover-ui-selected-target-red18-*`),
+one each for Smart and Attack. Debugger traces identify the actual divergence:
+Smart never publishes the peer event; Attack publishes a point event at the
+old target position. Target callbacks use real `RemoveUnit`/`CreateUnit`; the
+old target remains deferred and its incarnation stable. The current selection
+snapshot captures recipient/mode only, and per-recipient validation runs after
+the previous callback: Move rejects the newly hidden target and Attack converts
+it to a point. This is a confirmed engine gap, not a fixture failure.
+
+`G_PreparePlayerTargetOrders` now captures target packets and queries all
+recipients before any publication. The later `G_IssuePlayerTargetOrder` uses
+the retained admission/packet instead of repeating target classification.
+Same-work interception remains a dispatch decision. Suspended and fallback
+insertion use the already captured packet, including after cancellation.
+`unit_activate_user_order` is shared with ordinary FIFO activation: it publishes
+the user head and notification before physical task execution, preserving
+callback replacement/Stop/removal guards. Selected publication may notify a
+deferred original target; physical execution separately resolves its current
+canonical lifetime and retained-point continuation. No serialized queue fields
+or wire fields change. The native-backed regression passes19/19 per edition.
+The full focused gate passes297 tests /75,809 assertions per edition
+(`takeover-ui-selected-target-fixed20.json`); this is before the later feedback
+fix and enlarged callback matrix.
+
+The callback matrix additionally submits real Smart commands, singly and with
+an idle peer, while cancellation frees/reuses the common target or source.
+The reused source owns an unrelated Move777 queue. Retained-target lost/reused
+cases execute toward the original point, preserve saved queue generations and
+never follow/attack the newly created target. An actual serialization observer
+checks the Smart acknowledgement and includes a positive indicator-packet
+control. An initial extension omitted the peer's attack profile and assumed a
+rejected singleton source-reuse command would acknowledge; that mixed red21
+result is excluded. After correcting those fixture preconditions, the valid
+red23 result fails4/644 assertions per edition: Smart flashes the replacement
+target's ring in both single/pair and fresh/saved scenes.
+
+`CMD_Smart` now captures the clicked target's generation and walkable policy
+before dispatch. It sends a ring only for that still-live incarnation, and
+reads the prepared Rally decision rather than a possibly reused source. The
+callback regression passes644 assertions; all8 UI tests pass4,113 assertions.
+The expanded target controls (UI, Rally, Waygate, destructables, mixed-selection
+item pickup, building Smart actions, current-order and palette APIs) pass106
+tests /78,109 assertions per edition (`takeover-ui-target-controls24.json`).
+New headless UI arenas replace the absent server transport with serialization
+observers/sinks throughout their lifetime, avoiding meaningless write-buffer
+overflow output while keeping real gameplay dispatch and frame execution.
+
+New17 evidence tests reject substituted targets, missing peer target
+events, retired first heads, altered canonical packets, bad input/provenance and
+hooked controls. The main ORDER022 verifier runs this audit before its engine
+gate. Broader held-order, spell/item/Repair producers and remaining control bits
+remain unfinished; the finite integration acceptance is recorded below.
+This closes no TODO.
+
+The first full candidate (`order022-ui-full25`, source81ca1f3) is rejected.
+A direct run of the existing
+`wc3_movement.smart_walkable_bridge_falls_back_to_clicked_ground_point`
+test reproduces a null-goal assertion followed by its unguarded dereference
+(red26, exit139). Preparing immediate Smart admitted the unsupported widget
+before physical rejection, making `CMD_Smart` report success and skip its
+clicked-ground fallback. The owned full run was deliberately terminated on
+that confirmed regression; its actual make status is-15 after120.77 seconds,
+with unchanged source. Its partial reports are not full acceptance evidence.
+
+The existing walkable-surface candidate filter now applies before every
+prepared dispatch mode. Attackable walkable debris keeps entity precedence;
+non-attackable bridges retain the original clicked-ground fallback for both
+immediate and Shift commands. All33 registered Smart movement controls and
+the8 UI tests pass41 tests /460,954 assertions per edition
+(`takeover-ui-bridge-controls28.json`). The core verifier includes these33
+controls by exact registered name. An attempted interior `*smart*` wildcard
+matched zero tests and is excluded: the engine runner supports trailing prefix
+wildcards, and each generated exact selector must execute a nonempty test.
+Native selector10560 cases, selection8191 masks and both-O0/-O2 production
+predicate comparisons also run afresh through the main verifier's binary gate.
+
+### Integration acceptance (2026-10-20)
+
+The corrected frozen source tree is
+`cb342a1a014b8605f2ed572938e2792a693d0306` (37 changed/new files over28e64f588).
+`LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 make test TEST_JOBS=16`
+finishes with actual exit0 after1,025.31 seconds:10,020 native tests across34
+fresh JUnit reports, zero failures/errors/skips, and3,041 Python tests
+(2,988 pathfinding tests plus53 other Python checks). The source remains
+unchanged through the full run and all six subsequent affected native gates.
+Acceptance artifacts and immutable JUnit copies are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/codex-takeover-20261020/order022-ui-full28/`.
+
+All native gates pass in both editions:
+
+| Gate | Tests per edition | Assertions per edition |
+|---|---:|---:|
+| Captain376 | 53 | 3,330 |
+| Captain473 | 10 | 156,882 |
+| Waygate377 | 39 | 229,803 |
+| Group012 | 20 | 1,146,726 |
+| Supportgoal | 472 | 2,000,939 |
+| ORDER022 | 330 | 533,027 |
+
+The ORDER022 gate additionally executes128 original admission cases,12 owner
+slices,10,560 UI selector cases,8,191 selection masks and both-O0/-O2 production
+predicate comparisons, while checking371 original instruction guards and the
+literal Smart/selected-target repeats and controls.
+
+All37 accepted files are verified byte for byte when applied to main. Main's
+production/test/app build succeeds without compiler warnings, and its fresh
+ORDER022 gate again passes330 tests /533,027 assertions per edition. Only the
+final documentation and its corpus fingerprints differ from the frozen tree.
+Network fields and the Save218 format are unchanged. Wider producer/control-bit
+coverage and concrete spell/item/Repair compositions remain in the open backlog.

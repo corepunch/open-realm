@@ -16,6 +16,19 @@ restoration are not certified by382. [Evidence](metamorphosis-availability.md).
 
 ## Claude session recovery (2026-10-20)
 
+This delivery integrates the continuation from `/tmp/open-realm-takeover-order022-ui`:
+real player protected-spell/work modes, native Smart head851971, prepared
+selected-target publication and cancellation/acknowledgement incarnation guards.
+Its native evidence and failing-first history are in
+[order controls](retail-pathfinding-order-controls.md). Full candidate25 was
+rejected for an existing bridge Smart regression, which is now corrected and
+passes all33 Smart movement controls plus8 UI tests in both editions. The
+corrected full28 source (`cb342a1a014b8605f2ed572938e2792a693d0306`) passes
+the actual umbrella run:10,020 native tests in34 reports with no failures,
+errors or skips, and3,041 Python tests. All six affected native gates pass.
+Applied main rebuilds production/test modules and passes330 ORDER022 controls /
+533,027 assertions per edition with fresh original execution. No TODO closes.
+
 Session `df5fe263-6683-41ba-831f-b01efc649a57` left 17 surviving worktrees.
 Each HEAD has a local `recovery/df5fe263/<worktree-directory>` branch (the main
 worktree uses `main`). A backup of all 257 changed/untracked files, binary

@@ -649,6 +649,8 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code);
 void S_DefaultSpellCastProfile(edict_t const *, uint32_t code, spellCastProfile_t *);
 void S_CancelSpellCast(edict_t *);
 bool S_UnitHasSpellTask(edict_t const *);
+bool S_PlayerOrderCastProtected(edict_t const *);
+bool S_PlayerOrderWorking(edict_t const *);
 bool S_QuerySpellEventTarget(edict_t const *,uint32_t,spellTarget_t *);
 void S_ClearSpellCasts(void);
 bool S_WriteSpellCasts(FILE *);

@@ -259,6 +259,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     require(not args.report.exists(), 'fresh report required')
     result = audit()
+    from audit_wc3_pathing_order022_smart import audit as smart_head_audit
+    result["smart_head"] = smart_head_audit()
+    from audit_wc3_pathing_order022_selected_target import audit as selected_target_audit
+    result["selected_target"] = selected_target_audit()
     admission = admission_contract()
     instruction_guards = guards()
     if args.binary:
@@ -268,12 +272,23 @@ if __name__ == '__main__':
         sys.path.insert(0, sys_path)
         from order022_admission_oracle import original
         require(original(args.binary) == admission, 'fresh original admission execution differs')
+        from order022_ui_oracle import original as original_selector, compare_engine
+        selector = original_selector(args.binary)
+        result['ui_selector'] = dict(native_cases=len(selector['selector']),
+                                     selection_masks=len(selector['accumulator']),
+                                     engine=compare_engine(selector, ROOT))
     result.update(instruction_guards=len(instruction_guards), binary_checked=bool(args.binary),
                   admission_cases=len(admission['admission']), owner_slices=len(admission['owner']))
     if not args.evidence_only:
         import verify_wc3_pathing_work242 as runner
         saved = runner.TESTS
-        runner.TESTS = ['wc3_order022.*', 'wc3_order_lifecycle.*', 'wc3_unit.*', 'wc3_movement.trained*']
+        # The engine supports trailing prefix wildcards, not an interior *smart*.
+        # Expand registered names so every Smart movement control executes.
+        movement = (ROOT / 'games/warcraft-3/game/tests/t_movement.c').read_text()
+        smart = re.findall(r'TEST\(wc3_movement,\s*(\w*smart\w*)\s*\)', movement)
+        require(len(smart) >= 33 and len(set(smart)) == len(smart), 'missing registered Smart movement controls')
+        runner.TESTS = ['wc3_order022.*', 'wc3_order_lifecycle.*', 'wc3_unit.*', 'wc3_movement.trained*',
+                        'wc3_order022_ui.*', 'wc3_items.teleport327*'] + ['wc3_movement.' + name for name in smart]
         try:
             result['engine'] = runner.run_engine(args.test_binary, args.data, args.report)
         finally:

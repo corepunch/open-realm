@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "skills/s_skills.h"
+#include "skills/s_order_controls.h"
 #ifdef WC3_SC2API
 #include "sc2api/sc2api_server.h"
 #endif
@@ -1129,6 +1130,41 @@ void G_PublishIssuedTargetOrder(edict_t *self, cstring_t order,
         .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,.source=target,.value=order_id }, EVENT_UNIT_ISSUED_TARGET_ORDER,true);
 }
 
+/*6bccc0 includes selection members that will not receive a mobile order.
+ * Read this once before the first recipient can mutate another's work owner. */
+bool G_PlayerSelectionAllWorking(gameClient_t *client) {
+    FOR_SELECTED_UNITS(client,unit)if(!S_PlayerOrderWorking(unit))return false;
+    return true;
+}
+
+/* These ordinary player producers emit neither preserve/instant/subgroup packet bits.
+ * Keep this producer-specific decision out of the public JASS admission path. */
+bool G_PlayerOrderFallback(edict_t const *unit,uint32_t command,bool all_working) {
+    return S_PlayerOrderFallback(command,unit && unit->current_order_id,
+        S_PlayerOrderCastProtected(unit),S_PlayerOrderWorking(unit),false,false,
+        false,all_working,false);
+}
+
+/* Every recipient keeps its original incarnation and selection-wide mode decision. */
+void G_SnapshotPlayerOrderSelection(gameClient_t *client,uint32_t command,bool queued,playerOrderSelection_t *out) {
+    *out=(playerOrderSelection_t){.client=client};
+    bool all_working=G_PlayerSelectionAllWorking(client);
+    FOR_CONTROLLABLE_SELECTED_UNITS(client,unit) {
+        if(out->count==MAX_SELECTED_ENTITIES)break;
+        playerOrderMode_t mode=queued ? PLAYER_ORDER_APPEND :
+            G_PlayerOrderFallback(unit,command,all_working) ? PLAYER_ORDER_FALLBACK : PLAYER_ORDER_REPLACE;
+        out->units[out->count++]=(typeof(out->units[0])){.unit=unit,.spawn=unit->spawn_time,.mode=mode};
+    }
+}
+
+/* Earlier callbacks may retire, transfer or recycle a later selected recipient. */
+edict_t *G_PlayerOrderSelectionUnit(playerOrderSelection_t const *selection,uint32_t index) {
+    if(index>=selection->count)return NULL;
+    edict_t *unit=selection->units[index].unit;
+    return unit->inuse && unit->spawn_time==selection->units[index].spawn &&
+        G_UnitCanControl(selection->client,unit) ? unit : NULL;
+}
+
 bool G_UnitHasActiveOrder(edict_t const *self) {
     return self && self->currentmove && self->currentmove->proc != NULL &&
            !move_is_terminal_hold(self);
@@ -1186,26 +1222,34 @@ static uint32_t unit_user_queue_limit(edict_t const *self) {
     return MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || self->construction_held || !executing);
 }
 
+/* Packet construction precedes successor cancellation: callbacks may destroy
+ * or reuse a target whose canonical identity the new order already retained. */
+static bool unit_prepare_order_packet(unitOrder_t *packet,cstring_t order,unitOrderTargetType_t shape,
+        vec2_t const *point,edict_t *target,uint32_t issuer,float speed,uint32_t id) {
+    if(!unit_order_name_valid(order))return false;
+    *packet=(unitOrder_t){.target_type=shape,.issuer_player=issuer,
+        .order_id=id ? id : unit_order_event_id(order),.group_speed=speed};
+    snprintf(packet->order,sizeof(packet->order),"%s",order);
+    if(point)packet->point=*point;
+    else if(target)packet->point=target->s.origin2;
+    if(target) {
+        uint32_t number=target->s.number;
+        if(number>=globals.num_edicts || globals.edicts+number!=target)return false;
+        packet->target_number=number;packet->target_spawn_time=target->spawn_time;
+        packet->target_is_unit=(target->svflags&SVF_MONSTER)!=0;
+    }
+    return true;
+}
+
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
                       vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
-    if (!self || !unit_order_name_valid(order)) return false;
-    /*693490 counts the active user head. A suspended head lives in this ring
-     * instead, so only an executing head consumes the extra user slot. */
-    uint32_t limit=unit_user_queue_limit(self);
-    if(self->order_queue.count>=limit)return false;
-    unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
-                        .order_id=order_id ? order_id : unit_order_event_id(order),.group_speed=group_speed};
-    snprintf(queued.order,sizeof(queued.order),"%s",order);
-    if (point) queued.point=*point;
-    else if(target)queued.point=target->s.origin2;
-    if (target) {
-        uint32_t number=target->s.number;
-        if (number>=globals.num_edicts || globals.edicts+number!=target) return false;
-        queued.target_number=number;queued.target_spawn_time=target->spawn_time;
-        queued.target_is_unit=(target->svflags&SVF_MONSTER)!=0;
-    }
-    return G_AppendUnitOrder(self,&queued);
+    if(!self || !unit_order_name_valid(order))return false;
+    /*693490 counts the active head separately from the pending ring. */
+    if(self->order_queue.count>=unit_user_queue_limit(self))return false;
+    unitOrder_t packet;
+    if(!unit_prepare_order_packet(&packet,order,target_type,point,target,issuer_player,group_speed,order_id))return false;
+    return G_AppendUnitOrder(self,&packet);
 }
 
 static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
@@ -1228,9 +1272,13 @@ void G_ClearUnitOrderQueue(edict_t *self) {
 
     if (!self) return;
     queue = &self->order_queue;
+    uint32_t const spawn=self->spawn_time;
     FOR_LOOP(i, queue->count) {
         uint32_t const slot = (queue->head + i) % queue->capacity;
         S_UnitQueuedOrderEvent(self, &queue->entries[slot], A_QUEUE_ORDER_CANCEL);
+        /* Removal's nested clear retired this queue. Its replacement actor
+         * may already own a new queue at the same edict address. */
+        if(!self->inuse || self->spawn_time!=spawn)return;
     }
     /* Each handler owns its command snapshot through callback unwind.
      * Return the current backing allocation after cancellation completes. */
@@ -1247,11 +1295,32 @@ void G_CancelUnitOrderSuccessors(edict_t *self) {
         return;
     }
     if (queue->count < 2) return;
-    for (uint32_t i = 1; i < queue->count; i++)
+    uint32_t const spawn=self->spawn_time;
+    for (uint32_t i = 1; i < queue->count; i++) {
         S_UnitQueuedOrderEvent(self, &queue->entries[(queue->head + i) % queue->capacity], A_QUEUE_ORDER_CANCEL);
+        if(!self->inuse || self->spawn_time!=spawn)return;
+    }
     for (uint32_t i = 1; i < queue->count; i++)
         memset(&queue->entries[(queue->head + i) % queue->capacity], 0, sizeof(unitOrder_t));
     queue->count = 1;
+}
+
+/*6b93a0 constructs the packet before cutting successors. Cancellation must
+ * never replace its target generation or append to a recycled issuing unit. */
+static bool unit_queue_player_packet(edict_t *self,unitOrder_t const *packet) {
+    uint32_t const spawn=self->spawn_time;
+    G_CancelUnitOrderSuccessors(self);
+    if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
+    if(self->order_queue.count>=unit_user_queue_limit(self))return false;
+    return G_AppendUnitOrder(self,packet);
+}
+
+/* Single-point producers capture the same immutable packet before cancellation. */
+static bool unit_queue_player_fallback(edict_t *self,cstring_t order,unitOrderTargetType_t shape,
+        vec2_t const *point,edict_t *target,uint32_t issuer,float speed) {
+    unitOrder_t packet;
+    if(!unit_prepare_order_packet(&packet,order,shape,point,target,issuer,speed,0))return false;
+    return unit_queue_player_packet(self,&packet);
 }
 
 uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
@@ -1432,26 +1501,49 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
 /* The suspension owner retains execution. Removal/construction keep their
  * saved head in the FIFO; scripted pause keeps its head in Move state.
  * Native680320 cancels successors before693490 appends, without dispatch. */
-bool G_RetainSuspendedUnitOrder(edict_t *self, cstring_t order,
-        unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
-        bool queue, uint32_t issuer, float speed) {
-    uint32_t const order_id=G_OrderId(order);
+static bool unit_retain_suspended_packet(edict_t *self,unitOrder_t const *packet,bool queue) {
+    uint32_t const spawn=self->spawn_time;
     if(S_UnitOrderExecutionHeld(self) && !G_IsDeferredFree(self) && !self->construction_held) {
         if(!queue) {
             G_ClearUnitOrderQueue(self);
+            if(!self->inuse || self->spawn_time!=spawn)return false;
             self->movement.pause_order_id=0;
         }
     } else if(!queue && self->order_queue.count>1) {
         unitOrder_t head=self->order_queue.entries[self->order_queue.head];
-        G_ClearUnitOrderQueue(self);G_AppendUnitOrder(self,&head);
+        G_ClearUnitOrderQueue(self);
+        if(!self->inuse || self->spawn_time!=spawn)return false;
+        G_AppendUnitOrder(self,&head);
     }
-    if(!G_QueueUnitOrder(self,order,shape,point,target,issuer,speed,order_id))return false;
-    if(!self->current_order_id)self->current_order_id=order_id;
+    if(self->order_queue.count>=unit_user_queue_limit(self) || !G_AppendUnitOrder(self,packet))return false;
+    if(!self->current_order_id)self->current_order_id=packet->order_id;
     return true;
 }
 
-bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
-                            bool queue, uint32_t issuer_player) {
+/* Capture suspended orders before a successor cancellation can recycle their target. */
+bool G_RetainSuspendedUnitOrder(edict_t *self, cstring_t order,
+        unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
+        bool queue, uint32_t issuer, float speed) {
+    unitOrder_t packet;
+    if(!unit_prepare_order_packet(&packet,order,shape,point,target,issuer,speed,G_OrderId(order)))return false;
+    return unit_retain_suspended_packet(self,&packet,queue);
+}
+
+static bool unit_issue_point_order(edict_t *,cstring_t,vec2_t const *,bool,uint32_t,float,bool);
+
+/* Validation can be queried before publication; only unqueued dispatch may intercept work. */
+static abilityOrderResult_t unit_target_order_admission(edict_t *self,abilityCall_t *call) {
+    ability_t const *owner=FindAbilityByOrder(call->issued_target_order.order);
+    abilityProc_t const active=self->currentmove ? self->currentmove->proc : NULL;
+    intptr_t result=ABILITY_ORDER_UNHANDLED;
+    if(owner)result=owner->proc(self,A_TARGET_ORDER_ADMIT,call);
+    if(result==ABILITY_ORDER_UNHANDLED && active && (!owner || owner->proc!=active))
+        result=active(self,A_TARGET_ORDER_ADMIT,call);
+    return result;
+}
+
+static bool unit_issue_target_order(edict_t *self, cstring_t order, edict_t *target,
+                            bool queue, uint32_t issuer_player,bool fallback) {
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
         return false;
     }
@@ -1477,16 +1569,11 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     /* Validate/intercept through the owner before clearing pending work. A
      * same-target interaction can retain its current task and public head. */
     if (!inside_mine) {
-        ability_t const *owner = FindAbilityByOrder(order);
-        abilityProc_t const active = self->currentmove ? self->currentmove->proc : NULL;
-        abilityCall_t call = {.issued_target_order = {target, order, queue, &point}};
-        intptr_t result = ABILITY_ORDER_UNHANDLED;
-        if (owner) result = owner->proc(self, A_TARGET_ORDER_ADMIT, &call);
-        if (result == ABILITY_ORDER_UNHANDLED && active && (!owner || owner->proc != active))
-            result = active(self, A_TARGET_ORDER_ADMIT, &call);
+        abilityCall_t call = {.issued_target_order = {target, order, queue || fallback, &point}};
+        abilityOrderResult_t const result=unit_target_order_admission(self,&call);
         if (result == ABILITY_ORDER_REJECTED) return false;
         if (result == ABILITY_ORDER_POINT)
-            return G_IssueUnitPointOrder(self,order,&point,queue,issuer_player,0);
+            return unit_issue_point_order(self,order,&point,queue,issuer_player,0,fallback);
         if (result == ABILITY_ORDER_INTERCEPTED) {
             /* 680320 mode1 after 69b2f0: the owner keeps its head and task, 673e80
              * cancels every pending successor and no issued-order event is sent.
@@ -1506,7 +1593,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             /* Shift-queued spell casts need a spell-aware queue entry with a
              * stable target snapshot. Leave that unsupported rather than
              * silently enqueueing them as movement orders. */
-            if (queue) return false;
+            if (queue || fallback) return false;
             if(S_InterceptSpellOrder(self,spell_code))return true;
             G_ClearUnitOrderQueue(self);
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
@@ -1520,7 +1607,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         }
     }
     bool held=inside_mine || S_UnitOrderExecutionHeld(self);
-    if ((queue || held) && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+    if ((queue || fallback || held) && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
         /* Only orders with an owning ability may enter the FIFO. Generic
          * queued replay can then dispatch their concrete target order. */
@@ -1530,6 +1617,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if(held)
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_ENTITY,&point,target,queue,issuer_player,0);
 
+    if(fallback)return unit_queue_player_fallback(self,order,UNIT_ORDER_TARGET_ENTITY,&point,target,issuer_player,0);
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, &point, target,
                                                issuer_player, 0.0f, 0);
@@ -1548,8 +1636,8 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
 }
 
-bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
-                           bool queue, uint32_t issuer_player, float group_speed) {
+static bool unit_issue_point_order(edict_t *self, cstring_t order, vec2_t const *point,
+                           bool queue, uint32_t issuer_player, float group_speed,bool fallback) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
     /* Removal and inside construction suspend the new user chain. The
      * order is retained without execution or notification (original693490). */
@@ -1577,7 +1665,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
             bool accepted;
-            if (queue) return false;
+            if (queue || fallback) return false;
             if(S_InterceptSpellOrder(self,spell_code))return true;
             G_ClearUnitOrderQueue(self);
             accepted = S_IssuePointTargetSpell(self, spell_code, point);
@@ -1607,6 +1695,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     if(inside_mine || S_UnitOrderExecutionHeld(self))
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
 
+    if(fallback)return unit_queue_player_fallback(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,issuer_player,group_speed);
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
                                                issuer_player, group_speed, 0);
@@ -1630,6 +1719,44 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         }
         return accepted;
     }
+}
+
+bool G_IssueUnitTargetOrder(edict_t *unit,cstring_t order,edict_t *target,bool queue,uint32_t issuer) {
+    return unit_issue_target_order(unit,order,target,queue,issuer,false);
+}
+bool G_IssueUnitPointOrder(edict_t *unit,cstring_t order,vec2_t const *point,bool queue,uint32_t issuer,float speed) {
+    return unit_issue_point_order(unit,order,point,queue,issuer,speed,false);
+}
+/*6ba800 prepares every selected recipient before6b9f70 publishes any callbacks.
+ * Queue-style validation queries disable the separate same-work interception. */
+void G_PreparePlayerTargetOrders(playerOrderSelection_t *selection,cstring_t order,edict_t *target) {
+    unitOrder_t packet;
+    if(!target || !target->inuse)return;
+    if(!unit_prepare_order_packet(&packet,order,UNIT_ORDER_TARGET_ENTITY,NULL,target,selection->client->ps.number,0,0))return;
+    FOR_LOOP(i,selection->count) {
+        typeof(selection->units[0]) *row=selection->units+i;
+        row->target_ready=false;
+        edict_t *unit=G_PlayerOrderSelectionUnit(selection,i);
+        if(!unit || M_IsDead(unit) || G_BuildingUpgradeActive(unit) || !S_AncientCanReceiveOrder(unit))continue;
+        if(unit==target && !strcmp(order,"attack"))continue;
+        row->target=packet;
+        if(G_IsDeferredFree(unit) || unit->construction_held) {
+            row->target_ready=!(unit->aiflags&AI_IMMOBILE);
+            continue;
+        }
+        if(S_UnitOrderDisabled(unit,order))continue;
+        row->target_rally=!strcmp(order,"smart") && G_UnitHasRally(unit);
+        if(!row->target_rally && !S_GoldMineWorkerIsInside(unit)) {
+            abilityCall_t call={.issued_target_order={target,order,true,&row->target.point}};
+            abilityOrderResult_t result=unit_target_order_admission(unit,&call);
+            if(result==ABILITY_ORDER_REJECTED)continue;
+            if(result==ABILITY_ORDER_POINT)row->target.target_type=UNIT_ORDER_TARGET_POINT;
+        }
+        row->target_ready=true;
+    }
+}
+bool G_IssuePlayerPointOrder(edict_t *unit,cstring_t order,vec2_t const *point,playerOrderMode_t mode,uint32_t issuer,float speed) {
+    return unit_issue_point_order(unit,order,point,mode==PLAYER_ORDER_APPEND,issuer,speed,mode==PLAYER_ORDER_FALLBACK);
 }
 
 /* 9ce5b0's typed AI continuation dispatches ordinary d000f directly.
@@ -1705,6 +1832,45 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
     return S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
 }
 
+/*67abe0 publishes the admitted user head before constructing its physical task.
+ * A selected packet can retain a deferred target through its synchronous scope;
+ * ordinary queued activation resolves the target's current canonical lifetime. */
+static queuedOrderResult_t unit_activate_user_order(edict_t *self,unitOrder_t const *packet,edict_t *retained) {
+    uint32_t const spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
+    self->current_order_id=packet->order_id;
+    bool const point_head=packet->target_type==UNIT_ORDER_TARGET_POINT;
+    if(point_head)G_SetActiveUnitOrder(self,packet);
+    if(packet->target_type==UNIT_ORDER_TARGET_POINT || packet->target_type==UNIT_ORDER_TARGET_BUILD)
+        G_PublishIssuedPointOrder(self,packet->order_id,&packet->point,packet->issuer_player,packet->order);
+    else if(packet->target_type==UNIT_ORDER_TARGET_ENTITY) {
+        edict_t *target=retained ? retained : unit_queued_target(packet);
+        if(target)G_PublishIssuedTargetOrder(self,packet->order,target,packet->issuer_player);
+        else G_PublishIssuedPointOrder(self,packet->order_id,&packet->point,packet->issuer_player,packet->order);
+    } else if(packet->target_type==UNIT_ORDER_TARGET_NONE)
+        G_PublishIssuedImmediateOrder(self,packet->order_id,packet->issuer_player,packet->order);
+    if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self) ||
+       (G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)) {
+        /* An abandoned packet still owns presentation that its ability must release. */
+        S_UnitQueuedOrderEvent(self,packet,A_QUEUE_ORDER_CANCEL);
+        return QUEUED_ORDER_REPLACED;
+    }
+    /* A nested instant Stop can retire the public head without retaining a task. */
+    uint32_t head=self->current_order_id;
+    queuedOrderResult_t result=unit_execute_queued_order(self,packet,&head);
+    if(result==QUEUED_ORDER_STARTED) {
+        if(!point_head)G_SetActiveUnitOrder(self,packet);
+        if(packet->target_type!=UNIT_ORDER_TARGET_NONE)self->current_order_id=head;
+        uint32_t const accepted_revision=G_UnitMoveRevision(self);
+        S_UnitAbilityOrderAccepted(self,packet->order);
+        if(packet->target_type!=UNIT_ORDER_TARGET_NONE && self->inuse && self->spawn_time==spawn &&
+           G_UnitMoveRevision(self)==accepted_revision)self->current_order_id=head;
+    } else if(result==QUEUED_ORDER_UNHANDLED) {
+        self->current_order_id=0;
+        if(point_head)G_ClearActiveUnitOrder(self);
+    }
+    return result;
+}
+
 static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
     if(selected_ai)*selected_ai=false;
     unitOrder_t queued;
@@ -1731,44 +1897,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
         }
         if(selected_ai)*selected_ai=unit_is_ai_core_order(&queued);
         if(!queued.order_id)queued.order_id=unit_order_event_id(queued.order);
-        uint32_t const spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
-        self->current_order_id=queued.order_id;
-        bool const point_head=queued.target_type==UNIT_ORDER_TARGET_POINT;
-        if(point_head)G_SetActiveUnitOrder(self,&queued);
-        /* Busy693490 appends without notification.67abe0 publishes the new
-         * user head before its task, including a lost target's point event. */
-        if(queued.target_type==UNIT_ORDER_TARGET_POINT || queued.target_type==UNIT_ORDER_TARGET_BUILD)
-            G_PublishIssuedPointOrder(self,queued.order_id,&queued.point,queued.issuer_player,queued.order);
-        else if(queued.target_type==UNIT_ORDER_TARGET_ENTITY) {
-            edict_t *target=unit_queued_target(&queued);
-            if(target)G_PublishIssuedTargetOrder(self,queued.order,target,queued.issuer_player);
-            else G_PublishIssuedPointOrder(self,queued.order_id,&queued.point,queued.issuer_player,queued.order);
-        } else if(queued.target_type==UNIT_ORDER_TARGET_NONE)
-            G_PublishIssuedImmediateOrder(self,queued.order_id,queued.issuer_player,queued.order);
-        if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self) ||
-           (G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)) {
-            /* Pop transferred ownership before callbacks. A discarded command
-             * still owns presentation state that its ability must release. */
-            S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_CANCEL);
-            return true;
-        }
-        /* Instant Stop can retire the public head without retaining a task.
-         * Its callback does not prevent the original outer task construction. */
-        uint32_t head=self->current_order_id;
-        queuedOrderResult_t result=unit_execute_queued_order(self,&queued,&head);
-        if(result==QUEUED_ORDER_REPLACED)return true;
-        if(result==QUEUED_ORDER_STARTED) {
-            /* Point callbacks may have replaced or retired this logical head. */
-            if(!point_head)G_SetActiveUnitOrder(self,&queued);
-            if(queued.target_type!=UNIT_ORDER_TARGET_NONE)self->current_order_id=head;
-            uint32_t const accepted_revision=G_UnitMoveRevision(self);
-            S_UnitAbilityOrderAccepted(self,queued.order);
-            if(queued.target_type!=UNIT_ORDER_TARGET_NONE && self->inuse && self->spawn_time==spawn &&
-               G_UnitMoveRevision(self)==accepted_revision)self->current_order_id=head;
-            return true;
-        }
-        self->current_order_id=0;
-        if(point_head)G_ClearActiveUnitOrder(self);
+        if(unit_activate_user_order(self,&queued,NULL)!=QUEUED_ORDER_UNHANDLED)return true;
     }
     return false;
 }
@@ -1781,6 +1910,76 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
     if (started && !ai) G_CreepGuardExplicitOrder(self);
     if(!started)G_ClearActiveUnitOrder(self);
     return started;
+}
+
+/* A packet may outlive a callback's free/reuse of its source or target slot. */
+static bool unit_packet_source_alive(edict_t const *self,uint32_t spawn) {
+    return self->inuse && self->spawn_time==spawn && !M_IsDead(self);
+}
+
+/* Hidden miners and suspension owners retain the packet without execution. */
+static bool unit_player_order_held(edict_t *self) {
+    return G_IsDeferredFree(self) || self->construction_held ||
+        S_UnitOrderExecutionHeld(self) || S_GoldMineWorkerIsInside(self);
+}
+
+/* Retire the previous physical task before publishing the replacement head.
+ * Region/owner cleanup callbacks can suspend or recycle the source at any step. */
+static bool unit_release_player_order_owner(edict_t *self) {
+    uint32_t const spawn=self->spawn_time;
+    S_SpellCancelChannel(self);
+    if(!unit_packet_source_alive(self,spawn))return false;
+    if(unit_player_order_held(self))return true;
+    if(self->movement.group_id)S_StopUnitMovementWithRecovery(self);
+    if(!unit_packet_source_alive(self,spawn))return false;
+    if(unit_player_order_held(self))return true;
+    S_ClearUnitOrderReferences(self);
+    if(!unit_packet_source_alive(self,spawn))return false;
+    S_SetMoveGoal(self,&self->goalentity,NULL);
+    if(!unit_packet_source_alive(self,spawn))return false;
+    self->current_order_id=0;
+    unit_setmove(self,&unit_move_order_boundary);
+    return unit_packet_source_alive(self,spawn);
+}
+
+/* Selected orders retain their admission and canonical packet across earlier
+ * recipients' callbacks. A deferred target still owns its synchronous event;
+ * task activation separately resolves whether that target can still execute. */
+bool G_IssuePlayerTargetOrder(playerOrderSelection_t const *selection,uint32_t index) {
+    edict_t *self=G_PlayerOrderSelectionUnit(selection,index);
+    if(!self || !selection->units[index].target_ready || M_IsDead(self))return false;
+    typeof(selection->units[0]) const *row=selection->units+index;
+    unitOrder_t const packet=row->target;
+    uint32_t const spawn=row->spawn;
+    edict_t *target=packet.target_number<globals.num_edicts ? g_edicts+packet.target_number : NULL;
+    if(target && (!target->inuse || target->spawn_time!=packet.target_spawn_time))target=NULL;
+    bool const append=row->mode==PLAYER_ORDER_APPEND;
+    if(row->target_rally)return S_IssueRallyTargetOrder(self,target,append);
+    if(row->mode==PLAYER_ORDER_REPLACE && target && packet.target_type==UNIT_ORDER_TARGET_ENTITY &&
+       !unit_player_order_held(self)) {
+        vec2_t point=packet.point;
+        abilityCall_t call={.issued_target_order={target,packet.order,false,&point}};
+        if(unit_target_order_admission(self,&call)==ABILITY_ORDER_INTERCEPTED) {
+            G_CancelUnitOrderSuccessors(self);
+            return true;
+        }
+    }
+    if(unit_player_order_held(self))return unit_retain_suspended_packet(self,&packet,append);
+    if(row->mode==PLAYER_ORDER_FALLBACK)return unit_queue_player_packet(self,&packet);
+    if(append && G_UnitHasActiveOrder(self)) {
+        if(self->order_queue.count>=unit_user_queue_limit(self))return false;
+        return G_AppendUnitOrder(self,&packet);
+    }
+    if(!append)G_ClearUnitOrderQueue(self);
+    if(!unit_packet_source_alive(self,spawn))return false;
+    if(!unit_player_order_held(self) && G_UnitHasActiveOrder(self) && !unit_release_player_order_owner(self))return false;
+    if(unit_player_order_held(self))return unit_retain_suspended_packet(self,&packet,append);
+    /* Cancellation may recycle the common target after the candidate was admitted. */
+    target=packet.target_number<globals.num_edicts ? g_edicts+packet.target_number : NULL;
+    if(target && (!target->inuse || target->spawn_time!=packet.target_spawn_time))target=NULL;
+    unit_activate_user_order(self,&packet,target);
+    if(unit_packet_source_alive(self,spawn))G_CreepGuardExplicitOrder(self);
+    return true;
 }
 
 /*6802f0 replaces;693450 appends. Both create the same saved immediate

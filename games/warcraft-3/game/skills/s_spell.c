@@ -1003,6 +1003,26 @@ typedef struct spellCastEvent_s {struct spellCastEvent_s *previous;spellCast_t *
 static spellCastEvent_t *spell_cast_events;
 static umove_t ordered_spell_move={.animation="spell",.proc=CAbilitySpellCast};
 
+/* Original3fbbd0 sets head40 before CHANNEL;40b3fa clears it after EFFECT
+ * and the concrete effect body. These phases already survive save/load. */
+bool S_PlayerOrderCastProtected(edict_t const *unit) {
+    if(!unit || !unit->inuse)return false;
+    spellCast_t const *cast=spell_cast_active[unit-g_edicts];
+    return cast && cast->active && (!cast->committed ||
+        (cast->executing && cast->phase==CAST_EFFECT));
+}
+
+/* Work comes from the executing owner, independently of movement suppression. */
+bool S_PlayerOrderWorking(edict_t const *unit) {
+    if(!unit || !unit->inuse)return false;
+    if(S_RepairSuppressesSeparation(unit) || S_SpellIsChanneling((edict_t *)unit))return true;
+    spellCast_t const *cast=spell_cast_active[unit-g_edicts];
+    if(!cast || !cast->active)return false;
+    abilityitem_t item=S_AbilityItem(cast->code);
+    abilityCall_t call={.item=&item,.ordered_cast=true};
+    return item.ability && item.ability->proc((edict_t *)unit,A_PLAYER_ORDER_WORK,&call);
+}
+
 /* Native action3 is installed by the spell task constructors. A pending
  * public command alone is not an executing spell; inspect its live owner. */
 bool S_UnitHasSpellTask(edict_t const *unit) {
