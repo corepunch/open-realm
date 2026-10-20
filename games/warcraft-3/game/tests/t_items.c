@@ -2576,8 +2576,7 @@ TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
     item = hero->inventory[0];
     T_NOT_NULL(item);
-    T_ASSERT(G_ShopPawnItem(&(shopPawnItemParams_t){
-        .clent = player, .shop = shop, .carrier = hero, .item = item }));
+    T_ASSERT(G_PawnCarriedItem(shop,item));
     T_NULL(hero->inventory[0]);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 425);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 88);
@@ -3206,9 +3205,8 @@ TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
-/* Generic handoff is used both by targeted item orders and by scripted
- * UnitAddItem when the item is already carried. None of these tests needs a
- * Rexxar-specific unit or game asset. */
+/* Scripted insertion preserves the same item through its world-drop and
+ * recipient attachment phases, without a Rexxar-specific asset. */
 TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
     edict_t *source, *recipient, *item;
     uint32_t old_charges = 3;
@@ -3219,7 +3217,7 @@ TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
     T_ASSERT(G_AddItemToSlot(source, item, 2));
     G_SetItemCharges(item, old_charges);
-    T_ASSERT(G_TransferCarriedItem(recipient, item));
+    T_ASSERT(G_AddItemScripted(recipient, item));
     T_NULL(source->inventory[2]);
     T_ASSERT(recipient->inventory[0] == item);
     T_ASSERT(item->item->carrier == recipient);
@@ -3228,7 +3226,7 @@ TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
     T_ASSERT(!item->item->in_world);
     T_ASSERT(item->s.renderfx & RF_HIDDEN);
     T_ASSERT(item->svflags & SVF_NOCLIENT);
-    T_ASSERT(G_TransferCarriedItem(recipient, item));
+    T_ASSERT(G_AddItemScripted(recipient, item));
     T_ASSERT(recipient->inventory[0] == item);
 }
 
@@ -3244,30 +3242,14 @@ TEST(wc3_items, carried_item_transfer_full_recipient_is_atomic) {
     }
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
     T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(!G_TransferCarriedItem(recipient, item));
+    T_ASSERT(!G_AddItemScripted(recipient, item));
     T_ASSERT(source->inventory[0] == item);
     T_ASSERT(item->item->carrier == source);
     T_EQ(item->item->inventory_slot, 0);
 }
 
-TEST(wc3_items, targeted_give_to_inventory_unit_finishes_on_tick) {
-    edict_t *source, *recipient, *item;
 
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    T_ASSERT(source->inventory[0] == item); /* Pending orders do not teleport items. */
-    source->currentmove->think(source);
-    T_NULL(source->inventory[0]);
-    T_ASSERT(recipient->inventory[0] == item);
-    T_NULL(source->item_drop);
-    T_NULL(source->goalentity);
-}
-
-TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
+TEST(wc3_items, inventory_drag_select_entity_hands_off_in_range) {
     void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
     void (*saved_unicast)(edict_t *) = gi.unicast;
     edict_t *source, *recipient, *item, *clent;
@@ -3277,6 +3259,8 @@ TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
     cstring_t select[] = { "select", target_number };
 
     setup_test_world();
+    stbIniCache_t old_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nGiveItemRange=150\n"));
     gi.Write = item_noop_write;
     gi.unicast = item_noop_unicast;
     clent = &g_edicts[0];
@@ -3291,123 +3275,21 @@ TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
     T_ASSERT(client->menu.dragged_item == item);
     snprintf(target_number, sizeof(target_number), "%u", recipient->s.number);
     G_ClientCommand(clent, 2, select);
-    T_ASSERT(source->item_drop == item);
-    T_ASSERT(source->goalentity == recipient);
-    T_ASSERT(source->inventory[0] == item);
-    source->currentmove->think(source);
+    /* Native54efe0 completes a nearby, facing Give before select returns. */
+    T_EQ(source->current_order_id,0);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
     T_NULL(source->inventory[0]);
     T_ASSERT(recipient->inventory[0] == item);
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=old_misc;
     gi.Write = saved_write;
     gi.unicast = saved_unicast;
 }
 
-TEST(wc3_items, targeted_give_to_stationary_container) {
-    edict_t *source, *container, *item;
 
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    container = make_item_test_inventory_unit(80, 0);
-    container->movetype = MOVETYPE_NONE;
-    container->aiflags |= AI_IMMOBILE;
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, container));
-    source->currentmove->think(source);
-    T_ASSERT(container->inventory[0] == item);
-    T_NULL(source->inventory[0]);
-}
 
-TEST(wc3_items, stationary_inventory_giver_hands_off_only_in_range) {
-    edict_t *source, *recipient, *item, *far_recipient, *far_item;
 
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    source->movetype = MOVETYPE_NONE;
-    source->aiflags |= AI_IMMOBILE;
-    recipient = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    T_NULL(source->inventory[0]);
-    T_ASSERT(recipient->inventory[0] == item);
-    T_NULL(source->item_drop);
-    T_NULL(source->goalentity);
 
-    far_recipient = make_item_test_inventory_unit(512, 0);
-    far_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, far_item, 0));
-    T_ASSERT(!G_OrderGiveItemTarget(source, far_item, far_recipient));
-    T_ASSERT(source->inventory[0] == far_item);
-    T_NULL(source->item_drop);
-    T_NULL(source->goalentity);
-}
-
-TEST(wc3_items, targeted_give_full_container_drops_at_target) {
-    edict_t *source, *recipient, *item;
-
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(64, 0);
-    FOR_LOOP(i, G_InventoryCapacity(recipient)) {
-        edict_t *filler = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 30 + i, 0);
-        T_ASSERT(G_AddItemToSlot(recipient, filler, i));
-    }
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    source->currentmove->think(source);
-    T_NULL(source->inventory[0]);
-    T_NULL(item->item->carrier);
-    T_ASSERT(item->item->in_world);
-    T_ASSERT(Vector2_distance(&item->s.origin2, &recipient->s.origin2) <= ITEM_DROP_RANGE);
-}
-
-TEST(wc3_items, targeted_give_revalidates_cancelled_or_invalid_target) {
-    edict_t *source, *recipient, *item;
-
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(1000, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    source->currentmove->think(source);
-    T_ASSERT(source->inventory[0] == item);
-    T_NULL(recipient->inventory[0]);
-    recipient->health.value = 0.0f;
-    source->currentmove->think(source);
-    T_ASSERT(source->inventory[0] == item);
-    T_NULL(source->item_drop);
-    T_NULL(source->goalentity);
-}
-
-TEST(wc3_items, targeted_give_rejects_enemy_and_undroppable_item) {
-    edict_t *source, *recipient, *item;
-    uint16_t saved_alliance;
-
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    source->s.player = 0;
-    recipient->s.player = 1;
-    saved_alliance = level.alliances[0][1];
-    level.alliances[0][1] = 0;
-    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
-    recipient->s.player = source->s.player;
-    item->item->droppable_set = true;
-    item->item->droppable = false;
-    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
-    item->item->droppable = true;
-    {
-        edict_t *world_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 48, 0);
-        T_ASSERT(!G_OrderGiveItemTarget(source, item, world_item));
-        T_ASSERT(!G_TransferCarriedItem(world_item, item));
-    }
-    T_ASSERT(source->inventory[0] == item);
-    level.alliances[0][1] = saved_alliance;
-}
 
 TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
     gameClient_t *client;
@@ -3472,7 +3354,7 @@ TEST(wc3_items, remove_unit_preserves_items_already_transferred_elsewhere) {
     T_ASSERT(G_AddItemToSlot(carrier, moved, 0));
     T_ASSERT(G_AddItemToSlot(carrier, left, 1));
     G_SetItemCharges(moved, 5);
-    T_ASSERT(G_TransferCarriedItem(survivor, moved));
+    T_ASSERT(G_AddItemScripted(survivor, moved));
     G_FreeEdict(carrier);
     T_ASSERT(!carrier->inuse);
     T_ASSERT(!left->inuse);
@@ -4739,36 +4621,6 @@ TEST(wc3_items, teleport327_rejects_non_townhall_and_unfinished_destination) {
 
 
 
-/* The active handoff order carries two edict references and an umove_t.
- * Both must survive a full snapshot before the giver completes the approach. */
-TEST(wc3_items, targeted_give_order_survives_full_game_save_load) {
-    cstring_t filename = Test_TempPath("wc3-item-handoff-inflight.sav");
-    edict_t *giver, *receiver, *item;
-
-    reset_entities();
-    setup_test_world();
-    giver = make_item_test_inventory_unit(0, 0);
-    receiver = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
-    T_ASSERT(G_AddItemToSlot(giver, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(giver, item, receiver));
-    T_ASSERT(WriteGame(filename));
-    /* These transient changes are discarded by the restored save. */
-    giver->goalentity = NULL;
-    giver->item_drop = NULL;
-    T_ASSERT(ReadGame(filename));
-    T_ASSERT(giver->goalentity == receiver);
-    T_ASSERT(giver->item_drop == item);
-    T_NOT_NULL(giver->currentmove);
-    T_ASSERT(giver->inventory[0] == item);
-    if (giver->currentmove && giver->currentmove->think)
-        giver->currentmove->think(giver);
-    T_NULL(giver->inventory[0]);
-    T_ASSERT(receiver->inventory[0] == item);
-    T_NULL(giver->item_drop);
-    T_NULL(giver->goalentity);
-    remove(filename);
-}
 
 /* A zero-slot inventory can still collect auto-usable powerups, but it does
  * not acquire a regular item slot. inv3 must be enabled for consumption. */

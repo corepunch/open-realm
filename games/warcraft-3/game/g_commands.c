@@ -2061,17 +2061,10 @@ static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
     edict_t *item = G_GetDraggedItem(client);
     edict_t *carrier = G_IsItem(item) ? item->item->carrier : NULL;
 
-    if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
-        G_InventoryCanDropItems(carrier) && G_ShopPawnItem(&(shopPawnItemParams_t){
-            .clent = clent, .shop = target, .carrier = carrier, .item = item })) {
-        G_RefreshResourceBar(clent);
-        Get_Portrait_f(clent);
-        return true;
-    }
     /* Targeted item giving uses the same order as UnitDropItemTarget. An
      * inventory-capable allied building is a valid destination too. */
     return client && G_UnitCanControl(client, carrier) &&
-           G_OrderGiveItemTarget(carrier, item, target);
+           S_OrderDropItemTarget(carrier, item, target);
 }
 
 /* Complete an inventory point drop using the exact item captured by the drag command. */

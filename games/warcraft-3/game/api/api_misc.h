@@ -840,7 +840,19 @@ uint32_t GetSoldUnit(jass_t *j) {
     return jass_pushlighthandle(j, eventsoldunit, "unit");
 }
 uint32_t GetSoldItem(jass_t *j) {
-    return jass_pushlighthandle(j, eventsolditem, "item");
+    jassContext_t const *context=jass_getcontext(j);
+    /*202520 admits exactly the two Sell and two Pawn event families. A prior
+     * shop sale is not metadata for the current Drop/Pickup/ordinary order. */
+    switch(context->eventType) {
+    case EVENT_PLAYER_UNIT_PAWN_ITEM:
+    case EVENT_UNIT_PAWN_ITEM:
+        return jass_pushlighthandle(j,context->source,"item");
+    case EVENT_PLAYER_UNIT_SELL_ITEM:
+    case EVENT_UNIT_SELL_ITEM:
+        return jass_pushlighthandle(j,eventsolditem,"item");
+    default:
+        return jass_pushnullhandle(j,"item");
+    }
 }
 uint32_t StringLength(jass_t *j) {
     cstring_t s = jass_checkstring(j, 1);

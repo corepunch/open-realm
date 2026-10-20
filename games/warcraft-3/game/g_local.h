@@ -93,6 +93,8 @@ typedef struct {
     uint32_t newer, older; /* Derived slot+1 links; rebuilt from saved IDs. */
 } moveShared_t;
 
+typedef enum { MOVE_TARGET_REQUIRE_ALIVE, MOVE_TARGET_RETAIN_DEAD } moveTargetLife_t;
+
 /* Move owns retained physical groups independently of JASS collection handles. */
 typedef struct moveGroup_s {
     uint32_t id, count, flags, age, completion_counter, cooldown;
@@ -106,6 +108,7 @@ typedef struct moveGroup_s {
     vec2_t goal, point; /* Native fine destination and selected formation point. */
     edict_t *target;
     uint32_t target_spawn;
+    moveTargetLife_t target_life; /* A physical task may retain a dead widget's geometry. */
     uint32_t target_region_owner; /* Saved pooled-object owner +1; zero uses target mover98. */
     uint32_t target_region_slot; /* One-based widget slot; zero identifies its ordinary object. */
     uint32_t target_region; /* Runtime pooled identity +1, rebuilt from the saved slot. */
@@ -899,6 +902,7 @@ typedef enum {
     UNIT_ORDER_TARGET_ENTITY,
     UNIT_ORDER_TARGET_BUILD,
     UNIT_ORDER_TARGET_POINT_ITEM, /* ort2 retains a point and an independent carried-item identity. */
+    UNIT_ORDER_TARGET_ENTITY_ITEM, /* ort2 retains both recipient and carried-item identities. */
 } unitOrderTargetType_t;
 
 typedef struct {
@@ -911,6 +915,7 @@ typedef struct {
      * can release presentation without retaining process pointers. */
     uint32_t target_number;
     uint32_t target_spawn_time;
+    uint32_t item_number, item_spawn_time; /* Independent Inventory packet payload. */
     bool target_is_unit; /* Captured class survives removal and slot reuse. */
     uint32_t issuer_player;
     uint32_t order_id; /* Retained identity/explicit payload (Build rawcode); zero resolves order name. */
@@ -2014,13 +2019,6 @@ typedef struct {
     uint8_t max_buttons;
 } shopItemButtonsParams_t;
 
-typedef struct {
-    edict_t *clent;
-    edict_t *shop;
-    edict_t *carrier;
-    edict_t *item;
-} shopPawnItemParams_t;
-
 typedef struct unitAnimationText_s unitAnimationText_t;
 
 #define WC3_ANIMATION_REQUEST_SIZE 80
@@ -2630,6 +2628,8 @@ struct edict_s {
     uint32_t attack_acquisition_suppressed; /* Explicit target owner clears retail Attack20.4000. */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     uint32_t item_drop_spawn_time; /* captured point-drop item incarnation */
+    uint32_t item_drop_target_spawn_time;
+    float item_drop_range; /* Captured terminal range; target approach uses half. */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;
     edict_t *soul_trap_head; /* carrier-owned list of trapped unit edicts */
@@ -5135,6 +5135,14 @@ void S_CargoBoardComplete(edict_t *, edict_t *, bool);
 void S_CargoLoadComplete(edict_t *, edict_t *, bool);
 void S_CargoDropComplete(edict_t *, edict_t *, bool);
 void S_InventoryDropComplete(edict_t *, edict_t *, bool);
+void S_InventoryTargetComplete(edict_t *, edict_t *, bool);
+bool S_OrderDropItemTarget(edict_t *, edict_t *, edict_t *);
+bool G_GiveCarriedItem(edict_t *, edict_t *);
+bool G_ItemPawnable(edict_t const *);
+void G_RemoveItemScripted(edict_t *);
+bool G_PawnCarriedItem(edict_t *, edict_t *);
+bool S_UnitTargetOnPerimeter(edict_t const *, edict_t const *);
+void S_SetUnitTargetChaseLife(edict_t *, moveTargetLife_t);
 bool S_CargoOrderNearestEntangledMine(edict_t *);
 bool S_CargoAttacksEnabled(edict_t const *);
 edict_t *S_CargoTransportForUnit(edict_t const *);
@@ -5259,13 +5267,15 @@ bool G_CanPickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);
 bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event);
 bool G_PickupItem(edict_t *unit, edict_t *item);
-bool G_TransferCarriedItem(edict_t *recipient, edict_t *item);
+bool G_AddItemScripted(edict_t *unit, edict_t *item);
+bool G_AddItemToSlotScripted(edict_t *unit, edict_t *item, uint32_t slot);
 bool G_OrderPickupItem(edict_t *unit, edict_t *item);
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
 bool S_OrderDropItemPoint(edict_t *, edict_t *, vec2_t const *);
-bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient);
+void G_ReleaseRemovedInventory(edict_t *unit);
+void G_DetachCarriedItem(edict_t *item);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);
 uint32_t G_ItemTypeFromClass(cstring_t cls);
@@ -5287,7 +5297,6 @@ bool G_ShopSellsItem(edict_t *shop, uint32_t item_id);
 bool G_ShopSellsUnit(edict_t *shop, uint32_t unit_id);
 bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id);
 bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id);
-bool G_ShopPawnItem(shopPawnItemParams_t *params);
 
 // g_destructable.c
 void G_SetDestructableScriptBinding(bool enabled);

@@ -661,7 +661,7 @@ uint32_t UnitDropItemTarget(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
     edict_t *target = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, G_OrderGiveItemTarget(whichUnit, whichItem, target));
+    return jass_pushboolean(j, S_OrderDropItemTarget(whichUnit, whichItem, target));
 }
 uint32_t UnitDamageTarget(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -818,16 +818,14 @@ uint32_t UnitAddItem(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, false);
     if (G_ItemAbilityScriptedReattach(whichUnit, whichItem)) return jass_pushboolean(j, true);
-    if (G_IsItem(whichItem) && !whichItem->item->in_world)
-        return jass_pushboolean(j, G_TransferCarriedItem(whichUnit, whichItem));
-    return jass_pushboolean(j, G_PickupItem(whichUnit, whichItem));
+    return jass_pushboolean(j, G_AddItemScripted(whichUnit, whichItem));
 }
 uint32_t UnitAddItemById(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     int32_t itemId = jass_checkinteger(j, 2);
     if (!whichUnit) return jass_pushnullhandle(j, "item");
     edict_t *item = SP_SpawnAtLocation(itemId, whichUnit->s.player, &whichUnit->s.origin2);
-    if (item && G_PickupItem(whichUnit, item)) {
+    if (item && G_AddItemScripted(whichUnit, item)) {
         return jass_pushlighthandle(j, item, "item");
     } else {
         if (item) G_RemoveItem(item);
@@ -842,7 +840,7 @@ uint32_t UnitAddItemToSlotById(jass_t *j) {
         return jass_pushboolean(j, false);
     }
     edict_t *item = SP_SpawnAtLocation(itemId, whichUnit->s.player, &whichUnit->s.origin2);
-    if (item && G_AddItemToSlot(whichUnit, item, (uint32_t)itemSlot)) {
+    if (item && G_AddItemToSlotScripted(whichUnit, item, (uint32_t)itemSlot)) {
         return jass_pushboolean(j, true);
     } else {
         if (item) G_RemoveItem(item);

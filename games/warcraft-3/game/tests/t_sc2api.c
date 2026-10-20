@@ -767,6 +767,44 @@ TEST(wc3_sc2api, raw_inventory_point_drop_exports_point_instead_of_carried_item_
     reset_entities();setup_test_world();
 }
 
+/* Give packets retain a recipient separately from the carried item. Raw
+ * observations must export that recipient, and reject its recycled identity. */
+TEST(wc3_sc2api, raw_inventory_target_drop_exports_recipient_tag) {
+    reset_entities();setup_test_world();
+    stbIniCache_t old_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nGiveItemRange=150\n"));
+    char script[]=
+        "globals\nunit rawCarrier\nunit rawRecipient\nitem rawItem\nendglobals\n"
+        "function rawGive takes nothing returns nothing\n"
+        "call BJassAssert(UnitDropItemTarget(rawCarrier,rawItem,rawRecipient),\"accepted Give\")\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set rawCarrier=CreateUnit(Player(0),'Hpal',64.0,64.0,0.0)\n"
+        "set rawRecipient=CreateUnit(Player(0),'Hpal',512.0,96.0,0.0)\n"
+        "set rawItem=CreateItem('ratf',64.0,64.0)\n"
+        "call BJassAssert(UnitAddItem(rawCarrier,rawItem),\"carried item\")\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *unit=NULL,*target=NULL;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t *ent=g_edicts+i;
+        if(!ent->inuse || ent->class_id!=MAKEFOURCC('H','p','a','l'))continue;
+        if(ent->inventory[0])unit=ent;
+        else target=ent;
+    }
+    T_NOT_NULL(unit);T_NOT_NULL(target);
+    if(unit && target) {
+        G_FinishMovePathingInitialization();jass_callbyname(level.vm,"rawGive",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        wc3Sc2RawUnit_t raw;
+        T_ASSERT(WC3_SC2API_FillRawUnit(0,unit,&raw));T_EQ(raw.order_count,1);
+        T_EQ(raw.orders[0].ability_id,G_OrderId("dropitem"));
+        T_ASSERT(raw.orders[0].has_target_unit);T_ASSERT(!raw.orders[0].has_point);
+        T_EQ(raw.orders[0].target_unit_tag,WC3_SC2API_UnitTag(target));
+        target->spawn_time++;
+        T_ASSERT(WC3_SC2API_FillRawUnit(0,unit,&raw));T_EQ(raw.order_count,0);
+    }
+    reset_entities();setup_test_world();Stb_IniCacheFree(&game.config.misc);game.config.misc=old_misc;
+}
+
 TEST(wc3_sc2api, raw_point_callback_replacement_preserves_logical_order_head) {
     FOR_LOOP(route, 3) FOR_LOOP(mode, 2) {
         char script[4096];

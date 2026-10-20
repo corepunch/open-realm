@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 219; /* Inventory point-drop callback and retained item incarnation. */
+static uint32_t const save_version = 220; /* Inventory target/item packets and captured terminal range. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -192,6 +192,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_CargoLoadComplete),
     SAVE_CFUNCTION(S_CargoDropComplete),
     SAVE_CFUNCTION(S_InventoryDropComplete),
+    SAVE_CFUNCTION(S_InventoryTargetComplete),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -1007,6 +1008,7 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, point, F_VECTOR),
     TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
     TF(moveGroup_t, target_spawn, F_INT),
+    TF(moveGroup_t, target_life, F_INT),
     TF(moveGroup_t, target_region_owner, F_INT),
     TF(moveGroup_t, target_region_slot, F_INT),
     TF(moveGroup_t, target_region, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1418,6 +1420,8 @@ field_t edict_fields[] = {
     F(edict_s, attack_acquisition_suppressed, F_INT),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, item_drop_spawn_time, F_INT),
+    F(edict_s, item_drop_target_spawn_time, F_INT),
+    F(edict_s, item_drop_range, F_FLOAT),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
     F(edict_s, soul_trap_head, F_EDICT, 0, FIELD_NONE),
     F(edict_s, soul_trap_carrier, F_EDICT, 0, FIELD_NONE),
@@ -2554,6 +2558,8 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         (group->follow_continuation ? (!group->target || group->receiver || (group->flags&1)) :
             group->follow_range!=0)) return false;
     if (group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
+    if(group->target_life>MOVE_TARGET_RETAIN_DEAD ||
+       (group->target_life && (!group->target || !group->owner_ability)))return false;
     if(group->owner_ability && (!group->receiver || !GetAbilityByIndex(group->owner_ability-1)))return false;
     if(group->receiver) {
         uintptr_t ptr=(uintptr_t)group->receiver,base=(uintptr_t)g_edicts;

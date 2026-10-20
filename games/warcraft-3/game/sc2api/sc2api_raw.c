@@ -157,7 +157,7 @@ static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) 
         order->target_type == UNIT_ORDER_TARGET_POINT_ITEM) {
         out->orders[index].has_point = true;
         out->orders[index].point = WC3_SC2API_WorldToBoardPoint(&order->point);
-    } else if (order->target_type == UNIT_ORDER_TARGET_ENTITY) {
+    } else if (order->target_type == UNIT_ORDER_TARGET_ENTITY || order->target_type == UNIT_ORDER_TARGET_ENTITY_ITEM) {
         edict_t *target;
         if (order->target_number >= globals.num_edicts) return false;
         target = globals.edicts + order->target_number;

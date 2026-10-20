@@ -22,7 +22,7 @@ uint32_t CreateItem(jass_t *j) {
 }
 uint32_t RemoveItem(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    if (whichItem) G_RemoveItem(whichItem);
+    if (whichItem) G_RemoveItemScripted(whichItem);
     return 0;
 }
 uint32_t GetItemPlayer(jass_t *j) {
@@ -127,6 +127,8 @@ uint32_t IsItemInvulnerable(jass_t *j) {
     return jass_pushboolean(j, item && G_IsItem(item) && item->invulnerable);
 }
 uint32_t GetManipulatedItem(jass_t *j) {
+    if(jass_getcontext(j)->eventType==EVENT_PLAYER_UNIT_PAWN_ITEM ||
+       jass_getcontext(j)->eventType==EVENT_UNIT_PAWN_ITEM)return jass_pushnullhandle(j,"item");
     edict_t *item = jass_getcontext(j)->source;
     return item && G_IsItem(item) ? jass_pushlighthandle(j, item, "item") : jass_pushnullhandle(j, "item");
 }

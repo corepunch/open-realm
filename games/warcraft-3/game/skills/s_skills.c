@@ -227,7 +227,7 @@ static ability_t abilitylist[] = {
     { "ANsw", CAbilitySummonWarEagle, AB_SPELL },  /* Summon Hawk */
     { "ANst", CAbilityStampede, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Stampede */
     { "ANfs", CAbilityFlameStrikeNeutral, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
-    { "AInv", CAbilityInventory, AB_PASSIVE, SPELL_TARGET_NONE, inventory_orders },  /* Inventory */
+    { "AInv", CAbilityInventory, AB_PASSIVE | AB_ENGINE_EVENTS, SPELL_TARGET_NONE, inventory_orders },  /* Inventory */
     { "ANdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Drunken Brawler */
     { "ANdh", CAbilityDrunkenHaze, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "ANsi", CAbilitySilence, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_POINT },  /* Silence */

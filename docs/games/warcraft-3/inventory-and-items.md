@@ -905,3 +905,205 @@ summary omitted these valid point fallbacks. Enemy scenes can also contain
 independent combat tasks, so attribute tasks to their actual actor/producer.
 This remains unintegrated target research; dynamic capacity/availability
 changes and complete firing-poll ownership still need their own comparisons.
+
+## Target Give/Pawn ownership and callback research
+
+The working target implementation remains within **TARGET-01.2**; it does not
+close the leaf or replace full integration acceptance. Native V3 uses53 scenes
+with stock Drop/Give/Pawn ranges100/150/130 and an authored100/0/0 variant. Two
+observations and an observer-free control agree on every public marker for each
+map:2103 stock and2093 authored markers per run,12588 total. Immutable helpers,
+maps and captures are preserved under
+`/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/itemgive-v3` and its `captures`
+directory; `takeover-itemgive-v3-repeat-summary.json` records their hashes.
+
+`218980 ->206c40` validates before admitting silent `ort2` order852001.
+An invalid recipient becomes an unassociated point/drop packet at the captured
+widget position. Inspect both point and target tasks; a missing target task is
+not evidence that admission failed. `54efe0` constructs these distinct paths:
+
+| Path | Physical task | Terminal action |
+|---|---|---|
+| Point fallback | `d016b`, full Drop range, no association | `d017c` |
+| Give | `d0171`, half Give range | `d017d`, full Give range |
+| Pawn | `d0171`, half Pawn range | `d0299`, full Pawn range |
+
+Give/Pawn bypass the approach only when half-range and the `.2`-radian facing
+query both succeed. With two32-unit collision radii and Give150, the immediate
+handoff boundary is139 world units, including equality. Immobile sources still
+attempt the terminal full-range action. `56aa50/56ab80` recheck live item and
+recipient eligibility, then admit radial range **or** the current target
+perimeter. A recipient that fills during approach retains the source item;
+it does not turn that already-admitted Give into a ground drop. A dead target's
+physical geometry remains usable until the terminal action rejects the handoff.
+
+Drop runs synchronously before source-slot detachment. Pickup runs after
+recipient attachment, before `UnitDropItemTarget` returns. A Move issued by Drop
+survives; Inventory cleanup must preserve a successor that stages the same target.
+Source removal inside Drop still permits the retained transfer. Public
+`RemoveItem` inside Drop emits a second, nested Drop before deletion; the enclosing
+Pickup then resolves its manipulated item as null. Pawn emits Pawn before Drop,
+with `GetSoldItem` identifying the item and `GetManipulatedItem` null during Pawn.
+Both callbacks precede payment and still see the source slot. Bare `Apit` is
+sufficient; merchandise/UI shop state is not a simulation admission requirement.
+
+The game module owns these transitions in `s_inventory.c`, with inventory
+transactions in `g_items.c`/`g_stock.c` and physical requests in Move. Save220
+retains independent packet item/recipient generations, terminal range, callbacks
+and the physical target lifetime policy. Suspension cancels a physical binding
+without retaining its released lifetime policy; resume reconstructs the approach.
+The `wc3_inventory_orders.*` suite drives public natives, real frames and saves.
+Eligibility direction/availability, constructor-time recipient changes and the
+remaining producer/firing matrix still require completion before leaf closure.
+
+### Give eligibility and detached-item recovery
+
+V4 isolates alliance directions using asymmetric public `SetPlayerAlliance`
+settings. Give requires the **source player's SHARED_SPELLS grant to the
+recipient**. Pawn requires the **recipient player's PASSIVE grant to the
+source**. The incoming retail alliance table must not be interpreted from the
+receiver register alone. Pausing the recipient or disabling Apit before
+admission produces an unassociated point/drop fallback; losing eligibility after
+admission retires the target action with the item still carried.
+
+A Drop callback can fill the recipient or remove its Inventory. Retail detaches
+the gift before the final attachment check, leaving a hidden, unowned item on
+failure. `UnitRemoveAbility(AInv)` must affect capacity immediately; an authored
+ability row does not override a runtime removal. Removing the recipient instead
+permits attachment and synchronous Pickup, then deferred recipient retirement
+clears its slot before publishing a final Drop and deleting the item.
+
+Both `UnitAddItem` and `SetItemPosition` can recover that hidden orphan, including
+a cold save. Scripted insertion accepts unowned hidden items; world visibility
+is an admission condition of ordinary pickup, not a condition of this native.
+`SetItemPosition` republishes the orphan visibly in the world. Consumed items
+still owned by pending use-event removal are excluded from recovery.
+
+Scripted `UnitAddItem` is a different producer from normal Give. Original
+`2182a0` validates insertion through `66eba0`, removes an old carried item at the
+source position, then attaches it through `6695c0`. Its Drop callback runs before
+source detachment and Pickup after attachment, both before the native returns.
+It bypasses the ordinary droppable flag. Normal Give detaches without world
+publication and preserves the item's stored position. These transactions share
+slot binding and stat inverses, while retaining their own event boundaries.
+
+V4 has645 public markers per run; recovery has179; scripted insertion has162.
+Each family has two observations and an unhooked control with identical public
+streams. Their hash manifests are `takeover-itemgive-v4-repeat-summary.json`,
+`takeover-itemgive-v4-recovery-repeat-summary.json` and
+`takeover-itemgive-v4-script-repeat-summary.json` in the runtime directory above.
+Default-build checkpoint recovery42 passes23 Inventory order tests/1752
+assertions,128 item tests/11335 assertions,4 cursor tests/76 assertions and236
+save tests/68335 assertions per edition. These focused checks do not replace the
+required final optional-build and full integration gates.
+
+V5 also observes a point Drop callback issuing Move: the successor continues
+after item placement. It records that changing the source owner during Pawn's
+Drop phase credits the new owner. Its first four planned Pawn mutations did not
+run because their guard incorrectly tested `GetManipulatedItem` during Pawn;
+those scenes establish no mutation behavior. A separate V6 probe corrects the
+guard using `GetSoldItem`. V5's observer-free control used an incorrect output
+argument; the actual authored output was collected after terminal exit with a
+modification timestamp inside that run. All498 public markers match both
+observations; the correction and its limits are retained in
+`takeover-itemgive-v5-repeat-summary.json`.
+
+### Callback and removal checkpoint
+
+V6 corrects the Pawn mutation guard and completes two observations plus an
+unhooked control:504 public markers each,1512 equal markers overall, recorded in
+`takeover-itemgive-v6-repeat-summary.json`. Ownership changes inside either Pawn
+or Drop credit the new player. Removing the item or source in either callback
+still pays400 for the authored800-cost gift. A nested Move survives either phase.
+`G_PawnCarriedItem` therefore reads the source owner after callbacks, detaches
+before payment and deletes the retained item last.
+
+V3 scene32 removes the source's `AInv` during its physical approach. Drop sees an
+already-empty slot, the item appears at the source position, and the physical
+approach continues before retiring without a handoff. The Inventory `A_DISABLE`
+handler distinguishes erased rawcodes from ordinary disable contributions and
+releases raw retained slots when no Inventory remains. Its tests save before
+removal and after release while the physical callback remains live.
+
+The new synchronous scripted powerup path initially dereferenced freed item
+state when a Pickup handler called `RemoveItem`. The regression reproduced a
+SIGSEGV in both editions; GDB identified the post-callback charges write. Item
+incarnation checks now guard Pickup, Use and ability-execution continuation.
+The regression covers an ability-less quest pickup, an ability-bearing pickup
+and removal during Use. The fixture's legacy Use Item event is50, not51.
+
+Checkpoint callback49 passes28 Inventory order tests/2201 assertions per edition;
+its production sources match powerup48, whose128 item tests/11335 assertions,
+4 cursor tests/76 assertions and236 save tests/68335 assertions pass per edition.
+The Pawn mutation fixture reserves the waypoint ring before actor removal, as
+map startup does; lazily reserving after edict holes produced fixture errors.
+`RemoveUnit` may have completed deferred retirement by the end of the real
+frame, so its regression accepts both pending retirement and an already-freed
+source. These are focused gates; the later checkpoint below supersedes this candidate.
+
+### Queued recipient changes retain a target-bound Drop
+
+V6 scenes9..11 admit Give while Metamorphosis retains the current action, then
+fill, kill or remove Inventory from the recipient before queued activation.
+Original `54efe0` creates **target-associated d017c**, full Drop100, with
+**d0171 at half Drop50**. This differs from invalid-at-admission fallback, whose
+d016b point approach has no target and uses full Drop range. Native records
+retain the target identity and literal range words `0x42c80000`/`0x42480000`.
+
+Inventory now retains a distinct `inventory_move_target_drop` state. It shares
+the ordinary target chase at half range, retains dead-widget geometry, and uses
+the existing guarded Drop completion at the recipient's current center. A
+replacement recipient cannot inherit the saved target identity. The new static
+move is saved through F_MMOVE; its physical callback already belongs to the
+C-function roster. This adds no new persistent field beyond candidate Save220.
+
+`queued_give_invalid_recipient_keeps_target_drop` drives public Metamorphosis and
+Give, actual primary/frame scheduling, the three recipient mutations, and saves
+before activation or during the physical approach. It tests lettered DataA-D
+and legacy Data11..14 columns; its custom Inventory needs the common DataE1 drop
+flag because the legacy generic sequence has only four slots. Synthetic Hpal
+and Footman forms both explicitly own Inventory, matching the native forms'
+retention contract. The fixture Footman's omitted collision is zero; Move's
+physical minimum is one, so half50 plus1+32 publishes `0x40260000` (2.59375 fine).
+This fixture checks task/range ownership, not an exact native Demon Hunter
+trajectory. `parse_slk_string` borrows input text: normalize the typed rows
+before returning from any helper with temporary text.
+
+The corrected regression fails54 assertions across18 combinations in each
+edition against the prior owner49 source: target association, lifetime policy
+and half-range publication all differ. Queued56 passes all29 Inventory tests /
+3179 assertions and128 item tests /11335 assertions per edition. The wider producer, heading/force/stop and complete firing matrix still belongs
+to TARGET-01.2.
+
+### Ordinary pickup permission does not gate Give
+
+V7 changes only `inv4` (`DataD1` / legacy `Data14`), holding capacity6 and
+Drop/Give/Pawn ranges100/150/130 fixed. With `inv4=0`, ordinary Smart rejects,
+but both Give and `UnitAddItem` attach the gift before returning. Read-only
+`66ffd0` hooks independently report the zero flag. Both observations and the
+unhooked control agree in each setting (80 enabled /78 disabled public markers
+per run,474 overall). All twelve capture/preload hashes were revalidated from
+`takeover-itemgive-v7-repeat-summary.json` in the runtime evidence directory.
+
+`inventory_can_give` previously applied the ordinary pickup permission to
+forced receipt. Its shared admission/completion validation now requires the
+recipient's Inventory and free slot without consulting `inv4`. Ordinary Smart
+retains its own permission checks at admission and execution. The regression
+`give_and_script_bypass_ordinary_pickup_permission` covers all three producers,
+both permission values, both Data-column schemas and cold saves. Its corrected
+control advances the actual pickup scheduler until attachment: the pickup move
+can exist before a public order ID, so testing only that ID skipped execution.
+After that correction, the test failed12 Give assertions per edition before
+the fix; all736 assertions pass afterward. The full Inventory order suite
+passes30 tests /3915 assertions per edition. Wider TARGET-01.2 producer and
+firing-poll coverage remains open; these focused results do not establish
+whole-leaf or full integration acceptance.
+
+Checkpoint58 also passes128 item tests /11335 assertions,4 cursor tests /
+76 assertions and236 save tests /68335 assertions per edition. Save220
+rejects219; the network contract is unchanged. Full repository/cross-edition
+acceptance is reserved for a batch checkpoint, as requested.
+The optional `SC2API=1` build passes35 raw-interface tests /324 assertions
+and the same30 Inventory tests /3915 assertions per edition. Its new public
+Give regression exports the recipient tag independently of the carried item,
+then recycles the recipient identity and verifies that the stale tag disappears.

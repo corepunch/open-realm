@@ -787,6 +787,7 @@ static void move_cancel_receiver(moveGroup_t *group, edict_t *unit, bool ability
     edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
     void (*complete)(edict_t *,edict_t *,bool)=group->complete;
     group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
+    group->target_life=MOVE_TARGET_REQUIRE_ALIVE;
     /* Cancelling an ability-owned chase releases its physical work; it is
      * not the terminal can't-path dispatch from the completion scan. The
      * owner may be transferring to target-loss recovery or a newer order. */
@@ -2218,6 +2219,16 @@ static bool move_target_in_range(edict_t const *self,edict_t const *target,float
 
 bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float range) {
     return move_target_in_range(self,target,range,true);
+}
+
+/*68c250 uses the target's current perimeter and the source's predicted fine
+ * center. This is independent of a task's radial arrival range. */
+bool S_UnitTargetOnPerimeter(edict_t const *self,edict_t const *target) {
+    if(!self || !target || !target->inuse)return false;
+    float point[2];S_PredictUnitFinePointAt(self,&level.pathing_clock,point);
+    movePathQuery_t query={.geometry={.radius=S_MoveCollisionRadius(self)},.mover=(edict_t *)self,
+        .target=(edict_t *)target,.units=true};
+    return G_UnitMoveTargetOnPerimeter(&query,(vec2_t){point[0],point[1]});
 }
 
 /*05b340/15f660: query both predicted centers; the squared-vector and
@@ -5693,6 +5704,13 @@ bool S_UnitTargetChaseActive(edict_t const *unit,abilityProc_t owner) {
     return ability && ability->proc==owner && group->receiver==unit && group->receiver_spawn==unit->spawn_time;
 }
 
+/* Widget-target tasks can retain corpse geometry for a later action while
+ * ordinary Follow/Attack consumers still require a living target. */
+void S_SetUnitTargetChaseLife(edict_t *unit,moveTargetLife_t policy) {
+    moveGroup_t *group=unit ? move_unit_group(unit) : NULL;
+    if(group && group->owner_ability)group->target_life=policy;
+}
+
 void S_EndUnitTargetChase(edict_t *unit,abilityProc_t owner) {
     if(S_UnitTargetChaseActive(unit,owner))move_leave(unit);
 }
@@ -6020,6 +6038,7 @@ static void move_republish_group_member(edict_t *unit) {
     group->follow_continuation=old->follow_continuation;group->follow_range=old->follow_range;
     group->turning=old->turning;group->turn_rate=old->turn_rate;
     group->receiver=old->receiver;group->receiver_spawn=old->receiver_spawn;group->owner_ability=old->owner_ability;group->complete=old->complete;
+    group->target_life=old->target_life;
     group->members[0].arrival_range=saved.arrival_range;
 }
 
@@ -6848,6 +6867,7 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                 void (*complete)(edict_t *,edict_t *,bool)=group->complete;
                 bool ability_owned=group->owner_ability!=0;
                 group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
+                group->target_life=MOVE_TARGET_REQUIRE_ALIVE;
                 move_detach_group(unit);unit->movement.group_id=0;
                 if(!ability_owned)S_SetFollowTarget(unit,NULL);
                 if(receiver->inuse && receiver->spawn_time==spawn && !G_IsDeferredFree(receiver) && complete)
@@ -7001,7 +7021,8 @@ static void move_run_group_updates(void) {
             move_group_stop_members(group);group->ticking=false;continue;
         }
         if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
-                G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
+                G_IsDeferredFree(group->target) || (group->target_life==MOVE_TARGET_REQUIRE_ALIVE &&
+                !group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
             for(uint32_t i=group->count;i>0;) {
                 edict_t *unit=group->members[--i].unit;
                 if (!unit) continue;

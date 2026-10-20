@@ -113,7 +113,7 @@ bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id,
 }
 
 static bool shop_warned_activation_fallback, shop_warned_interaction_missing;
-static bool shop_warned_pawn_rate, shop_warned_give_range;
+static bool shop_warned_pawn_rate;
 
 static void G_ResetItemStock(edict_t *unit) {
     if (!unit) return;
@@ -1078,55 +1078,32 @@ static float G_ShopPawnRate(void) {
     return MAX(0.0f, rate);
 }
 
-static float G_ShopGiveItemRange(void) {
-    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", "GiveItemRange");
-    float range;
-
-    if (!value) {
-        if (!shop_warned_give_range) {
-            fprintf(stderr, "WC3 shop: missing Misc.GiveItemRange; using %.0f\n", ITEM_DROP_RANGE);
-            shop_warned_give_range = true;
-        }
-        range = ITEM_DROP_RANGE;
-    } else range = atof(value);
-    return MAX(0.0f, range);
-}
-
-/* Sells a carried pawnable item only after validating shop authority and authored range. */
-bool G_ShopPawnItem(shopPawnItemParams_t *params) {
-    edict_t *clent = params ? params->clent : NULL;
-    edict_t *shop = params ? params->shop : NULL;
-    edict_t *carrier = params ? params->carrier : NULL;
-    edict_t *item = params ? params->item : NULL;
-    gameClient_t *client = clent ? clent->client : NULL;
-    ItemData_t const *data;
-    float distance;
-    float reach;
-    float rate;
-    uint32_t gold;
-    uint32_t lumber;
-
-    if (!G_CanUseItemShop(client, shop) || !G_ActorHasAbilityCode(shop, MAKEFOURCC('A','p','i','t')) ||
-        !carrier || carrier->s.player != client->ps.number || !G_IsItem(item) ||
-        item->item->carrier != carrier || item->item->in_world) return false;
-    data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
-    if (!data) return false;
-    if (item->item->pawnable_set) { if (!item->item->pawnable) return false; }
-    else if (!data->pawnable) return false;
-
-    distance = Vector2_distance(&carrier->s.origin2, &shop->s.origin2);
-    reach = G_ShopGiveItemRange() + MAX(0.0f, carrier->collision) + MAX(0.0f, shop->collision);
-    if (distance > reach) return false;
-
-    rate = G_ShopPawnRate();
-    gold = (uint32_t)ceilf((float)MAX(0, data->goldcost) * rate);
-    lumber = (uint32_t)ceilf((float)MAX(0, data->lumbercost) * rate);
-    G_RemoveItem(item);
-    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN((uint32_t)USHRT_MAX,
-        (uint32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + gold);
-    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN((uint32_t)USHRT_MAX,
-        (uint32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + lumber);
-    G_RefreshResourceBar(clent);
-    G_InvalidateCommands(client);
+/*56ab80's action already validated recipient and terminal reach. The sale
+ * transaction belongs to simulation and also serves public UnitDropItemTarget
+ * with a bare Apit recipient that has no shop merchandise or connected UI. */
+bool G_PawnCarriedItem(edict_t *shop,edict_t *item) {
+    if(!shop || !G_IsItem(item) || !G_ItemPawnable(item))return false;
+    edict_t *carrier=item->item->carrier;
+    if(!carrier || carrier->s.player>=MAX_PLAYERS || item->item->in_world)return false;
+    ItemData_t const *data=item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
+    if(!data)return false;
+    uint32_t const spawn=item->spawn_time;
+    /* V3 Pawn callbacks run before Drop and both see the source slot. */
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=carrier,.source=item,.type=EVENT_PLAYER_UNIT_PAWN_ITEM},EVENT_UNIT_PAWN_ITEM,false);
+    if(G_IsItem(item) && item->spawn_time==spawn) {
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=carrier,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
+        if(G_IsItem(item) && item->spawn_time==spawn)G_DetachCarriedItem(item);
+    }
+    /*56ab80 reads the source owner after synchronous Pawn and Drop. V5/V6
+     * SetUnitOwner inside either event credits that new owner. Deletion is last. */
+    uint32_t const player=carrier->s.player;
+    float const rate=G_ShopPawnRate();
+    uint32_t const gold=(uint32_t)ceilf((float)MAX(0,data->goldcost)*rate);
+    uint32_t const lumber=(uint32_t)ceilf((float)MAX(0,data->lumbercost)*rate);
+    gameClient_t *client=game.clients+player;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=(uint16_t)MIN((uint32_t)USHRT_MAX,(uint32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]+gold);
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=(uint16_t)MIN((uint32_t)USHRT_MAX,(uint32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]+lumber);
+    G_RefreshResourceBar(G_GetPlayerEntityByNumber(player));G_InvalidateCommands(client);
+    if(G_IsItem(item) && item->spawn_time==spawn)G_RemoveItem(item);
     return true;
 }
