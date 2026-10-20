@@ -7,6 +7,8 @@ or executes an address inside the body; partial rows a mapper row, plate or
 narrow fixture citation; excluded rows an out-of-scope category. Every row names
 one remaining open task (covered rows for their unguarded branches), as does every computed call site
 whose receiver class could not be resolved. Branch totals must equal the rows.
+This schema verifies function rows and aggregate counts only. It cannot certify
+BASE-03.1 closure without individual branch records and their evidence/task links.
 """
 import argparse
 from collections import Counter
@@ -31,6 +33,8 @@ require = inv.require
 def validate(inventory, corpus, todo, forced):
     require(inventory.get('task') == 'BASE-03.1' and inventory.get('binary_sha256') == inv.SHA, 'unsupported inventory')
     states = {m[2]: m[1] for m in inv.TASK.finditer(todo)}
+    require(states.get('BASE-03.1') == ' ',
+            'BASE-03.1 closure needs individual branch records; this schema only verifies function rows and totals')
     open_tasks = {k for k, v in states.items() if v == ' ' and k != 'BASE-03.1'}
     oracles = {e['id'] for e in corpus['entries']}
     rows, owners, totals = {}, Counter(), Counter()
@@ -71,7 +75,7 @@ def validate(inventory, corpus, todo, forced):
         require(site['function'] in rows and ADDRESS.match(site['site']), 'invalid unresolved site')
         require(site['owner'] in open_tasks, 'unresolved site owner is not a remaining task: ' + site['site'])
         owners['site:' + site['owner']] += 1
-    return dict(status='verified', task='BASE-03.1', roots=len(roots), functions=len(rows),
+    return dict(status='verified', task='BASE-03.1', closure_verified=False, roots=len(roots), functions=len(rows),
                 branches=totals['branches'], guarded_branches=totals['guarded_branches'],
                 unresolved_sites=len(inventory['unresolved_sites']),
                 statuses=dict(sorted(Counter(r['status'] for r in rows.values()).items())),

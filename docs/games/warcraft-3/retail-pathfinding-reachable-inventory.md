@@ -3,7 +3,9 @@
 **Closure audit (2026-10-20): BASE-03.1 is open.** The fixture publishes function
 rows and branch totals, but no individual branch addresses/edges or per-branch
 evidence/task records. Its validator checks sums and function owners rather than
-branch completeness. The original metrics export truncates one function
+branch completeness. The corrected validator reports `closure_verified: false`
+and rejects checking off BASE-03.1 while this function-only schema is used;
+failing-first tests reproduce the former false acceptance. The original metrics export truncates one function
 (`6f4725f0`, 462 branches). Preserve this useful partial inventory; complete the
 branch export and add missing/duplicate/incorrect-link rejection tests before
 closing the leaf. Instruction guards establish binary identity, not execution

@@ -329,7 +329,8 @@
     "oracle-target-tokens",
     "oracle-morph382",
     "oracle-captain376-preferred-suicide",
-    "oracle-group012"
+    "oracle-group012",
+    "oracle-captain473-retreat-saveload"
   ],
   "entries": [
     {
@@ -7373,6 +7374,32 @@
           "task": "GROUP-04.6",
           "disposition": "evidence-boundary",
           "rationale": "The projection reuses accepted complete captures; whole-row equality of later storage replacement is owned by GROUP-04.6."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain473-retreat-saveload",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Combat-triggered retreat and engagement journeys, remaining help and transport consumers, and their retail save/load remain in existing GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "Captain473 integrates the non-combat retreat-member producer and its retail save/load only; combat, help and transport journeys stay in the existing Captain leaf."
+        },
+        {
+          "index": 1,
+          "text": "The smart/attackonce/action3 append and board-head branches of 9d87d0 are implemented from assembly without a public witness and remain in existing GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "evidence-boundary",
+          "rationale": "Public scenes reach only the replace and identical-head branches."
+        },
+        {
+          "index": 2,
+          "text": "Native Captain b8/c8 counters are not engine-owned and are not compared; they remain in existing GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "evidence-boundary",
+          "rationale": "The snapshots compare bc/c0/c4; the b8/c8 producers are unrecovered."
         }
       ]
     }

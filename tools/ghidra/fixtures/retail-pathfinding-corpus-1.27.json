@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "326 executable original/evidence contracts; 607 total entries; provenance and limitations remain per entry.",
+  "scope": "328 executable original/evidence contracts; 609 total entries; provenance and limitations remain per entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -57491,6 +57491,74 @@
         "Broader moving Captain combat/retreat policy remains GROUP-03.4/03.4.7.3; arbitrary callback/category/storage compositions and canonical member storage remain GROUP-04.6.",
         "No new retail captures or observer-free controls; only projected binding/path associations of the two accepted captures are compared, not whole rows."
       ]
+    },
+    {
+      "id": "oracle-captain473-retreat-saveload",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain473.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain473.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "instructions": {
+          "equal": 1595
+        },
+        "retreat473": {
+          "equal": {
+            "observations": 3,
+            "controls": 1,
+            "public_markers": 2037,
+            "semantic_records": 3888,
+            "semantic_sha256": "d3813562bbfb9477bf14dd573cfcc7b08bfee7289be248041521e27015964f67",
+            "public_rows": 1746,
+            "captain_snapshots": 289
+          }
+        },
+        "retreat473b": {
+          "equal": {
+            "observations": 2,
+            "controls": 1,
+            "public_markers": 2037,
+            "semantic_records": 3895,
+            "semantic_sha256": "cfdae81bfd4d313226bd4beece7dc20be5bcddca0665cbd02201578189c59017",
+            "public_rows": 1746,
+            "captain_snapshots": 289
+          }
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 10,
+              "assertions": 156882
+            },
+            "tft": {
+              "tests": 10,
+              "assertions": 156882
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "Moving six-Footman CaptainAttack roster; RemoveUnit of four members far from home and a fifth during retreat. 9d7760 reevaluates 9d08e0 per removal; retreat bit2 is set at two members; GoHome requests range500 at speed500. The 9d16c0 retreat branch reissues each non-BTLF member with 9d87d0(d0012,null,authored home) and retains an identical null-target d0012 head. The actor stops inside its range, its goal event clears bit2 and the members arrive independently. Word-exact public getters and Captain snapshots. Native retail UI save/load at five save points (two inside the retreat bit window) resumes identically to the uninterrupted journey; engine cold saves at the same points continue word-exactly.",
+      "exclusions": [
+        "Combat-triggered retreat and engagement journeys, remaining help and transport consumers, and their retail save/load remain in existing GROUP-03.4.7.3.",
+        "The smart/attackonce/action3 append and board-head branches of 9d87d0 are implemented from assembly without a public witness and remain in existing GROUP-03.4.7.3.",
+        "Native Captain b8/c8 counters are not engine-owned and are not compared; they remain in existing GROUP-03.4.7.3."
+      ]
     }
   ],
   "fixtures": [
@@ -58389,7 +58457,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7eca245269b741e3fcf883176169c93db5d166402d446a29fa3833b03f880271"
+      "sha256": "24b2bf514f6bdc7a72b45f056f2bd20ecf6be0a5f3849a955d43ae52941e95b2"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59245,7 +59313,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "369d331822092fa48c6c33eeef14eb1ab8b1e2c2389ecaf411a36f8b93539bb2"
+      "sha256": "9311071eb3737da3abc247b48e02dca511c4eaa2cf871f0fa6f826f156e41f93"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -60181,7 +60249,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "62897576fc4f3f795699fe7b6fea9e5c4b34ee8d3f73edaea92ec42001858b23"
+      "sha256": "f85f66425b5b45f97ede3abc8b0d3e92bd400d64199050875d6b95880149f21f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -60197,7 +60265,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "21de6eead0eccbbb78c412d11007d048e8ebb5220196a936413b0a5bad12a1d5"
+      "sha256": "3e8ba0a670d43056cd218590bd95a6a401895ea9c2dd88350264658242e1ce61"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -60593,7 +60661,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "7ad55e4df1932a556854b53d66d2eb82387b860e1c42dc0874e41da4d172de60"
+      "sha256": "ef19cac49591ea59ed1af98b164f4a20d26368219c351a96425db7ab56d4c47e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -65197,7 +65265,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "28c1377b8f285434c4e16fecd65e9b42420e5597175bf91e36c5c5917c2e2d70"
+      "sha256": "51c468d0537d7ec8929f2f402ffabefe932ab20828b2468b01ffb9fc6315f2ac"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -67053,7 +67121,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "5a7351705d95b7b22c0aeedb6baf2204f3867972c78c95056d08178b84b5e609"
+      "sha256": "4d90741cc360bfdfd0b8fca79cda29cf8a798770611abf1308f658c974980d52"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -69325,7 +69393,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "bc02674bba86fda43f3ea4e4203a5db5f392cfac0f24adff8ea3ed67dd7b4adc"
+      "sha256": "43f8700fcac9adbd58c734f18545a591bcdfaa12425334b91edb7758314a39ac"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -69373,7 +69441,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs.md",
-      "sha256": "6147b36f4a12bfc22240a860b9dbc564306ec363d1fbe75d27939b43e1ceaacb"
+      "sha256": "767a03f1d8c29925cf30b6190e6521d209ecfaaf8a754dadeb7506a17a9225f8"
     },
     {
       "path": "games/warcraft-3/game/hud/hud_infopanel.c",
@@ -69669,7 +69737,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain376-1.27.json",
-      "sha256": "ad75337e525c32278037a3d833107c963cf8a8bb0346ba7aa65a63ea6970260c"
+      "sha256": "af48161c012cfef30593e460d3d4ebb986f50eced8057ce0c32f82ae2fc74cde"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain376-native-1.27.json.gz",
@@ -69689,7 +69757,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "6fa7c11903bbbaeebb1b63c20bd86743356e73d732de9e7048634e7eb8ac71ac"
+      "sha256": "50849996f02b8b6d46eca1952404e6d85596dcb7fc3b4836bdb7f05c29ff8b28"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -69749,15 +69817,35 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-reachable-inventory.md",
-      "sha256": "5ccf97979abba6f707800c438c31831b4324adf32bbc234b567ab7e2128a62a5"
+      "sha256": "0743d9786985a8cbdaa2bce790c8cf67e3661a3218acf28bbdaedf1c6ffd7d3e"
     },
     {
       "path": "tools/ghidra/audit_wc3_pathing_reachable.py",
-      "sha256": "8f02cc13d691e35a6bf43c997781175e553e24b62a5242a06d2bb2f24890c65b"
+      "sha256": "4b5f52d589ce84f530b718c5d1a3067b5cb11d58b3bb440fa0851ae9e241f900"
     },
     {
       "path": "tests/test_wc3_pathfinding_reachable_inventory.py",
-      "sha256": "f07d4ad96b76a959773baf80247431748e6c57a0741a97a261f77111ff624173"
+      "sha256": "bf33e4ac9076db15ba70e6040f540ef5b3e78eac00eea9e285dfb076f330e27b"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain473.py",
+      "sha256": "967fbe39fd658b6130f0911646545694519460b676312261b32b418e2ebccc85"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain473.py",
+      "sha256": "6b342fd572b813659c5c39f70d739f973e284b9165c7d904933883027c0a36c2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain473-1.27.json",
+      "sha256": "14dac375663b2be994c5e239e4ae601038cde63985e405f3e699d28f04bcbd83"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain473-1.27.json.gz",
+      "sha256": "3a7692aa5b16c185460073df3bac2a8b516211996db9b2604f893811c853a9d6"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-captain473.md",
+      "sha256": "13bada65503dc056500ba4de1556698d29e6458297323b44a1b709218edd34cf"
     }
   ]
 }

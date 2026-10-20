@@ -21,7 +21,7 @@
     "games/warcraft-3/game/m_unit.c": "8fa7a1e36253c92072244ae1d10ff348f0669f4ab08e7a5f7163089a2e0d8a51",
     "games/warcraft-3/game/skills/s_attack.c": "ab2be7dfe6d4b0613cce78cc8d061a197190de1b7f161321f45a699f1ed4a354",
     "games/warcraft-3/game/skills/s_cargo.c": "0a9b3f0afe4259ca0aebf68d251e9657e6de8a2c603c444e694e7862f187ca70",
-    "games/warcraft-3/game/skills/s_move.c": "369d331822092fa48c6c33eeef14eb1ab8b1e2c2389ecaf411a36f8b93539bb2",
+    "games/warcraft-3/game/skills/s_move.c": "9311071eb3737da3abc247b48e02dca511c4eaa2cf871f0fa6f826f156e41f93",
     "games/warcraft-3/game/skills/s_skills.c": "146a5597010d1e48eb6e8776332f426215ed3b4d6346db77cd80be6ab063d468",
     "games/warcraft-3/game/skills/s_skills.h": "5ae64df0980b493c6910aa2b164a70c67ce92e9b3a1751b70410eb48d2261835",
     "games/warcraft-3/game/skills/s_timed_life.c": "d393baec636631398095b3f086d563eec9633d4d5369c4fccf14bd1b44cd882b",

@@ -6318,6 +6318,56 @@ void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
     move_start_follow_group(unit,actor,true);
 }
 
+/*9d87d0(order d0012, target null, authored home) for one retreating member.
+ * A resolved head target (the Captain bridge of a follower, or any unit) is not
+ * the requested null target. An identical d0012 head without a target is
+ * retained without comparing its point (assembly8901..890f). Board heads are
+ * left alone; action3 spell tasks, smart and attackonce heads keep their head
+ * and receive the point order after cancelling queued successors. */
+static void move_captain_retreat_member(edict_t *unit,vec2_t const *home) {
+    if(!unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit))return;
+    uint32_t head=unit->current_order_id;
+    if(head==G_OrderId("board"))return;
+    if(S_UnitHasSpellTask(unit) || head==G_OrderId("smart") || head==G_OrderId("attackonce")) {
+        G_ClearUnitOrderQueue(unit);
+        G_IssueUnitPointOrder(unit,"move",home,true,unit->s.player,0);
+        return;
+    }
+    if(head==851986u) {
+        moveGroup_t const *group=move_unit_group(unit);
+        edict_t const *target=group ? group->target : NULL;
+        bool targeted=target && target->inuse && target->spawn_time==group->target_spawn &&
+            !G_IsDeferredFree(target);
+        if(!targeted)return;
+    }
+    G_ClearUnitOrderQueue(unit);
+    S_IssuePointMoveOrder(unit,"move",home,unit->s.player,0);
+}
+
+/*9d16c0 with retreat bit2 and either no live follow identity or order70 d0012:
+ * every logical roster member except BTLF timed-life units is reissued to
+ * the authored home point. Neither private followers nor the shared point
+ * publication is used, so the actor stops at its range while members arrive. */
+static void move_captain_retreat_members(botCaptain_t *captain) {
+    uint32_t count=ARRAY_COUNT(captain->units);
+    if(!count)return;
+    struct {edict_t *unit;uint32_t birth;} *members=gi.MemAlloc(count*sizeof(*members));
+    FOR_LOOP(i,count)members[i]=(typeof(*members)){captain->units[i],captain->units[i]->spawn_time};
+    vec2_t home=captain->home;
+    FOR_LOOP(i,count) {
+        edict_t *unit=members[i].unit;
+        if(!unit->inuse || unit->spawn_time!=members[i].birth || G_IsDeferredFree(unit))continue;
+        if(unit_findstatusclass(unit,MAKEFOURCC('B','T','L','F')))continue;
+        move_captain_retreat_member(unit,&home);
+    }
+    gi.MemFree(members);
+}
+
+static bool move_captain_follow_valid(botCaptain_t const *captain) {
+    edict_t const *unit=captain->follow.unit;
+    return unit && unit->inuse && unit->spawn_time==captain->follow.birth && !G_IsDeferredFree(unit);
+}
+
 /*9d44d0 retains the point/range before publishing the virtual mover request.
  * Physical roster publication remains in encounter order, in twelve-row batches. */
 static void move_captain_publish_point(botCaptain_t *captain,vec2_t const *point,float range,bool retain,bool prepare) {
@@ -6347,6 +6397,10 @@ static void move_captain_publish_point(botCaptain_t *captain,vec2_t const *point
     actor->unitinfo.PropWindow=wc3_float(0x3dcccccd);
     actor->unitinfo.move_flags|=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
     if(prepare)move_captain_actor_point(actor,point,range);
+    if((captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) &&
+       (captain->point_order==851986u || !move_captain_follow_valid(captain))) {
+        gi.MemFree(roster);move_captain_retreat_members(captain);return;
+    }
     if (!members) {gi.MemFree(roster);return;}
     if (entered==members) move_captain_shared_point(actor,roster,members,point,true);
     else FOR_LOOP(i,members) S_ReissueCaptainUnit(roster[i],actor);

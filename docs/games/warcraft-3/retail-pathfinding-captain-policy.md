@@ -608,3 +608,12 @@ The run uses the native SDL2 library, avoiding the host SDL2-to-SDL3 compatibili
 layer that crashed the initial client-input diagnostic. Diagnostics and the exact
 two-file correction are archived under `GROUP-03.4.7.3/payoff358/checkpoint206-*`;
 the complete repeat log is `SEP-01.2/phoenix365/root-fixture206-checkpoint.log`.
+
+## Moving-roster retreat journeys and retail save/load (Captain473)
+
+The retreat member policy of `9d16c0` is now integrated. With bit2 set, the policy reissues
+every non-timed-life member to the authored home through `9d87d0(d0012, null, home)`. It
+retains an identical null-target `d0012` head and does not publish to the shared point
+cohort. Two complete public journeys are replayed word-exactly in the engine. Native retail
+UI save/load at five save points, two of them inside the retreat bit window, resumes the
+uninterrupted journey. See [Captain473](retail-pathfinding-captain473.md).

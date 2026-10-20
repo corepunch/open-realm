@@ -32,6 +32,17 @@ class ReachableInventoryTests(unittest.TestCase):
         self.assertEqual(result['branches'], self.base['branch_totals']['branches'])
         self.assertGreater(result['guarded_branches'], 0)
 
+    def test_function_totals_do_not_certify_branch_closure(self):
+        self.assertFalse(self.validate()['closure_verified'])
+
+    def test_function_only_inventory_cannot_close_leaf(self):
+        self.todo = self.todo.replace('- [ ] **BASE-03.1**', '- [x] **BASE-03.1**')
+        try:
+            with self.assertRaisesRegex(ValueError, 'individual branch records'):
+                self.validate()
+        finally:
+            self.todo = v.inv.TODO.read_text()
+
     def test_duplicate_function(self):
         self.inventory['functions'].append(copy.deepcopy(self.inventory['functions'][0]))
         with self.assertRaisesRegex(ValueError, 'duplicate function'):
