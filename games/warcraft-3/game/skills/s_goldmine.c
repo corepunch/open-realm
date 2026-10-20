@@ -213,7 +213,7 @@ uint32_t S_GoldMineCapacity(edict_t const *mine) {
 }
 
 bool S_GoldMineCanHarvest(edict_t const *mine) {
-    return mine && mine->inuse && mine->health.value > 0 && S_GoldMineIsMine(mine) &&
+    return mine && mine->inuse && !G_IsDeferredFree(mine) && mine->health.value > 0 && S_GoldMineIsMine(mine) &&
            !goldmine_is_overlay_type(mine) && mine->resources > 0;
 }
 
@@ -245,6 +245,9 @@ static void goldmine_register_miner(edict_t *worker, edict_t *mine) {
     worker->goldmine->restore_invulnerable = worker->invulnerable;
     worker->invulnerable = true;
     G_SetEntityHidden(worker,true);
+    /* Inside workers own one Unit198 contribution: original680320 then
+     * retains new user commands after the hidden head (H012 caller680351). */
+    S_AcquireUnitSeparationSuppression(worker);
     mine->peonsinside++;
     if (mine->peonsinside == 1) G_AddUnitAnimationProperties(mine, "work", true);
 }
@@ -262,6 +265,7 @@ static edict_t *goldmine_unregister_miner(edict_t *worker) {
     worker->goldmine->mine_spawn_time = 0;
     worker->invulnerable = worker->goldmine->restore_invulnerable;
     worker->goldmine->restore_invulnerable = false;
+    S_ReleaseUnitSeparationSuppression(worker);
     G_SetEntityHidden(worker,false);
     return mine;
 }
@@ -369,7 +373,10 @@ static void goldmine_finish_deposit(edict_t *ent, edict_t *dropoff, int debug) {
                 ent->goalentity ? ent->goalentity->s.number : -1,
                 ent->harvested_gold);
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, 0);
-    if (S_GoldMineCanHarvest(ent->goalentity)) {
+    /* Original438880 resumes through a new Harvest head only for internal
+     * returns without a pending user successor; explicit Return completes. */
+    if (S_HarvestDepositResumes(ent) && S_GoldMineCanHarvest(ent->goalentity)) {
+        if (!S_HarvestPublishPhase(ent, "harvest", ent->goalentity)) return;
         G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
         harvestgold_walk(ent);
     } else {
@@ -451,6 +458,15 @@ static void ai_goldmine_walkback(edict_t *ent) {
 }
 
 static void ai_minegold(edict_t *ent) {
+    /* Public RemoveUnit keeps the hidden head synchronously; the worker
+     * leaves on its next tick without gold and retires (live H012 scene15). */
+    edict_t *mine = ent->goldmine ? ent->goldmine->mine : NULL;
+    if (mine && (!goldmine_membership_valid(ent, mine) || G_IsDeferredFree(mine))) {
+        goldmine_unregister_miner(ent);
+        goldmine_wake_waiters(mine);
+        ent->stand(ent);
+        return;
+    }
     unit_runwait(ent, harvestgold_walkback);
 }
 
@@ -475,6 +491,23 @@ bool harvest_gold_return_to(edict_t *ent, edict_t *dropoff) {
     return true;
 }
 
+/* Original438410: mining completion and a carried arrival publish Resume
+ * Harvesting to the nearest drop-off unless a user successor is pending
+ * (687f60). Without a drop-off no head is appended and Harvest retires. */
+static void goldmine_begin_return(edict_t *ent) {
+    edict_t *dropoff;
+
+    if (G_UnitQueuedOrderCount(ent) || !(dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD))) {
+        ent->stand(ent);
+        return;
+    }
+    if (goldmine_path_debug_level() >= 1)
+        fprintf(stderr, "WC3_GOLD_RETURN start worker=%d dropoff=%d gold=%u\n",
+                ent->s.number, dropoff->s.number, ent->harvested_gold);
+    if (S_HarvestPublishPhase(ent, "resumeharvesting", dropoff))
+        harvest_gold_return_to(ent, dropoff);
+}
+
 void harvestgold_walk(edict_t *ent) {
     move_reset_progress(ent);
     unit_setmove(ent, &harvestgold_move_walk);
@@ -482,7 +515,6 @@ void harvestgold_walk(edict_t *ent) {
 
 void harvestgold_minegold(edict_t *ent) {
     edict_t *mine = ent ? ent->goalentity : NULL;
-    edict_t *dropoff;
     uint32_t capacity;
 
     if (!ent || !S_GoldMineCanHarvest(mine)) {
@@ -497,10 +529,7 @@ void harvestgold_minegold(edict_t *ent) {
      * do not mine another load: return the existing gold to the nearest valid
      * drop-off, then resume this clicked mine after the deposit completes. */
     if (ent->harvested_gold > 0) {
-        dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
-        if (!dropoff || !harvest_gold_return_to(ent, dropoff)) {
-            ent->stand(ent);
-        }
+        goldmine_begin_return(ent);
         return;
     }
 
@@ -558,20 +587,7 @@ void harvestgold_walkback(edict_t *ent) {
     }
 
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, ent->harvested_gold + amount);
-    edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
-    if (dropoff) {
-        if (goldmine_path_debug_level() >= 1)
-            fprintf(stderr,
-                    "WC3_GOLD_RETURN start worker=%d mine=%d dropoff=%d gold=%u\n",
-                    ent->s.number, mine->s.number, dropoff->s.number,
-                    ent->harvested_gold);
-        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
-        S_SetMoveGoal(ent, &ent->goalentity, dropoff);
-        move_reset_progress(ent);
-        unit_setmove(ent, &harvestgold_move_walkback);
-    } else {
-        ent->stand(ent);
-    }
+    goldmine_begin_return(ent);
 }
 
 void harvestgold_wait(edict_t *ent) {
@@ -606,7 +622,16 @@ bool harvest_gold_order(edict_t *self, edict_t *target) {
 }
 
 BZ_ABILITY_PROC(CAbilityGoldMine) {
-    return CAbilityNoop(ent, msg, call);
+    switch (msg) {
+    case A_UNIT_EVENT_MASK: return UNIT_MESSAGE_SUBSCRIPTIONS(A_DEATH);
+    /* The mine owns a hidden worker's membership, independently of the
+     * worker's authored Ahar row. Retire it before public death callbacks. */
+    case A_DEATH:
+        if (!S_GoldMineWorkerIsInside(ent)) return false;
+        S_GoldMineReleaseWorker(ent);
+        return true;
+    default: return CAbilityNoop(ent, msg, call);
+    }
 }
 
 /* ---- Racial Gold Mine overlays ------------------------------------------ */

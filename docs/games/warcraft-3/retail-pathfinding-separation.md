@@ -3,6 +3,9 @@
 [Contract, current ledger and reproduction](retail-pathfinding.md).
 Retail **1.27.1.7085** only; addresses and report paths use the conventions there.
 
+[Stone Form passive availability](stone-form-passive-availability.md) documents the
+StoneForm390 takeoff-rebind owner lifecycle, failing-first cases and strict native projection.
+
 [Chemical Rage passive availability](chemical-rage-passive-availability.md) documents the
 ChemicalRage380 owner lifecycle, failing-first cases and strict native projection.
 

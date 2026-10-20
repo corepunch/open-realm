@@ -23,6 +23,10 @@ static bool flight_form_begin(edict_t *unit,uint32_t code,uint32_t base,uint32_t
     bool takeoff,landing;
     order_stop_cleanup(unit);
     if(!S_PrepareMorphFlight(unit,target,data,&takeoff,&landing))return false;
+    /* Payoff390: availability follows rebind phase562c50, not the timer. A
+     * reverse takeoff is already bound to the base here, so54ff50 releases
+     * before569e20 acquires separation. A reverse landing releases at completion. */
+    if(reverse && takeoff)S_SetMorphAbilityDisables(unit,code,false);
     unit_setmove(unit,move);
     unit->current_order_id=G_OrderId(order);
     S_BeginMorphTransition(unit,code,base,target,reverse,!takeoff,
@@ -47,8 +51,12 @@ static bool stone_form_execute(edict_t *unit, uint32_t code) {
 BZ_ABILITY_PROC(CAbilityStoneForm) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
-    case A_DISABLE:S_RemoveMorphAbility(ent,code);return true;
+    /* Concrete StoneForm v41c is common54c640; its +a4 6f500230 runs common
+     * 540e30 before cancelling its own clock, so detach shares the configured inverse. */
+    case A_ENABLE:case A_UNIT_INIT:S_InitializeConfiguredMorphAvailability(ent,call);return true;
+    case A_DISABLE:S_DetachConfiguredMorphAvailability(ent,call);return true;
     case A_MORPH_COMPLETE:
+        S_CompleteConfiguredMorphAvailability(ent,call);
         G_AddUnitAnimationProperties(ent,"alternate",!call->enabled);
         S_BeginMorphRise(ent);unit_stand(ent);return true;
     case A_COMMAND: {

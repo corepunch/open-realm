@@ -6,7 +6,7 @@
 The same Smart resolver is also the post-production action layer for producer Rally; Rally stores a target but does not duplicate harvest/repair/item logic. See [rally-points.md](rally-points.md).
 The Gather command reaches the same state machines through `harvest_menu_selecttarget`; `Ahrl` has its own tree-only target callback but enters the same lumber walk/chop/return behavior.
 
-- Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable.
+- Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable. The public head is Smart or Harvest during approach and the hidden interval, Resume Harvesting (`852017`) during the return and Harvest (`852018`) after deposit. Explicit Return Resources (`852020`) completes at the deposit; see [Harvest and Return Resources current ownership](retail-pathfinding-harvest-ownership.md).
 - Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> nearest live same-owner drop-off accepting lumber -> deposit -> resume or find another tree. Successful chops clamp carried lumber to `HARVEST_LUMBER_CAPACITY`; a tree that cannot take damage (for example an invulnerable destructible) does not award lumber.
   `Ahrl` resolves its own authored `DataA` tree damage, `DataB` lumber capacity, cast range, and duration from the harvesting unit rather than inheriting process-global `Ahar` tuning; like Warsmash's `CAbilityTypeHarvestLumber`, its gold capacity is zero.
 - Carried resources are mutually exclusive presentation/gameplay state: collecting gold clears stale carried lumber and its `RF_HAS_LUMBER` tag; collecting lumber clears stale carried gold and `RF_HAS_GOLD`. Depositing clears both carry counters/tags, so a worker carrying nothing uses its ordinary animation set rather than retaining a lumber/gold carry model.
@@ -38,11 +38,15 @@ mine and are reconsidered when a miner exits. The authoritative occupancy counte
 also stores the exact mine pointer and spawn generation in `worker->goldmine` so duplicate admission cannot increment the counter
 twice and an edict recycled while a worker is hidden cannot be decremented accidentally.
 
-Entry sets `RF_HIDDEN` and temporary invulnerability. The generic `paused` flag is intentionally not used because
-`monster_think()` returns immediately for paused units and would stop the internal mining timer as well. Instead, the three normal
-order entry points reject orders while `S_GoldMineWorkerIsInside()` is true. Exit always unregisters once, restores the worker's prior
-invulnerability state, reveals it, and wakes waiting workers. `G_FreeEdict()` also calls `S_GoldMineReleaseWorker()` before clearing an
-entity, so scripted removal of an inside miner cannot strand the mine's occupancy counter.
+Entry sets `RF_HIDDEN` and temporary invulnerability and acquires one separation-disable (`Unit198`) count. The generic `paused`
+flag is intentionally not used because `monster_think()` returns immediately for paused units and would stop the internal mining timer
+as well. The separation count makes retail's order admission retain new user commands below the hidden head: Move, Stop, Hold Position,
+Smart, Harvest, Resume Harvesting and `autoharvestgold` are accepted and activate when the worker leaves the mine. Empty Return Resources
+is rejected. See [Harvest and Return Resources current ownership](retail-pathfinding-harvest-ownership.md). Exit always unregisters
+once, releases the separation count, restores the worker's prior invulnerability state, reveals it, and wakes waiting workers. Death
+releases the membership in the same tick. Removing the mine releases a hidden worker on its next tick without a payout. `G_FreeEdict()`
+also calls `S_GoldMineReleaseWorker()` before clearing an entity, so scripted removal of an inside miner cannot strand the mine's
+occupancy counter.
 
 The mine's `resources` field is its remaining gold. `S_GoldMineInitUnit()` initializes a newly spawned `Agld`-derived mine from the
 ability's maximum-gold field; map/JASS `SetResourceAmount` can then override that value normally. A completed mining interval transfers
@@ -102,7 +106,7 @@ gold/lumber drop-offs such as Town Halls: workers must ignore them until constru
 not pathfind to every candidate and compare route lengths. A completed Human Lumber Mill therefore competes with a completed Town
 Hall for lumber return and wins when it is geometrically closer, while a Lumber Mill remains ineligible for gold.
 
-Return completion is footprint-aware for buildings that expose an authored pathing texture. The worker deposits when its collision radius plus one simulation step reaches the building's no-walk footprint; the older worker+building collision+step test remains the fallback when no path texture is available. This prevents a Peasant carrying gold from stopping at a Town Hall corner while still outside the scalar centre-circle threshold. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed, changes owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off. If none exists, the worker stands while preserving the carried resource and carry visual.
+Return completion is footprint-aware for buildings that expose an authored pathing texture. The worker deposits when its collision radius plus one simulation step reaches the building's no-walk footprint; the older worker+building collision+step test remains the fallback when no path texture is available. This prevents a Peasant carrying gold from stopping at a Town Hall corner while still outside the scalar centre-circle threshold. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed (including a pending public RemoveUnit), changes owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off. If none exists, the worker stands while preserving the carried resource and carry visual.
 
 A worker carrying lumber or gold may explicitly Smart/right-click a compatible return building; that exact clicked building becomes the initial return target rather than being replaced immediately by the nearest candidate. Activating the stock worker `Ahar` command while the main selected worker is carrying resources performs the same no-target Return Resources action instead of entering Harvest target-selection mode. `Ahrl` follows the same toggle for carried lumber, but remains tree-only when empty. While any targeted command callback is armed, a Smart/right-click command cancels that target mode and restores the normal command card before considering movement or an entity Smart order. This prevents a later left-click from being consumed by a stale Harvest callback and retasking the worker group that originally entered target mode.
 
@@ -639,7 +643,7 @@ make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 ```
 
 The movement suite covers large-footprint mine entry, mine entry through an authored blocking pathing footprint, the complete gold
-deposit/resume cycle, stock capacity 1 under six assigned workers, independent custom mine capacities/durations, non-orderable inside
+deposit/resume cycle, stock capacity 1 under six assigned workers, independent custom mine capacities/durations, retained commands of inside
 miners, finite-gold depletion and partial final trips,
 trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, unfinished War Mill/Town Hall drop-off rejection for lumber and gold, explicit Smart-click drop-off return, lumber return through an authored
 blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, dead-previous-tree same-forest retargeting, the no-live-tree stop path, capacity clamping, invulnerable-tree rejection, carried-resource gold/lumber visual switching and zero-carry visual clearing,

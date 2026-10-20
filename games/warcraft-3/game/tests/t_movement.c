@@ -11361,9 +11361,10 @@ TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold
 }
 
 /* Inside membership is authoritative: duplicate entry cannot increment the
- * mine twice, ordinary orders are rejected, and exit restores protection and
- * unregisters exactly once. */
-TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
+ * mine twice, ordinary orders are retained below the hidden head's Unit198
+ * owner (retail H012 corrects the earlier rejection claim), and exit
+ * restores protection, unregisters exactly once and activates the command. */
+TEST(wc3_movement, gold_miner_inside_retains_orders_and_unregisters_once) {
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
@@ -11381,12 +11382,17 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     T_ASSERT(S_GoldMineWorkerIsInside(worker));
     harvestgold_minegold(worker);
     T_EQ(mine->peonsinside, 1);
-    T_ASSERT(!unit_issueimmediateorder(worker, "stop"));
-    T_ASSERT(!unit_issueorder(worker, "move", &point));
-    T_ASSERT(!unit_issuetargetorder(worker, "attack", mine));
+    T_EQ(worker->movement.repulse.disable_depth, 1);
+    T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(unit_issueorder(worker, "move", &point));
+    T_EQ(worker->order_queue.count, 1); /* The replacement cancels Stop. */
+    T_ASSERT(S_GoldMineWorkerIsInside(worker));
     T_EQ(mine->peonsinside, 1);
 
     harvestgold_walkback(worker);
+    T_EQ(worker->current_order_id, G_OrderId("move"));
+    T_EQ(worker->order_queue.count, 0);
+    T_EQ(worker->movement.repulse.disable_depth, 0);
     T_EQ(mine->peonsinside, 0);
     T_ASSERT(strstr(G_UnitAnimationProperties(mine), "work") == NULL);
     T_ASSERT(!S_GoldMineWorkerIsInside(worker));

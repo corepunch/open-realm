@@ -15,8 +15,8 @@
   ],
   "pins": {
     "games/warcraft-3/game/g_local.h": "abe3b72f599c62293e312f4db51c60821689b7161715ec60102a7cabc732a268",
-    "games/warcraft-3/game/g_save.c": "92a2c9a81324ca43a6b8c7df6a40ed22b93dad8b38e0c09d1a38bed92bd81759",
-    "games/warcraft-3/game/m_unit.c": "8fa7a1e36253c92072244ae1d10ff348f0669f4ab08e7a5f7163089a2e0d8a51",
+    "games/warcraft-3/game/g_save.c": "d503d40c18c2ed34e587b454fc28e471341d5b79e9beb16b8af26283ccba5374",
+    "games/warcraft-3/game/m_unit.c": "b2a60c33310139d9c0c0d6ae17dafb11523cff28ff0b873766b1fa009b03142c",
     "games/warcraft-3/game/skills/s_move.c": "9311071eb3737da3abc247b48e02dca511c4eaa2cf871f0fa6f826f156e41f93",
     "games/warcraft-3/game/skills/s_waygate.c": "241e6c59997b44c89ad54486f3291d038b06496e4ceb27881a1ce4b7ba5b8514",
     "games/warcraft-3/game/tests/t_target377.c": "9f9a8f874db9bd224682a09c2b41c936d8f98f5801677b2ad8628ef2097b7fed",

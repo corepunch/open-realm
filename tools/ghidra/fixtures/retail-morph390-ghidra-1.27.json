@@ -1,0 +1,737 @@
+{
+  "functions": {
+    "6f500230": {
+      "name": "FUN_6f500230",
+      "end": "6f500242",
+      "decompiled": "\nvoid __fastcall FUN_6f500230(int *param_1)\n\n{\n  Morph_RemoveAbilityAndRestoreBaseForm();\n                    /* WARNING: Could not recover jumptable at 0x6f50023d. Too many branches */\n                    /* WARNING: Treating indirect jump as call */\n  (**(code **)(*param_1 + 0xc4))();\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafebe0",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f500230 PUSH ESI\n6f500231 MOV ESI,ECX\n6f500233 CALL 0x6f540e30\n6f500238 MOV EAX,dword ptr [ESI]\n6f50023a MOV ECX,ESI\n6f50023c POP ESI\n6f50023d JMP dword ptr [EAX + 0xc4]\n",
+      "instruction_count": 7
+    },
+    "6f605d90": {
+      "name": "FUN_6f605d90",
+      "end": "6f605d9a",
+      "decompiled": "\nvoid __fastcall FUN_6f605d90(int param_1)\n\n{\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)(param_1 + 0x1a8));\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafec00",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f605d90 ADD ECX,0x1a8\n6f605d96 JMP 0x6f0606c0\n",
+      "instruction_count": 2
+    },
+    "6f607270": {
+      "name": "FUN_6f607270",
+      "end": "6f60728a",
+      "decompiled": "\nvoid __fastcall FUN_6f607270(undefined4 param_1)\n\n{\n  FUN_6f0608d0(&Math_RuntimeOne,0xd01bf,param_1,1,0);\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafec04",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f607270 PUSH 0x0\n6f607272 PUSH 0x1\n6f607274 PUSH ECX\n6f607275 PUSH 0xd01bf\n6f60727a PUSH 0x6fd3c748\n6f60727f ADD ECX,0x1a8\n6f607285 CALL 0x6f0608d0\n6f60728a RET\n",
+      "instruction_count": 8
+    },
+    "6f50a670": {
+      "name": "FUN_6f50a670",
+      "end": "6f50a6ad",
+      "decompiled": "\nvoid __fastcall FUN_6f50a670(int param_1)\n\n{\n  WC3UnitOrdersPrefix *unit;\n  \n  unit = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (unit == (WC3UnitOrdersPrefix *)0x0) {\n    unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  Unit_RemoveBuffsMatchingPolicy(unit,0,1,0,0,0,1,1,0,1);\n  FUN_6f48b890(1);\n  *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) | 0xa0000000;\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafef44",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f50a670 PUSH ESI\n6f50a671 MOV ESI,ECX\n6f50a673 PUSH EDI\n6f50a674 MOV EDI,dword ptr [ESI + 0x30]\n6f50a677 TEST EDI,EDI\n6f50a679 JNZ 0x6f50a682\n6f50a67b CALL 0x6f055cc0\n6f50a680 MOV EDI,EAX\n6f50a682 PUSH 0x1\n6f50a684 PUSH 0x0\n6f50a686 PUSH 0x1\n6f50a688 PUSH 0x1\n6f50a68a PUSH 0x0\n6f50a68c PUSH 0x0\n6f50a68e PUSH 0x0\n6f50a690 PUSH 0x1\n6f50a692 PUSH 0x0\n6f50a694 MOV ECX,EDI\n6f50a696 CALL 0x6f48eb10\n6f50a69b PUSH 0x1\n6f50a69d MOV ECX,EDI\n6f50a69f CALL 0x6f48b890\n6f50a6a4 OR dword ptr [ESI + 0x20],0xa0000000\n6f50a6ab POP EDI\n6f50a6ac POP ESI\n6f50a6ad RET\n",
+      "instruction_count": 26
+    },
+    "6f50a590": {
+      "name": "FUN_6f50a590",
+      "end": "6f50a666",
+      "decompiled": "\nvoid __fastcall FUN_6f50a590(int param_1)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  int *piVar3;\n  undefined4 *local_18;\n  undefined1 local_14 [4];\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa304b8;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  if (*(int *)(param_1 + 0x30) == 0) {\n    FUN_6f055cc0(DAT_6fce689c ^ (uint)&stack0xfffffffc);\n  }\n  FUN_6f414cd0(local_14,*(undefined4 *)(param_1 + 0x50));\n  piVar3 = (int *)FUN_6f41def0(&local_18,local_14,&Math_RuntimeZero);\n  local_8 = 0;\n  if (*piVar3 != 0) {\n    piVar1 = (int *)(*piVar3 + 4);\n    *piVar1 = *piVar1 + 1;\n  }\n  puVar2 = *(undefined4 **)(param_1 + 0x1a4);\n  if (puVar2 != (undefined4 *)0x0) {\n    piVar1 = puVar2 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*puVar2)();\n    }\n  }\n  *(int *)(param_1 + 0x1a4) = *piVar3;\n  local_8 = 0xffffffff;\n  if (local_18 != (undefined4 *)0x0) {\n    piVar3 = local_18 + 1;\n    *piVar3 = *piVar3 + -1;\n    if (*piVar3 == 0) {\n      (**(code **)*local_18)();\n    }\n  }\n  if ((*(uint *)(param_1 + 0x20) & 0x20000000) != 0) {\n    *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xdfffffff;\n    FUN_6f48ed40(1);\n  }\n  *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0x7fffffff;\n  FUN_6f401fa0();\n  ExceptionList = local_10;\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafef48",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f50a590 PUSH EBP\n6f50a591 MOV EBP,ESP\n6f50a593 PUSH -0x1\n6f50a595 PUSH 0x6fa304b8\n6f50a59a MOV EAX,FS:[0x0]\n6f50a5a0 PUSH EAX\n6f50a5a1 SUB ESP,0x8\n6f50a5a4 PUSH EBX\n6f50a5a5 PUSH ESI\n6f50a5a6 PUSH EDI\n6f50a5a7 MOV EAX,[0x6fce689c]\n6f50a5ac XOR EAX,EBP\n6f50a5ae PUSH EAX\n6f50a5af LEA EAX,[EBP + -0xc]\n6f50a5b2 MOV FS:[0x0],EAX\n6f50a5b8 MOV ESI,ECX\n6f50a5ba MOV EDI,dword ptr [ESI + 0x30]\n6f50a5bd TEST EDI,EDI\n6f50a5bf JNZ 0x6f50a5c8\n6f50a5c1 CALL 0x6f055cc0\n6f50a5c6 MOV EDI,EAX\n6f50a5c8 PUSH dword ptr [ESI + 0x50]\n6f50a5cb LEA EAX,[EBP + -0x10]\n6f50a5ce MOV ECX,ESI\n6f50a5d0 PUSH EAX\n6f50a5d1 CALL 0x6f414cd0\n6f50a5d6 PUSH 0x6fd3c744\n6f50a5db LEA EAX,[EBP + -0x10]\n6f50a5de MOV ECX,EDI\n6f50a5e0 PUSH EAX\n6f50a5e1 LEA EAX,[EBP + -0x14]\n6f50a5e4 PUSH EAX\n6f50a5e5 CALL 0x6f41def0\n6f50a5ea MOV EBX,EAX\n6f50a5ec MOV ECX,dword ptr [EBX]\n6f50a5ee MOV dword ptr [EBP + -0x4],0x0\n6f50a5f5 TEST ECX,ECX\n6f50a5f7 JZ 0x6f50a5fc\n6f50a5f9 INC dword ptr [ECX + 0x4]\n6f50a5fc MOV ECX,dword ptr [ESI + 0x1a4]\n6f50a602 TEST ECX,ECX\n6f50a604 JZ 0x6f50a60f\n6f50a606 DEC dword ptr [ECX + 0x4]\n6f50a609 JNZ 0x6f50a60f\n6f50a60b MOV EAX,dword ptr [ECX]\n6f50a60d CALL dword ptr [EAX]\n6f50a60f MOV ECX,dword ptr [EBP + -0x14]\n6f50a612 MOV EAX,dword ptr [EBX]\n6f50a614 MOV dword ptr [ESI + 0x1a4],EAX\n6f50a61a MOV dword ptr [EBP + -0x4],0xffffffff\n6f50a621 TEST ECX,ECX\n6f50a623 JZ 0x6f50a62e\n6f50a625 DEC dword ptr [ECX + 0x4]\n6f50a628 JNZ 0x6f50a62e\n6f50a62a MOV EAX,dword ptr [ECX]\n6f50a62c CALL dword ptr [EAX]\n6f50a62e TEST dword ptr [ESI + 0x20],0x20000000\n6f50a635 JZ 0x6f50a647\n6f50a637 AND dword ptr [ESI + 0x20],0xdfffffff\n6f50a63e MOV ECX,EDI\n6f50a640 PUSH 0x1\n6f50a642 CALL 0x6f48ed40\n6f50a647 AND dword ptr [ESI + 0x20],0x7fffffff\n6f50a64e MOV ECX,ESI\n6f50a650 CALL 0x6f401fa0\n6f50a655 MOV ECX,dword ptr [EBP + -0xc]\n6f50a658 MOV dword ptr FS:[0x0],ECX\n6f50a65f POP ECX\n6f50a660 POP EDI\n6f50a661 POP ESI\n6f50a662 POP EBX\n6f50a663 MOV ESP,EBP\n6f50a665 POP EBP\n6f50a666 RET\n",
+      "instruction_count": 74
+    },
+    "6f50a540": {
+      "name": "FUN_6f50a540",
+      "end": "6f50a555",
+      "decompiled": "\nvoid FUN_6f50a540(void)\n\n{\n  FloatModifier_CancelAndClearHandle();\n  FUN_6f401fa0();\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafef50",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f50a540 PUSH ESI\n6f50a541 MOV ESI,ECX\n6f50a543 LEA ECX,[ESI + 0x1a4]\n6f50a549 CALL 0x6f3e3c00\n6f50a54e MOV ECX,ESI\n6f50a550 POP ESI\n6f50a551 JMP 0x6f401fa0\n",
+      "instruction_count": 7
+    },
+    "6f517400": {
+      "name": "FUN_6f517400",
+      "end": "6f517405",
+      "decompiled": "\nundefined4 FUN_6f517400(void)\n\n{\n  return 0x4173746e;\n}\n\n",
+      "references": [
+        {
+          "site": "6fafeb58",
+          "type": "DATA",
+          "entry": ""
+        }
+      ],
+      "assembly": "6f517400 MOV EAX,0x4173746e\n6f517405 RET\n",
+      "instruction_count": 2
+    },
+    "6f562c50": {
+      "name": "FUN_6f562c50",
+      "end": "6f562d10",
+      "decompiled": "\nvoid __fastcall FUN_6f562c50(int param_1)\n\n{\n  bool bVar1;\n  int iVar2;\n  \n  if ((*(uint *)(param_1 + 0x20) & 0x18000) != 0) {\n    iVar2 = *(int *)(param_1 + 0x30);\n    if (iVar2 == 0) {\n      iVar2 = FUN_6f055cc0();\n    }\n    if (((*(uint *)(iVar2 + 0x5c) & 0x100) == 0) || ((*(uint *)(param_1 + 0x20) & 0x8000000) != 0))\n    {\n      bVar1 = true;\n    }\n    else {\n      bVar1 = false;\n    }\n    if ((*(uint *)(param_1 + 0x20) & 0x8000) != 0) {\n      iVar2 = *(int *)(param_1 + 0x30);\n      if (iVar2 == 0) {\n        iVar2 = FUN_6f055cc0();\n      }\n      if ((*(int *)(iVar2 + 0x30) == *(int *)(param_1 + 0x18c)) && (bVar1)) {\n        FUN_6f544e60(*(undefined4 *)(param_1 + 400),*(int *)(param_1 + 0x18c));\n      }\n      Morph_CompleteForwardAndScheduleLifetime();\n      *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xffff7fff;\n      return;\n    }\n    if ((*(uint *)(param_1 + 0x20) & 0x10000) != 0) {\n      iVar2 = *(int *)(param_1 + 0x30);\n      if (iVar2 == 0) {\n        iVar2 = FUN_6f055cc0();\n      }\n      if ((*(int *)(iVar2 + 0x30) == *(int *)(param_1 + 400)) && (bVar1)) {\n        FUN_6f544e60(*(undefined4 *)(param_1 + 0x18c),*(int *)(param_1 + 400));\n      }\n      FUN_6f54ff50();\n      *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xfffeffff;\n    }\n  }\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f552097",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Morph_EndSeparationTransition"
+        },
+        {
+          "site": "6f56a032",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "AbilityMorph_BeginTakeoff"
+        }
+      ],
+      "assembly": "6f562c50 PUSH ESI\n6f562c51 MOV ESI,ECX\n6f562c53 TEST dword ptr [ESI + 0x20],0x18000\n6f562c5a JZ 0x6f562d0f\n6f562c60 MOV EAX,dword ptr [ESI + 0x30]\n6f562c63 TEST EAX,EAX\n6f562c65 JNZ 0x6f562c6c\n6f562c67 CALL 0x6f055cc0\n6f562c6c TEST dword ptr [EAX + 0x5c],0x100\n6f562c73 PUSH EDI\n6f562c74 JZ 0x6f562c83\n6f562c76 TEST dword ptr [ESI + 0x20],0x8000000\n6f562c7d JNZ 0x6f562c83\n6f562c7f XOR EDI,EDI\n6f562c81 JMP 0x6f562c88\n6f562c83 MOV EDI,0x1\n6f562c88 MOV EAX,dword ptr [ESI + 0x20]\n6f562c8b TEST EAX,0x8000\n6f562c90 JZ 0x6f562cce\n6f562c92 MOV EAX,dword ptr [ESI + 0x30]\n6f562c95 TEST EAX,EAX\n6f562c97 JNZ 0x6f562ca0\n6f562c99 MOV ECX,ESI\n6f562c9b CALL 0x6f055cc0\n6f562ca0 MOV ECX,dword ptr [ESI + 0x18c]\n6f562ca6 CMP dword ptr [EAX + 0x30],ECX\n6f562ca9 JNZ 0x6f562cbd\n6f562cab TEST EDI,EDI\n6f562cad JZ 0x6f562cbd\n6f562caf PUSH ECX\n6f562cb0 PUSH dword ptr [ESI + 0x190]\n6f562cb6 MOV ECX,ESI\n6f562cb8 CALL 0x6f544e60\n6f562cbd MOV ECX,ESI\n6f562cbf CALL 0x6f552120\n6f562cc4 AND dword ptr [ESI + 0x20],0xffff7fff\n6f562ccb POP EDI\n6f562ccc POP ESI\n6f562ccd RET\n6f562cce TEST EAX,0x10000\n6f562cd3 JZ 0x6f562d0e\n6f562cd5 MOV EAX,dword ptr [ESI + 0x30]\n6f562cd8 TEST EAX,EAX\n6f562cda JNZ 0x6f562ce3\n6f562cdc MOV ECX,ESI\n6f562cde CALL 0x6f055cc0\n6f562ce3 MOV ECX,dword ptr [ESI + 0x190]\n6f562ce9 CMP dword ptr [EAX + 0x30],ECX\n6f562cec JNZ 0x6f562d00\n6f562cee TEST EDI,EDI\n6f562cf0 JZ 0x6f562d00\n6f562cf2 PUSH ECX\n6f562cf3 PUSH dword ptr [ESI + 0x18c]\n6f562cf9 MOV ECX,ESI\n6f562cfb CALL 0x6f544e60\n6f562d00 MOV ECX,ESI\n6f562d02 CALL 0x6f54ff50\n6f562d07 AND dword ptr [ESI + 0x20],0xfffeffff\n6f562d0e POP EDI\n6f562d0f POP ESI\n6f562d10 RET\n",
+      "instruction_count": 61
+    },
+    "6f54ff50": {
+      "name": "FUN_6f54ff50",
+      "end": "6f54ffc5",
+      "decompiled": "\nvoid __fastcall FUN_6f54ff50(int *param_1)\n\n{\n  int iVar1;\n  int iVar2;\n  \n  iVar2 = param_1[0xc];\n  if (iVar2 == 0) {\n    iVar2 = FUN_6f055cc0();\n  }\n  iVar1 = *(int *)(iVar2 + 0x1f0);\n  if ((iVar1 != 0) && (*(byte *)(iVar2 + 0x33) - 0x41 < 0x1a)) {\n    if ((param_1[8] & 0x10000000U) == 0) {\n      (*(code *)**(undefined4 **)(iVar1 + 0x98))(&Math_RuntimeZero,1);\n      (*(code *)**(undefined4 **)(iVar1 + 0xb4))(&Math_RuntimeZero,1);\n    }\n    FUN_6f52a6e0();\n  }\n  (**(code **)(*param_1 + 0x414))();\n                    /* WARNING: Could not recover jumptable at 0x6f54ffc0. Too many branches */\n                    /* WARNING: Treating indirect jump as call */\n  (**(code **)(*param_1 + 0x404))();\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f562d02",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f562c50"
+        }
+      ],
+      "assembly": "6f54ff50 PUSH ESI\n6f54ff51 MOV ESI,ECX\n6f54ff53 PUSH EDI\n6f54ff54 MOV EAX,dword ptr [ESI + 0x30]\n6f54ff57 TEST EAX,EAX\n6f54ff59 JNZ 0x6f54ff60\n6f54ff5b CALL 0x6f055cc0\n6f54ff60 MOV EDI,dword ptr [EAX + 0x1f0]\n6f54ff66 TEST EDI,EDI\n6f54ff68 JZ 0x6f54ffb0\n6f54ff6a MOVZX EAX,byte ptr [EAX + 0x33]\n6f54ff6e ADD EAX,-0x41\n6f54ff71 CMP EAX,0x19\n6f54ff74 JA 0x6f54ffb0\n6f54ff76 TEST dword ptr [ESI + 0x20],0x10000000\n6f54ff7d JNZ 0x6f54ffa9\n6f54ff7f MOV EAX,dword ptr [EDI + 0x98]\n6f54ff85 LEA ECX,[EDI + 0x98]\n6f54ff8b PUSH 0x1\n6f54ff8d PUSH 0x6fd3c744\n6f54ff92 CALL dword ptr [EAX]\n6f54ff94 MOV EAX,dword ptr [EDI + 0xb4]\n6f54ff9a LEA ECX,[EDI + 0xb4]\n6f54ffa0 PUSH 0x1\n6f54ffa2 PUSH 0x6fd3c744\n6f54ffa7 CALL dword ptr [EAX]\n6f54ffa9 MOV ECX,EDI\n6f54ffab CALL 0x6f52a6e0\n6f54ffb0 MOV EAX,dword ptr [ESI]\n6f54ffb2 MOV ECX,ESI\n6f54ffb4 CALL dword ptr [EAX + 0x414]\n6f54ffba MOV EAX,dword ptr [ESI]\n6f54ffbc MOV ECX,ESI\n6f54ffbe POP EDI\n6f54ffbf POP ESI\n6f54ffc0 JMP dword ptr [EAX + 0x404]\n",
+      "instruction_count": 36
+    },
+    "6f56a000": {
+      "name": "AbilityMorph_BeginTakeoff",
+      "end": "6f56a0a4",
+      "decompiled": "\n/* fastcall ECX morph ability. Ground->fly form: flags, height raise then 552230 rebind. Live\n   Amrf/Arav ravenform. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2\n   captures).\n      [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   \n   [BASE-02.1/Payoff131] fastcall ECX morph ability. Ground->fly form: flags, height raise then\n   552230 rebind. Live Amrf/Arav ravenform. Evidence: research/BASE-02.1 (static asm, Unicorn\n   oracle, live types2 captures).\n   [BASE-02.1] fastcall ECX morph ability. Ground->fly form: flags, height raise then 552230 rebind.\n   Live Amrf/Arav ravenform. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2\n   captures).\n   [Payoff131 BASE-02.1] fastcall ECX morph ability. Ground->fly form: flags, height raise then\n   552230 rebind. Live Amrf/Arav ravenform. Evidence: research/BASE-02.1 (static asm, Unicorn\n   oracle, live types2 captures).\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Audit332: public Morph332 Stone Form both directions and Avenger takeoff, natural/Stop/PauseUnit,\n   two read-only repeats agree on783 complete state/event/marker rows (onlyseq removed);495 public\n   markers match observer-free control. Stone landing acquires while ugar, delay1.0(Dur.5+DataC.5),\n   completes ugrm; reverse rebinds ugar before acquisition, delay.5. Avenger acquires as ubsp with\n   Dur1.1. Stop retains transition; pause acquires physical suspension after morph inverse. Engine\n   shared primary timer and sparse saved rise state integrated with failing-first134/394 regression;\n   full unit141/15379 each edition. Does not certify blocked landing placement or numeric height\n   trajectories. Archive research/SEP-01.2/morph332-working. */\n\nvoid __thiscall AbilityMorph_BeginTakeoff(uint self)\n\n{\n  uint uVar1;\n  float *pfVar2;\n  float local_c;\n  WC3PathScalar local_8;\n  \n  *(uint *)(self + 0x20) = *(uint *)(self + 0x20) & 0xfffbffff;\n  *(uint *)(self + 0x20) = *(uint *)(self + 0x20) | 0x20000;\n  FUN_6f562e50();\n  if ((*(uint *)(self + 0x20) & 0x800000) != 0) {\n    (**(code **)(*(int *)self + 0x3f8))();\n  }\n  FUN_6f562c50();\n  uVar1 = *(uint *)(self + 0x20);\n  FUN_6f414510(&local_8,*(undefined4 *)(self + 0x50));\n  if ((~(uVar1 >> 0x13) & 1) != 0) {\n    pfVar2 = (float *)Math_Subtract((WC3PathScalar *)&local_c,&local_8,&Math_RuntimeZero);\n    local_c = ABS(*pfVar2);\n    if (DAT_6fcd5470 <= local_c) {\n      FUN_6f0608d0(&local_8,0xd01dc,self,0,0);\n      return;\n    }\n  }\n  FUN_6f552230();\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f544cbf",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "AbilityMorph_DispatchFormTransition"
+        },
+        {
+          "site": "6f544d0b",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "AbilityMorph_DispatchFormTransition"
+        }
+      ],
+      "assembly": "6f56a000 PUSH EBP\n6f56a001 MOV EBP,ESP\n6f56a003 SUB ESP,0x8\n6f56a006 PUSH ESI\n6f56a007 MOV ESI,ECX\n6f56a009 AND dword ptr [ESI + 0x20],0xfffbffff\n6f56a010 OR dword ptr [ESI + 0x20],0x20000\n6f56a017 CALL 0x6f562e50\n6f56a01c TEST dword ptr [ESI + 0x20],0x800000\n6f56a023 JZ 0x6f56a02f\n6f56a025 MOV EAX,dword ptr [ESI]\n6f56a027 MOV ECX,ESI\n6f56a029 CALL dword ptr [EAX + 0x3f8]\n6f56a02f PUSH EBX\n6f56a030 MOV ECX,ESI\n6f56a032 CALL 0x6f562c50\n6f56a037 PUSH dword ptr [ESI + 0x50]\n6f56a03a MOV EBX,dword ptr [ESI + 0x20]\n6f56a03d LEA EAX,[EBP + -0x4]\n6f56a040 PUSH EAX\n6f56a041 MOV ECX,ESI\n6f56a043 CALL 0x6f414510\n6f56a048 SHR EBX,0x13\n6f56a04b NOT EBX\n6f56a04d TEST BL,0x1\n6f56a050 POP EBX\n6f56a051 JZ 0x6f56a099\n6f56a053 PUSH 0x6fd3c744\n6f56a058 LEA EDX,[EBP + -0x4]\n6f56a05b LEA ECX,[EBP + -0x8]\n6f56a05e CALL 0x6f06fa90\n6f56a063 MOVSS XMM0,dword ptr [0x6fcd5470]\n6f56a06b MOV EAX,dword ptr [EAX]\n6f56a06d AND EAX,0x7fffffff\n6f56a072 MOV dword ptr [EBP + -0x8],EAX\n6f56a075 COMISS XMM0,dword ptr [EBP + -0x8]\n6f56a079 JA 0x6f56a099\n6f56a07b PUSH 0x0\n6f56a07d PUSH 0x0\n6f56a07f PUSH ESI\n6f56a080 PUSH 0xd01dc\n6f56a085 LEA EAX,[EBP + -0x4]\n6f56a088 PUSH EAX\n6f56a089 LEA ECX,[ESI + 0x10c]\n6f56a08f CALL 0x6f0608d0\n6f56a094 POP ESI\n6f56a095 MOV ESP,EBP\n6f56a097 POP EBP\n6f56a098 RET\n6f56a099 MOV ECX,ESI\n6f56a09b CALL 0x6f552230\n6f56a0a0 POP ESI\n6f56a0a1 MOV ESP,EBP\n6f56a0a3 POP EBP\n6f56a0a4 RET\n",
+      "instruction_count": 55
+    },
+    "6f48b890": {
+      "name": "FUN_6f48b890",
+      "end": "6f48b906",
+      "decompiled": "\nvoid __thiscall FUN_6f48b890(WC3UnitOrdersPrefix *param_1,int param_2)\n\n{\n  uint arg_04;\n  WC3BuffPrefix *ability;\n  uint arg_08;\n  uint arg_0c;\n  uint arg_10;\n  uint arg_14;\n  \n  *(int *)&param_1->field_0x15c = *(int *)&param_1->field_0x15c + 1;\n  if (param_2 != 0) {\n    *(int *)&param_1->field_0x160 = *(int *)&param_1->field_0x160 + 1;\n  }\n  if ((*(int *)&param_1->field_0x15c == 1) ||\n     ((param_2 != 0 && (*(int *)&param_1->field_0x160 != 0)))) {\n    Unit_DispatchTargetLost(param_1,-1,-1);\n    arg_14 = 1;\n    arg_10 = 1;\n    arg_0c = 0;\n    arg_08 = 0;\n    arg_04 = FUN_6f559200();\n    ability = (WC3BuffPrefix *)Unit_FindAbilityByClass(param_1,arg_04,arg_08,arg_0c,arg_10,arg_14);\n    if (ability != (WC3BuffPrefix *)0x0) {\n      Unit_RemoveAbilityAndNotify(param_1,ability);\n    }\n    Unit_RemoveBuffsMatchingPolicy(param_1,0,1,0,0,0,1,1,0,1);\n  }\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f435f5f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "ItemTeleport_BeginExclusiveCast"
+        },
+        {
+          "site": "6f4da69c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4da620"
+        },
+        {
+          "site": "6f4dacd6",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4dac70"
+        },
+        {
+          "site": "6f4dad1d",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4dace0"
+        },
+        {
+          "site": "6f4daddb",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4dad30"
+        },
+        {
+          "site": "6f50a69f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f50a670"
+        },
+        {
+          "site": "6f58ce2e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f58ccd0"
+        },
+        {
+          "site": "6f59d925",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f59d8f0"
+        },
+        {
+          "site": "6f59da28",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f59d9b0"
+        },
+        {
+          "site": "6f59da8b",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f59da50"
+        },
+        {
+          "site": "6f5c7f61",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Defend_ApplyModifiers"
+        },
+        {
+          "site": "6f5d6463",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f5d61f0"
+        },
+        {
+          "site": "6f5e7c8c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f5e7c30"
+        },
+        {
+          "site": "6f63c489",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "CAbilityLocust_ClearPathingProfile"
+        },
+        {
+          "site": "6f63c543",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f63c530"
+        },
+        {
+          "site": "6f63c9cb",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f63c9b0"
+        },
+        {
+          "site": "6f63d81c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f63d800"
+        },
+        {
+          "site": "6f64261a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f642490"
+        },
+        {
+          "site": "6f62e263",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Phoenix_BeginEggTransition"
+        },
+        {
+          "site": "6f62e230",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Phoenix_BeginRebirthTransition"
+        }
+      ],
+      "assembly": "6f48b890 PUSH EBP\n6f48b891 MOV EBP,ESP\n6f48b893 MOV EAX,dword ptr [EBP + 0x8]\n6f48b896 PUSH ESI\n6f48b897 MOV ESI,ECX\n6f48b899 INC dword ptr [ESI + 0x15c]\n6f48b89f TEST EAX,EAX\n6f48b8a1 JZ 0x6f48b8a9\n6f48b8a3 INC dword ptr [ESI + 0x160]\n6f48b8a9 CMP dword ptr [ESI + 0x15c],0x1\n6f48b8b0 JZ 0x6f48b8bf\n6f48b8b2 TEST EAX,EAX\n6f48b8b4 JZ 0x6f48b902\n6f48b8b6 CMP dword ptr [ESI + 0x160],0x0\n6f48b8bd JZ 0x6f48b902\n6f48b8bf PUSH -0x1\n6f48b8c1 PUSH -0x1\n6f48b8c3 CALL 0x6f651010\n6f48b8c8 PUSH 0x1\n6f48b8ca PUSH 0x1\n6f48b8cc PUSH 0x0\n6f48b8ce PUSH 0x0\n6f48b8d0 CALL 0x6f559200\n6f48b8d5 PUSH EAX\n6f48b8d6 MOV ECX,ESI\n6f48b8d8 CALL 0x6f48cb80\n6f48b8dd TEST EAX,EAX\n6f48b8df JZ 0x6f48b8e9\n6f48b8e1 PUSH EAX\n6f48b8e2 MOV ECX,ESI\n6f48b8e4 CALL 0x6f48e8a0\n6f48b8e9 PUSH 0x1\n6f48b8eb PUSH 0x0\n6f48b8ed PUSH 0x1\n6f48b8ef PUSH 0x1\n6f48b8f1 PUSH 0x0\n6f48b8f3 PUSH 0x0\n6f48b8f5 PUSH 0x0\n6f48b8f7 PUSH 0x1\n6f48b8f9 PUSH 0x0\n6f48b8fb MOV ECX,ESI\n6f48b8fd CALL 0x6f48eb10\n6f48b902 POP ESI\n6f48b903 POP EBP\n6f48b904 RET 0x4\n",
+      "instruction_count": 45
+    },
+    "6f48ed40": {
+      "name": "FUN_6f48ed40",
+      "end": "6f48ed74",
+      "decompiled": "\nvoid __thiscall FUN_6f48ed40(int param_1,int param_2)\n\n{\n  *(int *)(param_1 + 0x15c) = *(int *)(param_1 + 0x15c) + -1;\n  if (param_2 != 0) {\n    *(int *)(param_1 + 0x160) = *(int *)(param_1 + 0x160) + -1;\n  }\n  if (((*(int *)(param_1 + 0x15c) == 0) || (param_2 == 0)) || (*(int *)(param_1 + 0x160) == 0)) {\n    Unit_BroadcastTargetAvailable();\n  }\n  return;\n}\n\n",
+      "references": [
+        {
+          "site": "6f40bf3f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "ItemTeleport_EndExclusiveCast"
+        },
+        {
+          "site": "6f4b8526",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4b8500"
+        },
+        {
+          "site": "6f4cc194",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4cc130"
+        },
+        {
+          "site": "6f4cc51f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f4cc500"
+        },
+        {
+          "site": "6f50a642",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f50a590"
+        },
+        {
+          "site": "6f58e6df",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f58e680"
+        },
+        {
+          "site": "6f58e02c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f58dff0"
+        },
+        {
+          "site": "6f58e082",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f58e050"
+        },
+        {
+          "site": "6f58e0ea",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f58e0c0"
+        },
+        {
+          "site": "6f5f4339",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Defend_RemoveModifiers"
+        },
+        {
+          "site": "6f5ea62e",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f5ea5a0"
+        },
+        {
+          "site": "6f5d8d6c",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f5d8ca0"
+        },
+        {
+          "site": "6f62135f",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f621320"
+        },
+        {
+          "site": "6f62147a",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f621460"
+        },
+        {
+          "site": "6f62dfc8",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Phoenix_CompleteRebirth"
+        },
+        {
+          "site": "6f62e16d",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "Phoenix_CompleteEggAndPublishLifetime"
+        },
+        {
+          "site": "6f631c00",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f631bc0"
+        },
+        {
+          "site": "6f642670",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f642490"
+        },
+        {
+          "site": "6f5d90cc",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f5d90b0"
+        },
+        {
+          "site": "6f6213c4",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f6213a0"
+        },
+        {
+          "site": "6f631430",
+          "type": "UNCONDITIONAL_CALL",
+          "entry": "FUN_6f631420"
+        }
+      ],
+      "assembly": "6f48ed40 PUSH EBP\n6f48ed41 MOV EBP,ESP\n6f48ed43 DEC dword ptr [ECX + 0x15c]\n6f48ed49 MOV EAX,dword ptr [EBP + 0x8]\n6f48ed4c TEST EAX,EAX\n6f48ed4e JZ 0x6f48ed56\n6f48ed50 DEC dword ptr [ECX + 0x160]\n6f48ed56 CMP dword ptr [ECX + 0x15c],0x0\n6f48ed5d JZ 0x6f48ed6c\n6f48ed5f TEST EAX,EAX\n6f48ed61 JZ 0x6f48ed6c\n6f48ed63 CMP dword ptr [ECX + 0x160],0x0\n6f48ed6a JNZ 0x6f48ed71\n6f48ed6c CALL 0x6f6510b0\n6f48ed71 POP EBP\n6f48ed72 RET 0x4\n",
+      "instruction_count": 16
+    }
+  },
+  "instructions": {
+    "6f500230": "56",
+    "6f500231": "8bf1",
+    "6f500233": "e8f80b0400",
+    "6f500238": "8b06",
+    "6f50023a": "8bce",
+    "6f50023c": "5e",
+    "6f50023d": "ffa0c4000000",
+    "6f605d90": "81c1a8010000",
+    "6f605d96": "e925a9a5ff",
+    "6f607270": "6a00",
+    "6f607272": "6a01",
+    "6f607274": "51",
+    "6f607275": "68bf010d00",
+    "6f60727a": "6848c7d36f",
+    "6f60727f": "81c1a8010000",
+    "6f607285": "e84696a5ff",
+    "6f60728a": "c3",
+    "6f50a670": "56",
+    "6f50a671": "8bf1",
+    "6f50a673": "57",
+    "6f50a674": "8b7e30",
+    "6f50a677": "85ff",
+    "6f50a679": "7507",
+    "6f50a67b": "e840b6b4ff",
+    "6f50a680": "8bf8",
+    "6f50a682": "6a01",
+    "6f50a684": "6a00",
+    "6f50a686": "6a01",
+    "6f50a688": "6a01",
+    "6f50a68a": "6a00",
+    "6f50a68c": "6a00",
+    "6f50a68e": "6a00",
+    "6f50a690": "6a01",
+    "6f50a692": "6a00",
+    "6f50a694": "8bcf",
+    "6f50a696": "e87544f8ff",
+    "6f50a69b": "6a01",
+    "6f50a69d": "8bcf",
+    "6f50a69f": "e8ec11f8ff",
+    "6f50a6a4": "814e20000000a0",
+    "6f50a6ab": "5f",
+    "6f50a6ac": "5e",
+    "6f50a6ad": "c3",
+    "6f50a590": "55",
+    "6f50a591": "8bec",
+    "6f50a593": "6aff",
+    "6f50a595": "68b804a36f",
+    "6f50a59a": "64a100000000",
+    "6f50a5a0": "50",
+    "6f50a5a1": "83ec08",
+    "6f50a5a4": "53",
+    "6f50a5a5": "56",
+    "6f50a5a6": "57",
+    "6f50a5a7": "a19c68ce6f",
+    "6f50a5ac": "33c5",
+    "6f50a5ae": "50",
+    "6f50a5af": "8d45f4",
+    "6f50a5b2": "64a300000000",
+    "6f50a5b8": "8bf1",
+    "6f50a5ba": "8b7e30",
+    "6f50a5bd": "85ff",
+    "6f50a5bf": "7507",
+    "6f50a5c1": "e8fab6b4ff",
+    "6f50a5c6": "8bf8",
+    "6f50a5c8": "ff7650",
+    "6f50a5cb": "8d45f0",
+    "6f50a5ce": "8bce",
+    "6f50a5d0": "50",
+    "6f50a5d1": "e8faa6f0ff",
+    "6f50a5d6": "6844c7d36f",
+    "6f50a5db": "8d45f0",
+    "6f50a5de": "8bcf",
+    "6f50a5e0": "50",
+    "6f50a5e1": "8d45ec",
+    "6f50a5e4": "50",
+    "6f50a5e5": "e80639f1ff",
+    "6f50a5ea": "8bd8",
+    "6f50a5ec": "8b0b",
+    "6f50a5ee": "c745fc00000000",
+    "6f50a5f5": "85c9",
+    "6f50a5f7": "7403",
+    "6f50a5f9": "ff4104",
+    "6f50a5fc": "8b8ea4010000",
+    "6f50a602": "85c9",
+    "6f50a604": "7409",
+    "6f50a606": "ff4904",
+    "6f50a609": "7504",
+    "6f50a60b": "8b01",
+    "6f50a60d": "ff10",
+    "6f50a60f": "8b4dec",
+    "6f50a612": "8b03",
+    "6f50a614": "8986a4010000",
+    "6f50a61a": "c745fcffffffff",
+    "6f50a621": "85c9",
+    "6f50a623": "7409",
+    "6f50a625": "ff4904",
+    "6f50a628": "7504",
+    "6f50a62a": "8b01",
+    "6f50a62c": "ff10",
+    "6f50a62e": "f7462000000020",
+    "6f50a635": "7410",
+    "6f50a637": "816620ffffffdf",
+    "6f50a63e": "8bcf",
+    "6f50a640": "6a01",
+    "6f50a642": "e8f946f8ff",
+    "6f50a647": "816620ffffff7f",
+    "6f50a64e": "8bce",
+    "6f50a650": "e84b79efff",
+    "6f50a655": "8b4df4",
+    "6f50a658": "64890d00000000",
+    "6f50a65f": "59",
+    "6f50a660": "5f",
+    "6f50a661": "5e",
+    "6f50a662": "5b",
+    "6f50a663": "8be5",
+    "6f50a665": "5d",
+    "6f50a666": "c3",
+    "6f50a540": "56",
+    "6f50a541": "8bf1",
+    "6f50a543": "8d8ea4010000",
+    "6f50a549": "e8b296edff",
+    "6f50a54e": "8bce",
+    "6f50a550": "5e",
+    "6f50a551": "e94a7aefff",
+    "6f517400": "b86e747341",
+    "6f517405": "c3",
+    "6f562c50": "56",
+    "6f562c51": "8bf1",
+    "6f562c53": "f7462000800100",
+    "6f562c5a": "0f84af000000",
+    "6f562c60": "8b4630",
+    "6f562c63": "85c0",
+    "6f562c65": "7505",
+    "6f562c67": "e85430afff",
+    "6f562c6c": "f7405c00010000",
+    "6f562c73": "57",
+    "6f562c74": "740d",
+    "6f562c76": "f7462000000008",
+    "6f562c7d": "7504",
+    "6f562c7f": "33ff",
+    "6f562c81": "eb05",
+    "6f562c83": "bf01000000",
+    "6f562c88": "8b4620",
+    "6f562c8b": "a900800000",
+    "6f562c90": "743c",
+    "6f562c92": "8b4630",
+    "6f562c95": "85c0",
+    "6f562c97": "7507",
+    "6f562c99": "8bce",
+    "6f562c9b": "e82030afff",
+    "6f562ca0": "8b8e8c010000",
+    "6f562ca6": "394830",
+    "6f562ca9": "7512",
+    "6f562cab": "85ff",
+    "6f562cad": "740e",
+    "6f562caf": "51",
+    "6f562cb0": "ffb690010000",
+    "6f562cb6": "8bce",
+    "6f562cb8": "e8a321feff",
+    "6f562cbd": "8bce",
+    "6f562cbf": "e85cf4feff",
+    "6f562cc4": "816620ff7fffff",
+    "6f562ccb": "5f",
+    "6f562ccc": "5e",
+    "6f562ccd": "c3",
+    "6f562cce": "a900000100",
+    "6f562cd3": "7439",
+    "6f562cd5": "8b4630",
+    "6f562cd8": "85c0",
+    "6f562cda": "7507",
+    "6f562cdc": "8bce",
+    "6f562cde": "e8dd2fafff",
+    "6f562ce3": "8b8e90010000",
+    "6f562ce9": "394830",
+    "6f562cec": "7512",
+    "6f562cee": "85ff",
+    "6f562cf0": "740e",
+    "6f562cf2": "51",
+    "6f562cf3": "ffb68c010000",
+    "6f562cf9": "8bce",
+    "6f562cfb": "e86021feff",
+    "6f562d00": "8bce",
+    "6f562d02": "e849d2feff",
+    "6f562d07": "816620fffffeff",
+    "6f562d0e": "5f",
+    "6f562d0f": "5e",
+    "6f562d10": "c3",
+    "6f54ff50": "56",
+    "6f54ff51": "8bf1",
+    "6f54ff53": "57",
+    "6f54ff54": "8b4630",
+    "6f54ff57": "85c0",
+    "6f54ff59": "7505",
+    "6f54ff5b": "e8605db0ff",
+    "6f54ff60": "8bb8f0010000",
+    "6f54ff66": "85ff",
+    "6f54ff68": "7446",
+    "6f54ff6a": "0fb64033",
+    "6f54ff6e": "83c0bf",
+    "6f54ff71": "83f819",
+    "6f54ff74": "773a",
+    "6f54ff76": "f7462000000010",
+    "6f54ff7d": "752a",
+    "6f54ff7f": "8b8798000000",
+    "6f54ff85": "8d8f98000000",
+    "6f54ff8b": "6a01",
+    "6f54ff8d": "6844c7d36f",
+    "6f54ff92": "ff10",
+    "6f54ff94": "8b87b4000000",
+    "6f54ff9a": "8d8fb4000000",
+    "6f54ffa0": "6a01",
+    "6f54ffa2": "6844c7d36f",
+    "6f54ffa7": "ff10",
+    "6f54ffa9": "8bcf",
+    "6f54ffab": "e830a7fdff",
+    "6f54ffb0": "8b06",
+    "6f54ffb2": "8bce",
+    "6f54ffb4": "ff9014040000",
+    "6f54ffba": "8b06",
+    "6f54ffbc": "8bce",
+    "6f54ffbe": "5f",
+    "6f54ffbf": "5e",
+    "6f54ffc0": "ffa004040000",
+    "6f56a000": "55",
+    "6f56a001": "8bec",
+    "6f56a003": "83ec08",
+    "6f56a006": "56",
+    "6f56a007": "8bf1",
+    "6f56a009": "816620fffffbff",
+    "6f56a010": "814e2000000200",
+    "6f56a017": "e8348effff",
+    "6f56a01c": "f7462000008000",
+    "6f56a023": "740a",
+    "6f56a025": "8b06",
+    "6f56a027": "8bce",
+    "6f56a029": "ff90f8030000",
+    "6f56a02f": "53",
+    "6f56a030": "8bce",
+    "6f56a032": "e8198cffff",
+    "6f56a037": "ff7650",
+    "6f56a03a": "8b5e20",
+    "6f56a03d": "8d45fc",
+    "6f56a040": "50",
+    "6f56a041": "8bce",
+    "6f56a043": "e8c8a4eaff",
+    "6f56a048": "c1eb13",
+    "6f56a04b": "f7d3",
+    "6f56a04d": "f6c301",
+    "6f56a050": "5b",
+    "6f56a051": "7446",
+    "6f56a053": "6844c7d36f",
+    "6f56a058": "8d55fc",
+    "6f56a05b": "8d4df8",
+    "6f56a05e": "e82d5ab0ff",
+    "6f56a063": "f30f10057054cd6f",
+    "6f56a06b": "8b00",
+    "6f56a06d": "25ffffff7f",
+    "6f56a072": "8945f8",
+    "6f56a075": "0f2f45f8",
+    "6f56a079": "771e",
+    "6f56a07b": "6a00",
+    "6f56a07d": "6a00",
+    "6f56a07f": "56",
+    "6f56a080": "68dc010d00",
+    "6f56a085": "8d45fc",
+    "6f56a088": "50",
+    "6f56a089": "8d8e0c010000",
+    "6f56a08f": "e83c68afff",
+    "6f56a094": "5e",
+    "6f56a095": "8be5",
+    "6f56a097": "5d",
+    "6f56a098": "c3",
+    "6f56a099": "8bce",
+    "6f56a09b": "e89081feff",
+    "6f56a0a0": "5e",
+    "6f56a0a1": "8be5",
+    "6f56a0a3": "5d",
+    "6f56a0a4": "c3",
+    "6f48b890": "55",
+    "6f48b891": "8bec",
+    "6f48b893": "8b4508",
+    "6f48b896": "56",
+    "6f48b897": "8bf1",
+    "6f48b899": "ff865c010000",
+    "6f48b89f": "85c0",
+    "6f48b8a1": "7406",
+    "6f48b8a3": "ff8660010000",
+    "6f48b8a9": "83be5c01000001",
+    "6f48b8b0": "740d",
+    "6f48b8b2": "85c0",
+    "6f48b8b4": "744c",
+    "6f48b8b6": "83be6001000000",
+    "6f48b8bd": "7443",
+    "6f48b8bf": "6aff",
+    "6f48b8c1": "6aff",
+    "6f48b8c3": "e848571c00",
+    "6f48b8c8": "6a01",
+    "6f48b8ca": "6a01",
+    "6f48b8cc": "6a00",
+    "6f48b8ce": "6a00",
+    "6f48b8d0": "e82bd90c00",
+    "6f48b8d5": "50",
+    "6f48b8d6": "8bce",
+    "6f48b8d8": "e8a3120000",
+    "6f48b8dd": "85c0",
+    "6f48b8df": "7408",
+    "6f48b8e1": "50",
+    "6f48b8e2": "8bce",
+    "6f48b8e4": "e8b72f0000",
+    "6f48b8e9": "6a01",
+    "6f48b8eb": "6a00",
+    "6f48b8ed": "6a01",
+    "6f48b8ef": "6a01",
+    "6f48b8f1": "6a00",
+    "6f48b8f3": "6a00",
+    "6f48b8f5": "6a00",
+    "6f48b8f7": "6a01",
+    "6f48b8f9": "6a00",
+    "6f48b8fb": "8bce",
+    "6f48b8fd": "e80e320000",
+    "6f48b902": "5e",
+    "6f48b903": "5d",
+    "6f48b904": "c20400",
+    "6f48ed40": "55",
+    "6f48ed41": "8bec",
+    "6f48ed43": "ff895c010000",
+    "6f48ed49": "8b4508",
+    "6f48ed4c": "85c0",
+    "6f48ed4e": "7406",
+    "6f48ed50": "ff8960010000",
+    "6f48ed56": "83b95c01000000",
+    "6f48ed5d": "740d",
+    "6f48ed5f": "85c0",
+    "6f48ed61": "7409",
+    "6f48ed63": "83b96001000000",
+    "6f48ed6a": "7505",
+    "6f48ed6c": "e83f231c00",
+    "6f48ed71": "5d",
+    "6f48ed72": "c20400"
+  },
+  "data_guards": {
+    "6fafebe0": "3002506f",
+    "6fafec00": "905d606f",
+    "6fafec04": "7072606f",
+    "6fafef3c": "80eb546f",
+    "6fafef40": "50cb546f",
+    "6fafef44": "70a6506f",
+    "6fafef48": "90a5506f",
+    "6fafef4c": "50864c6f",
+    "6fafef50": "40a5506f",
+    "6fafef58": "40c6546f",
+    "6fafeb38": "e038c16f",
+    "6fc138e0": "0000000000000000000000009cb3d16ff438c16f",
+    "6fd1b3a4": "2e3f4156434162696c69747953746f6e65466f726d404000"
+  },
+  "task": "SEP-01.2",
+  "phase": "payoff390-stone-static-only",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "exporter": "read-only Ghidra HTTP GET"
+}

@@ -330,7 +330,9 @@
     "oracle-morph382",
     "oracle-captain376-preferred-suicide",
     "oracle-group012",
-    "oracle-captain473-retreat-saveload"
+    "oracle-captain473-retreat-saveload",
+    "oracle-morph390",
+    "oracle-harvest012-ownership"
   ],
   "entries": [
     {
@@ -7400,6 +7402,93 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "evidence-boundary",
           "rationale": "The snapshots compare bc/c0/c4; the b8/c8 producers are unrecovered."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-morph390",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Avenger/Ethereal/Corporeal/Phoenix, Mount reachability and counted-owner compositions remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Astn availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 1,
+          "text": "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Astn availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 2,
+          "text": "Two pre-start system exception rows per instrumented capture outside game.dll are retained literally; cause and OS-fault unreachability are not established.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Scoped Astn availability does not close the existing other-producer/composition leaf or extend documented evidence limits."
+        },
+        {
+          "index": 3,
+          "text": "Stone +408 Unit15c target-availability owner and +c4/+c8 clock are recorded literally but not ported by this availability slice.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "A separate Stone transition owner, observed literally; not part of configured passive availability."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-harvest012-ownership",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Ghoul Ahrl lumber, Acolyte Aaha, Wisp Awha lumber and Entangled cargo gold keep their existing owners; not ownership-verified (ORDER-01.12).",
+          "task": "ORDER-01.12",
+          "disposition": "behavior",
+          "rationale": "Remaining race resource owners stay inside the open leaf."
+        },
+        {
+          "index": 1,
+          "text": "Mine death during approach: retail retains Smart and walks to about 63.2 units from the mine centre before retiring; the engine retires at once (ORDER-01.12).",
+          "task": "ORDER-01.12",
+          "disposition": "behavior",
+          "rationale": "Approach-loss completion range is witnessed but not integrated."
+        },
+        {
+          "index": 2,
+          "text": "Drop-off removal during a return publishes two 852017 events that still name the removed hall in retail; the engine publishes none (ORDER-01.12).",
+          "task": "ORDER-01.12",
+          "disposition": "behavior",
+          "rationale": "Removal publication count is witnessed but not integrated."
+        },
+        {
+          "index": 3,
+          "text": "Partial-load replacement-tree Harvest append (437fb0) and ability virtual2fc interception are static-only and not integrated (ORDER-01.12).",
+          "task": "ORDER-01.12",
+          "disposition": "behavior",
+          "rationale": "Static-only paths need a public witness first."
+        },
+        {
+          "index": 4,
+          "text": "687f60 flag-2/0xd0005 successor exclusions and the 437fb0 AI admission-flag immediate branch are not modeled; engine FIFO entries carry neither (ORDER-02.2).",
+          "task": "ORDER-02.2",
+          "disposition": "behavior",
+          "rationale": "Queue control bits belong to the user/internal queue map."
+        },
+        {
+          "index": 5,
+          "text": "Approach trajectories, mining/chop cadence and return routing are frozen in the captures but not certified by this ownership oracle (MOVE/NUM).",
+          "task": "NUM-01.12",
+          "disposition": "evidence-boundary",
+          "rationale": "Trajectory and cadence numerics are outside ownership."
+        },
+        {
+          "index": 6,
+          "text": "Save checks use in-process WriteGame/ReadGame; no fresh-process or cross-build restoration claim.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Fresh-process restoration remains an explicit evidence gap for the discrepancy ledger."
         }
       ]
     }

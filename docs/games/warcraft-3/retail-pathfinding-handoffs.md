@@ -26,10 +26,10 @@ the archives also preserve work that was never committed.
 
 | Candidate | Source worktree | Integration state / next gate |
 |---|---|---|
-| Captain retreat473 | `agent-afdda55def873cd35`, `b0b6bba18` | Main-tree candidate, strict retail replay and both-edition regression. Full build exposed a dependency on optional SC2API telemetry; use the live Move target identity instead. |
-| Stone Form390 | `agent-aef3a192684e6a326`, `bcf1f57ca` | Committed candidate with `INTEGRATION.md`; review source, register corpus/exclusion owners and rerun strict/affected/full gates. Later391 probes are uncommitted research. |
-| Harvest H012 | `agent-aa0697990a076c197`, `1c44de6d6` plus dirty files | WIP commit plus final test/evidence/docs in the worktree; `INTEGRATION.md` lists finite gaps. Review the complete dirty snapshot, rebase Save218 and reproduce the strict gate before integration. ORDER-01.12 stays open. |
-| Support/goal | `agent-ad242504f7459a0ea` (`foot-04.2`) | Dirty `m_unit.c`, `s_move.c`, movement tests, literal header and retail probes/verifier; unfinished. Review failing-first evidence before porting overlapping source. |
+| Captain retreat473 | `agent-afdda55def873cd35`, `b0b6bba18` | Integrated by `6ac76eca9` after strict and full acceptance; the optional SC2API dependency was replaced with live Move target/incarnation checks. |
+| Stone Form390 | `agent-aef3a192684e6a326`, `bcf1f57ca` | Integrated in the reviewed recovery batch with strict/affected/full acceptance. Later391 probes remain separate uncommitted research; SEP-01.2 remains open. |
+| Harvest H012 | `agent-aa0697990a076c197`, `1c44de6d6` plus dirty files | Integrated from the complete dirty snapshot with Save218, mine-owned death cleanup, Peon saved journey and loader-error checks. Strict6 tests/251 assertions per edition and full acceptance pass; ORDER-01.12 stays open. |
+| Support/goal | `agent-ad242504f7459a0ea` (`foot-04.2`) | Isolated `/tmp/open-realm-takeover-supportgoal` candidate: all200 support scenes pass both editions after failing-first admission fix. New40-scene widget regression still fails; no integration/closure yet. Complete snapshots remain backed up. |
 | Queued/internal orders | `agent-a7a1cc22776ff3841` | Untracked `t_order022.c` and retail capture/probe tools; incomplete. Static queue-flag findings are in session subagent `a517cf9dbc42847a0`; public runtime witnesses remain necessary. |
 | Item drop | `agent-a250661f0df278ffd` | Dirty inventory procedure, command/native/item/shop/save wiring, regression and retail fixture directory; unfinished. Review complete snapshot and persistence contract. |
 | Operand aliases | `agent-a57f0c0c6b7e57853` | Untracked `tools/ghidra/research/operand_aliases.py`; research only. |
@@ -39,7 +39,19 @@ request publication, so an engine diff is not their acceptance criterion. Their
 current auditors pass (303 and 11,760 DLL guards for the site inventories;
 839 field rows). Their `covered` labels do not establish runtime parity:
 field attribution may use displacement matches, and function linkage may only
-reference guarded bytes. BASE-03.1 is reopened because function-level totals
-omit the individual branch records required by its criterion, including a
-truncated source list. The corrected total is **310 complete / 26 open**.
+reference guarded bytes. The audit reopened BASE-03.1 because function-level totals
+omitted individual branch records and truncated a source list. The reviewed
+version2 repair now publishes and checks every branch, including the462-branch
+function, and closes the inventory after full acceptance. The current total is
+**311 complete /25 open**. Runtime parity remains in those behavior owners.
 See the [reachable inventory audit](retail-pathfinding-reachable-inventory.md).
+
+The reviewed Stone390/Harvest012/Reach031 source tree
+`084192323b98bfe186ef536a15c4f0cef71840ae` passes the actual full checkpoint
+(`LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 make test TEST_JOBS=16`):
+9,974 native tests/34 JUnit reports, zero native failures, and2,912 Python tests.
+Reports and durable make exit status are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/codex-takeover-20261020/`.
+The first combined run's invalid Harvest exclusion labels were corrected to
+`evidence-boundary` before this successful rerun. The earlier standalone Stone
+outer exit143 remains unaccepted; it is not relabeled as a successful checkpoint.

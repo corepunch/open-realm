@@ -1255,19 +1255,25 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','a','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m'))) {
             return S_AcolyteHarvestOrder(self, target);
         }
+        /* Harvest keeps the public Smart head through approach, the hidden
+         * interval and a carried drop-off; its owner later publishes the
+         * internal Resume/Harvest heads (live H012 scenes0/9/10). */
         if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) {
-            return harvest_gold_order(self, target);
+            if (!harvest_gold_order(self, target)) return false;
+            self->current_order_id = G_OrderId(order);
+            return true;
         }
         if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE) {
             harvest_start(self, target);
+            self->current_order_id = G_OrderId(order);
             return true;
         }
         if ((S_HarvestCanLumber(self) || S_HarvestCanGold(self)) &&
-            self->harvested_lumber > 0 && harvest_lumber_return_to(self, target))
+            ((self->harvested_lumber > 0 && harvest_lumber_return_to(self, target)) ||
+             (self->harvested_gold > 0 && harvest_gold_return_to(self, target)))) {
+            self->current_order_id = G_OrderId(order);
             return true;
-        if ((S_HarvestCanLumber(self) || S_HarvestCanGold(self)) &&
-            self->harvested_gold > 0 && harvest_gold_return_to(self, target))
-            return true;
+        }
         /* Smart/right-click only force-attacks ordinary breakable debris.
          * Other destructable classes require the explicit Attack command, and
          * every destructable must be allowed by the unit weapon target mask. */
@@ -1304,6 +1310,11 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f, NULL);
+    }
+    if (!strcmp(order, "harvest")) {
+        if (!S_HarvestStartTarget(self, target)) return false;
+        self->current_order_id = G_OrderId(order);
+        return true;
     }
     if (!strcmp(order,"board")) return S_CargoOrderBoard(self,target);
     if (!strcmp(order,"load")) return S_CargoOrderLoad(self,target);
@@ -1432,13 +1443,13 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         return S_IssueRallyTargetOrder(self,target,queue);
     }
-    if (S_GoldMineWorkerIsInside(self)) {
-        return false;
-    }
+    /* A hidden miner holds Unit198: original680320 cancels successors and
+     * appends without dispatch, retaining its head until exit (H012). */
+    bool const inside_mine=S_GoldMineWorkerIsInside(self);
     vec2_t point=target->s.origin2;
     /* Validate/intercept through the owner before clearing pending work. A
      * same-target interaction can retain its current task and public head. */
-    {
+    if (!inside_mine) {
         ability_t const *owner = FindAbilityByOrder(order);
         abilityProc_t const active = self->currentmove ? self->currentmove->proc : NULL;
         abilityCall_t call = {.issued_target_order = {target, order, queue, &point}};
@@ -1454,23 +1465,10 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             return true;
         }
     }
-    if (!strcmp(order, "harvest")) {
-        bool accepted = false;
-        if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','w','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','e','g','m')))
-            accepted = S_CargoOrderBoard(self, target);
-        else if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','a','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m')))
-            accepted = S_AcolyteHarvestOrder(self, target);
-        else if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','h','a','r')) && S_GoldMineCanHarvest(target))
-            accepted = harvest_gold_order(self, target);
-        if (accepted) {
-            G_CreepGuardExplicitOrder(self);
-            self->current_order_id=G_OrderId(order);
-            S_UnitAbilityOrderAccepted(self, order);
-            G_PublishIssuedTargetOrder(self, order, target, issuer_player);
-        }
-        return accepted;
-    }
-    {
+    /* Harvest then follows the ordinary FIFO, retention and dispatch path;
+     * rejection (for example Harvest on a drop-off) precedes cancellation. */
+    if (!strcmp(order, "harvest") && !S_HarvestAcceptsTarget(self, target)) return false;
+    if (!inside_mine) {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
             bool accepted;
@@ -1490,7 +1488,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             return accepted;
         }
     }
-    bool held=S_UnitOrderExecutionHeld(self);
+    bool held=inside_mine || S_UnitOrderExecutionHeld(self);
     if ((queue || held) && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
         /* Only orders with an owning ability may enter the FIFO. Generic
@@ -1542,8 +1540,9 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         }
         return accepted;
     }
-    if (S_GoldMineWorkerIsInside(self)) return false;
-    {
+    /* Hidden miners retain point commands below Unit198 (H012 scene4). */
+    bool const inside_mine=S_GoldMineWorkerIsInside(self);
+    if (!inside_mine) {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
             bool accepted;
@@ -1574,7 +1573,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
         strcmp(order, "attackground") && !owned) return false;
 
-    if(S_UnitOrderExecutionHeld(self))
+    if(inside_mine || S_UnitOrderExecutionHeld(self))
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
 
     if (queue && G_UnitHasActiveOrder(self)) {
@@ -1666,6 +1665,11 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
     if(queued->target_type==UNIT_ORDER_TARGET_NONE) {
         if(!strcmp(queued->order,"stop")) {order_stop_queued(self);return QUEUED_ORDER_STARTED;}
         if(!strcmp(queued->order,"holdposition"))return S_HoldPositionQueued(self) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
+        /* Activated harvest heads re-resolve their drop-off/resource. */
+        if(!strcmp(queued->order,"returnresources") || !strcmp(queued->order,"resumeharvesting"))
+            return S_HarvestIssueImmediate(self,!strcmp(queued->order,"resumeharvesting")) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
+        if(!strcmp(queued->order,"autoharvestgold") && S_HarvestOwnsAutoGold(self))
+            return S_HarvestAutoGoldStart(self) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
     }
     return S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
 }
@@ -1932,8 +1936,19 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!S_AncientCanReceiveOrder(self)) return false;
     if (G_BuildingUpgradeActive(self)) return false;
     if (M_IsDead(self)) return false;
-    if (S_GoldMineWorkerIsInside(self))
-        return false;
+    /* Hidden miners retain witnessed immediate commands below Unit198 and
+     * publish them at exit (H012 scene5, I012 scenes2..6). Stop reaches the
+     * same retention through its owner. Empty Return rejects; other
+     * immediate commands keep their inside rejection until witnessed. */
+    if (S_GoldMineWorkerIsInside(self) && strcmp(order, "stop")) {
+        bool const harvest = !strcmp(order, "returnresources") || !strcmp(order, "resumeharvesting");
+        if (S_UnitOrderDisabled(self, order)) return false;
+        if (!(!strcmp(order, "holdposition") ||
+              (harvest && S_HarvestCanIssueImmediate(self, !strcmp(order, "resumeharvesting"))) ||
+              (!strcmp(order, "autoharvestgold") && S_HarvestCanAutoGold(self))))
+            return false;
+        return G_RetainSuspendedUnitOrder(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, false, self->s.player, 0);
+    }
     if(G_IsDeferredFree(self) || self->construction_held) {
         if(strcmp(order,"stop") && strcmp(order,"holdposition"))return false;
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,false,self->s.player,0);
@@ -1999,9 +2014,28 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         }
     }
     if (!strcmp(order, "autoharvestgold")) {
+        if (S_HarvestOwnsAutoGold(self)) {
+            bool const accepted = S_HarvestAutoGoldOrder(self);
+            if (accepted) G_CreepGuardExplicitOrder(self);
+            return accepted;
+        }
         bool const accepted = harvest_auto_start_gold(self);
         if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return accepted;
+    }
+    /* Ahar Return Resources/Resume Harvesting own validation before FIFO
+     * cancellation and publish their accepted immediate head (H012). */
+    if (!strcmp(order, "returnresources") || !strcmp(order, "resumeharvesting")) {
+        bool const resume = !strcmp(order, "resumeharvesting");
+        if (!S_HarvestCanIssueImmediate(self, resume)) return false;
+        G_ClearUnitOrderQueue(self);
+        if (!self->inuse || M_IsDead(self) || !S_HarvestIssueImmediate(self, resume)) return false;
+        G_CreepGuardExplicitOrder(self);
+        S_UnitAbilityOrderAccepted(self, order);
+        unit_set_active_order(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, self->s.player, 0.0f);
+        self->current_order_id = G_OrderId(order);
+        G_PublishIssuedImmediateOrder(self, self->current_order_id, self->s.player, order);
+        return true;
     }
     if (!strcmp(order, "autoharvestlumber")) {
         bool const accepted = harvest_auto_start_lumber(self);

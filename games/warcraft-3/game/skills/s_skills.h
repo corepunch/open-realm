@@ -19,6 +19,18 @@ static inline intptr_t S_UnitMessageSubscriptions(abilityCall_t const *call,
     S_UnitMessageSubscriptions(call, (abilityMsg_t const[]){__VA_ARGS__}, \
         sizeof((abilityMsg_t const[]){__VA_ARGS__}) / sizeof(abilityMsg_t))
 
+/* Harvest owns resource-family admission and its internal public heads. */
+bool S_HarvestAcceptsTarget(edict_t *, edict_t *);
+bool S_HarvestStartTarget(edict_t *, edict_t *);
+bool S_HarvestPublishPhase(edict_t *, cstring_t, edict_t *);
+bool S_HarvestCanIssueImmediate(edict_t *, bool resume);
+bool S_HarvestIssueImmediate(edict_t *, bool resume);
+bool S_HarvestDepositResumes(edict_t const *);
+bool S_HarvestOwnsAutoGold(edict_t const *);
+bool S_HarvestAutoGoldOrder(edict_t *);
+bool S_HarvestCanAutoGold(edict_t *);
+bool S_HarvestAutoGoldStart(edict_t *);
+
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \

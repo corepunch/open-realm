@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 217; /* Typed Morph owners, Captain registry and live classification. */
+static uint32_t const save_version = 218; /* Hidden miners own Unit198; Harvest phase heads. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -4953,6 +4953,23 @@ TEST(wc3_save, captain376_rejects_version215_before_town_registration_restore) {
     unit->user_data=376;
     T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
     T_EQ(unit->user_data,376);T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
+    remove(current);remove(previous);
+}
+
+TEST(wc3_save, rejects_version_217_before_hidden_miner_order_retention) {
+    cstring_t current=Test_TempPath("save-harvest012-current.bin");
+    cstring_t previous=Test_TempPath("save-harvest012-v217.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    T_ASSERT(WriteGame(current));FILE *file=fopen(current,"rb");T_NOT_NULL(file);
+    if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,217,header.edict_size));
+    unit->user_data=12;
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
+    T_EQ(unit->user_data,12);T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
     remove(current);remove(previous);
 }
 

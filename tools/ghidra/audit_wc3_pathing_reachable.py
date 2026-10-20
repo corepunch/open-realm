@@ -7,12 +7,14 @@ or executes an address inside the body; partial rows a mapper row, plate or
 narrow fixture citation; excluded rows an out-of-scope category. Every row names
 one remaining open task (covered rows for their unguarded branches), as does every computed call site
 whose receiver class could not be resolved. Branch totals must equal the rows.
-This schema verifies function rows and aggregate counts only. It cannot certify
-BASE-03.1 closure without individual branch records and their evidence/task links.
+Version2 verifies every individual conditional jump against a complete pinned
+Ghidra export and its open behavior owner. Version1 verifies function rows and
+aggregate counts only and cannot certify BASE-03.1 closure.
 """
 import argparse
 from collections import Counter
 import gzip
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -30,10 +32,11 @@ FUNCTION = re.compile(r'^(6f[0-9a-f]{6}|EXTERNAL:[0-9a-f]{8})$')  # imports are 
 require = inv.require
 
 
-def validate(inventory, corpus, todo, forced):
+def validate(inventory, corpus, todo, forced, binary=None):
     require(inventory.get('task') == 'BASE-03.1' and inventory.get('binary_sha256') == inv.SHA, 'unsupported inventory')
     states = {m[2]: m[1] for m in inv.TASK.finditer(todo)}
-    require(states.get('BASE-03.1') == ' ',
+    has_branches = 'branches' in inventory and 'branch_export' in inventory
+    require(has_branches or states.get('BASE-03.1') == ' ',
             'BASE-03.1 closure needs individual branch records; this schema only verifies function rows and totals')
     open_tasks = {k for k, v in states.items() if v == ' ' and k != 'BASE-03.1'}
     oracles = {e['id'] for e in corpus['entries']}
@@ -75,11 +78,86 @@ def validate(inventory, corpus, todo, forced):
         require(site['function'] in rows and ADDRESS.match(site['site']), 'invalid unresolved site')
         require(site['owner'] in open_tasks, 'unresolved site owner is not a remaining task: ' + site['site'])
         owners['site:' + site['owner']] += 1
-    return dict(status='verified', task='BASE-03.1', closure_verified=False, roots=len(roots), functions=len(rows),
+    branch_result = validate_branches(inventory, rows, open_tasks, binary) if has_branches else {}
+    return dict(status='verified', task='BASE-03.1', closure_verified=has_branches,
+                runtime_branch_coverage_certified=False, **branch_result, roots=len(roots), functions=len(rows),
                 branches=totals['branches'], guarded_branches=totals['guarded_branches'],
                 unresolved_sites=len(inventory['unresolved_sites']),
                 statuses=dict(sorted(Counter(r['status'] for r in rows.values()).items())),
                 owners=dict(sorted(owners.items())))
+
+
+
+# Complete, read-only Ghidra export; source instructions are checked separately
+# against the original DLL by --binary. Guarding bytes never implies execution.
+BRANCH_EXPORT = 'tools/ghidra/fixtures/retail-pathfinding-reachable-branches-1.27.jsonl.gz'
+BRANCH_EXPORT_SHA = 'ec85c45562e30defdc3cb2a1fbc2c3fc2045c6d4f50d790e8c2bda7a14fe0032'
+BRANCH_FIELDS = {'function', 'site', 'bytes', 'mnemonic', 'taken', 'fallthrough'}
+
+
+def conditional_edges(site, raw):
+    instruction = bytes.fromhex(raw)
+    require((len(instruction) == 2 and 0x70 <= instruction[0] <= 0x7f) or
+            (len(instruction) == 6 and instruction[0] == 0x0f and 0x80 <= instruction[1] <= 0x8f),
+            'unsupported conditional jump: ' + site)
+    condition = instruction[0] & 15 if len(instruction) == 2 else instruction[1] & 15
+    displacement = int.from_bytes(instruction[1:] if len(instruction) == 2 else instruction[2:],
+                                  'little', signed=True)
+    fallthrough = int(site, 16) + len(instruction)
+    names = ['JO','JNO','JC','JNC','JZ','JNZ','JBE','JA','JS','JNS','JP','JNP','JL','JGE','JLE','JG']
+    return names[condition], [f'{(fallthrough + displacement) & 0xffffffff:08x}'], f'{fallthrough:08x}'
+
+
+def load_branch_export(metadata):
+    require(metadata == dict(path=BRANCH_EXPORT, sha256=BRANCH_EXPORT_SHA, functions=7380, branches=21306),
+            'branch export identity differs')
+    raw = gzip.decompress((ROOT / BRANCH_EXPORT).read_bytes())
+    require(hashlib.sha256(raw).hexdigest() == BRANCH_EXPORT_SHA, 'original branch export differs')
+    branches, summaries = {}, {}
+    for line in raw.splitlines():
+        row = json.loads(line)
+        if 'function_summary' in row:
+            address = row['function_summary']
+            require(address not in summaries, 'duplicate exported function summary')
+            summaries[address] = row['branches']
+        else:
+            require(set(row) == BRANCH_FIELDS and row['site'] not in branches, 'duplicate/invalid exported branch')
+            decoded = conditional_edges(row['site'], row['bytes'])
+            require(decoded == (row['mnemonic'], row['taken'], row['fallthrough']), 'exported branch edges differ')
+            branches[row['site']] = row
+    counts = Counter(r['function'] for r in branches.values())
+    require(len(branches) == 21306 and len(summaries) == 7380 and
+            all(counts[a] == n for a,n in summaries.items()) and set(counts) <= set(summaries),
+            'incomplete branch export')
+    return branches, summaries
+
+
+def validate_branches(inventory, functions, open_tasks, binary=None):
+    require(inventory.get('version') == 2, 'unsupported individual branch schema')
+    original, summaries = load_branch_export(inventory['branch_export'])
+    require(set(summaries) == {a for a in functions if not a.startswith('EXTERNAL:')} and
+            all(functions[a]['branches'] == n for a,n in summaries.items()) and
+            all(r['branches'] == 0 for a,r in functions.items() if a.startswith('EXTERNAL:')),
+            'function branch counts differ from complete export')
+    sites, owners, guards = set(), Counter(), {}
+    for row in inventory['branches']:
+        site = row['site']
+        require(site not in sites, 'duplicate individual branch: ' + site)
+        sites.add(site)
+        require(site in original and set(row) == BRANCH_FIELDS | {'owner','evidence'} and
+                all(row[k] == original[site][k] for k in BRANCH_FIELDS),
+                'branch instruction/function/edges differ from export: ' + site)
+        # This publication assigns every branch to pending behavior work. A
+        # function-level oracle or unreachability label cannot certify its edges.
+        require(row['owner'] in open_tasks and row['owner'] == functions[row['function']]['owner'],
+                'incorrect individual branch task link: ' + site)
+        require(row['evidence'] == [], 'function evidence cannot certify individual branch execution: ' + site)
+        owners[row['owner']] += 1
+        guards[site] = row['bytes']
+    require(sites == set(original), 'missing individual branch records')
+    checked = inv.original_bytes(binary, guards) if binary else 0
+    return dict(individual_branches=len(sites), branch_guards_checked=checked,
+                branch_owners=dict(sorted(owners.items())), branch_export_sha256=BRANCH_EXPORT_SHA)
 
 
 def load(path=INVENTORY):
@@ -90,9 +168,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--inventory', type=Path, default=INVENTORY)
     parser.add_argument('--report', type=Path)
+    parser.add_argument('--binary', type=Path, help='check all individual branch bytes against the retail DLL')
     args = parser.parse_args()
     result = validate(load(args.inventory), json.loads(inv.CORPUS.read_text()), inv.TODO.read_text(),
-                      json.loads(FORCED.read_text()))
+                      json.loads(FORCED.read_text()), args.binary)
     output = json.dumps(result, indent=2) + '\n'
     if args.report:
         args.report.write_text(output)

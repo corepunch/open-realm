@@ -57,3 +57,6 @@ Move preservation and independent ascent after ability retirement. Its initial
 red was28/416 failures; expanded regression468/468 and full unit142/15847 now
 pass in each edition. The exact retail removal evidence is linked from the
 [audit334 section](retail-pathfinding-separation.md#audit334-permanent-morph-removal).
+
+Configured `Misc/MorphAlternateDisable` passive availability, its takeoff-rebind
+inverse and detach are documented in [Stone Form passive availability](stone-form-passive-availability.md).

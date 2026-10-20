@@ -243,7 +243,7 @@ static ability_t abilitylist[] = {
     { "Aneu", CAbilityPassive, AB_PASSIVE },  /* Select Hero */
     { "Ane2", CAbilityPassive, AB_PASSIVE },  /* Neutral Building (any unit) */
     { "ANfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Firebolt */
-    { "Agld", CAbilityGoldMine, 0 },  /* Gold Mine ability */
+    { "Agld", CAbilityGoldMine, AB_ENGINE_EVENTS },  /* Gold Mine ability */
     { "Artn", CAbilityReturn, AB_COMMAND },  /* Return */
     { "Avul", CAbilityPassive, AB_PASSIVE },  /* Invulnerable */
     { "Abli", CAbilityBlightGrowth, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE | AB_INNATE | AB_TYPE_INIT },  /* Blight */

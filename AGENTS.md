@@ -101,6 +101,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Allies/F11 dialog, directional alliances, shared vision/control, draft/Accept semantics | [docs/games/warcraft-3/allies-menu.md](docs/games/warcraft-3/allies-menu.md) |
 | WC3 Hero skill tree, skill points, rank requirements, learning UI, JASS progression | [docs/games/warcraft-3/hero-abilities.md](docs/games/warcraft-3/hero-abilities.md) |
 | WC3 Arthas Paladin/Death Knight abilities, hero aura presentation, corpse revival/sacrifice contracts | [docs/games/warcraft-3/arthas-abilities.md](docs/games/warcraft-3/arthas-abilities.md) |
+| WC3 Harvest/Return current heads, hidden-miner retention and mine-owned death cleanup | [docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md](docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
 | WC3 neutral shops, patrons, item/mercenary stock and purchase/pawn flow | [docs/games/warcraft-3/neutral-shops.md](docs/games/warcraft-3/neutral-shops.md) |
 | WC3 Orc Burrow cargo, Load/Stand Down, occupant state, Burrow attack gating/scaling | [docs/games/warcraft-3/orc-burrows.md](docs/games/warcraft-3/orc-burrows.md) |
@@ -138,6 +139,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 retail pathfinding corpus, strict fresh-report runner, known adaptive differences and archive provenance limits | [docs/games/warcraft-3/retail-pathfinding-corpus.md](docs/games/warcraft-3/retail-pathfinding-corpus.md) |
 | WC3 Town preferred targets, SuicideUnit admission/query ownership and mutable classification | [docs/games/warcraft-3/retail-pathfinding-captain376.md](docs/games/warcraft-3/retail-pathfinding-captain376.md) |
 | WC3 Waygate entrance and cached-exit Move tasks, live retargeting and saved continuation | [docs/games/warcraft-3/retail-pathfinding-waygate-point-tasks.md](docs/games/warcraft-3/retail-pathfinding-waygate-point-tasks.md) |
+| WC3 Stone Form configured passive availability, takeoff-rebind release and detach inverse | [docs/games/warcraft-3/stone-form-passive-availability.md](docs/games/warcraft-3/stone-form-passive-availability.md) |
 | WC3 Chemical Rage configured passive availability and pending/active detach inverse | [docs/games/warcraft-3/chemical-rage-passive-availability.md](docs/games/warcraft-3/chemical-rage-passive-availability.md) |
 | WC3 Robo-Goblin configured passive availability and pending/active detach inverse | [docs/games/warcraft-3/robo-goblin-passive-availability.md](docs/games/warcraft-3/robo-goblin-passive-availability.md) |
 | WC3 Captain roster/target event masks, early death registry publication and saved FIFO ranks | [docs/games/warcraft-3/retail-pathfinding-captain-event-roles.md](docs/games/warcraft-3/retail-pathfinding-captain-event-roles.md) |

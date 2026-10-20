@@ -1,17 +1,24 @@
 # Reachable function and branch inventory (BASE-03.1)
 
-**Closure audit (2026-10-20): BASE-03.1 is open.** The fixture publishes function
-rows and branch totals, but no individual branch addresses/edges or per-branch
-evidence/task records. Its validator checks sums and function owners rather than
-branch completeness. The corrected validator reports `closure_verified: false`
-and rejects checking off BASE-03.1 while this function-only schema is used;
-failing-first tests reproduce the former false acceptance. The original metrics export truncates one function
-(`6f4725f0`, 462 branches). Preserve this useful partial inventory; complete the
-branch export and add missing/duplicate/incorrect-link rejection tests before
-closing the leaf. Instruction guards establish binary identity, not execution
-coverage or engine parity.
+**Repair after the 2026-10-20 closure audit:** the version2 fixture now includes
+all **21,306 individual conditional jumps** from **7,380 internal functions**;
+19 import leaves have no instructions. Each branch records its function, address,
+exact instruction bytes, mnemonic, taken edge, fallthrough and remaining behavior
+task. Every branch is assigned to its function's open owner; none is certified as
+executed or unreachable by a function-level label. BASE-03.1's inventory criterion
+passes integration acceptance (9,974 native tests and2,912 Python evidence tests,
+actual full-checkpoint exit0). All linked behavior remains in the open backlog.
 
-The partial inventory records: the direct-call and resolved-virtual
+The former function-only fixture could not establish closure: its validator
+checked totals and function owners, and the metrics source truncated function
+`6f4725f0`. The complete exporter now emits all 462 branches of that function.
+Failing-first tests reproduced acceptance of missing/duplicate branches, altered
+instructions/edges/functions, incorrect task links and inherited function oracle
+claims. The repaired validator rejects them, as well as altered export identity
+or bytes. The old function-only schema still returns `closure_verified: false`
+and cannot close the leaf. **Inventory closure never certifies engine parity.**
+
+The reachable function inventory records: the direct-call and resolved-virtual
 closure of the **163 BASE-01 entry points** (player UI, JASS, Captain AI, target,
 axis/forced-position roots and all BASE-01.4 native entries) contains **7,399
 functions with 21,306 conditional branches**. Every function has one status and
@@ -22,13 +29,13 @@ inside oracle instruction-guard ranges. 4,456 computed call sites whose receiver
 class cannot be derived statically are E2E-05.2 rows, so the reachable set is a
 lower bound for indirect dispatch. No TODO leaf is added.
 
-At closure every row other inventories had assigned to BASE-03.1 is reassigned
+Every row other inventories had assigned to BASE-03.1 is reassigned
 from the reachable evidence: 309 virtual slots, 58 globals and 132 fields of the
 [field inventory](retail-pathfinding-fields-inventory.md), 98 corpus exclusions,
 12 arithmetic rows and BASE-01.4 row B014-71. Validate:
 
 ```sh
-python3 tools/ghidra/audit_wc3_pathing_reachable.py --report /tmp/reachable.json
+python3 tools/ghidra/audit_wc3_pathing_reachable.py --binary /path/to/game.dll --report /tmp/reachable.json
 python3 -m unittest discover -s tests -p test_wc3_pathfinding_reachable_inventory.py
 ```
 
@@ -36,7 +43,11 @@ The verifier requires unique rows, a guarding oracle for covered functions, an
 out-of-scope category for excluded ones, open owners for every row and unresolved
 site, every BASE-01.4 native entry among the roots (one registered AI native
 without a Ghidra function is an owned `undefined_roots` entry) and branch totals
-equal to the rows. Generators, the exported call graph and cached responses are
+equal to the rows. Version2 additionally matches every individual branch to the
+complete export, independently decodes its x86 conditional jump edges, verifies
+per-function completeness (including zero-branch functions), and checks each
+open task link. `--binary` verifies every branch instruction against the pinned
+retail DLL. Generators, the exported call graph and cached responses are
 archived under `/GitHub/wc3-analysis/runtime/claude-base031/`.
 
 ## Totals
@@ -260,3 +271,28 @@ BASE-01.4 row B014-71 (owned by BASE-03.1: unexpanded CUnit vslot80 callers): R2
 - Categories for unnamed functions are interpolated from compilation-unit anchors and module ranges; ~244 reachable functions are `unknown` and treated as in scope.
 - Branch lists come from metrics.jsonl (truncated at 4000 characters for very large functions; flagged `branch_list_truncated`).
 - `covered` means an oracle executes, hooks or guards bytes inside the function, not that every path is behaviour-verified; the guarded-branch ratio is the per-branch linkage.
+
+## Reproduce individual branch publication
+
+The checked-in `ExportReachableBranchRecords.java` iterates the complete body of
+each reachable Ghidra function without a display limit. It reads instructions
+only and checks the original executable SHA-256. `branches` in the version2
+inventory is the current branch source; the old `branch_list_truncated` function
+flag describes the original metrics source, not this complete export.
+
+```sh
+python3 tools/ghidra/generate_wc3_pathing_reachable_branches.py --functions /tmp/reachable-functions.txt
+# In Ghidra, run ExportReachableBranchRecords.java on game.dll with arguments:
+# /tmp/reachable-functions.txt /tmp/reachable-branches.jsonl
+python3 tools/ghidra/generate_wc3_pathing_reachable_branches.py --export /tmp/reachable-branches.jsonl --output /tmp/reachable-inventory.json.gz
+cmp tools/ghidra/fixtures/retail-pathfinding-reachable-inventory-1.27.json.gz /tmp/reachable-inventory.json.gz
+```
+
+A second fresh Ghidra export reproduces the checked-in JSONL byte for byte
+(SHA-256 `ec85c45562e30defdc3cb2a1fbc2c3fc2045c6d4f50d790e8c2bda7a14fe0032`).
+The compressed JSONL is published separately from the linked inventory so
+removing a branch and adjusting totals still fails against the original export.
+The generator rejects a different export pending review. All 21,306 instruction
+bytes match the original PE; this proves identity and decoded edges, not that
+both edges were exercised. E2E-05.1 still owns the combined evidence/missing-fix
+matrix and READY still requires behavior acceptance.

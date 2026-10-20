@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Captain473, the inventory has **609 entries**: **328** oracle contracts
-(including variants) supplied by **256** distinct verifier scripts, **121**
+As of Captain473, Stone Form390 and Harvest H012, the inventory has **611 entries**: **330** oracle contracts
+(including variants) supplied by **258** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -2500,3 +2500,13 @@ Captain473 registers moving-roster retreat and native retail UI save/load.
 Both engine editions reproduce the two public journeys and saved continuations
 word for word (10 tests / 156,882 assertions each). Combat, help and transport
 remain in GROUP-03.4.7.3. [Evidence](retail-pathfinding-captain473.md).
+
+Stone Form390 registers configured passive availability at landing/takeoff rebind,
+initial/late attachment, pending/active removal and in-process saves. Its preserved
+candidate passes 32 tests / 22,031 assertions per edition. Remaining Morph
+producers and compositions stay in SEP-01.2. [Evidence](stone-form-passive-availability.md).
+
+Harvest H012 registers Ahar gold/lumber head ownership, hidden successors,
+mine-owned death cleanup and Save218 rejection. Six tests /251 assertions pass
+per edition; remaining ORDER-01.12 rows retain explicit exclusions.
+[Evidence](retail-pathfinding-harvest-ownership.md).

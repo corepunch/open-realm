@@ -78,3 +78,13 @@ controls. The shared configured helper is invoked by Chemical Rage, ANrg, Bear a
 Burrow/Submerge keep their unconditional policy. Mount reachability, other concrete
 Morph subclasses and counted-owner compositions remain in existing SEP-01.2.
 [Evidence](chemical-rage-passive-availability.md).
+
+Payoff390 adds the concrete Stone Form configured availability producer: the actual
+v41c policy, the concrete +a4 removal (common540e30 then its own clock cancel) and the
+rebind-phase562c50 contract. Acquisition follows the deferred landing rebind; the
+reverse takeoff rebinds first and releases before acquiring separation. Initial/late
+passive attachment and pending/active detach inverses are supported by repeated
+public/native controls. The shared configured helper is invoked by Stone Form,
+Chemical Rage, ANrg, Bear and Raven; Burrow/Submerge keep their unconditional policy.
+Avenger/Ethereal/Corporeal/Phoenix, Mount reachability and counted-owner compositions
+remain in existing SEP-01.2. [Evidence](stone-form-passive-availability.md).

@@ -142,7 +142,9 @@ bool S_UnitTypeReturnsGold(uint32_t unit_id) {
 bool S_CanReturnResourceAt(edict_t *unit, edict_t *building, returnResource_t resource) {
     uint32_t count;
     /* Construction keeps the authored capability unavailable until completion. */
-    if (!unit || !building || !building->inuse || building->s.player != unit->s.player ||
+    /* Public RemoveUnit retires a drop-off before deferred reclamation;
+     * the returning worker retires on its next tick (live H012 scene13). */
+    if (!unit || !building || !building->inuse || G_IsDeferredFree(building) || building->s.player != unit->s.player ||
         M_IsDead(building) || building->construction) return false;
     unitAbilityToken_t const *tokens = G_UnitAbilityTokens(building->data.UnitAbilities, &count);
     FOR_LOOP(i, count)
@@ -473,6 +475,140 @@ bool harvest_auto_start_lumber(edict_t *self) {
     return harvest_auto_start(self, RETURN_RESOURCE_LUMBER);
 }
 
+typedef enum { HARVEST_TARGET_NONE, HARVEST_TARGET_ENTANGLED, HARVEST_TARGET_HAUNTED, HARVEST_TARGET_GOLD, HARVEST_TARGET_TREE } harvestTargetKind_t;
+
+/* Explicit Harvest validates its concrete family before FIFO mutation. The
+ * Ahar deposit publishes Harvest to both mines and trees (438880). */
+static harvestTargetKind_t unit_harvest_target_kind(edict_t *self, edict_t *target) {
+    if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','w','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','e','g','m')))
+        return HARVEST_TARGET_ENTANGLED;
+    if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','a','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m')))
+        return HARVEST_TARGET_HAUNTED;
+    if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','h','a','r')) && S_GoldMineCanHarvest(target))
+        return HARVEST_TARGET_GOLD;
+    if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE && !M_IsDead(target))
+        return HARVEST_TARGET_TREE;
+    return HARVEST_TARGET_NONE;
+}
+
+bool S_HarvestStartTarget(edict_t *self, edict_t *target) {
+    switch (unit_harvest_target_kind(self, target)) {
+    case HARVEST_TARGET_ENTANGLED: return S_CargoOrderBoard(self, target);
+    case HARVEST_TARGET_HAUNTED: return S_AcolyteHarvestOrder(self, target);
+    case HARVEST_TARGET_GOLD: return harvest_gold_order(self, target);
+    case HARVEST_TARGET_TREE: harvest_start(self, target); return true;
+    default: return false;
+    }
+}
+
+bool S_HarvestAcceptsTarget(edict_t *self, edict_t *target) {
+    return unit_harvest_target_kind(self, target) != HARVEST_TARGET_NONE;
+}
+
+/* Original438410/438880 append an internal user head (Resume Harvesting
+ * d0031 to the drop-off, Harvest d0032 to the mine/tree). Dispatch67abe0
+ * publishes it before task construction; a callback replacement wins. */
+bool S_HarvestPublishPhase(edict_t *worker, cstring_t order, edict_t *target) {
+    if (!worker || !order || !target) return false;
+    uint32_t const spawn = worker->spawn_time, id = G_OrderId(order);
+    unitOrder_t active = {.target_type = UNIT_ORDER_TARGET_ENTITY, .point = target->s.origin2,
+        .target_number = (uint32_t)target->s.number, .target_spawn_time = target->spawn_time,
+        .target_is_unit = !G_IsDestructable(target), .issuer_player = worker->s.player, .order_id = id};
+    snprintf(active.order, sizeof(active.order), "%s", order);
+    worker->current_order_id = id;
+    G_SetActiveUnitOrder(worker, &active);
+    uint32_t const revision = G_UnitMoveRevision(worker);
+    G_PublishIssuedTargetOrder(worker, order, target, worker->s.player);
+    return worker->inuse && worker->spawn_time == spawn && !M_IsDead(worker) && !G_IsDeferredFree(worker) &&
+           worker->current_order_id == id && G_UnitMoveRevision(worker) == revision;
+}
+
+typedef struct {
+    returnResource_t resource;
+    edict_t *target; /* Drop-off while carrying; otherwise the remembered resource. */
+    bool carrying;
+} harvestImmediate_t;
+
+/* Return Resources (852020) needs a carried load and a compatible drop-off.
+ * Resume Harvesting (852017) additionally walks to the remembered live mine
+ * or tree without a load. Validation precedes FIFO cancellation. */
+static bool harvest_immediate_target(edict_t *ent, bool resume, harvestImmediate_t *out) {
+    *out = (harvestImmediate_t){0};
+    if (!ent || (ent->aiflags & AI_IMMOBILE) || (!S_HarvestCanGold(ent) && !S_HarvestCanLumber(ent))) return false;
+    if (ent->harvested_gold > 0 || ent->harvested_lumber > 0) {
+        out->carrying = true;
+        out->resource = ent->harvested_gold > 0 ? RETURN_RESOURCE_GOLD : RETURN_RESOURCE_LUMBER;
+        out->target = S_FindNearestResourceDropoff(ent, out->resource);
+        return out->target != NULL;
+    }
+    if (!resume) return false;
+    edict_t *remembered = ent->secondarygoal;
+    if (S_HarvestCanGold(ent) && S_GoldMineCanHarvest(remembered)) {
+        out->resource = RETURN_RESOURCE_GOLD;
+        out->target = remembered;
+    } else if (S_HarvestCanLumber(ent) && remembered && remembered->targtype == TARG_TREE && !M_IsDead(remembered)) {
+        out->resource = RETURN_RESOURCE_LUMBER;
+        out->target = remembered;
+    }
+    return out->target != NULL;
+}
+
+bool S_HarvestCanIssueImmediate(edict_t *ent, bool resume) {
+    harvestImmediate_t target;
+    return harvest_immediate_target(ent, resume, &target);
+}
+
+bool S_HarvestIssueImmediate(edict_t *ent, bool resume) {
+    harvestImmediate_t target;
+    if (!harvest_immediate_target(ent, resume, &target)) return false;
+    if (target.carrying)
+        return target.resource == RETURN_RESOURCE_GOLD ? harvest_gold_return_to(ent, target.target) :
+            harvest_lumber_return_to(ent, target.target);
+    if (target.resource == RETURN_RESOURCE_GOLD) harvest_gold_start(ent, target.target);
+    else harvest_start(ent, target.target);
+    return true;
+}
+
+/* Explicit Return Resources completes at deposit (438880 third argument);
+ * internal resumption also yields to any pending user successor (687f60). */
+bool S_HarvestDepositResumes(edict_t const *ent) {
+    return ent && ent->current_order_id != G_OrderId("returnresources") && !G_UnitQueuedOrderCount(ent);
+}
+
+/* Ahar autoharvestgold publishes its immediate command, then the selected
+ * nearest mine as an ordinary Harvest head (live H012 scene19). */
+bool S_HarvestOwnsAutoGold(edict_t const *self) {
+    /* Acolyte Aaha and Wisp Entangle cargo own their own racial producers. */
+    return self && !G_ActorHasSkill(self, "Aaha") && !G_ActorHasAbilityCode(self, MAKEFOURCC('A','w','h','a'));
+}
+
+bool S_HarvestAutoGoldOrder(edict_t *self) {
+    if (!S_HarvestOwnsAutoGold(self) || (self->aiflags & AI_IMMOBILE) || !S_HarvestCanGold(self)) return false;
+    if (!harvest_find_nearest_resource(self, RETURN_RESOURCE_GOLD)) return false;
+    uint32_t const spawn = self->spawn_time;
+    G_ClearUnitOrderQueue(self);
+    self->current_order_id = G_OrderId("autoharvestgold");
+    G_PublishIssuedImmediateOrder(self, self->current_order_id, self->s.player, "autoharvestgold");
+    if (!self->inuse || self->spawn_time != spawn || M_IsDead(self) || G_IsDeferredFree(self) ||
+        self->current_order_id != G_OrderId("autoharvestgold")) return true;
+    if (!S_HarvestAutoGoldStart(self)) self->current_order_id = 0;
+    return true;
+}
+
+bool S_HarvestCanAutoGold(edict_t *self) {
+    return S_HarvestOwnsAutoGold(self) && !(self->aiflags & AI_IMMOBILE) && S_HarvestCanGold(self) &&
+           harvest_find_nearest_resource(self, RETURN_RESOURCE_GOLD) != NULL;
+}
+
+/* The activated autoharvest head selects the nearest mine at dispatch,
+ * including a retained hidden-miner command (live I012 scene6). */
+bool S_HarvestAutoGoldStart(edict_t *self) {
+    edict_t *mine = harvest_find_nearest_resource(self, RETURN_RESOURCE_GOLD);
+    if (!mine) return false;
+    if (S_HarvestPublishPhase(self, "harvest", mine)) harvest_gold_order(self, mine);
+    return true;
+}
+
 bool G_ActorAddSkill(edict_t *ent, uint32_t code) {
     int32_t index;
     if (!ent || !code || actor_has_skill(ent, code)) return false;
@@ -578,7 +714,11 @@ static void harvest_finish_lumber_deposit(edict_t *ent) {
         tree = find_another_tree(ent);
     S_SetMoveGoal(ent, &ent->secondarygoal, tree);
     S_SetMoveGoal(ent, &ent->goalentity, tree);
-    if (tree) {
+    /* Original438880 is shared by both resources: explicit Return or a
+     * pending user successor completes; otherwise Harvest d0032 is
+     * published to the tree before the walk (live I012 scenes7..9). */
+    if (tree && S_HarvestDepositResumes(ent)) {
+        if (!S_HarvestPublishPhase(ent, "harvest", tree)) return;
         G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
         move_reset_progress(ent);
         harvest_walk(ent);
@@ -679,11 +819,24 @@ static umove_t harvest_move_walkback = { "walk", ai_harvest_walkback, NULL, CAbi
 static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, CAbilityHarvest };
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, CAbilityHarvest };
 
+/* Original437fb0: a full load with no pending user successor (687f60)
+ * appends Resume Harvesting d0031 to the nearest lumber drop-off. */
+static void harvest_lumber_begin_return(edict_t *ent) {
+    edict_t *dropoff;
+
+    if (G_UnitQueuedOrderCount(ent) || !(dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER))) {
+        ent->stand(ent);
+        return;
+    }
+    if (S_HarvestPublishPhase(ent, "resumeharvesting", dropoff))
+        harvest_lumber_return_to(ent, dropoff);
+}
+
 void harvest_cooldown(edict_t *ent) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
 
     if (ent->harvested_lumber >= tuning.lumber_capacity) {
-        harvest_walkback(ent);
+        harvest_lumber_begin_return(ent);
     } else if (M_IsDead(ent->goalentity)) {
         look_for_another_tree(ent);
     } else {
@@ -1099,14 +1252,10 @@ BZ_COMMAND_PROC(AbilityAcolyteHarvest) {
 
 /* ---- Return Resources: standalone command to deposit carried resources --- */
 BZ_COMMAND_PROC(AbilityReturn) {
+    /* The command card issues the same public Return Resources head. */
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        if (ent->harvested_lumber > 0) {
-            harvest_walkback(ent);
-        } else if (ent->harvested_gold > 0) {
-            edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
-            if (!harvest_gold_return_to(ent, dropoff))
-                ent->stand(ent);
-        }
+        if (ent->harvested_lumber > 0 || ent->harvested_gold > 0)
+            unit_issueimmediateorder(ent, "returnresources");
     }
 }
 
