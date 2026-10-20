@@ -8,8 +8,8 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Execution order for the remaining 30 (2026-10-18)
 
-**Current closure result: 307/336 complete, 29 open.** GROUP-01.2 is now verified
-across its existing producer matrix. The execution plan below retains its
+**Current closure result: 308/336 complete, 28 open.** GROUP-01.2 is now verified
+across its existing producer matrix and BASE-03.2 publishes the field inventory. The execution plan below retains its
 original 30-leaf baseline and milestone counts as planning history.
 
 **Baseline: 306/336 complete, 30 open.** Morph382 is committed as
@@ -95,6 +95,11 @@ until the remaining matrices are frozen; test counts and research volume do not
 substitute for leaf closure.
 
 ## Progress
+
+Fields032 closes BASE-03.2: a complete read/write inventory of all839 recovered
+layout fields plus426 virtual slots,179 globals and599 unnamed prefix accesses,
+with every unresolved row owned by an existing open leaf. **28 tasks remain.**
+[Inventory](retail-pathfinding-fields-inventory.md).
 
 Group012 closes GROUP-01.2 by verifying existing behavior across the finite
 selected ordinary/Alt/singleton, independent JASS and Captain producer matrix.
@@ -1719,7 +1724,7 @@ BASE-02.1's remaining full authored producer/lane/support-surface inventory.
 ### BASE-03 — Coverage inventory
 
 - [ ] **BASE-03.1** Export a reachable function/branch inventory from the entry points identified in BASE-01; link each known branch to its evidence or task ID.
-- [ ] **BASE-03.2** Publish a field read/write inventory for map, path, mover, group and order state, including virtual callbacks and globals.
+- [x] **BASE-03.2** Publish a field read/write inventory for map, path, mover, group and order state, including virtual callbacks and globals. All839 fields of the115 recovered layouts have one row with attributed writers/readers, retail save/load accessor, anchors, engine counterpart and owner:427 covered,400 partial,12 never accessed. 426 pathing virtual slots,179 globals and599 accessed unnamed offsets are owned; every unresolved row names an existing open leaf and no TODO is added. RTTI pins mover/path/group/shared layouts to CPoPosCl/CLrPath/CPrCluster/CPrClusterGroup and their unnamed save/load slots +24/+28. The verifier rejects layout drift, stale anchors and closed owners. [Inventory](retail-pathfinding-fields-inventory.md).
 - [x] **BASE-03.3** Assign every current oracle exclusion to one remaining task. At closure, all717 original statements across278 oracle contracts have exactly one of26 remaining owners; zero unassigned, no new tasks. Exact-text/coverage/open-owner validation and 12 rejection tests pass. Historical closed-task references retain a separate evidence-disposition owner; no behavior-gap closure is implied. See [exclusion ownership audit](retail-pathfinding-exclusion-owners.md).
 
 ### BASE-04 — Shared scenario format
