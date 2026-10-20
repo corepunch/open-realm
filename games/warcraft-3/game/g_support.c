@@ -52,7 +52,7 @@ static float support_sub(float a,float b) { volatile float r=a-b; return r; }
 static float support_mul(float a,float b) { volatile float r=a*b; return r; }
 static float support_div(float a,float b) { volatile float r=a/b; return r; }
 
-static flightSupport_t flight_support, slope_support;
+static flightSupport_t flight_support, slope_support, water_support;
 static flightSupport_t presentation_mips[3];
 
 /*748470 builds mode0 from four packed terrain vertices per128-unit tile.
@@ -95,7 +95,219 @@ static void slope_support_initialize(void) {
     }
 }
 
+/*7446e0's corner adjustment uses the packed ramp topology, independently
+ * of physical interpolation and the SSE presentation grid.7452b0 enumerates
+ * each3x3 neighborhood in x-major order. */
+static war3mapVertex_t const *support_vertex(int x,int y) {
+    return (uint32_t)x<world.map->width && (uint32_t)y<world.map->height ?
+        (war3mapVertex_t const *)world.map->vertices+(size_t)y*world.map->width+x : NULL;
+}
+
+/*74a910: highest ramp layer among the four touching terrain cells. The
+ * minimum starts at Terrain988, derived from authored Terrain.MaxHeight. */
+static bool support_ramp_high(int x,int y,int cap) {
+    int low=cap,high=0;
+    FOR_LOOP(dy,2)FOR_LOOP(dx,2) {
+        int cx=x-dx,cy=y-dy;
+        if((uint32_t)cx>=world.map->width-1 || (uint32_t)cy>=world.map->height-1)continue;
+        FOR_LOOP(vy,2)FOR_LOOP(vx,2) {
+            war3mapVertex_t const *v=support_vertex(cx+vx,cy+vy);
+            if(v->ramp){low=MIN(low,v->level&15);high=MAX(high,v->level&15);}
+        }
+    }
+    return low!=high && (support_vertex(x,y)->level&15)==high;
+}
+
+/*744750 returns-1/0/1/2; security-cookie epilogues obscure these integer
+ * results in the decompilation. Keep the assembly's all-ramp distinction. */
+static int support_ramp_kind(int x,int y,int cap) {
+    war3mapVertex_t const *self=support_vertex(x,y),*v[9];
+    if(!self->ramp)return -1;
+    if(support_ramp_high(x,y,cap))return 0;
+    int low=self->level&15,high=low,ramp_low=low,ramp_high=low;
+    bool all=true;
+    FOR_LOOP(dx,3)FOR_LOOP(dy,3) {
+        war3mapVertex_t const *n=v[dx*3+dy]=support_vertex(x+(int)dx-1,y+(int)dy-1);
+        if(!n){all=false;continue;}
+        int layer=n->level&15;low=MIN(low,layer);high=MAX(high,layer);
+        if(!n->ramp){all=false;continue;}
+        ramp_low=MIN(ramp_low,layer);ramp_high=MAX(ramp_high,layer);
+    }
+    if((all && high==low) || ramp_high-ramp_low>1)return -1;
+    bool a=v[1] && v[7] && v[1]->ramp && v[7]->ramp && ((v[1]->level^v[7]->level)&15);
+    bool b=v[3] && v[5] && v[3]->ramp && v[5]->ramp && ((v[3]->level^v[5]->level)&15);
+    if(a && b)return high-low<=1?2:-1;
+    if(a || b)return high-low<=1?1:-1;
+    return all?2:0;
+}
+
+static char support_ramp_type(int x,int y,int cap) {
+    bool high=support_ramp_high(x,y,cap);
+    if(!support_vertex(x,y)->ramp)return high?'B':'A';
+    if(high)return 'H';
+    int kind=support_ramp_kind(x,y,cap);
+    return kind>=0?"LRS"[kind]:'!';
+}
+
+/*73a380 admits only the authored corner/edge patterns. No neighborhood
+ * outside the map can supply the quarter/three-quarter adjustment. */
+static int support_ramp_corner(int x,int y,int cap) {
+    char type[9];int lows=0,highs=0,last_low=-1,last_high=-1;
+    FOR_LOOP(dx,3)FOR_LOOP(dy,3) {
+        int nx=x+(int)dx-1,ny=y+(int)dy-1;
+        if(!support_vertex(nx,ny))return -1;
+        type[dx*3+dy]=support_ramp_type(nx,ny,cap);
+    }
+    static uint8_t const corners[4][2]={{0,0},{0,2},{2,0},{2,2}};
+    FOR_LOOP(i,4) {
+        char c=type[corners[i][0]*3+corners[i][1]];
+        if(c=='L'){lows++;last_low=i;}
+        if(c=='H'){highs++;last_high=i;}
+    }
+    if(lows==1 && highs==3) {
+        int a=corners[last_low][0],b=corners[last_low][1];
+        return type[1+a*3]=='R' && type[3+b]=='R' && type[7-a*3]=='H' && type[5-b]=='H'?1:-1;
+    }
+    if(lows==2 && highs==2) {
+        int a=corners[last_low][0],b=corners[last_low][1];
+        return type[8-a*3-b]=='L' && type[1]=='R' && type[7]=='R' && type[3]=='R' && type[5]=='R'?2:-1;
+    }
+    if(lows==3 && highs==1) {
+        int a=corners[last_high][0],b=corners[last_high][1];
+        return type[1+a*3]=='R' && type[3+b]=='R' && type[7-a*3]=='L' && type[5-b]=='L'?0:-1;
+    }
+    return -1;
+}
+
+static float support_ramp_offset(int x,int y,int cap) {
+    if(!support_vertex(x,y)->ramp)return 0;
+    char type=support_ramp_type(x,y,cap);
+    if(type=='R')return wc3_mul(.5f,128);
+    if(type!='S')return 0;
+    int corner=support_ramp_corner(x,y,cap);
+    /*74470c/74470f/744712 map0->.25,1->.75,2->.5. */
+    static float const fractions[]={.25f,.75f,.5f};
+    return corner>=0?wc3_mul(fractions[corner],128):0;
+}
+
+/* Storm574 (1503b140) parses metadata through binary64 SSE and rounds once
+ * to float. JASS S2R070de0 is a different parser (no exponents, truncation).
+ * Explicit stores retain each native binary64 rounding and prohibit FMA. */
+static double support_double_add(double a,double b) { volatile double v=a+b;return v; }
+static double support_double_mul(double a,double b) { volatile double v=a*b;return v; }
+static double support_double_div(double a,double b) { volatile double v=a/b;return v; }
+static double support_decimal_power(int32_t exponent) {
+    uint32_t n=exponent<0?0u-(uint32_t)exponent:(uint32_t)exponent;
+    double base=10,result=1;
+    for(;;) {
+        if(n&1)result=support_double_mul(result,base);
+        n>>=1;if(!n)break;
+        base=support_double_mul(base,base);
+    }
+    return exponent<0?support_double_div(1,result):result;
+}
+
+static float support_metadata_float(cstring_t text) {
+    if(!text)return 0;
+    bool negative=*text=='-';if(negative)text++;
+    cstring_t start=text;uint32_t chunk=0;double value=0;
+    while((unsigned char)*text>='0' && (unsigned char)*text<='9') {
+        chunk=chunk*10+(*text++-'0');
+        if(chunk>=0x19999999u) {
+            value=support_double_add(support_double_mul(value,support_decimal_power((int32_t)(text-start))),chunk);
+            chunk=0;start=text;
+        }
+    }
+    value=value!=0?support_double_add(support_double_mul(value,support_decimal_power((int32_t)(text-start))),chunk):chunk;
+    if(*text=='.') {
+        text++;int32_t place=-1;
+        while((unsigned char)*text>='0' && (unsigned char)*text<='9') {
+            /*1503a390 initializes its first20-place table with this same
+             * repeated-squaring power and multiply. Later digits do it inline. */
+            value=support_double_add(value,support_double_mul(*text++-'0',support_decimal_power(place--)));
+        }
+    }
+    if(*text=='e' || *text=='E') {
+        text++;if(*text=='+')text++;
+        bool minus=*text=='-';if(minus)text++;
+        uint32_t n=0;
+        while((unsigned char)*text>='0' && (unsigned char)*text<='9')n=n*10+(*text++-'0');
+        if(minus)n=0u-n;
+        int32_t exponent;memcpy(&exponent,&n,sizeof(exponent));
+        value=support_double_mul(value,support_decimal_power(exponent));
+    }
+    return (float)(negative?-value:value);
+}
+
+/*729f58/729f68: CVTTSS2SI returns integer-indefinite on unordered or out-of-
+ * range input. Do not use Warcraft070120's wrapping R2I conversion here. */
+static int32_t support_height_cap(float maximum) {
+    float value=support_div(support_sub(maximum,-256),128);
+    return value>=-2147483648.0f && value<2147483648.0f?(int32_t)value:INT32_MIN;
+}
+
+/*7488a0 creates one water type iff any packed vertex carries water. It
+ * selects <terrain tileset>Sha, falling back to LSha when that row is absent.
+ *748ab0 uses the database height directly, independently of surface rendering.
+ * This immutable derived input is rebuilt from the loaded map after load;
+ * unlike the finalized flyer field it contains no removed-object history. */
+static void water_support_initialize(void) {
+    if (water_support.values || !world.map || !world.map->vertices ||
+        world.map->width<2 || world.map->height<2) return;
+    flightSupport_t *f=&water_support;
+    f->width=world.map->width-1;f->height=world.map->height-1;
+    f->cell=TILE_SIZE;f->origin=world.map->center;
+    f->values=gi.MemAlloc((size_t)f->width*f->height*sizeof(float));
+    war3mapVertex_t const *vertices=world.map->vertices;
+    bool water=false;
+    FOR_LOOP(i,(size_t)world.map->width*world.map->height)if(vertices[i].water){water=true;break;}
+    /*729f08..729f6c: SSE(MaxHeight-(-256))/128, CVTTSS2SI. */
+    cstring_t maximum=Stb_IniCacheFind(&game.config.misc,"Terrain","MaxHeight");
+    int32_t cap=support_height_cap(support_metadata_float(maximum));
+    float offset=0;
+    if(water) {
+        WaterData_t const *row=G_WaterData(MAKEFOURCC(world.map->tileset,'S','h','a'));
+        if(!row->id) {
+            fprintf(stderr,"WC3 prepared water: missing Water.slk row %cSha; native default is LSha\n",world.map->tileset?world.map->tileset:'?');
+            row=G_WaterData(MAKEFOURCC('L','S','h','a'));
+            if(!row->id)fprintf(stderr,"WC3 prepared water: missing Water.slk LSha height; metadata scalar is unresolved\n");
+        }
+        offset=wc3_decimal(row->height);
+    }
+    FOR_LOOP(y,f->height)FOR_LOOP(x,f->width) {
+        float sum=0;
+        static uint8_t const corners[4][2]={{0,0},{1,0},{0,1},{1,1}};
+        FOR_LOOP(k,4) {
+            war3mapVertex_t const *v=vertices+(size_t)(y+corners[k][1])*world.map->width+x+corners[k][0];
+            float ground=wc3_sub(wc3_float(((v->accurate_height&0x3fffu)|0x22c000u)<<9),6144);
+            ground=wc3_add(ground,wc3_add(-256,wc3_mul(wc3_float(wc3_from_int(v->level&15)),128)));
+            ground=wc3_add(ground,support_ramp_offset(x+corners[k][0],y+corners[k][1],cap));
+            float height=ground;
+            if(water) {
+                float z=wc3_add(wc3_sub(wc3_float(((uint32_t)(v->waterlevel&0x3fff)<<9)|0x45800000u),6144),offset);
+                if(ground<=z)height=z;
+            }
+            sum=wc3_add(sum,height);
+        }
+        f->values[(size_t)y*f->width+x]=wc3_mul(.25f,sum);
+    }
+}
+
+/*7455a0: signed fine integers /4 truncate toward zero, then clamp. No
+ * interpolation or support from live widgets is part of this query. */
+float S_GetPreparedWaterSupport(vec2_t fine) {
+    water_support_initialize();
+    flightSupport_t const *f=&water_support;
+    if(!f->values)return 0;
+    uint32_t ux=wc3_int_bits(wc3_float_bits(fine.x)),uy=wc3_int_bits(wc3_float_bits(fine.y));
+    int32_t x,y;memcpy(&x,&ux,sizeof(x));memcpy(&y,&uy,sizeof(y));
+    x=MAX(0,MIN(x/4,(int32_t)f->width-1));
+    y=MAX(0,MIN(y/4,(int32_t)f->height-1));
+    return f->values[(size_t)y*f->width+x];
+}
+
 void S_ClearFlightSupport(void) {
+    gi.MemFree(water_support.values);water_support=(flightSupport_t){0};
     FOR_LOOP(i,3){gi.MemFree(presentation_mips[i].values);presentation_mips[i]=(flightSupport_t){0};}
     gi.MemFree(flight_support.values);
     flight_support = (flightSupport_t){0};
@@ -105,6 +317,7 @@ void S_ClearFlightSupport(void) {
 void S_InitFlightSupport(void) {
     S_ClearFlightSupport();
     slope_support_initialize();
+    water_support_initialize();
     if (!world.map || !world.map->vertices || world.map->width < 2 || world.map->height < 2) return;
     flightSupport_t *f = &flight_support;
     f->width = (world.map->width-1)*4;
@@ -481,5 +694,138 @@ TEST(wc3_support, bridge311_all_sampling_layers_match_retained_retail_grids) {
     }
     float value=123;T_ASSERT(!S_GetPresentationSupport((vec2_t){1024,672},4,&value));T_EQ(value,123);
     S_ClearFlightSupport();reset_entities();setup_test_world();
+}
+#endif
+
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_widgetgoal_water.h"
+TEST(wc3_support, widgetgoal_prepared_water_grid_matches_repeated_retail_input) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};world.map->tileset='L';
+    war3mapVertex_t *v=world.map->vertices;
+    FOR_LOOP(y,17)FOR_LOOP(x,17) {
+        bool water=y<=10 && x>=4 && x<=12;
+        v[y*17+x]=(war3mapVertex_t){.accurate_height=water?
+            0x2000-4*((x==4||x==5||x==11||x==12)?64:192):0x2000,
+            .waterlevel=8550,.water=water,.level=y>=12&&x>=8?3:2};
+    }
+    S_InitFlightSupport();
+    FOR_LOOP(y,16)FOR_LOOP(x,16)
+        T_EQ(wc3_float_bits(S_GetPreparedWaterSupport((vec2_t){x*4+1,y*4+3})),widgetgoal_water_grid[y*16+x]);
+    static vec2_t const edge[]={{-7,-1},{-.9f,0},{63.999f,63.999f},{64,64},{400,400}};
+    static unsigned const indices[]={0,0,255,255,255};
+    FOR_LOOP(i,5)T_EQ(wc3_float_bits(S_GetPreparedWaterSupport(edge[i])),widgetgoal_water_grid[indices[i]]);
+    /* No water vertices means no water type, even with authored raw levels. */
+    FOR_LOOP(i,17*17)v[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    S_ClearFlightSupport();S_InitFlightSupport();
+    T_EQ(S_GetPreparedWaterSupport((vec2_t){20,20}),0);
+    /* Non-stock Water.slk metadata must reach this producer without the
+     * surface's tile scale. A missing tileset selects the native LSha row. */
+    extern slkTestData_t *parse_slk_string(cstring_t);
+    extern void free_slk_rows(slkTestData_t *);
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nB;X2;Y2;D0\nC;Y1;X1;K\"waterID\"\nC;X2;K\"height\"\n"
+        "C;Y2;X1;K\"LSha\"\nC;X2;K12.5\nE\n");
+    slkTestData_t *old=G_SetSLKRows("WaterData",rows);
+    v[0].water=1;world.map->tileset='?';
+    S_ClearFlightSupport();S_InitFlightSupport();
+    T_EQ(S_GetPreparedWaterSupport((vec2_t){20,20}),102);
+    G_SetSLKRows("WaterData",old);free_slk_rows(rows);
+    S_ClearFlightSupport();reset_entities();setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_preparedwater_ramp.h"
+TEST(wc3_support, prepared_water_ramp_corners_match_repeated_native_producer) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();
+    stbIniCache_t saved_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Terrain]\nMaxHeight=1536\n"));
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};world.map->tileset='L';
+    FOR_LOOP(y,17)FOR_LOOP(x,17) {
+        bool ramp=(x==4 && y>=6 && y<=10) || (x>=7 && x<=10 && y>=6 && y<=10) || (x>=13 && y>=8);
+        ((war3mapVertex_t *)world.map->vertices)[y*17+x]=(war3mapVertex_t){
+            .accurate_height=8192,.waterlevel=6144,.water=1,.ramp=ramp,.level=2+(y>=8)};
+    }
+    S_InitFlightSupport();
+    FOR_LOOP(y,16)FOR_LOOP(x,16)
+        T_EQ(wc3_float_bits(S_GetPreparedWaterSupport((vec2_t){x*4+1,y*4+3})),preparedwater_ramp_grid[y*16+x]);
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=saved_misc;
+    S_ClearFlightSupport();reset_entities();setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_preparedwater_ramp_kernels.h"
+TEST(wc3_support, prepared_water_all_ramp_topologies_match_original_instructions) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();world.map->width=world.map->height=7;
+    T_EQ(sizeof(preparedwater_ramp_kernels)/sizeof(*preparedwater_ramp_kernels),28416);
+    FOR_LOOP(i,sizeof(preparedwater_ramp_kernels)/sizeof(*preparedwater_ramp_kernels)) {
+        typeof(preparedwater_ramp_kernels[0]) *c=preparedwater_ramp_kernels+i;
+        FOR_LOOP(j,49)((war3mapVertex_t *)world.map->vertices)[j]=(war3mapVertex_t){
+            .level=1+((c->layers[j/32]>>(j%32*2))&3),.ramp=(c->ramps>>j)&1};
+        T_EQ((uint32_t)support_ramp_kind(c->x,c->y,c->cap),c->kind);
+        T_EQ((uint32_t)support_ramp_type(c->x,c->y,c->cap),c->type);
+        if(c->type=='S')T_EQ((uint32_t)support_ramp_corner(c->x,c->y,c->cap),c->corner);
+        T_EQ(wc3_float_bits(support_ramp_offset(c->x,c->y,c->cap)),c->offset);
+    }
+    reset_entities();setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_support, prepared_water_authored_height_cap_reaches_native_corner_fields) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();world.map->width=world.map->height=7;
+    stbIniCache_t saved_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    FOR_LOOP(i,sizeof(preparedwater_ramp_fields)/sizeof(*preparedwater_ramp_fields)) {
+        typeof(preparedwater_ramp_fields[0]) *f=preparedwater_ramp_fields+i;
+        typeof(preparedwater_ramp_kernels[0]) *c=preparedwater_ramp_kernels+f->index;
+        char misc[80];snprintf(misc,sizeof(misc),"[Terrain]\nMaxHeight=%d\n",f->maximum);
+        Stb_IniCacheFree(&game.config.misc);T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,misc));
+        FOR_LOOP(j,49)((war3mapVertex_t *)world.map->vertices)[j]=(war3mapVertex_t){.accurate_height=8192,
+            .level=1+((c->layers[j/32]>>(j%32*2))&3),.ramp=(c->ramps>>j)&1};
+        S_InitFlightSupport();
+        FOR_LOOP(y,6)FOR_LOOP(x,6)
+            T_EQ(wc3_float_bits(S_GetPreparedWaterSupport((vec2_t){x*4+1,y*4+3})),f->values[y*6+x]);
+    }
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=saved_misc;
+    reset_entities();setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_support_metadata.h"
+TEST(wc3_support, prepared_height_metadata_matches_original_storm_and_sse) {
+    FOR_LOOP(i,sizeof(support_metadata_cases)/sizeof(*support_metadata_cases)) {
+        float value=support_metadata_float(support_metadata_cases[i].text);
+        T_EQ(wc3_float_bits(value),support_metadata_cases[i].value);
+        T_EQ((uint32_t)support_height_cap(value),support_metadata_cases[i].cap);
+    }
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_support, prepared_height_metadata_ini_reaches_native_field) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();world.map->width=world.map->height=7;
+    stbIniCache_t saved_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    FOR_LOOP(i,sizeof(support_metadata_fields)/sizeof(*support_metadata_fields)) {
+        typeof(support_metadata_fields[0]) *f=support_metadata_fields+i;
+        typeof(preparedwater_ramp_kernels[0]) *c=preparedwater_ramp_kernels+f->index;
+        char misc[128];snprintf(misc,sizeof(misc),"[Terrain]\nMaxHeight=%s\n",f->text);
+        Stb_IniCacheFree(&game.config.misc);T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,misc));
+        FOR_LOOP(j,49)((war3mapVertex_t *)world.map->vertices)[j]=(war3mapVertex_t){.accurate_height=8192,
+            .level=1+((c->layers[j/32]>>(j%32*2))&3),.ramp=(c->ramps>>j)&1};
+        S_InitFlightSupport();
+        FOR_LOOP(y,6)FOR_LOOP(x,6)
+            T_EQ(wc3_float_bits(S_GetPreparedWaterSupport((vec2_t){x*4+1,y*4+3})),f->values[y*6+x]);
+    }
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=saved_misc;
+    reset_entities();setup_test_world();
 }
 #endif

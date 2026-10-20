@@ -361,6 +361,7 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
     void (*callback)(edict_t *, edict_t *);
 
     if (!G_IsDestructable(ent) || ent->destructable->dead) return false;
+    uint32_t const birth = ent->spawn_time;
 
 #ifdef WC3_SC2API
     if (publish_event) WC3_SC2API_RecordDeath(ent);
@@ -382,6 +383,10 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
         CM_BakeStaticObstacles();
     }
     if (publish_event) {
+        /* Widget death publishes its changed footprint before target-loss
+         * subscribers recover/rebind their approach (retail widgetgoal). */
+        S_UnitTargetLost(ent);
+        if (!ent->inuse || ent->spawn_time != birth || !G_IsDestructable(ent)) return true;
         G_SpawnDestructableLoot(ent);
         G_PublishEventWithSource(ent, EVENT_UNIT_DEATH, killer);
     } else {
@@ -456,6 +461,9 @@ bool G_RemoveDestructable(edict_t *ent) {
     G_InvalidateRallyTarget(ent);
     G_SetEntitySelectionMask(ent,0);
     wc3Clock_t clock=G_TimerQueryClock(NULL);G_QueueEdictRelease(ent,&clock);
+    /* Remove has no death event, but the same lost-target Move continuation.
+     * Publish after both the replacement footprint and deferred identity. */
+    S_UnitTargetLost(ent);
     return true;
 }
 

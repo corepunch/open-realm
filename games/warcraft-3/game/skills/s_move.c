@@ -93,6 +93,7 @@ static void (*move_test_group_commit)(moveGroup_t const *group, moveGroupMember_
 static void (*move_test_group_regroup)(moveGroup_t const *group,uint32_t const *trace);
 typedef struct { wc3RetryInput_t input; wc3Random_t owner; uint32_t count, result; } moveRetryTrace_t;
 static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
+static void (*move_test_endpoint)(edict_t *unit,uint32_t result);
 typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
 static void (*move_test_repulse)(edict_t *unit,moveRepulseTrace_t const *trace);
 static uint32_t move_retry_member_visits;
@@ -3148,6 +3149,7 @@ static uint32_t move_advance_retry(edict_t *unit,wc3RetryInput_t const *input) {
 #ifdef BZ_TESTS
     before.result=result;
     if(move_test_retry)move_test_retry(unit,&before);
+    if(move_test_endpoint)move_test_endpoint(unit,result);
 #endif
     return result;
 }
@@ -3234,7 +3236,12 @@ static uint32_t move_advance_endpoint(edict_t *unit, wc3GridPose_t const *pose, 
     if(group && group->target) {
         movePathQuery_t query={.geometry={.radius=S_MoveCollisionRadius(unit)},.mover=unit,
             .target=group->target,.target_region=S_MoveGroupTargetRegion(group),.units=true};
-        if(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){pose->grid[0],pose->grid[1]}))return 3;
+        if(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){pose->grid[0],pose->grid[1]})) {
+#ifdef BZ_TESTS
+            if(move_test_endpoint)move_test_endpoint(unit,3);
+#endif
+            return 3;
+        }
     }
     /* Failed adaptive reconstruction publishes its retained endpoint to the
      * adjusted fine goal used by1689d0, independently of the user click. */
@@ -4817,9 +4824,10 @@ bool move_is_settled_near_goal(edict_t *ent, float distance, float move_distance
 static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
     uint32_t owner;
 
-    if (!self || !target || !target->inuse || !(target->svflags & SVF_MONSTER) || M_IsDead((edict_t *)target)) {
-        return false;
-    }
+    if (!self || !target || !target->inuse || M_IsDead((edict_t *)target)) return false;
+    /* A live destructable widget is a one-shot approach target (5fb940 returns
+     * directly for non-unit widgets); it has no owning player relation. */
+    if (!(target->svflags & SVF_MONSTER)) return G_IsDestructable(target);
     if (self->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
         return false;
     }
@@ -4873,10 +4881,13 @@ static bool move_target_can_follow(edict_t const *target) {
 float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
     if (!follower || !target) return 0.0f;
     /*5fd270: current static/rooted structures select d0174(range0), not
-     * StructureFollowRange.05a5c0 adds both mover radii before divide32. */
+     * StructureFollowRange.05a5c0 adds both mover radii before divide32.
+     * A destructable widget has no mover; its authored selection radius is
+     * not a collision radius and contributes zero. */
     float range=move_target_can_follow(target) ? game.constants.followRange : 0;
+    float target_radius=G_IsDestructable(target) ? 0 : S_MoveCollisionRadius(target);
     return wc3_mul(MAX(wc3_float(0x3efae148),
-        wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(follower)),S_MoveCollisionRadius(target)),32)),32);
+        wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(follower)),target_radius),32)),32);
 }
 
 static void ai_follow_walk(edict_t *ent) {

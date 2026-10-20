@@ -29,7 +29,7 @@ the archives also preserve work that was never committed.
 | Captain retreat473 | `agent-afdda55def873cd35`, `b0b6bba18` | Integrated by `6ac76eca9` after strict and full acceptance; the optional SC2API dependency was replaced with live Move target/incarnation checks. |
 | Stone Form390 | `agent-aef3a192684e6a326`, `bcf1f57ca` | Integrated in the reviewed recovery batch with strict/affected/full acceptance. Later391 probes remain separate uncommitted research; SEP-01.2 remains open. |
 | Harvest H012 | `agent-aa0697990a076c197`, `1c44de6d6` plus dirty files | Integrated from the complete dirty snapshot with Save218, mine-owned death cleanup, Peon saved journey and loader-error checks. Strict6 tests/251 assertions per edition and full acceptance pass; ORDER-01.12 stays open. |
-| Support/goal | `agent-ad242504f7459a0ea` (`foot-04.2`) | Isolated `/tmp/open-realm-takeover-supportgoal` candidate: all200 support scenes pass both editions after failing-first admission fix. New40-scene widget regression still fails; no integration/closure yet. Complete snapshots remain backed up. |
+| Support/goal | `agent-ad242504f7459a0ea` (`foot-04.2`) | Integrated recovered destructable Move/radius/loss ownership, prepared water/ramp support and exact metadata float/SSE cap. Strict472 tests/2000479 assertions per edition; full9992 native/2934 Python pass. FOOT-04.2 remains open. [Evidence](retail-pathfinding-support-goals.md). |
 | Queued/internal orders | `agent-a7a1cc22776ff3841` | Untracked `t_order022.c` and retail capture/probe tools; incomplete. Static queue-flag findings are in session subagent `a517cf9dbc42847a0`; public runtime witnesses remain necessary. |
 | Item drop | `agent-a250661f0df278ffd` | Dirty inventory procedure, command/native/item/shop/save wiring, regression and retail fixture directory; unfinished. Review complete snapshot and persistence contract. |
 | Operand aliases | `agent-a57f0c0c6b7e57853` | Untracked `tools/ghidra/research/operand_aliases.py`; research only. |
@@ -55,3 +55,12 @@ Reports and durable make exit status are under
 The first combined run's invalid Harvest exclusion labels were corrected to
 `evidence-boundary` before this successful rerun. The earlier standalone Stone
 outer exit143 remains unaccepted; it is not relabeled as a successful checkpoint.
+
+The subsequent support/widget recovery tree
+`e72eccec586de70f2d602b6356398694f1962731` passes actual make exit0 with
+9,992 native tests/34 JUnit reports and2,934 Python tests. It preserves the
+accepted branch inventory and integrates the recovered behavior with additional
+failing-first ramp/metadata/INI regressions. Shared Captain473, Group012 and
+Waygate377 oracles were revalidated before their source pins were refreshed.
+The first support full checkpoint's two radius failures and three stale-pin
+errors remain recorded as rejected evidence. The backlog remains25 open.

@@ -3747,6 +3747,7 @@ void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
 bool S_GetWalkableSupport(vec2_t point,float overlap,float *height);
 float S_GetLocationSupport(vec2_t point);
+float S_GetPreparedWaterSupport(vec2_t fine);
 void S_RefreshUnitSlope(edict_t *self);
 void S_InitFlightSupport(void);
 void S_ClearFlightSupport(void);

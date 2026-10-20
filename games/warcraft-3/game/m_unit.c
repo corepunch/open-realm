@@ -1323,6 +1323,11 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             return S_IssueWaygateMoveOrder(self,target,fallback_point ? fallback_point : &target->s.origin2,G_OrderId(order));
         return S_IssueFollowOrder(self, target, G_OrderId(order));
     }
+    /*5fd270 admits any widget target. A destructable has no Move ability, so
+     * it selects the one-shot d0174 approach whose final endpoint completes
+     * on the destructable's own footprint perimeter (167290 result3). */
+    if (!strcmp(order, "move") && G_IsDestructable(target))
+        return S_IssueFollowOrder(self, target, G_OrderId(order));
     if (!strcmp(order, "attack")) {
         if (S_UnitPolymorphed(self)) return false;
         if (G_IsDestructable(target) && !G_DestructableCanBeAttackedBy(self, target)) {

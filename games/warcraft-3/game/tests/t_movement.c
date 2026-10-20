@@ -27645,6 +27645,337 @@ TEST(wc3_movement, bridge311_constructor_and_placement_all_classes) {
 #endif
 
 #ifdef BZ_TESTS
+#include "fixtures/retail_supportgoal_motion.h"
+/* Observe real167290-equivalent return sites; do not replace retry decisions
+ * or draw from the owner RNG. The literal table also pins callback counter order. */
+static struct {
+    edict_t const *unit;
+    uint32_t const (*rows)[2];
+    unsigned count,index,scene,saved;
+} supportgoal_retry;
+static void supportgoal_retry_result(edict_t *unit,uint32_t result) {
+    if(unit!=supportgoal_retry.unit)return;
+    T_ASSERT(supportgoal_retry.index<supportgoal_retry.count);
+    if(supportgoal_retry.index>=supportgoal_retry.count)return;
+    uint32_t const *expected=supportgoal_retry.rows[supportgoal_retry.index++];
+    if(level.pathing_counter!=expected[0] || result!=expected[1])
+        fprintf(stderr,"goal retry scene=%u saved=%u index=%u engine=%u/%u retail=%u/%u\n",
+                supportgoal_retry.scene,supportgoal_retry.saved,supportgoal_retry.index-1,
+                level.pathing_counter,result,expected[0],expected[1]);
+    T_EQ(level.pathing_counter,expected[0]);T_EQ(result,expected[1]);
+}
+/* FOOT-04.2 route goals over the bridge311 water/cliff/bridge arena: five
+ * movement families and four collision classes start on the shallow bridge
+ * approach. Ten public goals per profile cover deep water, the deck, both
+ * banks, the upper cliff, an outside point, a retained and a removed floating
+ * unit target, the bridge destructable and queryzero. Literal words are retail. */
+TEST(wc3_movement, supportgoal_water_bridge_route_goals_match_retail) {
+    extern void G_TestPrepareBridge311(uint32_t);
+    static vec2_t const goals[]={{1024,192},{1024,640},{1856,640},{256,192},{1408,1856},{1024,-512}};
+    static char const *const modes[]={"foot","fly","amph","hover","float"};
+    static float radii[]={8,24,40,56},heights[]={0,60,0,0,0};
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nB;X10;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"walkable\"\n"
+        "C;X4;K\"flyH\"\nC;X5;K\"fixedRot\"\nC;X6;K\"pathTex\"\nC;X7;K\"cliffHeight\"\nC;X8;K\"HP\"\n"
+        "C;X9;K\"radius\"\nC;X10;K\"pathTexDeath\"\n"
+        "C;X1;Y2;K\"LT06\"\nC;X2;K\"Doodads\\Terrain\\WoodBridgeLarge0\"\nC;X3;K1\n"
+        "C;X4;K256\nC;X5;K90\nC;X6;K\"PathTextures\\CityBridgeLarge0.tga\"\nC;X7;K2\nC;X8;K10000\n"
+        "C;X9;K200\nC;X10;K\"PathTextures\\CityBridgeLarge0Death.tga\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("DestructableData",rows);
+    unsigned const count=sizeof(supportgoal_motion)/sizeof(*supportgoal_motion);T_EQ(count,200);
+    FOR_LOOP(scene,count)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memcpy(cells,bridge311_wpm,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(y,17)FOR_LOOP(x,17) {
+            bool water=y<=10 && x>=4 && x<=12;
+            ((war3mapVertex_t *)world.map->vertices)[y*17+x]=(war3mapVertex_t){.accurate_height=water ?
+                0x2000-4*((x==4||x==5||x==11||x==12)?64:192) : 0x2000,
+                .waterlevel=8550,.water=water,.level=y>=12 && x>=8?3:2};
+        }
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        S_InitFlightSupport();
+        G_TestPrepareBridge311(G_RegisterModel("Doodads\\Terrain\\WoodBridgeLarge0.mdl"));
+        edict_t *bridge=G_CreateDestructable(MAKEFOURCC('L','T','0','6'),1024,640,CM_GetHeightAtPoint(1024,640),0,1,0);
+        T_NOT_NULL(bridge);
+        unsigned kind=scene/10,mode=kind/4,cls=kind%4,scenario=scene%10;
+        mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+        unitModification_t mods[2][3];unitData_t custom[2];
+        unsigned const target_kind=17; /* hQ0R: float, collision24. */
+        unsigned kinds[]={kind,target_kind};
+        FOR_LOOP(i,2) {
+            unsigned m=kinds[i]/4,c=kinds[i]%4;
+            mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radii[c]};
+            mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[m]};
+            mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&heights[m]};
+            custom[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','Q','0','A'+kinds[i]),
+                .numbeOfModifications=3,.modifications=mods[i]};
+        }
+        info.num_userCreatedUnits=kind==target_kind ? 1 : 2;info.userCreatedUnits=custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *unit=alloc_test_unit(custom[0].newUnitID,576,640),*target=NULL;
+        unit->svflags=SVF_MONSTER;unit->s.model=1;unit->movetype=mode==1 ? MOVETYPE_FLY : MOVETYPE_STEP;unit->stand=unit_stand;
+        if(mode==1)unit->aiflags|=AI_FLYING;
+        unit->collision=radii[cls];unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;
+        unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->targtype=mode==1 ? TARG_AIR : TARG_GROUND;unit_stand(unit);
+        if(scenario==6 || scenario==7) {
+            target=alloc_test_unit(custom[1].newUnitID,1024,192);
+            target->svflags=SVF_MONSTER;target->s.model=1;target->stand=unit_stand;
+            target->collision=24;target->targtype=TARG_GROUND;unit_stand(target);
+            G_PublishMoveSpatialObject(target);S_SetUnitPaused(target,true);
+        }
+        unit->no_pathing=scenario==9;
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+        level.pathing_clock=(wc3Clock_t){wc3_float(supportgoal_motion[scene].clock[0]),supportgoal_motion[scene].clock[1],300};
+        level.pathing_counter=supportgoal_motion[scene].counter;S_SetUnitAxisPosition(unit,0,576);
+        if(target)T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        else if(scenario==8)T_ASSERT(unit_issuetargetorder(unit,"move",bridge));
+        else T_ASSERT(unit_issueorder(unit,"move",&goals[scenario==9 ? 0 : scenario]));
+        if(scenario==7)T_ASSERT(run_test_jass(
+            "globals\nunit supportgoalTarget=null\nendglobals\n"
+            "function supportgoalRemove takes nothing returns nothing\ncall RemoveUnit(supportgoalTarget)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+            "call GroupEnumUnitsInRange(g,1024,192,16,null)\nset supportgoalTarget=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+        supportgoal_retry=(typeof(supportgoal_retry)){.unit=unit,.rows=supportgoal_motion[scene].retries,
+            .count=supportgoal_motion[scene].retry_count,.scene=scene,.saved=saved};
+        move_test_endpoint=supportgoal_retry_result;
+        bool mismatch=false,removed=false;
+        FOR_LOOP(i,supportgoal_motion[scene].count) {
+            uint32_t const *row=supportgoal_motion[scene].rows[i];
+            if(scenario==7 && !removed && i==supportgoal_motion[scene].removal_index) {
+                level.pathing_clock=(wc3Clock_t){wc3_float(supportgoal_motion[scene].removal_clock[0]),supportgoal_motion[scene].removal_clock[1],300};
+                level.pathing_counter=supportgoal_motion[scene].removal_counter;
+                jass_callbyname(level.vm,"supportgoalRemove",false);T_ASSERT(!jass_rterror_pending(level.vm));removed=true;
+            }
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,6) {
+                T_EQ(actual[k],row[k+3]);
+                if(actual[k]!=row[k+3]) {fprintf(stderr,"supportgoal scene=%u saved=%u row=%u field=%u engine=%08x retail=%08x\n",scene,saved,i,k,actual[k],row[k+3]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(saved && (i==1 || (scenario==7 && i+1==supportgoal_motion[scene].removal_index) || i+2==supportgoal_motion[scene].count)) {
+                cstring_t file=Test_TempPath("wc3-supportgoal-active.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],300};level.pathing_counter=row[0]-1;
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            uint32_t after[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,5) {
+                T_EQ(after[k],row[k+9]);
+                if(after[k]!=row[k+9]) {fprintf(stderr,"supportgoal scene=%u saved=%u row=%u after=%u engine=%08x retail=%08x\n",scene,saved,i,k,after[k],row[k+9]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(i==supportgoal_motion[scene].route_row && supportgoal_motion[scene].route_count) {
+                moveFineRoute_t const *route=&unit->movement.fine_route;
+                if(route->count!=supportgoal_motion[scene].route_count || route->index!=supportgoal_motion[scene].index)
+                    fprintf(stderr,"supportgoal scene=%u saved=%u route engine=%u/%d retail=%u/%u\n",scene,saved,route->count,route->index,supportgoal_motion[scene].route_count,supportgoal_motion[scene].index);
+                T_EQ(route->count,supportgoal_motion[scene].route_count);T_EQ(route->index,supportgoal_motion[scene].index);
+                if(route->count==supportgoal_motion[scene].route_count)FOR_LOOP(k,route->count) {
+                    T_EQ(wc3_float_bits(route->points[k].x),supportgoal_motion[scene].route[k][0]);
+                    T_EQ(wc3_float_bits(route->points[k].y),supportgoal_motion[scene].route[k][1]);
+                }
+            }
+        }
+        T_ASSERT(!mismatch);
+        if(scenario==7 && !removed && !mismatch) {
+            /* Retail removes the followed unit after its last commit: the
+             * persistent Follow cancels immediately, with no later commit. */
+            T_EQ(supportgoal_motion[scene].removal_index,supportgoal_motion[scene].count);
+            level.pathing_clock=(wc3Clock_t){wc3_float(supportgoal_motion[scene].removal_clock[0]),supportgoal_motion[scene].removal_clock[1],300};
+            level.pathing_counter=supportgoal_motion[scene].removal_counter;
+            jass_callbyname(level.vm,"supportgoalRemove",false);T_ASSERT(!jass_rterror_pending(level.vm));removed=true;
+            T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));T_NULL(unit->movement.follow_target);
+            T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+            if(saved) {
+                cstring_t file=Test_TempPath("wc3-supportgoal-removed.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));
+            }
+        }
+        T_EQ(removed,scenario==7);
+        if(!mismatch) {
+            if(unit->current_order_id!=supportgoal_motion[scene].final_order)
+                fprintf(stderr,"supportgoal scene=%u saved=%u final-order engine=%u retail=%u\n",scene,saved,unit->current_order_id,supportgoal_motion[scene].final_order);
+            T_EQ(unit->current_order_id,supportgoal_motion[scene].final_order);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),supportgoal_motion[scene].final_pose[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),supportgoal_motion[scene].final_pose[1]);
+            if(!supportgoal_motion[scene].final_order) {T_NULL(move_unit_group(unit));T_NULL(unit->movement.follow_target);}
+        }
+        if(!mismatch)T_EQ(supportgoal_retry.index,supportgoal_retry.count);
+        move_test_endpoint=NULL;supportgoal_retry.unit=NULL;
+        G_FowShutdown();G_TestFinishDeferredFrees();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;setup_test_world();
+    }
+    G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_widgetgoal_motion.h"
+/* Twenty physical profiles target a bridge killed or removed during approach.
+ * Compare captured motion, target-loss continuation and saved states. */
+TEST(wc3_movement, widgetgoal_bridge_death_and_removal_match_retail) {
+    extern void G_TestPrepareBridge311(uint32_t);
+    static char const *const modes[]={"foot","fly","amph","hover","float"};
+    static float radii[]={8,24,40,56},heights[]={0,60,0,0,0};
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nB;X10;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"walkable\"\n"
+        "C;X4;K\"flyH\"\nC;X5;K\"fixedRot\"\nC;X6;K\"pathTex\"\nC;X7;K\"cliffHeight\"\nC;X8;K\"HP\"\n"
+        "C;X9;K\"radius\"\nC;X10;K\"pathTexDeath\"\n"
+        "C;X1;Y2;K\"LT06\"\nC;X2;K\"Doodads\\Terrain\\WoodBridgeLarge0\"\nC;X3;K1\n"
+        "C;X4;K256\nC;X5;K90\nC;X6;K\"PathTextures\\CityBridgeLarge0.tga\"\nC;X7;K2\nC;X8;K10000\n"
+        "C;X9;K200\nC;X10;K\"PathTextures\\CityBridgeLarge0Death.tga\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("DestructableData",rows);
+    unsigned const count=sizeof(widgetgoal_motion)/sizeof(*widgetgoal_motion);T_EQ(count,40);
+    FOR_LOOP(scene,count)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memcpy(cells,bridge311_wpm,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(y,17)FOR_LOOP(x,17) {
+            bool water=y<=10 && x>=4 && x<=12;
+            ((war3mapVertex_t *)world.map->vertices)[y*17+x]=(war3mapVertex_t){.accurate_height=water ?
+                0x2000-4*((x==4||x==5||x==11||x==12)?64:192) : 0x2000,
+                .waterlevel=8550,.water=water,.level=y>=12 && x>=8?3:2};
+        }
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        S_InitFlightSupport();
+        G_TestPrepareBridge311(G_RegisterModel("Doodads\\Terrain\\WoodBridgeLarge0.mdl"));
+        edict_t *bridge=G_CreateDestructable(MAKEFOURCC('L','T','0','6'),1024,640,CM_GetHeightAtPoint(1024,640),0,1,0);
+        T_NOT_NULL(bridge);
+        /* WGSetup reuses the map bridge through scene20. Each later scene
+         * follows a same-callback Remove/CreateDestructableZ(0) replacement;
+         * its retained placement surface survives the removed identity. */
+        for(unsigned replacement=20;replacement<scene;replacement++) {
+            T_ASSERT(G_RemoveDestructable(bridge));
+            bridge=G_CreateDestructable(MAKEFOURCC('L','T','0','6'),1024,640,0,0,1,0);
+            T_NOT_NULL(bridge);G_TestFinishDeferredFrees();
+        }
+        unsigned kind=scene%20,mode=kind/4,cls=kind%4,scenario=scene/20;
+        mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+        unitModification_t mods[2][3];unitData_t custom[2];
+        unsigned const target_kind=17; /* hQ0R: float, collision24. */
+        unsigned kinds[]={kind,target_kind};
+        FOR_LOOP(i,2) {
+            unsigned m=kinds[i]/4,c=kinds[i]%4;
+            mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radii[c]};
+            mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[m]};
+            mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&heights[m]};
+            custom[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','Q','0','A'+kinds[i]),
+                .numbeOfModifications=3,.modifications=mods[i]};
+        }
+        info.num_userCreatedUnits=kind==target_kind ? 1 : 2;info.userCreatedUnits=custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *unit=alloc_test_unit(custom[0].newUnitID,576,640);
+        unit->svflags=SVF_MONSTER;unit->s.model=1;unit->movetype=mode==1 ? MOVETYPE_FLY : MOVETYPE_STEP;unit->stand=unit_stand;
+        if(mode==1)unit->aiflags|=AI_FLYING;
+        unit->collision=radii[cls];unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;
+        unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->targtype=mode==1 ? TARG_AIR : TARG_GROUND;unit_stand(unit);
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+        level.pathing_clock=(wc3Clock_t){wc3_float(widgetgoal_motion[scene].clock[0]),widgetgoal_motion[scene].clock[1],300};
+        level.pathing_counter=widgetgoal_motion[scene].counter;S_SetUnitAxisPosition(unit,0,576);
+        T_ASSERT(unit_issuetargetorder(unit,"move",bridge));
+        T_ASSERT(run_test_jass(
+            "globals\ndestructable widgetgoalTarget=null\nendglobals\n"
+            "function widgetgoalFind takes nothing returns nothing\n"
+            "if GetDestructableTypeId(GetEnumDestructable())=='LT06' then\n"
+            "set widgetgoalTarget=GetEnumDestructable()\nendif\nendfunction\n"
+            "function widgetgoalKill takes nothing returns nothing\ncall KillDestructable(widgetgoalTarget)\nendfunction\n"
+            "function widgetgoalRemove takes nothing returns nothing\ncall RemoveDestructable(widgetgoalTarget)\nset widgetgoalTarget=null\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "call EnumDestructablesInRect(Rect(0,0,2048,2048),null,function widgetgoalFind)\nendfunction\n"));
+        supportgoal_retry=(typeof(supportgoal_retry)){.unit=unit,.rows=widgetgoal_motion[scene].retries,
+            .count=widgetgoal_motion[scene].retry_count,.scene=scene,.saved=saved};
+        move_test_endpoint=supportgoal_retry_result;
+        bool mismatch=false,removed=false;
+        FOR_LOOP(i,widgetgoal_motion[scene].count) {
+            uint32_t const *row=widgetgoal_motion[scene].rows[i];
+            if(!removed && i==widgetgoal_motion[scene].removal_index) {
+                level.pathing_clock=(wc3Clock_t){wc3_float(widgetgoal_motion[scene].removal_clock[0]),widgetgoal_motion[scene].removal_clock[1],300};
+                level.pathing_counter=widgetgoal_motion[scene].removal_counter;
+                jass_callbyname(level.vm,scenario ? "widgetgoalRemove" : "widgetgoalKill",false);T_ASSERT(!jass_rterror_pending(level.vm));removed=true;
+                if(saved) {
+                    cstring_t file=Test_TempPath("wc3-widgetgoal-mutation.bin");
+                    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                    T_EQ(G_IsDeferredFree(bridge),scenario!=0);
+                }
+            }
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,6) {
+                T_EQ(actual[k],row[k+3]);
+                if(actual[k]!=row[k+3]) {fprintf(stderr,"widgetgoal scene=%u saved=%u row=%u field=%u engine=%08x retail=%08x\n",scene,saved,i,k,actual[k],row[k+3]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(saved && (i==1 || (i+1==widgetgoal_motion[scene].removal_index) || i+2==widgetgoal_motion[scene].count)) {
+                cstring_t file=Test_TempPath("wc3-widgetgoal-active.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],300};level.pathing_counter=row[0]-1;
+            /* The primary release deadline can precede this captured owner
+             * commit. Preserve the real queue instead of retaining its death
+             * footprint forever while driving only Move's owner callback. */
+            G_RunDeferredFrees();
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            uint32_t after[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,5) {
+                T_EQ(after[k],row[k+9]);
+                if(after[k]!=row[k+9]) {fprintf(stderr,"widgetgoal scene=%u saved=%u row=%u after=%u engine=%08x retail=%08x\n",scene,saved,i,k,after[k],row[k+9]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(i==widgetgoal_motion[scene].route_row && widgetgoal_motion[scene].route_count) {
+                moveFineRoute_t const *route=&unit->movement.fine_route;
+                if(route->count!=widgetgoal_motion[scene].route_count || route->index!=widgetgoal_motion[scene].index)
+                    fprintf(stderr,"widgetgoal scene=%u saved=%u route engine=%u/%d retail=%u/%u\n",scene,saved,route->count,route->index,widgetgoal_motion[scene].route_count,widgetgoal_motion[scene].index);
+                T_EQ(route->count,widgetgoal_motion[scene].route_count);T_EQ(route->index,widgetgoal_motion[scene].index);
+                if(route->count==widgetgoal_motion[scene].route_count)FOR_LOOP(k,route->count) {
+                    T_EQ(wc3_float_bits(route->points[k].x),widgetgoal_motion[scene].route[k][0]);
+                    T_EQ(wc3_float_bits(route->points[k].y),widgetgoal_motion[scene].route[k][1]);
+                }
+            }
+        }
+        T_ASSERT(!mismatch);
+        if(!removed && !mismatch) {
+            /* Some profiles stop committing before the timed widget mutation;
+             * deliver the same public native after their last commit. */
+            T_EQ(widgetgoal_motion[scene].removal_index,widgetgoal_motion[scene].count);
+            level.pathing_clock=(wc3Clock_t){wc3_float(widgetgoal_motion[scene].removal_clock[0]),widgetgoal_motion[scene].removal_clock[1],300};
+            level.pathing_counter=widgetgoal_motion[scene].removal_counter;
+            jass_callbyname(level.vm,scenario ? "widgetgoalRemove" : "widgetgoalKill",false);T_ASSERT(!jass_rterror_pending(level.vm));removed=true;
+            if(saved) {
+                cstring_t file=Test_TempPath("wc3-widgetgoal-removed.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            }
+        }
+        T_ASSERT(removed);
+        if(!mismatch) {
+            if(unit->current_order_id!=widgetgoal_motion[scene].final_order)
+                fprintf(stderr,"widgetgoal scene=%u saved=%u final-order engine=%u retail=%u\n",scene,saved,unit->current_order_id,widgetgoal_motion[scene].final_order);
+            T_EQ(unit->current_order_id,widgetgoal_motion[scene].final_order);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),widgetgoal_motion[scene].final_pose[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),widgetgoal_motion[scene].final_pose[1]);
+            if(!widgetgoal_motion[scene].final_order) {T_NULL(move_unit_group(unit));T_NULL(unit->movement.follow_target);}
+        }
+        if(!mismatch)T_EQ(supportgoal_retry.index,supportgoal_retry.count);
+        move_test_endpoint=NULL;supportgoal_retry.unit=NULL;
+        G_FowShutdown();G_TestFinishDeferredFrees();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;setup_test_world();
+    }
+    G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
+}
+#endif
+
+#ifdef BZ_TESTS
 #include "fixtures/retail_numeric312.h"
 TEST(wc3_movement, numeric312_public_geometry_keeps_authored_and_physical_radii_distinct) {
     static char const *const modes[]={"foot","fly","amph","hover","float"};
@@ -29573,4 +29904,48 @@ TEST(wc3_movement, captain376_public_summoned_type_rejects_ferry) {order346_ferr
 TEST(wc3_movement, captain376_public_summoned_removal_restores_ferry) {order346_ferry_scenario(129);}
 TEST(wc3_movement, captain376_timed_life_public_summoned_removal_restores_ferry) {order346_ferry_scenario(130);}
 
+#endif
+
+#ifdef BZ_TESTS
+/* The captured grid selects level2. Applying the surface's tile-scaled -.7
+ * yields R2I(89.5-89.6)==0 and level1, rejecting every free level2 ring cell.
+ * Drive Stop through its public order owner, including a cold saved owner. */
+TEST(wc3_movement, widgetgoal_stop_uses_prepared_water_input_after_cold_load) {
+    float old_water=CM_W3WaterHeight();
+    FOR_LOOP(saved,2)FOR_LOOP(blocked,2) {
+        reset_entities();setup_test_world();uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};world.map->tileset='L';
+        FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){
+            .accurate_height=8192,.waterlevel=8550,.water=1,.level=2};
+        CM_W3SetWaterHeight(wc3_decimal("-0.7"));S_InitFlightSupport();
+        mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+        float radius=8;unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="float"},
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','W','t','r'),
+            .numbeOfModifications=2,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *unit=alloc_test_unit(custom.newUnitID,656,656);
+        unit->collision=radius;unit->stand=unit_stand;unit_stand(unit);
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1200,656}));
+        T_NOT_NULL(move_unit_group(unit));
+        if(blocked)cells[20*64+20]=0x40;
+        CM_SetupTestPathmap(64,64,cells);G_PublishMoveSpatialObject(unit);
+        unsigned index=unit-g_edicts;
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-widgetgoal-water-stop.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+        }
+        T_EQ(wc3_float_bits(S_GetPreparedWaterSupport((vec2_t){20.5f,20.5f})),0x42b19998u);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));
+        T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+        if(blocked)T_ASSERT(unit->movement.fine_pose.x!=20.5f || unit->movement.fine_pose.y!=20.5f);
+        else {T_EQ(unit->movement.fine_pose.x,20.5f);T_EQ(unit->movement.fine_pose.y,20.5f);}
+        T_EQ(G_GetMovePlacementLevel((int)unit->movement.fine_pose.x,(int)unit->movement.fine_pose.y),2);
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    }
+    CM_W3SetWaterHeight(old_water);reset_entities();setup_test_world();
+}
 #endif

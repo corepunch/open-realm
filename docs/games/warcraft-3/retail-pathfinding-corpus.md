@@ -2510,3 +2510,15 @@ Harvest H012 registers Ahar gold/lumber head ownership, hidden successors,
 mine-owned death cleanup and Save218 rejection. Six tests /251 assertions pass
 per edition; remaining ORDER-01.12 rows retain explicit exclusions.
 [Evidence](retail-pathfinding-harvest-ownership.md).
+
+Support/widget recovery registers200 route-goal and40 bridge Kill/Remove scenes,
+with original result codes, all physical commits and saved continuations. Real
+engine changes admit destructable Move targets, preserve their zero mover radius,
+publish intrinsic target loss after changed footprints, and use the separate
+prepared water/ramp field for Float recovery. The exact metadata producer uses
+Storm574 plus the constructor's SSE conversion.4512 game instructions,10 data
+spans,28,416 native ramp inputs,17 complete producer fields and4096 live corner
+results remain independently checked. Strict acceptance passes472 tests/
+2000479 assertions per edition; the actual full checkpoint passes9992 native
+and2934 Python tests. FOOT-04.2 and the existing clock/restoration owners remain
+open. [Behavior, failures and evidence limits](retail-pathfinding-support-goals.md).

@@ -332,7 +332,8 @@
     "oracle-group012",
     "oracle-captain473-retreat-saveload",
     "oracle-morph390",
-    "oracle-harvest012-ownership"
+    "oracle-harvest012-ownership",
+    "oracle-supportgoal-water-widget"
   ],
   "entries": [
     {
@@ -366,7 +367,7 @@
         },
         {
           "index": 2,
-          "text": "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2→1, final owned-object destruction untested",
+          "text": "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2\u21921, final owned-object destruction untested",
           "task": "E2E-05.2",
           "disposition": "reachability",
           "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
@@ -7489,6 +7490,32 @@
           "task": "E2E-05.2",
           "disposition": "evidence-boundary",
           "rationale": "Fresh-process restoration remains an explicit evidence gap for the discrepancy ledger."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-supportgoal-water-widget",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Arbitrary transformed, animated or custom support beyond the finite LT06 water/cliff arena remains FOOT-04.2.",
+          "task": "FOOT-04.2",
+          "disposition": "behavior",
+          "rationale": "Finite authored topology coverage does not prove arbitrary support inputs."
+        },
+        {
+          "index": 1,
+          "text": "Physical callbacks use captured owner clocks/counters; unscripted global scheduler cadence remains NUM-02.3.",
+          "task": "NUM-02.3",
+          "disposition": "evidence-boundary",
+          "rationale": "Literal commit parity does not infer scheduler clock production."
+        },
+        {
+          "index": 2,
+          "text": "In-process cold saves do not establish fresh-process restoration or rendered support parity (E2E-05.2).",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "The restoration process and renderer are separate acceptance boundaries."
         }
       ]
     }

@@ -1453,7 +1453,8 @@ static bool placement_admit(void const *data, float const *point) {
 
 typedef struct {
     uint32_t limit;
-    bool match_level,counted_scope,integer_result;
+    bool match_level,counted_scope,integer_result,level_override,test_geometry_first;
+    uint32_t level;
 } movePlacementPolicy_t;
 
 /* Public placement and Stop recovery share geometry, but retain distinct attempt limits. */
@@ -1462,7 +1463,7 @@ static bool move_place_widget(edict_t *unit, vec2_t point, float radius, uint8_t
     wc3FineBox_t rejection = {0};
     moveFineGraph_t graph = {.flags = flags, .endpoint = true, .rejection = &rejection};
     float fine[2] = {point.x,point.y};
-    if (policy.match_level) graph.level = placement_terrain_level(fine);
+    if (policy.match_level) graph.level = policy.level_override ? policy.level : placement_terrain_level(fine);
     movePathQuery_t objects = {.mover = unit, .units = true};
     move_query_objects(&graph,&objects,NULL);
     graph.counted_scope=policy.counted_scope;
@@ -1471,6 +1472,15 @@ static bool move_place_widget(edict_t *unit, vec2_t point, float radius, uint8_t
         .footprint = {.cls = wc3_fine_class(wc3_div(radius, pathmap_cell_world_size())),
                       .cell = move_cell_ok, .data = &graph}, .admit = policy.match_level ? placement_admit : NULL,
         .integer_result=policy.integer_result};
+    /*170080 tests the endpoint footprint before it invokes14a1e0. A clear
+     * source never runs the placement callback, even when its captured support
+     * level differs from the retained registry at this point. */
+    if (policy.test_geometry_first) {
+        wc3FinePoint_t cell={
+            (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(point.x))),
+            (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(point.y)))};
+        if (wc3_segment_foot(&query.footprint,cell,0)) { *out=point;return true; }
+    }
     float admitted[2];
     if (!wc3_fine_place_indexed(&query, admitted, &rejection)) return false;
     *out = (vec2_t){admitted[0],admitted[1]};
@@ -1559,8 +1569,18 @@ bool G_FindUnitMoveRecoveryPosition(edict_t *unit, vec2_t const *fine, vec2_t *o
         !pathmap.width || !pathmap.height) return false;
     movePathQuery_t query = {.geometry.from=&unit->s.origin2,.fine=fine};
     vec2_t point=move_query_source(&query), admitted;
+    /* Unit vD4 (684650) captures Float's water support level for654060;
+     * ordinary widgets use the retained placement registry. This is distinct
+     * from recomputing the destination predicate's level at the start point. */
+    movePlacementPolicy_t policy={.limit=5,.match_level=true,.counted_scope=true,.test_geometry_first=true};
+    if (S_UnitMovementProfile(unit->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits) {
+        uint32_t word=wc3_int_bits(wc3_float_bits(S_GetPreparedWaterSupport(point)));
+        word=((word+0x20c0u)&0xffffff80u)-0x1f81u;
+        policy.level=(word>>7)|((0u-(word>>31))<<25); /* Original signed SAR7. */
+        policy.level_override=true;
+    }
     /* Move owns the captured record hold through the subsequent pose commit. */
-    if (!move_place_unit(unit,point,(movePlacementPolicy_t){.limit=5,.match_level=true,.counted_scope=true},&admitted) ||
+    if (!move_place_unit(unit,point,policy,&admitted) ||
         (wc3_float_bits(point.x)==wc3_float_bits(admitted.x) &&
          wc3_float_bits(point.y)==wc3_float_bits(admitted.y))) return false;
     box2_t bounds=CM_GetWorldBounds();

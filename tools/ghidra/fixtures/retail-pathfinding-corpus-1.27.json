@@ -243,7 +243,7 @@
       "exclusions": [
         "Preallocated CDataAllocator blocks; external heap growth not executed",
         "Manually registered wrapper and class table; live wrapper/class registration not executed",
-        "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2→1, final owned-object destruction untested",
+        "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2\u21921, final owned-object destruction untested",
         "Positive handle domain; no nested callbacks or nonempty request heap"
       ]
     },
@@ -318,7 +318,7 @@
         "O",
         "C"
       ],
-      "scope": "Original 78b0a0→7425a0→73db20 bounds producer; original 04c860→15ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted. Additional2500 complete original all-corner adjacent-word/decimal boundary edits, exact fine/cell/inverse outputs and production coordinate comparisons use unchanged constructed map origins. Four-lane corner edits, full padded classes and exact reversal are frozen across all25 maps.",
+      "scope": "Original 78b0a0\u21927425a0\u219273db20 bounds producer; original 04c860\u219215ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted. Additional2500 complete original all-corner adjacent-word/decimal boundary edits, exact fine/cell/inverse outputs and production coordinate comparisons use unchanged constructed map origins. Four-lane corner edits, full padded classes and exact reversal are frozen across all25 maps.",
       "exclusions": []
     },
     {
@@ -57694,6 +57694,53 @@
         "L"
       ],
       "scope": "Human/Orc Ahar gold and Human Ahar lumber public head ownership, hidden-miner retention, ability-owned death cleanup, Peon saved continuation and Save218 rejection; existing ORDER-01.12 remains open."
+    },
+    {
+      "id": "oracle-supportgoal-water-widget",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_supportgoal.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "supportgoal-water-widget.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "instructions": {
+          "equal": 4512
+        },
+        "ramp_original": {
+          "equal": {
+            "kernel_inputs": 28416,
+            "authored_cap_fields": 9,
+            "live_corner_results": 4096
+          }
+        },
+        "metadata_original": {
+          "equal": {
+            "cases": 677,
+            "fields": 8,
+            "storm_sha256": "36339f69727f0f3dcb4431a9567b84f56007c331cfa3b183862af43e8314eb72"
+          }
+        }
+      },
+      "exclusions": [
+        "Arbitrary transformed, animated or custom support beyond the finite LT06 water/cliff arena remains FOOT-04.2.",
+        "Physical callbacks use captured owner clocks/counters; unscripted global scheduler cadence remains NUM-02.3.",
+        "In-process cold saves do not establish fresh-process restoration or rendered support parity (E2E-05.2)."
+      ],
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Five-family/four-class water/cliff/bridge route goals, destructable Move admission/radius, intrinsic Kill/Remove target loss, separate prepared water support with native ramp offsets, original result codes and saved continuations. FOOT-04.2 remains open."
     }
   ],
   "fixtures": [
@@ -58107,8 +58154,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-selected-double-queued-1.27.json",
-      "sha256": "6388729645762bd0349e433ae89f8cb33cce2c302befc1245575548c9c0cc3f0",
-      "bytes": 188828
+      "sha256": "6388729645762bd0349e433ae89f8cb33cce2c302befc1245575548c9c0cc3f0"
     },
     {
       "path": "tools/ghidra/fixtures/retail-selected-mixed-1.27.json",
@@ -58592,7 +58638,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "90f637f4f1f20fa60c731ac9d9e991295c230da517b4b7441cfda43a39093f7e"
+      "sha256": "f8396dab11cf0f8132eb7f70585db395f5bfe80b56529fa6f158fcf1c5940a07"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59448,7 +59494,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "9311071eb3737da3abc247b48e02dca511c4eaa2cf871f0fa6f826f156e41f93"
+      "sha256": "a99a03c607787425dc6b2f42b28bffc2bc99b5237dc6b28be5ca745ec3057826"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -59880,7 +59926,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "55f47c8d65f438fa719a79b3e4c7ac6de1fb3ad03362332cdc9780332fa4741e"
+      "sha256": "ce382fff16282792f8885012b7db24225d7cdb04d674aa16eae6c805aafce106"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -59888,11 +59934,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
-      "sha256": "a4229d7aa6fc2aeb56291ed2cb2adf843c9ddeff160fe67526bdb75656b44169"
+      "sha256": "416dc483d4bca012721595b08f97a63943913861feb42205a308b00e0dd5f6f0"
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "abe3b72f599c62293e312f4db51c60821689b7161715ec60102a7cabc732a268"
+      "sha256": "5716ae7210fcf277d6f9e334d20ba70e23c26bf7c1640e0068ccc43d61f5e8cd"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -60140,7 +60186,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "18a3cc88b3dc21694c3198008ee0f884820a8e1f74e3061538d7349a7416ae12"
+      "sha256": "86abaa341d0e8cbb12cf9591981e2c7461125d421509fbf3c9a786c60ae34305"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -60384,7 +60430,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "7852a417625dc271a48ac90b995ed7b0ed0d05ab1a58c7fe5d37f7f75b2caba6"
+      "sha256": "de66d86e630d3441e198a97b9d94fcc0230ede669cf4d17ff27b5b0423f56356"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -60400,7 +60446,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "91c3e09ea53c2b2aad87ba15043c73d6621e6127a02705f33221b233474cbc9b"
+      "sha256": "4d4a758d4bdb6b5e6157a3babbcc101da70359fbd591ffefd5e2b807ab842f0a"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -61348,7 +61394,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "b2a60c33310139d9c0c0d6ae17dafb11523cff28ff0b873766b1fa009b03142c"
+      "sha256": "7c701970c26901866b8074d20a04bbad33058688ac4c7c5084d086b781386618"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -63168,7 +63214,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_support.c",
-      "sha256": "c409e0c8fd7e1a54a571a838df1ce1d411fa7c3b44d79cd6de257f84b19a63cd"
+      "sha256": "29fa39762f93459ff08fd4a9fc6f0b1613cecfaf0bc0861c523b243c233cb477"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_flight_support228.h",
@@ -65400,7 +65446,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "3d43ecb5a9d9e92e30cdfc3877d83048c082042318c3e8b073c2cd9d2e9749c4"
+      "sha256": "1cebdfd29d82133fb366b40a2e8df6224504eef3aff68e2509688d5c11602b13"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -67256,7 +67302,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "4623c6d295219abc7bdbfdbdb4a968ee330f39fc44c02015ba92c9ca3fb6b26a"
+      "sha256": "39bf29a9056e6dc01392074bb1c9c594e8cc9b50ac4eafbcdcdcb5f2776d60ba"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -69528,7 +69574,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "0cde0810632b9bcee8d187e58bbcd4778137abb636cca681a805236067f71fc6"
+      "sha256": "83281535937a5f2d49ea76e7be171de333d00e01eefd671861ea5d994712507c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -69568,7 +69614,7 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "a935574c6217bf145723603bc5214b28022373c400243d60c47f92e959d9901c"
+      "sha256": "49a7135c80d9b84ce8cd34bd418bda4775480b107425b5c85d2899d4797bf0a1"
     },
     {
       "path": "docs/games/warcraft-3/metamorphosis-availability.md",
@@ -69576,7 +69622,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs.md",
-      "sha256": "82e55a717617efabbf9da27a2e192236cabac5b74bcc2be69ac96c2eb459675b"
+      "sha256": "8028a535c8dbd2336b18d07f208cbeea6adac8893e359060324b33fa9f4e4814"
     },
     {
       "path": "games/warcraft-3/game/hud/hud_infopanel.c",
@@ -69892,7 +69938,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "1d33b56fee7a4a45ebbe0a53016660893b637fcd8d6f8f9e2f378e7d6743bac6"
+      "sha256": "0affdea879581a8efad6707ed8c374822f37e40731857c87509368bd6dcd0d3d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -69972,7 +70018,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json",
-      "sha256": "14dac375663b2be994c5e239e4ae601038cde63985e405f3e699d28f04bcbd83"
+      "sha256": "b33f0b1f90317df82c0d46f25d35dbe0e020128915ef518fb4cefcc9537aee96"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json.gz",
@@ -70117,6 +70163,126 @@
     {
       "path": "tools/ghidra/generate_wc3_pathing_reachable_branches.py",
       "sha256": "e0dffe0d75822882a4ace83a81814d2a222c6a64bc6dbd3d0ce0cb2d114b4357"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-support-goals.md",
+      "sha256": "c9ebc9d54844041ffe23b2bff1f8e7339c75e10bf7b9635cd16d1344a30f77f3"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_supportgoal_motion.h",
+      "sha256": "1499bdc4a98acf63ff758f953d9d78c3cfc996ee60d8cc25aa86f7ff424187fa"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_widgetgoal_motion.h",
+      "sha256": "4a2b7630de69dbbf9352d158bafb036690eb4b703235bc879a620a6df192c311"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_preparedwater_ramp.h",
+      "sha256": "8c5fcc45b5d118cbdfde2c613d169e15f7017e8e6e8e12a27ad423b025563f4d"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_preparedwater_ramp_kernels.h",
+      "sha256": "df1b14eedf61aeca4a1bdf32a642046549cf4ea4890020a5f537b3f711d3e3d9"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_widgetgoal_water.h",
+      "sha256": "d4c5e96353c18c05791e109370f3dc34d8b42e7e4470962263f5a5cf67fbf0f1"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_supportgoal.py",
+      "sha256": "46faca31ea376ff93451e9edbc16c768866e028003a3eec26ce59080a48c5bb4"
+    },
+    {
+      "path": "tools/frida/research/preparedwater_ramp_make_map.py",
+      "sha256": "ee1a989a5c8d6528c4c51d8a1da4b61e669b5a54ae9979b4520040b0a9b2ae3a"
+    },
+    {
+      "path": "tools/frida/research/preparedwater_ramp_observer.js",
+      "sha256": "5934eea511835cae8c7de3969c5cbf8dbc2e93c05410e3ea4ff095a38984c16c"
+    },
+    {
+      "path": "tools/frida/research/supportgoal_capture.py",
+      "sha256": "e692286a3de97488f2b76c9c397dd93f23136744391cda1d750651ba687ca9fd"
+    },
+    {
+      "path": "tools/frida/research/supportgoal_make_map.py",
+      "sha256": "e1d004c41b2d16c1d331e4e2b3227a9d7d73fc0fe1730a6184855a8986056414"
+    },
+    {
+      "path": "tools/frida/research/supportgoal_observer.js",
+      "sha256": "06015e495a174bb99ca938f4ea0d70ff3e05f0bd9ee1720d636039f84c3ed496"
+    },
+    {
+      "path": "tools/frida/research/supportgoal_probe.j",
+      "sha256": "453d091c8086fc163d380aca6cfdf813ed605c398e553f10af655f9aff7d8706"
+    },
+    {
+      "path": "tools/frida/research/widgetgoal_capture.py",
+      "sha256": "482ce614aa012c9584c83705f30770f926009ab2d41eb95417af4e3f87449c92"
+    },
+    {
+      "path": "tools/frida/research/widgetgoal_make_map.py",
+      "sha256": "6e5032da0bc764ed270c979457a7fb9aa12fd9be8f271cebc0adc171d5d0824a"
+    },
+    {
+      "path": "tools/frida/research/widgetgoal_observer.js",
+      "sha256": "82e6786b6b2da1e48516dfd00a00741baa2b8d10d1ca3ca02b616f3e9ec8a9aa"
+    },
+    {
+      "path": "tools/frida/research/widgetgoal_probe.j",
+      "sha256": "97d85ed56e82fc70db151086d9478a595f5bc99b4faf155400ee7b757483fa67"
+    },
+    {
+      "path": "tools/frida/research/widgetgoal_recovery_observer.js",
+      "sha256": "5612ad20849c4de273435b390ac138c8b8703907487212e995a79cead8eab70c"
+    },
+    {
+      "path": "tools/frida/research/widgetgoal_watergrid_observer.js",
+      "sha256": "7bba9748179c76776c06f10810b6dda31c20c4a5792ae2fadd0b3066dc706f01"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
+      "sha256": "133a9b6a29699e2f86d486f611384fdb18ea3548a9b769a37374da34a3235949"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
+      "sha256": "dcfc6ec89d2240d425bac473163234a99818550e60f06964f020ede00d66078b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-ramp-inputs-1.27.json.gz",
+      "sha256": "6efb84a468fe081ff68549c13d00436a4974b48e98b9071120aafbd3d549823f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-ramp-kernels-1.27.json.gz",
+      "sha256": "f02888cba267f3d46440a58ea821c90162e99a6f57ee179f1fd6dc17723235e5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-recovery-inputs-1.27.json.gz",
+      "sha256": "e889896486d3e64ca6ebcac01c62fb570bde12dc64bc7d2f6588e8b7955fc490"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-water-inputs-1.27.json.gz",
+      "sha256": "29da08a581f653b462eb67b9db64f41e944f1759c8ec1510380a590fffaacef7"
+    },
+    {
+      "path": "tools/ghidra/research/supportgoal_ramp_oracle.py",
+      "sha256": "95f31cabf2dee1f2c63fa9ba8f48c1bf9b3340c8014bfcf29cdf4f62e6296f4a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_supportgoal.py",
+      "sha256": "7194387158c866bdbb264bb63a47f3c9d2e1919556b9454ec313987d9918158f"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_support_metadata.h",
+      "sha256": "cde258a626129b3b8ea1781ac11a0cfac6debf2d2a1c03dba773c2203cc798b9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-supportgoal-metadata-1.27.json.gz",
+      "sha256": "10ac3588fec87c0b4d8dae9afbcf43b0ff4d0c4598d07cbcaac2cfcb06a5c011"
+    },
+    {
+      "path": "tools/ghidra/research/supportgoal_metadata_oracle.py",
+      "sha256": "18e7f45ef46c6517523a3da4cd87b2f4f317ecb4695f1175b12d51bc1c0d00eb"
     }
   ]
 }
