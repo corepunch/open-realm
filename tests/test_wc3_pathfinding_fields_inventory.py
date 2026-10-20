@@ -17,6 +17,7 @@ class FieldInventoryTests(unittest.TestCase):
         cls.types = json.loads(v.TYPES.read_text())
         cls.corpus = json.loads(v.inv.CORPUS.read_text())
         cls.todo = v.inv.TODO.read_text()
+        cls.open = sorted(k for k, s in ((m[2], m[1]) for m in v.inv.TASK.finditer(cls.todo)) if s == ' ')[0]
 
     def setUp(self):
         self.inventory = copy.deepcopy(self.base)
@@ -30,7 +31,7 @@ class FieldInventoryTests(unittest.TestCase):
     def test_current_inventory(self):
         result = self.validate()
         self.assertEqual(result['fields'], sum(len(l['fields']) for l in self.types['layouts']))
-        self.assertGreater(result['owners']['E2E-05.1'], 0)
+        self.assertGreater(sum(result['owners'].values()), 0)
 
     def test_missing_or_duplicate_field(self):
         self.inventory['fields'].pop()
@@ -66,7 +67,7 @@ class FieldInventoryTests(unittest.TestCase):
             self.validate()
 
     def test_stale_evidence(self):
-        for item in (dict(type='payoff', id='Payoff99999'), dict(type='closed-task', id='E2E-05.1'),
+        for item in (dict(type='payoff', id='Payoff99999'), dict(type='closed-task', id=self.open),
                      dict(type='oracle-exercising-accessor', id='oracle-missing'),
                      dict(type='doc-anchor-mentioning-accessor', anchor='docs/games/warcraft-3/retail-pathfinding.md#missing'),
                      dict(type='guess', id='x')):

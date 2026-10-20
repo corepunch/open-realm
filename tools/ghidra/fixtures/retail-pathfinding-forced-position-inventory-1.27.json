@@ -1,0 +1,4337 @@
+{
+ "version": 1,
+ "task": "BASE-01.4",
+ "prefix": "B014-",
+ "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "scope": "Forced-position, teleport and pathing-bypass entry points: every direct caller of the recovered position/placement/pathing-profile sinks and every widget/unit vtable slot d8/dc/180 indirect call site, walked to its public producer.",
+ "enumeration": [
+  {
+   "id": "Q1",
+   "query": "Direct callers of the 16 sinks plus CALL [reg+0xd8]/[reg+0xdc]/[reg+0x180] sites (method.md), and additional call sites recorded by rows for the same producers.",
+   "sites": [
+    "6f05881b",
+    "6f0588db",
+    "6f05a677",
+    "6f05bb84",
+    "6f05c1b0",
+    "6f0e4543",
+    "6f0e4553",
+    "6f0ecd6d",
+    "6f0ecf17",
+    "6f0f114a",
+    "6f0f1276",
+    "6f0fe684",
+    "6f10129d",
+    "6f10143d",
+    "6f106ead",
+    "6f108b7d",
+    "6f1133e5",
+    "6f113416",
+    "6f113447",
+    "6f113478",
+    "6f115570",
+    "6f165d79",
+    "6f168f24",
+    "6f1dfca9",
+    "6f1e079a",
+    "6f1fb37d",
+    "6f1fb3a5",
+    "6f1fb52b",
+    "6f1fc96e",
+    "6f210ff8",
+    "6f211042",
+    "6f213999",
+    "6f2139a9",
+    "6f215596",
+    "6f2155b6",
+    "6f21560a",
+    "6f215649",
+    "6f215951",
+    "6f2159b1",
+    "6f215bd0",
+    "6f219410",
+    "6f219533",
+    "6f22dbae",
+    "6f22dbde",
+    "6f22df53",
+    "6f22df87",
+    "6f24061f",
+    "6f2459c2",
+    "6f2a8d50",
+    "6f2a8df1",
+    "6f2a8e6c",
+    "6f2a915c",
+    "6f2a99f5",
+    "6f2a9f6c",
+    "6f2aa291",
+    "6f2aac12",
+    "6f2aacb3",
+    "6f2ab71f",
+    "6f2ab74b",
+    "6f2ab8f8",
+    "6f2abcbd",
+    "6f2b5191",
+    "6f2ba536",
+    "6f2bc866",
+    "6f2bc8f2",
+    "6f2ced36",
+    "6f2d0a40",
+    "6f2d0abf",
+    "6f2d0aeb",
+    "6f2d0b1f",
+    "6f2d0b4b",
+    "6f2d0b7f",
+    "6f2d0bab",
+    "6f2d0bd6",
+    "6f2d0c0b",
+    "6f2d0c33",
+    "6f2d0c6b",
+    "6f2d0c93",
+    "6f2d0cca",
+    "6f2ebc43",
+    "6f2ebc61",
+    "6f2f1f87",
+    "6f2f1ff2",
+    "6f2f2a10",
+    "6f2f2af9",
+    "6f2f2cf0",
+    "6f2f3cb4",
+    "6f2f415e",
+    "6f2f4578",
+    "6f2f46dd",
+    "6f2f4796",
+    "6f303cf4",
+    "6f30710d",
+    "6f30be71",
+    "6f35f5b3",
+    "6f35f743",
+    "6f35fa0c",
+    "6f361b78",
+    "6f361cf6",
+    "6f361fe1",
+    "6f3620b2",
+    "6f36247e",
+    "6f363b67",
+    "6f363c62",
+    "6f374a19",
+    "6f37ebaf",
+    "6f38d158",
+    "6f38d2e5",
+    "6f3aaa20",
+    "6f3aab12",
+    "6f3ace65",
+    "6f3c578c",
+    "6f3c57a3",
+    "6f3d2afa",
+    "6f3ddd4f",
+    "6f3de8f9",
+    "6f3df814",
+    "6f3f8443",
+    "6f3f8a1a",
+    "6f3f9cbe",
+    "6f3f9d3c",
+    "6f3f9d8e",
+    "6f402256",
+    "6f40ad1a",
+    "6f40de44",
+    "6f40de9f",
+    "6f4228ac",
+    "6f422b31",
+    "6f425900",
+    "6f4278ba",
+    "6f438c19",
+    "6f43b800",
+    "6f48ba2b",
+    "6f48c6cc",
+    "6f49060a",
+    "6f4b9b79",
+    "6f4ba912",
+    "6f4ba928",
+    "6f4ba988",
+    "6f4ba99e",
+    "6f4c306d",
+    "6f4c863a",
+    "6f4c8930",
+    "6f4c8f1a",
+    "6f4c961c",
+    "6f4ca327",
+    "6f4ca7b5",
+    "6f4ca7e3",
+    "6f4cb701",
+    "6f4cbcc3",
+    "6f4cd027",
+    "6f4d8f5e",
+    "6f4dcb20",
+    "6f4dd486",
+    "6f4e67d8",
+    "6f500106",
+    "6f5088ad",
+    "6f508f54",
+    "6f50cd0e",
+    "6f50e912",
+    "6f525ef7",
+    "6f540d09",
+    "6f544066",
+    "6f5440f5",
+    "6f544428",
+    "6f54a677",
+    "6f54d414",
+    "6f54da51",
+    "6f54db2f",
+    "6f54fed5",
+    "6f5502a1",
+    "6f550b95",
+    "6f550fd5",
+    "6f551451",
+    "6f55bd41",
+    "6f55eca6",
+    "6f566e43",
+    "6f569ce2",
+    "6f56a58f",
+    "6f56b6ff",
+    "6f56ba17",
+    "6f58028e",
+    "6f5859bd",
+    "6f588d68",
+    "6f58bd7a",
+    "6f58c134",
+    "6f58d0f3",
+    "6f58d11f",
+    "6f58d286",
+    "6f58d2f3",
+    "6f58d7b4",
+    "6f58e1c7",
+    "6f58ebe8",
+    "6f58ec0d",
+    "6f59b35c",
+    "6f59b4c4",
+    "6f59ce12",
+    "6f59f612",
+    "6f5a4fe1",
+    "6f5a6071",
+    "6f5adaed",
+    "6f5ae9ae",
+    "6f5ae9e2",
+    "6f5aeb8c",
+    "6f5aed37",
+    "6f5aeff0",
+    "6f5af037",
+    "6f5d0328",
+    "6f5d03df",
+    "6f5d6046",
+    "6f5d65d0",
+    "6f5d6b90",
+    "6f5d6c4d",
+    "6f5d7358",
+    "6f5d76a5",
+    "6f5d8df6",
+    "6f5d92ce",
+    "6f5d9394",
+    "6f5e636e",
+    "6f5e81f5",
+    "6f5e8323",
+    "6f5ea6b7",
+    "6f5eb0d2",
+    "6f5f96d6",
+    "6f600f02",
+    "6f603dbd",
+    "6f623c12",
+    "6f623c28",
+    "6f62aed5",
+    "6f62af15",
+    "6f62b078",
+    "6f62c061",
+    "6f62f1aa",
+    "6f62f571",
+    "6f63afdc",
+    "6f63b061",
+    "6f63c3a4",
+    "6f63c44b",
+    "6f6415a8",
+    "6f647343",
+    "6f64ba54",
+    "6f64e666",
+    "6f652651",
+    "6f65355d",
+    "6f6535e0",
+    "6f653b7c",
+    "6f654655",
+    "6f654d86",
+    "6f656342",
+    "6f65784b",
+    "6f658ca7",
+    "6f65a376",
+    "6f65a4de",
+    "6f670e2f",
+    "6f671f0a",
+    "6f671fda",
+    "6f677aee",
+    "6f67f5a9",
+    "6f67f870",
+    "6f687810",
+    "6f68a1b6",
+    "6f68b080",
+    "6f6945fd",
+    "6f694d3a",
+    "6f694dab",
+    "6f695ba2",
+    "6f698186",
+    "6f69920a",
+    "6f69924c",
+    "6f699284",
+    "6f6992ae",
+    "6f699d63",
+    "6f69c893",
+    "6f6c20b4",
+    "6f6cc9eb",
+    "6f6cd868",
+    "6f6cf7d0",
+    "6f6cff5a",
+    "6f6d313b",
+    "6f6d320b",
+    "6f6d665f",
+    "6f6d6711",
+    "6f6d8e88",
+    "6f6d97df",
+    "6f6da9a4",
+    "6f76b939",
+    "6f7746fa",
+    "6f775af2",
+    "6f775ed3",
+    "6f776ff8",
+    "6f77b9de",
+    "6f89cb79",
+    "6f89cbc9",
+    "6f89cc7f",
+    "6f89ccd3",
+    "6f9b984c",
+    "6f9d05bc",
+    "6f9d20f6",
+    "6f9d3042",
+    "6f9d3066",
+    "6f9d6ea9",
+    "6f9d6f03",
+    "6f9d7aee"
+   ]
+  }
+ ],
+ "sinks": [
+  {
+   "address": "6f653510",
+   "name": "Widget_WritePositionAfterAdmission",
+   "role": "shared widget clamp + optional vslotdc admission + 05c200 write; CWidget/CSelectable/CItem/CDestructable/CCaptainAI/CUnit vslot d8 (data refs 6fb777e0, 6fb779ac, 6fb77b80, 6fb7d7e0, 6fbe00d8, 6fb77f88)",
+   "evidence": [
+    "Ghidra plate 6f653510 (Payoff290/308/309)"
+   ]
+  },
+  {
+   "address": "6f698050",
+   "name": "Unit_SetPositionWithAdmission",
+   "role": "CUnit vslot180 (6fb78030); RET 0x28 (10 stack args)",
+   "evidence": [
+    "Ghidra plate 6f698050 (Payoff285/308)"
+   ]
+  },
+  {
+   "address": "6f654d60",
+   "name": "FUN_6f654d60 (widget SetPosition)",
+   "role": "CSelectable/CItem/CDestructable vslot180 (6fb77a54, 6fb77c28, 6fb7d888); RET 0x28; tail to 653510",
+   "evidence": [
+    "vtable readback via RTTI COL (pe.py)"
+   ]
+  },
+  {
+   "address": "6f6515f0",
+   "name": "Widget_AdmitPosition",
+   "role": "widget vslotdc admission query (no write); RET 0x2c",
+   "evidence": [
+    "Ghidra plate 6f6515f0"
+   ]
+  },
+  {
+   "address": "6f67f490",
+   "name": "Unit_AdmitPosition",
+   "role": "CUnit vslotdc (6fb77f8c) admission query; RET 0x2c",
+   "evidence": [
+    "Ghidra plate 6f67f490"
+   ]
+  },
+  {
+   "address": "6f058810",
+   "name": "UnitMover_SetWorldPosition",
+   "role": "unadmitted mover-bridge scalar write (any bridge: units, camera, blight objects, ghost images)",
+   "evidence": [
+    "BASE-01.5"
+   ]
+  },
+  {
+   "address": "6f05c200",
+   "name": "UnitMover_WriteWorldPosition",
+   "role": "canonical bridge world-position write with notify flag",
+   "evidence": [
+    "BASE-01.5",
+    "Payoff309"
+   ]
+  },
+  {
+   "address": "6f65a340",
+   "name": "CItem_SetWorldPosition",
+   "role": "item position via item vslot180 with checked placement",
+   "evidence": [
+    "Payoff134"
+   ]
+  },
+  {
+   "address": "6f6544f0",
+   "name": "Widget_ReapplyPathingAndDisplace",
+   "role": "widget vslot154 footprint reapply + Widget_DisplaceOccupant callback (forced displacement of other units)",
+   "evidence": [
+    "oracle-widget_masks"
+   ]
+  },
+  {
+   "address": "6f654090",
+   "name": "Widget_DisplaceOccupant",
+   "role": "occupant displacement callback",
+   "evidence": [
+    "retail-pathfinding-search.md"
+   ]
+  },
+  {
+   "address": "6f699200",
+   "name": "CUnit_PublishPathingProfile",
+   "role": "CUnit vslot15c (6fb7800c) category/query publication (pathing bypass sink); tail to 05c7e0",
+   "evidence": [
+    "Payoff25 / live-pathing-toggle-repeat-261001"
+   ]
+  },
+  {
+   "address": "6f05c7e0",
+   "name": "UnitMoverBridge_PublishPathingProfile",
+   "role": "bridge profile writer (direct callers: CUnit wrappers, Captain actor, missiles)",
+   "evidence": [
+    "Ghidra plate 6f699200"
+   ]
+  },
+  {
+   "address": "6f168f00",
+   "name": "Path_AdmitAndCommitPortalExit",
+   "role": "Way Gate exit admission/commit inside route advancement",
+   "evidence": [
+    "retail-pathfinding-experiments.md",
+    "oracle-gate-consumer-engine"
+   ]
+  },
+  {
+   "address": "6f16dd00",
+   "name": "MoveRequest_SetFormationBypass",
+   "role": "request flag100 bit200 formation bypass",
+   "evidence": [
+    "Ghidra plate 6f16dd00 (FORM-01.3)"
+   ]
+  },
+  {
+   "address": "6f68a060",
+   "name": "Unit_InitializeFromCreationProfile",
+   "role": "CUnit vslot1ac (6fb7805c) constructor initializer; RET 0x10",
+   "evidence": [
+    "Payoff131/309"
+   ]
+  },
+  {
+   "address": "6f652620",
+   "name": "Widget_InitializePhysicalCreationProfile",
+   "role": "creation placement via vslotd8 at 6f652651",
+   "evidence": [
+    "Payoff108/309"
+   ]
+  }
+ ],
+ "assumption_corrections": [
+  "Widget_WritePositionAfterAdmission (653510) is vslot 0xd8 in every widget vtable (CWidget 6fb77708, CSelectable 6fb778d4, CItem 6fb77aa8, CDestructable 6fb7d708, CCaptainAI 6fbe0000, CUnit 6fb77eb0); data ref 6fb77f88 is CUnit+0xd8, not +0x180.",
+  "Admission is vslot 0xdc (Widget_AdmitPosition 6515f0 / Unit_AdmitPosition 67f490 at 6fb77f8c = CUnit+0xdc), not +0x184. CUnit+0x184 is FUN_6f679a80.",
+  "vslot 0x180 is SetPosition: CUnit 698050; CSelectable/CItem/CDestructable 654d60 (which calls 653510). CWidget and CCaptainAI vtables end before 0x180."
+ ],
+ "ambiguous_sites": [
+  {
+   "address": "6f5d6046",
+   "disposition": "excluded",
+   "why": "Raw push count (11) equals widget vslotdc arity; excluded only because the receiver is a factory-created agent type-checked against Drunken Haze missile class 0x4d4e6468."
+  },
+  {
+   "address": "6f4b9b79",
+   "disposition": "row B014-39",
+   "why": "Decompiler shows a 5-argument vslot180 call; disassembly shows 10 pushes (5 attributed by the decompiler to FUN_6f652270). Kept as a unit placement."
+  },
+  {
+   "address": "6f656342",
+   "disposition": "excluded",
+   "why": "Receivers come from an item-owned identity array (+0x98/+0xa0); 0-argument vslot1ac is incompatible with CUnit/CItem constructors, but the receiver class was inferred from layout, not from a type check."
+  },
+  {
+   "address": "6f4dcb20",
+   "disposition": "row B014-69",
+   "why": "Function is referenced from CAbilityAuraPlague vslot284 but calls a helper named CAbilityChaosBase_GetReplacementUnitID; the producer is the Aap1 death spawn, the helper name is a shared authored-UnitID reader."
+  },
+  {
+   "address": "6f9b984c",
+   "disposition": "row B014-19",
+   "why": "DisablePathing body is not a defined Ghidra function; bytes decoded manually. The consumer of Captain+6c bit4000 was not found."
+  },
+  {
+   "address": "UI vslotd8/dc/154/15c sites",
+   "disposition": "excluded",
+   "why": "Classified by module range plus caller vtables (CFrame/glue) and 0-2 argument calls; per-site push counts are in pushcount.txt. A UI receiver cannot be a widget here because widget vslotd8/dc require 11 stack arguments."
+  }
+ ],
+ "vtable_slot_refs": [
+  {
+   "ref": "6fb777e0",
+   "target": "6f653510",
+   "target_name": "Widget_WritePositionAfterAdmission",
+   "vtable": "6fb77708",
+   "class": ".?AVCWidget@@",
+   "slot": "0xd8"
+  },
+  {
+   "ref": "6fb779ac",
+   "target": "6f653510",
+   "target_name": "Widget_WritePositionAfterAdmission",
+   "vtable": "6fb778d4",
+   "class": ".?AVCSelectable@@",
+   "slot": "0xd8"
+  },
+  {
+   "ref": "6fb77b80",
+   "target": "6f653510",
+   "target_name": "Widget_WritePositionAfterAdmission",
+   "vtable": "6fb77aa8",
+   "class": ".?AVCItem@@",
+   "slot": "0xd8"
+  },
+  {
+   "ref": "6fb77f88",
+   "target": "6f653510",
+   "target_name": "Widget_WritePositionAfterAdmission",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0xd8"
+  },
+  {
+   "ref": "6fb7d7e0",
+   "target": "6f653510",
+   "target_name": "Widget_WritePositionAfterAdmission",
+   "vtable": "6fb7d708",
+   "class": ".?AVCDestructable@@",
+   "slot": "0xd8"
+  },
+  {
+   "ref": "6fbe00d8",
+   "target": "6f653510",
+   "target_name": "Widget_WritePositionAfterAdmission",
+   "vtable": "6fbe0000",
+   "class": ".?AVCCaptainAI@@",
+   "slot": "0xd8"
+  },
+  {
+   "ref": "6fb78030",
+   "target": "6f698050",
+   "target_name": "Unit_SetPositionWithAdmission",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x180"
+  },
+  {
+   "ref": "6fb777e4",
+   "target": "6f6515f0",
+   "target_name": "Widget_AdmitPosition",
+   "vtable": "6fb77708",
+   "class": ".?AVCWidget@@",
+   "slot": "0xdc"
+  },
+  {
+   "ref": "6fb779b0",
+   "target": "6f6515f0",
+   "target_name": "Widget_AdmitPosition",
+   "vtable": "6fb778d4",
+   "class": ".?AVCSelectable@@",
+   "slot": "0xdc"
+  },
+  {
+   "ref": "6fb77b84",
+   "target": "6f6515f0",
+   "target_name": "Widget_AdmitPosition",
+   "vtable": "6fb77aa8",
+   "class": ".?AVCItem@@",
+   "slot": "0xdc"
+  },
+  {
+   "ref": "6fb7d7e4",
+   "target": "6f6515f0",
+   "target_name": "Widget_AdmitPosition",
+   "vtable": "6fb7d708",
+   "class": ".?AVCDestructable@@",
+   "slot": "0xdc"
+  },
+  {
+   "ref": "6fbe00dc",
+   "target": "6f6515f0",
+   "target_name": "Widget_AdmitPosition",
+   "vtable": "6fbe0000",
+   "class": ".?AVCCaptainAI@@",
+   "slot": "0xdc"
+  },
+  {
+   "ref": "6fb77f8c",
+   "target": "6f67f490",
+   "target_name": "Unit_AdmitPosition",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0xdc"
+  },
+  {
+   "ref": "6fb7785c",
+   "target": "6f6544f0",
+   "target_name": "Widget_ReapplyPathingAndDisplace",
+   "vtable": "6fb77708",
+   "class": ".?AVCWidget@@",
+   "slot": "0x154"
+  },
+  {
+   "ref": "6fb77a28",
+   "target": "6f6544f0",
+   "target_name": "Widget_ReapplyPathingAndDisplace",
+   "vtable": "6fb778d4",
+   "class": ".?AVCSelectable@@",
+   "slot": "0x154"
+  },
+  {
+   "ref": "6fb77bfc",
+   "target": "6f6544f0",
+   "target_name": "Widget_ReapplyPathingAndDisplace",
+   "vtable": "6fb77aa8",
+   "class": ".?AVCItem@@",
+   "slot": "0x154"
+  },
+  {
+   "ref": "6fb78004",
+   "target": "6f6544f0",
+   "target_name": "Widget_ReapplyPathingAndDisplace",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x154"
+  },
+  {
+   "ref": "6fb7d85c",
+   "target": "6f6544f0",
+   "target_name": "Widget_ReapplyPathingAndDisplace",
+   "vtable": "6fb7d708",
+   "class": ".?AVCDestructable@@",
+   "slot": "0x154"
+  },
+  {
+   "ref": "6fbe0154",
+   "target": "6f6544f0",
+   "target_name": "Widget_ReapplyPathingAndDisplace",
+   "vtable": "6fbe0000",
+   "class": ".?AVCCaptainAI@@",
+   "slot": "0x154"
+  },
+  {
+   "ref": "6fb77a54",
+   "target": "6f654d60",
+   "target_name": "FUN_6f654d60",
+   "vtable": "6fb778d4",
+   "class": ".?AVCSelectable@@",
+   "slot": "0x180"
+  },
+  {
+   "ref": "6fb77c28",
+   "target": "6f654d60",
+   "target_name": "FUN_6f654d60",
+   "vtable": "6fb77aa8",
+   "class": ".?AVCItem@@",
+   "slot": "0x180"
+  },
+  {
+   "ref": "6fb7d888",
+   "target": "6f654d60",
+   "target_name": "FUN_6f654d60",
+   "vtable": "6fb7d708",
+   "class": ".?AVCDestructable@@",
+   "slot": "0x180"
+  },
+  {
+   "ref": "6fb7800c",
+   "target": "6f699200",
+   "target_name": "CUnit_PublishPathingProfile",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x15c"
+  },
+  {
+   "ref": "6fb777a4",
+   "target": "6f652620",
+   "target_name": "Widget_InitializePhysicalCreationProfile",
+   "vtable": "6fb77708",
+   "class": ".?AVCWidget@@",
+   "slot": "0x9c"
+  },
+  {
+   "ref": "6fb77970",
+   "target": "6f652620",
+   "target_name": "Widget_InitializePhysicalCreationProfile",
+   "vtable": "6fb778d4",
+   "class": ".?AVCSelectable@@",
+   "slot": "0x9c"
+  },
+  {
+   "ref": "6fb77b44",
+   "target": "6f652620",
+   "target_name": "Widget_InitializePhysicalCreationProfile",
+   "vtable": "6fb77aa8",
+   "class": ".?AVCItem@@",
+   "slot": "0x9c"
+  },
+  {
+   "ref": "6fb77f4c",
+   "target": "6f652620",
+   "target_name": "Widget_InitializePhysicalCreationProfile",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x9c"
+  },
+  {
+   "ref": "6fb7d7a4",
+   "target": "6f652620",
+   "target_name": "Widget_InitializePhysicalCreationProfile",
+   "vtable": "6fb7d708",
+   "class": ".?AVCDestructable@@",
+   "slot": "0x9c"
+  },
+  {
+   "ref": "6fbe009c",
+   "target": "6f652620",
+   "target_name": "Widget_InitializePhysicalCreationProfile",
+   "vtable": "6fbe0000",
+   "class": ".?AVCCaptainAI@@",
+   "slot": "0x9c"
+  },
+  {
+   "ref": "6fb7805c",
+   "target": "6f68a060",
+   "target_name": "Unit_InitializeFromCreationProfile",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x1ac"
+  },
+  {
+   "ref": "6fb77f30",
+   "target": "6f699c00",
+   "target_name": "Unit_RestoreWorldPresence",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x80"
+  },
+  {
+   "ref": "6fb7801c",
+   "target": "6f6945a0",
+   "target_name": "CUnit_RefreshMoverPathingProfile",
+   "vtable": "6fb77eb0",
+   "class": ".?AVCUnit@@",
+   "slot": "0x16c"
+  },
+  {
+   "ref": "6fb77c54",
+   "target": "6f658c10",
+   "target_name": "CItem_CreateAuthored",
+   "vtable": "6fb77aa8",
+   "class": ".?AVCItem@@",
+   "slot": "0x1ac"
+  }
+ ],
+ "rows": [
+  {
+   "id": "B014-01",
+   "kind": "forced-position",
+   "producer": "JASS SetUnitPosition / SetUnitPositionLoc (registered 6f20942f / 6f209443)",
+   "native_entry": {
+    "address": "6f2155c0",
+    "name": "Jass_SetUnitPosition"
+   },
+   "chain": [
+    {
+     "address": "6f215620",
+     "name": "Jass_SetUnitPositionLoc"
+    },
+    {
+     "address": "6f2155c0",
+     "name": "Jass_SetUnitPosition"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    },
+    {
+     "address": "6f05c200",
+     "name": "UnitMover_WriteWorldPosition"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f21560a",
+    "6f215649",
+    "6f6535e0",
+    "6f698186"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:oracle-stop285",
+    "oracle:live-forced-position-repeat",
+    "oracle:live-blocked-position-repeat",
+    "oracle:live-pathing-position-repeat-261001",
+    "oracle:oracle-goal308",
+    "oracle:oracle-place309",
+    "oracle:oracle-bridge311",
+    "oracle:live-follow-target-teleport-captures-261002",
+    "doc:retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285",
+    "doc:retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine",
+    "doc:retail-pathfinding-engine.md#blocked-placement-reaches-the-engine",
+    "doc:retail-pathfinding-engine.md#unit-placement-clamps-before-admission-lost-approaches-retain-physical-ownership-payoff308",
+    "todo:BASE-01.6"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f2155c0/6f215620/6f698050/6f653510"
+   ],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:SetUnitPosition/SetUnitPositionLoc -> skills/s_move.c:S_SetUnitPosition",
+   "owner": null,
+   "rationale": "Ordinary living ground unit: Stop admission 6803f0(1) before vslot180, clamp/admission/scalar write and saved continuation are frozen; Loc wrapper shares the native (Payoff285 wrapper oracle)."
+  },
+  {
+   "id": "B014-02",
+   "kind": "forced-position",
+   "producer": "JASS SetUnitPosition on structures, loaded cargo, dead/removed or support-rejected units (698050 conditional ability/build callback 69b200 and support branches)",
+   "native_entry": {
+    "address": "6f2155c0",
+    "name": "Jass_SetUnitPosition"
+   },
+   "chain": [
+    {
+     "address": "6f2155c0",
+     "name": "Jass_SetUnitPosition"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f21560a"
+   ],
+   "status": "uncovered",
+   "evidence": [
+    "todo:BASE-01.6"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f698050 (Payoff285: \"Structure/cargo/removed/private support cases retain separate limits\")"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_move.c:S_SetUnitPosition handles ordinary owners; no retail-verified structure/cargo/dead branch",
+   "owner": "FOOT-04.2",
+   "rationale": "Same public site as B014-01 but different receiver states inside 698050; BASE-01.6 delegated these to 01.4/FOOT-04, so the placement-domain leaf FOOT-04.2 inherits them."
+  },
+  {
+   "id": "B014-03",
+   "kind": "forced-position",
+   "producer": "JASS SetUnitX / SetUnitY (registered 6f209407 / 6f20941b)",
+   "native_entry": {
+    "address": "6f215900",
+    "name": "Jass_SetUnitX"
+   },
+   "chain": [
+    {
+     "address": "6f215900",
+     "name": "Jass_SetUnitX"
+    },
+    {
+     "address": "6f058810",
+     "name": "UnitMover_SetWorldPosition"
+    },
+    {
+     "address": "6f05c200",
+     "name": "UnitMover_WriteWorldPosition"
+    }
+   ],
+   "sink": "6f058810",
+   "sites": [
+    "6f05881b",
+    "6f215951",
+    "6f2159b1"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:live-axis-position-repeat",
+    "oracle:capture-axis-position-first-261001",
+    "oracle:capture-axis-position-repeat-261001",
+    "doc:retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step",
+    "doc:retail-pathfinding-corpus.md#public-axis-position-writes-and-following-move",
+    "todo:BASE-01.5"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:SetUnitX/SetUnitY macro -> skills/s_move.c:S_SetUnitAxisPosition",
+   "owner": null,
+   "rationale": "Unadmitted mover write without Stop; geometry/next Move step closed by BASE-01.5. Clock cadence is NUM-02.3 (already referenced there)."
+  },
+  {
+   "id": "B014-04",
+   "kind": "pathing-bypass",
+   "producer": "JASS SetUnitPathing (registered 6f2096c3)",
+   "native_entry": {
+    "address": "6f215540",
+    "name": "Jass_SetUnitPathing"
+   },
+   "chain": [
+    {
+     "address": "6f215540",
+     "name": "Jass_SetUnitPathing"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    },
+    {
+     "address": "6f05c7e0",
+     "name": "UnitMoverBridge_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f215596",
+    "6f2155b6",
+    "6f69920a"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:live-pathing-toggle-repeat-261001",
+    "oracle:live-movement-bypasses-captures-261003",
+    "oracle:live-pathing-position-repeat-261001",
+    "doc:retail-pathfinding-engine.md#public-pathing-toggle-separates-query-from-occupancy",
+    "doc:retail-pathfinding-engine.md#disabled-query-reaches-public-placement",
+    "doc:retail-pathfinding-corpus.md#pathing-toggle-pause-and-displacement-lifecycle"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:SetUnitPathing",
+   "owner": null,
+   "rationale": "Both branches (false: occupancy category + zero query; true: authored vtable164/160) reach CUnit vslot15c; own query toggles while occupancy is retained."
+  },
+  {
+   "id": "B014-05",
+   "kind": "forced-position",
+   "producer": "JASS SetItemPosition (registered 6f20a2a3)",
+   "native_entry": {
+    "address": "6f213940",
+    "name": "JassItem_SetPosition"
+   },
+   "chain": [
+    {
+     "address": "6f213940",
+     "name": "JassItem_SetPosition"
+    },
+    {
+     "address": "6f65a340",
+     "name": "CItem_SetWorldPosition"
+    },
+    {
+     "address": "6f654d60",
+     "name": "FUN_6f654d60"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    },
+    {
+     "address": "6f05c200",
+     "name": "UnitMover_WriteWorldPosition"
+    }
+   ],
+   "sink": "6f65a340",
+   "sites": [
+    "6f213999",
+    "6f2139a9",
+    "6f654d86",
+    "6f65a376",
+    "6f694d3a"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-object-categories",
+    "doc:retail-pathfinding-categories.md#item-admission-and-engine-integration",
+    "todo:BASE-02.2"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f213940/6f65a340"
+   ],
+   "engine": "implemented: games/warcraft-3/game/api/api_item.h:SetItemPosition (G_FindWidgetPlacementPosition item admission)",
+   "owner": "FOOT-04.2",
+   "rationale": "Carrier release then requested write with item query10/radius1 is integrated; the categories doc explicitly leaves layered bridge-level and outside-map item placement to FOOT-04.2."
+  },
+  {
+   "id": "B014-06",
+   "kind": "forced-position",
+   "producer": "JASS UnitRemoveItem / UnitRemoveItemFromSlot / UnitAddItem (carrier transfer) item publication at carrier pose",
+   "native_entry": {
+    "address": "6f218e00",
+    "name": "UnitRemoveItem (native, FUN_6f218e00)"
+   },
+   "chain": [
+    {
+     "address": "6f218e40",
+     "name": "FUN_6f218e40"
+    },
+    {
+     "address": "6f694d50",
+     "name": "FUN_6f694d50"
+    },
+    {
+     "address": "6f694ce0",
+     "name": "CUnit_RemoveInventoryItemAtCurrentPosition"
+    },
+    {
+     "address": "6f65a340",
+     "name": "CItem_SetWorldPosition"
+    },
+    {
+     "address": "6f654d60",
+     "name": "FUN_6f654d60"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f65a340",
+   "sites": [
+    "6f694d3a",
+    "6f694dab"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-object-categories",
+    "doc:retail-pathfinding-categories.md#item-admission-and-engine-integration"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/g_items.c:G_DropItem/G_DropItemAtScripted; api/api_unit.h:UnitRemoveItem/UnitRemoveItemFromSlot/UnitAddItem",
+   "owner": "FOOT-04.2",
+   "rationale": "Carrier-pose drops share the item admission verified for Payoff134; outside/bridge item domains are the FOOT-04.2 remainder."
+  },
+  {
+   "id": "B014-07",
+   "kind": "forced-position",
+   "producer": "CAbilityInventory internal item drops/handoffs (drop-at-point order, death/owner drops, pawn) and drop-point admission query",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f540bd0",
+     "name": "FUN_6f540bd0"
+    },
+    {
+     "address": "6f65a340",
+     "name": "CItem_SetWorldPosition"
+    }
+   ],
+   "sink": "6f65a340",
+   "sites": [
+    "6f540d09",
+    "6f54fed5",
+    "6f55eca6",
+    "6f56a58f",
+    "6f56b6ff",
+    "6f56ba17"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "Ghidra plate 6f561680 Inventory_TargetEventCallback (Payoff363 explicitly leaves wider Inventory composition out)"
+   ],
+   "engine": "partial: games/warcraft-3/game/g_items.c:G_DropItemAt/G_DropItemThink exist; retail drop-point admission not compared",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-owned (CAbilityInventory vtable 6fb28330 slots a4/284 and order callbacks) item placement; inventory order execution is concrete-ability work."
+  },
+  {
+   "id": "B014-08",
+   "kind": "forced-position",
+   "producer": "JASS ReviveHero / ReviveHeroLoc (registered 6f20987b / 6f20988f)",
+   "native_entry": {
+    "address": "6f210f90",
+    "name": "JassNative_ReviveHero"
+   },
+   "chain": [
+    {
+     "address": "6f211010",
+     "name": "FUN_6f211010"
+    },
+    {
+     "address": "6f210f90",
+     "name": "JassNative_ReviveHero"
+    },
+    {
+     "address": "6f695ab0",
+     "name": "Unit_ReviveHeroAtPoint"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f210ff8",
+    "6f211042",
+    "6f695ba2"
+   ],
+   "status": "partial",
+   "evidence": [
+    "doc:retail-pathfinding-engine.md#death-and-removal-unpublish-fine-occupancy-without-destroying-its-identity-payoff301"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f695ab0 (Payoff301: static only, no live revival capture)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/m_unit.c:G_ReviveHero via api/api_unit.h:ReviveHero/ReviveHeroLoc",
+   "owner": "FOOT-04.2",
+   "rationale": "Revival availability inverse is static Payoff301 evidence; the vslot180 placement of the revived Hero (blocked/outside points) has no capture."
+  },
+  {
+   "id": "B014-09",
+   "kind": "forced-position",
+   "producer": "JASS ShowUnit(true): CUnit vslot80 Unit_RestoreWorldPresence re-admits the current pose",
+   "native_entry": {
+    "address": "6f215b00",
+    "name": "ShowUnit (native, FUN_6f215b00)"
+   },
+   "chain": [
+    {
+     "address": "6f215b00",
+     "name": "FUN_6f215b00"
+    },
+    {
+     "address": "6f699c00",
+     "name": "Unit_RestoreWorldPresence"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f215bd0",
+    "6f699d63"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-captain373-strategic",
+    "doc:retail-pathfinding-captain-strategic-regions.md#physical-world-absence-and-gameplay-invisibility"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f699c00 (Payoff373)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:ShowUnit",
+   "owner": "FOOT-04.2",
+   "rationale": "Hide/show presence flags and Save212 owner are covered; the re-admission placement when the hidden pose became occupied is not captured (overlap placement domain)."
+  },
+  {
+   "id": "B014-10",
+   "kind": "forced-position",
+   "producer": "JASS CreateUnit / CreateUnitByName / CreateUnitAtLoc / CreateUnitAtLocByName creation placement",
+   "native_entry": {
+    "address": "6f1fc930",
+    "name": "Jass_CreateUnit"
+   },
+   "chain": [
+    {
+     "address": "6f1fc930",
+     "name": "Jass_CreateUnit"
+    },
+    {
+     "address": "6f64e650",
+     "name": "Unit_CreatePublic"
+    },
+    {
+     "address": "6f677870",
+     "name": "FUN_6f677870"
+    },
+    {
+     "address": "6f68a060",
+     "name": "Unit_InitializeFromCreationProfile"
+    },
+    {
+     "address": "6f652620",
+     "name": "Widget_InitializePhysicalCreationProfile"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f1fc96e",
+    "6f64e666",
+    "6f652651",
+    "6f677aee",
+    "6f68a1b6",
+    "6f68b080"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:live-public-spawn-repeat-261001",
+    "oracle:capture-spawn-admission-first-261001",
+    "oracle:oracle-place309",
+    "oracle:oracle-bridge311",
+    "oracle:oracle-nonfinite313",
+    "doc:retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose",
+    "doc:retail-pathfinding-engine.md#constructor-placement-and-flying-ring-results-payoff309",
+    "doc:retail-pathfinding-engine.md#retained-bridge-placement-levels-and-replacement-footprints-payoff311"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:CreateUnit/CreateUnitAtLoc/CreateUnitAtLocByName",
+   "owner": null,
+   "rationale": "Constructor vslot1ac -> Widget_InitializePhysicalCreationProfile vslotd8 placement and the 05c200 canonical write are frozen for public creation, four footprint classes, water/bridge and exceptional radii."
+  },
+  {
+   "id": "B014-11",
+   "kind": "forced-position",
+   "producer": "Other public creation natives: CreateCorpse, CreateBlightedGoldmine, PlaceRandomUnit, RestoreUnit (game cache)",
+   "native_entry": {
+    "address": "6f1fb4f0",
+    "name": "CreateCorpse (native, FUN_6f1fb4f0)"
+   },
+   "chain": [
+    {
+     "address": "6f1fb4f0",
+     "name": "FUN_6f1fb4f0"
+    },
+    {
+     "address": "6f64e650",
+     "name": "Unit_CreatePublic"
+    },
+    {
+     "address": "6f677870",
+     "name": "FUN_6f677870"
+    },
+    {
+     "address": "6f68a060",
+     "name": "Unit_InitializeFromCreationProfile"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f1fb37d",
+    "6f1fb3a5",
+    "6f1fb52b",
+    "6f24061f",
+    "6f2459c2"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-place309",
+    "doc:retail-pathfinding-engine.md#constructor-placement-and-flying-ring-results-payoff309"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:CreateCorpse/CreateBlightedGoldmine; api/api_misc.h:PlaceRandomUnit/RestoreUnit",
+   "owner": "FOOT-04.2",
+   "rationale": "Same constructor placement as B014-10 but no capture of these producers (corpse/dead-state, mine footprint, pool selection, cache restore pose)."
+  },
+  {
+   "id": "B014-12",
+   "kind": "forced-position",
+   "producer": "Map-load/preplaced widget creation (W3U/DOO units, items, destructables) and world-start pathing finalization",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f6c20a0",
+     "name": "FUN_6f6c20a0"
+    },
+    {
+     "address": "6f652620",
+     "name": "Widget_InitializePhysicalCreationProfile"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f658ca7",
+    "6f6c20b4"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:live-map-load-captures-261003",
+    "oracle:oracle-map_construction",
+    "doc:retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f1eab40 MapStart_FinalizeInitialPathing / 6f6c0d90 Destructable_CreateAuthored"
+   ],
+   "engine": "implemented: games/warcraft-3/game/g_spawn.c / g_destructable.c:G_InitializeDestructablePlacement",
+   "owner": null,
+   "rationale": "Authored creation snapping/rotation and initial pathing are frozen; constructors share Widget_InitializePhysicalCreationProfile."
+  },
+  {
+   "id": "B014-13",
+   "kind": "forced-position",
+   "producer": "JASS CreateItem / PlaceRandomItem and internal item spawns (CItem vslot1ac constructor)",
+   "native_entry": {
+    "address": "6f1fbc40",
+    "name": "CreateItem (native, FUN_6f1fbc40)"
+   },
+   "chain": [
+    {
+     "address": "6f1fbc40",
+     "name": "FUN_6f1fbc40"
+    },
+    {
+     "address": "6f657770",
+     "name": "FUN_6f657770"
+    },
+    {
+     "address": "6f658c10",
+     "name": "CItem_CreateAuthored"
+    },
+    {
+     "address": "6f652620",
+     "name": "Widget_InitializePhysicalCreationProfile"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f65784b"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:oracle-object-categories",
+    "doc:retail-pathfinding-categories.md#item-admission-and-engine-integration"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f658c10 CItem_CreateAuthored"
+   ],
+   "engine": "implemented: games/warcraft-3/game/api/api_item.h:CreateItem; api/api_misc.h:PlaceRandomItem",
+   "owner": null,
+   "rationale": "Item constructor query10/radius1 with no support callback is the frozen Payoff134 contract; layered-bridge remainder is already FOOT-04.2 via B014-05."
+  },
+  {
+   "id": "B014-14",
+   "kind": "teleport",
+   "producer": "AI native TeleportCaptain (registered 6f9be33e)",
+   "native_entry": {
+    "address": "6f9c0490",
+    "name": "Jass_TeleportCaptain"
+   },
+   "chain": [
+    {
+     "address": "6f9c0490",
+     "name": "Jass_TeleportCaptain"
+    },
+    {
+     "address": "6f9d7ac0",
+     "name": "CaptainAI_TeleportActor"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    },
+    {
+     "address": "6f05c200",
+     "name": "UnitMover_WriteWorldPosition"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f9d7aee"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-teleport290",
+    "doc:retail-pathfinding-captain-policy.md#teleportcaptain-relocates-the-retained-actor-payoff290",
+    "doc:retail-pathfinding-engine.md#captain-teleport-commits-physical-placement-without-stop-payoff290"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/api/api_ai.h:TeleportCaptain -> g_bot.c:G_BotTeleportCaptain -> skills/s_move.c:S_TeleportCaptainActor",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Seven live existing-actor relocations verified; oracle-teleport290 scope leaves default Town/first actor creation, nonfinite/outside domains and wider roster/goal lifetimes to GROUP-03.4.7.3."
+  },
+  {
+   "id": "B014-15",
+   "kind": "teleport",
+   "producer": "AI native ResetCaptainLocs (registered 6f9be302)",
+   "native_entry": {
+    "address": "6f9bee60",
+    "name": "Jass_ResetCaptainLocs"
+   },
+   "chain": [
+    {
+     "address": "6f9bee60",
+     "name": "Jass_ResetCaptainLocs"
+    },
+    {
+     "address": "6f9c9c10",
+     "name": "TownAI_ResetCaptainLocations"
+    },
+    {
+     "address": "6f9d7ac0",
+     "name": "CaptainAI_TeleportActor"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f9d7aee"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-captain291",
+    "doc:retail-pathfinding-captain-policy.md#shared-default-homes-and-ordered-resetcaptainlocs-payoff291",
+    "doc:retail-pathfinding-engine.md#shared-captain-defaults-and-physical-reset-payoff291"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/api/api_ai.h:ResetCaptainLocs -> g_bot_town.c (S_TeleportCaptainActor per captain)",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Ordered attack/defense reset placement is captured; independent initial Town-selection timer and moved-slot owner inverses remain in the Captain policy leaf."
+  },
+  {
+   "id": "B014-16",
+   "kind": "teleport",
+   "producer": "Captain virtual actor placement: CaptainGoHome when roster empty/state1, CreateCaptains actor initialization",
+   "native_entry": {
+    "address": "6f9b8930",
+    "name": "JassNative_CaptainGoHome"
+   },
+   "chain": [
+    {
+     "address": "6f9b8930",
+     "name": "JassNative_CaptainGoHome"
+    },
+    {
+     "address": "6f9c40c0",
+     "name": "AI_CaptainGoHome"
+    },
+    {
+     "address": "6f9d2670",
+     "name": "CaptainAI_GoHome"
+    },
+    {
+     "address": "6f9d6ed0",
+     "name": "CaptainAI_PlaceActorAtPoint"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f9d6f03"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:live-captain-go-home-captures-261003",
+    "doc:retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain",
+    "doc:retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_move.c (S_PlaceUnitPosition(actor,&captain->home) at GoHome)",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Payoff285 states the complete private actor recovery/placement order (9d6ed0 then 9d7600) stays GROUP-03.4.7.3; CreateCaptains initialization path (9d2f90 -> 9d6ed0) is not captured."
+  },
+  {
+   "id": "B014-17",
+   "kind": "teleport",
+   "producer": "CaptainAI_UpdateMemberOrders snaps the virtual Captain actor onto a member pose",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f9d44d0",
+     "name": "CaptainAI_PublishPointRequest"
+    },
+    {
+     "address": "6f9d16c0",
+     "name": "CaptainAI_UpdateMemberOrders"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f9d20f6"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "Ghidra plate 6f9d16c0 (member batch policy only; the 653510 write is not described)"
+   ],
+   "engine": "missing: no matching actor-to-member snap found in games/warcraft-3/game/skills/s_move.c Captain member update",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Captain-internal relocation reached from every Captain point publication; no capture or doc isolates this write."
+  },
+  {
+   "id": "B014-18",
+   "kind": "teleport",
+   "producer": "Cargo passenger return recenters the retained attack Captain (CargoHold/Bunker/EntangleCargo/DevourCargo/MeatCargo vslot31c)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5803c0",
+     "name": "Cargo_ReturnLivingPassengerToOrders"
+    },
+    {
+     "address": "6f9d04a0",
+     "name": "CaptainAI_RecenterAfterPassengerReturn"
+    },
+    {
+     "address": "6f653510",
+     "name": "Widget_WritePositionAfterAdmission"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f9d05bc"
+   ],
+   "status": "partial",
+   "evidence": [
+    "doc:retail-pathfinding-separation.md#itemteleport-working-audit327"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f9d04a0/6f5803c0"
+   ],
+   "engine": "missing: audit329 states engine cargo-return integration is pending",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Distant-Captain recenter branch is witnessed by Cargo329assault repeats, but only statically for other member policies and not integrated in the engine."
+  },
+  {
+   "id": "B014-19",
+   "kind": "pathing-bypass",
+   "producer": "AI native DisablePathing (registered 6f9be4f6): sets attack Captain flags6c bit4000",
+   "native_entry": {
+    "address": "6f9b9830",
+    "name": "DisablePathing (native; no Ghidra function defined)"
+   },
+   "chain": [
+    {
+     "address": "6f9b9830",
+     "name": "DisablePathing native body (no Ghidra function defined; decoded from DLL bytes)"
+    }
+   ],
+   "sink": "Captain+6c",
+   "sites": [
+    "6f9b984c"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "none (no doc, oracle or plate mentions DisablePathing / Captain flag 4000)"
+   ],
+   "engine": "partial: games/warcraft-3/game/api/api_ai.h:DisablePathing stores BOT_DISABLE_PATHING (g_local.h:3004 \"AI policy only\") with no consumer",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Captain policy flag producer; consumer of Captain+6c bit4000 not located statically (substring instruction search for \"0x6c],0x4000\" returned 0 hits, operand formatting may differ)."
+  },
+  {
+   "id": "B014-20",
+   "kind": "pathing-bypass",
+   "producer": "Captain virtual actor movement-type / pathing profile publication (radius0 actor, category2)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f9d2f90",
+     "name": "CaptainAI_InitializeVirtualActor"
+    },
+    {
+     "address": "6f05c7e0",
+     "name": "UnitMoverBridge_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f05c7e0",
+   "sites": [
+    "6f9d3042",
+    "6f9d3066",
+    "6f9d6ea9"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:live-captain-home-captures-261002",
+    "doc:retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f9d2f90 CaptainAI_InitializeVirtualActor (category2/radius0)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_move.c Captain actor (zero-radius occupancy)",
+   "owner": "GROUP-03.4.7.3",
+   "rationale": "Initial profile is witnessed; per-request movement-type republication 9d6e60 (from 9d44d0/9d0280/9d7b00) is not separately captured."
+  },
+  {
+   "id": "B014-21",
+   "kind": "teleport",
+   "producer": "Way Gate traversal: accelerated route consumes a warp node and commits the portal exit",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f165b60",
+     "name": "Path_AdvanceAcceleratedRoute"
+    },
+    {
+     "address": "6f165d10",
+     "name": "Path_ConsumeAcceleratedWaypoint"
+    },
+    {
+     "address": "6f168f00",
+     "name": "Path_AdmitAndCommitPortalExit"
+    },
+    {
+     "address": "6f16ec00",
+     "name": "PathContext_AdmitPortalFinePoint"
+    }
+   ],
+   "sink": "6f168f00",
+   "sites": [
+    "6f165d79",
+    "6f168f24"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:live-gate-traversal-captures-261004",
+    "oracle:live-gate-exit-near-captures-261004",
+    "oracle:live-gate-exit-sealed-captures-261004",
+    "oracle:live-gate-chain-captures-261004",
+    "oracle:live-gate-group-open-captures-261004",
+    "oracle:live-gate-group-wall-captures-261004",
+    "oracle:oracle-gate-consumer-engine",
+    "oracle:oracle-gate-threshold-engine",
+    "oracle:oracle-portal-scope",
+    "oracle:live-portal-exclusion",
+    "oracle:oracle-waygate377",
+    "oracle:live-formation-warp-marker-lifetimes",
+    "doc:retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state",
+    "doc:retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes",
+    "doc:retail-pathfinding-engine.md#portal-placement-holds-its-authoritative-spatial-counter-payoff188",
+    "doc:retail-pathfinding-waygate-point-tasks.md#waygate-target-move-and-smart-point-tasks"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_waygate.c + skills/s_move.c portal consumer",
+   "owner": null,
+   "rationale": "Exit admission (16ec00 six-ring, self-exclusion) and commit are frozen through public single/group/chain/blocked/sealed traversals."
+  },
+  {
+   "id": "B014-22",
+   "kind": "teleport",
+   "producer": "JASS WaygateActivate (registered 6f20a0eb)",
+   "native_entry": {
+    "address": "6f2193e0",
+    "name": "Jass_WaygateActivate"
+   },
+   "chain": [
+    {
+     "address": "6f2193e0",
+     "name": "Jass_WaygateActivate"
+    },
+    {
+     "address": "6f43b840",
+     "name": "AbilityWarp_SetActive"
+    },
+    {
+     "address": "6f04e210",
+     "name": "Waygate_SetEdgeActive"
+    }
+   ],
+   "sink": "6f04e210",
+   "sites": [
+    "6f219410"
+   ],
+   "status": "covered",
+   "evidence": [
+    "oracle:oracle-waygate-pool",
+    "oracle:live-waygate-pool-captures-261004",
+    "oracle:oracle-gate-edges-engine",
+    "doc:retail-pathfinding-experiments.md#special-edges-are-way-gate-records"
+   ],
+   "static_notes": [
+    "live-gate-chain-captures-261004 (four activation combinations)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:WaygateActivate",
+   "owner": null,
+   "rationale": "Edge activation including exhausted edge0 and unit flag bitB is frozen."
+  },
+  {
+   "id": "B014-23",
+   "kind": "teleport",
+   "producer": "JASS WaygateSetDestination (registered 6f20a0d7)",
+   "native_entry": {
+    "address": "6f219500",
+    "name": "WaygateSetDestination (native, FUN_6f219500)"
+   },
+   "chain": [
+    {
+     "address": "6f219500",
+     "name": "FUN_6f219500"
+    },
+    {
+     "address": "6f4319c0",
+     "name": "FUN_6f4319c0"
+    },
+    {
+     "address": "6f04e550",
+     "name": "Waygate_SetWorldDestination"
+    }
+   ],
+   "sink": "6f04e550",
+   "sites": [
+    "6f219533"
+   ],
+   "status": "partial",
+   "evidence": [],
+   "static_notes": [
+    "oracle-waygate377 exclusions: \"Destination setter quantization and unobserved target producer branches remain in TARGET-01.2\"",
+    "Ghidra plate 6f414eb0 AbilityWarp_ReadCapturedDestination"
+   ],
+   "engine": "implemented: games/warcraft-3/game/api/api_unit.h:WaygateSetDestination",
+   "owner": "TARGET-01.2",
+   "rationale": "The destination writer feeds every later Way Gate teleport; its quantization is explicitly assigned to TARGET-01.2."
+  },
+  {
+   "id": "B014-24",
+   "kind": "pathing-bypass",
+   "producer": "MoveRequest_SetFormationBypass producers: zero/sentinel range target/point starts, facing request (SetUnitFacingTimed, Root d0176), shared point request clears",
+   "native_entry": {
+    "address": "6f2151b0",
+    "name": "Jass_SetUnitFacingTimed"
+   },
+   "chain": [
+    {
+     "address": "6f2151b0",
+     "name": "Jass_SetUnitFacingTimed"
+    },
+    {
+     "address": "6f05c0e0",
+     "name": "MoveBridge_BeginFacingRequest"
+    },
+    {
+     "address": "6f16dd00",
+     "name": "MoveRequest_SetFormationBypass"
+    }
+   ],
+   "sink": "6f16dd00",
+   "sites": [
+    "6f05a677",
+    "6f05bb84",
+    "6f05c1b0",
+    "6f89cb79",
+    "6f89cbc9",
+    "6f89cc7f"
+   ],
+   "status": "partial",
+   "evidence": [],
+   "static_notes": [
+    "Ghidra plate 6f16dd00 (FORM-01.3 producers; live CAbilityAttack chase 49a240->5fc640->05a5c0 policy1200; 05c1b0 callers 2151b0/d0176 not witnessed)",
+    "docs/games/warcraft-3/retail-pathfinding-handoffs/FORM-01.3/"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_move.c formation bypass for zero-range targets; facing-request producer not compared",
+   "owner": "TARGET-01.2",
+   "rationale": "Target/point start producers are witnessed; the facing-request producer is a heading-parameter decision, which TARGET-01.2 owns."
+  },
+  {
+   "id": "B014-25",
+   "kind": "pathing-bypass",
+   "producer": "FUN_6f89ccc0 formation-bypass clear (no references)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f89ccc0",
+     "name": "FUN_6f89ccc0"
+    },
+    {
+     "address": "6f16dd00",
+     "name": "MoveRequest_SetFormationBypass"
+    }
+   ],
+   "sink": "6f16dd00",
+   "sites": [
+    "6f89ccd3"
+   ],
+   "status": "unreachable",
+   "evidence": [],
+   "static_notes": [
+    "get_xrefs_to(6f89ccc0) returns 0 references (code and data); Ghidra plate 6f16dd00 calls it \"unreferenced\""
+   ],
+   "engine": "missing: not needed",
+   "owner": null,
+   "rationale": "No call, jump or data/vtable reference reaches the containing function; static unreachability (indirect computed-pointer use would still need a data ref, none exists).",
+   "proof": "No call, jump or data/vtable reference reaches the containing function; static unreachability (indirect computed-pointer use would still need a data ref, none exists)."
+  },
+  {
+   "id": "B014-26",
+   "kind": "forced-position",
+   "producer": "Root (Aroo) placed point order: approach, facing, relocation then rooted footprint displacement",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f425280",
+     "name": "FUN_6f425280"
+    },
+    {
+     "address": "6f438ac0",
+     "name": "Root_BeginMorphAfterFacing"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f8a1a",
+    "6f438c19"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-root211",
+    "doc:retail-pathfinding-engine.md#root-approaches-then-faces-before-morphing-payoff211"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f438ac0/6f426f50"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_utility_abilities.c:CAbilityRoot (S_PlaceUnitPosition at ancient_root destination)",
+   "owner": "SEP-01.2",
+   "rationale": "oracle-root211 exclusion: placement45 deferred retries, other Root forms and changed collision during facing remain unported; rooted completion 3f89a0 also calls vslot154 displacement."
+  },
+  {
+   "id": "B014-27",
+   "kind": "forced-position",
+   "producer": "Burrow / Submerge reverse (unburrow, surface) re-placement (CAbilityBurrow/CAbilitySubmerge vslot410)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4c85b0",
+     "name": "AbilityBurrow_BeginReverse"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4c863a"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-burrow366",
+    "oracle:oracle-submerge360",
+    "doc:retail-pathfinding-burrow366.md#burrow-invisibility-and-active-form-ownership",
+    "doc:retail-pathfinding-submerge.md#submerge-transition-and-separation-ownership"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_ground_morph.c:CAbilityGroundMorph; skills/s_campaign_abilities.c:CAbilitySubmergeMyrmidon",
+   "owner": "SEP-01.2",
+   "rationale": "Category/availability ordering around the reverse is captured; the placement result of the re-admission is not compared."
+  },
+  {
+   "id": "B014-28",
+   "kind": "pathing-bypass",
+   "producer": "Burrow / Submerge pathing category overrides (AbilityBurrow_SetUnitCategory / AbilitySubmerge_SetUnitCategory)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4ba8d0",
+     "name": "AbilityBurrow_SetUnitCategory"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f4ba912",
+    "6f4ba928",
+    "6f4ba988",
+    "6f4ba99e"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-burrow366",
+    "doc:retail-pathfinding-submerge.md#submerge-transition-and-separation-ownership"
+   ],
+   "static_notes": [
+    "oracle-submerge360 (base query-mask retention)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_ground_morph.c",
+   "owner": "SEP-01.2",
+   "rationale": "Retained base query mask is verified; other morph producers composing these overrides remain in SEP-01.2."
+  },
+  {
+   "id": "B014-29",
+   "kind": "forced-position",
+   "producer": "Morph landing/takeoff and form-change placement (CAbilityMorph family vslot304 -> 546420, AbilityMorph_BeginLanding)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f544c60",
+     "name": "AbilityMorph_DispatchFormTransition"
+    },
+    {
+     "address": "6f569b80",
+     "name": "AbilityMorph_BeginLanding"
+    },
+    {
+     "address": "6f439490",
+     "name": "FUN_6f439490"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9cbe",
+    "6f3f9d3c",
+    "6f3f9d8e",
+    "6f569ce2"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-morph374",
+    "oracle:oracle-alternate364",
+    "oracle:oracle-phoenix365",
+    "doc:retail-pathfinding-separation.md#morph-interruption-evidence-audit326-implementation-pending"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f569b80 (BASE-02.1 Amrf/Arav live unravenform)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_raven.c:CAbilityRavenForm; skills/s_morph.c",
+   "owner": "SEP-01.2",
+   "rationale": "Landing point test/placement through 439490/3f9c10 is static plus one live raven form; the 13 form classes sharing vslot304->546420 are not placement-compared."
+  },
+  {
+   "id": "B014-30",
+   "kind": "pathing-bypass",
+   "producer": "Type rebind republishes pathing profile (Chaos CAbilityChaos_CommitUnitType, morph rebind 544e60)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4c9af0",
+     "name": "CAbilityChaos_CommitUnitType"
+    },
+    {
+     "address": "6f670950",
+     "name": "Unit_RebindTypeRetainingPublicIdentity"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f670e2f"
+   ],
+   "status": "partial",
+   "evidence": [
+    "doc:retail-pathfinding-corpus.md#groundflightground-and-public-teleports",
+    "doc:retail-pathfinding-engine.md#adaptive-eligibility-survives-flight-birth-and-changes-on-type-rebind"
+   ],
+   "static_notes": [
+    "live-movement-modes-captures-261003 (public Chaos type rebind)",
+    "live-gate-eligibility-captures-261004 (flight rebind)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_chaos.c:CAbilityChaos",
+   "owner": "SEP-01.2",
+   "rationale": "Chaos rebind is captured; the live-movement-modes scope excludes other morph abilities, which are SEP-01.2 producers."
+  },
+  {
+   "id": "B014-31",
+   "kind": "pathing-bypass",
+   "producer": "Forced-ground mask overrides: Ensnare/Web/Entangling Roots buffs and morph detach (CUnit_PushForcedGround / CUnit_PopForcedGround)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5e8000",
+     "name": "FUN_6f5e8000"
+    },
+    {
+     "address": "6f6877b0",
+     "name": "CUnit_PushForcedGround"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f55bd41",
+    "6f5d92ce",
+    "6f5d9394",
+    "6f5e81f5",
+    "6f5e8323",
+    "6f687810",
+    "6f69c893"
+   ],
+   "status": "uncovered",
+   "evidence": [
+    "doc:entangling-roots.md#runtime-contract"
+   ],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_entangling_roots.c, skills/s_campaign_abilities.c:CAbilityEnsnare/CAbilityWeb",
+   "owner": "SEP-01.2",
+   "rationale": "Counted forced-ground query-mask override with push (35c/354/morph detach) and pop (33c) owners; no retail capture of the published mask."
+  },
+  {
+   "id": "B014-32",
+   "kind": "pathing-bypass",
+   "producer": "Ghost (Agho) pathing category override (AbilityGhost_SetUnitCategory)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f623bd0",
+     "name": "AbilityGhost_SetUnitCategory"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f623c12",
+    "6f623c28"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_creep_abilities.c:CAbilityGhost",
+   "owner": "SEP-01.2",
+   "rationale": "Runtime category/mask override producer without evidence."
+  },
+  {
+   "id": "B014-33",
+   "kind": "pathing-bypass",
+   "producer": "Locust (Aloc) clear and Land Mine (Amin) publish pathing profile",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f63c430",
+     "name": "CAbilityLocust_ClearPathingProfile"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f63c3a4",
+    "6f63c44b"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_wards.c:CAbilityLandMine; Aloc registered as CAbilityPassive (skills/s_skills.c)",
+   "owner": "SEP-01.2",
+   "rationale": "Runtime category/mask override producers without evidence."
+  },
+  {
+   "id": "B014-34",
+   "kind": "pathing-bypass",
+   "producer": "Tornado wander pathing profile (CAbilityTornadoWander_PublishPathingProfile)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f59cdf0",
+     "name": "CAbilityTornadoWander_PublishPathingProfile"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f59ce12"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_wander.c / s_cyclone.c (Tornado wander)",
+   "owner": "SEP-01.2",
+   "rationale": "Runtime mask override producer without evidence."
+  },
+  {
+   "id": "B014-35",
+   "kind": "pathing-bypass",
+   "producer": "Wind Walk (AOwk) buff apply/remove pathing profile (CBuffWindWalk vslots e0/e4 -> 580250)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f58abc0",
+     "name": "FUN_6f58abc0"
+    },
+    {
+     "address": "6f580250",
+     "name": "FUN_6f580250"
+    },
+    {
+     "address": "6f699200",
+     "name": "CUnit_PublishPathingProfile"
+    }
+   ],
+   "sink": "6f699200",
+   "sites": [
+    "6f58028e"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "Ghidra plate 6f699c00 records only the WindWalk world-presence caller 68b7d8 (Payoff373), not the profile"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_wind_walk.c:CAbilityWindWalk",
+   "owner": "SEP-01.2",
+   "rationale": "Unit-collision bypass mask override without evidence."
+  },
+  {
+   "id": "B014-36",
+   "kind": "forced-position",
+   "producer": "Wind Walk end re-admission at current pose (CBuffWindWalk vslot33c)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f58e110",
+     "name": "FUN_6f58e110"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f58e1c7"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_wind_walk.c",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-lifecycle placement that resolves overlap left by the collision bypass."
+  },
+  {
+   "id": "B014-37",
+   "kind": "pathing-bypass",
+   "producer": "Gold-mine Harvest/Return worker ghost profile and neighbour re-placement (CAbilityHarvestReturn/HarvestLumber dispatch 424220)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f424220",
+     "name": "FUN_6f424220"
+    },
+    {
+     "address": "6f43b7e0",
+     "name": "FUN_6f43b7e0"
+    },
+    {
+     "address": "6f699260",
+     "name": "CUnit_PublishPathingProfileWithBit10"
+    },
+    {
+     "address": "6f427510",
+     "name": "FUN_6f427510"
+    },
+    {
+     "address": "6f427870",
+     "name": "FUN_6f427870"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4228ac",
+    "6f422b31",
+    "6f4278ba",
+    "6f43b800",
+    "6f69924c",
+    "6f699284",
+    "6f6992ae"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "Ghidra plate 6f423720 (Captain376 HarvestReturn routing only)"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_goldmine.c / skills/s_harvest_lumber.c:CAbilityHarvest (no retail ghost-profile comparison)",
+   "owner": "ORDER-01.12",
+   "rationale": "Workers switch to a ghost/bit10 profile, nearby units with query bit10 are re-placed (427510 visit), and the authored profile is restored with a self re-placement (422b10)."
+  },
+  {
+   "id": "B014-38",
+   "kind": "forced-position",
+   "producer": "Possessed/Blighted/Entangled gold-mine worker exit placement (vslotc dispatch 4e3420 -> 4c87f0)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4e3420",
+     "name": "FUN_6f4e3420"
+    },
+    {
+     "address": "6f4c87f0",
+     "name": "FUN_6f4c87f0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4c8930"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_goldmine.c:CAbilityEntangledGoldMine/CAbilityBlightedGoldMine",
+   "owner": "ORDER-01.12",
+   "rationale": "Mine entry/exit placement belongs to the harvest leaf."
+  },
+  {
+   "id": "B014-39",
+   "kind": "forced-position",
+   "producer": "Acolyte Haunted Mine slot placement (CAbilityAcolyteHarvest vslotc -> 438190 -> 4b9910)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f423720",
+     "name": "FUN_6f423720"
+    },
+    {
+     "address": "6f438190",
+     "name": "FUN_6f438190"
+    },
+    {
+     "address": "6f4b9910",
+     "name": "FUN_6f4b9910"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4b9b79"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "oracle-build297 covers Haunted Mine completion target ownership only"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_harvest_lumber.c:CAbilityAcolyteHarvest",
+   "owner": "ORDER-01.12",
+   "rationale": "Acolyte ring placement at the mine (support level from 652270, flag0 admission) is uncaptured."
+  },
+  {
+   "id": "B014-40",
+   "kind": "forced-position",
+   "producer": "Wisp harvest tree enter/leave placement and pathing profile (CAbilityWispHarvest)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5a5c80",
+     "name": "FUN_6f5a5c80"
+    },
+    {
+     "address": "6f5aeef0",
+     "name": "FUN_6f5aeef0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f5adaed",
+    "6f5ae9ae",
+    "6f5ae9e2",
+    "6f5aeff0",
+    "6f5af037"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "retail-object-categories-ghidra mention only"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_harvest_lumber.c:CAbilityWispHarvest",
+   "owner": "ORDER-01.12",
+   "rationale": "Harvest-owned placement and mask override pair."
+  },
+  {
+   "id": "B014-41",
+   "kind": "forced-position",
+   "producer": "Transport unload at point / instant unload / stand down / corpse drop (Adro/Adri/Astd/Amed via 58d4e0/58d300 -> 58d610, and 58d8f0 -> 3f9de0 -> 3f9c10)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f58ac50",
+     "name": "CargoDrop_ExecuteAtPoint"
+    },
+    {
+     "address": "6f58d4e0",
+     "name": "FUN_6f58d4e0"
+    },
+    {
+     "address": "6f58d300",
+     "name": "FUN_6f58d300"
+    },
+    {
+     "address": "6f58d610",
+     "name": "FUN_6f58d610"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9d8e",
+    "6f58d7b4",
+    "6f58ebe8",
+    "6f58ec0d"
+   ],
+   "status": "partial",
+   "evidence": [],
+   "static_notes": [
+    "oracle-order346 (Board/Drop/Load exclusions, positive point Load, saved continuations)",
+    "Ghidra plate 6f58ac50 CargoDrop_ExecuteAtPoint / 6f607950 Move_SelectFlyingTransport"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_cargo.c:S_CargoUnloadAt (S_SetUnitPosition at s_cargo.c:252)",
+   "owner": "ORDER-01.12",
+   "rationale": "Order ownership is captured by ORDER346; the passenger placement search 58d8f0/58eb60/3f9c10 and its results are not compared, and the engine uses public SetUnitPosition (which issues Stop) instead of the internal vslot180 path."
+  },
+  {
+   "id": "B014-42",
+   "kind": "forced-position",
+   "producer": "Cargo hold unload-all on carrier death/removal (CargoHold/Bunker/EntangleCargo/DevourCargo/MeatCargo vslot30c)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f59b210",
+     "name": "FUN_6f59b210"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f59b35c",
+    "6f59b4c4"
+   ],
+   "status": "uncovered",
+   "evidence": [
+    "doc:retail-pathfinding-separation.md#working-entangle-cargo-implementation-in-audit323"
+   ],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_cargo.c:CAbilityCargoHold / S_CargoBeginUnloadAll",
+   "owner": "ORDER-01.12",
+   "rationale": "Unload-all placement at carrier pose (fallback search 58d8f0) is uncaptured."
+  },
+  {
+   "id": "B014-43",
+   "kind": "forced-position",
+   "producer": "Devour cargo release (CAbilityDevourCargo vslot310)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5e6260",
+     "name": "FUN_6f5e6260"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f5e636e"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_skills.c Advc as CAbilityCargoLoad; skills/s_undead_abilities.c:CAbilityCannibalize",
+   "owner": "ORDER-01.12",
+   "rationale": "Cargo release placement without evidence."
+  },
+  {
+   "id": "B014-44",
+   "kind": "forced-position",
+   "producer": "Meat Wagon stored-corpse release for Cannibalize/Raise Dead/Animate Dead/Carrion Scarabs (58dbe0 -> 58d610)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4cd080",
+     "name": "FUN_6f4cd080"
+    },
+    {
+     "address": "6f58dbe0",
+     "name": "FUN_6f58dbe0"
+    },
+    {
+     "address": "6f58d610",
+     "name": "FUN_6f58d610"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f58d7b4"
+   ],
+   "status": "uncovered",
+   "evidence": [
+    "doc:exhume-corpses.md#meat-wagon-cargo"
+   ],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_undead_abilities.c:CAbilityCannibalize/CAbilityRaiseDead",
+   "owner": "ORDER-01.12",
+   "rationale": "Corpse cargo placement shares the unload site; producer is cargo storage."
+  },
+  {
+   "id": "B014-45",
+   "kind": "forced-position",
+   "producer": "Inside construction (Orc/Night Elf/Naga/Neutral Build vslot33c) worker absence placement and InsideBuild_EndWork return placement",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f544010",
+     "name": "FUN_6f544010"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f544066",
+    "6f566e43"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-work227",
+    "doc:retail-pathfinding-engine.md#inside-construction-owns-absence-and-work-separately-payoff227"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f566dd0/6f543c50/6f543e50/6f543eb0"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_build.c (inside-construction absence)",
+   "owner": "ORDER-01.16",
+   "rationale": "work227 freezes public order/position/native sequences, but explicitly does not certify engine whole trajectories, raw Build heads or the return placement geometry."
+  },
+  {
+   "id": "B014-46",
+   "kind": "forced-position",
+   "producer": "Human Build relocates the builder before prepending Repair (HumanBuild_PrependRepairWorkOrder)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f544090",
+     "name": "HumanBuild_PrependRepairWorkOrder"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f5440f5"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-build298",
+    "oracle:oracle-build293",
+    "doc:retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298",
+    "doc:build-repair-routing.md#build-approach-and-human-repair-work-own-distinct-heads-payoff293"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_build.c",
+   "owner": "ORDER-01.16",
+   "rationale": "oracle-build298 excludes exact work/relocation clocks; the committed-position relocation is not numerically certified."
+  },
+  {
+   "id": "B014-47",
+   "kind": "forced-position",
+   "producer": "Undead Build unit work wait relocation (UndeadBuild_BeginUnitWorkWait)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f544350",
+     "name": "UndeadBuild_BeginUnitWorkWait"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f544428"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-build296",
+    "oracle:oracle-build297",
+    "doc:retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_build.c",
+   "owner": "ORDER-01.16",
+   "rationale": "Work-wait ownership is captured; the relocation geometry is not compared."
+  },
+  {
+   "id": "B014-48",
+   "kind": "forced-position",
+   "producer": "Structure creation by Build (Build_CreateStructureAtTarget / FromPointTask) and item-built summoned structures (CAbilityItemBuild, Build_CreateSummonedStructure) with builder relocation",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f54d9d0",
+     "name": "Build_CreateSummonedStructure"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f54a677",
+    "6f54d414",
+    "6f54da51",
+    "6f54db2f"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-build295",
+    "doc:retail-pathfinding-engine.md#construction-start-precedes-work-and-retains-nested-ownership-payoff295"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f54d9d0 (static alternate producer)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_build.c; skills/s_item.c:CAbilityTinyStructure",
+   "owner": "ORDER-01.16",
+   "rationale": "Synchronous construction start is captured for worker styles; the item-built alternate producer and its relocation are static only."
+  },
+  {
+   "id": "B014-49",
+   "kind": "forced-position",
+   "producer": "Widget footprint (re)application displaces occupants (Widget_ReapplyPathingAndDisplace vslot154 -> Widget_DisplaceOccupant callback)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f6544f0",
+     "name": "Widget_ReapplyPathingAndDisplace"
+    },
+    {
+     "address": "6f654090",
+     "name": "Widget_DisplaceOccupant"
+    }
+   ],
+   "sink": "6f654090",
+   "sites": [
+    "6f3f8a1a",
+    "6f653b7c",
+    "6f654655"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-widget_masks",
+    "oracle:widget-footman-escape",
+    "oracle:capture-map-03.4-widget-escape",
+    "oracle:widget-solid-failure",
+    "doc:retail-pathfinding-experiments.md#live-building-footprint-creation-and-destruction",
+    "doc:retail-pathfinding-search.md#widget-produced-escape-through-arrival"
+   ],
+   "static_notes": [
+    "capture-map-03.4-widget-pathing (negative)"
+   ],
+   "engine": "partial: games/warcraft-3/game/g_pathing.c / g_world.c widget escape",
+   "owner": "FOOT-04.2",
+   "rationale": "Escape/idle admission after widget footprints is covered for building scenes; displacement of occupants by other footprint producers (rooting, morph to structure) is not compared."
+  },
+  {
+   "id": "B014-50",
+   "kind": "forced-position",
+   "producer": "Altar queued Hero revival placement (CAbilityQueue vslotc -> 40daa0); trained-unit exit uses 677870 in the same body",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f424cf0",
+     "name": "FUN_6f424cf0"
+    },
+    {
+     "address": "6f40daa0",
+     "name": "FUN_6f40daa0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f40de44",
+    "6f40de9f"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_train.c:CompleteHeroRevive (SP_FindUnitExitPosition -> G_ReviveHero)",
+   "owner": "ORDER-01.13",
+   "rationale": "Queue-ability completion places the revived Hero with flag0 admission; no capture."
+  },
+  {
+   "id": "B014-51",
+   "kind": "forced-position",
+   "producer": "CAbilityRevive Hero revival placement (vslotc -> 4250a0 -> 402160)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4250a0",
+     "name": "FUN_6f4250a0"
+    },
+    {
+     "address": "6f402160",
+     "name": "FUN_6f402160"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f402256"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/Arev registered as CAbilityPassive (skills/s_skills.c); revival in skills/s_train.c",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-owned revival placement without evidence."
+  },
+  {
+   "id": "B014-52",
+   "kind": "forced-position",
+   "producer": "Tavern instant Hero awaken placement (CAbilityAwaken vslotc -> 423a50 -> 3f8350)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f423a50",
+     "name": "FUN_6f423a50"
+    },
+    {
+     "address": "6f3f8350",
+     "name": "FUN_6f3f8350"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f8443"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "missing: Aawa registered as CAbilityPassive (skills/s_skills.c), no awaken placement found",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-owned revival placement without evidence or engine port."
+  },
+  {
+   "id": "B014-53",
+   "kind": "teleport",
+   "producer": "Mass Teleport (AHmt, CAbilityMassTeleport vslot39c -> 40d760 -> 40af60 -> 439490 -> 3f9c10)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f40d760",
+     "name": "FUN_6f40d760"
+    },
+    {
+     "address": "6f40af60",
+     "name": "FUN_6f40af60"
+    },
+    {
+     "address": "6f439490",
+     "name": "FUN_6f439490"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9cbe",
+    "6f3f9d8e"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_requested_abilities.c:CAbilityMassTeleport",
+   "owner": "ORDER-01.13",
+   "rationale": "Group relocation through the shared admit-with-fallback helper (TargetLost dispatch, optional Stop) is uncaptured."
+  },
+  {
+   "id": "B014-54",
+   "kind": "teleport",
+   "producer": "Staff of Teleportation / Scroll of Town Portal (AIte/AItp, CAbilityItemTeleport/ItemTownPortal vslot418 -> 408990 -> 40ae70 -> 439490)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f408990",
+     "name": "FUN_6f408990"
+    },
+    {
+     "address": "6f40ae70",
+     "name": "FUN_6f40ae70"
+    },
+    {
+     "address": "6f439490",
+     "name": "FUN_6f439490"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9d8e"
+   ],
+   "status": "partial",
+   "evidence": [
+    "doc:retail-pathfinding-separation.md#itemteleport-working-audit327"
+   ],
+   "static_notes": [
+    "Ghidra plate 6f435f10/6f40be30 (SEP-01.2 audit327)"
+   ],
+   "engine": "implemented: games/warcraft-3/game/skills/s_item_teleport.c:CAbilityItemTeleport (S_SpellRelocateUnit)",
+   "owner": "ORDER-01.13",
+   "rationale": "Counted ownership/lifecycle is captured (1470-row repeats); audit327 states \"exact placement remains separate\" and passenger placement fidelity is uncertified."
+  },
+  {
+   "id": "B014-55",
+   "kind": "teleport",
+   "producer": "Item Recall (AIrt, CAbilityItemRecall vslot418 -> 408580 -> 429e10 -> 439490)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f408580",
+     "name": "FUN_6f408580"
+    },
+    {
+     "address": "6f429e10",
+     "name": "FUN_6f429e10"
+    },
+    {
+     "address": "6f439490",
+     "name": "FUN_6f439490"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9d8e"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "missing: skills/s_skills.c:370 \"TODO: AIrt a_item_recall\"",
+   "owner": "ORDER-01.13",
+   "rationale": "Unported ability teleport."
+  },
+  {
+   "id": "B014-56",
+   "kind": "teleport",
+   "producer": "Dark Summoning (AUds, CAbilityDarkSummoning vslot39c -> 40d590 -> 40ab70 admission then 439490; CMissileDarkSummoning vslotbc -> 405530)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f40d590",
+     "name": "FUN_6f40d590"
+    },
+    {
+     "address": "6f40ab70",
+     "name": "FUN_6f40ab70"
+    },
+    {
+     "address": "6f439490",
+     "name": "FUN_6f439490"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9d8e",
+    "6f40ad1a"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "missing: skills/s_skills.c \"TODO: AUds CAbilityMassTeleport /* Dark Summoning */\"",
+   "owner": "ORDER-01.13",
+   "rationale": "Unported ability teleport."
+  },
+  {
+   "id": "B014-57",
+   "kind": "teleport",
+   "producer": "Staff of Sanctuary / Staff of Preservation (ANsa/ANpr vslot424 -> 6308a0/630760 -> 439490)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f6308a0",
+     "name": "FUN_6f6308a0"
+    },
+    {
+     "address": "6f630760",
+     "name": "FUN_6f630760"
+    },
+    {
+     "address": "6f439490",
+     "name": "FUN_6f439490"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9d8e"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "missing: skills/s_skills.c TODO entries for ANsa/ANpr",
+   "owner": "ORDER-01.13",
+   "rationale": "Unported ability teleports."
+  },
+  {
+   "id": "B014-58",
+   "kind": "teleport",
+   "producer": "Couple/Decouple (Archer/Hippogryph mount, Adec/Acoh/Acoa): Decouple vslot304 -> 4be9f0 -> 439490, vslot428 -> 4ca650 -> 3f9de0; created rider/mount units",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4ca650",
+     "name": "FUN_6f4ca650"
+    },
+    {
+     "address": "6f3f9de0",
+     "name": "FUN_6f3f9de0"
+    },
+    {
+     "address": "6f3f9c10",
+     "name": "FUN_6f3f9c10"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f3f9d8e",
+    "6f4c306d",
+    "6f4ca327",
+    "6f4ca7b5",
+    "6f4ca7e3"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_couple.c:CAbilityDecouple/CAbilityCoupleArcher/CAbilityCoupleHippogryph",
+   "owner": "ORDER-01.13",
+   "rationale": "Placement of split/merged units is uncaptured."
+  },
+  {
+   "id": "B014-59",
+   "kind": "teleport",
+   "producer": "Blink (AEbl, CAbilityBlink vslot418 CAbilityBlink_MoveCaster; target validation 4ccd90 via vslots300/384)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4c95c0",
+     "name": "CAbilityBlink_MoveCaster"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4c961c",
+    "6f4cd027"
+   ],
+   "status": "partial",
+   "evidence": [
+    "oracle:oracle-blink-transient-validation",
+    "oracle:live-blink-transient-validation",
+    "oracle:oracle-attack-blink224",
+    "doc:retail-pathfinding-engine.md#blink-publishes-target-loss-after-relocating-payoff182",
+    "doc:retail-pathfinding-engine.md#attack-blink-loss-uses-committed-range-and-excludes-point-recovery-payoff224",
+    "doc:retail-pathfinding-target-visibility.md#blink-notification-window-payoff182"
+   ],
+   "static_notes": [],
+   "engine": "implemented: games/warcraft-3/game/skills/s_warden_abilities.c:CAbilityBlink -> skills/s_spell.c:S_SpellCommitRelocation",
+   "owner": "ORDER-01.13",
+   "rationale": "TargetLost window and pursuit consequences are frozen, but oracle-blink-transient-validation states position admission is a controlled stand-in: no whole cast timeline or placement parity claim."
+  },
+  {
+   "id": "B014-60",
+   "kind": "forced-position",
+   "producer": "Animate Dead / Resurrection (incl. creep/item variants) revived-unit placement (vslot438 -> 4e66f0)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4e66f0",
+     "name": "FUN_6f4e66f0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4e67d8"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_requested_abilities.c:CAbilityAnimateDead/CAbilityResurrection",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-owned placement without evidence."
+  },
+  {
+   "id": "B014-61",
+   "kind": "forced-position",
+   "producer": "Reincarnation (AOre/ANrn, CEffectReincarnation vslot80 -> 50e870) rebirth placement",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f50e870",
+     "name": "FUN_6f50e870"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f50e912"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_creep_abilities.c:CAbilityReincarnation",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-owned placement without evidence."
+  },
+  {
+   "id": "B014-62",
+   "kind": "forced-position",
+   "producer": "Soul Gem release (Asou, CAbilitySoulTrapped vslota4 -> 500030)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f500030",
+     "name": "FUN_6f500030"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f500106"
+   ],
+   "status": "uncovered",
+   "evidence": [
+    "doc:inventory-and-items.md#soul-gem-gsou--soul-aiso--asou"
+   ],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_item.c:CAbilitySoulTrapped",
+   "owner": "ORDER-01.13",
+   "rationale": "Item-ability placement of the released unit without retail evidence."
+  },
+  {
+   "id": "B014-63",
+   "kind": "forced-position",
+   "producer": "Unstable Concoction impact (CMissileUnstableConcoction vslotbc -> 508da0)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f508da0",
+     "name": "FUN_6f508da0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f508f54"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_unstable_concoction.c:CAbilityUnstableConcoction",
+   "owner": "ORDER-01.13",
+   "rationale": "Missile-owned caster placement without evidence."
+  },
+  {
+   "id": "B014-64",
+   "kind": "forced-position",
+   "producer": "Graveyard corpse creation/placement (Agyd, CAbilityGraveyard vslotc -> 5ef820 -> 5d0190)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5ef820",
+     "name": "FUN_6f5ef820"
+    },
+    {
+     "address": "6f5d0190",
+     "name": "FUN_6f5d0190"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f5d0328",
+    "6f5d03df"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "retail-trig351 mention only (numeric)"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_undead_abilities.c:CAbilityGraveyard",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-created corpse placement without evidence."
+  },
+  {
+   "id": "B014-65",
+   "kind": "forced-position",
+   "producer": "Storm, Earth and Fire (ANef, CAbilityElementalFury / CBuffElementalFury) hide/restore caster and spirit creation",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5d9a60",
+     "name": "FUN_6f5d9a60"
+    },
+    {
+     "address": "6f5ea5a0",
+     "name": "FUN_6f5ea5a0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f5d65d0",
+    "6f5d8df6",
+    "6f5ea6b7"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_campaign_abilities.c:CAbilityStormEarthFire (S_SummonAbilityUnits)",
+   "owner": "ORDER-01.13",
+   "rationale": "Caster restore (vslot80 show + vslot180) at spirit pose without evidence."
+  },
+  {
+   "id": "B014-66",
+   "kind": "forced-position",
+   "producer": "Ensnare/Web missile landing relocates the target (CMissileEnsnare/CMissileWeb vslotcc -> 5d9c40 -> 5f96a0)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f5c66e0",
+     "name": "FUN_6f5c66e0"
+    },
+    {
+     "address": "6f5c6fe0",
+     "name": "FUN_6f5c6fe0"
+    },
+    {
+     "address": "6f5d9c40",
+     "name": "FUN_6f5d9c40"
+    },
+    {
+     "address": "6f5f96a0",
+     "name": "FUN_6f5f96a0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f5f96d6"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_campaign_abilities.c:CAbilityEnsnare/CAbilityWeb",
+   "owner": "ORDER-01.13",
+   "rationale": "Missile-owned relocation without evidence."
+  },
+  {
+   "id": "B014-67",
+   "kind": "forced-position",
+   "producer": "Infernal summons (Inferno AUin / Dreadlord Inferno / Rain of Chaos ANrc) creation, landing displacement and placement",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f62ef20",
+     "name": "FUN_6f62ef20"
+    },
+    {
+     "address": "6f62ae60",
+     "name": "FUN_6f62ae60"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f62aed5",
+    "6f62af15",
+    "6f63afdc",
+    "6f63b061"
+   ],
+   "status": "uncovered",
+   "evidence": [
+    "doc:rain-of-chaos.md#rain-of-chaos"
+   ],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_requested_abilities.c:CAbilityDreadLordInferno; skills/s_summon.c:CAbilityRainOfChaos",
+   "owner": "ORDER-01.13",
+   "rationale": "Summon placement and CBuffInfernal landing (63aeb0) are uncaptured."
+  },
+  {
+   "id": "B014-68",
+   "kind": "teleport",
+   "producer": "Mirror Image (AOmi) caster/illusion swap and illusion creation (Unit_CreateIllusionCopy, Wand of Illusion)",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f642aa0",
+     "name": "FUN_6f642aa0"
+    },
+    {
+     "address": "6f64b760",
+     "name": "FUN_6f64b760"
+    },
+    {
+     "address": "6f641530",
+     "name": "FUN_6f641530"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f62b078",
+    "6f62f1aa",
+    "6f6415a8",
+    "6f64ba54"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_mirror_image.c:CAbilityMirrorImage",
+   "owner": "ORDER-01.13",
+   "rationale": "Caster relocation onto an image pose without evidence."
+  },
+  {
+   "id": "B014-69",
+   "kind": "forced-position",
+   "producer": "Disease Cloud on death (Aap1, CAbilityAuraPlague vslot284 -> 4dc9d0) spawned unit placement",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f4dc9d0",
+     "name": "FUN_6f4dc9d0"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f4dcb20"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [],
+   "engine": "partial: games/warcraft-3/game/skills/s_disease_cloud.c:CAbilityDiseaseCloud",
+   "owner": "ORDER-01.13",
+   "rationale": "Ability-created unit placement without evidence."
+  },
+  {
+   "id": "B014-70",
+   "kind": "forced-position",
+   "producer": "Other ability/summon unit-creation producers reaching the constructor (677870 callers): SellUnit, Train/Sacrifice, StasisTrap, SummonFactory, Tornado, Ward/MonsterLure, Factory/BuffFactory, EvilEye, Exhume, ForceOfNature, HealingWard, PlagueToss, PlaceMine, LocustSwarm, DarkPortal, 600e60 summon helper",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f600e60",
+     "name": "FUN_6f600e60"
+    },
+    {
+     "address": "6f677870",
+     "name": "FUN_6f677870"
+    },
+    {
+     "address": "6f68a060",
+     "name": "Unit_InitializeFromCreationProfile"
+    }
+   ],
+   "sink": "6f653510",
+   "sites": [
+    "6f425900",
+    "6f4d8f5e",
+    "6f50cd0e",
+    "6f5859bd",
+    "6f588d68",
+    "6f58bd7a",
+    "6f58c134",
+    "6f5a4fe1",
+    "6f5a6071",
+    "6f5d6b90",
+    "6f5d6c4d",
+    "6f5d7358",
+    "6f5d76a5",
+    "6f600f02",
+    "6f62c061",
+    "6f62f571",
+    "6f647343"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "shared constructor contract only: oracle-place309"
+   ],
+   "engine": "partial: games/warcraft-3/game/skills/s_summon.c / s_wards.c / s_train.c / s_dark_portal.c producers",
+   "owner": "ORDER-01.13",
+   "rationale": "Constructor admission is shared and verified for public creation, but each producer chooses its spawn point; none is captured."
+  },
+  {
+   "id": "B014-71",
+   "kind": "forced-position",
+   "producer": "Unexpanded virtual producers: CUnit vslot80 Unit_RestoreWorldPresence callers other than ShowUnit, and CItem vslot40 (65a480) self re-admission",
+   "native_entry": null,
+   "chain": [
+    {
+     "address": "6f699c00",
+     "name": "Unit_RestoreWorldPresence"
+    },
+    {
+     "address": "6f698050",
+     "name": "Unit_SetPositionWithAdmission"
+    }
+   ],
+   "sink": "6f698050",
+   "sites": [
+    "6f65a4de",
+    "6f6945fd",
+    "6f699d63"
+   ],
+   "status": "uncovered",
+   "evidence": [],
+   "static_notes": [
+    "enumeration boundary of this inventory (method.md); vslot80/vslot40 call sites were not enumerated"
+   ],
+   "engine": "partial: engine show/restore paths exist per producer",
+   "owner": "BASE-03.1",
+   "rationale": "CUnit vslot16c (6945a0 CUnit_RefreshMoverPathingProfile) callers are likewise not enumerated. Indirect [reg+0x80]/[reg+0x40]/[reg+0x16c] calls are too generic to classify by slot alone; BASE-03.1 owns the reachable branch inventory from these entry points."
+  }
+ ],
+ "excluded": [
+  {
+   "site": "6f0e4553",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f0e44d0"
+  },
+  {
+   "site": "6f0ecd6d",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f0eccb0"
+  },
+  {
+   "site": "6f0ecf17",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f0ecf00"
+  },
+  {
+   "site": "6f0f114a",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f0f1130"
+  },
+  {
+   "site": "6f0f1276",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f0f1230"
+  },
+  {
+   "site": "6f0fe684",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f0fe650"
+  },
+  {
+   "site": "6f10129d",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f101280"
+  },
+  {
+   "site": "6f10143d",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f101380"
+  },
+  {
+   "site": "6f106ead",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f106e90"
+  },
+  {
+   "site": "6f108b7d",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f108b50"
+  },
+  {
+   "site": "6f1133e5",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f113250"
+  },
+  {
+   "site": "6f113416",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f113250"
+  },
+  {
+   "site": "6f113447",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f113250"
+  },
+  {
+   "site": "6f113478",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f113250"
+  },
+  {
+   "site": "6f115570",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f115530"
+  },
+  {
+   "site": "6f22dbae",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f22dba0"
+  },
+  {
+   "site": "6f22dbde",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f22dbd0"
+  },
+  {
+   "site": "6f22df53",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f22df40"
+  },
+  {
+   "site": "6f22df87",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f22df70"
+  },
+  {
+   "site": "6f2aac12",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2aabf0"
+  },
+  {
+   "site": "6f2aacb3",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2aac80"
+  },
+  {
+   "site": "6f2ab71f",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2ab700"
+  },
+  {
+   "site": "6f2ab74b",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2ab700"
+  },
+  {
+   "site": "6f2ab8f8",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2ab760"
+  },
+  {
+   "site": "6f2abcbd",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2abb20"
+  },
+  {
+   "site": "6f2b5191",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2b5180"
+  },
+  {
+   "site": "6f2ba536",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2ba4e0"
+  },
+  {
+   "site": "6f2ced36",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2cecc0"
+  },
+  {
+   "site": "6f2d0a40",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0a20"
+  },
+  {
+   "site": "6f2d0abf",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0aa0"
+  },
+  {
+   "site": "6f2d0aeb",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0aa0"
+  },
+  {
+   "site": "6f2d0b1f",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0b00"
+  },
+  {
+   "site": "6f2d0b4b",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0b00"
+  },
+  {
+   "site": "6f2d0b7f",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0b60"
+  },
+  {
+   "site": "6f2d0bab",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0b60"
+  },
+  {
+   "site": "6f2d0bd6",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0bc0"
+  },
+  {
+   "site": "6f2d0c0b",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0bf0"
+  },
+  {
+   "site": "6f2d0c33",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0bf0"
+  },
+  {
+   "site": "6f2d0c6b",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0c50"
+  },
+  {
+   "site": "6f2d0c93",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0c50"
+  },
+  {
+   "site": "6f2d0cca",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2d0cb0"
+  },
+  {
+   "site": "6f2ebc43",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2ebab0"
+  },
+  {
+   "site": "6f2ebc61",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2ebab0"
+  },
+  {
+   "site": "6f2f4578",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2f4560"
+  },
+  {
+   "site": "6f2f46dd",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2f46b0"
+  },
+  {
+   "site": "6f2f4796",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f2f4780"
+  },
+  {
+   "site": "6f303cf4",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f303c90"
+  },
+  {
+   "site": "6f30710d",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f3070c0"
+  },
+  {
+   "site": "6f30be71",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f30be20"
+  },
+  {
+   "site": "6f374a19",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f3749f0"
+  },
+  {
+   "site": "6f3ace65",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f3ace40"
+  },
+  {
+   "site": "6f3ddd4f",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f3ddcc0"
+  },
+  {
+   "site": "6f3de8f9",
+   "reason": "non-widget receiver: UI/glue frame: Client UI/glue module (CFrame/CLayer/CStatusBar/glue dialogs, BattleNet panels, main menu, leaderboard/multiboard/dialog/timer-dialog wrappers, game-UI input modes); caller trees in trees.txt reach CFrame-family/glue vtables, not CWidget. Call passes 1 literal argument (typically 1), incompatible with widget vslotd8 RET 0x2c (11 args).",
+   "function": "FUN_6f3de8a0"
+  },
+  {
+   "site": "6f1dfca9",
+   "reason": "non-widget receiver: world/session object: World transition/teardown (Payoff251 plates on 1dfaf0/1e05a0): receiver is a session/world-frame object with an event-subscriber callback at +0x3bc, called with one argument (push=1); not a widget vslotd8 call.",
+   "function": "FUN_6f1dfaf0"
+  },
+  {
+   "site": "6f1e079a",
+   "reason": "non-widget receiver: world/session object: World transition/teardown (Payoff251 plates on 1dfaf0/1e05a0): receiver is a session/world-frame object with an event-subscriber callback at +0x3bc, called with one argument (push=1); not a widget vslotd8 call.",
+   "function": "FUN_6f1e0620"
+  },
+  {
+   "site": "6f4cbcc3",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f4cbca0"
+  },
+  {
+   "site": "6f5088ad",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f5088a0"
+  },
+  {
+   "site": "6f525ef7",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f525c80"
+  },
+  {
+   "site": "6f58d0f3",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f58d0e0"
+  },
+  {
+   "site": "6f58d286",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f58d250"
+  },
+  {
+   "site": "6f5aeb8c",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f5aeb10"
+  },
+  {
+   "site": "6f5aed37",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f5aecb0"
+  },
+  {
+   "site": "6f6cc9eb",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f6cc8a0"
+  },
+  {
+   "site": "6f6d665f",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f6d6600"
+  },
+  {
+   "site": "6f6d6711",
+   "reason": "non-widget receiver: ability/buff/missile self: thiscall on the containing ability/buff/missile (receiver *param_1 is the method's own object, reached from ability/missile vtables in trees.txt), 0-1 argument (subscription/target handler); not a widget vslotd8 call.",
+   "function": "FUN_6f6d6690"
+  },
+  {
+   "site": "6f671f0a",
+   "reason": "non-widget receiver: ability object: Receiver param_2 is an ability (owner unit read from +0x30, follow-up vslots 1f0/1d8/1f8/1fc are ability queries); 0 arguments.",
+   "function": "FUN_6f671ef0"
+  },
+  {
+   "site": "6f671fda",
+   "reason": "non-widget receiver: ability object: Receiver param_2 is an ability (same caller family as 671ef0); 0 arguments to vslotdc.",
+   "function": "FUN_6f671fc0"
+  },
+  {
+   "site": "6f58d11f",
+   "reason": "non-widget receiver: ability/buff self: thiscall self call with one unit argument inside cargo/ability subscription helpers (58d0e0/58d2d0); arity 1 incompatible with widget vslotdc (11 args).",
+   "function": "FUN_6f58d0e0"
+  },
+  {
+   "site": "6f58d2f3",
+   "reason": "non-widget receiver: ability/buff self: thiscall self call with one unit argument inside cargo/ability subscription helpers (58d0e0/58d2d0); arity 1 incompatible with widget vslotdc (11 args).",
+   "function": "FUN_6f58d2d0"
+  },
+  {
+   "site": "6f6cd868",
+   "reason": "non-widget receiver: missile/buff self: CBuffArtillery/CArtilleryVolcano helper 6cd810 calls its own vslotdc with 0 args (push=0).",
+   "function": "FUN_6f6cd810"
+  },
+  {
+   "site": "6f0e4543",
+   "reason": "non-widget receiver: UI frame: Client UI module (6f0e44d0 frame layout); 2 arguments to vslotdc.",
+   "function": "FUN_6f0e44d0"
+  },
+  {
+   "site": "6f4c8f1a",
+   "reason": "non-widget receiver: factory-created missile/effect agent: Receiver is an agent created by FUN_6f154b60(1) and type-checked with AgentClass_IsDerived against an \"MN..\" class getter (e.g. 4d65f0 -> 0x4d4e6162, 5e3c80 -> 0x4d4e6468), then reference-counted; its vslotdc is the missile/effect launch method, not widget admission.",
+   "function": "FUN_6f4c8ce0"
+  },
+  {
+   "site": "6f4cb701",
+   "reason": "non-widget receiver: factory-created missile/effect agent: Receiver is an agent created by FUN_6f154b60(1) and type-checked with AgentClass_IsDerived against an \"MN..\" class getter (e.g. 4d65f0 -> 0x4d4e6162, 5e3c80 -> 0x4d4e6468), then reference-counted; its vslotdc is the missile/effect launch method, not widget admission.",
+   "function": "FUN_6f4cb510"
+  },
+  {
+   "site": "6f5eb0d2",
+   "reason": "non-widget receiver: factory-created missile/effect agent: Receiver is an agent created by FUN_6f154b60(1) and type-checked with AgentClass_IsDerived against an \"MN..\" class getter (e.g. 4d65f0 -> 0x4d4e6162, 5e3c80 -> 0x4d4e6468), then reference-counted; its vslotdc is the missile/effect launch method, not widget admission.",
+   "function": "FUN_6f5eae30"
+  },
+  {
+   "site": "6f5d6046",
+   "reason": "non-widget receiver: factory-created missile/effect agent: Receiver is an agent created by FUN_6f154b60(1) and type-checked with AgentClass_IsDerived against an \"MN..\" class getter (e.g. 4d65f0 -> 0x4d4e6162, 5e3c80 -> 0x4d4e6468), then reference-counted; its vslotdc is the missile/effect launch method, not widget admission. NOTE: the raw push count (11) equals widget vslotdc arity, so arity alone does not exclude this site; the receiver type check (Drunken Haze CAbilityDrunkenHaze vslot424 caller, class 0x4d4e6468) does.",
+   "function": "FUN_6f5d5e10"
+  },
+  {
+   "site": "6f4dd486",
+   "reason": "non-widget receiver: missile/effect agent: Same effect-launch pattern (receiver from refcounted agent pointer, 6-7 args, unit/effect parameters); no widget admission signature (no admit callback, no 11-arg frame).",
+   "function": "FUN_6f4dd330"
+  },
+  {
+   "site": "6f5502a1",
+   "reason": "non-widget receiver: missile/effect agent: Same effect-launch pattern (receiver from refcounted agent pointer, 6-7 args, unit/effect parameters); no widget admission signature (no admit callback, no 11-arg frame).",
+   "function": "FUN_6f550170"
+  },
+  {
+   "site": "6f550b95",
+   "reason": "non-widget receiver: missile/effect agent: Same effect-launch pattern (receiver from refcounted agent pointer, 6-7 args, unit/effect parameters); no widget admission signature (no admit callback, no 11-arg frame).",
+   "function": "FUN_6f550a80"
+  },
+  {
+   "site": "6f550fd5",
+   "reason": "non-widget receiver: missile/effect agent: Same effect-launch pattern (receiver from refcounted agent pointer, 6-7 args, unit/effect parameters); no widget admission signature (no admit callback, no 11-arg frame).",
+   "function": "FUN_6f550ec0"
+  },
+  {
+   "site": "6f551451",
+   "reason": "non-widget receiver: missile/effect agent: Same effect-launch pattern (receiver from refcounted agent pointer, 6-7 args, unit/effect parameters); no widget admission signature (no admit callback, no 11-arg frame).",
+   "function": "FUN_6f551220"
+  },
+  {
+   "site": "6f59f612",
+   "reason": "non-widget receiver: missile/effect agent: Same effect-launch pattern (receiver from refcounted agent pointer, 6-7 args, unit/effect parameters); no widget admission signature (no admit callback, no 11-arg frame).",
+   "function": "FUN_6f59f500"
+  },
+  {
+   "site": "6f7746fa",
+   "reason": "non-widget receiver: doodad/world-object module: CDoodads/CWorldObjects/CBlightPuffs module (6f75xxxx-6f77xxxx, trees reach CDoodads vtable 6fb872b0 and CWorldFrameWar3); 1-5 arguments.",
+   "function": "FUN_6f774530"
+  },
+  {
+   "site": "6f775af2",
+   "reason": "non-widget receiver: doodad/world-object module: CDoodads/CWorldObjects/CBlightPuffs module (6f75xxxx-6f77xxxx, trees reach CDoodads vtable 6fb872b0 and CWorldFrameWar3); 1-5 arguments.",
+   "function": "FUN_6f775a30"
+  },
+  {
+   "site": "6f776ff8",
+   "reason": "non-widget receiver: doodad/world-object module: CDoodads/CWorldObjects/CBlightPuffs module (6f75xxxx-6f77xxxx, trees reach CDoodads vtable 6fb872b0 and CWorldFrameWar3); 1-5 arguments.",
+   "function": "FUN_6f776fb0"
+  },
+  {
+   "site": "6f76b939",
+   "reason": "non-widget receiver: doodad/world-object module: CDoodads/CWorldObjects/CBlightPuffs module (6f75xxxx-6f77xxxx, trees reach CDoodads vtable 6fb872b0 and CWorldFrameWar3); 1-5 arguments.",
+   "function": "FUN_6f76b850"
+  },
+  {
+   "site": "6f775ed3",
+   "reason": "non-widget receiver: doodad/world-object module: CDoodads/CWorldObjects/CBlightPuffs module (6f75xxxx-6f77xxxx, trees reach CDoodads vtable 6fb872b0 and CWorldFrameWar3); 1-5 arguments.",
+   "function": "FUN_6f775a30"
+  },
+  {
+   "site": "6f77b9de",
+   "reason": "non-widget receiver: doodad/world-object module: CDoodads/CWorldObjects/CBlightPuffs module (6f75xxxx-6f77xxxx, trees reach CDoodads vtable 6fb872b0 and CWorldFrameWar3); 1-5 arguments.",
+   "function": "FUN_6f77b9a0"
+  },
+  {
+   "site": "6f48ba2b",
+   "reason": "non-widget receiver: ability list virtual: Iterates the unit ability list (Unit+0x1dc), compares ability class via vslot17c/138 and calls the ability's own vslot with 2-3 arguments; receiver is CAbility, not the unit.",
+   "function": "FUN_6f48b9e0"
+  },
+  {
+   "site": "6f67f870",
+   "reason": "non-widget receiver: ability list virtual: Iterates the unit ability list (Unit+0x1dc), compares ability class via vslot17c/138 and calls the ability's own vslot with 2-3 arguments; receiver is CAbility, not the unit.",
+   "function": "FUN_6f67f810"
+  },
+  {
+   "site": "6f48c6cc",
+   "reason": "non-widget receiver: ability list virtual: Iterates the unit ability list (Unit+0x1dc), compares ability class via vslot17c/138 and calls the ability's own vslot with 2-3 arguments; receiver is CAbility, not the unit.",
+   "function": "FUN_6f48c690"
+  },
+  {
+   "site": "6f2a8d50",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2a8d00"
+  },
+  {
+   "site": "6f2a8df1",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2a8d70"
+  },
+  {
+   "site": "6f2a8e6c",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2a8e10"
+  },
+  {
+   "site": "6f2a915c",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2a90a0"
+  },
+  {
+   "site": "6f2a99f5",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2a9950"
+  },
+  {
+   "site": "6f2a9f6c",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2a9d30"
+  },
+  {
+   "site": "6f2aa291",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2aa1e0"
+  },
+  {
+   "site": "6f2bc866",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2bc6e0"
+  },
+  {
+   "site": "6f2bc8f2",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f2bc6e0"
+  },
+  {
+   "site": "6f3aaa20",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f3aaa10"
+  },
+  {
+   "site": "6f3aab12",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f3aaa30"
+  },
+  {
+   "site": "6f3d2afa",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f3d2980"
+  },
+  {
+   "site": "6f3df814",
+   "reason": "non-widget receiver: UI glue: Glue/UI module (CCampaignListBox.cpp allocation in 2a8d00, leaderboard 3aaa10, quest/score panels); 2-3 arguments, no widget profile signature.",
+   "function": "FUN_6f3df680"
+  },
+  {
+   "site": "6f2f1f87",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f1ea0"
+  },
+  {
+   "site": "6f2f1ff2",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f1ea0"
+  },
+  {
+   "site": "6f2f2a10",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f2970"
+  },
+  {
+   "site": "6f2f2af9",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f2a60"
+  },
+  {
+   "site": "6f2f2cf0",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f2ce0"
+  },
+  {
+   "site": "6f2f3cb4",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f3b50"
+  },
+  {
+   "site": "6f2f415e",
+   "reason": "non-widget receiver: UI frame: BattleNet/MainMenu glue panels (receiver is child frame at +0x208/+0x1c8); vslot154 is a frame method there.",
+   "function": "FUN_6f2f4010"
+  },
+  {
+   "site": "6f3c578c",
+   "reason": "non-widget receiver: UI frame: QuestMode/game-UI frames at +0x18c/+0x17c (callers QuestMode_Enter chain).",
+   "function": "FUN_6f3c5760"
+  },
+  {
+   "site": "6f3c57a3",
+   "reason": "non-widget receiver: UI frame: QuestMode/game-UI frames at +0x18c/+0x17c (callers QuestMode_Enter chain).",
+   "function": "FUN_6f3c5760"
+  },
+  {
+   "site": "6f37ebaf",
+   "reason": "non-creation receiver: UI: Game-UI module (6f37eb70/6f38d0e0), 0 arguments; CUnit vslot1ac needs 4 (RET 0x10), CItem vslot1ac needs 2 (RET 8).",
+   "function": "FUN_6f37eb70"
+  },
+  {
+   "site": "6f38d158",
+   "reason": "non-creation receiver: UI: Game-UI module (6f37eb70/6f38d0e0), 0 arguments; CUnit vslot1ac needs 4 (RET 0x10), CItem vslot1ac needs 2 (RET 8).",
+   "function": "FUN_6f38d0e0"
+  },
+  {
+   "site": "6f38d2e5",
+   "reason": "non-creation receiver: UI: Game-UI module (6f37eb70/6f38d0e0), 0 arguments; CUnit vslot1ac needs 4 (RET 0x10), CItem vslot1ac needs 2 (RET 8).",
+   "function": "FUN_6f38d0e0"
+  },
+  {
+   "site": "6f656342",
+   "reason": "non-creation receiver: item-owned ability list: Iterates identities stored on the item (+0x98 count, +0xa0.. entries) and calls vslot1ac with 0 arguments; receivers are item abilities, not CUnit/CItem constructors.",
+   "function": "FUN_6f656310"
+  },
+  {
+   "site": "6f35f5b3",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f35f440"
+  },
+  {
+   "site": "6f35f743",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f35f640"
+  },
+  {
+   "site": "6f35fa0c",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f35f750"
+  },
+  {
+   "site": "6f361b78",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f361ac0"
+  },
+  {
+   "site": "6f361cf6",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f361b90"
+  },
+  {
+   "site": "6f361fe1",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f361ec0"
+  },
+  {
+   "site": "6f3620b2",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f361ec0"
+  },
+  {
+   "site": "6f36247e",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f362410"
+  },
+  {
+   "site": "6f363b67",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f363b20"
+  },
+  {
+   "site": "6f363c62",
+   "reason": "non-unit bridge: camera: CCameraWar3 / camera JASS natives (SetCameraPosition 211e90, camera setup 1f87xx, CCameraWar3 vtable 6fab8e60): UnitMover_SetWorldPosition on a camera target bridge.",
+   "function": "FUN_6f363bb0"
+  },
+  {
+   "site": "6f49060a",
+   "reason": "non-unit bridge: blight object: CAbilityBlightPlacement/BlightGrowth snap their own blight bridge at ability+0x5c (grid-quantized), not a unit.",
+   "function": "FUN_6f4904e0"
+  },
+  {
+   "site": "6f6da9a4",
+   "reason": "non-unit bridge: ghost image: CGhostImage vslot60 positions its presentation bridge.",
+   "function": "FUN_6f6da850"
+  },
+  {
+   "site": "6f0588db",
+   "reason": "non-unit bridge: missile/effect: FUN_6f0588d0 is the missile/effect start-position wrapper (CMissile/CBulletPath/CArtilleryLine/CMissileLine start paths, DarkSummoning/Sentinel effects); writes the projectile bridge.",
+   "function": "FUN_6f0588d0"
+  },
+  {
+   "site": "6f6d8e88",
+   "reason": "non-unit bridge: area effect: FUN_6f6d8d80 positions CEffect* area-effect bridges (Starfall, Blizzard-like effects via vslota8).",
+   "function": "FUN_6f6d8d80"
+  },
+  {
+   "site": "6f6d97df",
+   "reason": "non-unit bridge: attached secondary object: FUN_6f6d97a0 (reached from 647bf0 inside Unit_SetPositionWithAdmission) moves an attached presentation/secondary object obtained through 6112d0; part of B014-01/698050 post-write updates, not an independent producer.",
+   "function": "FUN_6f6d97a0"
+  },
+  {
+   "site": "6f6cf7d0",
+   "reason": "non-unit profile: missile path: Missile/artillery path start publishes the projectile bridge pathing profile.",
+   "function": "CArtilleryLine_StartPointPath"
+  },
+  {
+   "site": "6f6cff5a",
+   "reason": "non-unit profile: missile path: Missile/artillery path start publishes the projectile bridge pathing profile.",
+   "function": "CMissileLine_StartPointPath"
+  },
+  {
+   "site": "6f6d313b",
+   "reason": "non-unit profile: missile path: Missile/artillery path start publishes the projectile bridge pathing profile.",
+   "function": "CMissile_StartPointPath"
+  },
+  {
+   "site": "6f6d320b",
+   "reason": "non-unit profile: missile path: Missile/artillery path start publishes the projectile bridge pathing profile.",
+   "function": "CMissile_StartTargetPath"
+  },
+  {
+   "site": "6f67f5a9",
+   "reason": "sink-internal: Unit_AdmitPosition base-class call to Widget_AdmitPosition (inside the dc admission sink itself).",
+   "function": "Unit_AdmitPosition"
+  },
+  {
+   "site": "6f65355d",
+   "reason": "sink-internal: Widget_WritePositionAfterAdmission own vslotdc admission call (inside the d8 sink; covered by every row reaching 653510).",
+   "function": "Widget_WritePositionAfterAdmission"
+  },
+  {
+   "site": "6f603dbd",
+   "reason": "query-only: Move_FindTransportForFailedDestination admission query (ORDER346 static plate); no position write. Writes for transported units are B014-41/B014-42.",
+   "function": "Move_FindTransportForFailedDestination"
+  }
+ ],
+ "guards": {
+  "6f05881b": "e8e0390000",
+  "6f0588db": "e820390000",
+  "6f05a677": "e884361100",
+  "6f05bb84": "e877211100",
+  "6f05c1b0": "e84b1b1100",
+  "6f0e4543": "ff90dc000000",
+  "6f0e4553": "ff90d8000000",
+  "6f0ecd6d": "ff90d8000000",
+  "6f0ecf17": "ff90d8000000",
+  "6f0f114a": "ff90d8000000",
+  "6f0f1276": "ff90d8000000",
+  "6f0fe684": "ff90d8000000",
+  "6f10129d": "ff90d8000000",
+  "6f10143d": "ff90d8000000",
+  "6f106ead": "ff90d8000000",
+  "6f108b7d": "ff90d8000000",
+  "6f1133e5": "ff90d8000000",
+  "6f113416": "ff90d8000000",
+  "6f113447": "ff90d8000000",
+  "6f113478": "ff90d8000000",
+  "6f115570": "ff90d8000000",
+  "6f165d79": "e882310000",
+  "6f168f24": "e8d75c0000",
+  "6f1dfca9": "ff90d8000000",
+  "6f1e079a": "ff90d8000000",
+  "6f1fb37d": "e8ce324500",
+  "6f1fb3a5": "e8a6324500",
+  "6f1fb52b": "e820314500",
+  "6f1fc96e": "e8dd1c4500",
+  "6f210ff8": "e8b34a4800",
+  "6f211042": "e849ffffff",
+  "6f213999": "e842134800",
+  "6f2139a9": "e892694400",
+  "6f215596": "ff965c010000",
+  "6f2155b6": "ff925c010000",
+  "6f21560a": "ff9080010000",
+  "6f215649": "e872ffffff",
+  "6f215951": "e8ba2ee4ff",
+  "6f2159b1": "e85a2ee4ff",
+  "6f215bd0": "ff9080000000",
+  "6f219410": "e82b242200",
+  "6f219533": "e888842100",
+  "6f22dbae": "ff90d8000000",
+  "6f22dbde": "ff90d8000000",
+  "6f22df53": "ff90d8000000",
+  "6f22df87": "ff90d8000000",
+  "6f24061f": "e82ce04000",
+  "6f2459c2": "e8a91e4300",
+  "6f2a8d50": "ff905c010000",
+  "6f2a8df1": "ff905c010000",
+  "6f2a8e6c": "ff905c010000",
+  "6f2a915c": "ff905c010000",
+  "6f2a99f5": "ff905c010000",
+  "6f2a9f6c": "ff905c010000",
+  "6f2aa291": "ff905c010000",
+  "6f2aac12": "ff90d8000000",
+  "6f2aacb3": "ff90d8000000",
+  "6f2ab71f": "ff90d8000000",
+  "6f2ab74b": "ff90d8000000",
+  "6f2ab8f8": "ff90d8000000",
+  "6f2abcbd": "ff90d8000000",
+  "6f2b5191": "ff90d8000000",
+  "6f2ba536": "ff90d8000000",
+  "6f2bc866": "ff905c010000",
+  "6f2bc8f2": "ff905c010000",
+  "6f2ced36": "ff90d8000000",
+  "6f2d0a40": "ff90d8000000",
+  "6f2d0abf": "ff90d8000000",
+  "6f2d0aeb": "ff90d8000000",
+  "6f2d0b1f": "ff90d8000000",
+  "6f2d0b4b": "ff90d8000000",
+  "6f2d0b7f": "ff90d8000000",
+  "6f2d0bab": "ff90d8000000",
+  "6f2d0bd6": "ff92d8000000",
+  "6f2d0c0b": "ff90d8000000",
+  "6f2d0c33": "ff90d8000000",
+  "6f2d0c6b": "ff90d8000000",
+  "6f2d0c93": "ff90d8000000",
+  "6f2d0cca": "ff90d8000000",
+  "6f2ebc43": "ff90d8000000",
+  "6f2ebc61": "ff90d8000000",
+  "6f2f1f87": "ff9054010000",
+  "6f2f1ff2": "ff9254010000",
+  "6f2f2a10": "ff9054010000",
+  "6f2f2af9": "ff9054010000",
+  "6f2f2cf0": "ff9054010000",
+  "6f2f3cb4": "ff9054010000",
+  "6f2f415e": "ff9054010000",
+  "6f2f4578": "ff90d8000000",
+  "6f2f46dd": "ff90d8000000",
+  "6f2f4796": "ff90d8000000",
+  "6f303cf4": "ff90d8000000",
+  "6f30710d": "ff90d8000000",
+  "6f30be71": "ff90d8000000",
+  "6f35f5b3": "e85892cfff",
+  "6f35f743": "e8c890cfff",
+  "6f35fa0c": "e8ff8dcfff",
+  "6f361b78": "e8936ccfff",
+  "6f361cf6": "e8156bcfff",
+  "6f361fe1": "e82a68cfff",
+  "6f3620b2": "e85967cfff",
+  "6f36247e": "e88d63cfff",
+  "6f363b67": "e8a44ccfff",
+  "6f363c62": "e8a94bcfff",
+  "6f374a19": "ff90d8000000",
+  "6f37ebaf": "ff90ac010000",
+  "6f38d158": "ff90ac010000",
+  "6f38d2e5": "ff90ac010000",
+  "6f3aaa20": "ff905c010000",
+  "6f3aab12": "ff905c010000",
+  "6f3ace65": "ff90d8000000",
+  "6f3c578c": "ff9254010000",
+  "6f3c57a3": "ff9054010000",
+  "6f3d2afa": "ff905c010000",
+  "6f3ddd4f": "ff90d8000000",
+  "6f3de8f9": "ff90d8000000",
+  "6f3df814": "ff905c010000",
+  "6f3f8443": "ff9280010000",
+  "6f3f8a1a": "ff9054010000",
+  "6f3f9cbe": "ff90dc000000",
+  "6f3f9d3c": "ff90dc000000",
+  "6f3f9d8e": "ff9080010000",
+  "6f402256": "ff9280010000",
+  "6f40ad1a": "ff90dc000000",
+  "6f40de44": "e8279a2600",
+  "6f40de9f": "ff9080010000",
+  "6f4228ac": "e96f692700",
+  "6f422b31": "e85a672700",
+  "6f425900": "e86b1f2500",
+  "6f4278ba": "ff9080010000",
+  "6f438c19": "ff9080010000",
+  "6f43b800": "e85bda2500",
+  "6f48ba2b": "ff9080010000",
+  "6f48c6cc": "ff925c010000",
+  "6f49060a": "e80182bcff",
+  "6f4b9b79": "ff9680010000",
+  "6f4ba912": "ff905c010000",
+  "6f4ba928": "ff905c010000",
+  "6f4ba988": "ff905c010000",
+  "6f4ba99e": "ff905c010000",
+  "6f4c306d": "e8fe471b00",
+  "6f4c863a": "ff9080010000",
+  "6f4c8930": "ff9080010000",
+  "6f4c8f1a": "ff93dc000000",
+  "6f4c961c": "ff9280010000",
+  "6f4ca327": "e844d51a00",
+  "6f4ca7b5": "e8b6d01a00",
+  "6f4ca7e3": "e888d01a00",
+  "6f4cb701": "ff93dc000000",
+  "6f4cbcc3": "ff90d8000000",
+  "6f4cd027": "ff90dc000000",
+  "6f4d8f5e": "e80de91900",
+  "6f4dcb20": "ff9080010000",
+  "6f4dd486": "ff93dc000000",
+  "6f4e67d8": "ff9080010000",
+  "6f500106": "ff9080010000",
+  "6f5088ad": "ff90d8000000",
+  "6f508f54": "ff9280010000",
+  "6f50cd0e": "e85dab1600",
+  "6f50e912": "ff9080010000",
+  "6f525ef7": "ff92d8000000",
+  "6f540d09": "e832961100",
+  "6f544066": "ff9080010000",
+  "6f5440f5": "ff9080010000",
+  "6f544428": "ff9080010000",
+  "6f54a677": "e8f4d11200",
+  "6f54d414": "e857a41200",
+  "6f54da51": "e81a9e1200",
+  "6f54db2f": "ff9080010000",
+  "6f54fed5": "e816171000",
+  "6f5502a1": "ff93dc000000",
+  "6f550b95": "ff93dc000000",
+  "6f550fd5": "ff93dc000000",
+  "6f551451": "ff93dc000000",
+  "6f55bd41": "e86aba1200",
+  "6f55eca6": "e895b60f00",
+  "6f566e43": "ff9280010000",
+  "6f569ce2": "ff965c010000",
+  "6f56a58f": "e8acfd0e00",
+  "6f56b6ff": "e83cec0e00",
+  "6f56ba17": "e824e90e00",
+  "6f58028e": "ff905c010000",
+  "6f5859bd": "e8ae1e0f00",
+  "6f588d68": "e803eb0e00",
+  "6f58bd7a": "e8f1ba0e00",
+  "6f58c134": "e837b70e00",
+  "6f58d0f3": "ff90d8000000",
+  "6f58d11f": "ff90dc000000",
+  "6f58d286": "ff90d8000000",
+  "6f58d2f3": "ff90dc000000",
+  "6f58d7b4": "ff9080010000",
+  "6f58e1c7": "ff9080010000",
+  "6f58ebe8": "ff90dc000000",
+  "6f58ec0d": "ff90dc000000",
+  "6f59b35c": "ff9080010000",
+  "6f59b4c4": "ff9080010000",
+  "6f59ce12": "ff905c010000",
+  "6f59f612": "ff97dc000000",
+  "6f5a4fe1": "e88a280d00",
+  "6f5a6071": "e8fa170d00",
+  "6f5adaed": "ff925c010000",
+  "6f5ae9ae": "ff965c010000",
+  "6f5ae9e2": "ff9080010000",
+  "6f5aeb8c": "ff90d8000000",
+  "6f5aed37": "ff90d8000000",
+  "6f5aeff0": "ff905c010000",
+  "6f5af037": "ff9080010000",
+  "6f5d0328": "e843750a00",
+  "6f5d03df": "ff9080010000",
+  "6f5d6046": "ff97dc000000",
+  "6f5d65d0": "e89b120a00",
+  "6f5d6b90": "e8db0c0a00",
+  "6f5d6c4d": "e81e0c0a00",
+  "6f5d7358": "e813050a00",
+  "6f5d76a5": "e8c6010a00",
+  "6f5d8df6": "ff9080010000",
+  "6f5d92ce": "e86d350c00",
+  "6f5d9394": "e8a7340c00",
+  "6f5e636e": "ff9080010000",
+  "6f5e81f5": "e8b6f50900",
+  "6f5e8323": "e888f40900",
+  "6f5ea6b7": "ff9080010000",
+  "6f5eb0d2": "ff97dc000000",
+  "6f5f96d6": "ff9080010000",
+  "6f600f02": "e869690700",
+  "6f603dbd": "ff90dc000000",
+  "6f623c12": "ff905c010000",
+  "6f623c28": "ff905c010000",
+  "6f62aed5": "e896c90400",
+  "6f62af15": "ff9080010000",
+  "6f62b078": "e8f3c70400",
+  "6f62c061": "e80ab80400",
+  "6f62f1aa": "e8e1bdffff",
+  "6f62f571": "e8fa820400",
+  "6f63afdc": "ff9080010000",
+  "6f63b061": "ff9080010000",
+  "6f63c3a4": "ff905c010000",
+  "6f63c44b": "ff905c010000",
+  "6f6415a8": "ff9080010000",
+  "6f647343": "e828050300",
+  "6f64ba54": "e837f5fdff",
+  "6f64e666": "e805920200",
+  "6f652651": "ff92d8000000",
+  "6f65355d": "ff90dc000000",
+  "6f6535e0": "e81b8ca0ff",
+  "6f653b7c": "689040656f",
+  "6f654655": "689040656f",
+  "6f654d86": "e885e7ffff",
+  "6f656342": "ff92ac010000",
+  "6f65784b": "ff90ac010000",
+  "6f658ca7": "e87499ffff",
+  "6f65a376": "ff9080010000",
+  "6f65a4de": "e85dfeffff",
+  "6f670e2f": "ff965c010000",
+  "6f671f0a": "ff90d8000000",
+  "6f671fda": "ff90dc000000",
+  "6f677aee": "ff90ac010000",
+  "6f67f5a9": "e84220fdff",
+  "6f67f870": "ff9054010000",
+  "6f687810": "ff965c010000",
+  "6f68a1b6": "e86584fcff",
+  "6f68b080": "e87b119dff",
+  "6f6945fd": "e8de819cff",
+  "6f694d3a": "e80156fcff",
+  "6f694dab": "e89055fcff",
+  "6f695ba2": "ff9080010000",
+  "6f698186": "e885b3fbff",
+  "6f69920a": "e9d1359cff",
+  "6f69924c": "ff925c010000",
+  "6f699284": "ff925c010000",
+  "6f6992ae": "ff925c010000",
+  "6f699d63": "ff9080010000",
+  "6f69c893": "ff965c010000",
+  "6f6c20b4": "e86705f9ff",
+  "6f6cc9eb": "ff90d8000000",
+  "6f6cd868": "ff90dc000000",
+  "6f6cf7d0": "e80bd098ff",
+  "6f6cff5a": "e881c898ff",
+  "6f6d313b": "e8a09698ff",
+  "6f6d320b": "e8d09598ff",
+  "6f6d665f": "ff90d8000000",
+  "6f6d6711": "ff90d8000000",
+  "6f6d8e88": "e8733398ff",
+  "6f6d97df": "e81c2a98ff",
+  "6f6da9a4": "e867de97ff",
+  "6f76b939": "ff9054010000",
+  "6f7746fa": "ff9080010000",
+  "6f775af2": "ff90dc000000",
+  "6f775ed3": "ff905c010000",
+  "6f776ff8": "ff90dc000000",
+  "6f77b9de": "ff925c010000",
+  "6f89cb79": "e882118dff",
+  "6f89cbc9": "e832118dff",
+  "6f89cc7f": "e87c108dff",
+  "6f89ccd3": "e828108dff",
+  "6f9b984c": "81486c00400000",
+  "6f9d05bc": "e84f2fc8ff",
+  "6f9d20f6": "e81514c8ff",
+  "6f9d3042": "e8d9f5c7ff",
+  "6f9d3066": "e8759768ff",
+  "6f9d6ea9": "e8325968ff",
+  "6f9d6f03": "e808c6c7ff",
+  "6f9d7aee": "e81dbac7ff"
+ }
+}

@@ -2013,9 +2013,9 @@
         {
           "index": 1,
           "text": "owner lookup and physical placement are explicit stand-ins",
-          "task": "BASE-01.4",
+          "task": "TARGET-01.2",
           "disposition": "behavior",
-          "rationale": "Complete forced-position, teleport or recovery entry-point ownership and its placement/publication calls."
+          "rationale": "Way Gate owner lookup and placement stand-ins are BASE-01.4 inventory rows B014-21..23; the destination setter remains TARGET-01.2."
         },
         {
           "index": 2,
@@ -2607,9 +2607,9 @@
         {
           "index": 0,
           "text": "Position admission, virtual event/dead/type queries and fog results are controlled stand-ins.",
-          "task": "BASE-01.4",
+          "task": "ORDER-01.13",
           "disposition": "behavior",
-          "rationale": "Complete forced-position, teleport or recovery entry-point ownership and its placement/publication calls."
+          "rationale": "Blink placement and validation stand-ins are BASE-01.4 inventory row B014-59, owned by the ability lifetime leaf."
         },
         {
           "index": 1,
@@ -5729,9 +5729,9 @@
         {
           "index": 1,
           "text": "Other forced-position and cargo/dead/form producers remain BASE-01.4; wider exclusion/notification lifetimes remain MAP-04.2.",
-          "task": "BASE-01.4",
+          "task": "FOOT-04.2",
           "disposition": "behavior",
-          "rationale": "Complete forced-position, teleport or recovery entry-point ownership and its placement/publication calls."
+          "rationale": "Cargo, dead, structure and form receiver states of public SetUnitPosition are BASE-01.4 inventory row B014-02, owned by the placement-domain leaf."
         },
         {
           "index": 2,

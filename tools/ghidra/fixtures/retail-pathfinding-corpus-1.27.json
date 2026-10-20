@@ -58389,7 +58389,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7d59ebeb996000e73c762d56809816e49026ad9a4cc962012ab68f76fea8cd54"
+      "sha256": "7eca245269b741e3fcf883176169c93db5d166402d446a29fa3833b03f880271"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -60197,7 +60197,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "58f7518f6ed9aef6d0eff050c7e074facbbc4facf3e994a3b3a1e3d0e331c422"
+      "sha256": "9205191a19b9314ed5bd04abbe17876557d2a1e662662015fb0d5e2162a0ba75"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -67053,7 +67053,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "05955e498be6a517e3bc468bb3591c14bc73ab82de92352f2ec59854cd263b92"
+      "sha256": "fe79b8267278b623b4cb5ee74371a4588be42c967f448a751b762be803d8aa59"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -69705,7 +69705,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-fields-inventory-1.27.json.gz",
-      "sha256": "73106636787916826194a16f940598c16267f2dd33cfa4e0206ec783dd4e7f5c"
+      "sha256": "3485efc5d741b43222d8f6e2686f9e292a8fdd7a841847408d541585d2ae316d"
     },
     {
       "path": "tools/ghidra/audit_wc3_pathing_fields.py",
@@ -69713,19 +69713,27 @@
     },
     {
       "path": "tools/ghidra/audit_wc3_pathing_inventory.py",
-      "sha256": "dcc9d3a52639e954ffbf060436213e91a12345d9e965ca3ae63173009d85f0fc"
+      "sha256": "6a7072cd6b8b61228eddec00346a4888268f841b1ed54039e4ed5b5f6af68599"
     },
     {
       "path": "tests/test_wc3_pathfinding_fields_inventory.py",
-      "sha256": "1b754b3610bdc06a8e4a210aaab682bbaa3b1bca58afa2fde6948e3128cef86a"
+      "sha256": "f8bfd926703983b05c2cf9790485ec98c61ef09db4017b6cc94d289f5cbafbc2"
     },
     {
       "path": "tests/test_wc3_pathfinding_inventory_audit.py",
-      "sha256": "ef11c76c2e42b03168a89786cd5ebcfd346ef7a38afd3443215d99df445396f5"
+      "sha256": "d01825d4f7444fdf2418c33e8bc037ce0e55f39a60f3b3e6603f3d07dc9e422d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-fields-inventory.md",
       "sha256": "0ea5d1cadc1a5550f8eb17e01120ef510effa13044fdf3561332781fadd2711b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-pathfinding-forced-position-inventory-1.27.json",
+      "sha256": "9b0cf063cc7a2115633ac5690c7f66546519b3705966aff3f4df2053af4cfc36"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-forced-position-inventory.md",
+      "sha256": "01f0e1ad2fdd40edb5384060a4805fd3f22ba2ef6d94531a18f28d7a4f4d4980"
     }
   ]
 }

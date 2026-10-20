@@ -2,8 +2,8 @@
 """Check a closed static retail inventory against the corpus, docs, open tasks and DLL.
 
 Inventory leaves (BASE-01.4, BASE-03.1, BASE-03.2, NUM-01.2) publish one fixture
-each. Every enumerated original site must be owned by exactly one row or one
-explicit exclusion. Covered rows cite evidence; partial/uncovered rows name one
+each. Every enumerated original site must be owned by at least one row or by one
+explicit exclusion, never both. Covered rows cite evidence; partial/uncovered rows name one
 remaining open task. Evidence references must resolve to a corpus oracle, a
 Markdown heading or a closed backlog leaf, so a stale reference cannot pass.
 Unreachable rows carry a static proof; a missing producer is never assumed.
@@ -112,12 +112,13 @@ def validate(inventory, corpus, todo, binary=None):
             owners[row['owner']] += 1
         for site in row['sites']:
             require(site in sites, 'row site was not enumerated: ' + site)
-            require(site not in owned, 'site owned twice: ' + site)
-            owned[site] = name
+            # One call site may reach distinct receiver states owned by separate rows.
+            owned.setdefault(site, []).append(name)
         statuses[row['status']] += 1
     for item in inventory['excluded']:
         site = item['site']
-        require(site in sites and site not in owned and item['reason'].strip(), 'invalid exclusion: ' + site)
+        require(site in sites and item['reason'].strip(), 'invalid exclusion: ' + site)
+        require(site not in owned, 'excluded site is also owned by a row: ' + site)
         owned[site] = 'excluded'
     require(set(owned) == sites, 'unowned enumerated sites: ' + str(sorted(sites - set(owned))))
     guards = inventory.get('guards', {})

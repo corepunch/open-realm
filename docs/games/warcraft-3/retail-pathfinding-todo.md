@@ -8,8 +8,8 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Execution order for the remaining 30 (2026-10-18)
 
-**Current closure result: 308/336 complete, 28 open.** GROUP-01.2 is now verified
-across its existing producer matrix and BASE-03.2 publishes the field inventory. The execution plan below retains its
+**Current closure result: 309/336 complete, 27 open.** GROUP-01.2 is now verified
+across its existing producer matrix, BASE-03.2 publishes the field inventory and BASE-01.4 the forced-position entry inventory. The execution plan below retains its
 original 30-leaf baseline and milestone counts as planning history.
 
 **Baseline: 306/336 complete, 30 open.** Morph382 is committed as
@@ -95,6 +95,11 @@ until the remaining matrices are frozen; test counts and research volume do not
 substitute for leaf closure.
 
 ## Progress
+
+Forced014 closes BASE-01.4: 71 forced-position/teleport/pathing-bypass entry rows
+over a closed universe of303 guarded call sites, each unresolved path owned by an
+existing open leaf. **27 tasks remain.**
+[Inventory](retail-pathfinding-forced-position-inventory.md).
 
 Fields032 closes BASE-03.2: a complete read/write inventory of all839 recovered
 layout fields plus426 virtual slots,179 globals and599 unnamed prefix accesses,
@@ -1702,7 +1707,7 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 - [x] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI. [Payoff214](retail-pathfinding-engine.md#player-ui-point-transport-and-admission-payoff214): two actual six-unit native UI repeats preserve ordinary/Shift/Alt point words through serialization, decoding, indirect synchronized dispatch and publication. Replacement reaches680320 mode1/dispatch1;Shift uses append. Engine public command transport now preserves binary32 coordinates; unchanged retail motion and cold continuations pass in Classic/TFT.
 - [x] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path. [Payoff191](retail-pathfinding-engine.md#jass-and-ai-common-point-admission-payoff191): repeated public string/ById JASS enters206f00->5ffb60->05b970; real Captain AI9d44d0 enters the same bridge on Captain+44, with its own virtual actor/cohorts. Both share flag1 and completion events; five actual range publications and all307 public markers match repeat/control. Engine publishes normalized point ranges at admission for singleton/queued/prepared/AI members; failing-first JASS/save/AI regression passes64 assertions and20 original arithmetic cases in both schemas. Full player UI/network producer remains BASE-01.1.
 - [x] **BASE-01.3** Payoffs184/185/186 trace public target Move and Holy Light through the shared physical target producer. The authored300/800 ranges become11.34375/26.96875 fine with radii32/31; both retain canonical target identity, while persistent target policy1801 contrasts with spell approach1000. Actual engine orders/receiver completion, exact ground/air motion, cancellation and cold saves pass; other command/formation producers keep their existing scopes. See [producer comparison](retail-pathfinding-engine.md#target-order-versus-ability-approach-base-013).
-- [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
+- [x] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path. Seventy-one rows `B014-01..71` cover a closed universe of303 original call sites (165 in rows,138 explicit exclusions) over16 position/placement/pathing-profile sinks and widget/unit vtable slots d8/dc/180: 8 covered,25 partial,37 uncovered,1 statically unreachable. Every unresolved row is owned by an existing open leaf (ORDER-01.13/SEP-01.2/ORDER-01.12/FOOT-04.2/GROUP-03.4.7.3/ORDER-01.16/TARGET-01.2/BASE-03.1); 303 instruction guards match the DLL. Notable: one shared teleport/landing helper439490->3f9c10 has no placement evidence; engine transport unload issues a public Stop that retail does not. [Inventory](retail-pathfinding-forced-position-inventory.md).
 - [x] **BASE-01.5** Split public SetUnitX/Y geometry from01.4: recover predicted world query, both-axis fine reprojection and unchanged velocity/facing/order; port committed-pose writes through Move and prove the next step/save resumes. Evidence: [axis-position writes](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step),576 complete original writes plus576 following Move commits, repeated40 native calls/40 queries/eight writes with actual clocks,32 reproduced engine word failures followed by128 passing native/Move/save checks. Public between-frame clock prediction remains NUM-02.3; SetUnitPosition Stop/placement and other forced writers remain01.4.
 - [x] **BASE-01.6** Split ordinary public SetUnitPosition/Loc Stop and scalar writes from01.4: retire Move/Patrol and queued/group state before placement; retain captured fine/world words and stationary save/load. Evidence: [forced-position Stop reaches the engine](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine), repeated28 public calls/60 queries/four Stop and placement pairs,99 motion/velocity decisions,167 actual native/frame/save assertions. Live Loc wrapper, blocked/overlapping placement, gold-mine/cargo/dead actors and other forced writers remain01.4/FOOT-04.
 

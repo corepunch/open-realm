@@ -16,13 +16,16 @@ class InventoryAuditTests(unittest.TestCase):
     def setUp(self):
         self.corpus = json.loads(v.CORPUS.read_text())
         self.todo = v.TODO.read_text()
+        # Owners and stale references come from the live backlog so closing a leaf cannot invalidate the test.
+        states = {m[2]: m[1] for m in v.TASK.finditer(self.todo)}
+        self.open = sorted(k for k, s in states.items() if s == ' ' and k != 'BASE-01.1')[0]
         self.inventory = dict(version=1, task='BASE-01.1', prefix='T-', game_sha256=v.SHA,
             enumeration=[dict(id='Q1', query='direct callers', sites=['6f21560a', '6f4c961c', '6f54db2f'])],
             rows=[dict(id='T-01', producer='JASS SetUnitPosition', sites=['6f21560a'], status='covered',
                        evidence=['oracle:oracle-stop285', 'doc:retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine',
                                  'todo:BASE-01.6'], engine='implemented', owner=None, rationale='Public Stop and placement.'),
                   dict(id='T-02', producer='Blink', sites=['6f4c961c'], status='partial', evidence=[],
-                       engine='partial', owner='ORDER-01.13', rationale='Cast lifetime remains.')],
+                       engine='partial', owner=self.open, rationale='Cast lifetime remains.')],
             excluded=[dict(site='6f54db2f', reason='Different receiver class.')], guards={})
 
     def validate(self, inventory=None):
@@ -31,16 +34,18 @@ class InventoryAuditTests(unittest.TestCase):
     def test_synthetic_inventory(self):
         result = self.validate()
         self.assertEqual((result['rows'], result['enumerated_sites'], result['excluded']), (2, 3, 1))
-        self.assertEqual(result['owners'], {'ORDER-01.13': 1})
+        self.assertEqual(result['owners'], {self.open: 1})
 
     def test_unowned_site(self):
         self.inventory['excluded'].clear()
         with self.assertRaisesRegex(ValueError, 'unowned enumerated sites'):
             self.validate()
 
-    def test_site_owned_twice(self):
+    def test_site_rows_and_exclusion_conflict(self):
         self.inventory['rows'][1]['sites'].append('6f21560a')
-        with self.assertRaisesRegex(ValueError, 'owned twice'):
+        self.validate()
+        self.inventory['rows'][1]['sites'].append('6f54db2f')
+        with self.assertRaisesRegex(ValueError, 'also owned by a row'):
             self.validate()
 
     def test_unenumerated_site(self):
@@ -61,7 +66,7 @@ class InventoryAuditTests(unittest.TestCase):
 
     def test_stale_references(self):
         for ref in ('oracle:oracle-missing', 'doc:retail-pathfinding-engine.md#no-such-heading', 'doc:missing.md',
-                    'todo:BASE-01.4', 'payoff:285'):
+                    'todo:' + self.open, 'payoff:285'):
             changed = copy.deepcopy(self.inventory)
             changed['rows'][0]['evidence'] = [ref]
             with self.assertRaises(ValueError):
