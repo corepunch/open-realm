@@ -3333,8 +3333,8 @@
     "enumeration boundary of this inventory (method.md); vslot80/vslot40 call sites were not enumerated"
    ],
    "engine": "partial: engine show/restore paths exist per producer",
-   "owner": "BASE-03.1",
-   "rationale": "CUnit vslot16c (6945a0 CUnit_RefreshMoverPathingProfile) callers are likewise not enumerated. Indirect [reg+0x80]/[reg+0x40]/[reg+0x16c] calls are too generic to classify by slot alone; BASE-03.1 owns the reachable branch inventory from these entry points."
+   "owner": "E2E-05.2",
+   "rationale": "CUnit vslot16c (6945a0 CUnit_RefreshMoverPathingProfile) callers are likewise not enumerated. Indirect [reg+0x80]/[reg+0x40]/[reg+0x16c] calls are too generic to classify by slot alone; BASE-03.1 owns the reachable branch inventory from these entry points. Reassigned at BASE-03.1 closure: the reachable inventory resolves the expandable dispatch; remaining unexpanded or unreferenced sites are E2E-05.2 rows."
   }
  ],
  "excluded": [

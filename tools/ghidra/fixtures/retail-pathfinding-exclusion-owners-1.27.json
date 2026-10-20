@@ -350,30 +350,30 @@
         {
           "index": 0,
           "text": "Preallocated CDataAllocator blocks; external heap growth not executed",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "Manually registered wrapper and class table; live wrapper/class registration not executed",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 2,
           "text": "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2→1, final owned-object destruction untested",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 3,
           "text": "Positive handle domain; no nested callbacks or nonempty request heap",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         }
       ]
     },
@@ -430,9 +430,9 @@
         {
           "index": 5,
           "text": "accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 6,
@@ -489,16 +489,16 @@
         {
           "index": 0,
           "text": "Preallocated original factory/pool capacity and seeded class registry; external heap growth and global registration not executed",
-          "task": "BASE-03.1",
+          "task": "E2E-06.1",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: PRNG seed/owner startup."
         },
         {
           "index": 1,
           "text": "COrderTarget is constructed and registered by original code; command fields are controlled fixture data, coordinates set through original FloatMini setters",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 2,
@@ -510,16 +510,16 @@
         {
           "index": 3,
           "text": "UI notification singleton absent; stockhfoo terrain transform executes shippedCRT; user input/network admission remains separate",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 4,
           "text": "Every composed first admission executes680320(order,1,1) with complete fixture; factory-created order command/coordinates remain controlled input and UI/network producer is excluded",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 5,
@@ -531,23 +531,23 @@
         {
           "index": 6,
           "text": "Move-only attached behavior: registered ability list, original20event registration and Unitself action/state subscriptions; unrelated abilities/presentation subscribers absent",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 7,
           "text": "Class caches: Amov-to-Bply/BUsl/Asla false and ordt-to-+ord true are preexisting fixture entries; cache-miss class construction excluded",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 8,
           "text": "680320 mode1 tuple also exists at233de0/233e17 statically; its caller/input policy not executed; mode0 corresponds to original widget654090 call tuple. Unit198=0 and no69b2f0 rejection in tested modes",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: formation/policy producers."
         },
         {
           "index": 9,
@@ -566,9 +566,9 @@
         {
           "index": 11,
           "text": "Optional retained object tests use genuine registered COrderTarget as a raw reference-contract fixture, not a claim of gameplay target class reachability",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         }
       ]
     },
@@ -578,9 +578,9 @@
         {
           "index": 0,
           "text": "Point predicate invalid/stale mover handles; object faults covered separately",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: invalid/stale handle producers."
         },
         {
           "index": 1,
@@ -606,9 +606,9 @@
         {
           "index": 4,
           "text": "Full order dispatch composition",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: other reachability."
         },
         {
           "index": 5,
@@ -753,9 +753,9 @@
         {
           "index": 0,
           "text": "Full VM/Unit construction and invalid-backing producer reachability remain BASE-03.1. Non-point command owners and gameplay UI/network caller coverage remain ORDER-01.6/BASE-01.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: invalid/stale handle producers."
         }
       ]
     },
@@ -893,9 +893,9 @@
         {
           "index": 5,
           "text": "accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 6,
@@ -955,9 +955,9 @@
         {
           "index": 0,
           "text": "Alternative locale construction, CRT DLL startup/TLS and Windows multibyte _isctype_l values below EOF",
-          "task": "BASE-03.1",
+          "task": "BASE-02.3",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: CRT locale/decimal. NUM-01.2 is closed; CRT decimal/locale text grammar is the BASE-02.3 input-domain row of the arithmetic inventory."
         },
         {
           "index": 1,
@@ -1059,9 +1059,9 @@
         {
           "index": 0,
           "text": "original public scheduler budget producers",
-          "task": "BASE-03.1",
+          "task": "GROUP-04.6",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: path scheduler budget producers."
         },
         {
           "index": 1,
@@ -1299,16 +1299,16 @@
         {
           "index": 0,
           "text": "Full693710 TLS/per-unit reseed",
-          "task": "BASE-03.1",
+          "task": "E2E-06.1",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: PRNG seed/owner startup."
         },
         {
           "index": 1,
           "text": "Owner startup producers",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 2,
@@ -1351,9 +1351,9 @@
         {
           "index": 1,
           "text": "Allocation/growth/stamp-wrap lifetime",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -1377,9 +1377,9 @@
         {
           "index": 1,
           "text": "Allocation/growth/stamp-wrap lifetime",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -1422,9 +1422,9 @@
         {
           "index": 0,
           "text": "Initial public order-admission phase",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: other reachability."
         },
         {
           "index": 1,
@@ -1462,9 +1462,9 @@
         {
           "index": 2,
           "text": "Original fine-system index-initialization producer",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 3,
@@ -1507,9 +1507,9 @@
         {
           "index": 0,
           "text": "Complete owner scheduling and denied refill delays",
-          "task": "BASE-03.1",
+          "task": "GROUP-04.6",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: path scheduler budget producers."
         },
         {
           "index": 1,
@@ -1566,9 +1566,9 @@
         {
           "index": 2,
           "text": "Denied scheduler requests",
-          "task": "BASE-03.1",
+          "task": "GROUP-04.6",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: path scheduler budget producers."
         },
         {
           "index": 3,
@@ -1592,9 +1592,9 @@
         {
           "index": 1,
           "text": "Owner admission queues and charged-budget reset timing",
-          "task": "BASE-03.1",
+          "task": "ORDER-02.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: queued order producers."
         },
         {
           "index": 2,
@@ -1618,9 +1618,9 @@
         {
           "index": 1,
           "text": "Owner admission queues and charged-budget reset timing",
-          "task": "BASE-03.1",
+          "task": "ORDER-02.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: queued order producers."
         },
         {
           "index": 2,
@@ -1661,23 +1661,23 @@
         {
           "index": 0,
           "text": "Storm OOM behavior",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "public scheduler cap producer",
-          "task": "BASE-03.1",
+          "task": "GROUP-04.6",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: path scheduler budget producers."
         },
         {
           "index": 2,
           "text": "adaptive capacity policy",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 3,
@@ -1694,23 +1694,23 @@
         {
           "index": 0,
           "text": "Storm OOM behavior",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "public scheduler cap producer",
-          "task": "BASE-03.1",
+          "task": "GROUP-04.6",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: path scheduler budget producers."
         },
         {
           "index": 2,
           "text": "adaptive capacity policy",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 3,
@@ -1779,16 +1779,16 @@
         {
           "index": 0,
           "text": "Storm OOM",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "naturally occurring heap saturation in live gameplay",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -1800,9 +1800,9 @@
         {
           "index": 3,
           "text": "Way Gate ID allocator lifetime",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         }
       ]
     },
@@ -1812,16 +1812,16 @@
         {
           "index": 0,
           "text": "Storm OOM",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "naturally occurring heap saturation in live gameplay",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -1833,9 +1833,9 @@
         {
           "index": 3,
           "text": "Way Gate ID allocator lifetime",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         }
       ]
     },
@@ -2020,9 +2020,9 @@
         {
           "index": 2,
           "text": "force1 has no demonstrated public producer",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         }
       ]
     },
@@ -2051,9 +2051,9 @@
         {
           "index": 0,
           "text": "Public timeout scheduling, segment/epoch and callback mutation reachability",
-          "task": "BASE-03.1",
+          "task": "NUM-02.3",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: timer/clock/pause producers."
         },
         {
           "index": 1,
@@ -2170,9 +2170,9 @@
         {
           "index": 2,
           "text": "UI menu-driven restart and external registry destruction are outside the isolated fixture.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         }
       ]
     },
@@ -2182,9 +2182,9 @@
         {
           "index": 0,
           "text": "Asymmetric rectangles, category06 and outer counters are supplied original oracle inputs; additional public construction producers are not certified by this fixture.",
-          "task": "BASE-03.1",
+          "task": "ORDER-01.16",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: construction/resource object categories."
         },
         {
           "index": 1,
@@ -2258,9 +2258,9 @@
         {
           "index": 0,
           "text": "Authored resource decoder/flag inventory and unusual channel thresholds (BASE02.1); full live building/construction/mine/ward/Way Gate and missile activity; full layered bridge and outside-map item constructor admission.",
-          "task": "BASE-03.1",
+          "task": "ORDER-01.16",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: construction/resource object categories."
         }
       ]
     },
@@ -2270,9 +2270,9 @@
         {
           "index": 0,
           "text": "Static region producers/consumers and49-link hierarchy cap remain FOOT03; historical65536-request metadata aliases remain excluded.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 1,
@@ -2284,9 +2284,9 @@
         {
           "index": 2,
           "text": "Live growing beyond the first1MiB link block is not established.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 3,
@@ -2303,9 +2303,9 @@
         {
           "index": 0,
           "text": "Initial owner RNG/parity supplied from capture; no startup seed producer certification.",
-          "task": "BASE-03.1",
+          "task": "E2E-06.1",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: PRNG seed/owner startup."
         },
         {
           "index": 1,
@@ -2417,9 +2417,9 @@
         {
           "index": 1,
           "text": "Timer ownership/free-list and event receiver are explicit stand-ins.",
-          "task": "BASE-03.1",
+          "task": "NUM-02.3",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: timer/clock/pause producers."
         },
         {
           "index": 2,
@@ -2443,9 +2443,9 @@
         {
           "index": 1,
           "text": "All-ability consumer migration, attack attach/reaction timers and Gaussian dice above16 are not part of this ownership/seed-side-effect closure.",
-          "task": "BASE-03.1",
+          "task": "E2E-06.1",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: PRNG seed/owner startup."
         },
         {
           "index": 2,
@@ -2469,9 +2469,9 @@
         {
           "index": 0,
           "text": "Effective-divisor getter, remaining-time virtual and request allocator are explicit boundary stand-ins.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
@@ -2512,9 +2512,9 @@
         {
           "index": 0,
           "text": "Supplied agents, callback/handler bodies and external Storm/memset implementations; no original instruction replaced.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
@@ -2531,16 +2531,16 @@
         {
           "index": 0,
           "text": "Controlled agents/handler bodies and external Storm/CRT services; no original instruction replacements.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "Public unit removal is deferred; forced oracle models later agent clear/reference effects.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         }
       ]
     },
@@ -2550,16 +2550,16 @@
         {
           "index": 0,
           "text": "Supplied owners/receivers/preallocated blocks and external Storm/CRT services.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "Public presentation requests not observed; forced helper cases labelled.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         }
       ]
     },
@@ -2569,9 +2569,9 @@
         {
           "index": 0,
           "text": "Controlled receivers, owner and preallocated blocks; Storm/CRT services supplied.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
@@ -2588,16 +2588,16 @@
         {
           "index": 0,
           "text": "Controlled receivers, owner and preallocated blocks; Storm/CRT services supplied.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
           "text": "Presentation-request and pause producers are not public witnesses.",
-          "task": "BASE-03.1",
+          "task": "NUM-02.3",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: timer/clock/pause producers."
         }
       ]
     },
@@ -2657,9 +2657,9 @@
         {
           "index": 0,
           "text": "Only Storm storage imports replaced; allocation failure is not injected.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
@@ -2702,23 +2702,23 @@
         {
           "index": 0,
           "text": "Supplied class lookup and canonical registry identity bindings.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 1,
           "text": "Static initializer stops before CRT atexit registration.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
           "text": "Empty subscriptions, relationships and child lists; public producer evidence is separate.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         }
       ]
     },
@@ -2804,9 +2804,9 @@
         {
           "index": 0,
           "text": "The detour has supplied original adaptive-disabled profile and clock-zero callback; retail public spawn/order admission is excluded.",
-          "task": "BASE-03.1",
+          "task": "NUM-02.3",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: timer/clock/pause producers."
         },
         {
           "index": 1,
@@ -2971,9 +2971,9 @@
         {
           "index": 0,
           "text": "FORM-01.3 stays open for d0176/captain/static-only policy producers and broader bit10 effects.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: formation/policy producers."
         },
         {
           "index": 1,
@@ -2992,9 +2992,9 @@
         {
           "index": 3,
           "text": "Only installed visual policy0 is live witnessed here; other policy rows follow original004210 static initialization.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 4,
@@ -3152,9 +3152,9 @@
         {
           "index": 0,
           "text": "FORM-01.3 remains open for wider producer families and flag consequences.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: formation/policy producers."
         },
         {
           "index": 1,
@@ -3185,9 +3185,9 @@
         {
           "index": 0,
           "text": "Forced state jumps remain labelled; no natural seven-hour capture, public scheduler-work overflow or new original combined-wrap live launch is claimed.",
-          "task": "BASE-03.1",
+          "task": "E2E-03.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: clock/stamp wrap boundaries."
         },
         {
           "index": 1,
@@ -3286,9 +3286,9 @@
         {
           "index": 3,
           "text": "Unobserved UI order types, target identities, nonlocal channel and mixed air/ground admission remain outside BASE-01.1.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: UI/network order producers."
         }
       ]
     },
@@ -3319,9 +3319,9 @@
         {
           "index": 3,
           "text": "Other cheats, complete console token grammar, game+3e0 lifecycle, remaining policy callers and reveal producers remain open.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: visibility/reveal producers."
         },
         {
           "index": 4,
@@ -3371,9 +3371,9 @@
         {
           "index": 0,
           "text": "Eight public UnitShareVision scenes cover direct/indirect recipients, fog, alliance ordering and refresh. Other counted/ability reveal producers, world-readiness and nonzero query flags remain open under TARGET-03.1.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: visibility/reveal producers."
         },
         {
           "index": 1,
@@ -3411,9 +3411,9 @@
         {
           "index": 1,
           "text": "The accepted eight scenes use controlled Apiv duration0. Detector variants did not establish a contribution on the canonical target and close no detection-policy item. Their raw queries are retained without treating them as detector-lifecycle proof.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: visibility/reveal producers."
         },
         {
           "index": 2,
@@ -3465,9 +3465,9 @@
         {
           "index": 3,
           "text": "Engine native admission captures the predicted target pose; provided packet points retain their own words. Explicit Move cursor-to-entity ingress remains a separate UI gap.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: UI/network order producers."
         },
         {
           "index": 4,
@@ -3957,9 +3957,9 @@
         {
           "index": 1,
           "text": "Original16c6d0 and its numerical/elapsed helpers execute unchanged over fixture-supplied group/member/path fields. Storm memory imports are host storage adapters. The full16de50 construction graph is statically mapped, not claimed executed by this oracle.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -3997,9 +3997,9 @@
         {
           "index": 1,
           "text": "Complete original167120 executes with original CLrPath/table constructors and native arithmetic over supplied canonical path, map and exhausted scheduler buckets. Storm memory imports are host adapters. It does not execute the whole public group-construction graph.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -4070,9 +4070,9 @@
         {
           "index": 1,
           "text": "Original complete5faaf0/89cd10/16bcf0/16b7b0 scopes and native factory/row/owner constructors execute unchanged. Fixture supplies canonical unit history/category, peer callback, owner clock, empty hierarchy and VM publication gate; Storm storage only is external.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 2,
@@ -4204,9 +4204,9 @@
         {
           "index": 3,
           "text": "Instruction guards verify saved native producer bodies; this verifier does not emulate the complete net publisher.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: UI/network order producers."
         },
         {
           "index": 4,
@@ -4230,9 +4230,9 @@
         {
           "index": 1,
           "text": "Actual UI repeats certify three-way affinity and retain exact physical bind order. Retail sorts nine-word admission rows, so the engine native readiness matrix does not certify complete UI admission/callback chronology.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: UI/network order producers."
         },
         {
           "index": 2,
@@ -4270,9 +4270,9 @@
         {
           "index": 0,
           "text": "Complete original comparator pairs and six actual UI packets certify bounded selected Move admission, not all order validation kinds or ability-specific score overrides.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer."
+          "rationale": "Trace the missing UI/network/public command entry and its concrete admission path; seeded command objects do not certify that producer. BASE-03.1 closure: UI/network order producers."
         },
         {
           "index": 1,
@@ -4390,9 +4390,9 @@
         {
           "index": 2,
           "text": "Original category oracle executes only21e8f0..21e93e over a materialized BGRA image, not the complete decoder/constructor.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 3,
@@ -4517,9 +4517,9 @@
         {
           "index": 5,
           "text": "Null-callback branch is certified by original-code matrix, not claimed as a public SetUnitPathing(false) producer.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 6,
@@ -4628,9 +4628,9 @@
         {
           "index": 0,
           "text": "Visibility oracle supplies TLS lookup, owner/bridge virtuals, canonical detector mask and CRT cookie validation; six policy bodies execute unmodified. Controlled cases are not public reachability witnesses.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
@@ -4675,9 +4675,9 @@
         {
           "index": 2,
           "text": "Existing synchronous modifier-start application remains unchanged. These captures start modifiers on a fog deadline and do not certify off-deadline synchronous first application.",
-          "task": "BASE-03.1",
+          "task": "TARGET-01.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: visibility/reveal producers."
         },
         {
           "index": 3,
@@ -4812,9 +4812,9 @@
         {
           "index": 1,
           "text": "Original16-case unit kernel supplies canonical unit tag/liveness and vtable wrapper using original6864d0 getter; no Unit factory/public scene is inferred from this synthetic setup.",
-          "task": "BASE-03.1",
+          "task": "NUM-03.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: nonfinite producer."
         },
         {
           "index": 2,
@@ -4838,9 +4838,9 @@
         {
           "index": 0,
           "text": "Original predicate kernel uses supplied flags and mode; it does not construct an original Unit.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 1,
@@ -4892,9 +4892,9 @@
         {
           "index": 2,
           "text": "The valid probe exercises declared nan/inf/Infinity identifiers and numeric-to-Move production. General undefined-symbol resolution, full JASS semantic compilation and Galaxy grammar are not claimed retail-equivalent.",
-          "task": "BASE-03.1",
+          "task": "NUM-03.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: nonfinite producer."
         },
         {
           "index": 3,
@@ -5017,9 +5017,9 @@
         {
           "index": 0,
           "text": "Original canonical wrapper retirement and reference decrement are verified; surviving UI request payload references do not prove zero-reference factory reclamation.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 1,
@@ -5097,9 +5097,9 @@
         {
           "index": 0,
           "text": "Guard/identity inputs are supplied original-code states, not evidence that a public producer can fabricate a stale or invalid handle.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: invalid/stale handle producers."
         },
         {
           "index": 1,
@@ -5130,16 +5130,16 @@
         {
           "index": 0,
           "text": "Original class lookup and canonical identity bindings are supplied, not live public registration.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: class/factory/registry construction."
         },
         {
           "index": 1,
           "text": "Borrowed graph links and child arrays are built by original producers; extra owned payload reference is supplied.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 2,
@@ -5151,9 +5151,9 @@
         {
           "index": 3,
           "text": "No new Frida/public script reachability claim for the synthetic graph; existing public removal captures remain unchanged.",
-          "task": "BASE-03.1",
+          "task": "ORDER-01.13",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: ability/order validation producers."
         },
         {
           "index": 4,
@@ -5415,9 +5415,9 @@
         {
           "index": 1,
           "text": "Threshold and elapsed fixture cases are deliberate; not every row is a public production claim.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: other reachability."
         },
         {
           "index": 2,
@@ -5455,9 +5455,9 @@
         {
           "index": 0,
           "text": "The original wrapper matrix supplies empty heaps, pause gates and identity-sign choices; these are explicitly forced inputs.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: allocator/storage growth and failure."
         },
         {
           "index": 1,
@@ -5703,9 +5703,9 @@
         {
           "index": 2,
           "text": "Original Stop producer substitutes two task factories and proves order/ABI only.",
-          "task": "BASE-03.1",
+          "task": "ORDER-01.13",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: ability/order validation producers."
         },
         {
           "index": 3,
@@ -5769,9 +5769,9 @@
         {
           "index": 2,
           "text": "Original validation-body oracle supplies identity/context/ability virtual endpoints; no universal concrete validator/disable-producer parity claim.",
-          "task": "BASE-03.1",
+          "task": "ORDER-01.13",
           "disposition": "reachability",
-          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay."
+          "rationale": "Trace the missing public caller, registration, allocation, receiver or state producer before treating the supplied helper input as reachable gameplay. BASE-03.1 closure: ability/order validation producers."
         },
         {
           "index": 3,
@@ -6797,9 +6797,9 @@
         {
           "index": 1,
           "text": "Additional indirect/public roots for the seven unreferenced forwarding thunks remain BASE-03.1; forced helper aliases are not public-producer evidence.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "The transparent helpers are fully tested, but absence of decoded references alone is not a proof of unreachable indirect producers."
+          "rationale": "The transparent helpers are fully tested, but absence of decoded references alone is not a proof of unreachable indirect producers. BASE-03.1 closure: unreferenced/indirect roots."
         }
       ]
     },
@@ -6823,9 +6823,9 @@
         {
           "index": 2,
           "text": "Additional indirect roots outside the complete direct-reference inventory remain BASE-03.1.",
-          "task": "BASE-03.1",
+          "task": "E2E-05.2",
           "disposition": "reachability",
-          "rationale": "Direct cross references and exact startup table roots do not enumerate every possible indirect entry."
+          "rationale": "Direct cross references and exact startup table roots do not enumerate every possible indirect entry. BASE-03.1 closure: unreferenced/indirect roots."
         }
       ]
     },
