@@ -141,6 +141,19 @@ substitute for leaf closure.
 
 ## Progress
 
+TARGET-01.2's Give/Pawn checkpoint is integrated in `df55e31bb`. Inventory owns
+independent item/recipient identities, half-range physical approaches, target-bound
+queued Drop and synchronous guarded transfers. Callback-owned movement, Pawn's
+post-callback payer and source Inventory removal are covered. Ordinary pickup
+permission no longer rejects forced Give. Focused Classic/TFT checks pass30
+Inventory tests/3915 assertions,128 item tests/11335 assertions,4 cursor tests/76
+assertions and236 save tests/68335 assertions per edition. The optional SC2API
+build also passes35 interface tests/324 assertions per edition. V7's portable
+permission corpus retains474 matching public markers and16 evidence regressions.
+Full repository acceptance is pending the next batch checkpoint. **25 remain;
+TARGET-01.2 stays active** for the remaining producer/range/heading/force/stop and
+complete firing-poll matrix. [Current evidence](inventory-and-items.md#ordinary-pickup-permission-does-not-gate-give).
+
 TARGET-01.2 remains the active leaf. Its point-drop candidate replaces immediate
 JASS release and greedy steering with Inventory-owned admission, Move physical
 ownership and incarnation-checked terminal release. The focused gate passes139

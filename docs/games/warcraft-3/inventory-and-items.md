@@ -1107,3 +1107,15 @@ The optional `SC2API=1` build passes35 raw-interface tests /324 assertions
 and the same30 Inventory tests /3915 assertions per edition. Its new public
 Give regression exports the recipient tag independently of the carried item,
 then recycles the recipient identity and verifies that the stale tag disappears.
+
+The portable V7 archive is
+`tools/ghidra/fixtures/retail-itemgive-permissions-1.27.json.gz`; the exact four
+capture/probe/map sources are in `tools/ghidra/fixtures/research/itemgive_permissions/`.
+The audit checks literal maps, sources, research environments, getter values,
+synchronous Give/script receipt, Smart admission, final ownership and every
+repeat/control marker. It reports native evidence only, not complete engine
+trajectory parity. Run its16 rejection/regression tests with:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_itemgive_permissions.py'
+```
