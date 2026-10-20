@@ -1,6 +1,15 @@
 # Reachable function and branch inventory (BASE-03.1)
 
-BASE-03.1 is complete as an inventory: the direct-call and resolved-virtual
+**Closure audit (2026-10-20): BASE-03.1 is open.** The fixture publishes function
+rows and branch totals, but no individual branch addresses/edges or per-branch
+evidence/task records. Its validator checks sums and function owners rather than
+branch completeness. The original metrics export truncates one function
+(`6f4725f0`, 462 branches). Preserve this useful partial inventory; complete the
+branch export and add missing/duplicate/incorrect-link rejection tests before
+closing the leaf. Instruction guards establish binary identity, not execution
+coverage or engine parity.
+
+The partial inventory records: the direct-call and resolved-virtual
 closure of the **163 BASE-01 entry points** (player UI, JASS, Captain AI, target,
 axis/forced-position roots and all BASE-01.4 native entries) contains **7,399
 functions with 21,306 conditional branches**. Every function has one status and
