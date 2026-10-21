@@ -13,8 +13,8 @@
     function measure() {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return null;
-      const fullscreen = doc.fullscreenElement === container ||
-        doc.fullscreenElement === canvas;
+      const fullscreenElement = doc.fullscreenElement || doc.webkitFullscreenElement;
+      const fullscreen = fullscreenElement === container || fullscreenElement === canvas;
       // Device pixel ratio matters when dragging windows between monitors.
       return [fullscreen ? 1 : 0, Math.round(rect.width * 100) / 100,
         Math.round(rect.height * 100) / 100, win.devicePixelRatio || 1].join(':');
@@ -49,6 +49,7 @@
     }
 
     doc.addEventListener('fullscreenchange', function () { schedule(true); });
+    doc.addEventListener('webkitfullscreenchange', function () { schedule(true); });
     win.addEventListener('resize', function () { schedule(false); });
     if (typeof win.ResizeObserver === 'function') {
       const observer = new win.ResizeObserver(function () { schedule(false); });

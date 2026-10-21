@@ -28,6 +28,7 @@ function fixture() {
     unlock() { unlocked++; }
   }};
   doc.fullscreenElement = null;
+  doc.webkitFullscreenElement = null;
   doc.activeElement = null;
   canvas.focus = () => { doc.activeElement = canvas; };
   canvas.dispatchEvent = event => released.push(event);
@@ -77,6 +78,19 @@ test('fullscreen requests keyboard lock and releases it on exit', async () => {
   assert.equal(f.key('keydown','Escape').prevented, true);
   f.doc.fullscreenElement=null;
   f.doc.fire('fullscreenchange');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.unlocked,1);
+});
+
+test('Safari fullscreen engages keyboard capture through WebKit events', async () => {
+  const f=fixture();
+  f.doc.webkitFullscreenElement=f.container;
+  f.doc.fire('webkitfullscreenchange');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.locked,1);
+  assert.equal(f.key('keydown','Escape').prevented, true);
+  f.doc.webkitFullscreenElement=null;
+  f.doc.fire('webkitfullscreenchange');
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(f.unlocked,1);
 });

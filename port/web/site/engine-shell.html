@@ -28,7 +28,7 @@ canvas { display: block; max-width: 100%; background: #000; }
  * aspect ratio, so ordinary browser resizes can cross the game's UI aspect
  * threshold. SDL may set inline dimensions, so the CSS box takes precedence;
  * the renderer separately syncs the worker-owned backing pixels. */
-#game-container:not(:fullscreen) > canvas:not(:fullscreen) {
+#game-container:not(.is-fullscreen) > canvas {
   width: 100% !important;
   height: min(65dvh, 75vw, 620px) !important;
   min-height: 240px;
@@ -43,16 +43,17 @@ canvas { display: block; max-width: 100%; background: #000; }
   background: rgba(11, 18, 32, .85); color: #fff; font: 600 14px system-ui, sans-serif;
   cursor: pointer; touch-action: manipulation; }
 #game-controls button:hover, #game-controls button:focus-visible { background: #304969; }
-#game-container:fullscreen { width: 100%; height: 100%; background: #000; outline: none; }
+#game-container.is-fullscreen { width: 100%; height: 100%; background: #000; outline: none; }
 #game-container:fullscreen::backdrop { background: #000; }
+#game-container:-webkit-full-screen::backdrop { background: #000; }
 /* SDL may assign inline element sizes. In fullscreen the CSS display size
  * must remain the fullscreen viewport; backing pixels are synced by the
  * Emscripten renderer on its worker, not by these style rules. */
-#game-container:fullscreen canvas {
+#game-container.is-fullscreen canvas {
   width: 100% !important; height: 100% !important; aspect-ratio: auto;
   background: #000; border: 0; outline: 0;
 }
-#game-container:fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
+#game-container.is-fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
   right: max(.65rem, env(safe-area-inset-right)); }
 #status { margin: 1rem 0; }
 #browser-unsupported { padding: 1rem; border: 1px solid #b84b4b; border-radius: .4rem; }
@@ -175,14 +176,6 @@ window.openrealmGamePresentation = function (state) {
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
 var gameFullscreen = document.getElementById('game-fullscreen');
-/* Prefer fullscreening the wrapper so game controls stay with the canvas. */
-if (gameCanvas.requestFullscreen && gameContainer.requestFullscreen) {
-  try {
-    gameCanvas.requestFullscreen = function (options) {
-      return gameContainer.requestFullscreen(options);
-    };
-  } catch (_) { /* The page fullscreen button requests the wrapper directly. */ }
-}
 function sendGameEscape() {
   gameCanvas.focus();
   for (var i = 0; i < 2; ++i) {
@@ -200,26 +193,6 @@ function sendGameEscape() {
 document.getElementById('game-escape').addEventListener('click', function (event) {
   event.stopPropagation();
   sendGameEscape();
-});
-gameFullscreen.addEventListener('click', function (event) {
-  event.stopPropagation();
-  if (document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas) {
-    document.exitFullscreen().catch(function () {});
-  } else if (gameContainer.requestFullscreen) {
-    gameContainer.requestFullscreen().catch(function (error) {
-      document.getElementById('status').textContent = 'Fullscreen unavailable: ' + error.message;
-    });
-  }
-});
-document.addEventListener('fullscreenchange', function () {
-  var active = document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas;
-  gameFullscreen.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
-  gameFullscreen.title = active ? 'Exit fullscreen' : 'Toggle fullscreen';
-  if (window.openrealmRequestFullscreenResize) {
-    window.openrealmRequestFullscreenResize();
-  } else {
-    window.dispatchEvent(new Event('resize'));
-  }
 });
 /* AudioContext is created from the first user gesture for browser autoplay policy.
  * The engine worker supplies shared WASM pointers once S_Init has run. */
@@ -301,6 +274,11 @@ function openrealmStartIsolatedEngine(arguments_) {
 openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 </script>
 <script src="fullscreen-resize.js"></script>
+<script src="fullscreen-controls.js"></script>
+<script>
+openrealmInstallFullscreenControls(window, document, gameContainer, gameCanvas,
+  gameFullscreen, document.getElementById('status'));
+</script>
 <script src="early-map-loading.js"></script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>

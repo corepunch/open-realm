@@ -15,7 +15,7 @@ test('game controls are siblings of the canvas inside the fullscreen container',
 test('control bar remains above the canvas and fullscreen targets the wrapper', () => {
   assert.match(html, /#game-container \{[^}]*isolation: isolate/);
   assert.match(html, /#game-controls \{[^}]*z-index: 2147483647/);
-  assert.match(html, /gameCanvas\.requestFullscreen = function \(options\)/);
-  assert.match(html, /return gameContainer\.requestFullscreen\(options\)/);
-  assert.match(html, /gameContainer\.requestFullscreen\(\)\.catch/);
+  assert.match(html, /src="fullscreen-controls.js"/);
+  assert.match(html, /openrealmInstallFullscreenControls\(window, document, gameContainer, gameCanvas/);
+  assert.match(html, /#game-container\.is-fullscreen canvas \{[^}]*width:\s*100% !important/);
 });

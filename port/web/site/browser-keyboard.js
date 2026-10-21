@@ -9,8 +9,10 @@
     const browserReserved = new Set(['KeyW', 'KeyT', 'KeyN', 'KeyL', 'KeyR', 'KeyQ']);
     let engaged = false;
     let locked = false;
-    const fullscreen = () => doc.fullscreenElement === container ||
-      doc.fullscreenElement === canvas;
+    const fullscreen = () => {
+      const active = doc.fullscreenElement || doc.webkitFullscreenElement;
+      return active === container || active === canvas;
+    };
     function ownsKeyboard() {
       return engaged && (doc.activeElement === canvas || fullscreen());
     }
@@ -85,7 +87,7 @@
         void syncLock();
       }
     });
-    doc.addEventListener('fullscreenchange', () => {
+    function onFullscreenChange() {
       if (fullscreen()) {
         engaged = true;
         canvas.focus();
@@ -93,7 +95,9 @@
         releaseHeld();
       }
       void syncLock();
-    });
+    }
+    doc.addEventListener('fullscreenchange', onFullscreenChange);
+    doc.addEventListener('webkitfullscreenchange', onFullscreenChange);
     return {releaseHeld};
   }
   if (typeof module !== 'undefined' && module.exports) {

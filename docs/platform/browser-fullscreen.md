@@ -6,6 +6,49 @@ button in the same browser top-layer element. The engine owns a WebGL 2 context
 on a worker-transferred `OffscreenCanvas` (`PROXY_TO_PTHREAD`), so the DOM main
 thread **must not write canvas.width / canvas.height** after transfer.
 
+## Safari fullscreen compatibility
+
+The fullscreen control uses `port/web/site/fullscreen-controls.js` to enter and
+exit fullscreen on `#game-container`. It uses the standard `requestFullscreen` /
+`exitFullscreen` pair where available and falls back to Safari's older
+`webkitRequestFullscreen` / `webkitExitFullscreen` methods. Calls happen
+**synchronously inside the click handler** to retain the user activation
+required by browsers. The WebKit methods can return `undefined` rather than a
+Promise, so error handling must not unconditionally call `.catch()`.
+
+Both `fullscreenchange` and `webkitfullscreenchange` synchronize the button,
+`is-fullscreen` container class, keyboard focus/capture, and delayed canvas
+resize notifications. Class-based CSS sizing works with both standard and
+prefixed fullscreen selectors without applying windowed dimensions to a
+prefixed fullscreen container. Emscripten's canvas fullscreen requests still
+redirect to the container so the HTML overlay buttons remain accessible.
+Neither branch sets the DOM canvas pixel dimensions; the renderer worker still
+owns backing resolution as described above.
+
+Safari on **iPhone** has historically not allowed the Fullscreen API for
+arbitrary non-video elements. A normal webpage cannot emulate native browser
+fullscreen or hide the Safari chrome through a vendor prefix. In browsers
+without either supported API, the button reports that fullscreen is unavailable.
+This compatibility path primarily targets macOS Safari and Safari versions on
+other platforms that expose the prefixed element API.
+
+Run the browser-only regressions (these do not prove actual Safari rendering):
+
+```sh
+node --test port/web/tests/fullscreen-controls.test.cjs \
+  port/web/tests/fullscreen-resize.test.cjs \
+  port/web/tests/browser-keyboard.test.cjs \
+  port/web/tests/game-controls.test.cjs
+```
+
+Verify in Safari on macOS: enter fullscreen with one click, see Escape and
+fullscreen buttons above the game, exit using the button or browser Escape,
+reenter, confirm canvas fills the screen without stretching or misplaced mouse
+hits, and confirm keyboard input/focus is restored on exit. Retest Chrome to
+catch regressions in standard Promise-returning fullscreen. iPhone Safari
+requires a separate capability assessment and should not be considered fixed
+by the prefixed path alone.
+
 ## First-entry fullscreen sizing
 
 A `fullscreenchange` event can arrive before the browser commits the new CSS
@@ -17,8 +60,8 @@ layout changes happen to correct it.
 `port/web/site/fullscreen-resize.js` watches both the canvas and its fullscreen
 container using `ResizeObserver`, then coalesces events into two animation-frame
 measurements. It posts a `window.resize` only when layout has settled.
-A fallback from the HTML inline handler preserves legacy operation if the extra
-script was not bundled.
+The fullscreen controller falls back to dispatching `window.resize` if the
+post-layout synchronization script is not available.
 
 The browser engine also independently synchronizes the logical SDL window size
 and the worker-owned OffscreenCanvas backing resolution using the actual CSS
@@ -44,7 +87,7 @@ Run the synthetic event-ordering regression:
 node --test port/web/tests/fullscreen-resize.test.cjs
 ```
 
-Then in Chrome/Edge check initial fullscreen entry, exit, repeated entry,
+Then in Chrome and desktop Safari check initial fullscreen entry, exit, repeated entry,
 HiDPI and browser-zoom changes. The first fullscreen click should fill the
 container and have correct mouse-hit geometry without a second click. Test
 without development tools and with developer tools open; browser rendering
@@ -91,8 +134,7 @@ viewport-relative height. Its CSS aspect is now permitted to vary with the
 browser window. The browser renderer continues to sample the CSS box and sets
 both SDL logical dimensions and the worker's pixel backing store as before;
 `CL_CanvasFrame` alone owns the 250 ms settle and `ui_canvas` command. CSS uses
-`!important` because SDL may write inline width/height styles. The fullscreen
-rules are unchanged and take over when the container enters fullscreen.
+`!important` because SDL may write inline width/height styles. The fullscreen class rules take over when the container enters fullscreen.
 
 **Expected behaviour:** with widescreen-capable game assets, make the browser
 window narrow enough for a 4:3 canvas, then widen it past the canvas class
