@@ -157,6 +157,7 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(cstring_t mapName);
+void CL_MapLoadDebugBegin(void);
 void CL_PrepLoading(void);
 void CL_SetLoadingProgress(float progress);
 

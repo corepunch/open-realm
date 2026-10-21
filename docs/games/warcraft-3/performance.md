@@ -45,29 +45,34 @@ consumers in the client and renderer first.
 The placement summary reports 8,974 placements, 8,724 spawned, and 250 skipped as script-owned; its `units=0` counter
 needs checking against the placement categories and script-created units before using it to guide spawn optimization.
 
-The later capture in `openwarcraft3.log` recorded `G_LoadMap` at **11.876 s**, close to the earlier 11.927 s reading.
-It also captured the complete client refresh:
+The latest capture in `openwarcraft3.log` recorded `G_LoadMap` at **12.467 s** and the complete client refresh:
 
 | Client phase | Time | Count |
 |--------------|-----:|------:|
-| Second `CM_LoadMap` parse | 3.830 s | — |
-| Renderer `RegisterMap` | 3.879 s | — |
-| Model configstring registration | 1.750 s | 300 nonempty entries |
-| Image configstring registration | 0.149 s | 124 nonempty entries |
-| Sound registration | 3.863 s | 436 nonempty entries |
+| Second `CM_LoadMap` parse | 3.966 s | — |
+| Renderer `RegisterMap` | 3.829 s | — |
+| Model configstring registration | 1.874 s | 300 nonempty entries; 298 actual loads |
+| Image configstring registration | 0.163 s | 124 nonempty entries |
+| Sound registration | 4.330 s | 436 requests; 415 unique paths |
 | Font configstring registration | 0.004 s | 8 nonempty entries |
-| `CL_PrepRefresh` total | 13.494 s | — |
-| `CL_BeginLoadingMap` to refresh completion | 25.712 s | — |
+| `CL_PrepRefresh` total | 14.183 s | — |
+| `CL_BeginLoadingMap` to refresh completion | 27.007 s | — |
 
-The client parse again spent most of its time in heightmap (2.607 s) and doodads (0.933 s). Renderer registration and
-sound registration each take about as long as the entire parse. `S_RegisterSound` synchronously loads uncached audio
-through `S_LoadSfx`/`S_ResampleLoad`, so the 3.863 s sound phase is likely dominated by file reads and audio conversion;
-instrument those subphases before choosing between caching, parallel loading, or a different preload policy. The
-3.879 s `RegisterMap` phase needs similar breakdown across renderer map setup before changing it. The configstring
-counts are nonempty entries visited, not counts of cache misses or actual resource loads. The 25.712 s cycle starts
-before the server map load and includes it; do not add it to the server or client phase totals.
+The client parse spent 2.709 s in heightmap reading and 0.962 s in doodads. Renderer detail attributes 2.760 s to
+terrain parsing, 0.401 s to segment construction, 0.375 s to ground layers, and 0.139 s to water-style setup. The
+client heightmap parse and renderer terrain parse are separate work over the same map load and are the strongest
+duplication candidate; first trace their consumers and data ownership before attempting to share parsed data.
 
-The profile and current code suggest these follow-ups, in order of low-risk opportunity and evidence:
+Sound detail attributes 3.255 s to MP3 decoding and 0.962 s to reads (31.6 MB); WAV parsing/resampling together take
+about 0.110 s. The 149 MP3 decodes have distributed cost: the eight slowest each took 50–76 ms, so optimizing one
+asset will not materially change total time. There are 21 repeated requests beyond the 415 unique paths. The single
+failed read, `Buildings\\Orc\\PigFarm\\PigFarmWhat1.wav`, also returns false from `FS_FileExists`, confirming the
+asset is absent from the active filesystem/archive search. Treat it as an asset/data issue rather than read overhead.
+
+Model registration is primarily actual model loading (1.622 s across 298 models); 31 portraits loaded in 0.090 s,
+while 298 portrait probes cost 0.156 s. The per-phase logs distinguish actual loads from cached configstring visits.
+These timings are from one run, and the 27.007 s client cycle begins before the server map load and includes it; do
+not add that cycle to the server or client phase totals.
 
 The phase diagnostics are compiled in with `make openwarcraft3 WC3_DEBUG_MAP_LOAD=1`. Run the resulting native binary
 with the same data directory, map, and options for each comparison. Each `WC3_MAP_LOAD` line reports one phase duration;
@@ -76,12 +81,6 @@ precache, client map load/renderer registration, configstring resource registrat
 and elapsed time from `CL_BeginLoadingMap` to refresh completion. Resource phases also report nonempty configstring
 counts. A normal build has these diagnostics compiled out.
 
-1. **Measure phases in wall time first.** Use the diagnostics below for `SV_Map` and its map-read, data-load, entity-spawn, and script-start phases; add process-initialization timing only when comparing cold starts. Repeat cold-start and map-replacement runs with the same map, build mode, data set, and command line; record medians. Keep timings diagnostic and avoid per-entity production logging.
-2. **Avoid reading whole assets for existence checks.** `G_FileExists` calls `gi.ReadFile`, then frees the returned bytes. `G_LoadShadowTexture` uses it before registering the image, and `SP_DoodadModelExists` reads a candidate MDX before model registration. The engine already has `FS_FileExists`, which opens and closes the matching file without reading/decompressing its contents, but the game import surface currently exposes `ReadFile`, not this existence query. Exposing a suitable query could remove redundant full reads. Preserve VFS archive priority and test found/missing files and variation fallback.
-3. **Reuse map-scoped presentation data.** Repeated shadow resolution and path-texture loads may revisit the same filenames for many placements. Measure filename frequency first. A map-lifetime cache for resolved shadows and immutable decoded path textures could avoid repeated searches, decompression, and TGA parsing; define ownership and clear it on map replacement before sharing allocations between edicts.
-4. **Index sheet rows and fields during typed conversion.** `FS_LoadSheetTyped` calls `FS_FindSheetCell` for schema fields, which linearly scans rows and fields, and detects duplicate row IDs by scanning all prior output IDs. A per-table row/column index plus a seen-ID set can reduce repeated scans. Preserve table precedence, case rules, duplicate behavior, and map overlays; the remaining SLK index work is also listed in [the SLK format notes](../../../games/warcraft-3/file-formats/slk.md).
-5. **Measure sound startup work separately.** `G_RegisterUnitSounds` reaches `G_SoundFileDuration`, which reads the complete sound asset when a duration has not yet been cached. Count unique files and format/decode cost before considering lazy duration calculation or format-specific metadata reads; duration feeds sound timing and must remain correct.
-6. **Keep heightmap inflation as a separate target.** `CM_ReadHeightmap` currently reads each vertex field with separate `SFileReadFile` calls, while the profile assigns most of this branch to MPQ inflation. Bulk-reading the vertex payload could reduce per-call overhead but will not remove decompression cost. Benchmark that change independently; consider parsed-map caching only if same-map reloads are an important measured scenario and cache invalidation/ownership can be made explicit.
 
 No load-time optimization is established by this capture alone. After each change, compare wall-clock medians and a new weighted profile on the same scenario, and run the affected tests/builds. Do not compare the percentages from this combined startup/map capture directly with a map-only run.
 
@@ -89,15 +88,16 @@ No load-time optimization is established by this capture alone. After each chang
 
 Implement and review each pass separately. A pass proceeds only when its focused behavior tests pass and the controlled load benchmark shows a repeatable improvement or establishes that the target is not worth further work.
 
-0. **Establish a comparable end-to-end baseline.** Record the map, data set, build, command line, machine, and cold-start or map-replacement scenario. Run each scenario at least five times and report medians and spread. Keep server load, client `CM_LoadMap`, loading-screen precache, renderer registration, resource registration, and process initialization separate. Capture a weighted profile for the same interval and validate the placement counters. The two server totals (11.927 s and 11.876 s) are close, but each is a single run; only one complete client refresh has been measured.
-1. **Break down the three largest client stages.** The latest capture reports 3.879 s in `re.RegisterMap`, 3.863 s in sound registration, and 1.750 s in model registration. Add debug-gated timings inside renderer map setup for metadata/splat loading, weather/lightning, `_W3M_RegisterMap`, and texture reclamation. Split `S_RegisterSound` into path lookup, file read, decode, and resample time; count unique paths, cache hits, and failed reads. Split model registration into model loads, portrait loads, and cached configstring visits. Keep this as a measurement pass; the top-level counts currently measure nonempty configstrings, not actual loads.
-2. **Audit the client map-reader pass.** The second `CM_LoadMap` costs 3.830 s, mostly heightmap (2.607 s) and doodads (0.933 s). Trace client and renderer consumers of every entry in `cm_w3_readers`. Keep required terrain height, pathing, map geometry, weather, and presentation data. Remove readers from the client pass only when no client consumer requires them. If the expensive data is required by both sides, evaluate whether immutable parsed data can cross the game/client ownership boundary safely, accounting for memory and map replacement. Test terrain rendering, placement previews, camera bounds, weather, static scenery, and map replacement.
-3. **Optimize the measured renderer or sound subphase.** Select the largest repeatable wall-time subphase from pass 1 and change it independently. Preserve eager sound availability unless a lazy or asynchronous design can guarantee playback will not block. Keep rendering and audio behavior tests focused on the affected lifecycle; compare full client-refresh medians as well as the local phase.
-4. **Reduce heightmap and doodad reader overhead.** After the reader audit, prototype a bounded bulk read of the serialized heightmap vertex block and decode it in memory, preserving validation and values. Treat doodad parsing as a separate pass. These changes target read/parse overhead and may not remove MPQ inflation. Compare reader timings in server and client builds and verify terrain, pathing, and doodad behavior.
-5. **Remove redundant whole-file existence reads.** Add a game-import query backed by `FS_FileExists`; replace the read-and-free checks in `G_FileExists` and `SP_DoodadModelExists`. Preserve filesystem source precedence and the existing BLP/DDS and doodad-variation fallback rules. Test present and missing assets, archive priority, and fallback selection. Compare file bytes read and phase timings before and after.
-6. **Index sheet conversion.** Add per-table row/column lookup indexes and a seen-row-ID set to typed conversion. Keep cached source tables immutable and preserve map/import precedence, case-insensitive column matching, first-match lookup, and duplicate-row semantics. Extend sheet tests for duplicate rows, duplicate columns across precedence layers, and overlays. Compare process startup and map `InitUnitData` timings for RoC and TFT.
-7. **Measure server placement repetition before caching.** Count unique and repeated shadow names, path-texture filenames, and doodad model candidates. Add bounded, map-scoped caches only where counts and timings show meaningful repetition. Share decoded path textures as immutable data, define ownership and cleanup on map replacement, and verify cache hit/miss equivalence, destructable death/pathing behavior, and memory use.
-8. **Break down remaining server load time.** If the repeated baseline still shows material time in entity spawning, split asset resolution, path-texture loading, and spawn dispatch; if `G_StartScripts` or `InitUnitData` remains material, measure their internal work. Audit the duplicate `InitUnitData` initialization before considering base-table reuse or deferred loading, because map overlays and data-set changes affect its inputs. Preserve script order, spawn lifecycle, and sound timing.
+0. **Establish a repeatable end-to-end baseline.** Record the map, data set, build, command line, machine, and cold-start or map-replacement scenario. Run each scenario at least five times and report medians and spread. Keep server load, client `CM_LoadMap`, loading-screen precache, renderer registration, resource registration, and process initialization separate. Capture a weighted profile for the same interval and validate the placement counters.
+1. **Audit shared terrain parsing.** The latest run spends 2.709 s in the client heightmap reader and 2.760 s in renderer terrain parsing. Trace the client-reader and renderer consumers, then assess a shared immutable parsed representation with explicit ownership and map-replacement cleanup. If sharing cannot respect module boundaries, optimize the two reads independently.
+2. **Profile and improve sound decoding.** Sound registration is 4.330 s, with 3.255 s in 149 MP3 decodes and 0.962 s in reads. Per-file decode cost is spread across many assets (slowest 76 ms), so investigate decoder internals or safe parallel decoding instead of tuning one file. Keep a completion barrier before gameplay sound use and compare full refresh medians.
+3. **Target renderer terrain construction.** After understanding parse overlap, use repeated measurements to determine whether segment construction (0.401 s), ground layers (0.375 s), or another renderer subphase merits work. Retain water, cliff, geometry, minimap, and map-replacement behavior.
+4. **Optimize client model loading if it remains a repeatable cost.** The latest run loads 298 models in 1.622 s; portrait probing/loading totals about 0.245 s. Profile model parse and GPU upload subphases before considering caching or parallelism; preserve missing-model fallback and map asset-scope behavior.
+5. **Reduce heightmap and doodad reader overhead if parsing remains material.** Prototype a bounded bulk read of the serialized heightmap vertex block and decode it in memory, preserving validation and values. Treat doodad parsing separately. Compare reader timings in server and client builds and verify terrain, pathing, and doodad behavior.
+6. **Remove redundant whole-file existence reads.** Add a game-import query backed by `FS_FileExists`; replace the read-and-free checks in `G_FileExists` and `SP_DoodadModelExists`. Preserve filesystem source precedence and the existing fallback rules. Test present and missing assets, archive priority, and fallback selection.
+7. **Index sheet conversion.** Add per-table row/column lookup indexes and a seen-row-ID set to typed conversion. Preserve table precedence, case rules, and duplicate-row behavior. Compare process startup and map `InitUnitData` timings for RoC and TFT.
+8. **Measure server placement repetition before caching.** Count repeated shadow names, path-texture filenames, and doodad model candidates. Add bounded map-scoped caches only where counts and timings show meaningful repetition; define ownership and cleanup on map replacement.
+9. **Break down remaining server load time.** If repeated baselines still show material time in entity spawning, split asset resolution, path-texture loading, and spawn dispatch. If `G_StartScripts` or `InitUnitData` remains material, measure its internal work while preserving script order and map data precedence.
 
 After each pass, run its focused tests plus `make test` and the affected native build before committing. Re-profile the same scenario; stop or reorder the plan when a pass does not produce a repeatable benefit or changes which phase dominates. Keep diagnostic counters behind a test/debug-only mechanism and remove temporary tracing before merge.
 

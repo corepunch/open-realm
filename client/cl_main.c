@@ -567,6 +567,7 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     /* Same-map load keeps CS_WORLD unchanged; forget the previous world's begin
      * so PrepRefresh sends it again and CL_ParseFrame can end the plaque. */
     CL_RestartRefresh();
+    CL_MapLoadDebugBegin();
     cl.loading_progress = 0.0f;
     cl.precache_ready = false;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;

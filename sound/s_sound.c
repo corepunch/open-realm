@@ -10,12 +10,47 @@
 #include <ctype.h>
 #include "common/stb_dbc.h"
 #include "common/stb_slk.h"
+#include "games/warcraft-3/common/map_load_debug.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/em_asm.h>
 #include <stdatomic.h>
 #endif
 
 sState_t s;
+
+#ifdef WC3_DEBUG_MAP_LOAD
+typedef struct {
+    char path[512];
+    double ms;
+    uint32_t bytes;
+} sMapLoadSlowMp3_t;
+static struct {
+    uint32_t requests, unique_paths, new_handles, cache_hits, failed_reads, failed_loads;
+    uint32_t wav_files, mp3_files;
+    uint64_t bytes_read;
+    double lookup_ms, file_read_ms, wav_parse_ms, wav_resample_ms, mp3_decode_ms, load_ms;
+    sMapLoadSlowMp3_t slow_mp3[8];
+    bool active;
+} s_map_load_sound_stats;
+
+static void S_RecordSlowMapLoadMp3(cstring_t path, uint32_t bytes, double ms) {
+    uint32_t slot = (uint32_t)(sizeof(s_map_load_sound_stats.slow_mp3) /
+                               sizeof(s_map_load_sound_stats.slow_mp3[0]));
+    for (uint32_t i = 0; i < sizeof(s_map_load_sound_stats.slow_mp3) /
+                            sizeof(s_map_load_sound_stats.slow_mp3[0]); i++) {
+        if (ms > s_map_load_sound_stats.slow_mp3[i].ms) { slot = i; break; }
+    }
+    if (slot == sizeof(s_map_load_sound_stats.slow_mp3) /
+                sizeof(s_map_load_sound_stats.slow_mp3[0])) return;
+    for (uint32_t i = (uint32_t)(sizeof(s_map_load_sound_stats.slow_mp3) /
+                                 sizeof(s_map_load_sound_stats.slow_mp3[0])) - 1; i > slot; i--)
+        s_map_load_sound_stats.slow_mp3[i] = s_map_load_sound_stats.slow_mp3[i - 1];
+    snprintf(s_map_load_sound_stats.slow_mp3[slot].path,
+             sizeof(s_map_load_sound_stats.slow_mp3[slot].path), "%s", path);
+    s_map_load_sound_stats.slow_mp3[slot].bytes = bytes;
+    s_map_load_sound_stats.slow_mp3[slot].ms = ms;
+}
+#endif
 
 #ifdef __EMSCRIPTEN__
 /* One producer owns the write index; the AudioWorklet owns the read index.
@@ -197,8 +232,23 @@ static bool s_is_mp3_path(cstring_t path) {
 
 static sfxcache_t *S_ResampleLoad(char const *path) {
     uint32_t file_size = 0;
+#ifdef WC3_DEBUG_MAP_LOAD
+    double phase_start = WC3_MAP_LOAD_NOW();
+#endif
     uint8_t *file_data = FS_ReadFile(path, &file_size);
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active) {
+        s_map_load_sound_stats.file_read_ms += WC3_MAP_LOAD_NOW() - phase_start;
+        if (file_data) s_map_load_sound_stats.bytes_read += file_size;
+        else s_map_load_sound_stats.failed_reads++;
+    }
+#endif
     if (!file_data || !file_size) {
+#ifdef WC3_DEBUG_MAP_LOAD
+        if (s_map_load_sound_stats.active)
+            WC3_MAP_LOAD_LOG("sound-read-failure path=%s fs-file-exists=%u\n",
+                             path, FS_FileExists(path) ? 1u : 0u);
+#endif
         fprintf(stderr, "[sound] %s: failed to read audio file\n", path);
         FS_FreeFile(file_data);
         return NULL;
@@ -206,14 +256,36 @@ static sfxcache_t *S_ResampleLoad(char const *path) {
 
     if (file_size < 12 || strncmp((char *)file_data, "RIFF", 4) || strncmp((char *)file_data + 8, "WAVE", 4)) {
         bool is_mp3 = s_is_mp3_path(path);
-        sfxcache_t *sc = is_mp3 ? s_mp3_decode(file_data, file_size) : NULL;
+        sfxcache_t *sc;
+#ifdef WC3_DEBUG_MAP_LOAD
+        phase_start = WC3_MAP_LOAD_NOW();
+        if (s_map_load_sound_stats.active) {
+            if (is_mp3) s_map_load_sound_stats.mp3_files++;
+        }
+#endif
+        sc = is_mp3 ? s_mp3_decode(file_data, file_size) : NULL;
+#ifdef WC3_DEBUG_MAP_LOAD
+        if (s_map_load_sound_stats.active && is_mp3) {
+            double const decode_ms = WC3_MAP_LOAD_NOW() - phase_start;
+            s_map_load_sound_stats.mp3_decode_ms += decode_ms;
+            S_RecordSlowMapLoadMp3(path, file_size, decode_ms);
+        }
+#endif
         if (!sc) fprintf(stderr, "[sound] %s: %s\n", path,
                          is_mp3 ? "MP3 decode failed" : "unsupported audio format (expected WAV or MP3)");
         FS_FreeFile(file_data);
         return sc;
     }
 
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active) s_map_load_sound_stats.wav_files++;
+    phase_start = WC3_MAP_LOAD_NOW();
+#endif
     wavinfo_t info = GetWavinfo(path, file_data, (int)file_size);
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active)
+        s_map_load_sound_stats.wav_parse_ms += WC3_MAP_LOAD_NOW() - phase_start;
+#endif
     if (info.channels != 1 && info.channels != 2) {
         fprintf(stderr, "[sound] %s: unsupported WAV channels=%d\n", path, info.channels);
         FS_FreeFile(file_data);
@@ -229,6 +301,9 @@ static sfxcache_t *S_ResampleLoad(char const *path) {
     int   outcount  = (int)((float)info.samples / stepscale);
     if (outcount <= 0) { FS_FreeFile(file_data); return NULL; }
 
+#ifdef WC3_DEBUG_MAP_LOAD
+    phase_start = WC3_MAP_LOAD_NOW();
+#endif
     sfxcache_t *sc = malloc(sizeof(sfxcache_t) + (outcount - 1) * sizeof(short));
     if (!sc) { FS_FreeFile(file_data); return NULL; }
     sc->length    = outcount;
@@ -250,6 +325,10 @@ static sfxcache_t *S_ResampleLoad(char const *path) {
     }
 
     FS_FreeFile(file_data);
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active)
+        s_map_load_sound_stats.wav_resample_ms += WC3_MAP_LOAD_NOW() - phase_start;
+#endif
     return sc;
 }
 
@@ -443,9 +522,34 @@ void S_LoadSoundEntries(void) {
 
 void S_BeginRegistration(void) {
     s.registration_sequence++;
+#ifdef WC3_DEBUG_MAP_LOAD
+    memset(&s_map_load_sound_stats, 0, sizeof(s_map_load_sound_stats));
+    s_map_load_sound_stats.active = true;
+#endif
 }
 
 void S_EndRegistration(void) {
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active) {
+        WC3_MAP_LOAD_LOG("phase=client-sound-detail requests=%u unique-paths=%u new-handles=%u cache-hits=%u failed-reads=%u failed-loads=%u wav=%u mp3=%u bytes=%llu lookup-ms=%.3f read-ms=%.3f wav-parse-ms=%.3f wav-resample-ms=%.3f mp3-decode-ms=%.3f load-ms=%.3f\n",
+                         s_map_load_sound_stats.requests, s_map_load_sound_stats.unique_paths,
+                         s_map_load_sound_stats.new_handles, s_map_load_sound_stats.cache_hits,
+                         s_map_load_sound_stats.failed_reads, s_map_load_sound_stats.failed_loads,
+                         s_map_load_sound_stats.wav_files, s_map_load_sound_stats.mp3_files,
+                         (unsigned long long)s_map_load_sound_stats.bytes_read,
+                         s_map_load_sound_stats.lookup_ms, s_map_load_sound_stats.file_read_ms,
+                         s_map_load_sound_stats.wav_parse_ms, s_map_load_sound_stats.wav_resample_ms,
+                         s_map_load_sound_stats.mp3_decode_ms, s_map_load_sound_stats.load_ms);
+        for (uint32_t i = 0; i < sizeof(s_map_load_sound_stats.slow_mp3) /
+                                sizeof(s_map_load_sound_stats.slow_mp3[0]); i++) {
+            sMapLoadSlowMp3_t const *entry = s_map_load_sound_stats.slow_mp3 + i;
+            if (!entry->path[0]) break;
+            WC3_MAP_LOAD_LOG("phase=client-sound-slowest-mp3 rank=%u path=%s bytes=%u decode-ms=%.3f\n",
+                             i + 1, entry->path, entry->bytes, entry->ms);
+        }
+        s_map_load_sound_stats.active = false;
+    }
+#endif
     /* Free path-keyed sfx not used in this registration sequence */
     for (int i = 0; i < s.num_sfx; i++) {
         sfx_t *sfx = &s.known_sfx[i];
@@ -841,10 +945,41 @@ void S_PlaySoundByName(cstring_t name) {
 /* Preload a server-configstring sound so playback never blocks on archive I/O. */
 void S_RegisterSound(cstring_t path) {
     if (!s.initialized || !path || !*path) return;
+#ifdef WC3_DEBUG_MAP_LOAD
+    double const lookup_start = WC3_MAP_LOAD_NOW();
+    int const old_count = s.num_sfx;
+#endif
     sfx_t *sfx = S_FindSfx(path, true);
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active) {
+        s_map_load_sound_stats.requests++;
+        s_map_load_sound_stats.lookup_ms += WC3_MAP_LOAD_NOW() - lookup_start;
+        if (s.num_sfx > old_count) {
+            s_map_load_sound_stats.new_handles++;
+            s_map_load_sound_stats.unique_paths++;
+        }
+    }
+#endif
     if (!sfx) return;
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active) {
+        if (sfx->registration_sequence != s.registration_sequence) {
+            s_map_load_sound_stats.unique_paths++;
+            if (sfx->cache) s_map_load_sound_stats.cache_hits++;
+        }
+    }
+#endif
     sfx->registration_sequence = s.registration_sequence;
+#ifdef WC3_DEBUG_MAP_LOAD
+    double const load_start = WC3_MAP_LOAD_NOW();
+#endif
     S_LoadSfx(sfx);
+#ifdef WC3_DEBUG_MAP_LOAD
+    if (s_map_load_sound_stats.active) {
+        s_map_load_sound_stats.load_ms += WC3_MAP_LOAD_NOW() - load_start;
+        if (!sfx->cache) s_map_load_sound_stats.failed_loads++;
+    }
+#endif
 }
 
 /* Play a sound by raw MPQ-relative path — non-positional (voice, UI, JASS). */

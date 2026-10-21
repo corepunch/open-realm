@@ -8,6 +8,7 @@
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap_render.h"
 #include "games/warcraft-3/common/player_colors.h"
+#include "games/warcraft-3/common/map_load_debug.h"
 #include <ctype.h>
 #include <limits.h>
 #include <math.h>
@@ -1244,6 +1245,7 @@ void R_DrawMinimap(rect_t const *screen, cstring_t map) {
 }
 
 void R_RegisterMap(cstring_t mapFileName) {
+    double stage_start = WC3_MAP_LOAD_NOW();
     cursor_active_model = NULL; cursor_anim = NULL;
     R_SetMapAssetScope(mapFileName);
     R_AdvanceTextureGeneration();
@@ -1251,17 +1253,35 @@ void R_RegisterMap(cstring_t mapFileName) {
     R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3ClearEventWarnings();
+    stage_start = WC3_MAP_LOAD_NOW();
     R_W3LoadSpawnData();
     R_W3LoadSplatData();
     R_W3LoadUberSplatData();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-event-data ms=%.3f\n",
+                     mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
     memset(event_state, 0, sizeof(event_state));
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     R_ClearMinimapSpecialAssets();
+    stage_start = WC3_MAP_LOAD_NOW();
     if (mapFileName && *mapFileName) R_LoadMinimapSpecialAssets();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-minimap-assets ms=%.3f\n",
+                     mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_WeatherRegisterMap();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-weather ms=%.3f\n",
+                     mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_LightningRegisterMap();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-lightning ms=%.3f\n",
+                     mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     _W3M_RegisterMap(mapFileName);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-world ms=%.3f\n",
+                     mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_ReclaimStreamedTextures(0);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-reclaim-textures ms=%.3f\n",
+                     mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
 }
 
 void R_SetupEnvironmentLighting(void) {

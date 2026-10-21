@@ -1,4 +1,5 @@
 #include "r_war3map.h"
+#include "games/warcraft-3/common/map_load_debug.h"
 #include "../mdx/r_mdx.h"
 #include "renderer/r_shader.h"
 #include <float.h>
@@ -801,43 +802,88 @@ void _W3M_RegisterMap(char const *mapFilename) {
     uint8_t *mapData;
     int mapSize;
     war3map_t *map;
+    double stage_start;
 
     /* A map registration replaces the whole WC3 world.  Free GPU buffers,
      * map-owned models, fog targets and source terrain before creating the
      * next level so repeated campaign transitions do not accumulate state. */
+    stage_start = WC3_MAP_LOAD_NOW();
     _W3M_ClearMap();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-clear ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
 
     /* Load .w3m file (which is itself an MPQ archive) */
+    stage_start = WC3_MAP_LOAD_NOW();
     mapSize = ri.FS_ReadFile(mapFilename, (void **)&mapData);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-read-file bytes=%d ms=%.3f\n",
+                     mapFilename, mapSize, WC3_MAP_LOAD_NOW() - stage_start);
     if (mapSize < 0 || !mapData) {
         ri.error("R_RegisterMap: failed to open map %s\n", mapFilename);
         return;
     }
     
     /* Open the .w3m as a nested MPQ archive to read internal files */
+    stage_start = WC3_MAP_LOAD_NOW();
     if (!SFileOpenArchiveFromMemory(mapData, (uint32_t)mapSize, 0, &hMpq)) {
         ri.FS_FreeFile(mapData);
         ri.error("R_RegisterMap: failed to open map archive %s\n", mapFilename);
         return;
     }
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-open-archive ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     map = FileReadWar3Map(hMpq);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-parse-terrain width=%u height=%u ms=%.3f\n",
+                     mapFilename, map ? map->width : 0, map ? map->height : 0,
+                     WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_FileReadShadowMap(hMpq, map);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-shadow-map ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_LoadMapMinimap(hMpq, mapFilename);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-minimap ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
     tr.world = map;
+    stage_start = WC3_MAP_LOAD_NOW();
     R_W3OpenTilesetArchive(map->tileset);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-tileset-archive ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
     /* Read special-doodad footprint masks while the nested map MPQ is open,
      * before baking either ground or ordinary cliff meshes. */
+    stage_start = WC3_MAP_LOAD_NOW();
     R_W3LoadSpecialCutouts(hMpq, map);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-special-cutouts ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_LoadBlightTexture(map->tileset);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-blight-texture ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_LoadWaterStyle(map->tileset);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-water-style ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_W3SetMapTerrainOffsets(map);
     R_W3RebuildCameraHeightMap();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-camera-height ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
 
+    stage_start = WC3_MAP_LOAD_NOW();
     R_LoadMapSegments(map);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-segments count=%u ms=%.3f\n",
+                     mapFilename, ((map->width - 1) / SEGMENT_SIZE) * ((map->height - 1) / SEGMENT_SIZE),
+                     WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_FinishCliffs();
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-finish-cliffs ms=%.3f\n",
+                     mapFilename, WC3_MAP_LOAD_NOW() - stage_start);
+    stage_start = WC3_MAP_LOAD_NOW();
     R_BuildGroundLayers(map);
+    WC3_MAP_LOAD_LOG("map=%s phase=renderer-world-ground-layers count=%u ms=%.3f\n",
+                     mapFilename, map->num_grounds, WC3_MAP_LOAD_NOW() - stage_start);
     w3_terrain_rebuild_pending = false;
 }
 
