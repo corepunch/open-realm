@@ -145,9 +145,9 @@ The Inventory integration checkpoint at `6e94bb257` passes actual `make test
 TEST_JOBS=16`:10108 native tests across34 JUnit reports with zero
 failures/errors/skips, plus3056 Python evidence tests. Captain473, Group012,
 SupportGoal, Waygate377 and point-drop gates were freshly verified before the
-batch. Subsequent Entangle research changes no engine source and passes50
-focused evidence/corpus Python checks. The independent failing Entangle
-candidate remains outside main. **25 ->25 open; TARGET-01.2 stays active.**
+batch. This is the last completed full checkpoint and predates Entangle
+engine integration in `ab8dc61e3`; its counts do not certify that later source.
+**25 ->25 open; TARGET-01.2 stays active.**
 
 TARGET-01.2 now integrates Entangle's retained placement, Unroot, zero-range
 point approach, facing/Root and terminal overlay owner. Native authored/range,
@@ -156,8 +156,11 @@ public markers;48 Entangle evidence tests pass. The complete six-site occupant
 matrix, adjacent317.75/318/318.25 ranges, callback-owned replacement/removal and
 cold pending-retry saves pass12 public tests/1052 assertions per edition.
 Root/Building/Save/Pools/Clock/dispatch checks bring focused validation to502
-tests/113387 assertions per edition. Refresh affected native gates and run the
-batched full checkpoint before advancing the remaining producer inventory.
+tests/113387 assertions per edition. All five affected native gates now pass
+against integrated `ab8dc61e3` in Classic and TFT: Captain473, Group012,
+SupportGoal, Waygate377 and point-drop. Fresh reports are retained in
+`entangle153-gates/` under the TARGET-01.2 analysis runtime. The batched full
+checkpoint remains pending before advancing the remaining producer inventory.
 **25 ->25 open; zero whole leaves closed.**
 [Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
 

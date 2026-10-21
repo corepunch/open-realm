@@ -21969,13 +21969,15 @@ Pause exposes head851973 and freezes the pose; resume reconstructs placement
 from that pose, changing the final root site from896,960 to896,896. Replacement
 Move survives the cancelled point receiver and finishes at521.862,779.334.
 
-The independent engine candidate now passes eight public scheduler/save tests,
+At the occupant/interruption evidence checkpoint, the independent engine
+candidate passed eight public scheduler/save tests,
 774 assertions per edition. Existing Root20/3060, Building197/5494 and
 Save236/68345 focused checks also pass in Classic and TFT. These checks do not
 close TARGET-01.2: native placement can issue Move to friendly occupants during
 admission, and Root438ac0 retains placement45 through up to ten deferred retries.
-That ownership/timing path and adjacent authored range boundaries remain next.
-No new full-suite claim is made after the Inventory checkpoint.
+Those ownership/timing and adjacent authored range rows were the next work;
+the later integrated Save222 section below records their acceptance. This
+intermediate checkpoint did not establish a new full-suite result.
 
 Two confirmed candidate corrections are necessary to match the occupant site:
 Root438ac0 passes admission=false to unit virtual180 after placement, so a
@@ -22026,8 +22028,9 @@ entire public stream and native counter graph.
 The separate engine regression reproduced four failures before this correction:
 missing admission-time occupant Move in both rows, and incorrect successful
 Root/overlay with the slow occupant. The candidate then passed nine scheduler
-tests,805 assertions per edition. Pending retry save/load and Stop coverage is
-being added before integration; TARGET-01.2 and all25 leaves remain open.
+tests,805 assertions per edition. Pending retry save/load and Stop coverage
+were still outstanding at that intermediate checkpoint; the integrated Save222
+section below records their subsequent acceptance. TARGET-01.2 remains open.
 
 
 54fd60's placement context18 controls occupant orders. It is0 during the
@@ -22086,15 +22089,15 @@ candidate was searching from the embedded704,1024 pose; the native occupied
 source recovers to656,944. Applying the existing bounded Stop/recovery before
 the constructor gives the native768,832 friendly and768,768 hostile sites.
 
-The separate engine candidate now passes12 public scheduler/save tests,
+Before integration, the separate engine candidate passed12 public scheduler/save tests,
 1052 assertions per edition, including all six occupant sites, adjacent ranges,
 callback-owned Stop/removal, saved pending Root retries, and the earlier range/
 interruption rows. Focused Root, Building, Save, Pools, Clock and ability-dispatch
 checks bring this to502 tests and113387 assertions per edition. Save's three
 missing-destructable diagnostics match the prior focused baseline; all native
-suite processes exit0 and their JUnit reports contain no failures. Main engine
-integration and affected native gate refresh follow; no new full-suite result
-is claimed and TARGET-01.2 remains active with25 leaves open.
+suite processes exit0 and their JUnit reports contain no failures. Integration
+and fresh gate results are recorded below; this focused checkpoint did not
+establish a new full-suite result. TARGET-01.2 remains active with25 leaves open.
 
 
 ### Entangle engine ownership (Save222)
@@ -22133,5 +22136,23 @@ Stop/removal and callback-owned replacement. Two minimal authored pathing TGAs
 live in the test fixture MPQ at their retail PathTextures names. The48 Entangle
 Python evidence tests retain5094 matching public markers across the qualifying
 corpora. Complete trajectory/timing, wider producer inventory and full firing
-polls remain in TARGET-01.2; no whole leaf closes. Affected native gates must be
-refreshed against this source before the next full checkpoint.
+polls remain in TARGET-01.2; no whole leaf closes.
+
+All five affected native gates were rebuilt and freshly verified against
+integrated commit `ab8dc61e3`, using the original hash-pinned DLL and unchanged
+native expectations. Every gate exits0 and passes in both Classic and TFT:
+
+| Gate | Tests per edition | Assertions per edition |
+| --- | ---: | ---: |
+| Captain473 | 10 | 156882 |
+| Group012 | 20 | 1146726 |
+| SupportGoal | 472 | 2000951 |
+| Waygate377 | 39 | 229803 |
+| Point-drop | 133 | 11432 |
+
+Fresh gate reports, individual logs and the combined `summary.json` are retained
+in `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/entangle153-gates/`. Only
+changed production-source fingerprints were refreshed in their fixture specs;
+original captures and literal expected results remain unchanged. The next
+batched full checkpoint is still pending. The Inventory checkpoint above
+remains the latest completed full-suite result.

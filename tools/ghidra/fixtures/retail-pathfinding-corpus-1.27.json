@@ -60611,11 +60611,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "54ec1d05d3a552afc9c8b713e226aa6ec3d8141812b71aff860f788f56abc8d9"
+      "sha256": "756360583d104b3dd7c80fd118aac5614abcabccfc460309352c23a2dc5d8df2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "eb20bf629a0504f4f0465da2d171a8858c3304497b5c5b2eb346adbf725e442a"
+      "sha256": "e9570695a4253161957c3d5889bb876e7ee012f7ff79444b6f01613391b8b4f8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -69743,7 +69743,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "9397a5573e28f59fae16ed9fa03b6b5cee4a20f96afb186369399e498920e70d"
+      "sha256": "8a688c63066d250d4c6c46a4a762e1a3c79a99ab2cd5844ea5277f679180a083"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -70107,7 +70107,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "f4c462107815acf76e2fe41e1b231c3b70f6f415a6981a348e379e354d542654"
+      "sha256": "0d589a51d276c6f41e4d0a1ef177a257c5326a22efaf284fa775def06231fb8f"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -70187,7 +70187,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json",
-      "sha256": "d660f47299ff279cea324cd021064314043da4b56d5abfd721ff4f57e047cd89"
+      "sha256": "2cf92a00f7f5fb73a667add014ef63e75eb7b9e3912e7c9932afd25fa31fc103"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "a534e013180d4e14ab879a7f97f431ec0a8ce228f20e74396ab650808ff6f398"
+      "sha256": "d1ed7c8c1a2253a5ed5c778662fdf04b48416a1d7945c593e8fe68fe8c6834f3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "d2c679f44b12564c643c6cd419c7910d129cd715c02f22c4eb092d49cd36e52d"
+      "sha256": "831a635000474910154714a527cc94b6d96c9676f8964d634941e5ac7f75906e"
     }
   ]
 }
