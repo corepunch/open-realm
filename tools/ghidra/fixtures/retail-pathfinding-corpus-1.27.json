@@ -60611,11 +60611,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "408738534c6b823cc9f5df32b93d9dd411a5878d383b0cdb6fb00aab9a53c656"
+      "sha256": "1c09869add4c7be93235f8a3eb07a37963f50e7ef829304b65533e4d88320b88"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "4021d9e81f932ebe28eb08a751fe14f393e510b0aead2b3ce2dded67991bf25b"
+      "sha256": "2f09e0b0409a75514850a9b857b3abe298aee091056389d41af3639860e68254"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -70271,7 +70271,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_goldmine.c",
-      "sha256": "11ca0fd38bbeb6522b8504d631cb7f29f204798d4c26373f72f2680611dfde4e"
+      "sha256": "64c64c8baaf1707e6246c41784f8857e5d964929b0cc46570ed0f5922e3e9874"
     },
     {
       "path": "games/warcraft-3/game/tests/t_harvest012.c",
@@ -70668,6 +70668,10 @@
     {
       "path": "games/warcraft-3/game/tests/t_militia_orders.c",
       "sha256": "38fb4c60202c90e551dcb3cfa73d9837b670efb5d298fef41f766ed619d08d3c"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_entangle_orders.c",
+      "sha256": "f4599847bbb745c24024e668c4b63ac61e39c5a2124f1ec765cea35d0c389c13"
     }
   ]
 }

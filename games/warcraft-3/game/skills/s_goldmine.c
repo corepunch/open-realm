@@ -1574,7 +1574,12 @@ void S_EntangleRootComplete(edict_t *receiver,edict_t *tree,bool arrived) {
 
 static queuedOrderResult_t entangle_activate(edict_t *tree,unitOrder_t const *packet) {
     edict_t *mine=packet->target_number<globals.num_edicts ? g_edicts+packet->target_number : NULL;
-    if(!entangle_target_valid(mine) || mine->spawn_time!=packet->target_spawn_time)return QUEUED_ORDER_REPLACED;
+    if(!entangle_target_valid(mine) || mine->spawn_time!=packet->target_spawn_time) {
+        /* The issued callback can retire the target after admission. Complete
+         * this packet normally so stand or its queued successor owns the unit. */
+        unit_stand(tree);
+        return QUEUED_ORDER_REPLACED;
+    }
     uint32_t alias=goldmine_actor_ability_alias(tree,MAKEFOURCC('A','e','n','t'));
     bool instant=!strcmp(packet->order,"entangleinstant") || !strcmp(packet->order,"autoentangleinstant");
     float range=G_AbilityLevel(alias,1)->range;

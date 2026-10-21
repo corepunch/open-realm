@@ -370,4 +370,41 @@ TEST(wc3_entangle_orders, occupant_root_admission_callback_preserves_replacement
     EntEnd(&f);
 }
 
+/* Admission precedes issued-target callbacks. A removed mine rejects only
+ * this constructor; it must not retain its public head or erase a successor. */
+TEST(wc3_entangle_orders, issued_target_mine_removal_retires_packet_and_preserves_successor) {
+    FOR_LOOP(replace,2) {
+        entangleFixture_t f;EntBegin(&f,333,true,true);EntCall("entMove");
+        char script[1200];snprintf(script,sizeof(script),
+            "function entInvalidate takes nothing returns nothing\n"
+            "call RemoveUnit(entMine)\n%s\nendfunction\n"
+            "function entObserve takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterUnitEvent(t,entTree,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+            "call TriggerAddAction(t,function entInvalidate)\nendfunction\n",
+            replace ? "call BJassAssert(IssuePointOrder(entTree,\"move\",512.0,768.0),\"callback successor\")" : "");
+        T_ASSERT(jass_dobuffer(level.vm,script));EntCall("entObserve");EntCall("entIssue");
+        T_EQ(f.tree->current_order_id,replace ? G_OrderId("move") : 0);
+        T_ASSERT(f.tree->currentmove && f.tree->currentmove->think);
+        FOR_LOOP(i,200)EntStep();
+        T_EQ(f.tree->current_order_id,0);T_NULL(EntOverlay(&f));
+        T_ASSERT(!f.tree->entangle || !f.tree->entangle->phase);
+        if(replace)T_ASSERT(f.tree->s.origin2.x<600 && f.tree->s.origin2.y<850);
+        EntEnd(&f);
+    }
+}
+
+TEST(wc3_entangle_orders, queued_removed_mine_advances_to_following_move) {
+    entangleFixture_t f;EntBegin(&f,333,true,true);
+    vec2_t first={704,1152},last={512,768};
+    T_ASSERT(G_IssueUnitPointOrder(f.tree,"move",&first,false,0,0));
+    T_ASSERT(G_IssueUnitTargetOrder(f.tree,"entangle",f.mine,true,0));
+    T_ASSERT(G_IssueUnitPointOrder(f.tree,"move",&last,true,0,0));
+    EntCall("entRemoveMine");
+    FOR_LOOP(i,250)EntStep();
+    T_EQ(f.tree->current_order_id,0);T_NULL(EntOverlay(&f));
+    T_ASSERT(f.tree->s.origin2.x<600 && f.tree->s.origin2.y<850);
+    T_ASSERT(!f.tree->entangle || !f.tree->entangle->phase);
+    EntEnd(&f);
+}
+
 #endif

@@ -22214,6 +22214,32 @@ The callback fix above restores data/target feedback without claiming that gap
 closed. TARGET-01.2 and all25 remaining leaves stay open.
 
 
+### Entangle invalid-target activation retirement
+
+An issued-target-order callback can remove the mine after Entangle admission
+but before `entangle_activate` constructs its continuation. Returning
+`QUEUED_ORDER_REPLACED` directly from that invalid-target branch left the
+accepted public Entangle head stranded with no runnable move. A public-JASS
+regression starting from an active Move reproduced three failed assertions in
+each edition: the immediate head, runnable behavior, and eventual head.
+
+The integrated correction calls normal `unit_stand(tree)` before returning from
+this rejected constructor. This retires the admitted packet and allows the
+ordinary successor dispatcher to run. Tests also preserve a Move published by
+the issued callback and a queued Move following an Entangle whose mine was
+removed before activation. These are engine callback/queue regressions, not
+new native capture evidence or a broader invalid-target policy change.
+
+The source-frozen private checkpoint passes 15 Entangle tests / 1124 assertions
+and 20 Root tests / 3060 assertions per edition, with all four suite processes
+and the build exiting zero. `entangle-review173-checkpoint.json` under the
+TARGET-01.2 analysis runtime records source hashes and the preceding failing
+reports. The same two files are integrated after the five Militia native gates
+passed; the nine Militia implementation sources remain unchanged. These focused
+results do not establish a new successful full-suite invocation.
+TARGET-01.2 stays active: 25 -> 25 open, zero whole leaves closed.
+
+
 ### Militia target command producer
 
 Native `CAbilityMilitia` (`Amil`, vtable 6fb701e0) dispatches public target orders
@@ -22276,10 +22302,13 @@ and 87542 assertions per edition; separate Save/Pool checks pass 240 tests and
 82694 assertions per edition with unchanged serialization. The combined focused total is 554 tests / 170236 assertions per edition.
 `militia-review171-checkpoint.json` under the TARGET-01.2 analysis runtime
 records exact source hashes and accepted reports. The primary build succeeds and
-its Militia suite repeats 10 tests / 403 assertions per edition. Captain473,
-Group012, Waygate377 and point-drop native comparison gates pass; the
-SupportGoal gate is still running at this checkpoint. The focused Python
-evidence checks pass 120 tests. These results do not establish a new successful full
+its Militia suite repeats 10 tests / 403 assertions per edition. All five native
+comparison gates pass on the integrated Militia sources: Captain473 10 / 156882,
+Group012 20 / 1146726, SupportGoal 472 / 2000952, Waygate377 39 / 229803 and
+point-drop 133 / 11432 tests / assertions per edition. Fresh reports are under
+`militia172-gates/` in the TARGET-01.2 runtime. The focused Python evidence
+checks pass 120 tests and corpus validation passes 38. These results do not
+establish a new successful full
 `make test` invocation. The preceding Entangle composite checkpoint retains its
 documented failed full attempt and corrected native rerun.
 

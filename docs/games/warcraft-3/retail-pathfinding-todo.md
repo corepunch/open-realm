@@ -172,6 +172,15 @@ successful full invocation. See [checkpoint evidence](retail-pathfinding-engine.
 **25 ->25 open; zero whole leaves closed.**
 [Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
 
+A follow-up Entangle callback regression reproduced three failed assertions per
+edition when an issued-order callback removed the mine before activation. The
+integrated fix retires that rejected packet through normal `unit_stand`, preserving
+callback-owned and queued successor Move orders. Its source-frozen checkpoint
+passes 15 Entangle tests / 1124 assertions and 20 Root tests / 3060 assertions
+per edition. Integration follows all five passing Militia native comparison
+gates; no new full-suite success or leaf closure is claimed.
+[Activation retirement](retail-pathfinding-engine.md#entangle-invalid-target-activation-retirement).
+
 TARGET-01.2 now integrates the Militia producer: native target names are
 militiaconvert/militiaunconvert, with authored-range approach or FLT_MAX
 facing-only continuation. Portable producer/lifecycle audits pass 37 tests and
