@@ -47,9 +47,15 @@ class ItemDropGateTests(unittest.TestCase):
             gate.check_engine(gate.EXPECTED_ENGINE, self.spec, self.report)
 
     def test_unpinned_implementation_rejected(self):
-        self.spec['pins'].pop('games/warcraft-3/game/skills/s_inventory.c')
-        with self.assertRaisesRegex(ValueError, 'missing point-drop source pins'):
-            gate.validate(self.spec)
+        for name in ('games/warcraft-3/game/skills/s_inventory.c', 'games/warcraft-3/game/skills/s_move.c',
+                     'games/warcraft-3/game/g_items.c', 'games/warcraft-3/game/g_local.h',
+                     'games/warcraft-3/game/api/api_unit.h',
+                     'games/warcraft-3/tests/resources-src/Units/AbilityData.slk'):
+            with self.subTest(source=name):
+                spec = copy.deepcopy(self.spec)
+                spec['pins'].pop(name)
+                with self.assertRaisesRegex(ValueError, 'missing point-drop source pins'):
+                    gate.validate(spec)
 
     def test_reduced_expected_totals_rejected(self):
         self.spec['engine_expected']['classic']['assertions'] -= 1

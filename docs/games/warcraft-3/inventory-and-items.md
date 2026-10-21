@@ -850,9 +850,11 @@ The canonical `verify_wc3_pathing_itemdrop_point.py` gate checks the literal
 captures, eight original code ranges against the pinned DLL, generated motion
 fixture identity, source hashes and actual Classic/TFT runs. Required JUnit
 cases include exact motion, real cursor ingress, immobile/suspended/dead
-admission, cancellation, item reuse and saved continuation. Its contract is139
-tests/11469 assertions per edition. The optional SC2API build separately passes34
-tests/311 assertions per edition, including export of the destination point
+admission, cancellation, item reuse and saved continuation. After Give/Pawn
+tests migrated to their public-producer suite, its current point/cursor contract
+is132 tests/11411 assertions per edition; all17 mandatory acceptance cases remain.
+The optional SC2API build separately passes35 tests/324 assertions per edition,
+including export of the destination point
 rather than the retained item as a unit target. Native capture auditors retain
 `engine_parity:false`; the canonical gate reports engine verification separately.
 
@@ -1119,3 +1121,11 @@ trajectory parity. Run its16 rejection/regression tests with:
 ```sh
 python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_itemgive_permissions.py'
 ```
+
+The refreshed point-drop gate passes on the integrated source:12 native
+captures /5340 public markers,8 original DLL ranges,14 exact-clock cases /
+441 mover writes, and132 point/cursor tests /11411 assertions per edition.
+All17 mandatory point/cursor cases remain present after the adjacent Give
+regressions moved to `wc3_inventory_orders`. The refreshed source contract also
+requires Move, item transactions, unit layout, native dispatch and AbilityData
+pins; its38 evidence/gate tests pass. Report: `/tmp/target-point59-acceptance.json`.

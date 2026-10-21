@@ -1,3 +1,13 @@
+Save220 retains Inventory's independent item/recipient packet identities,
+captured terminal range and physical target lifetime policy. Give, Pawn and
+target-bound Drop restore their concrete move identity; both point and target
+completion callbacks are in the C-function roster. Removal and suspension release
+physical ownership without retaining its dead-target policy; resume reconstructs
+the approach. Save219 and earlier are rejected. Public Give tests cover saves
+before admission, queued activation and physical completion, plus item/recipient
+mutation, Inventory removal and hidden-orphan recovery. See
+[Inventory ownership](inventory-and-items.md#target-givepawn-ownership-and-callback-research).
+
 Save172 retains the logical scripted-pause admission/suspension/bypass phase
 alongside the retained user order and exact resume deadline. Physical suppression
 survives a cold save during pending resume; public unpause alone does not release

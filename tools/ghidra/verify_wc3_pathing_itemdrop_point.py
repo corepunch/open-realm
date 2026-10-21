@@ -18,7 +18,7 @@ from wc3_pathfinding_engine_tests import run_engine
 
 SPEC = ROOT / 'tools/ghidra/fixtures/retail-itemdrop-point-1.27.json'
 PATTERNS = ['wc3_items.*', 'wc3_cursor.*']
-EXPECTED_ENGINE = {edition: dict(tests=139, assertions=11469) for edition in ('classic', 'tft')}
+EXPECTED_ENGINE = {edition: dict(tests=132, assertions=11411) for edition in ('classic', 'tft')}
 EXPECTED_NATIVE = dict(observations=8, controls=4, captures=12, public_markers=5340,
                        motion_cases=14, mover_writes=441, instruction_ranges=8)
 
@@ -36,7 +36,10 @@ def validate(spec):
     require(spec['version'] == 1 and spec['task'] == 'TARGET-01.2' and
             spec['binary_sha256'] == native.SHA and spec['patterns'] == PATTERNS and
             spec['native_expected'] == EXPECTED_NATIVE and spec['engine_expected'] == EXPECTED_ENGINE, 'wrong point-drop evidence contract')
-    core = {'games/warcraft-3/game/skills/s_inventory.c', 'games/warcraft-3/game/m_unit.c',
+    core = {'games/warcraft-3/game/skills/s_inventory.c', 'games/warcraft-3/game/skills/s_move.c',
+            'games/warcraft-3/game/g_items.c', 'games/warcraft-3/game/g_local.h',
+            'games/warcraft-3/game/api/api_unit.h', 'games/warcraft-3/tests/resources-src/Units/AbilityData.slk',
+            'games/warcraft-3/game/m_unit.c',
             'games/warcraft-3/game/g_save.c', 'games/warcraft-3/game/tests/t_itemdrop_point.c',
             'games/warcraft-3/game/tests/fixtures/retail_itemdrop_motion.h'}
     require(core <= set(spec['pins']), 'missing point-drop source pins')
