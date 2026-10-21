@@ -70808,6 +70808,82 @@
     {
       "path": "tools/ghidra/research/coupling_producer_evidence.py",
       "sha256": "0b0092e92c5dbfeb4e6bfd341f9a5f249ed379a618c1a41abdb9daeec0e68e44"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_original_actor_evidence.py",
+      "sha256": "4f0a21dde1fcee05b3f5ebf6559b21e1833b09190461dd84be1e40684807ede0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-original-actor-1.27.json",
+      "sha256": "8aaf41cc16c1993950d206151495dfdfc61a0550f52cfd909ea47f98812057b6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-original-actor-1.27.json.gz",
+      "sha256": "7f85cf2c199991e8f5f194bd80a733c7bc9cb33eae7b056603b5e2d45a8ca861"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/TargetCoupling185.json",
+      "sha256": "48c6440d5a63952049f00b7405499a8a8029dbb81352263135a49b273ec65994"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/capture-design.json",
+      "sha256": "c1567d2a778dd2dafcb1b1bd1c52773c40fca23174266b121eb994b96e503a69"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/capture-launch.py",
+      "sha256": "629888eadf67b965fe5f671fed055e922fea7cc1d586aa5ae4cccfb3e89abd6c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/frozen-sources-v2.json",
+      "sha256": "b41cfac13d7b7e0c5e39d5294515ac3f7a664707701b8f12f883356ce1fc7ebf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/itemdrop_capture.py",
+      "sha256": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/itemdrop_make_map.py",
+      "sha256": "e6e587404254a01b134fc6c05dd7e4e5d0a9795314dcb5849779ecd066679011"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/itemdrop_observer.js",
+      "sha256": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/itemdrop_probe.j",
+      "sha256": "a58a4495fac96c636bd4b2593ea6c8cda06b20ef97cd309334c398da96ad52f6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-original-actor/source-before-map.json",
+      "sha256": "10acfe536c67d0eb54d0a5c7c8e6060cfbdfcb623f7da7351bb6b759da04e473"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-readiness/findings.json",
+      "sha256": "c426e0b1bdb32ce5c45a671516cbb3976597b169385ea3d6939ef52746287dba"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-readiness/merge-static.json",
+      "sha256": "43aa4698414ab39df5602c4cbbdf7bbea7fd4da95fb915438cf20b14a9dad9db"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-readiness/observed-rows.json",
+      "sha256": "7edd18ecdf35b566491bb2a90e73ae20b14a27511aec86580abfa25c288f9d47"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-readiness/selector-static.json",
+      "sha256": "16afe984d86b7b07d4ad29c5145112d595c839cf11f645b2ee40d0369e2b8610"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-readiness/sha256.json",
+      "sha256": "993adee730265b371ba85001547f3695045c977e2c3649fe8c9dca72a6688e8b"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_original_actor.py",
+      "sha256": "b5bff7d802eaf98fb44dd607aec021df45e8683472e5b034980df08b60d73c49"
+    },
+    {
+      "path": "docs/games/warcraft-3/hippogryph-couple.md",
+      "sha256": "e8a9bf16fd066082c6a06b91fcf9fc720c243e2774ebe4347f8442f49954e59d"
     }
   ]
 }

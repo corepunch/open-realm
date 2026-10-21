@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "engine_parity": false,
+  "map": "3edcafbc60904052d65bdcc9ff7539ff8c590b67ed0dbb7056f3e12c2b51fdc0",
+  "sources": {
+    "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+    "itemdrop_observer.js": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a",
+    "itemdrop_make_map.py": "e6e587404254a01b134fc6c05dd7e4e5d0a9795314dcb5849779ecd066679011",
+    "itemdrop_probe.j": "a58a4495fac96c636bd4b2593ea6c8cda06b20ef97cd309334c398da96ad52f6"
+  },
+  "artifacts": {
+    "capture-launch.py": "629888eadf67b965fe5f671fed055e922fea7cc1d586aa5ae4cccfb3e89abd6c",
+    "capture-design.json": "c1567d2a778dd2dafcb1b1bd1c52773c40fca23174266b121eb994b96e503a69",
+    "source-before-map.json": "10acfe536c67d0eb54d0a5c7c8e6060cfbdfcb623f7da7351bb6b759da04e473",
+    "TargetCoupling185.json": "48c6440d5a63952049f00b7405499a8a8029dbb81352263135a49b273ec65994",
+    "frozen-sources-v2.json": "b41cfac13d7b7e0c5e39d5294515ac3f7a664707701b8f12f883356ce1fc7ebf"
+  },
+  "public_sha256": "c3d6becb60b5fc940eeabd342621303d8ddcb46cf89a6982a90d9c0927dc56de",
+  "issued_events": [
+    {
+      "tick": "100",
+      "scene": "0",
+      "label": "issued-target",
+      "oid": "852143",
+      "actor": "1",
+      "target": "2",
+      "ah": "852143",
+      "hh": "0"
+    },
+    {
+      "tick": "100",
+      "scene": "0",
+      "label": "issued-target",
+      "oid": "852141",
+      "actor": "2",
+      "target": "1",
+      "ah": "852143",
+      "hh": "852141"
+    },
+    {
+      "tick": "115",
+      "scene": "0",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "2",
+      "target": "0",
+      "ah": "852143",
+      "hh": "851972"
+    },
+    {
+      "tick": "115",
+      "scene": "0",
+      "label": "issued-point",
+      "oid": "851986",
+      "actor": "1",
+      "target": "0",
+      "ah": "851986",
+      "hh": "851972"
+    },
+    {
+      "tick": "115",
+      "scene": "0",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "1",
+      "target": "0",
+      "ah": "851972",
+      "hh": "0"
+    },
+    {
+      "tick": "450",
+      "scene": "1",
+      "label": "issued-target",
+      "oid": "852143",
+      "actor": "1",
+      "target": "2",
+      "ah": "852143",
+      "hh": "0"
+    },
+    {
+      "tick": "450",
+      "scene": "1",
+      "label": "issued-target",
+      "oid": "852141",
+      "actor": "2",
+      "target": "1",
+      "ah": "852143",
+      "hh": "852141"
+    },
+    {
+      "tick": "465",
+      "scene": "1",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "2",
+      "target": "0",
+      "ah": "852143",
+      "hh": "851972"
+    },
+    {
+      "tick": "465",
+      "scene": "1",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "1",
+      "target": "0",
+      "ah": "851972",
+      "hh": "0"
+    }
+  ],
+  "bundle_sha256": "7f85cf2c199991e8f5f194bd80a733c7bc9cb33eae7b056603b5e2d45a8ca861",
+  "scope": "Public-added Acoa/Acoh333/Reht1; inverse peerStop callback mutates original initiator. OuterStop supersedes nestedMove. RemoveUnit attempt leaves observed original type/life/pose throughboundedend.",
+  "caveats": [
+    "Numeric reciprocal852141 has no asserted public order string.",
+    "Target role0 means neither watched actor, not proven null.",
+    "Event getters are read before nested actions; restored outer response context is untested.",
+    "RemoveUnit attempt did not produce observable original actor removal throughscene1age348; no successful removal or underlyingcause claim.",
+    "Hook tick is last public marker, not exact callback clock; raw counters remain archived.",
+    "Inherited metadata task label TARGET-01.2-militia is preserved; exactmap/sourcepins and COUP prefix identify coupling.",
+    "No general callback guard, mergeHP/dismount, or engine parity claim."
+  ]
+}

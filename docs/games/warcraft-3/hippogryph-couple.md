@@ -117,6 +117,20 @@ completion rather than passed as the approach radius. Admission `6f4beda0`
 requires the same owner, authored partner type, movement ability and reciprocal
 coupling ability. Directional alliance alone is insufficient.
 
+Readiness evidence184 preserves the scoped selector/merge decompilation and
+capture rows in
+[`coupling-readiness`](../../../tools/ghidra/fixtures/research/coupling-readiness/).
+In accepted producer scene 0, Archer/Hippogryph collision radii are 32/8 world
+units and maximum velocities are 270/400, respectively; both publish an arrival
+range of 1.25 fine units. These measured inputs must be retained when comparing
+ready timing. Selector `6f5fda10` dispatches `d0171` and `d0174` to `6f5ff8b0`
+with the same nonpersistent argument and a different final subscription/validation
+argument; this establishes no arrival-radius difference between the selectors.
+Merge `6f4c2f20` reads replacement UnitID at the rank of the incoming, last-ready
+ability. Its separate position/facing selection chooses the Hippogryph, so that
+anchor does not imply that the Hippogryph ability supplies UnitID. This is native
+evidence, not a completed implementation or trajectory-parity claim.
+
 Cancellation `6f4bd000` clears the local partner/ready state and invokes the
 linked peer inverse `6f4e4250`, which submits Stop851972. Measured outcomes:
 
@@ -137,6 +151,16 @@ a nested Move from the peer Stop event also survives. These are the two measured
 callback cases, not a proof of all reentrancy. Trigger getters are read before
 nesting; restoration of outer trigger-response context was not measured. A
 reported target role0 means neither watched actor, not necessarily a null target.
+
+A separate original-actor probe185 establishes the distinction: in the peer's
+Stop callback, a Move issued to the original Archer is accepted, then superseded
+by the outer Archer Stop. The final head is zero and the nested Move causes no
+position change. This repeats across two observations and an unhooked control
+(366 matching public markers). Do not generalize peer-directed nested Move
+survival to the original actor or change common order precedence on that basis.
+A RemoveUnit attempt at this frontier leaves the original type, life and pose
+unchanged through the bounded capture. This does not establish successful
+removal or explain why it did not occur; engine lifetime checks remain necessary.
 
 Portable producer/lifecycle specs and compressed captures are
 `tools/ghidra/fixtures/retail-coupling-{producer,lifecycle}-1.27.json[.gz]`.
