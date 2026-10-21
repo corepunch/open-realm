@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "engine_parity": false,
+  "map": "c4945696fef0d85f3bad7127f2bfffc6f87228e9d0648425fc711251232d3b93",
+  "sources": {
+    "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+    "itemdrop_observer.js": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a",
+    "itemdrop_make_map.py": "50cd335fb90c0b23c38d6aeada0541f5570d2dc98e4958e75bf0f7cceaf32fc4",
+    "itemdrop_probe.j": "687ddbb922c379cfd8fc2f17cabb246720fb94d98b1491db2516c5dbcea8e546"
+  },
+  "artifacts": {
+    "capture-launch.py": "d381fa8552c78bd17b292a7e012deee23ba21c956a52e0fc7643039a208f5062",
+    "capture-design.json": "916ea115cd6165ead095e4505fbe5a5fe08d193a4ce44f69d96a8e89c510e2f4",
+    "source-before-map.json": "b8038328e9effe284b651c43b0799922063fe0048fd85e539582c97a4bf3aca1",
+    "static-admission.json": "53b090ce6bd3bc98981fc0670f9262811a4ac8eec36b8dffbc030570110b8b61",
+    "TargetCoupling180.json": "d629698b3920973922124c16f1b89a0889f431e1e5a3ba40a7cb6810bef2e6c4",
+    "frozen-sources-v2.json": "25933381cef025fa8f6d52ba9976682c28172b50c01f6bbceb03b3dc7e186aa8"
+  },
+  "public_sha256": "34c0362107eedfb916084e31da0a38d2a1808f3916a3069b292b91eececdba85",
+  "issued_events": [
+    {
+      "tick": "100",
+      "scene": "0",
+      "label": "issued-target",
+      "oid": "852143",
+      "actor": "1",
+      "target": "2",
+      "ah": "852143",
+      "hh": "0"
+    },
+    {
+      "tick": "100",
+      "scene": "0",
+      "label": "issued-target",
+      "oid": "852141",
+      "actor": "2",
+      "target": "1",
+      "ah": "852143",
+      "hh": "852141"
+    },
+    {
+      "tick": "115",
+      "scene": "0",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "2",
+      "target": "0",
+      "ah": "852143",
+      "hh": "851972"
+    },
+    {
+      "tick": "115",
+      "scene": "0",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "1",
+      "target": "0",
+      "ah": "851972",
+      "hh": "0"
+    },
+    {
+      "tick": "450",
+      "scene": "1",
+      "label": "issued-target",
+      "oid": "852143",
+      "actor": "1",
+      "target": "2",
+      "ah": "852143",
+      "hh": "0"
+    },
+    {
+      "tick": "450",
+      "scene": "1",
+      "label": "issued-target",
+      "oid": "852141",
+      "actor": "2",
+      "target": "1",
+      "ah": "852143",
+      "hh": "852141"
+    },
+    {
+      "tick": "465",
+      "scene": "1",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "1",
+      "target": "0",
+      "ah": "851972",
+      "hh": "852141"
+    },
+    {
+      "tick": "465",
+      "scene": "1",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "2",
+      "target": "0",
+      "ah": "0",
+      "hh": "851972"
+    },
+    {
+      "tick": "800",
+      "scene": "2",
+      "label": "issued-target",
+      "oid": "852143",
+      "actor": "1",
+      "target": "2",
+      "ah": "852143",
+      "hh": "0"
+    },
+    {
+      "tick": "800",
+      "scene": "2",
+      "label": "issued-target",
+      "oid": "852141",
+      "actor": "2",
+      "target": "1",
+      "ah": "852143",
+      "hh": "852141"
+    },
+    {
+      "tick": "800",
+      "scene": "2",
+      "label": "issued-point",
+      "oid": "851986",
+      "actor": "2",
+      "target": "0",
+      "ah": "852143",
+      "hh": "851986"
+    },
+    {
+      "tick": "1150",
+      "scene": "3",
+      "label": "issued-target",
+      "oid": "852143",
+      "actor": "1",
+      "target": "2",
+      "ah": "852143",
+      "hh": "0"
+    },
+    {
+      "tick": "1150",
+      "scene": "3",
+      "label": "issued-target",
+      "oid": "852141",
+      "actor": "2",
+      "target": "1",
+      "ah": "852143",
+      "hh": "852141"
+    },
+    {
+      "tick": "1165",
+      "scene": "3",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "2",
+      "target": "0",
+      "ah": "852143",
+      "hh": "851972"
+    },
+    {
+      "tick": "1165",
+      "scene": "3",
+      "label": "issued-point",
+      "oid": "851986",
+      "actor": "2",
+      "target": "0",
+      "ah": "852143",
+      "hh": "851986"
+    },
+    {
+      "tick": "1165",
+      "scene": "3",
+      "label": "issued-immediate",
+      "oid": "851972",
+      "actor": "1",
+      "target": "0",
+      "ah": "851972",
+      "hh": "851986"
+    }
+  ],
+  "bundle_sha256": "6c9f455c5d51c4044762aeba3f12f30847c76023a8a5c40148e7d752d24eeb4f",
+  "scope": "Explicit public-added legacy/custom Acoa/Acoh, authored333 andReht1; reciprocal852141 issued-target and peerStop851972 issued-immediate, two scoped nestedMove callbacks. Not patched stock Acoi.",
+  "caveats": [
+    "Numeric reciprocal852141 has no asserted public order string.",
+    "Target role0 means neither watched actor, not proven null.",
+    "Event getters are read before nested actions; restored outer response context is untested.",
+    "Lone initiator wait observed only through scene2age348; no permanent deadlock claim.",
+    "Hook tick is last public marker, not exact callback clock; raw counters remain archived.",
+    "Inherited metadata task label TARGET-01.2-militia is preserved; exactmap/sourcepins and COUP prefix identify coupling.",
+    "No general callback guard, mergeHP/dismount, or engine parity claim."
+  ]
+}

@@ -60611,11 +60611,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "1c09869add4c7be93235f8a3eb07a37963f50e7ef829304b65533e4d88320b88"
+      "sha256": "94cc947b3c156e811ee031487d3e452f62219217d33e9431505a41cb1a48c0d1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "2f09e0b0409a75514850a9b857b3abe298aee091056389d41af3639860e68254"
+      "sha256": "aaac915796af640b66b761272993f11e4f6802c9092e28ad977263e5a27fc26a"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -70672,6 +70672,142 @@
     {
       "path": "games/warcraft-3/game/tests/t_entangle_orders.c",
       "sha256": "f4599847bbb745c24024e668c4b63ac61e39c5a2124f1ec765cea35d0c389c13"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_events.py",
+      "sha256": "d32c24a50e13b3f57bec729b3dd6366f4ba295a70cddb7b93ddb3688a3cdf9ad"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_lifecycle.py",
+      "sha256": "fefdd29835c68036b5317a9cd99e3a792c919b5644c98aec873df95c1e5b89b0"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_producer.py",
+      "sha256": "0700fe2129ce7384f1f73007289a2d3ce528707b133846d48a153016c71755cf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/TargetCoupling180.json",
+      "sha256": "d629698b3920973922124c16f1b89a0889f431e1e5a3ba40a7cb6810bef2e6c4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/capture-design.json",
+      "sha256": "916ea115cd6165ead095e4505fbe5a5fe08d193a4ce44f69d96a8e89c510e2f4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/capture-launch.py",
+      "sha256": "d381fa8552c78bd17b292a7e012deee23ba21c956a52e0fc7643039a208f5062"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/frozen-sources-v2.json",
+      "sha256": "25933381cef025fa8f6d52ba9976682c28172b50c01f6bbceb03b3dc7e186aa8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/itemdrop_capture.py",
+      "sha256": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/itemdrop_make_map.py",
+      "sha256": "50cd335fb90c0b23c38d6aeada0541f5570d2dc98e4958e75bf0f7cceaf32fc4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/itemdrop_observer.js",
+      "sha256": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/itemdrop_probe.j",
+      "sha256": "687ddbb922c379cfd8fc2f17cabb246720fb94d98b1491db2516c5dbcea8e546"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/source-before-map.json",
+      "sha256": "b8038328e9effe284b651c43b0799922063fe0048fd85e539582c97a4bf3aca1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-events/static-admission.json",
+      "sha256": "53b090ce6bd3bc98981fc0670f9262811a4ac8eec36b8dffbc030570110b8b61"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-lifecycle/itemdrop_capture.py",
+      "sha256": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-lifecycle/itemdrop_make_map.py",
+      "sha256": "85576a535567bd0f04852268e11db3aff5ac735b93fc59dfed27276bbead06df"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-lifecycle/itemdrop_observer.js",
+      "sha256": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-lifecycle/itemdrop_probe.j",
+      "sha256": "bcf39eb74471f64237d83f05f47e806508f4c505edc577e5ce8a38492376c992"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-producer/itemdrop_capture.py",
+      "sha256": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-producer/itemdrop_make_map.py",
+      "sha256": "7909f2376e753f4c3d6e6bf7624c00b6564c57b73a9369d160d906a1cb2e7b57"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-producer/itemdrop_observer.js",
+      "sha256": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-producer/itemdrop_probe.j",
+      "sha256": "64d05dffaa602a64c4b301f23b6d7eb031bad641287d0a742656f98a73f7c2a9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-rejected-setup/itemdrop_capture.py",
+      "sha256": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-rejected-setup/itemdrop_make_map.py",
+      "sha256": "4c71633bbb0b350c91bbd609354fa265cfe0be9cb9558bcc3dda8a72cdd94b4c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-rejected-setup/itemdrop_observer.js",
+      "sha256": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-rejected-setup/itemdrop_probe.j",
+      "sha256": "1e3818261d2dcf44c8576df63601bbb123ccd990a4269f9c83512ef03bdfb789"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-events-1.27.json",
+      "sha256": "aa70578b27bac26e3bfdce7233b07c48976dc4b2d637cfeae4f9742bddb91697"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-events-1.27.json.gz",
+      "sha256": "6c9f455c5d51c4044762aeba3f12f30847c76023a8a5c40148e7d752d24eeb4f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-lifecycle-1.27.json",
+      "sha256": "0a98588bf19178fbf30d847d486f14e9a15ba666e06ead7e3b86148732f70f4c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-lifecycle-1.27.json.gz",
+      "sha256": "9afa20d6f1aa9d0d45615079abf63d83daa313792fa00792319e9cbdbeeb0c0b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-producer-1.27.json",
+      "sha256": "9b8568d47cd81633caf92c20057a6f145a72f26955fd0f3e714363d8358cfeb0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-producer-1.27.json.gz",
+      "sha256": "0afa306424152534bf1a1b9ab88889813a69cad87d06df82b844d82116a69335"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_events_evidence.py",
+      "sha256": "060c7ebd3f047e6ab53236fb88c6d2d21bd638d5a7ccb808589226e5d5474ff0"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_lifecycle_evidence.py",
+      "sha256": "8821cd3176aeb1921de160d1a7da4fc71a9e056b2fda5d3834d633106830ad7b"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_producer_evidence.py",
+      "sha256": "0b0092e92c5dbfeb4e6bfd341f9a5f249ed379a618c1a41abdb9daeec0e68e44"
     }
   ]
 }

@@ -22318,3 +22318,39 @@ regression exercises the recovered static contract; no new native rank-mutation
 capture is claimed. TARGET-01.2 stays active: 25 -> 25 open, zero whole leaves
 closed. See [Call to Arms and Militia](call-to-arms-and-militia.md) for the
 existing transform/economy behavior and remaining scope.
+
+
+### Full validation after Militia and Entangle retirement
+
+Checkpoint175 runs `make test TEST_JOBS=16` to completion at commit
+`374057e230b5a3e76c639dc08b423f4c7cf98573`, with unchanged tracked sources
+through the run. Exit0 covers10,158 native tests and43,195,949 assertions
+across34 JUnit reports, zero failures/errors/skips, plus3,141 pathfinding
+Python tests and the other smoke/audit targets. This is a complete successful
+invocation, superseding the earlier failed Entangle invocation and its
+separately corrected WC3 shards as the latest full validation.
+
+The persistent record is `target175-full/full-checkpoint.json` under
+`/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/`, including report and module
+hashes. Full log SHA256:
+`dd4f539aa72df36edf195be7ca90ebbf9f762a81beea3687dcbee1a112006c83`.
+Save223 is covered. Coupling work started separately and is excluded from this
+checkpoint. TARGET-01.2 remains active with25 open leaves.
+
+### Coupling target command producer
+
+Original Acoa/Acoh target coupling has an ability-owned paired lifecycle:
+public852143/852142 creates its own zero-range `d0171` approach and internal
+reciprocal852141; two ready owners precede merge. Stop/removal/replacement
+propagate a peer Stop, while pause/resume distinguishes public initiator from
+internal reciprocal role. Direct JASS events prove reciprocal target-event
+publication and peer-first Stop notification. Callback replacement can leave
+the initiator waiting alone, since the native producer ignores reciprocal
+admission failure. Preserve that distinction instead of rolling back both sides.
+
+The portable producer/lifecycle evidence uses explicitly added Acoa/Acoh,
+not patched-stock Acoi abilities; source and archive provenance, rejected setup,
+callback observations and bounded timing limits are documented in
+[Hippogryph coupling](hippogryph-couple.md#original-target-order-producer-and-lifecycle).
+No whole leaf closes: TARGET-01.2 stays active with25 remaining. Full
+checkpoint175 predates the private coupling implementation.

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "engine_parity": false,
+  "map": "2c676db04ae5eacd4d2dc78e330c70cb6a912edaffa4f8b0ba0a69e33508fc2f",
+  "sources": {
+    "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+    "itemdrop_make_map.py": "85576a535567bd0f04852268e11db3aff5ac735b93fc59dfed27276bbead06df",
+    "itemdrop_observer.js": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a",
+    "itemdrop_probe.j": "bcf39eb74471f64237d83f05f47e806508f4c505edc577e5ce8a38492376c992"
+  },
+  "public_sha256": "de15f9c8037f3597b2b0d997532a710d5d4d1f3ad3376f70949c36bd1261a78a",
+  "metadata_task": "TARGET-01.2-militia",
+  "bounded_reciprocal_pause": {
+    "scene": 8,
+    "resume_tick": 2965,
+    "settled_tick": 3148
+  },
+  "scope": "Public-added forward archer coupling, both actor interruptions and bounded asymmetric pause; no engine parity or internal JASS event claim.",
+  "bundle_sha256": "9afa20d6f1aa9d0d45615079abf63d83daa313792fa00792319e9cbdbeeb0c0b"
+}
