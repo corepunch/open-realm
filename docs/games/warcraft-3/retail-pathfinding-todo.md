@@ -155,7 +155,11 @@ approach and facing/root tasks. Two native observations and an unhooked control
 match561 public markers; twelve portable evidence/rejection tests pass. A separate
 public engine regression reproduces six failed assertions per edition for the
 three missing admission cases. The immediate rooted-near control passes.
-Complete that owner, authored/boundary range and interruption/save rows before
+The separate candidate now passes eight public scheduler/save tests (774
+assertions per edition), plus focused Root, Building and Save checks. V4/V5
+portable occupant/interruption witnesses add1806 matching public markers and
+31 combined Entangle evidence tests pass. Complete friendly-occupant admission
+Move, Root placement45 retries and adjacent authored range boundaries before
 advancing. **25 ->25 open; zero whole leaves closed.**
 [Entangle evidence and exact blocker](retail-pathfinding-engine.md#entangle-command-admission-and-placement-producer-target-012).
 

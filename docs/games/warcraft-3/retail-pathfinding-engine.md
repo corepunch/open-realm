@@ -21928,12 +21928,60 @@ acceptance, completion, and repeat/control identity. The combined Entangle
 Python suite passes19 tests. This is native evidence only (`engine_parity:false`);
 the retained placement/root implementation remains an isolated candidate.
 
-V4's additional range333 observation/control identifies runtime minimum250 in
-55a440's projection and distinguishes friendly versus hostile occupants in the
-build predicate. Its single observation is not yet a repeated witness and is
-not part of the portable acceptance corpus. The recovered shared virtualD0
+V4's additional range333 matrix now has two observations and an unhooked
+control,280 public markers each. It identifies runtime minimum250 in55a440's
+projection and distinguishes friendly versus hostile occupants in the build
+predicate. Every public marker matches across all three captures. The recovered shared virtualD0
 651590 suppresses both the current mover and all widget regions, already
 implemented by `S_ToggleUnitMoveExclusion`; using only a mover hold leaves the
 rooted Tree's own region blocking placement. The filtered placement adapter must
 reuse the complete exclusion scope. Wider placement, facing, interruption and
 save acceptance stays in active TARGET-01.2;25 leaves remain.
+
+
+### Entangle occupant and interruption witnesses
+
+The portable [lifecycle corpus](../../../tools/ghidra/fixtures/retail-entangle-lifecycle-1.27.json.gz)
+contains the complete V4 range333 occupant matrix and V5 stock500 interruption
+matrix, with exact observer/builder/probe sources under
+[entangle-occupants](../../../tools/ghidra/fixtures/research/entangle-occupants/itemdrop_probe.j)
+and [entangle-interruptions](../../../tools/ghidra/fixtures/research/entangle-interruptions/itemdrop_probe.j).
+Four observations and two unhooked controls match1806 public markers. The
+literal audit and twelve mutation tests preserve every public marker, complete
+capture termination, original map/source bytes, environment ownership, retained
+point words, Root continuation, and the counterexamples below. The combined
+Entangle evidence suite passes31 tests. These remain native witnesses, with
+`engine_parity:false`.
+
+Range333 rooted-far sites are1024,960 without an occupant,1024,1024 with a
+friendly Peasant at1024,960, and1088,1216 with a hostile Peasant at that point.
+The already-uprooted near controls select704,1024; friendly/hostile occupation
+of that source leads to768,832 and768,768 respectively. Source relocation
+happens during native admission in those last two cases, so assuming the
+pre-order pose survives the constructor is wrong.
+
+V5 distinguishes Stop during Unroot, Stop during approach, pause/resume,
+removed mine, removed Aent, and replacement Move. Stop retires the retained
+owner without creating an overlay. Removing the mine or Aent during approach
+**does not cancel the admitted physical point task**: head852147 survives
+until its terminal check and stops at881.388,964.831 without an overlay.
+Pause exposes head851973 and freezes the pose; resume reconstructs placement
+from that pose, changing the final root site from896,960 to896,896. Replacement
+Move survives the cancelled point receiver and finishes at521.862,779.334.
+
+The independent engine candidate now passes eight public scheduler/save tests,
+774 assertions per edition. Existing Root20/3060, Building197/5494 and
+Save236/68345 focused checks also pass in Classic and TFT. These checks do not
+close TARGET-01.2: native placement can issue Move to friendly occupants during
+admission, and Root438ac0 retains placement45 through up to ten deferred retries.
+That ownership/timing path and adjacent authored range boundaries remain next.
+No new full-suite claim is made after the Inventory checkpoint.
+
+Two confirmed candidate corrections are necessary to match the occupant site:
+Root438ac0 passes admission=false to unit virtual180 after placement, so a
+second world-placement search incorrectly relocates the admitted point. Also,
+6800f0 admits texture pixels with decoded mask4a: red/blue bit0 or any green,
+including red-only placement margins. Testing only blue omits the margin and
+selects1152,1216 instead of the native1088,1216 in the hostile-occupant row.
+The native566eb0 predicate lets Build_CheckPlacement snap the candidate and
+checks range/support again against that updated point.
