@@ -21898,3 +21898,42 @@ native-corpus commit `007beedec` changes no engine source and separately passes
 is excluded from that snapshot. The persistent record is
 `pickup73/full-checkpoint.json` under the TARGET-01.2 analysis runtime; archived
 log SHA256 is `77367f88e3b41ade57aef0f73139c7d7fef8e92f6b6c8d75f78d8feb90ac16c3`.
+
+
+### Entangle authored range construction failures
+
+V3 adds original `Aent` object modifications for cast range64 and0. Each setting
+has two complete observations and an unhooked control,267 public markers per
+capture,1602 total; every public marker matches within each setting. The maps
+retain the same stock Tree144/Gold Mine50 radii and pathing textures as V2,
+with the mine at1216 or1536 and Tree at704,1024. Public Unroot finishes before
+mobile-source admission.
+
+All eight public orders return true, retire to head0, and leave the mine visible
+without an overlay. The native placement constructor54fd60 returns0 in every
+case and creates no point or target task. Range64's initial projected candidate
+is958,1024; zero's is1022,1024. Those candidates fail the complete range/build/
+support predicate. An accepted public order therefore does not imply successful
+placement or collection, and constructor failure must not be reported as a
+rejected order. V2's stock500 distant/mobile paths retain852147 and complete;
+V3 must not be implemented by widening a physical or terminal range.
+
+The portable archive is
+[retail-entangle-ranges-1.27.json.gz](../../../tools/ghidra/fixtures/retail-entangle-ranges-1.27.json.gz),
+with exact sources in
+[entangle-ranges](../../../tools/ghidra/fixtures/research/entangle-ranges/itemdrop_probe.j).
+`audit_ranges` and seven additional mutation tests check literal map/source
+bytes, both original range words, failed construction, absent tasks, public
+acceptance, completion, and repeat/control identity. The combined Entangle
+Python suite passes19 tests. This is native evidence only (`engine_parity:false`);
+the retained placement/root implementation remains an isolated candidate.
+
+V4's additional range333 observation/control identifies runtime minimum250 in
+55a440's projection and distinguishes friendly versus hostile occupants in the
+build predicate. Its single observation is not yet a repeated witness and is
+not part of the portable acceptance corpus. The recovered shared virtualD0
+651590 suppresses both the current mover and all widget regions, already
+implemented by `S_ToggleUnitMoveExclusion`; using only a mover hold leaves the
+rooted Tree's own region blocking placement. The filtered placement adapter must
+reuse the complete exclusion scope. Wider placement, facing, interruption and
+save acceptance stays in active TARGET-01.2;25 leaves remain.
