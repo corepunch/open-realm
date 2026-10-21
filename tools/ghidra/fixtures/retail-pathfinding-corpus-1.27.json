@@ -58807,7 +58807,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d411aea497cc44bf8ffefc3ad07602eec4358d1a857c704755ef7787826f6131"
+      "sha256": "0b35696dc1318f665f59285936f22d134c4a5eac831c21151e4027d442861a62"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -60611,7 +60611,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "aaa90123fa7abc61a6945303d076cb99bb76e8efddbc3e1d776bbb7c22350f23"
+      "sha256": "3337aefcc259aea086707306d5f31e37a4ab00ae3584cbc9ba5464f4d5d2e30b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",

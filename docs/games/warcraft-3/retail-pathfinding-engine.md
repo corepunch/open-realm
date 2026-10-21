@@ -21985,3 +21985,70 @@ including red-only placement margins. Testing only blue omits the margin and
 selects1152,1216 instead of the native1088,1216 in the hostile-occupant row.
 The native566eb0 predicate lets Build_CheckPlacement snap the candidate and
 checks range/support again against that updated point.
+
+
+### Entangle placement-owned occupant Move and Root retries
+
+The [retry corpus](../../../tools/ghidra/fixtures/retail-entangle-retry-1.27.json.gz)
+adds V7's fast/slow friendly Peasant rows, two observations and one unhooked
+control with279 matching public markers. Exact sources are under
+[entangle-retry](../../../tools/ghidra/fixtures/research/entangle-retry/itemdrop_probe.j).
+`entangle_retry_evidence.audit` and eight mutation tests require occupant
+Move851986 already present at Entangle's public return, all eleven Root d018f
+entries with counters0..10, ten defer/resume deliveries, placement45 at every
+slow Root check, and half-second intervals. The combined Entangle suite passes
+39 evidence tests. The corpus remains `engine_parity:false` while the engine
+candidate's complete ownership/save checks settle.
+
+V7 sets Misc.MinUnitSpeed=1 as well as SetUnitMoveSpeed(worker,1); V6's stock
+minimum clamps that setter and lets the Peasant clear before Root. V6's two
+observations/control also match, but they are external exploratory evidence,
+not a slow-occupant counterexample. V7's copied completion marker literally
+says `scene=6` after two scenes; the audit preserves that exact source marker.
+
+66f050 issues an ordinary Move during placement45 admission; this precedes
+Tree Unroot and is not a displacement started after Root commits. The two
+positive XY jitter draws use the shared path-owner generator, multiplied by
+runtime32. The exit axis is the nearer footprint edge, with Y winning a tie;
+clearance adds the occupant's authored radius and runtime128. The existing
+Move-head check follows the draws and avoids republishing that Move.
+
+438ac0 increments the Root counter on45, retains its point task, and prepends
+d0167 while the counter is below10. Shared437aa0 marks ability20 bit200,
+clears unit5c bit1 and requests d019d. Initializer00b000 assigns bc34=50/100;
+this is a half-second delay, not zero. Shared406bc0 clears the suspension bit,
+pops the waiting task and dispatches retained d018f. On the eleventh45 check,
+Root clears its counter and fails without snapping or morphing. The slow Tree
+stops at1009.443,1026.825, the mine stays visible, no overlay appears, and the
+Peasant's Move remains active. Both original observations reproduce this
+entire public stream and native counter graph.
+
+The separate engine regression reproduced four failures before this correction:
+missing admission-time occupant Move in both rows, and incorrect successful
+Root/overlay with the slow occupant. The candidate then passed nine scheduler
+tests,805 assertions per edition. Pending retry save/load and Stop coverage is
+being added before integration; TARGET-01.2 and all25 leaves remain open.
+
+
+54fd60's placement context18 controls occupant orders. It is0 during the
+current-point attempt and all candidate-search callbacks, then becomes1 only
+for the final admitted-point check after successful world placement. Candidate
+checks may admit displaceable occupants but must not publish their Move.
+The candidate therefore separates pure owned-root evaluation from final
+owned-root admission; the latter also serves Root's morph-start rechecks.
+
+[EntanglePlacementEvidence.java](../../../tools/ghidra/research/EntanglePlacementEvidence.java)
+successfully persists six verified function names/comments in the original
+Ghidra program, leaving prototypes unchanged. The broad mapper initially had
+a missing comma in a prior row; its corrected source compiles but its existing
+annotation-preservation preflight stops on ChemicalRage_CompleteReverse.
+The scoped script preserves that annotation and applies only the six Entangle/
+Root rows. No broader mapper success is claimed.
+
+The candidate's ten scheduler/save tests now pass853 assertions per edition,
+including cold restoration and Stop while a half-second retry is pending.
+The fixture now reserves the waypoint ring before removable actors, matching
+map spawn; lazy reservation after mine removal produced harness errors despite
+passing assertions and was not valid evidence. JASS buffer inputs are writable
+because the parser removes comments in place. Callback-driven occupant orders
+and adjacent range/rank native rows remain under verification before integration.
