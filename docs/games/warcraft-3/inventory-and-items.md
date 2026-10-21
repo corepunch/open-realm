@@ -1167,3 +1167,47 @@ old compiled fixture, so its known two assertion failures per edition are not
 an engine failure or a passing batch claim. The corrected API suite was built
 from identical game sources in the focused worktree; broader batch results
 remain pending completion.
+
+### Ordinary pickup native corpus (V8b)
+
+The next TARGET-01.2 producer now has six observations and three unhooked
+controls over stock150, authored64 and zero `PickupItemRange`:19 scenes per
+map and2610 matching public markers overall. The portable artifact is
+`tools/ghidra/fixtures/retail-itempickup-1.27.json.gz`; exact map/capture sources
+and the hash summary are in `tools/ghidra/fixtures/research/itempickup/`.
+`itempickup_evidence.py` audits literal bytes, source/map provenance, public
+admission and item outcomes, target-task ranges/identities, pause reconstruction
+and every repeat/control marker. Fourteen regression/rejection tests pass:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_itempickup.py'
+```
+
+Original `55bb10` constructs `d017e(item,0)` then `d0171(item,PickupItemRange)`.
+Pause reconstructs the pair. Hpal's32 collision plus the item's minimum1 makes
+the stock physical range183/32 (`0x40b70000`). V8's exploratory range+32 rows
+were inside; the preserved V8b maps use the actual range+33 boundary. Mobile
+near pickup retains Smart851971 until the scheduler; an immobile Inventory
+attempts the terminal synchronously, even when too far to collect.
+
+Inventory removal, becoming full, and another carrier taking the item retain
+the already-admitted approach. Terminal collection rechecks identity, capacity,
+Can Get Items and live range. Hiding an admitted item still permits collection.
+Zero-range far pickup reaches the raw target perimeter but fails the separate
+radial check and leaves the item in the world. Hiding that same zero-range
+item removes its spatial record, allowing a closer approach and collection.
+Pickup callbacks run within the terminal call, see Smart851971 and the attached
+item, and can issue Move or remove the item. Marker timer labels may advance
+inside that native call; function nesting and the retained native clock own the
+synchronous timing evidence.
+
+The engine pickup port remains an isolated candidate until its focused,
+optional-build, save and refreshed integration gates pass. This native corpus
+reports `engine_parity:false` and closes no leaf.
+
+The earlier full batch finished with the obsolete API expectation in one shard
+per edition (the corrected411-test API suite passes separately), plus five
+stale source-pin contracts: Captain473, the corpus manifest, Group012,
+SupportGoal and Waygate377. Refresh those pins only with fresh affected-gate
+verification after the pending Inventory source settles; the failed batch is
+not a passing checkpoint.
