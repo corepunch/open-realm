@@ -2369,9 +2369,19 @@ TEST(client_input, two_finger_touch_pans_camera) {
 
 /* These tests inject only SDL_FINGER* events. The game must not depend on
  * SDL creating synthetic mouse clicks on any native or browser backend. */
+static uint32_t cl_test_finger_timestamp;
+static int SDLCALL CL_TestFingerTimestampFilter(void *userdata, SDL_Event *event) {
+    (void)userdata;
+    if (event->type == SDL_FINGERDOWN || event->type == SDL_FINGERMOTION ||
+        event->type == SDL_FINGERUP)
+        event->tfinger.timestamp = cl_test_finger_timestamp;
+    return 1;
+}
+
 static void CL_TestPushFinger(uint32_t type, SDL_FingerID id, float x, float y, uint32_t ms) {
     SDL_Event event = { .tfinger = { .type = type, .timestamp = ms,
                                     .touchId = 1, .fingerId = id, .x = x, .y = y } };
+    cl_test_finger_timestamp = ms;
     T_EQ(SDL_PushEvent(&event), 1);
 }
 
@@ -2386,6 +2396,9 @@ TEST(client_input, two_finger_tap_sends_right_click) {
     UINAME select_binding, smart_binding;
     bool add_select_down = !Cmd_Exists("+select"), add_select_up = !Cmd_Exists("-select");
     bool add_smart_down = !Cmd_Exists("+smart"), add_smart_up = !Cmd_Exists("-smart");
+    SDL_EventFilter old_event_filter = NULL;
+    void *old_event_filter_data = NULL;
+    bool had_event_filter;
     uint8_t data[512];
     char command[128];
 
@@ -2394,6 +2407,8 @@ TEST(client_input, two_finger_tap_sends_right_click) {
     strlcpy(smart_binding, Key_GetBinding(K_MOUSE2, 0), sizeof(smart_binding));
     T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    had_event_filter = SDL_GetEventFilter(&old_event_filter, &old_event_filter_data);
+    SDL_SetEventFilter(CL_TestFingerTimestampFilter, NULL);
     if (add_select_down) Cmd_AddCommand("+select", IN_SelectDown);
     if (add_select_up) Cmd_AddCommand("-select", IN_SelectUp);
     if (add_smart_down) Cmd_AddCommand("+smart", IN_SmartDown);
@@ -2453,6 +2468,7 @@ TEST(client_input, two_finger_tap_sends_right_click) {
     T_ASSERT(!camera_drag.active && !touch_pan.count);
 
     /* Even a momentary third contact disqualifies the gesture. */
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
     CL_TestPushFinger(SDL_FINGERDOWN, 7, .4f, .5f, 4000);
     CL_TestPushFinger(SDL_FINGERDOWN, 8, .6f, .5f, 4010);
     CL_TestPushFinger(SDL_FINGERDOWN, 9, .5f, .4f, 4020);
@@ -2465,6 +2481,7 @@ TEST(client_input, two_finger_tap_sends_right_click) {
 
     /* Returning to the initial position after a single-finger drag must not
      * turn the subsequent second contact into a right click. */
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
     CL_TestPushFinger(SDL_FINGERDOWN, 10, .4f, .5f, 5000);
     CL_TestPushFinger(SDL_FINGERMOTION, 10, .5f, .5f, 5010);
     CL_TestPushFinger(SDL_FINGERMOTION, 10, .4f, .5f, 5020);
@@ -2476,6 +2493,7 @@ TEST(client_input, two_finger_tap_sends_right_click) {
 
     /* A remaining contact's travel after the other finger lifts also
      * invalidates the right click, even if no motion was sent beforehand. */
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
     CL_TestPushFinger(SDL_FINGERDOWN, 12, .4f, .5f, 6000);
     CL_TestPushFinger(SDL_FINGERDOWN, 13, .6f, .5f, 6020);
     CL_TestPushFinger(SDL_FINGERUP, 13, .6f, .5f, 6040);
@@ -2485,6 +2503,8 @@ TEST(client_input, two_finger_tap_sends_right_click) {
     T_ASSERT(!touch_pan.count);
 
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    SDL_SetEventFilter(had_event_filter ? old_event_filter : NULL,
+                       had_event_filter ? old_event_filter_data : NULL);
     Key_SetBinding(K_MOUSE1, 0, select_binding);
     Key_SetBinding(K_MOUSE2, 0, smart_binding);
     if (add_select_down) Cmd_RemoveCommand("+select");
@@ -2501,6 +2521,7 @@ TEST(client_input, two_finger_tap_sends_right_click) {
 /* Pinch operates through the same camera constraints as wheel/keyboard.
  * Feed actual SDL finger events, not a copy of the zoom calculation. */
 TEST(client_input, two_finger_pinch_zoom_respects_camera_policy) {
+    CL_TestWorldBounds(true);
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
     refExport_t old_re = re;
@@ -2511,16 +2532,25 @@ TEST(client_input, two_finger_pinch_zoom_respects_camera_policy) {
     __typeof__(camera_drag) old_drag = camera_drag;
     mouseEvent_t old_mouse = mouse;
     bool (*old_direct)(SDL_TouchID) = touch_is_direct;
+    SDL_EventFilter old_event_filter = NULL;
+    void *old_event_filter_data = NULL;
+    bool had_event_filter;
     float old_sensitivity = Cvar_Value("cl_touch_pinch_sensitivity", 1.0f);
     float old_min = Cvar_Value("camera_min_distance", 0);
     float old_limit = Cvar_Value("camera_max_distance", 0);
     float old_max = Cvar_Value("wc3_camera_max_distance", 3000);
     float old_default = Cvar_Value("wc3_camera_default_distance", 1650);
+    UINAME old_mouse1_binding, old_mouse2_binding;
     uint8_t data[4096];
 
     memcpy(old_cl, &cl, sizeof(cl));
+    strlcpy(old_mouse1_binding, Key_GetBinding(K_MOUSE1, 0), sizeof(old_mouse1_binding));
+    strlcpy(old_mouse2_binding, Key_GetBinding(K_MOUSE2, 0), sizeof(old_mouse2_binding));
+    Key_SetBinding(K_MOUSE1, 0, ""); Key_SetBinding(K_MOUSE2, 0, "");
     T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    had_event_filter = SDL_GetEventFilter(&old_event_filter, &old_event_filter_data);
+    SDL_SetEventFilter(CL_TestFingerTimestampFilter, NULL);
     memset(&cl, 0, sizeof(cl));
     input = (__typeof__(input)){ .focus = true };
     memset(&touch_pan, 0, sizeof(touch_pan));
@@ -2530,6 +2560,7 @@ TEST(client_input, two_finger_pinch_zoom_respects_camera_policy) {
     cls.state = ca_active; cls.key_dest = key_game;
     cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     re.GetWindowSize = CL_TestWindowSize;
+    re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
     re.TraceLocation = CL_TestScreenGround;
     re.TraceMinimap = CL_TestNoMinimap;
     re.TraceEntity = CL_TestSelectEntity;
@@ -2580,6 +2611,8 @@ TEST(client_input, two_finger_pinch_zoom_respects_camera_policy) {
 
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    SDL_SetEventFilter(had_event_filter ? old_event_filter : NULL,
+                       had_event_filter ? old_event_filter_data : NULL);
     Cvar_SetValue("cl_touch_pinch_sensitivity", old_sensitivity);
     Cvar_SetValue("camera_min_distance", old_min);
     Cvar_SetValue("camera_max_distance", old_limit);
@@ -2587,12 +2620,16 @@ TEST(client_input, two_finger_pinch_zoom_respects_camera_policy) {
     Cvar_SetValue("wc3_camera_max_distance", old_max);
     input = old_input; touch_pan = old_touch; pinch_motion = old_pinch;
     pan_motion = old_pan; camera_drag = old_drag; touch_is_direct = old_direct;
+    Key_SetBinding(K_MOUSE1, 0, old_mouse1_binding);
+    Key_SetBinding(K_MOUSE2, 0, old_mouse2_binding);
     mouse = old_mouse; re = old_re; cls = old_cls;
     cl = *old_cl; MemFree(old_cl);
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+    CL_TestWorldBounds(false);
 }
 
 TEST(client_input, two_finger_translation_does_not_zoom_and_focus_cancels_pinch) {
+    CL_TestWorldBounds(true);
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
     refExport_t old_re = re;
@@ -2603,13 +2640,22 @@ TEST(client_input, two_finger_translation_does_not_zoom_and_focus_cancels_pinch)
     __typeof__(camera_drag) old_drag = camera_drag;
     mouseEvent_t old_mouse = mouse;
     bool (*old_direct)(SDL_TouchID) = touch_is_direct;
+    SDL_EventFilter old_event_filter = NULL;
+    void *old_event_filter_data = NULL;
+    bool had_event_filter;
+    UINAME old_mouse1_binding, old_mouse2_binding;
     uint8_t data[4096];
     SDL_Event focus_lost = { .window = { .type = SDL_WINDOWEVENT,
         .event = SDL_WINDOWEVENT_FOCUS_LOST, .timestamp = 1100 } };
 
     memcpy(old_cl, &cl, sizeof(cl));
+    strlcpy(old_mouse1_binding, Key_GetBinding(K_MOUSE1, 0), sizeof(old_mouse1_binding));
+    strlcpy(old_mouse2_binding, Key_GetBinding(K_MOUSE2, 0), sizeof(old_mouse2_binding));
+    Key_SetBinding(K_MOUSE1, 0, ""); Key_SetBinding(K_MOUSE2, 0, "");
     T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    had_event_filter = SDL_GetEventFilter(&old_event_filter, &old_event_filter_data);
+    SDL_SetEventFilter(CL_TestFingerTimestampFilter, NULL);
     memset(&cl, 0, sizeof(cl));
     input = (__typeof__(input)){ .focus = true };
     memset(&touch_pan, 0, sizeof(touch_pan));
@@ -2619,6 +2665,7 @@ TEST(client_input, two_finger_translation_does_not_zoom_and_focus_cancels_pinch)
     cls.state = ca_active; cls.key_dest = key_game;
     cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     re.GetWindowSize = CL_TestWindowSize;
+    re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
     re.TraceLocation = CL_TestScreenGround;
     re.TraceMinimap = CL_TestNoMinimap;
     re.TraceEntity = CL_TestSelectEntity;
@@ -2671,11 +2718,16 @@ TEST(client_input, two_finger_translation_does_not_zoom_and_focus_cancels_pinch)
 
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    SDL_SetEventFilter(had_event_filter ? old_event_filter : NULL,
+                       had_event_filter ? old_event_filter_data : NULL);
     input = old_input; touch_pan = old_touch; pinch_motion = old_pinch;
     pan_motion = old_pan; camera_drag = old_drag; touch_is_direct = old_direct;
+    Key_SetBinding(K_MOUSE1, 0, old_mouse1_binding);
+    Key_SetBinding(K_MOUSE2, 0, old_mouse2_binding);
     mouse = old_mouse; re = old_re; cls = old_cls;
     cl = *old_cl; MemFree(old_cl);
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+    CL_TestWorldBounds(false);
 }
 
 /* Alternate mouse and direct touch without switching modes, and never let a
