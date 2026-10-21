@@ -167,10 +167,16 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
 
     if (!list || !*list) {
 #if BZ_COMPAT_WORKAROUNDS
-        /* RoC 1.0 omits AOcl's LightningEffect metadata, though its
-         * LightningData table provides the primary Chain Lightning bolt. */
-        if (ability_id == MAKEFOURCC('A','O','c','l'))
-            return MAKEFOURCC('C','L','P','B');
+        /* RoC 1.0 omits AOcl's LightningEffect list; its data still has both
+         * primary and secondary Chain Lightning ribbon rows. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','c','l')) {
+            static bool warned_roc_chain_lightning;
+            if (!warned_roc_chain_lightning) {
+                fprintf(stderr, "WC3 compatibility: RoC AOcl has no LightningEffect list; using CLPB/CLSB rows\n");
+                warned_roc_chain_lightning = true;
+            }
+            return index ? MAKEFOURCC('C','L','S','B') : MAKEFOURCC('C','L','P','B');
+        }
 #endif
         return 0;
     }
@@ -180,6 +186,25 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
         if (count++ == index) return selected;
     }
     return count ? selected : 0;
+}
+
+/* Resolve the ability's effect-class rawcode, including the documented RoC-only gap. */
+uint32_t G_AbilityEffectCode(uint32_t ability_id, uint32_t level) {
+    cstring_t effect_id = G_AbilityLevel(ability_id, level)->efctID;
+    if (effect_id && strlen(effect_id) >= 4) return FS_SLKKey(effect_id);
+#if BZ_COMPAT_WORKAROUNDS
+    /* HACK: RoC 1.0's AOeq AbilityData row has no EfctID column; its effect
+     * art is authored by the XOeq class in OrcAbilityFunc.txt. */
+    if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','e','q')) {
+        static bool warned_roc_earthquake;
+        if (!warned_roc_earthquake) {
+            fprintf(stderr, "WC3 compatibility: RoC AOeq has no EfctID column; using XOeq effect art\n");
+            warned_roc_earthquake = true;
+        }
+        return MAKEFOURCC('X','O','e','q');
+    }
+#endif
+    return ability_id;
 }
 
 /* Reject pointers outside the stable level registry before any native mutates a handle. */

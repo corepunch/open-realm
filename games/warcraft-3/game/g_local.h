@@ -3184,6 +3184,7 @@ cstring_t GetClassName(uint32_t);
 
 // g_effects.c
 cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t index);
+uint32_t G_AbilityEffectCode(uint32_t ability_id, uint32_t level);
 uint32_t G_SendTerrainDeformation(terrainDeform_t const *deformation);
 void G_StopTerrainDeformation(uint32_t id, uint32_t fade_ms);
 void G_StopAllTerrainDeformations(void);

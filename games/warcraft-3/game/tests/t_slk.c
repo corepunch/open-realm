@@ -235,6 +235,40 @@ TEST(wc3_slk, reign_of_chaos_ability_targets_apply_to_every_rank) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_slk, ability_effect_codes_cover_roc_omission_and_tft_rank_fields) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"EfctID1\"\nC;Y1;X5;K\"EfctID2\"\n"
+        "C;Y2;X1;K\"AOeq\"\nC;Y2;X2;K\"AOeq\"\nC;Y2;X3;K1\n"
+        "C;Y3;X1;K\"Atst\"\nC;Y3;X2;K\"Atst\"\nC;Y3;X3;K2\n"
+        "C;Y3;X4;K\"Xone\"\nC;Y3;X5;K\"Xtwo\"\nE\n";
+    uint32_t const roc = MAKEFOURCC('A','O','e','q');
+    uint32_t const tft = MAKEFOURCC('A','t','s','t');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_AbilityEffectCode(roc, 1), MAKEFOURCC('X','O','e','q'));
+#else
+    T_EQ(G_AbilityEffectCode(roc, 1), roc);
+#endif
+    T_EQ(G_AbilityEffectCode(tft, 1), MAKEFOURCC('X','o','n','e'));
+    T_EQ(G_AbilityEffectCode(tft, 2), MAKEFOURCC('X','t','w','o'));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_slk, roc_chain_lightning_uses_primary_and_secondary_bolt_rows) {
+    uint32_t const ability = MAKEFOURCC('A','O','c','l');
+    InitUnitData();
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_AbilityLightningId(ability, 0), MAKEFOURCC('C','L','P','B'));
+    T_EQ(G_AbilityLightningId(ability, 1), MAKEFOURCC('C','L','S','B'));
+#endif
+    ShutdownUnitData();
+    InitUnitData(); /* Restore shared tables for later tests in this process. */
+}
+
 TEST(wc3_slk, sheet_reader_prefers_active_map_data_overlay) {
     stbIniCache_t data = { 0 };
     char saved_prefix[sizeof(game.data_prefix)];
