@@ -1203,7 +1203,7 @@ item, and can issue Move or remove the item. Marker timer labels may advance
 inside that native call; function nesting and the retained native clock own the
 synchronous timing evidence.
 
-The engine port moves ordinary pickup into `CAbilityInventory`, replacing the
+Commit `0394ad967` moves ordinary pickup into `CAbilityInventory`, replacing the
 fixed-range direct thinker with the ordinary packet and full-range target-task
 owners. Shared ability dispatch preserves admission/activation enum results in
 both cached and uncached paths; it also reaches implicit RoC Hero Inventory.
@@ -1230,6 +1230,21 @@ TARGET-01.2 remains open for its wider producer/firing matrix; no leaf closes.
 The earlier full batch finished with the obsolete API expectation in one shard
 per edition (the corrected411-test API suite passes separately), plus five
 stale source-pin contracts: Captain473, the corpus manifest, Group012,
-SupportGoal and Waygate377. Refresh those pins only with fresh affected-gate
-verification after the pending Inventory source settles; the failed batch is
-not a passing checkpoint.
+SupportGoal and Waygate377. Those source pins are now refreshed against the
+integrated Give/Pawn/pickup sources with fresh original-binary and engine runs.
+The point-drop contract also reflects the current item suite and its implicit
+RoC pickup regression. Each report satisfies its corpus manifest result checks:
+
+| Fresh affected gate | Tests per edition | Assertions per edition |
+| --- | ---: | ---: |
+| Captain473 | 10 | 156882 |
+| Group012 | 20 | 1146726 |
+| SupportGoal | 472 | 2000948 |
+| Waygate377 | 39 | 229803 |
+| Point drop | 133 | 11432 |
+
+All frozen native bundles, map bytes and instruction guards remain unchanged.
+The point-drop manifest's obsolete139-test expectation is corrected to the
+actual133-test gate. Python rejection tests validate the refreshed contracts.
+These are fresh affected gates; the earlier failed full batch remains a failed
+checkpoint until a separate complete run passes.

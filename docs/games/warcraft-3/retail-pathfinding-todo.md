@@ -141,7 +141,7 @@ substitute for leaf closure.
 
 ## Progress
 
-TARGET-01.2 adds ordinary Smart pickup as an Inventory-owned packet and full-range
+TARGET-01.2 commit `0394ad967` adds ordinary Smart pickup as an Inventory-owned packet and full-range
 target continuation. Native V8b retains six observations, three unhooked controls
 and2610 matching public markers across stock150/authored64/zero ranges. Public
 engine/save checks cover the captured range boundary and adjacent values,

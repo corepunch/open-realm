@@ -57887,12 +57887,12 @@
         "engine": {
           "equal": {
             "classic": {
-              "tests": 139,
-              "assertions": 11469
+              "tests": 133,
+              "assertions": 11432
             },
             "tft": {
-              "tests": 139,
-              "assertions": 11469
+              "tests": 133,
+              "assertions": 11432
             }
           }
         },
@@ -59663,7 +59663,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "e3837376d74da35d9e755b193b9c6ac272fbc52607bceace10725eaef2018e7e"
+      "sha256": "4216243056c0a301b3b7dbeb8bf80e25d892d11f13647a90d507bb96e5593f14"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -60099,7 +60099,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "f961e2a2362a2cbb9f68af3e9da16ed1ac4d8d08f1116ea93d850c1cc11c8e73"
+      "sha256": "8ad42aa62e6f3abbe37dff12dd7943ccd7f3ede3df6d4b4603f8a8c152f53235"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -60107,7 +60107,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "03e5727519ad9d010ef13b1271bb179bafd06569b0c2809a82b4c8c019fc5c03"
+      "sha256": "8853b78a47a9c6b3aeeeacdb8890e6c4faaae3ffd3df8d3151caab078c7d56dd"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -60607,7 +60607,7 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "311607ee7ba5339649f21a6dff114f8f8b76d6144dee50c34c8201991ff95c01"
+      "sha256": "8f2d9eeab985a3f0aff91c2030c5e320aba44e9956c990b85ed89d3498b30c77"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -60615,7 +60615,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "85a61a15199855e479ef300e5aee6939e72ac9e5b73a652b7c5400efb290d02e"
+      "sha256": "fd5aac5a1384edd14509e17820451923aa3607cf22856aa6b0cf4431541190ca"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -60627,7 +60627,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "5ec7126d687bd93b309ff846a1ca1459ded21d9432b4fcfb3eb0de4dfb6ed944"
+      "sha256": "055cc438ebc66dd842e5d763189e2cc4f1694b59bb1f5243ebcc4471ad854787"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -60735,7 +60735,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "8c2ff7eaa086fbe5a8bbf0c13011d5c479e143e0b7bc393f462581bf59215c84"
+      "sha256": "740473b1a4fbf661f408b3621577fe2086a57fa9d6c26535f5b60d984880cda2"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -61403,7 +61403,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "aadb6082a5041202f01940590d66550597c9ae19e219fbc963097c0821823a92"
+      "sha256": "c699acecfa44fe631a8cd769ed7fb3c845a75a6aac36fffbba57a0de88b0f928"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -61507,7 +61507,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_misc.h",
-      "sha256": "88fe01635dc5fc5947730f055a2506af8bd98324bc1ad10d98354835442a7361"
+      "sha256": "727ec76938c9fc5751be06c986b085a696a4accdb1b530ec8126ab5a5971378f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_random_streams.c",
@@ -61563,7 +61563,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "238655da53fc315f0be3f2b276bd0dd3ee5549c580c5904dee7506b8e5420645"
+      "sha256": "34879449f7fe89276a0b2251a0e06c05e88c9d61f0496a813a9b50b242d1f3e2"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -61907,7 +61907,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "e303a235ec974c3f68047be639c354e17df54d982ad77eb373ef5d2672344704"
+      "sha256": "dc8fc5a940f9d8fae6fe323184b45e662e890d2951a94ecc758f9fb872bacd81"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -62063,7 +62063,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_items.c",
-      "sha256": "c1721d470095ae58fc23da91f45fdd9528906641f81081e9d7de710735aee804"
+      "sha256": "e3ba8ae9b744020c19f5647dee4737a9b2f7c0b7a9cd25e45fc00ea3081e5b9f"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_recovery_scope.py",
@@ -69743,7 +69743,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "77b57ef9880407fd26286bcfb075eb18a54547d24868a695a4cac09a5ad0ea13"
+      "sha256": "9397a5573e28f59fae16ed9fa03b6b5cee4a20f96afb186369399e498920e70d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -69799,7 +69799,7 @@
     },
     {
       "path": "games/warcraft-3/game/sc2api/sc2api_raw.c",
-      "sha256": "6ed30a0153d5a56c14edc9c37588f9a412415ff2fc52f998fdb7b892cd087b3d"
+      "sha256": "62f18fee37a11e500100ba512e4f8e833f1d370bd6945474a5698bed2816f3e3"
     },
     {
       "path": "games/warcraft-3/game/skills/s_ability_stubs.c",
@@ -70107,7 +70107,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "743c4b7f1821dea9abec4435a6349daf76931a82724d2af2ba55d05e012d8194"
+      "sha256": "f4c462107815acf76e2fe41e1b231c3b70f6f415a6981a348e379e354d542654"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -70187,7 +70187,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json",
-      "sha256": "96e371ae1854875a2ef519983ea7c0a592b0fb7840f670c5d3dbd23864a03f97"
+      "sha256": "d660f47299ff279cea324cd021064314043da4b56d5abfd721ff4f57e047cd89"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "6d9ee3f5bfd5981a7537a18b857112fa133a114224cc9fd727a9b8607efed0dd"
+      "sha256": "a534e013180d4e14ab879a7f97f431ec0a8ce228f20e74396ab650808ff6f398"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "4cef38e9e9b51b7c5b3c829d4f76ba455443142922ae3bfe456fc634abd84e64"
+      "sha256": "d2c679f44b12564c643c6cd419c7910d129cd715c02f22c4eb092d49cd36e52d"
     }
   ]
 }

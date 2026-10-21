@@ -17,12 +17,12 @@
   },
   "engine_expected": {
     "classic": {
-      "tests": 132,
-      "assertions": 11411
+      "tests": 133,
+      "assertions": 11432
     },
     "tft": {
-      "tests": 132,
-      "assertions": 11411
+      "tests": 133,
+      "assertions": 11432
     }
   },
   "required_engine_cases": [
@@ -49,17 +49,17 @@
     "games/warcraft-3/game/api/api_unit.h": "dc8fc5a940f9d8fae6fe323184b45e662e890d2951a94ecc758f9fb872bacd81",
     "games/warcraft-3/game/g_ai.c": "f0acff5c7c12b3888e8e06e72fb942530fe8b00f2b58b2731aaa824ac5316572",
     "games/warcraft-3/game/g_commands.c": "b2a345e77770380d6f4e58eb05ec195eb3c5727b585489170e5090f2a1b65b4a",
-    "games/warcraft-3/game/g_items.c": "c93c706c2b1a46471b636329c59f59719f17233df30c10ba6f4170b0457d69b7",
-    "games/warcraft-3/game/g_local.h": "3ebde82c18d8e3a843dd536c91c56e4ec1338bde3f6d47230f3670d3e55e8eae",
-    "games/warcraft-3/game/g_save.c": "781ffe8a9027421c82a6b799f960623558b9d57a74dde9ce89491305da953f86",
-    "games/warcraft-3/game/m_unit.c": "238655da53fc315f0be3f2b276bd0dd3ee5549c580c5904dee7506b8e5420645",
+    "games/warcraft-3/game/g_items.c": "ed020e9b66eb6b46b167761d54a082919e05f69fc3572e7d1426003ac0aac910",
+    "games/warcraft-3/game/g_local.h": "8853b78a47a9c6b3aeeeacdb8890e6c4faaae3ffd3df8d3151caab078c7d56dd",
+    "games/warcraft-3/game/g_save.c": "8ad42aa62e6f3abbe37dff12dd7943ccd7f3ede3df6d4b4603f8a8c152f53235",
+    "games/warcraft-3/game/m_unit.c": "34879449f7fe89276a0b2251a0e06c05e88c9d61f0496a813a9b50b242d1f3e2",
     "games/warcraft-3/game/sc2api/sc2api_raw.c": "62f18fee37a11e500100ba512e4f8e833f1d370bd6945474a5698bed2816f3e3",
-    "games/warcraft-3/game/skills/s_inventory.c": "fcbf0a7d7a6b203b4bb24baeb522b4626f21e7488791033e7d76526dc87d7db1",
+    "games/warcraft-3/game/skills/s_inventory.c": "7d22eac31481a4573bb1c4e919b6be50005c57037a08a9a9f1f455fe93c5bf71",
     "games/warcraft-3/game/skills/s_shop.c": "314a65e1a4a7ca3d7286174fd2d609ec6f81d1eec9c976e1b17427fd8b5e7574",
-    "games/warcraft-3/game/skills/s_skills.c": "056fc82801886d7a7904a95aa9ae055cfc64a3e87d2171fe1273782aea45028c",
+    "games/warcraft-3/game/skills/s_skills.c": "055cc438ebc66dd842e5d763189e2cc4f1694b59bb1f5243ebcc4471ad854787",
     "games/warcraft-3/game/tests/fixtures/retail_itemdrop_motion.h": "01b421bdecb37cf118afa242b52d29ba988cafc1886a00edb950a19133f0e2f4",
-    "games/warcraft-3/game/tests/t_itemdrop_point.c": "269b735cb53fa565d56e28f61155248658569de043b7054616c04475dfd6898c",
-    "games/warcraft-3/game/tests/t_items.c": "7354123eeb3b9c50684ca6401fa3b9a0e4f228674dd27ba5940c7bde29810c41",
+    "games/warcraft-3/game/tests/t_itemdrop_point.c": "9ccb8fea98355efd49c2f27596243596d5566672a4315ea664fa3514ca132b7a",
+    "games/warcraft-3/game/tests/t_items.c": "e3ba8ae9b744020c19f5647dee4737a9b2f7c0b7a9cd25e45fc00ea3081e5b9f",
     "games/warcraft-3/tests/resources-src/PathTextures/4x4SimpleSolid.tga": "c65767fd139582a5ab53c480a91c7f94ac7c55c14b47f43cc15b01d9e4a5690a",
     "games/warcraft-3/tests/resources-src/Units/UnitBalance.slk": "db98b9d6078f1eb6960819d4f91816a40f5eaa67ae2cf00bb72ca081dc7f7964",
     "games/warcraft-3/tests/resources-src/Units/UnitData.slk": "f93f67c20dc4a73efd1b5d44b0e696252fa652c9bbcd5a4e587afa91711d1629",
@@ -80,7 +80,7 @@
     "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json.gz": "62ee17375913ada5522222614f66b46d308fe480dcdcf99483fbf519969f9d30",
     "tools/ghidra/research/itemdrop_evidence.py": "29e865cf0f3238b0d1933630d105612619ff57c5e80adbf1d8817e2fd8fd65ea",
     "tools/ghidra/research/itemdrop_motion_fixture.py": "db2bff5dc20d99c2cb8d6efae0faa3bd4370c120bbbd7533cd1bdb9e1709194f",
-    "tools/ghidra/verify_wc3_pathing_itemdrop_point.py": "55d42f4f91d2be8144ce3d600cc20ec85b90033dceb54bf188dc7b1fce88830b",
+    "tools/ghidra/verify_wc3_pathing_itemdrop_point.py": "3e673879c1efe506683ecb8c6790adf0cb383a79990e773f67415931d8afdfd5",
     "tools/ghidra/wc3_pathfinding_engine_tests.py": "b49420ae5212c137594e3d9925239dea80ce055a2af2d02e5e1d72c15ebc7193",
     "games/warcraft-3/game/tests/t_sc2api.c": "031d411dc786bcf9e9872c206f80a3587f3d7530b900b7c5db794da6f15e6dd1",
     "games/warcraft-3/game/skills/s_move.c": "4216243056c0a301b3b7dbeb8bf80e25d892d11f13647a90d507bb96e5593f14",
