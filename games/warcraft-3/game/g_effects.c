@@ -165,7 +165,15 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
     cstring_t list = G_AbilityPresentationValue(ability_id, "LightningEffect");
     uint32_t selected = 0, count = 0;
 
-    if (!list || !*list) return 0;
+    if (!list || !*list) {
+#if BZ_COMPAT_WORKAROUNDS
+        /* RoC 1.0 omits AOcl's LightningEffect metadata, though its
+         * LightningData table provides the primary Chain Lightning bolt. */
+        if (ability_id == MAKEFOURCC('A','O','c','l'))
+            return MAKEFOURCC('C','L','P','B');
+#endif
+        return 0;
+    }
     PARSE_LIST(list, lightning, parse_segment) {
         if (!lightning || strlen(lightning) < 4 || !strcmp(lightning, "-") || !strcmp(lightning, "_")) continue;
         selected = MAKEFOURCC(lightning[0], lightning[1], lightning[2], lightning[3]);
