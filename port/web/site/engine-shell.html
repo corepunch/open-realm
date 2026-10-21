@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OpenRealm">
+<meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/openrealm-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/openrealm-192.png">
 <title>OpenRealm</title>
 <style>
 body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; margin: 0; }
@@ -55,6 +62,31 @@ canvas { display: block; max-width: 100%; background: #000; }
 }
 #game-container.is-fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
   right: max(.65rem, env(safe-area-inset-right)); }
+/* A Home Screen web app fills its own viewport without using the element
+ * Fullscreen API. Keep the canvas size in CSS; the worker owns backing pixels. */
+body.ios-web-app.ios-game-playing { overflow: hidden; touch-action: none; }
+body.ios-web-app #game-container:not([hidden]) {
+  position: fixed; inset: 0; z-index: 10;
+  width: 100vw; height: 100vh; height: 100dvh;
+  max-width: none; background: #000;
+  touch-action: none; overscroll-behavior: none;
+}
+body.ios-web-app #game-container:not([hidden]) > canvas {
+  width: 100% !important; height: 100% !important;
+  min-height: 0; aspect-ratio: auto !important;
+}
+body.ios-web-app #game-controls {
+  top: max(.65rem, env(safe-area-inset-top));
+  right: max(.65rem, env(safe-area-inset-right));
+}
+body.ios-web-app #game-fullscreen { display: none; }
+#ios-app-guide { margin: 1rem 0; border: 1px solid #557399; border-radius: .6rem;
+  padding: 1rem; background: #16243a; }
+#ios-app-guide[hidden] { display: none; }
+#ios-app-guide h2 { margin: 0 0 .4rem; font-size: 1.15rem; }
+#ios-app-guide ol { padding-left: 1.4rem; line-height: 1.6; }
+#ios-app-guide button { padding: .5rem .9rem; color: #fff; background: #304969;
+  border: 1px solid #9baec7; border-radius: .35rem; cursor: pointer; }
 #status { margin: 1rem 0; }
 #browser-unsupported { padding: 1rem; border: 1px solid #b84b4b; border-radius: .4rem; }
 #page-content[hidden], #browser-unsupported[hidden] { display: none; }
@@ -75,6 +107,21 @@ canvas { display: block; max-width: 100%; background: #000; }
 </section>
 <div id="page-content" hidden>
 <h1>OpenRealm</h1>
+<section id="ios-app-guide" aria-labelledby="ios-app-guide-title" hidden>
+  <h2 id="ios-app-guide-title">Play fullscreen on iPhone or iPad</h2>
+  <p>Safari cannot make this game's canvas fullscreen in a normal tab. Add OpenRealm
+    to your Home Screen to open it without Safari's browser bars:</p>
+  <ol>
+    <li>Tap <strong>Share</strong> in Safari (the square with an upward arrow, or
+      <strong>More → Share</strong> beside the address bar).</li>
+    <li>Scroll to <strong>Add to Home Screen</strong>; if offered, leave
+      <strong>Open as Web App</strong> enabled, then tap <strong>Add</strong>.</li>
+    <li>Return to the Home Screen and launch <strong>OpenRealm</strong> from its icon.</li>
+  </ol>
+  <p>On iPad, Share is generally in Safari's top toolbar. Imported game files may
+    need to be imported again in the Home Screen app because its storage can be separate.</p>
+  <button id="ios-app-guide-dismiss" type="button">Continue in Safari</button>
+</section>
 <p id="status" role="status">Checking browser-local Warcraft III data…</p>
 <details id="data-panel">
 <summary id="data-heading">Local Warcraft III data (experimental)</summary>
@@ -171,7 +218,9 @@ window.addEventListener('error', function (event) {
 });
 /* The game canvas stays absent from layout until archive validation succeeds. */
 window.openrealmGamePresentation = function (state) {
-  document.getElementById('game-container').hidden = state !== 'playing';
+  var playing = state === 'playing';
+  document.getElementById('game-container').hidden = !playing;
+  document.body.classList.toggle('ios-game-playing', playing);
 };
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
@@ -274,6 +323,10 @@ function openrealmStartIsolatedEngine(arguments_) {
 openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 </script>
 <script src="fullscreen-resize.js"></script>
+<script src="ios-home-screen.js"></script>
+<script>
+openrealmInstallIOSHomeScreen(window, document);
+</script>
 <script src="fullscreen-controls.js"></script>
 <script>
 openrealmInstallFullscreenControls(window, document, gameContainer, gameCanvas,

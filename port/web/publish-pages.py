@@ -10,12 +10,14 @@ import sys
 # The browser build emits its runtime into a flat directory today. Preserve
 # subdirectories for future runtime assets without publishing intermediate code.
 RUNTIME_SUFFIXES = {
-    '.html', '.js', '.wasm', '.data', '.css', '.json', '.mem',
+    '.html', '.js', '.wasm', '.data', '.css', '.json', '.webmanifest', '.mem',
     '.png', '.jpg', '.jpeg', '.webp', '.svg', '.ico',
     '.woff', '.woff2', '.ttf', '.ogg', '.mp3',
 }
 REQUIRED = ('index.html', 'index.js', 'index.wasm',
-            'filesystem-bridge.js', 'installer.js')
+            'filesystem-bridge.js', 'installer.js', 'ios-home-screen.js',
+            'manifest.webmanifest', 'icons/openrealm-180.png',
+            'icons/openrealm-192.png', 'icons/openrealm-512.png')
 PAGES_ASSETS = ('pages-isolation.js', 'coi-serviceworker.js')
 
 

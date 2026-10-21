@@ -27,6 +27,14 @@ the page*. Initial navigation cannot rely on a not-yet-installed worker.
    `crossOriginIsolated === true` before the threaded engine starts. Ordinary
    `file://` URLs do not work.
 
+The browser build additionally ships `manifest.webmanifest` and OpenRealm PNG
+icons for iPhone/iPad Home Screen installation. The publisher admits the
+`.webmanifest` extension, with all links scoped relatively to the game path.
+Safari's **Share → Add to Home Screen** action is a manual install path, not
+an automatic fullscreen API. The installed app may have separate OPFS storage,
+so users may need to import their archives again. It still requires the
+existing COOP/COEP Service Worker isolation and a compatible browser engine.
+
 A repository project site has a path prefix; avoid root-absolute URLs such
 as `/index.wasm` or `/sw.js`. Relative URLs resolve within that project's
 Pages origin and path. Emscripten-generated asset paths must follow the same

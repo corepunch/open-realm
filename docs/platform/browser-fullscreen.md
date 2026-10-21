@@ -49,6 +49,45 @@ catch regressions in standard Promise-returning fullscreen. iPhone Safari
 requires a separate capability assessment and should not be considered fixed
 by the prefixed path alone.
 
+## iPhone and iPad Safari: Add to Home Screen
+
+Safari on iPhone/iPad does not offer arbitrary element fullscreen for this game.
+OpenRealm follows the Home Screen installation path used by HCE-Mobile:
+
+- `port/web/site/manifest.webmanifest` requests `fullscreen` display, a
+  landscape orientation preference, and icons. The start URL and scope are
+  relative so a GitHub Pages project subpath such as `/open-realm/play/` works.
+- `engine-shell.html` contains Apple's standalone-capable meta tags and the
+  `viewport-fit=cover` viewport. It deliberately does not disable pinch zoom.
+- `ios-home-screen.js` shows the **Share → Add to Home Screen → Open as Web App**
+  instructions for iPhone/iPad **Safari tabs**, including desktop-UA iPadOS.
+  The fullscreen button reopens the instructions rather than attempting an
+  unsupported element fullscreen request. Chrome and desktop Safari keep the
+  existing button behaviour.
+- `navigator.standalone` and `display-mode: standalone/fullscreen` distinguish
+  installed web-app launches. In that mode, the guide and fullscreen button are
+  hidden and the game wrapper/canvas fill the available viewport (`100dvh`).
+  The DOM does not write OffscreenCanvas backing dimensions; the existing
+  renderer resize synchronization owns those pixels.
+
+iOS may retain system status-bar/safe-area space, and the manifest orientation
+preference may not be enforced on all iPads. This is an app-like, chrome-free
+experience, **not** a guarantee of hardware-native, edge-to-edge fullscreen.
+The guide does not bypass WebGL 2, cross-origin-isolation, OffscreenCanvas, or
+WasmFS requirements. Safari tab OPFS and installed web-app storage might not be
+shared; imported game files may require re-importing after installation. The
+existing Service Worker isolation/bootstrap is unchanged. No promise of full
+offline play is made.
+
+Browser validation: on iPhone and iPad Safari, verify the guide is visible on
+initial visit, can be dismissed, and is reopened by the fullscreen button.
+After Add to Home Screen, launch via the icon and confirm the instructions are
+hidden, controls stay within the safe area, the fullscreen button is absent,
+and the canvas occupies the app's available viewport. Also verify import and
+service-worker isolation after installation. Retest Chrome and desktop Safari.
+
+Synthetic regression file: `port/web/tests/ios-home-screen.test.cjs`.
+
 ## First-entry fullscreen sizing
 
 A `fullscreenchange` event can arrive before the browser commits the new CSS

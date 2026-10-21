@@ -68,6 +68,10 @@
 
     button.addEventListener('click', function (event) {
       event.stopPropagation();
+      // iPhone/iPad Safari does not provide element fullscreen for the game.
+      // Direct the user to the installed Home Screen app instead.
+      if (typeof win.openrealmShowIOSInstallGuide === 'function' &&
+          win.openrealmShowIOSInstallGuide()) return;
       const element = fullscreenElement(doc);
       if (element === container || element === canvas) exit();
       else request();

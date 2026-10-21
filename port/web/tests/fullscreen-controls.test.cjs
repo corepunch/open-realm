@@ -103,3 +103,13 @@ test('request rejection and missing API show useful errors', async () => {
   await new Promise(resolve => setImmediate(resolve));
   assert.match(f.status.textContent,/Permission denied/);
 });
+
+test('iPhone Safari fullscreen control shows the Home Screen guide instead of requesting fullscreen', () => {
+  const f=fixture();
+  let guideCalls=0;
+  f.win.openrealmShowIOSInstallGuide=()=>{guideCalls++;return true;};
+  f.container.requestFullscreen=()=>{throw new Error('fullscreen should not be requested');};
+  f.button.fire('click');
+  assert.equal(guideCalls,1);
+  assert.equal(f.status.textContent,'');
+});

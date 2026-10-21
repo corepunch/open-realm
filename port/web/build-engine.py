@@ -155,6 +155,12 @@ def main():
     for name in ("browser-keyboard.js", "fullscreen-controls.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
+    shutil.copy2(ROOT / "port/web/site/ios-home-screen.js", out / "ios-home-screen.js")
+    shutil.copy2(ROOT / "port/web/site/manifest.webmanifest", out / "manifest.webmanifest")
+    (out / "icons").mkdir(parents=True, exist_ok=True)
+    for size in (180, 192, 512):
+        name = f"openrealm-{size}.png"
+        shutil.copy2(ROOT / "port/web/site/icons" / name, out / "icons" / name)
     print("Experimental static engine build emitted to", out)
     # Pages loads this only from its game path; other hosting may ignore it.
     shutil.copy2(ROOT / "port/web/site/pages-isolation.js", out / "pages-isolation.js")
