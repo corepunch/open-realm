@@ -242,19 +242,48 @@ static void CL_FlushPan(void) {
     if (camera_drag.active) CL_UpdatePan(pan_motion.point.x, pan_motion.point.y);
 }
 
+/* SDL may deliver both fingers' motions in a single poll. Multiplying their
+ * distance ratios and applying the result once avoids intermediate zoom jumps
+ * when both contacts translate together (pan without a net pinch). */
+static struct {
+    bool pending;
+    float ratio;
+} pinch_motion;
+
+static void CL_QueuePinch(float ratio) {
+    if (!isfinite(ratio) || ratio <= 0.0f) return;
+    if (!pinch_motion.pending) {
+        pinch_motion.pending = true;
+        pinch_motion.ratio = ratio;
+    } else {
+        pinch_motion.ratio *= ratio;
+    }
+}
+
+static void CL_ZoomRatio(float ratio);
+static void CL_FlushPinch(void) {
+    if (!pinch_motion.pending) return;
+    float ratio = pinch_motion.ratio;
+    pinch_motion.pending = false;
+    if (fabsf(ratio - 1.0f) > 0.0001f) CL_ZoomRatio(ratio);
+}
+
 /* Direct touch uses the normal mouse/UI pipeline, not SDL-synthesized mouse
  * events. Two contacts cancel the first left press: a stationary, short
  * two-finger tap becomes one right click; travel beyond the tap slop pans.
  * Indirect trackpads keep their ordinary mouse/wheel input. */
 #define TOUCH_TWO_FINGER_TAP_MS 350u
 #define TOUCH_TWO_FINGER_SLOP 0.02f /* fraction of shorter SDL window axis */
+#define TOUCH_PINCH_SLOP 0.012f     /* minimum separation change before zoom */
+#define TOUCH_PINCH_MIN_SPAN 0.04f /* ignore near-overlapping contacts */
 static struct {
     SDL_TouchID device;
     SDL_FingerID id[2];
     vec2_t pos[2], start_pos[2];
     vec2_t pan_origin, tap_midpoint;
+    float pinch_start_span, pinch_last_span;
     uint32_t count, first_down_ms;
-    bool gesture, panning, tap_candidate, first_moved, pointer_down, pointer_on_ui;
+    bool gesture, panning, pinching, tap_candidate, first_moved, pointer_down, pointer_on_ui;
     uint32_t mouse_buttons;
 } touch_pan;
 
@@ -266,6 +295,37 @@ static bool (*touch_is_direct)(SDL_TouchID) = CL_TouchIsDirect;
 static vec2_t CL_TouchPanCenter(void) {
     return (vec2_t){ (touch_pan.pos[0].x + touch_pan.pos[1].x) * 0.5f,
                      (touch_pan.pos[0].y + touch_pan.pos[1].y) * 0.5f };
+}
+
+static float CL_TouchSpan(void) {
+    return hypotf(touch_pan.pos[0].x - touch_pan.pos[1].x,
+                  touch_pan.pos[0].y - touch_pan.pos[1].y);
+}
+
+/* Track separation independently of midpoint panning. A pinch is only
+ * admitted after real separation travel, so two-finger tap jitter cannot
+ * generate a camera update or a right-click on pinch release. */
+static void CL_TouchUpdatePinch(size2_t win) {
+    float span = CL_TouchSpan();
+    float min_span = MIN(win.width, win.height) * TOUCH_PINCH_MIN_SPAN;
+    if (touch_pan.pinch_start_span < min_span) return;
+    if (span < min_span) {
+        if (touch_pan.pinching) touch_pan.pinch_last_span = 0.0f;
+        return;
+    }
+    if (touch_pan.pinching && touch_pan.pinch_last_span < min_span) {
+        /* Fingers may briefly cross. Resume from the new stable spacing. */
+        touch_pan.pinch_last_span = span;
+        return;
+    }
+    if (!touch_pan.pinching) {
+        if (fabsf(span - touch_pan.pinch_start_span) <=
+            MIN(win.width, win.height) * TOUCH_PINCH_SLOP) return;
+        touch_pan.pinching = true;
+        touch_pan.tap_candidate = false;
+    }
+    CL_QueuePinch(touch_pan.pinch_last_span / span);
+    touch_pan.pinch_last_span = span;
 }
 
 static bool CL_TouchMovedBeyondSlop(vec2_t start, vec2_t end, size2_t win) {
@@ -297,7 +357,7 @@ static uint32_t CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger, SDL_Even
             if (!touch_pan.count) {
                 touch_pan.device = finger->touchId;
                 touch_pan.first_down_ms = finger->timestamp;
-                touch_pan.gesture = touch_pan.panning = touch_pan.tap_candidate = false;
+                touch_pan.gesture = touch_pan.panning = touch_pan.pinching = touch_pan.tap_candidate = false;
                 touch_pan.first_moved = false;
                 touch_pan.pointer_on_ui = CL_MenuActive() ||
                     CL_MouseOverGameplayUIAt((int)pos.x, (int)pos.y);
@@ -321,6 +381,8 @@ static uint32_t CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger, SDL_Even
                                           !first_dragged;
                 touch_pan.gesture = true;
                 touch_pan.pan_origin = touch_pan.tap_midpoint = CL_TouchPanCenter();
+                touch_pan.pinch_start_span = touch_pan.pinch_last_span = CL_TouchSpan();
+                touch_pan.pinching = false;
                 touch_pan.start_pos[0] = touch_pan.pos[0];
                 touch_pan.start_pos[1] = touch_pan.pos[1];
                 input.select = false;
@@ -341,6 +403,7 @@ static uint32_t CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger, SDL_Even
             vec2_t previous = touch_pan.pos[slot];
             touch_pan.pos[slot] = pos;
             if (touch_pan.gesture && touch_pan.count == 2) {
+                CL_TouchUpdatePinch(win);
                 if (CL_TouchMovedBeyondSlop(touch_pan.start_pos[slot], pos, win)) {
                     touch_pan.tap_candidate = false;
                     if (!touch_pan.panning) {
@@ -378,12 +441,16 @@ static uint32_t CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger, SDL_Even
             touch_pan.id[slot] = touch_pan.id[touch_pan.count - 1];
             touch_pan.pos[slot] = touch_pan.pos[touch_pan.count - 1];
             touch_pan.start_pos[slot] = touch_pan.start_pos[touch_pan.count - 1];
-            if (--touch_pan.count < 2 && touch_pan.panning) {
-                /* Do not lose the last queued motion if the fingers lift
-                 * before CL_Input reaches its once-per-poll pan flush. */
-                CL_FlushPan();
-                CL_EndPan();
-                touch_pan.panning = false;
+            if (--touch_pan.count < 2 && touch_pan.gesture) {
+                /* Flush the final pan/zoom when contacts lift in the same
+                 * input poll. Never emit a click for an admitted pinch. */
+                if (touch_pan.panning) {
+                    CL_FlushPan();
+                    CL_EndPan();
+                    touch_pan.panning = false;
+                }
+                CL_FlushPinch();
+                touch_pan.pinching = false;
             }
             bool right_tap = !touch_pan.count && touch_pan.gesture &&
                 touch_pan.tap_candidate && !touch_pan.mouse_buttons &&
@@ -704,6 +771,7 @@ static bool CL_WindowEvent(SDL_WindowEvent const *event) {
             }
             memset(&touch_pan, 0, sizeof(touch_pan));
             pan_motion.pending = false;
+            pinch_motion.pending = false;
             memset(mouse_button_keys, 0, sizeof(mouse_button_keys));
             break;
         case SDL_WINDOWEVENT_MOVED:
@@ -984,6 +1052,7 @@ void CL_Input(void) {
         } /* translated pointer edges */
     }
     CL_FlushPan();
+    CL_FlushPinch();
     if (hover_update_pending) CL_UpdateHover((float)hover_motion.x, (float)hover_motion.y);
     CL_InputFrame();
 }
@@ -1178,17 +1247,15 @@ void IN_SelectUp(void) {
     }
 }
 
-/* Player-controlled orbit zoom.  Wheel input avoids stealing scroll from
- * gameplay UI; keyboard zoom uses the same policy without depending on cursor
- * position.  Negative delta zooms out. */
-static void CL_ZoomSteps(float steps, bool block_over_ui) {
-    float speed = Cvar_Value("zoom_speed", 1.0f);
+/* Mouse wheel, keys, and pinch all obey the same game-selected player zoom
+ * limits. Scripted/JASS camera fields deliberately use a separate path. */
+static void CL_ApplyPlayerZoom(float dist, bool block_over_ui) {
     float min_dist = Cvar_Value("camera_min_distance", 0.0f);
     float max_dist = Cvar_Value("camera_max_distance", 0.0f);
     gameCameraZoomPolicy_t policy;
-    float dist = cl.viewDef.camerastate[0].distance - steps * speed;
 
-    if (!CL_GameplayInputReady() || (block_over_ui && CL_MouseOverGameplayUI())) return;
+    if (!CL_GameplayInputReady() || (block_over_ui && CL_MouseOverGameplayUI()) ||
+        !isfinite(dist)) return;
     if (CL_GameCameraZoomPolicy(&policy,
             Cvar_Value("wc3_camera_default_distance", 1650.0f),
             Cvar_Value("wc3_camera_max_distance", 3000.0f))) {
@@ -1198,6 +1265,23 @@ static void CL_ZoomSteps(float steps, bool block_over_ui) {
     if (max_dist > min_dist)
         dist = MAX(min_dist, MIN(max_dist, dist));
     CL_SendView(cl.viewDef.camerastate[0].viewangles, MAX(0, dist));
+}
+
+/* Negative wheel/keyboard steps zoom out. */
+static void CL_ZoomSteps(float steps, bool block_over_ui) {
+    CL_ApplyPlayerZoom(cl.viewDef.camerastate[0].distance -
+                       steps * Cvar_Value("zoom_speed", 1.0f), block_over_ui);
+}
+
+/* Increasing finger separation zooms in; decreasing separation zooms out.
+ * Scale relative to current camera distance so this works with both WC3 and
+ * games with different camera-distance units. */
+static void CL_ZoomRatio(float ratio) {
+    float sensitivity = Cvar_Value("cl_touch_pinch_sensitivity", 1.0f);
+    if (!isfinite(sensitivity) || !isfinite(ratio) || ratio <= 0.0f) return;
+    sensitivity = MAX(0.0f, MIN(4.0f, sensitivity));
+    if (sensitivity == 0.0f) return;
+    CL_ApplyPlayerZoom(cl.viewDef.camerastate[0].distance * powf(ratio, sensitivity), false);
 }
 
 static void CL_Zoom_f(void) {
@@ -1248,6 +1332,7 @@ void CL_InitInput(void) {
     Cmd_AddCommand("zoomkey", CL_ZoomKey_f);
     Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
+    Cvar_Get("cl_touch_pinch_sensitivity", "1.0", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
     CL_RegisterCameraControls();
     Cmd_AddCommand("+attack", IN_AttackDown); Cmd_AddCommand("-attack", IN_AttackUp);
@@ -2374,6 +2459,166 @@ TEST(client_input, two_finger_tap_sends_right_click) {
     if (add_smart_up) Cmd_RemoveCommand("-smart");
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
     input = old_input; touch_pan = old_touch; touch_is_direct = old_direct;
+    mouse = old_mouse; re = old_re; cls = old_cls;
+    cl = *old_cl; MemFree(old_cl);
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+}
+
+/* Pinch operates through the same camera constraints as wheel/keyboard.
+ * Feed actual SDL finger events, not a copy of the zoom calculation. */
+TEST(client_input, two_finger_pinch_zoom_respects_camera_policy) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    __typeof__(input) old_input = input;
+    __typeof__(touch_pan) old_touch = touch_pan;
+    __typeof__(pinch_motion) old_pinch = pinch_motion;
+    __typeof__(pan_motion) old_pan = pan_motion;
+    __typeof__(camera_drag) old_drag = camera_drag;
+    mouseEvent_t old_mouse = mouse;
+    bool (*old_direct)(SDL_TouchID) = touch_is_direct;
+    float old_sensitivity = Cvar_Value("cl_touch_pinch_sensitivity", 1.0f);
+    float old_min = Cvar_Value("camera_min_distance", 0);
+    float old_limit = Cvar_Value("camera_max_distance", 0);
+    float old_max = Cvar_Value("wc3_camera_max_distance", 3000);
+    float old_default = Cvar_Value("wc3_camera_default_distance", 1650);
+    uint8_t data[4096];
+
+    memcpy(old_cl, &cl, sizeof(cl));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    memset(&cl, 0, sizeof(cl));
+    input = (__typeof__(input)){ .focus = true };
+    memset(&touch_pan, 0, sizeof(touch_pan));
+    pinch_motion.pending = pan_motion.pending = false;
+    camera_drag.active = false;
+    touch_is_direct = CL_TestTouchDirect;
+    cls.state = ca_active; cls.key_dest = key_game;
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.GetWindowSize = CL_TestWindowSize;
+    re.TraceLocation = CL_TestScreenGround;
+    re.TraceMinimap = CL_TestNoMinimap;
+    re.TraceEntity = CL_TestSelectEntity;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
+    Cvar_Set("cl_touch_pinch_sensitivity", "1");
+    Cvar_Set("camera_min_distance", "1250");
+    Cvar_Set("camera_max_distance", "3000");
+    Cvar_Set("wc3_camera_default_distance", "1650");
+    Cvar_Set("wc3_camera_max_distance", "3000");
+    FOR_LOOP(j, 2) cl.viewDef.camerastate[j].distance = 2000;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+
+    CL_TestPushFinger(SDL_FINGERDOWN, 1, .35f, .5f, 1000);
+    CL_TestPushFinger(SDL_FINGERDOWN, 2, .65f, .5f, 1010);
+    CL_Input();
+    T_ASSERT(touch_pan.gesture && !touch_pan.pinching && touch_pan.tap_candidate);
+    T_FEQ(cl.viewDef.camerastate[0].distance, 2000, 0.01f);
+    /* Both contacts spread symmetrically: 0.30 -> 0.40 window widths.
+     * Both motion edges arrive before one CL_Input flush. */
+    CL_TestPushFinger(SDL_FINGERMOTION, 1, .30f, .5f, 1020);
+    CL_TestPushFinger(SDL_FINGERMOTION, 2, .70f, .5f, 1021);
+    CL_Input();
+    T_ASSERT(touch_pan.pinching && !touch_pan.tap_candidate);
+    T_FEQ(cl.viewDef.camerastate[0].distance, 1500, 0.1f);
+    T_FEQ(cl.viewDef.camerastate[1].distance, 1500, 0.1f);
+    T_ASSERT(cl.camera_prediction.view);
+    T_ASSERT(!pinch_motion.pending);
+
+    /* Spreading farther stops at the game's minimum camera distance. */
+    CL_TestPushFinger(SDL_FINGERMOTION, 1, .25f, .5f, 1030);
+    CL_TestPushFinger(SDL_FINGERMOTION, 2, .75f, .5f, 1031);
+    CL_Input();
+    T_FEQ(cl.viewDef.camerastate[0].distance, 1250, 0.1f);
+
+    /* Closing past the camera maximum clamps through WC3 zoom policy. */
+    CL_TestPushFinger(SDL_FINGERMOTION, 1, .45f, .5f, 1040);
+    CL_TestPushFinger(SDL_FINGERMOTION, 2, .55f, .5f, 1041);
+    CL_Input();
+    T_FEQ(cl.viewDef.camerastate[0].distance, 3000, 0.1f);
+    T_FEQ(cl.viewDef.camerastate[1].distance, 3000, 0.1f);
+
+    /* Ending a pinch does not emit a right-click or restart one-finger input. */
+    CL_TestPushFinger(SDL_FINGERUP, 2, .55f, .5f, 1060);
+    CL_TestPushFinger(SDL_FINGERUP, 1, .45f, .5f, 1070);
+    CL_Input();
+    T_ASSERT(!touch_pan.count && !touch_pan.pointer_down && !touch_pan.gesture);
+    T_ASSERT(!pinch_motion.pending && !camera_drag.active);
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    Cvar_SetValue("cl_touch_pinch_sensitivity", old_sensitivity);
+    Cvar_SetValue("camera_min_distance", old_min);
+    Cvar_SetValue("camera_max_distance", old_limit);
+    Cvar_SetValue("wc3_camera_default_distance", old_default);
+    Cvar_SetValue("wc3_camera_max_distance", old_max);
+    input = old_input; touch_pan = old_touch; pinch_motion = old_pinch;
+    pan_motion = old_pan; camera_drag = old_drag; touch_is_direct = old_direct;
+    mouse = old_mouse; re = old_re; cls = old_cls;
+    cl = *old_cl; MemFree(old_cl);
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+}
+
+TEST(client_input, two_finger_translation_does_not_zoom_and_focus_cancels_pinch) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    __typeof__(input) old_input = input;
+    __typeof__(touch_pan) old_touch = touch_pan;
+    __typeof__(pinch_motion) old_pinch = pinch_motion;
+    __typeof__(pan_motion) old_pan = pan_motion;
+    __typeof__(camera_drag) old_drag = camera_drag;
+    mouseEvent_t old_mouse = mouse;
+    bool (*old_direct)(SDL_TouchID) = touch_is_direct;
+    uint8_t data[4096];
+    SDL_Event focus_lost = { .window = { .type = SDL_WINDOWEVENT,
+        .event = SDL_WINDOWEVENT_FOCUS_LOST, .timestamp = 1100 } };
+
+    memcpy(old_cl, &cl, sizeof(cl));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    memset(&cl, 0, sizeof(cl));
+    input = (__typeof__(input)){ .focus = true };
+    memset(&touch_pan, 0, sizeof(touch_pan));
+    pinch_motion.pending = pan_motion.pending = false;
+    camera_drag.active = false;
+    touch_is_direct = CL_TestTouchDirect;
+    cls.state = ca_active; cls.key_dest = key_game;
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.GetWindowSize = CL_TestWindowSize;
+    re.TraceLocation = CL_TestScreenGround;
+    re.TraceMinimap = CL_TestNoMinimap;
+    re.TraceEntity = CL_TestSelectEntity;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
+    FOR_LOOP(j, 2) cl.viewDef.camerastate[j].distance = 2000;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+
+    /* Midpoint moves right, but net finger separation stays 0.2. Each
+     * intermediate SDL motion changes it, so zoom must be coalesced. */
+    CL_TestPushFinger(SDL_FINGERDOWN, 1, .4f, .5f, 1000);
+    CL_TestPushFinger(SDL_FINGERDOWN, 2, .6f, .5f, 1010);
+    CL_TestPushFinger(SDL_FINGERMOTION, 1, .5f, .5f, 1020);
+    CL_TestPushFinger(SDL_FINGERMOTION, 2, .7f, .5f, 1021);
+    CL_Input();
+    T_ASSERT(touch_pan.panning);
+    T_FEQ(cl.viewDef.camerastate[0].distance, 2000, 0.1f);
+    T_ASSERT(!pinch_motion.pending);
+    CL_TestPushFinger(SDL_FINGERUP, 1, .5f, .5f, 1030);
+    CL_TestPushFinger(SDL_FINGERUP, 2, .7f, .5f, 1040);
+    CL_Input();
+
+    /* Focus loss drops a queued pinch even when both fingers are still down. */
+    CL_TestPushFinger(SDL_FINGERDOWN, 3, .35f, .5f, 1050);
+    CL_TestPushFinger(SDL_FINGERDOWN, 4, .65f, .5f, 1060);
+    CL_TestPushFinger(SDL_FINGERMOTION, 3, .25f, .5f, 1070);
+    T_EQ(SDL_PushEvent(&focus_lost), 1);
+    CL_Input();
+    T_FEQ(cl.viewDef.camerastate[0].distance, 2000, 0.1f);
+    T_ASSERT(!pinch_motion.pending && !touch_pan.count && !camera_drag.active);
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    input = old_input; touch_pan = old_touch; pinch_motion = old_pinch;
+    pan_motion = old_pan; camera_drag = old_drag; touch_is_direct = old_direct;
     mouse = old_mouse; re = old_re; cls = old_cls;
     cl = *old_cl; MemFree(old_cl);
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);

@@ -34,6 +34,19 @@ so they still reach the usual handlers.
   camera pan, anchored at the midpoint captured when the second finger landed.
   The threshold avoids camera jitter from stationary taps while preserving
   the full movement when panning begins.
+- Changing the distance between two fingers beyond **1.2% of the shorter
+  window axis** performs an independent camera pinch: spreading fingers
+  **zooms in** and bringing them together **zooms out**. Contacts must begin
+  at least **4% of the shorter axis** apart to avoid unstable zoom near zero
+  separation. Pan and pinch can run simultaneously, but moving two fingers
+  together with unchanged separation produces no zoom. A pinch permanently
+  disqualifies the gesture's right-click tap candidate.
+- Pinch scales the current player camera distance proportionally to the
+  contact-separation ratio, with archived `cl_touch_pinch_sensitivity` (default
+  `1`, clamped to `[0, 4]`; `0` disables zoom). Pinch, mouse wheel and zoom
+  hotkeys all use `CL_GameCameraZoomPolicy`/generic player zoom limits; JASS
+  scripted camera fields are unaffected. Motions are coalesced per SDL input
+  poll to avoid emitting intermediate zooms as the two fingers move in turn.
 - After a two-finger gesture, the remaining contact cannot accidentally click.
   The gesture is cleared after all tracked fingers are released.
 - `SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE` / indirect trackpads are not treated as
@@ -74,6 +87,10 @@ Input tests live in `client/cl_input.c`:
 - `client_input.two_finger_tap_sends_right_click`: quick taps (including
   lift-order and small-motion cases), slow taps, third-contact cancellation,
   and the ordinary bound right-click command at the finger midpoint.
+- `client_input.two_finger_pinch_zoom_respects_camera_policy`: zoom directions,
+  proportional scaling, minimum/maximum camera distance, and no click on pinch release.
+- `client_input.two_finger_translation_does_not_zoom_and_focus_cancels_pinch`:
+  pure two-finger pan produces no zoom, and losing focus cancels pending zoom.
 - `client_input.hybrid_mouse_and_touch_preserve_press_owner`: real mouse held
   while touch arrives, then touch press/drag after mouse release, followed by
   mouse movement after touch release.
