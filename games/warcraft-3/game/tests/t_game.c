@@ -6108,18 +6108,15 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = Test_TempPath("wc3-save-nested-runtime.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    if (!unit->militia) unit->militia = G_AllocMilitia();
-    assert(unit->militia);
-    unit->militia->partner = (edict_t *)(uintptr_t)1;
     if (!unit->destructable) unit->destructable = G_AllocDestructable();
     assert(unit->destructable);
     unit->destructable->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
     ARRAY_COUNT(unit->destructable->drop_sets) = 7;
     T_ASSERT(WriteGame(filename));
-    unit->militia->partner = NULL; unit->destructable->drop_sets = NULL;
+    unit->destructable->drop_sets = NULL;
     ARRAY_COUNT(unit->destructable->drop_sets) = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT((!unit->militia || !unit->militia->partner) && (!unit->destructable || !unit->destructable->drop_sets));
+    T_ASSERT(!unit->destructable || !unit->destructable->drop_sets);
     T_EQ(ARRAY_COUNT(unit->destructable->drop_sets), 0);
     remove(filename);
 }

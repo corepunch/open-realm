@@ -1423,9 +1423,6 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         }
         return S_OrderAttack(self, target);
     }
-    if (!strcmp(order, "militia") || !strcmp(order, "militiaoff")) {
-        return S_MilitiaTargetOrder(self, order, target);
-    }
     /* Authored unit-target abilities own their concrete order strings. Smart
      * dispatches here earlier so it can precede generic harvesting/following;
      * explicit orders such as Entangle arrive here after built-in commands. */
@@ -1608,7 +1605,7 @@ static bool unit_issue_target_order(edict_t *self, cstring_t order, edict_t *tar
     }
     bool held=inside_mine || S_UnitOrderExecutionHeld(self);
     if ((queue || fallback || held) && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
-        strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
+        strcmp(order, "repair") && strcmp(order, "harvest")) {
         /* Only orders with an owning ability may enter the FIFO. Generic
          * queued replay can then dispatch their concrete target order. */
         if (!FindAbilityByOrder(order)) return false;

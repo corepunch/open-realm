@@ -2150,11 +2150,12 @@ typedef struct {
     uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
     uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
     uint32_t militia_type;     /* Data B: alternate combat form */
-    edict_t *partner;        /* Hall being approached for militia/militiaoff */
+    edict_t *partner;        /* Hall retained by militiaconvert/militiaunconvert */
+    float pair_range;       /* Configured range captured by the admitted producer */
     uint32_t partner_spawn_time;
     uint8_t previous_resource; /* returnResource_t remembered for explicit Back to Work */
     bool active;            /* unit has completed the Peasant -> Militia morph */
-    bool returning;         /* current pairing order is militiaoff */
+    bool returning;         /* current pairing order is militiaunconvert */
 } militia_t;
 
 typedef struct {
@@ -5113,7 +5114,7 @@ float S_GoldMineMiningDuration(edict_t const *);
 uint32_t S_GoldMineCapacity(edict_t const *);
 bool S_GoldMineCanHarvest(edict_t const *);
 bool S_GoldMineWorkerIsInside(edict_t const *);
-bool S_MilitiaTargetOrder(edict_t *, cstring_t, edict_t *);
+void S_MilitiaApproachComplete(edict_t *, edict_t *, bool);
 void S_CancelMilitiaPairing(edict_t *);
 void S_MilitiaExpire(edict_t *);
 bool S_StatusIsEnsnare(uint32_t);

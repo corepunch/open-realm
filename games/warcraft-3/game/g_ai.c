@@ -43,10 +43,6 @@ void unit_setmove(edict_t *self, umove_t *move) {
         unit_is_active_repair_move(self)) {
         S_CancelRepair(self);
     }
-    if (self->currentmove && self->currentmove->proc == CAbilityMilitia &&
-        move->proc != CAbilityMilitia) {
-        S_CancelMilitiaPairing(self);
-    }
     /* Acolyte mine slots belong to the harvesting order and must be released
      * when any other movement ability replaces it. */
     if (self->currentmove && self->currentmove->proc == CAbilityAcolyteHarvest &&

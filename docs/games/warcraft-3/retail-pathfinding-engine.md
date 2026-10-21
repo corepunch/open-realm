@@ -22216,29 +22216,29 @@ closed. TARGET-01.2 and all25 remaining leaves stay open.
 
 ### Militia target command producer
 
-Native `CAbilityMilitia` (`Amil`, vtable6fb701e0) dispatches public target orders
-through642a20 ->6433b0 ->62e8f0. The exact names are `militiaconvert`852071 and
-`militiaunconvert`852651. `militia`852072 and `militiaoff`852073 are distinct
+Native `CAbilityMilitia` (`Amil`, vtable 6fb701e0) dispatches public target orders
+through 642a20 -> 6433b0 -> 62e8f0. The exact names are `militiaconvert` 852071 and
+`militiaunconvert` 852651. `militia` 852072 and `militiaoff` 852073 are distinct
 orders: the original six-row target probe rejects all six requests. That
 rejection corpus remains separate from the corrected accepted producer corpus.
 
-62e8f0 reads the Hall's `Amic` cast range through417a70, checks configured range
-and the target perimeter, then the0.2-radian facing window. The first-rank333
+62e8f0 reads the Hall's `Amic` cast range through 417a70, checks configured range
+or the target perimeter, then the 0.2-radian facing window. The first-rank 333
 probe preserves both conversion directions:
 
 | Initial relation | Native continuation |
 | --- | --- |
-| Outside range | d0174 target approach with authored333 |
+| Outside range | d0174 target approach with authored 333 |
 | Inside range, facing Hall | No physical task; synchronous transform |
 | Inside range, facing away | d0174 with FLT_MAX; turn at unchanged position |
 
-The d0188 completion64b280 rechecks partner eligibility and authored range/
-perimeter before628b70 changes Bmil; d0144 terminal handling is64b4d0. Static
+The d0188 completion 64b280 rechecks partner eligibility and authored range/
+perimeter before 628b70 changes Bmil; d0144 terminal handling is 64b4d0. Static
 ABI evidence confirms ECX ability, target/public-order stack arguments and RET8.
-The native rank field is zero-based; the sampled first rank is index0.
+The native rank field is zero-based; the sampled first rank is index 0.
 
-Two observations and an unhooked control match all508 public markers each for
-the six accepted scenes (1524 total). Separate lifecycle captures match490
+Two observations and an unhooked control match all 508 public markers each for
+the six accepted scenes (1524 total). Separate lifecycle captures match 490
 markers each (1470 total): Stop/replacement cancel during approach and facing;
 Hall removal stops before the next five-tick sample; removing Hall Amic or
 worker Amil preserves approach until its terminal point and then prevents
@@ -22249,11 +22249,43 @@ callback mutation and cold-save behavior remain outside these native captures.
 Portable sources are under `fixtures/research/militia-producer`,
 `militia-rejected-names` and `militia-lifecycle`; the two retail-militia bundles,
 specs and `research/militia_*_evidence.py` auditors preserve exact bytes,
-provenance, complete public streams and producer parameters. All37 mutation
+provenance, complete public streams and producer parameters. All 37 mutation
 checks pass. Both accepted corpora retain `engine_parity:false`. Reproduce with
 `python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_militia_*.py'`.
-The independent public-JASS engine candidate currently reproduces18 failed
-assertions across two tests/78 assertions per edition; the main engine has not
-yet adopted this producer. TARGET-01.2 remains open. See
-[Call to Arms and Militia](call-to-arms-and-militia.md) for the existing transform
-and economy behavior, which this producer work does not claim to fully verify.
+The initial public-JASS engine regression reproduced 18 failed assertions across
+two tests / 78 assertions per edition. The integrated Save223 implementation now
+passes ten tests / 403 assertions per edition, covering correct names/IDs,
+aligned completion, facing in both directions, seven fresh/saved lifecycle
+cases, saved facing, live Hall-rank changes, callback/FIFO rejection and
+replacement, a new Hall target, and perimeter-only admission. Hall removal first
+exposed four position failures; the fix ends physical translation at removal
+while retaining scheduled head retirement. A subsequent callback regression
+exposed four assertions from a stranded admitted head. Activation rejection now
+uses normal owner retirement so queued successors and callback-owned Move survive.
+
+Amil owns admission and queued packet activation. The retained pairing uses the
+Hall's current-rank range or `FLT_MAX` for facing-only continuation; completion
+rechecks live Hall range/perimeter and both abilities. The fine-grid perimeter
+alternative is independent of radial range, with an engine test deliberately
+outside configured range but on the target perimeter. Save223 retains partner
+identity/incarnation, conversion direction, captured range and the registered
+`S_MilitiaApproachComplete` callback through common physical-group persistence.
+
+Final Militia/Unit/Order Lifecycle/Ability Dispatch validation passes 314 tests
+and 87542 assertions per edition; separate Save/Pool checks pass 240 tests and
+82694 assertions per edition with unchanged serialization. The combined focused total is 554 tests / 170236 assertions per edition.
+`militia-review171-checkpoint.json` under the TARGET-01.2 analysis runtime
+records exact source hashes and accepted reports. The primary build succeeds and
+its Militia suite repeats 10 tests / 403 assertions per edition. Captain473,
+Group012, Waygate377 and point-drop native comparison gates pass; the
+SupportGoal gate is still running at this checkpoint. The focused Python
+evidence checks pass 120 tests. These results do not establish a new successful full
+`make test` invocation. The preceding Entangle composite checkpoint retains its
+documented failed full attempt and corrected native rerun.
+
+Native lifecycle does not yet cover reverse interruptions, worker retirement,
+Hall death/motion, callbacks or adjacent range boundaries. The Hall-rank engine
+regression exercises the recovered static contract; no new native rank-mutation
+capture is claimed. TARGET-01.2 stays active: 25 -> 25 open, zero whole leaves
+closed. See [Call to Arms and Militia](call-to-arms-and-militia.md) for the
+existing transform/economy behavior and remaining scope.

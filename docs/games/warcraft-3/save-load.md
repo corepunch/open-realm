@@ -1,3 +1,13 @@
+Save223 retains Militia pairing's Hall pointer as `F_EDICT`, its spawn
+incarnation, conversion direction and captured `pair_range`. The callback roster
+registers `S_MilitiaApproachComplete`; shared physical-group state saves the
+ordinary target chase, including its facing-only continuation. Save222 and
+earlier layouts are rejected. Public-JASS scheduler tests cover cold loads
+during approach/facing, Stop/replacement, ability loss, Hall removal after
+scheduler reclamation, and pause/resume. See
+[Militia continuation](call-to-arms-and-militia.md#target-continuation-and-save223)
+for ownership and the current validation scope.
+
 Save222 retains Entangle's mine incarnation, admitted root site, phase, ability
 and public order identity in a sparse game-owned pool. Root's parent completion
 callback and placement retry counter/deadline/serial survive a cold load;

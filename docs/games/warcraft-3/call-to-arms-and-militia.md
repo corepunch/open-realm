@@ -14,22 +14,22 @@ The native worker-side target orders are:
 | `militiaconvert` (852071) | approach an eligible same-owner `Amic` Hall, then arm |
 | `militiaunconvert` (852651) | approach an eligible same-owner `Amic` Hall, then return to Peasant form |
 
-The current engine still routes the distinct `militia`/`militiaoff` strings as
-target orders and uses a footprint approach without the native facing gate.
-That behavior is being corrected under TARGET-01.2; it is not the retail target
-contract. [Native producer evidence](retail-pathfinding-engine.md#militia-target-command-producer)
-records the accepted names, range/facing branches and interruption captures.
+The Save223 implementation routes these target orders through the Amil-owned
+admission and queued-order hooks. The distinct `militia`/`militiaoff` names are
+not aliases for the target orders. [Native producer evidence](retail-pathfinding-engine.md#militia-target-command-producer)
+records the accepted names, range/facing branches and interruption captures;
+implementation validation and remaining limits are below.
 
 ## Current Engine Data Flow
 
 ```text
 Amic/Amil command button
         -> G_IssueUnitTargetOrder()
-        -> unit_issuetargetorder_now()
-        -> S_MilitiaTargetOrder()
-        -> Hall footprint approach
+        -> Amil admission and queued packet activation
+        -> captured Hall range / ordinary target chase / facing continuation
+        -> S_MilitiaApproachComplete() revalidates Hall and live range
         -> Data A/Data B in-place transform
-        -> Bmil timed expiry or militiaoff return
+        -> Bmil timed expiry or militiaunconvert return
 ```
 
 `Amil` Data A is the normal worker type and Data B is the alternate Militia
@@ -67,13 +67,68 @@ write `svc_layout` directly from the transform. Without this explicit portrait
 invalidation, natural `Bmil` expiry can leave a selected Peasant displaying the
 old Militia portrait even though the world entity has already reverted.
 
-## Target-Order Dispatch Work
+## Target Continuation and Save223
 
-Native target admission must distinguish `militiaconvert`/`militiaunconvert`
-from immediate `militia`/`militiaoff`. The legacy
-`wc3_unit.militia_target_order_reaches_militia_behavior` test currently protects
-the old string routing; it does not certify native order identity. New public
-JASS regressions cover the correct names and retained facing continuation.
+Admission validates the same-owner live Hall, the worker's current form and
+available Amil, and the Hall's Amic. Activation retains the Hall incarnation,
+conversion direction and its current-rank cast range in `militia_t`. The
+configured range or target-perimeter predicate admits immediate completion only
+when the worker also faces the Hall within 0.2 radians. Outside range, ordinary
+Move owns a target chase with the captured range. Inside range but facing away,
+the same owner receives `FLT_MAX` and turns without translating. The fine-grid
+target-perimeter alternative is independent of radial cast range: a public
+engine test converts from the perimeter while the configured radial predicate
+is false. This does not reinstate the old distance-to-footprint walk.
+
+`S_MilitiaApproachComplete` rechecks both abilities, partner identity and the
+Hall's live rank/range at the terminal. Removing Amil or Amic leaves the admitted
+physical approach intact but prevents conversion. Hall removal ends physical
+translation; the scheduled Militia owner subsequently retires its public head.
+Stop and replacement orders release the old pairing, while pause/resume retains
+the continuation. Native near-away Stop permits residual visual facing
+interpolation, so unchanged XY does not imply a frozen angle.
+
+Issued-order callbacks can invalidate the Hall before activation. Rejected
+activation retires its own admitted head through `unit_stand`, allowing queued
+successors to run. Callback-owned Move survives, and a replacement pairing to
+a different Hall owns its new target. These callback/FIFO cases have engine
+regressions; the native lifecycle captures do not independently cover them.
+
+Save223 writes `partner` as `F_EDICT`, its spawn generation, `returning`, and
+`pair_range`; the common physical-group state retains its concrete chase.
+`S_MilitiaApproachComplete` is in the C-function callback roster. Save222 and
+earlier layouts are rejected. Public scheduler tests cold-load both approach
+and facing continuations; the removed Hall is reclaimed before the snapshot.
+
+## Verification and Scope
+
+The integrated Save223 implementation passes ten public-JASS tests / 403 assertions
+in each edition. They cover correct names/numeric IDs, immediate aligned
+completion, facing in both conversion directions, seven fresh/saved lifecycle
+cases, saved facing, live Hall-rank changes, issued-callback rejection and
+replacement, queued rejection, a replacement Hall, and perimeter-only admission.
+The initial regression had 18 failed assertions per edition; Hall removal then
+exposed four position failures before physical chase release was corrected.
+A later callback regression exposed four assertions from a stranded admitted
+head; normal owner retirement now preserves successor dispatch.
+
+The final Militia/Unit/Order Lifecycle/Ability Dispatch checks pass 314 tests
+and 87542 assertions per edition. Save and Pool checks separately pass 240 tests
+and 82694 assertions per edition against unchanged serialization. The focused
+total is 554 tests / 170236 assertions per edition. The source-pinned record is
+`militia-review171-checkpoint.json` under the TARGET-01.2 analysis runtime. These
+results are separate from the preceding Entangle composite checkpoint and do
+not establish a new successful full `make test` invocation.
+
+The native portable producer and lifecycle corpora preserve 2994 accepted public
+markers and a separate 1524-marker wrong-name rejection witness; 37 Python checks
+pass. They remain `engine_parity:false`: no exact far-route trajectory or full
+Militia timing comparison is claimed. Native lifecycle captures cover forward
+conversion only, one pause interval, ability removal and target Hall removal.
+Worker death/removal, Hall death or motion, reentrant callbacks, reverse
+interruption cases and adjacent range boundaries remain uncaptured. The rank
+mutation regression exercises the implementation's static recovered live-range
+contract, not a new native rank-mutation witness. TARGET-01.2 remains open.
 
 ## Remaining Parity Work
 

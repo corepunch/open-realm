@@ -32,6 +32,7 @@ static cstring_t const patrol_orders[] = { "patrol", NULL };
 static cstring_t const attack_orders[] = { "attack", "attackonce", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
+static cstring_t const militia_orders[] = { "militiaconvert", "militiaunconvert", NULL };
 static cstring_t const entangle_orders[] = {
     "entangle", "entangleinstant", "autoentangle", "autoentangleinstant", NULL
 };
@@ -175,7 +176,7 @@ static ability_t abilitylist[] = {
     { "AHds", CAbilityDivineShield, AB_SPELL },  /* Divine Shield */
     { "AHad", CAbilityAuraDevotion, AB_PASSIVE },  /* Devotion Aura */
     { "AHre", CAbilityResurrection, AB_SPELL, SPELL_TARGET_NONE },  /* Resurrection */
-    { "Amil", CAbilityMilitia, AB_COMMAND },  /* Call to Arms */
+    { "Amil", CAbilityMilitia, AB_COMMAND, SPELL_TARGET_NONE, militia_orders },  /* Call to Arms */
     { "Amic", CAbilityMilitiaConvert, AB_COMMAND | AB_SEPARATE_OFF },  /* Call To Arms */
 
     /* ItemAbilityStrings.txt */

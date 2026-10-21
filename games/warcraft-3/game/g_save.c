@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 222; /* Retained Entangle placement/Root continuation and callbacks. */
+static uint32_t const save_version = 223; /* Retained Militia pairing target, range and approach callback. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -185,6 +185,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(morph_end),
     SAVE_CFUNCTION(S_AncientFacingComplete),
     SAVE_CFUNCTION(S_EntangleApproachComplete),
+    SAVE_CFUNCTION(S_MilitiaApproachComplete),
     SAVE_CFUNCTION(S_EntangleRootComplete),
     SAVE_CFUNCTION(S_AttackTargetChaseComplete),
     SAVE_CFUNCTION(S_AttackRecoveryComplete),
@@ -766,9 +767,10 @@ static field_t const unsummon_fields[] = {
 };
 
 static field_t const militia_fields[] = {
-    TF(militia_t, partner, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(militia_t, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(militia_t, returning, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(militia_t, partner, F_EDICT, 0, FIELD_NONE),
+    TF(militia_t, partner_spawn_time, F_INT),
+    TF(militia_t, returning, F_INT),
+    TF(militia_t, pair_range, F_FLOAT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
