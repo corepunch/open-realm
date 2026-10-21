@@ -96,6 +96,13 @@ The **Esc** overlay sends Escape to the game. The fullscreen control expands
 the game container, keeping both overlay controls visible; canvas resizing does
 not cover the controls. Interact with the page once to unlock browser audio.
 
+On a touchscreen, one-finger tap/drag uses the usual left-click UI/selection
+path, and two fingers pan the camera during gameplay. A mouse and keyboard
+remain usable on hybrid laptops. The game canvas disables browser touch
+scrolling/zooming; page controls outside it remain normal. See
+[SDL2 touch input](../architecture/touch-input.md) for the pointer ownership
+contract and physical-device verification limits.
+
 If the page says cross-origin isolation is unavailable, use the included
 `port/web/serve.py` server and verify in DevTools:
 

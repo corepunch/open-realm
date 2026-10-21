@@ -34,7 +34,9 @@ canvas { display: block; max-width: 100%; background: #000; }
   min-height: 240px;
   aspect-ratio: auto !important;
 }
-#game-container > canvas { position: relative; z-index: 0; }
+/* Touches on the game must reach SDL, not browser scroll/zoom gestures.
+ * Keep the HTML overlay buttons touchable through their own manipulation rule. */
+#game-container > canvas { position: relative; z-index: 0; touch-action: none; }
 #game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
   visibility: visible; opacity: 1; pointer-events: auto;
   display: flex; gap: .5rem; }

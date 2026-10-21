@@ -52,7 +52,8 @@ Drains the loopback or UDP receive buffer and dispatches each message by its `sv
 ### 2. CL_Input
 
 `CL_Input` pumps SDL events through key bindings and shared pan/look/zoom/selection controls. All game builds
-use this one implementation. Bindings and independent config options select behavior; there is no RTS/orbit mode.
+use this one implementation. Direct touchscreen contacts use the same UI and binding
+path alongside ordinary mouse and keyboard events; see [SDL2 touch input](touch-input.md). Bindings and independent config options select behavior; there is no RTS/orbit mode.
 Controller changes are typed `INPUTCMD` operations: focus XY, orbit Euler/distance, or movement bits/milliseconds.
 Game commands such as selection and abilities continue through `clc_stringcmd`.
 

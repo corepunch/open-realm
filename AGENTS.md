@@ -13,6 +13,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Architecture, engine boundaries, struct/API discipline, network contracts | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Game/client boundary: universal client, where logic goes, parameters vs results, camera-noise worked example | [docs/architecture/game-client-boundary.md](docs/architecture/game-client-boundary.md) |
 | Client camera samples, Euler snapshot, quat slerp | [docs/architecture/client.md](docs/architecture/client.md) |
+| SDL2 direct touch, mouse and keyboard coexistence, browser canvas gestures | [docs/architecture/touch-input.md](docs/architecture/touch-input.md) |
 | Server-selected presentation effects and generic effect contracts | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
 | Environment lighting samples, day-phase stat, per-game fill hook | [docs/architecture/environment-lighting.md](docs/architecture/environment-lighting.md) |
 | Native game coordinate systems and axis migration | [AXIS.md](AXIS.md) |
