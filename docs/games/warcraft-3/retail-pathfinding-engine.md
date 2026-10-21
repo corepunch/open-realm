@@ -22052,3 +22052,46 @@ map spawn; lazy reservation after mine removal produced harness errors despite
 passing assertions and was not valid evidence. JASS buffer inputs are writable
 because the parser removes comments in place. Callback-driven occupant orders
 and adjacent range/rank native rows remain under verification before integration.
+
+
+### Entangle adjacent cast ranges
+
+The [boundary corpus](../../../tools/ghidra/fixtures/retail-entangle-boundaries-1.27.json.gz)
+contains separate original Aent rank-one modifications317.75,318 and318.25.
+Each map has rooted/mobile Tree rows at704,1024 against the mine at1216,1024,
+two complete observations and one unhooked control. All846 public markers
+match. Exact sources are under
+[entangle-boundaries](../../../tools/ghidra/fixtures/research/entangle-boundaries/itemdrop_probe.j).
+`entangle_boundary_evidence.audit` and nine mutation tests preserve each
+original range/map, direct versus retained admission, point/facing task words,
+zero physical range and every public sample. Combined Entangle evidence now
+passes48 tests; all archives retain `engine_parity:false`.
+
+With Tree144 and mine50 authored radii,318 is the exact admission boundary.
+A rooted source at318 or318.25 immediately completes to head0 with an overlay.
+At317.75 it retains852147, unroots, approaches768,960, faces/roots and completes.
+A mobile source always retains the Root continuation: at318 or318.25 it roots
+at704,1024 without an approach task; at317.75 it approaches768,960 first. The
+physical point/facing task's range remains0 in every row.
+
+Exploratory V8 tried three ability levels in one map. GetUnitAbilityLevel
+reported2/3, while the observed Entangle range stayed at rank-one317.75. That
+run does not prove adjacent ranges and remains external exploratory evidence.
+V9's separate rank-one maps supply the actual boundary witnesses.
+
+The full six-row V4 occupant engine regression initially reproduced seven
+additional failures in mobile-source rows. Native public Entangle stops and
+recovers an idle mobile physical owner before54fd60 samples the source. The
+candidate was searching from the embedded704,1024 pose; the native occupied
+source recovers to656,944. Applying the existing bounded Stop/recovery before
+the constructor gives the native768,832 friendly and768,768 hostile sites.
+
+The separate engine candidate now passes12 public scheduler/save tests,
+1052 assertions per edition, including all six occupant sites, adjacent ranges,
+callback-owned Stop/removal, saved pending Root retries, and the earlier range/
+interruption rows. Focused Root, Building, Save, Pools, Clock and ability-dispatch
+checks bring this to502 tests and113387 assertions per edition. Save's three
+missing-destructable diagnostics match the prior focused baseline; all native
+suite processes exit0 and their JUnit reports contain no failures. Main engine
+integration and affected native gate refresh follow; no new full-suite result
+is claimed and TARGET-01.2 remains active with25 leaves open.
