@@ -9963,10 +9963,12 @@ TEST(wc3_api, unit_add_item_transfers_carried_handle_without_ground_drop) {
         "endfunction\n"));
 }
 
-TEST(wc3_api, unit_drop_item_target_queues_a_targeted_give) {
-    edict_t *giver = NULL, *receiver = NULL, *item = NULL;
-
+/* Native54efe0 completes a facing Give inside half of the authored range
+ * on the JASS stack. Distant approaches use the scheduler tests in t_itemdrop_point. */
+TEST(wc3_api, unit_drop_item_target_completes_nearby_give_synchronously) {
     setup_test_world();
+    stbIniCache_t old_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nGiveItemRange=150\n"));
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  local unit a = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
@@ -9974,22 +9976,11 @@ TEST(wc3_api, unit_drop_item_target_queues_a_targeted_give) {
         "  local item i = CreateItem('ratf', 32.0, 0.0)\n"
         "  call BJassAssert(UnitAddItem(a, i), \"initial insertion failed\")\n"
         "  call BJassAssert(UnitDropItemTarget(a, i, b), \"target order rejected\")\n"
-        "  call BJassAssert(UnitHasItem(a, i), \"item moved before order tick\")\n"
+        "  call BJassAssert(not UnitHasItem(a, i), \"source must release before native return\")\n"
+        "  call BJassAssert(UnitItemInSlot(b, 0) == i, \"recipient must attach before native return\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(a) == 0, \"completed Give must retire its head\")\n"
         "endfunction\n"));
-    FOR_LOOP(n, globals.num_edicts) {
-        edict_t *ent = g_edicts + n;
-        if (!ent->inuse) continue;
-        if (ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 0) {
-            if (!giver) giver = ent;
-            else receiver = ent;
-        } else if (ent->class_id == MAKEFOURCC('r','a','t','f')) item = ent;
-    }
-    T_NOT_NULL(giver); T_NOT_NULL(receiver); T_NOT_NULL(item);
-    T_ASSERT(giver->inventory[0] == item);
-    T_ASSERT(giver->currentmove && giver->currentmove->think);
-    giver->currentmove->think(giver);
-    T_NULL(giver->inventory[0]);
-    T_ASSERT(receiver->inventory[0] == item);
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=old_misc;
 }
 
 /* OrcX01 moves the stash's six items onto a hidden temporary hero, then

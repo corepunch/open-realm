@@ -1129,3 +1129,41 @@ All17 mandatory point/cursor cases remain present after the adjacent Give
 regressions moved to `wc3_inventory_orders`. The refreshed source contract also
 requires Move, item transactions, unit layout, native dispatch and AbilityData
 pins; its38 evidence/gate tests pass. Report: `/tmp/target-point59-acceptance.json`.
+
+The first batch run exposed an older API fixture that expected a single direct
+thinker call to transfer Give, with no `GiveItemRange` authored. That test now
+supplies150 and checks source release, recipient attachment and public-head
+retirement before the native returns. Distant scheduler/save cases remain in
+the Inventory suite; direct thinker execution cannot validate the physical task.
+
+### Ordinary pickup producer: remaining ownership gap
+
+Original Inventory callback `561680` routes Smart (`d0003`) to `55bb10`.
+That factory creates a target action `d017e` with zero range followed by a
+`d0171` approach using live `Misc.PickupItemRange`; both tasks retain the item
+target with a null optional association.
+The event-task order surrounds that chain with `d0148,d014a` before and
+`d014c,d014e,d0178,d0144` after. This is static factory evidence; no exact pickup
+trajectory or terminal/failed-path behavior is certified by it. The current
+`G_OrderPickupItem` / `G_PickupItemThink` path in `g_items.c` still uses direct
+steering and fixed `ITEM_PICKUP_RANGE=150`, so it does not implement the recovered
+producer. This belongs to the remaining TARGET-01.2 producer matrix, before
+advancing to another leaf. Recover its terminal `56b360` and admission/lifetime
+contracts, then drive public Smart with authored ranges and actual scheduler
+steps. Do not infer those contracts from forced Give or scripted insertion.
+
+Terminal `56b360` resolves the retained item through `55b4c0`, rejects it through
+`5460b0`, rereads live `PickupItemRange`, and calls the same configured-range
+query with selector1 before attachment/consumption (`56bcb0` / `541f70`). The
+factory and terminal therefore have separate range reads; changing the range
+during approach must be tested explicitly. The terminal also consults live
+Inventory disable/availability and item powerup state. These observations are
+static; event timing, removal, pause and exact movement still need native
+repeats/controls and public engine/save regressions before port acceptance.
+
+After correcting the obsolete API timing fixture, `wc3_api.*` passes411 tests /
+59738 assertions in both Classic and TFT. The first full batch still runs the
+old compiled fixture, so its known two assertion failures per edition are not
+an engine failure or a passing batch claim. The corrected API suite was built
+from identical game sources in the focused worktree; broader batch results
+remain pending completion.
