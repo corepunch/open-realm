@@ -274,12 +274,14 @@ static void CL_FlushPinch(void) {
  * Indirect trackpads keep their ordinary mouse/wheel input. */
 #define TOUCH_TWO_FINGER_TAP_MS 350u
 #define TOUCH_TWO_FINGER_SLOP 0.02f /* fraction of shorter SDL window axis */
-#define TOUCH_PINCH_SLOP 0.012f     /* minimum separation change before zoom */
+#define TOUCH_PINCH_SLOP 0.04f      /* deliberate separation change to start zoom */
+#define TOUCH_PINCH_STEP 0.01f      /* separation change per subsequent zoom */
+#define TOUCH_PINCH_FINGER_SLOP 0.012f /* each finger must move against the other */
 #define TOUCH_PINCH_MIN_SPAN 0.04f /* ignore near-overlapping contacts */
 static struct {
     SDL_TouchID device;
     SDL_FingerID id[2];
-    vec2_t pos[2], start_pos[2];
+    vec2_t pos[2], start_pos[2], pinch_reference[2];
     vec2_t pan_origin, tap_midpoint;
     float pinch_start_span, pinch_last_span;
     uint32_t count, first_down_ms;
@@ -302,30 +304,60 @@ static float CL_TouchSpan(void) {
                   touch_pan.pos[0].y - touch_pan.pos[1].y);
 }
 
-/* Track separation independently of midpoint panning. A pinch is only
- * admitted after real separation travel, so two-finger tap jitter cannot
- * generate a camera update or a right-click on pinch release. */
+/* A pan is delivered as two independent SDL motion events, sometimes in
+ * different input polls. Temporary separation changes alone must not zoom.
+ * Require both fingers to move in opposite directions along their original
+ * separation axis. Remove shared translation from the reference positions so
+ * a deliberate pinch still works after a camera pan. */
 static void CL_TouchUpdatePinch(size2_t win) {
     float span = CL_TouchSpan();
-    float min_span = MIN(win.width, win.height) * TOUCH_PINCH_MIN_SPAN;
+    float short_axis = MIN(win.width, win.height);
+    float min_span = short_axis * TOUCH_PINCH_MIN_SPAN;
+    float axis_x, axis_y, move0, move1, common;
+    float finger_slop = short_axis * (touch_pan.pinching ? 0.004f : TOUCH_PINCH_FINGER_SLOP);
+
     if (touch_pan.pinch_start_span < min_span) return;
     if (span < min_span) {
-        if (touch_pan.pinching) touch_pan.pinch_last_span = 0.0f;
+        /* Crossing fingers must not create an unbounded zoom ratio. */
+        touch_pan.pinch_last_span = 0.0f;
         return;
     }
-    if (touch_pan.pinching && touch_pan.pinch_last_span < min_span) {
-        /* Fingers may briefly cross. Resume from the new stable spacing. */
+    if (touch_pan.pinch_last_span < min_span) {
+        touch_pan.pinch_last_span = span;
+        touch_pan.pinch_reference[0] = touch_pan.pos[0];
+        touch_pan.pinch_reference[1] = touch_pan.pos[1];
+        return;
+    }
+
+    axis_x = (touch_pan.start_pos[1].x - touch_pan.start_pos[0].x) / touch_pan.pinch_start_span;
+    axis_y = (touch_pan.start_pos[1].y - touch_pan.start_pos[0].y) / touch_pan.pinch_start_span;
+    move0 = (touch_pan.pos[0].x - touch_pan.pinch_reference[0].x) * axis_x +
+            (touch_pan.pos[0].y - touch_pan.pinch_reference[0].y) * axis_y;
+    move1 = (touch_pan.pos[1].x - touch_pan.pinch_reference[1].x) * axis_x +
+            (touch_pan.pos[1].y - touch_pan.pinch_reference[1].y) * axis_y;
+
+    if ((move0 > 0 && move1 > 0) || (move0 < 0 && move1 < 0)) {
+        /* Both fingers travel together: rebase their shared pan without
+         * treating whichever SDL event arrived first as a zoom gesture. */
+        common = move0 > 0 ? MIN(move0, move1) : MAX(move0, move1);
+        FOR_LOOP(i, 2) {
+            touch_pan.pinch_reference[i].x += common * axis_x;
+            touch_pan.pinch_reference[i].y += common * axis_y;
+        }
         touch_pan.pinch_last_span = span;
         return;
     }
-    if (!touch_pan.pinching) {
-        if (fabsf(span - touch_pan.pinch_start_span) <=
-            MIN(win.width, win.height) * TOUCH_PINCH_SLOP) return;
-        touch_pan.pinching = true;
-        touch_pan.tap_candidate = false;
-    }
+    if (!((move0 < -finger_slop && move1 > finger_slop) ||
+          (move0 > finger_slop && move1 < -finger_slop))) return;
+    if (fabsf(span - touch_pan.pinch_last_span) <= short_axis *
+            (touch_pan.pinching ? TOUCH_PINCH_STEP : TOUCH_PINCH_SLOP)) return;
+
+    touch_pan.pinching = true;
+    touch_pan.tap_candidate = false;
     CL_QueuePinch(touch_pan.pinch_last_span / span);
     touch_pan.pinch_last_span = span;
+    touch_pan.pinch_reference[0] = touch_pan.pos[0];
+    touch_pan.pinch_reference[1] = touch_pan.pos[1];
 }
 
 static bool CL_TouchMovedBeyondSlop(vec2_t start, vec2_t end, size2_t win) {
@@ -383,6 +415,8 @@ static uint32_t CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger, SDL_Even
                 touch_pan.pan_origin = touch_pan.tap_midpoint = CL_TouchPanCenter();
                 touch_pan.pinch_start_span = touch_pan.pinch_last_span = CL_TouchSpan();
                 touch_pan.pinching = false;
+                touch_pan.pinch_reference[0] = touch_pan.pos[0];
+                touch_pan.pinch_reference[1] = touch_pan.pos[1];
                 touch_pan.start_pos[0] = touch_pan.pos[0];
                 touch_pan.start_pos[1] = touch_pan.pos[1];
                 input.select = false;
@@ -1332,7 +1366,7 @@ void CL_InitInput(void) {
     Cmd_AddCommand("zoomkey", CL_ZoomKey_f);
     Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
-    Cvar_Get("cl_touch_pinch_sensitivity", "1.0", CVAR_ARCHIVE);
+    Cvar_Get("cl_touch_pinch_sensitivity", "0.3", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
     CL_RegisterCameraControls();
     Cmd_AddCommand("+attack", IN_AttackDown); Cmd_AddCommand("-attack", IN_AttackUp);
@@ -2602,9 +2636,29 @@ TEST(client_input, two_finger_translation_does_not_zoom_and_focus_cancels_pinch)
     T_ASSERT(touch_pan.panning);
     T_FEQ(cl.viewDef.camerastate[0].distance, 2000, 0.1f);
     T_ASSERT(!pinch_motion.pending);
-    CL_TestPushFinger(SDL_FINGERUP, 1, .5f, .5f, 1030);
-    CL_TestPushFinger(SDL_FINGERUP, 2, .7f, .5f, 1040);
+
+    /* SDL need not put both finger motions in the same poll: a pan with one
+     * finger briefly ahead must never zoom, even after panning has started. */
+    CL_TestPushFinger(SDL_FINGERMOTION, 1, .58f, .5f, 1022);
     CL_Input();
+    T_FEQ(cl.viewDef.camerastate[0].distance, 2000, 0.1f);
+    T_ASSERT(!touch_pan.pinching);
+    CL_TestPushFinger(SDL_FINGERMOTION, 2, .78f, .5f, 1023);
+    CL_Input();
+    T_FEQ(cl.viewDef.camerastate[0].distance, 2000, 0.1f);
+    T_ASSERT(!touch_pan.pinching);
+
+    /* A genuine opposing pinch after the pan must still zoom. */
+    CL_TestPushFinger(SDL_FINGERMOTION, 1, .53f, .5f, 1024);
+    CL_TestPushFinger(SDL_FINGERMOTION, 2, .83f, .5f, 1025);
+    CL_Input();
+    T_ASSERT(touch_pan.pinching);
+    T_ASSERT(cl.viewDef.camerastate[0].distance < 2000);
+    CL_TestPushFinger(SDL_FINGERUP, 1, .53f, .5f, 1030);
+    CL_TestPushFinger(SDL_FINGERUP, 2, .83f, .5f, 1040);
+    CL_Input();
+    /* Reset the camera before the separate focus-loss scenario. */
+    FOR_LOOP(j, 2) cl.viewDef.camerastate[j].distance = 2000;
 
     /* Focus loss drops a queued pinch even when both fingers are still down. */
     CL_TestPushFinger(SDL_FINGERDOWN, 3, .35f, .5f, 1050);

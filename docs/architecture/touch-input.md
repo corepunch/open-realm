@@ -34,19 +34,24 @@ so they still reach the usual handlers.
   camera pan, anchored at the midpoint captured when the second finger landed.
   The threshold avoids camera jitter from stationary taps while preserving
   the full movement when panning begins.
-- Changing the distance between two fingers beyond **1.2% of the shorter
-  window axis** performs an independent camera pinch: spreading fingers
-  **zooms in** and bringing them together **zooms out**. Contacts must begin
-  at least **4% of the shorter axis** apart to avoid unstable zoom near zero
-  separation. Pan and pinch can run simultaneously, but moving two fingers
-  together with unchanged separation produces no zoom. A pinch permanently
-  disqualifies the gesture's right-click tap candidate.
-- Pinch scales the current player camera distance proportionally to the
+- A pinch requires **both fingers moving in opposing directions along their
+  separation axis**, not merely a temporarily changed distance. Its initial
+  separation change must exceed **4% of the shorter window axis**, with at
+  least **1.2% of that axis** of opposing travel by each finger. After zoom is
+  active, smaller opposing moves can continue it (1% separation deadband).
+  This deliberately rejects a one-finger-only stretch, reducing accidental
+  zoom during ordinary two-finger panning. Both fingers must start at least
+  **4% of the shorter axis** apart to avoid unstable near-zero spacing.
+  Pure translation is removed from the pinch movement baseline, so intentional
+  pinches still work after a pan, or alongside perpendicular panning. A pinch
+  permanently disqualifies a two-finger right-click tap.
+- Pinch scales the current camera distance proportionally to the accepted
   contact-separation ratio, with archived `cl_touch_pinch_sensitivity` (default
-  `1`, clamped to `[0, 4]`; `0` disables zoom). Pinch, mouse wheel and zoom
+  `0.3`, clamped to `[0, 4]`; `0` disables zoom). Pinch, mouse wheel and zoom
   hotkeys all use `CL_GameCameraZoomPolicy`/generic player zoom limits; JASS
   scripted camera fields are unaffected. Motions are coalesced per SDL input
-  poll to avoid emitting intermediate zooms as the two fingers move in turn.
+  poll, and deliberate opposing movement is required even when SDL sends the
+  two fingers' motion events in separate polls.
 - After a two-finger gesture, the remaining contact cannot accidentally click.
   The gesture is cleared after all tracked fingers are released.
 - `SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE` / indirect trackpads are not treated as
@@ -90,7 +95,9 @@ Input tests live in `client/cl_input.c`:
 - `client_input.two_finger_pinch_zoom_respects_camera_policy`: zoom directions,
   proportional scaling, minimum/maximum camera distance, and no click on pinch release.
 - `client_input.two_finger_translation_does_not_zoom_and_focus_cancels_pinch`:
-  pure two-finger pan produces no zoom, and losing focus cancels pending zoom.
+  pure two-finger pan, including staggered SDL motion across separate polls,
+  produces no zoom; a deliberate opposing pinch still works after that pan,
+  and losing focus cancels pending zoom.
 - `client_input.hybrid_mouse_and_touch_preserve_press_owner`: real mouse held
   while touch arrives, then touch press/drag after mouse release, followed by
   mouse movement after touch release.

@@ -27,8 +27,10 @@ The WC3 default config binds:
 - mouse wheel up/down to interactive zoom;
 - Page Up/Page Down to the same zoom policy through the keyboard path;
 - F5 to `zoomdefault`, which returns to the effective player/default distance;
-- touchscreens: two-finger pinch (outward to zoom in, inward to zoom out),
-  using the same player-controlled camera distance limits.
+- touchscreens: deliberate two-finger opposing pinch (outward to zoom in,
+  inward to zoom out), using the same player-controlled camera distance limits.
+  `cl_touch_pinch_sensitivity` defaults to `0.3`; moving both contacts together
+  pans without zooming even when their SDL motion events arrive separately.
 
 Wheel zoom is ignored while the pointer is over a gameplay UI layout or client-managed window. Page Up/Page Down remain keyboard controls when a nonmodal window is open; modal windows block them through the normal gameplay-input gate.
 
