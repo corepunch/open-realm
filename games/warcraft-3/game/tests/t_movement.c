@@ -11971,7 +11971,7 @@ TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishe
     free_slk_rows(rows);
 }
 
-TEST(wc3_movement, entangle_range_uses_goldmine_footprint) {
+TEST(wc3_movement, entangle_range_is_not_widened_by_goldmine_footprint) {
     enum { W = 8, H = 8 };
     size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
     edict_t *caster, *parent, *overlay;
@@ -12001,11 +12001,12 @@ TEST(wc3_movement, entangle_range_uses_goldmine_footprint) {
     FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
     parent->pathtex = pathtex;
 
-    /* Aent's fixture range is 64. The centres are 200 apart, but the caster
-     * is within its collision radius plus 64 of the authored mine footprint. */
+    /* Native V3 admits the public order but does not widen its configured
+     * range to the mine footprint. This fixture has no valid retained site. */
     T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
     overlay = movement_find_entangle_overlay(caster, parent);
-    T_NOT_NULL(overlay);
+    T_NULL(overlay);
+    T_EQ(caster->current_order_id,0);
 
     parent->pathtex = NULL;
     gi.MemFree(pathtex);
@@ -12518,7 +12519,10 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     caster->ancient_root->mode = ANCIENT_UPROOTED;
     G_SelectEntity(client, caster);
     caster->no_pathing = false;
-    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
+    /* Mobile Entangle is admitted; this metadata-only fixture has no site.
+     * The dedicated public scheduler suite covers its Root continuation. */
+    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent));
+    T_NULL(movement_find_entangle_overlay(caster,parent));
     caster->no_pathing = true;
     caster->ancient_root->mode = ANCIENT_ROOTED;
     caster->s.flags |= EF_BUILDING;

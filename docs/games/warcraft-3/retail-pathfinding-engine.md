@@ -22153,9 +22153,8 @@ native expectations. Every gate exits0 and passes in both Classic and TFT:
 Fresh gate reports, individual logs and the combined `summary.json` are retained
 in `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/entangle153-gates/`. Only
 changed production-source fingerprints were refreshed in their fixture specs;
-original captures and literal expected results remain unchanged. The next
-batched full checkpoint is still pending. The Inventory checkpoint above
-remains the latest completed full-suite result.
+original captures and literal expected results remain unchanged. The subsequent full attempt and corrected native rerun are recorded below.
+The Inventory checkpoint remains the latest successful single full invocation.
 
 Pending Root placement retries under Pause/Sleep remain an evidence gap. V7's
 retry captures cover fast/slow occupants without either suspension; V5 and the
@@ -22178,3 +22177,38 @@ two assertions before the fix and passes afterward. All13 Entangle tests/1067
 assertions and20 Root tests/3060 assertions pass in each edition; durable
 red/green evidence is in `entangle-review156-checkpoint.json` under the same
 analysis runtime. This adds no serialized fields or network changes.
+
+
+### Entangle full-suite failure and corrected WC3 rerun
+
+The full `make test TEST_JOBS=16` attempt at `1721bd474` failed: all eight WC3
+shards called a null synthetic-unit `stand` callback in the new Entangle
+retirement path. Independent cores identify both direct completion and failed
+placement branches. The other26 JUnit reports pass1358 native tests; all3104
+pathfinding Python tests pass in1425.465 seconds. Preserve the failed status:
+`entangle158-full/full-checkpoint.json` and its original log (SHA256
+`ef49e0f6ea45a6f3ea27d7339744fdad8f076fd344704bcdf6ff57a68649dab7`).
+
+Retirement now calls the normal `unit_stand` function. Shared admission/content
+validation also restores missing-TFT-UnitID rejection and UI error feedback,
+keeping the targeting cursor armed on failure. The existing legacy tests first
+exposed three semantic failures after the crash fix. Only two obsolete
+expectations changed: mobile Trees may accept Entangle, and a mine footprint
+does not widen the physical range admission. Overlay permanence/save/release
+and authored overlay-type assertions remain intact. The focused correction
+passes45 tests/4205 assertions in each edition.
+
+The corrected source then passes all eight full WC3 shards:8776 tests and
+43151954 assertions, zero failures/errors/skips. Exact source hashes, eight
+JUnit reports and log SHA are in `entangle162-native-corrected/checkpoint.json`;
+the source remains identical throughout that rerun and integration. Combined
+with the unaffected26 reports, this validates10134 native tests across34
+reports, plus the3104 Python tests and a fresh corpus check after updating
+source pins. This is a failed full invocation followed by a successful complete
+WC3 rerun, not a claimed successful second `make test` invocation. The next
+batched full invocation remains due after further implementation commits.
+
+The inherited UI selection callback's control-authority check is a separate
+unverified gap: carrying the issuer identity does not itself authorize control.
+The callback fix above restores data/target feedback without claiming that gap
+closed. TARGET-01.2 and all25 remaining leaves stay open.

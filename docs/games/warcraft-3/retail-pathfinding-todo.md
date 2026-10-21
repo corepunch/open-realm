@@ -161,8 +161,14 @@ Root/Building/Save/Pools/Clock/dispatch checks bring focused validation to502
 tests/113387 assertions per edition. All five affected native gates now pass
 against integrated `ab8dc61e3` in Classic and TFT: Captain473, Group012,
 SupportGoal, Waygate377 and point-drop. Fresh reports are retained in
-`entangle153-gates/` under the TARGET-01.2 analysis runtime. The batched full
-checkpoint remains pending before advancing the remaining producer inventory.
+`entangle153-gates/` under the TARGET-01.2 analysis runtime. The full attempt at
+`1721bd474` exposed null stand callbacks in old synthetic Entangle fixtures;
+its other1358 native and3104 Python tests pass. The corrected source passes all
+8776 WC3 tests in eight shards (43151954 assertions), covering10134 native
+tests across the combined34 reports. Missing-overlay UI rejection/feedback is
+restored; only two native-superseded legacy expectations changed. This is an
+explicit failed full invocation plus corrected native rerun, not a new single
+successful full invocation. See [checkpoint evidence](retail-pathfinding-engine.md#entangle-full-suite-failure-and-corrected-wc3-rerun).
 **25 ->25 open; zero whole leaves closed.**
 [Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
 

@@ -1340,37 +1340,39 @@ uint32_t G_TestEntangleOverlayType(AbilityData_t const *data, bool expansion) {
 }
 #endif
 
-static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool instant, edict_t *clent) {
-    edict_t *entangled;
-    uint32_t alias, resulting_type;
-    bool bound, started;
-
+/* Content and target validity are shared by public admission and UI feedback.
+ * Rooting and placement belong to the admitted continuation, not this gate. */
+static uint32_t entangle_target_ability(edict_t *caster,edict_t *target,edict_t *clent,uint32_t *resulting_type) {
     if (!entangle_target_valid(target)) {
         entangle_error(clent, "Targetgoldmine", "Must target a Gold Mine.");
-        return false;
+        return 0;
     }
-    if (!caster || !caster->inuse || M_IsDead(caster)) return false;
-    if (!S_AncientIsRooted(caster)) {
-        entangle_error(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
-        return false;
-    }
-    if (!(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
-    {
-        AbilityData_t const *data = G_AbilityData(alias);
-        if (data->id != alias) {
-            fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
-            entangle_error(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
-            return false;
-        }
-        resulting_type = entangle_overlay_type(data, atoi(gi.CvarString("fs_expansion", "0")) != 0);
-        if (!resulting_type) {
-            fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
-            entangle_error(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
-            return false;
-        }
+    if (!caster || !caster->inuse || M_IsDead(caster)) return 0;
+    uint32_t alias=goldmine_actor_ability_alias(caster,MAKEFOURCC('A','e','n','t'));
+    if (!alias) return 0;
+    AbilityData_t const *data=G_AbilityData(alias);
+    uint32_t type=data->id==alias ? entangle_overlay_type(data,atoi(gi.CvarString("fs_expansion","0"))!=0) : 0;
+    if (!type) {
+        fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
+        entangle_error(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
+        return 0;
     }
     if (entangle_tree_overlay(caster)) {
         entangle_error(clent, "AlreadyEntangled", "This Tree already entangles a Gold Mine.");
+        return 0;
+    }
+    if (resulting_type) *resulting_type=type;
+    return alias;
+}
+
+static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool instant, edict_t *clent) {
+    edict_t *entangled;
+    uint32_t resulting_type;
+    uint32_t alias=entangle_target_ability(caster,target,clent,&resulting_type);
+    bool bound, started;
+    if (!alias) return false;
+    if (!S_AncientIsRooted(caster)) {
+        entangle_error(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
         return false;
     }
     if (!entangle_target_in_range(caster, target, G_AbilityLevel(alias, 1)->range)) {
@@ -1419,6 +1421,7 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     edict_t *caster;
 
     if (!clent || !clent->client || !(caster = G_GetMainSelectedUnit(clent->client))) return false;
+    if(!entangle_target_ability(caster,target,clent,NULL))return false;
     return G_IssueUnitTargetOrder(caster,"entangle",target,false,clent->client->ps.number);
 }
 
@@ -1519,7 +1522,7 @@ static void entangle_release(edict_t *tree) {
 
 static void entangle_finish(edict_t *tree) {
     if(!tree || !tree->inuse || G_IsDeferredFree(tree) || !tree->entangle || !tree->entangle->phase)return;
-    entangle_release(tree);S_SetMoveGoal(tree,&tree->goalentity,NULL);tree->stand(tree);
+    entangle_release(tree);S_SetMoveGoal(tree,&tree->goalentity,NULL);unit_stand(tree);
 }
 
 static void entangle_walk_think(edict_t *tree);
@@ -1565,7 +1568,7 @@ void S_EntangleRootComplete(edict_t *receiver,edict_t *tree,bool arrived) {
         edict_t *mine=tree->entangle->mine;bool instant=tree->entangle->instant;
         entangle_release(tree);
         entangle_goldmine_start(tree,mine,instant,NULL);
-        if(tree->inuse && tree->spawn_time==spawn && !G_IsDeferredFree(tree) && G_UnitMoveRevision(tree)==revision)tree->stand(tree);
+        if(tree->inuse && tree->spawn_time==spawn && !G_IsDeferredFree(tree) && G_UnitMoveRevision(tree)==revision)unit_stand(tree);
     }
 }
 
@@ -1586,7 +1589,7 @@ static queuedOrderResult_t entangle_activate(edict_t *tree,unitOrder_t const *pa
         uint32_t generation=tree->spawn_time,revision=G_UnitMoveRevision(tree);
         entangle_goldmine_start(tree,mine,instant,NULL);
         if(tree->inuse && tree->spawn_time==generation && !G_IsDeferredFree(tree) &&
-           G_UnitMoveRevision(tree)==revision)tree->stand(tree);
+           G_UnitMoveRevision(tree)==revision)unit_stand(tree);
         return QUEUED_ORDER_REPLACED;
     }
     vec2_t point;bool approach;
@@ -1594,7 +1597,7 @@ static queuedOrderResult_t entangle_activate(edict_t *tree,unitOrder_t const *pa
     bool placed=entangle_find_site(tree,mine,range,&point,&approach);
     if(!tree->inuse || tree->spawn_time!=generation || G_IsDeferredFree(tree) ||
        G_UnitMoveRevision(tree)!=revision)return QUEUED_ORDER_REPLACED;
-    if(!placed) {tree->stand(tree);return QUEUED_ORDER_REPLACED;}
+    if(!placed) {unit_stand(tree);return QUEUED_ORDER_REPLACED;}
     if(!tree->entangle)tree->entangle=G_AllocEntangle();
     *tree->entangle=(entangle_t){.mine=mine,.mine_spawn_time=mine->spawn_time,.ability=alias,
         .order_id=packet->order_id,.destination=point,.instant=instant};
@@ -1621,9 +1624,8 @@ BZ_ABILITY_PROC(CAbilityEntangle) {
         if (strcmp(order, "entangle") && strcmp(order, "entangleinstant") &&
             strcmp(order, "autoentangle") && strcmp(order, "autoentangleinstant"))
             return ABILITY_ORDER_UNHANDLED;
-        uint32_t alias=goldmine_actor_ability_alias(ent,MAKEFOURCC('A','e','n','t'));
-        return alias && G_IsUnitAbilityAvailable(ent,alias) && !S_AncientIsMorphing(ent) &&
-            !entangle_tree_overlay(ent) && entangle_target_valid(call->issued_target_order.target) ?
+        uint32_t alias=entangle_target_ability(ent,call->issued_target_order.target,NULL,NULL);
+        return alias && G_IsUnitAbilityAvailable(ent,alias) && !S_AncientIsMorphing(ent) ?
                 ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     }
     switch (msg) {
