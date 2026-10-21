@@ -21,9 +21,19 @@ so they still reach the usual handlers.
   normalized coordinates, scaled by `re.GetWindowSize()`. Moving that contact
   becomes mouse motion; releasing it becomes a left-button release.
 - A **second direct finger**, while gameplay owns input and the first contact
-  began outside menu/HUD controls, cancels selection and
-  starts the existing midpoint camera pan. SDL mouse-up is dispatched to balance
-  the first contact's binding, without completing a world selection.
+  began outside menu/HUD controls, cancels selection and releases the first
+  contact's held left binding without completing a selection. The gesture
+  initially remains eligible for a two-finger right click.
+- If both fingers lift within **350 ms** of the first finger-down, and neither
+  travels more than **2% of the shorter SDL window axis** after the second
+  contact, the gesture sends exactly one normal right-button press and release
+  at the initial two-finger midpoint. Dragging the first finger before the
+  second arrives also disqualifies a right click. A third finger, real mouse
+  drag, UI-started contact, slow gesture or lost focus cannot cause the click.
+- Moving either finger beyond the threshold starts the existing midpoint
+  camera pan, anchored at the midpoint captured when the second finger landed.
+  The threshold avoids camera jitter from stationary taps while preserving
+  the full movement when panning begins.
 - After a two-finger gesture, the remaining contact cannot accidentally click.
   The gesture is cleared after all tracked fingers are released.
 - `SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE` / indirect trackpads are not treated as
@@ -61,6 +71,9 @@ Input tests live in `client/cl_input.c`:
 
 - `client_input.two_finger_touch_pans_camera`: SDL-finger-only press/pan/release,
   duplicate synthetic mouse-event suppression, and edge-scroll handoff.
+- `client_input.two_finger_tap_sends_right_click`: quick taps (including
+  lift-order and small-motion cases), slow taps, third-contact cancellation,
+  and the ordinary bound right-click command at the finger midpoint.
 - `client_input.hybrid_mouse_and_touch_preserve_press_owner`: real mouse held
   while touch arrives, then touch press/drag after mouse release, followed by
   mouse movement after touch release.
