@@ -8,6 +8,7 @@
 
 static umove_t ancient_root_morph, ancient_uproot_morph, ancient_root_facing;
 static bool ancient_root_validate(edict_t *,vec2_t const *,vec2_t *);
+static void ancient_root_update(edict_t *);
 
 #ifdef BZ_TESTS
 static uint32_t moon_well_effect_release_calls;
@@ -382,6 +383,46 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
 
 /* ---- Ancient Root/Uproot ------------------------------------------------- */
 
+/* Only pending Root retries enter this derived heap. Authoritative deadlines
+ * live in the pooled Root state and rebuild after a cold load. */
+static edict_t *root_retry_heap[MAX_ENTITIES];
+static uint32_t root_retry_positions[MAX_ENTITIES],root_retry_count;
+static bool root_retry_less(edict_t const *a,edict_t const *b) {
+    abilityPrimaryTimer_t const *x=&a->ancient_root->retry,*y=&b->ancient_root->retry;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void root_retry_put(uint32_t pos,edict_t *unit) {root_retry_heap[pos]=unit;root_retry_positions[unit-g_edicts]=pos+1;}
+void S_ForgetAncientRootRetry(edict_t *unit) {
+    if(unit->ancient_root)unit->ancient_root->retry.active=false;
+    uint32_t pos=root_retry_positions[unit-g_edicts];if(!pos)return;
+    root_retry_positions[unit-g_edicts]=0;pos--;
+    edict_t *last=root_retry_heap[--root_retry_count];if(pos==root_retry_count)return;
+    while(pos && root_retry_less(last,root_retry_heap[(pos-1)/2])) {root_retry_put(pos,root_retry_heap[(pos-1)/2]);pos=(pos-1)/2;}
+    while(pos*2+1<root_retry_count) {
+        uint32_t child=pos*2+1;
+        if(child+1<root_retry_count && root_retry_less(root_retry_heap[child+1],root_retry_heap[child]))child++;
+        if(!root_retry_less(root_retry_heap[child],last))break;
+        root_retry_put(pos,root_retry_heap[child]);pos=child;
+    }
+    root_retry_put(pos,last);
+}
+static void root_retry_insert(edict_t *unit) {
+    uint32_t pos=root_retry_count++;
+    while(pos && root_retry_less(unit,root_retry_heap[(pos-1)/2])) {root_retry_put(pos,root_retry_heap[(pos-1)/2]);pos=(pos-1)/2;}
+    root_retry_put(pos,unit);
+}
+static void root_retry_schedule(edict_t *unit) {
+    S_ForgetAncientRootRetry(unit);
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    unit->ancient_root->retry=(abilityPrimaryTimer_t){.deadline=now,.sequence=++level.timer_sequence,.active=true};
+    unit->ancient_root->retry.deadline.time=wc3_add(now.time,.5f); /*00b000:50/100. */
+    root_retry_insert(unit);
+}
+static void root_retry_fire(void) {
+    edict_t *unit=root_retry_heap[0];S_ForgetAncientRootRetry(unit);
+    S_AncientFacingComplete(unit,unit,true);
+}
+
 static float ancient_root_duration(edict_t const *unit, bool rooted) {
     AbilityData_t const *data;
     assert(unit && unit->ancient_root);
@@ -416,6 +457,7 @@ void S_AncientBeginMorph(edict_t *unit, bool rooted) {
     float duration;
     if (!unit) return;
     assert(unit->ancient_root);
+    S_ForgetAncientRootRetry(unit);unit->ancient_root->placement_retries=0;
     duration = ancient_root_duration(unit, rooted);
     if (duration < 0.0f) return;
     unit->ancient_root->approaching = false;
@@ -426,18 +468,49 @@ void S_AncientBeginMorph(edict_t *unit, bool rooted) {
     if (unit->animation) unit->s.frame = unit->animation->interval[0];
 }
 
+/* Parent tasks retain their public head; Root owns the physical transition. */
+bool S_AncientBeginOwnedMorph(edict_t *unit,bool rooted,void (*complete)(edict_t *,edict_t *,bool)) {
+    if(unit && !unit->ancient_root)ancient_root_update(unit);
+    if(!unit || !unit->ancient_root || ancient_root_duration(unit,rooted)<0)return false;
+    unit->ancient_root->complete=complete;
+    S_AncientBeginMorph(unit,rooted);
+    return unit->ancient_root->mode==(rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING);
+}
+
 /* Internal d0176 completion starts morph only while Root still owns execution.
  * Stop/replacement clears that ownership through the same Move receiver. */
 void S_AncientFacingComplete(edict_t *receiver,edict_t *unit,bool arrived) {
     if(receiver!=unit || !unit || !unit->ancient_root || unit->ancient_root->mode!=ANCIENT_ROOT_FACING)return;
-    if(arrived && unit->currentmove==&ancient_root_facing && !M_IsDead(unit) &&
-       S_UnitPointInMoveRange(unit,&unit->ancient_root->destination,0) &&
-       ancient_root_validate(unit,&unit->ancient_root->destination,&unit->ancient_root->destination)) {
-        /*438ac0 relocates through virtual180 before publishing the morph.
-         * Calling the public native here would cancel Root's retained head. */
-        S_PlaceUnitPosition(unit,&unit->ancient_root->destination);
-        S_AncientBeginMorph(unit,true);
-    } else unit->ancient_root->mode=ANCIENT_UPROOTED;
+    bool valid=arrived && unit->currentmove==&ancient_root_facing && !M_IsDead(unit) &&
+        S_UnitPointInMoveRange(unit,&unit->ancient_root->destination,0);
+    ancientRoot_t *state=unit->ancient_root;
+    uint32_t generation=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+    if(valid) {
+        buildPlacementResult_t result=unit->ancient_root->displace_occupants ?
+            G_AdmitOwnedRootPlacement(unit,&unit->ancient_root->destination,&unit->ancient_root->destination) :
+            G_EvaluateRootPlacement(unit,&unit->ancient_root->destination,&unit->ancient_root->destination);
+        /* The occupant's public Move can synchronously replace/remove Root. */
+        if(!unit->inuse || unit->spawn_time!=generation || G_IsDeferredFree(unit) ||
+           unit->ancient_root!=state || G_UnitMoveRevision(unit)!=revision ||
+           state->mode!=ANCIENT_ROOT_FACING || unit->currentmove!=&ancient_root_facing)return;
+        if(result==PLACE_OCCUPANTS_MOVING && unit->ancient_root->placement_retries<10) {
+            unit->ancient_root->placement_retries++;root_retry_schedule(unit);return;
+        }
+        valid=result==PLACE_OK;
+    }
+    S_ForgetAncientRootRetry(unit);unit->ancient_root->placement_retries=0;
+    if(valid) {
+        /*438ac0 passes admission=false to virtual180, retaining Root's head. */
+        S_PlaceAdmittedUnitPosition(unit,&unit->ancient_root->destination);
+        if(unit->inuse && unit->spawn_time==generation && !G_IsDeferredFree(unit) &&
+           unit->ancient_root==state && G_UnitMoveRevision(unit)==revision)
+            S_AncientBeginMorph(unit,true);
+    } else {
+        unit->ancient_root->mode=ANCIENT_UPROOTED;
+        void (*complete)(edict_t *,edict_t *,bool)=unit->ancient_root->complete;
+        unit->ancient_root->complete=NULL;
+        if(complete)complete(unit,unit,false);
+    }
 }
 
 /*426f50 truncates authored RootAngle, applies signed modulo360 and prepends
@@ -445,6 +518,7 @@ void S_AncientFacingComplete(edict_t *receiver,edict_t *unit,bool arrived) {
 static void ancient_root_begin_facing(edict_t *unit) {
     int32_t degrees=(int32_t)wc3_int_bits(wc3_float_bits(game.constants.rootAngle));
     float angle=wc3_mul(wc3_float(wc3_from_int(degrees%360)),wc3_float(0x3c8efa35));
+    S_ForgetAncientRootRetry(unit);unit->ancient_root->placement_retries=0;
     unit->ancient_root->approaching=false;
     unit->ancient_root->mode=ANCIENT_ROOT_FACING;
     unit->ancient_root->transition_end_time=0;
@@ -484,6 +558,11 @@ static void ancient_root_commit(edict_t *unit, bool rooted) {
     unit->ancient_root->approaching = false;
     CM_BakeStaticObstacles();
     gi.LinkEntity(unit);
+    if(unit->ancient_root->complete) {
+        void (*complete)(edict_t *,edict_t *,bool)=unit->ancient_root->complete;
+        unit->ancient_root->complete=NULL;
+        complete(unit,unit,true);return;
+    }
     unit_stand(unit);
     /* Retail Ancients automatically begin ordinary Entangle when a completed
      * Root leaves an eligible Gold Mine in authored Aent range. Initial melee
@@ -496,7 +575,23 @@ static void ancient_root_commit(edict_t *unit, bool rooted) {
 }
 
 static bool ancient_root_validate(edict_t *unit, vec2_t const *point, vec2_t *snapped) {
-    return unit && point && G_EvaluateRootPlacement(unit, point, snapped) == PLACE_OK;
+    if(!unit || !point)return false;
+    buildPlacementResult_t result=unit->ancient_root && unit->ancient_root->displace_occupants ?
+        G_AdmitOwnedRootPlacement(unit,point,snapped) : G_EvaluateRootPlacement(unit,point,snapped);
+    return result==PLACE_OK || result==PLACE_OCCUPANTS_MOVING;
+}
+
+bool S_AncientBeginOwnedRoot(edict_t *unit,vec2_t const *point,void (*complete)(edict_t *,edict_t *,bool)) {
+    if(!unit || !unit->ancient_root || unit->ancient_root->mode!=ANCIENT_UPROOTED)return false;
+    unit->ancient_root->displace_occupants=true;
+    vec2_t snapped;ancientRoot_t *state=unit->ancient_root;
+    uint32_t generation=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+    bool valid=ancient_root_validate(unit,point,&snapped);
+    if(!unit->inuse || unit->spawn_time!=generation || G_IsDeferredFree(unit) ||
+       unit->ancient_root!=state || G_UnitMoveRevision(unit)!=revision)return false;
+    if(!valid) {state->displace_occupants=false;return false;}
+    unit->ancient_root->destination=snapped;unit->ancient_root->complete=complete;
+    ancient_root_begin_facing(unit);return true;
 }
 
 /* Both UI and native point producers share Root's placement/approach owner. */
@@ -679,8 +774,36 @@ BZ_ABILITY_PROC(CAbilityRoot) {
     }
     switch (msg) {
     case A_COMMAND: ancient_root_command(call && call->client ? call->client : ent); return true;
+    case A_TIMERS_RESET:
+        root_retry_count=0;memset(root_retry_positions,0,sizeof(root_retry_positions));return true;
+    case A_TIMERS_REBUILD:
+        root_retry_count=0;memset(root_retry_positions,0,sizeof(root_retry_positions));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].ancient_root &&
+            g_edicts[i].ancient_root->retry.active)root_retry_insert(g_edicts+i);
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!root_retry_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){root_retry_heap[0]->ancient_root->retry.deadline,
+            root_retry_heap[0]->ancient_root->retry.sequence,CAbilityRoot};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(root_retry_count)root_retry_fire();
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,root_retry_count) {
+            abilityPrimaryTimer_t *request=&root_retry_heap[i]->ancient_root->retry;
+            request->deadline.time=wc3_sub(request->deadline.time,call->clock_span);request->deadline.epoch++;
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        if(!level.scheduled_frame)while(root_retry_count) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(root_retry_heap[0]->ancient_root->retry.deadline.time>now.time)break;
+            root_retry_fire();
+        }
+        return true;
     case A_UPDATE: ancient_root_update(ent); return true;
     case A_MOVE_LEAVE:
+        if(ent && call && call->next_move_proc!=CAbilityRoot)S_ForgetAncientRootRetry(ent);
         if(ent && ent->ancient_root && ent->ancient_root->mode==ANCIENT_ROOT_FACING &&
            call && call->next_move_proc!=CAbilityRoot)ent->ancient_root->mode=ANCIENT_UPROOTED;
         if (ent && ent->ancient_root && !ent->ancient_root->approaching &&
@@ -721,6 +844,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
     case A_DEATH:
     case A_UNIT_REMOVE:
         if (ent && ent->ancient_root) {
+            S_ForgetAncientRootRetry(ent);
             ent->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
             ent->ancient_root->transition_end_time = 0;
             ent->ancient_root->approaching = false;

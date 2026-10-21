@@ -149,19 +149,17 @@ batch. Subsequent Entangle research changes no engine source and passes50
 focused evidence/corpus Python checks. The independent failing Entangle
 candidate remains outside main. **25 ->25 open; TARGET-01.2 stays active.**
 
-TARGET-01.2's next failing producer is Entangle: stock Aent500 admits distant
-rooted and already-uprooted Trees, retaining852147 through placement, unroot,
-approach and facing/root tasks. Two native observations and an unhooked control
-match561 public markers; twelve portable evidence/rejection tests pass. A separate
-public engine regression reproduces six failed assertions per edition for the
-three missing admission cases. The immediate rooted-near control passes.
-The separate candidate now passes eight public scheduler/save tests (774
-assertions per edition), plus focused Root, Building and Save checks. V4/V5
-portable occupant/interruption witnesses add1806 matching public markers and
-31 combined Entangle evidence tests pass. Complete friendly-occupant admission
-Move, Root placement45 retries and adjacent authored range boundaries before
-advancing. **25 ->25 open; zero whole leaves closed.**
-[Entangle evidence and exact blocker](retail-pathfinding-engine.md#entangle-command-admission-and-placement-producer-target-012).
+TARGET-01.2 now integrates Entangle's retained placement, Unroot, zero-range
+point approach, facing/Root and terminal overlay owner. Native authored/range,
+occupant, interruption and half-second retry corpora preserve5094 matching
+public markers;48 Entangle evidence tests pass. The complete six-site occupant
+matrix, adjacent317.75/318/318.25 ranges, callback-owned replacement/removal and
+cold pending-retry saves pass12 public tests/1052 assertions per edition.
+Root/Building/Save/Pools/Clock/dispatch checks bring focused validation to502
+tests/113387 assertions per edition. Refresh affected native gates and run the
+batched full checkpoint before advancing the remaining producer inventory.
+**25 ->25 open; zero whole leaves closed.**
+[Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
 
 TARGET-01.2 commit `0394ad967` adds ordinary Smart pickup as an Inventory-owned packet and full-range
 target continuation. Native V8b retains six observations, three unhooked controls

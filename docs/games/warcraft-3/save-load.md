@@ -1,3 +1,13 @@
+Save222 retains Entangle's mine incarnation, admitted root site, phase, ability
+and public order identity in a sparse game-owned pool. Root's parent completion
+callback and placement retry counter/deadline/serial survive a cold load;
+`S_EntangleApproachComplete` and `S_EntangleRootComplete` are registered C
+callbacks. Derived primary-clock retry membership rebuilds from Root state.
+Save221 and earlier are rejected. Public scheduler tests cover unroot, approach,
+facing/root, interrupted or missing target/ability, callback replacement,
+pause/resume, and Stop during a saved half-second retry. See
+[Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
+
 Save221 retains ordinary Inventory pickup as a physical target continuation.
 The callback roster includes `S_InventoryPickupComplete`; item identity and the
 captured approach range use the existing Inventory fields. Live terminal range

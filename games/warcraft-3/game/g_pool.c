@@ -120,7 +120,8 @@ DEFINE_POOL(morph, Morph, morph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL_CALLBACKS(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP,
-    (void)0, S_MarkMoveGoals(ent))
+    (void)0, (S_ForgetAncientRootRetry(ent), S_MarkMoveGoals(ent)))
+DEFINE_POOL(entangle, Entangle, entangle_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
@@ -243,6 +244,7 @@ void G_PoolsReset(void) {
     G_ResetBlightGrowthPool();
     G_ResetEnsnarePool();
     G_ResetAncientRootPool();
+    G_ResetEntanglePool();
     G_ResetGoldMinePool();
     G_ResetMineOverlayPool();
     G_ResetAcolyteMinePool();
@@ -283,6 +285,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeBlightGrowth(ent);
     G_FreeEnsnare(ent);
     G_FreeAncientRoot(ent);
+    G_FreeEntangle(ent);
     G_FreeGoldMine(ent);
     G_FreeMineOverlay(ent);
     G_FreeAcolyteMine(ent);
@@ -346,6 +349,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(blight_growth, BlightGrowth, blightGrowth_t);
     CHECK_POOL(ensnare, Ensnare, ensnare_t);
     CHECK_POOL(ancient_root, AncientRoot, ancientRoot_t);
+    CHECK_POOL(entangle, Entangle, entangle_t);
     CHECK_POOL(goldmine, GoldMine, goldMine_t);
     CHECK_POOL(mineoverlay, MineOverlay, mineOverlay_t);
     CHECK_POOL(acolyte_mine, AcolyteMine, acolyteMine_t);

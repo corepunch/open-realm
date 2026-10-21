@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 221; /* Inventory pickup target continuation and terminal callback. */
+static uint32_t const save_version = 222; /* Retained Entangle placement/Root continuation and callbacks. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -184,6 +184,8 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_SpellTargetApproachComplete),
     SAVE_CFUNCTION(morph_end),
     SAVE_CFUNCTION(S_AncientFacingComplete),
+    SAVE_CFUNCTION(S_EntangleApproachComplete),
+    SAVE_CFUNCTION(S_EntangleRootComplete),
     SAVE_CFUNCTION(S_AttackTargetChaseComplete),
     SAVE_CFUNCTION(S_AttackRecoveryComplete),
     SAVE_CFUNCTION(S_AttackMoveComplete),
@@ -909,6 +911,25 @@ static field_t const ancient_root_fields[] = {
     TF(ancientRoot_t, has_rooted_collision, F_INT),
     TF(ancientRoot_t, rooted_turning, F_INT),
     TF(ancientRoot_t, approaching, F_INT),
+    TF(ancientRoot_t, displace_occupants, F_INT),
+    TF(ancientRoot_t, complete, F_CFUNCTION),
+    TF(ancientRoot_t, placement_retries, F_INT),
+    TF(ancientRoot_t, retry.deadline.time, F_FLOAT),
+    TF(ancientRoot_t, retry.deadline.epoch, F_INT),
+    TF(ancientRoot_t, retry.deadline.span, F_FLOAT),
+    TF(ancientRoot_t, retry.sequence, F_INT),
+    TF(ancientRoot_t, retry.active, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const entangle_fields[] = {
+    TF(entangle_t, mine, F_EDICT, 0, FIELD_NONE),
+    TF(entangle_t, mine_spawn_time, F_INT),
+    TF(entangle_t, ability, F_INT),
+    TF(entangle_t, order_id, F_INT),
+    TF(entangle_t, destination, F_VECTOR),
+    TF(entangle_t, phase, F_INT),
+    TF(entangle_t, instant, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1269,6 +1290,7 @@ field_t edict_fields[] = {
     F(edict_s, blight_growth, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ensnare, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, entangle, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, mineoverlay, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, acolyte_mine, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3316,6 +3338,7 @@ POOL_ALLOC(Morph)
 POOL_ALLOC(BlightGrowth)
 POOL_ALLOC(Ensnare)
 POOL_ALLOC(AncientRoot)
+POOL_ALLOC(Entangle)
 POOL_ALLOC(GoldMine)
 POOL_ALLOC(MineOverlay)
 POOL_ALLOC(AcolyteMine)
@@ -3350,6 +3373,7 @@ static savePool_t const save_pools[] = {
     { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth },
     { "ensnare", offsetof(edict_t, ensnare), sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare },
     { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot },
+    { "entangle", offsetof(edict_t, entangle), sizeof(entangle_t), entangle_fields, SaveAllocEntangle },
     { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine },
     { "mineoverlay", offsetof(edict_t, mineoverlay), sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay },
     { "acolyte_mine", offsetof(edict_t, acolyte_mine), sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine },

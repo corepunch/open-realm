@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "../common/wc3_pathing_repulsion.h"
 
 extern float HARVEST_GOLD_CAPACITY;
 
@@ -1418,7 +1419,7 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     edict_t *caster;
 
     if (!clent || !clent->client || !(caster = G_GetMainSelectedUnit(clent->client))) return false;
-    return entangle_goldmine_start(caster, target, false, clent);
+    return G_IssueUnitTargetOrder(caster,"entangle",target,false,clent->client->ps.number);
 }
 
 static void entangle_goldmine_command(edict_t *clent) {
@@ -1447,22 +1448,196 @@ bool S_AutoEntangleNearby(edict_t *caster, bool instant) {
     return best && entangle_goldmine_start(caster, best, instant, NULL);
 }
 
+typedef struct {
+    edict_t *tree,*mine;float range;uint32_t level,tree_generation,mine_generation;
+    bool issue_occupant_moves;
+} entanglePlacement_t;
+
+/*566eb0 accepts Build_CheckPlacement0/45 and rechecks the captured target
+ * range/support level. Friendly displacement is admitted by the build owner. */
+static bool entangle_place_admit(void const *opaque,vec2_t const *point) {
+    entanglePlacement_t const *p=opaque;vec2_t snapped;
+    if(!p->tree->inuse || p->tree->spawn_time!=p->tree_generation || G_IsDeferredFree(p->tree) ||
+       !p->mine->inuse || p->mine->spawn_time!=p->mine_generation || G_IsDeferredFree(p->mine))return false;
+    if(!S_UnitPointInMoveRange(p->mine,point,p->range))return false;
+    buildPlacementResult_t result=p->issue_occupant_moves ? G_AdmitOwnedRootPlacement(p->tree,point,&snapped) :
+        G_EvaluateOwnedRootPlacement(p->tree,point,&snapped);
+    if(result!=PLACE_OK && result!=PLACE_OCCUPANTS_MOVING)return false;
+    if(!p->mine->inuse || p->mine->spawn_time!=p->mine_generation || G_IsDeferredFree(p->mine))return false;
+    if(!S_UnitPointInMoveRange(p->mine,&snapped,p->range))return false;
+    box2_t bounds=CM_GetWorldBounds();
+    int32_t x=(int32_t)wc3_int_bits(wc3_float_bits(wc3_div(wc3_sub(snapped.x,bounds.min.x),32)));
+    int32_t y=(int32_t)wc3_int_bits(wc3_float_bits(wc3_div(wc3_sub(snapped.y,bounds.min.y),32)));
+    return G_GetMovePlacementLevel(x,y)==p->level;
+}
+
+/*54fd60 first tests the existing building site, then55a440 projects toward
+ * the mine with live range or the runtime250 minimum.6515f0 snaps only after
+ * its filtered32-ring placement succeeds. */
+static bool entangle_find_site(edict_t *tree,edict_t *mine,float range,vec2_t *out,bool *approach) {
+    box2_t bounds=CM_GetWorldBounds();
+    int32_t x=(int32_t)wc3_int_bits(wc3_float_bits(wc3_div(wc3_sub(mine->s.origin2.x,bounds.min.x),32)));
+    int32_t y=(int32_t)wc3_int_bits(wc3_float_bits(wc3_div(wc3_sub(mine->s.origin2.y,bounds.min.y),32)));
+    entanglePlacement_t p={tree,mine,wc3_add(range,G_UnitCollision(tree->class_id)),
+        G_GetMovePlacementLevel(x,y),tree->spawn_time,mine->spawn_time,false};
+    *out=tree->s.origin2;*approach=false;
+    if(entangle_place_admit(&p,out)) {G_SnapBuildingPoint(tree->class_id,out);return true;}
+    float distance=range;
+    if(S_UnitTargetInMoveRange(tree,mine,range)) {
+        distance=250;
+        if(!S_UnitTargetInMoveRange(tree,mine,distance))distance=-1;
+    }
+    if(distance>=0) {
+        float delta[2]={wc3_sub(tree->s.origin2.x,mine->s.origin2.x),wc3_sub(tree->s.origin2.y,mine->s.origin2.y)};
+        float length=wc3_add(wc3_add(distance,G_UnitCollision(tree->class_id)),G_UnitCollision(mine->class_id));
+        wc3_repulse_length(delta,length);
+        *out=(vec2_t){wc3_add(mine->s.origin2.x,delta[0]),wc3_add(mine->s.origin2.y,delta[1])};
+    }
+    *approach=true;
+    if(!G_FindWidgetPlacementFiltered(tree,out,G_UnitCollision(tree->class_id),M_UnitStaticPathingFlags(tree),
+            true,entangle_place_admit,&p,out))return false;
+    G_SnapBuildingPoint(tree->class_id,out);
+    p.issue_occupant_moves=true; /*54fd60 context18 becomes1 only after the search. */
+    return entangle_place_admit(&p,out);
+}
+
+static bool entangle_retained_mine(edict_t *tree) {
+    entangle_t const *p=tree->entangle;
+    return p && p->phase && entangle_target_valid(p->mine) && !G_IsDeferredFree(p->mine) &&
+        p->mine->spawn_time==p->mine_spawn_time && G_IsUnitAbilityAvailable(tree,p->ability);
+}
+
+static void entangle_release(edict_t *tree) {
+    if(!tree->entangle)return;
+    bool const active=tree->entangle->phase!=ENTANGLE_NONE;
+    tree->entangle->phase=ENTANGLE_NONE;tree->entangle->mine=NULL;
+    if(tree->ancient_root && tree->ancient_root->complete==S_EntangleRootComplete) {
+        tree->ancient_root->complete=NULL;
+    }
+    if(active && tree->ancient_root)tree->ancient_root->displace_occupants=false;
+}
+
+static void entangle_finish(edict_t *tree) {
+    if(!tree || !tree->inuse || G_IsDeferredFree(tree) || !tree->entangle || !tree->entangle->phase)return;
+    entangle_release(tree);S_SetMoveGoal(tree,&tree->goalentity,NULL);tree->stand(tree);
+}
+
+static void entangle_walk_think(edict_t *tree);
+static umove_t entangle_walk={.animation="walk",.think=entangle_walk_think,.proc=CAbilityEntangle,.sample_pose=S_PublishMovement};
+
+void S_EntangleApproachComplete(edict_t *receiver,edict_t *tree,bool arrived) {
+    if(receiver!=tree || !tree->entangle || tree->entangle->phase!=ENTANGLE_APPROACH)return;
+    if(tree->currentmove!=&entangle_walk) {entangle_release(tree);return;}
+    if(!arrived && tree->movement.group_id)return;
+    if(!entangle_retained_mine(tree) ||
+       !S_UnitPointInMoveRange(tree,&tree->entangle->destination,0)) {entangle_finish(tree);return;}
+    tree->entangle->phase=ENTANGLE_ROOTING;
+    if(!S_AncientBeginOwnedRoot(tree,&tree->entangle->destination,S_EntangleRootComplete))entangle_finish(tree);
+}
+
+static void entangle_walk_think(edict_t *tree) {
+    if(!tree->entangle || tree->entangle->phase!=ENTANGLE_APPROACH)return;
+    if(!tree->goalentity)S_SetMoveGoal(tree,&tree->goalentity,Waypoint_add(&tree->entangle->destination));
+    if(!S_UnitTargetChaseActive(tree,CAbilityEntangle) &&
+       !S_BeginUnitPointApproach(tree,&tree->entangle->destination,0,CAbilityEntangle,S_EntangleApproachComplete))
+        S_EntangleApproachComplete(tree,tree,false);
+}
+
+void S_EntangleRootComplete(edict_t *receiver,edict_t *tree,bool arrived) {
+    if(receiver!=tree || !tree->entangle || !tree->entangle->phase)return;
+    if(!arrived) {entangle_finish(tree);return;}
+    if(tree->entangle->phase==ENTANGLE_UNROOTING) {
+        tree->entangle->phase=ENTANGLE_APPROACH;
+        unit_setmove(tree,&entangle_walk);entangle_walk_think(tree);return;
+    }
+    if(tree->entangle->phase==ENTANGLE_ROOTING) {
+        if(!entangle_retained_mine(tree)) {entangle_finish(tree);return;}
+        uint32_t revision=G_UnitMoveRevision(tree),spawn=tree->spawn_time;
+        edict_t *mine=tree->entangle->mine;bool instant=tree->entangle->instant;
+        entangle_release(tree);
+        entangle_goldmine_start(tree,mine,instant,NULL);
+        if(tree->inuse && tree->spawn_time==spawn && !G_IsDeferredFree(tree) && G_UnitMoveRevision(tree)==revision)tree->stand(tree);
+    }
+}
+
+static queuedOrderResult_t entangle_activate(edict_t *tree,unitOrder_t const *packet) {
+    edict_t *mine=packet->target_number<globals.num_edicts ? g_edicts+packet->target_number : NULL;
+    if(!entangle_target_valid(mine) || mine->spawn_time!=packet->target_spawn_time)return QUEUED_ORDER_REPLACED;
+    uint32_t alias=goldmine_actor_ability_alias(tree,MAKEFOURCC('A','e','n','t'));
+    bool instant=!strcmp(packet->order,"entangleinstant") || !strcmp(packet->order,"autoentangleinstant");
+    float range=G_AbilityLevel(alias,1)->range;
+    /* Public Entangle stops the mobile physical owner even from idle. The
+     * bounded embedded recovery precedes54fd60's current-source query. */
+    uint32_t admission_generation=tree->spawn_time,admission_revision=G_UnitMoveRevision(tree);
+    if(!S_AncientIsRooted(tree))S_StopUnitMovementWithRecovery(tree);
+    if(!tree->inuse || tree->spawn_time!=admission_generation || G_IsDeferredFree(tree) ||
+       G_UnitMoveRevision(tree)!=admission_revision)return QUEUED_ORDER_REPLACED;
+    tree->current_order_id=packet->order_id;
+    if(S_AncientIsRooted(tree) && S_UnitTargetInMoveRange(tree,mine,range)) {
+        uint32_t generation=tree->spawn_time,revision=G_UnitMoveRevision(tree);
+        entangle_goldmine_start(tree,mine,instant,NULL);
+        if(tree->inuse && tree->spawn_time==generation && !G_IsDeferredFree(tree) &&
+           G_UnitMoveRevision(tree)==revision)tree->stand(tree);
+        return QUEUED_ORDER_REPLACED;
+    }
+    vec2_t point;bool approach;
+    uint32_t generation=tree->spawn_time,revision=G_UnitMoveRevision(tree);
+    bool placed=entangle_find_site(tree,mine,range,&point,&approach);
+    if(!tree->inuse || tree->spawn_time!=generation || G_IsDeferredFree(tree) ||
+       G_UnitMoveRevision(tree)!=revision)return QUEUED_ORDER_REPLACED;
+    if(!placed) {tree->stand(tree);return QUEUED_ORDER_REPLACED;}
+    if(!tree->entangle)tree->entangle=G_AllocEntangle();
+    *tree->entangle=(entangle_t){.mine=mine,.mine_spawn_time=mine->spawn_time,.ability=alias,
+        .order_id=packet->order_id,.destination=point,.instant=instant};
+    if(S_AncientIsRooted(tree)) {
+        tree->entangle->phase=ENTANGLE_UNROOTING;
+        if(!S_AncientBeginOwnedMorph(tree,false,S_EntangleRootComplete))entangle_finish(tree);
+    } else if(approach) {
+        tree->entangle->phase=ENTANGLE_APPROACH;
+        unit_setmove(tree,&entangle_walk);entangle_walk_think(tree);
+    } else {
+        tree->entangle->phase=ENTANGLE_ROOTING;
+        if(!S_AncientBeginOwnedRoot(tree,&point,S_EntangleRootComplete))entangle_finish(tree);
+    }
+    return tree->entangle->phase ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
+}
+
 BZ_ABILITY_PROC(CAbilityEntangle) {
-    if (msg == A_ISSUED_TARGET_ORDER && call && call->issued_target_order.order) {
+    if (msg == A_TARGET_ORDER_ADMIT && call && call->issued_target_order.order) {
         cstring_t order = call->issued_target_order.order;
-        bool instant;
         if (strcmp(order, "entangle") && strcmp(order, "entangleinstant") &&
             strcmp(order, "autoentangle") && strcmp(order, "autoentangleinstant"))
             return ABILITY_ORDER_UNHANDLED;
-        instant = !strcmp(order, "entangleinstant") || !strcmp(order, "autoentangleinstant");
-        return entangle_goldmine_start(ent, call->issued_target_order.target, instant, NULL) ?
-            ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+        uint32_t alias=goldmine_actor_ability_alias(ent,MAKEFOURCC('A','e','n','t'));
+        return alias && G_IsUnitAbilityAvailable(ent,alias) && !S_AncientIsMorphing(ent) &&
+            !entangle_tree_overlay(ent) && entangle_target_valid(call->issued_target_order.target) ?
+                ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     }
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START,A_MOVE_LEAVE,A_DEATH,A_UNIT_REMOVE,A_DISABLE);
+    case A_QUEUE_ORDER_START:
+        if(call->queued_order->target_type==UNIT_ORDER_TARGET_ENTITY &&
+           (!strcmp(call->queued_order->order,"entangle") || !strcmp(call->queued_order->order,"entangleinstant") ||
+            !strcmp(call->queued_order->order,"autoentangle") || !strcmp(call->queued_order->order,"autoentangleinstant")))
+            return entangle_activate(ent,call->queued_order);
+        return QUEUED_ORDER_UNHANDLED;
+    case A_MOVE_LEAVE:
+        if(ent->entangle && ent->entangle->phase && call) {
+            bool walk=call->next_move_proc==CAbilityEntangle && ent->entangle->phase==ENTANGLE_APPROACH;
+            bool root=call->next_move_proc==CAbilityRoot && ent->entangle->phase!=ENTANGLE_APPROACH &&
+                ent->ancient_root && ent->ancient_root->complete==S_EntangleRootComplete;
+            if(!walk && !root)entangle_release(ent);
+        }
+        return false;
+    case A_DISABLE:
+        /* V5: removing Aent leaves the admitted ordinary point task alive.
+         * The target action rechecks availability only when it is reached. */
+        return false;
     case A_COMMAND: entangle_goldmine_command(call && call->client ? call->client : ent); return true;
     /* The mine must retire at Tree death, before the corpse's later removal. */
     case A_DEATH:
-    case A_UNIT_REMOVE: S_ReleaseEntangledMineForTree(ent); return true;
+    case A_UNIT_REMOVE: entangle_release(ent);S_ReleaseEntangledMineForTree(ent); return true;
     default: return CAbilityPower(ent, msg, call);
     }
 }

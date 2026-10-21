@@ -294,6 +294,7 @@ typedef enum {
     PLACE_TOO_CLOSE_TO_GOLD_MINE,
     PLACE_OUT_OF_BOUNDS,
     PLACE_REQUIRED_PARENT_MISSING,
+    PLACE_OCCUPANTS_MOVING, /* Native placement45; site admitted, units still clearing. */
 } buildPlacementResult_t;
 
 typedef enum {
@@ -2212,7 +2213,20 @@ typedef struct {
     bool has_rooted_collision;
     bool rooted_turning;
     bool approaching;
+    bool displace_occupants;
+    uint32_t placement_retries;
+    abilityPrimaryTimer_t retry;
+    void (*complete)(edict_t *,edict_t *,bool);
 } ancientRoot_t;
+
+typedef enum { ENTANGLE_NONE,ENTANGLE_UNROOTING,ENTANGLE_APPROACH,ENTANGLE_ROOTING } entanglePhase_t;
+typedef struct {
+    edict_t *mine;
+    uint32_t mine_spawn_time,ability,order_id;
+    vec2_t destination;
+    entanglePhase_t phase;
+    bool instant;
+} entangle_t;
 
 typedef struct {
     edict_t *mine;
@@ -2418,6 +2432,7 @@ struct edict_s {
     blightGrowth_t *blight_growth;
     ensnare_t *ensnare;
     ancientRoot_t *ancient_root;
+    entangle_t *entangle;
     uint32_t heatmap2;
     vec2_t heatmap2_origin;  /* target position when heatmap2 was last built */
     uint32_t heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -3607,9 +3622,12 @@ bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *o
 bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
 bool G_FindWidgetPlacementPosition(edict_t *widget, vec2_t const *requested, float radius,
                                    uint8_t mask, bool match_level, vec2_t *out);
+bool G_FindWidgetPlacementFiltered(edict_t *,vec2_t const *,float,uint8_t,bool,
+                                  bool (*)(void const *,vec2_t const *),void const *,vec2_t *);
 bool G_FindUnitMoveRecoveryPosition(edict_t *, vec2_t const *, vec2_t *);
 typedef struct { vec2_t point; uint8_t mask; bool blocked; } terrainPathingEdit_t;
 bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags);
+bool G_GetPlacementPathingFlags(vec2_t const *,edict_t const *,uint8_t *);
 bool G_MovePointIsBlocked(vec2_t const *,uint32_t,edict_t const *);
 bool G_SetTerrainPathingFlags(terrainPathingEdit_t const *edit);
 uint32_t G_GetTerrainPathingStateSize(void);
@@ -3915,6 +3933,7 @@ void S_RefreshHeroMoveSpeed(edict_t *);
 void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
 void S_SetUnitPosition(edict_t *, vec2_t const *);
 void S_PlaceUnitPosition(edict_t *, vec2_t const *);
+void S_PlaceAdmittedUnitPosition(edict_t *, vec2_t const *);
 void S_InitUnitPosition(edict_t *, vec2_t const *);
 void S_RecoverStoppedUnitPosition(edict_t *);
 void S_StopUnitMovement(edict_t *);
@@ -4418,6 +4437,8 @@ void G_SnapBuildingPoint(uint32_t building_id, vec2_t *point);
 void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, uint8_t *required);
 buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vec2_t const *requested, vec2_t *snapped);
 buildPlacementResult_t G_EvaluateRootPlacement(edict_t *unit, vec2_t const *requested, vec2_t *snapped);
+buildPlacementResult_t G_EvaluateOwnedRootPlacement(edict_t *,vec2_t const *,vec2_t *);
+buildPlacementResult_t G_AdmitOwnedRootPlacement(edict_t *,vec2_t const *,vec2_t *);
 bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building);
 bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location);
 bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location);
@@ -5401,6 +5422,7 @@ void G_UpdateHealthRegen(edict_t *,float);
 shadowStrike_t *G_AllocShadowStrike(void);
 void G_FreeShadowStrike(edict_t *);
 void S_ForgetShadowStrike(edict_t *);
+void S_ForgetAncientRootRetry(edict_t *);
 void S_ShadowStrikeProjectileHit(edict_t *);
 void G_FreeMorph(edict_t *ent);
 morph_t *G_AllocMorph(void);
@@ -5412,6 +5434,8 @@ void G_FreeEnsnare(edict_t *ent);
 ensnare_t *G_AllocEnsnare(void);
 void G_FreeAncientRoot(edict_t *ent);
 ancientRoot_t *G_AllocAncientRoot(void);
+void G_FreeEntangle(edict_t *ent);
+entangle_t *G_AllocEntangle(void);
 void G_FreeGoldMine(edict_t *ent);
 goldMine_t *G_AllocGoldMine(void);
 void G_FreeMineOverlay(edict_t *ent);

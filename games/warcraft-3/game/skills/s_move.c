@@ -2764,7 +2764,7 @@ void S_TeleportCaptainActor(botCaptain_t *captain,vec2_t const *requested) {
 
 /* Unit virtual180 admits/publishes position independently of public Stop.
  * Root438ac0 retains its head when relocating at morph start. */
-void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
+static void unit_place_position(edict_t *self,vec2_t const *requested,bool admit) {
     if(!self || !requested)return;
     vec2_t old_position=self->s.origin2,position;
     self->movement.velocity = (vec2_t){0};
@@ -2772,7 +2772,8 @@ void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
     /*653510 clamps world XY before virtual position admission. Preserve the
      * resulting ring/tie order even when the terrain query is disabled. */
     vec2_t point_request=unit_clamp_placement(requested);
-    G_FindUnitPlacementPosition(self,&point_request,&position);
+    if(admit)G_FindUnitPlacementPosition(self,&point_request,&position);
+    else position=point_request;
     wc3GridPose_t pose;
     unit_grid_pose(self, &pose);
     float point[2] = {position.x, position.y};
@@ -2782,6 +2783,16 @@ void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
     self->movement.pose_clock = level.pathing_clock;
     move_reset_progress(self);
     G_UnitPositionChanged(self, &old_position);
+}
+
+void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
+    unit_place_position(self,requested,true);
+}
+
+/* Root438ac0 passes admission=false to virtual180 after Build_CheckPlacement.
+ * Publish that admitted point once, retaining the physical and public owners. */
+void S_PlaceAdmittedUnitPosition(edict_t *self,vec2_t const *requested) {
+    unit_place_position(self,requested,false);
 }
 
 /* Native scheduled Move integrates old velocity before requesting its new heading.

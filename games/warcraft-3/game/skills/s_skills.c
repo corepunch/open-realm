@@ -260,7 +260,7 @@ static ability_t abilitylist[] = {
     { "Awha", CAbilityWispHarvest, AB_COMMAND },  /* Gather */
     { "Aent", CAbilityEntangle, AB_COMMAND, SPELL_TARGET_NONE, entangle_orders },  /* Entangle Gold Mine */
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */
-    { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root */
+    { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, ancient_root_orders },  /* Root */
     { "AEmb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn */
     { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation */
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
@@ -721,8 +721,8 @@ static ability_t abilitylist[] = {
     { "Argd", CAbilityReturn, AB_COMMAND },  /* Return (Gold) */
     { "Argl", CAbilityReturn, AB_COMMAND },  /* Return (Gold & Lumber) */
     { "Arlm", CAbilityReturn, AB_COMMAND },  /* Return (Lumber) */
-    { "Aro1", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root (Ancients) */
-    { "Aro2", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root (Ancient Protector) */
+    { "Aro1", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, ancient_root_orders },  /* Root (Ancients) */
+    { "Aro2", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, ancient_root_orders },  /* Root (Ancient Protector) */
     { "Awfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (warlock) */
     { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
     { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */

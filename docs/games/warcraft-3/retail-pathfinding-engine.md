@@ -22095,3 +22095,43 @@ missing-destructable diagnostics match the prior focused baseline; all native
 suite processes exit0 and their JUnit reports contain no failures. Main engine
 integration and affected native gate refresh follow; no new full-suite result
 is claimed and TARGET-01.2 remains active with25 leaves open.
+
+
+### Entangle engine ownership (Save222)
+
+The integrated game-module implementation retains the public Entangle packet
+while Root owns Unroot/facing/morph and Move owns the zero-range physical point
+approach. The sparse Entangle pool saves the mine incarnation, admitted site,
+ability/order identity, phase and instant flag. Root saves its completion
+callback and independent half-second placement45 retry request. The primary
+clock merges those requests by deadline/serial; reset/load rebuilds only the
+derived owning-unit heap. Save222 rejects earlier layouts and registers both
+Entangle completion callbacks.
+
+Placement separates candidate evaluation from final admission. Both share the
+building footprint predicate and caller-owned support/range checks; final
+admission can issue ordinary Move to friendly occupants. Source exclusion spans
+the mover and all widget regions throughout the filtered32-ring search. Root
+publishes an already-admitted point without a second placement search. Red-only
+placement margins participate in the common footprint predicate. The public
+construction policy retains its separate resource-distance gate.
+
+A mobile Entangle source uses bounded Stop/recovery before construction,
+including from idle. Lost mine/Aent validity is checked at the retained point's
+terminal boundary rather than cancelling its preceding approach. Stop, death,
+removal, successor orders and callback-owned mutations release only the old
+owner. Placement-triggered occupant callbacks can Stop/remove the Tree; pose,
+parent and constructor continuations check incarnation and move revision before
+publishing further state. The UI producer uses the requesting client's issuer
+identity through the ordinary target-order API.
+
+The integrated source matches the independently built candidate:12 public
+Entangle tests/1052 assertions and502 focused native tests/113387 assertions
+per edition. The tests cover Classic and TFT column schemas, all six occupant
+sites, adjacent317.75/318/318.25 values, save phases, pending retry restoration,
+Stop/removal and callback-owned replacement. Two minimal authored pathing TGAs
+live in the test fixture MPQ at their retail PathTextures names. The48 Entangle
+Python evidence tests retain5094 matching public markers across the qualifying
+corpora. Complete trajectory/timing, wider producer inventory and full firing
+polls remain in TARGET-01.2; no whole leaf closes. Affected native gates must be
+refreshed against this source before the next full checkpoint.

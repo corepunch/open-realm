@@ -1177,6 +1177,26 @@ bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags) {
     return true;
 }
 
+static wc3FineObject_t placement_region_object(void *data,wc3RecordObject_t const *object) {
+    edict_t const *excluded=data;
+    wc3FineObject_t shape=move_cell_object(NULL,object);
+    if(!(object->flags&WC3_RECORD_REGION) || (excluded && object->owner==(uint32_t)(excluded-g_edicts)))shape.mask=0;
+    return shape;
+}
+
+/* Building placement handles live units separately, so this query composes
+ * mutable WPM terrain with widget regions while excluding its source owner. */
+bool G_GetPlacementPathingFlags(vec2_t const *point,edict_t const *excluded,uint8_t *flags) {
+    uint32_t index;if(!terrain_pathing_cell(point,&index))return false;
+    move_spatial_sync();
+    vec2_t fine=move_grid_from_world(point->x,point->y);
+    wc3FinePoint_t pos={wc3_int_bits(wc3_floor_bits(wc3_float_bits(fine.x))),
+        wc3_int_bits(wc3_floor_bits(wc3_float_bits(fine.y)))};
+    wc3CellQuery_t query={.mode=WC3_CELL_UNION,.mask=0,.data=(void *)excluded,.describe=placement_region_object};
+    uint32_t word=wc3_records_cell(S_GetMoveFineSpatial(),pos,move_terrain_word(pos),&query).value;
+    *flags=(uint8_t)(word|(word>>24));return true;
+}
+
 /* Blight owns its cell/dirty-row lifecycle; the pathing byte is its world
  * consumer. Updating this bit does not alter movement obstacle masks. */
 void G_SetTerrainBlightCell(uint32_t x, uint32_t y, bool add) {
@@ -1519,6 +1539,42 @@ bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t 
             .integer_result=unit->aiflags&AI_FLYING},&admitted)) return false;
     *out = move_world_from_grid(admitted.x,admitted.y);
     return true;
+}
+
+typedef struct {
+    moveFineGraph_t graph;
+    bool (*admit)(void const *,vec2_t const *);
+    void const *data;
+} moveFilteredPlacement_t;
+
+static bool move_filtered_placement_admit(void const *opaque,float const *fine) {
+    moveFilteredPlacement_t const *query=opaque;
+    vec2_t point=move_world_from_grid(fine[0],fine[1]);
+    return query->admit(query->data,&point);
+}
+
+/*6515f0 runs the caller's predicate even with query mask0. Keep self held
+ * throughout the32-ring search, including callbacks and final admission. */
+bool G_FindWidgetPlacementFiltered(edict_t *widget,vec2_t const *requested,float radius,uint8_t mask,
+                                  bool integer_result,bool (*admit)(void const *,vec2_t const *),
+                                  void const *data,vec2_t *out) {
+    if(!widget || !requested || !admit || !world.map || !world.map->vertices ||
+       !pathmap.width || !pathmap.height)return false;
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t clamped={wc3_widget_clamp_axis(requested->x,bounds.min.x,bounds.max.x),
+                    wc3_widget_clamp_axis(requested->y,bounds.min.y,bounds.max.y)};
+    vec2_t point=move_grid_from_world(clamped.x,clamped.y);
+    moveFilteredPlacement_t filter={.graph={.flags=mask,.endpoint=true,.counted_scope=true},
+        .admit=admit,.data=data};
+    movePathQuery_t objects={.mover=widget,.units=true};move_query_objects(&filter.graph,&objects,NULL);
+    wc3FinePlacement_t query={.point={point.x,point.y},.limit=32,.integer_result=integer_result,
+        .footprint={.cls=wc3_fine_class(wc3_div(radius,pathmap_cell_world_size())),
+            .cell=move_cell_ok,.data=&filter},.admit=move_filtered_placement_admit};
+    S_ToggleUnitMoveExclusion(widget,true);
+    float result[2];bool placed=wc3_fine_place(&query,result);
+    S_ToggleUnitMoveExclusion(widget,false);
+    if(placed)*out=move_world_from_grid(result[0],result[1]);
+    return placed;
 }
 
 typedef struct {

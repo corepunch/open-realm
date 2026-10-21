@@ -1334,7 +1334,10 @@ void G_SnapBuildingPoint(uint32_t building_id, vec2_t *point) {
 
 static bool G_PathCellUsed(pathTex_t const *pathtex, uint32_t x, uint32_t y) {
     if (!pathtex) return true;
-    return pathtex->map[x + y * pathtex->width].b != 0;
+    /*6800f0 tests decoded pixel mask4a: red/blue bit0 or any green.
+     * Red-only placement margins belong to the authored footprint too. */
+    color32_t pixel=pathtex->map[x+y*pathtex->width];
+    return ((pixel.r|pixel.b)&1)!=0 || pixel.g!=0;
 }
 
 bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *out) {
@@ -1449,9 +1452,15 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     return true;
 }
 
+typedef struct {
+    bool allow_friendly_displacement;
+    bool exclude_builder_regions;
+    bool check_resource_distance;
+} buildPlacementPolicy_t;
+
 static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, uint32_t building_id,
                                                               vec2_t const *requested, vec2_t *snapped,
-                                                              bool allow_friendly_displacement) {
+                                                              buildPlacementPolicy_t policy) {
     UnitData_t const *data = G_UnitData(building_id);
     uint8_t prevented = 0;
     uint8_t required = 0;
@@ -1483,7 +1492,8 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
      * only for cursor placement and must not offset the mine overlay. */
     if (build_on) point = build_on->s.origin2;
     if (snapped) *snapped = point;
-    if (G_BuildTooCloseToGoldMine(building_id, &point)) return PLACE_TOO_CLOSE_TO_GOLD_MINE;
+    /* Entangle's Root continuation calls66f050 without construction's resource-distance gate. */
+    if (policy.check_resource_distance && G_BuildTooCloseToGoldMine(building_id, &point)) return PLACE_TOO_CLOSE_TO_GOLD_MINE;
     pathtex = M_LoadPathTex(data->pathingTexture);
     if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
  #ifdef WC3_DEBUG_MINING
@@ -1509,7 +1519,7 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
                 if (pathtex && !G_PathCellUsed(pathtex, x, y)) continue;
                 sample.x = point.x + ((float)x + 0.5f - (float)width * 0.5f) * WC3_BUILD_CELL_SIZE;
                 sample.y = point.y + ((float)y + 0.5f - (float)height * 0.5f) * WC3_BUILD_CELL_SIZE;
-                if (!CM_GetPathingFlagsAt(&sample, &flags)) {
+                if (!(policy.exclude_builder_regions ? G_GetPlacementPathingFlags(&sample,builder,&flags) : CM_GetPathingFlagsAt(&sample,&flags))) {
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=out-of-bounds building=%.4s sample=(%.1f,%.1f)\n",
@@ -1550,7 +1560,7 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
         }
     }
     if (pathtex) gi.MemFree(pathtex);
-    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint, allow_friendly_displacement)) {
+    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint, policy.allow_friendly_displacement)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING placement result=%d reason=unit-blocked building=%.4s point=(%.1f,%.1f) parent=%ld\n",
                 PLACE_UNIT_BLOCKED, (cstring_t)&building_id, point.x, point.y,
@@ -1568,12 +1578,68 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
 
 buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id,
                                                 vec2_t const *requested, vec2_t *snapped) {
-    return G_EvaluateBuildPlacementPolicy(builder, building_id, requested, snapped, true);
+    return G_EvaluateBuildPlacementPolicy(builder,building_id,requested,snapped,
+        (buildPlacementPolicy_t){.allow_friendly_displacement=true,.check_resource_distance=true});
 }
 
 buildPlacementResult_t G_EvaluateRootPlacement(edict_t *unit, vec2_t const *requested, vec2_t *snapped) {
-    return unit ? G_EvaluateBuildPlacementPolicy(unit, unit->class_id, requested, snapped, false) :
+    return unit ? G_EvaluateBuildPlacementPolicy(unit,unit->class_id,requested,snapped,
+        (buildPlacementPolicy_t){.check_resource_distance=true}) :
         PLACE_INVALID_BUILDING;
+}
+
+buildPlacementResult_t G_EvaluateOwnedRootPlacement(edict_t *unit,vec2_t const *requested,vec2_t *snapped) {
+    return unit ? G_EvaluateBuildPlacementPolicy(unit,unit->class_id,requested,snapped,
+        (buildPlacementPolicy_t){.allow_friendly_displacement=true,.exclude_builder_regions=true}) : PLACE_INVALID_BUILDING;
+}
+
+/*66f050 publishes ordinary Move to friendly occupants during admission,
+ * before Root/Entangle constructs its physical continuation. The two jitter
+ * draws belong to the shared path owner and precede the existing-Move check. */
+buildPlacementResult_t G_AdmitOwnedRootPlacement(edict_t *unit,vec2_t const *requested,vec2_t *snapped) {
+    if(!unit || !requested)return PLACE_INVALID_BUILDING;
+    vec2_t point=*requested;
+    buildPlacementResult_t result=G_EvaluateOwnedRootPlacement(unit,requested,&point);
+    if(snapped)*snapped=point;
+    if(result!=PLACE_OK)return result;
+    pathTex_t *texture=M_LoadPathTex(G_UnitData(unit->class_id)->pathingTexture);
+    float hx=texture ? wc3_mul(texture->width,16) : 16;
+    float hy=texture ? wc3_mul(texture->height,16) : 16;
+    if(texture)gi.MemFree(texture);
+    box2_t box={{wc3_sub(point.x,hx),wc3_sub(point.y,hy)},
+                {wc3_add(point.x,hx),wc3_add(point.y,hy)}};
+    uint32_t generation=unit->spawn_time,revision=G_UnitMoveRevision(unit),limit=globals.num_edicts;
+    bool moving=false;
+    for(uint32_t i=1;i<limit;i++) {
+        edict_t *occupant=g_edicts+i;
+        if(!occupant->inuse || !(occupant->svflags&SVF_MONSTER) || occupant==unit ||
+           M_IsDead(occupant) || G_IsDeferredFree(occupant) ||
+           !G_BuildUnitCanDisplace(unit,occupant))continue;
+        vec2_t position=occupant->s.origin2;
+        vec2_t nearest={MAX(box.min.x,MIN(box.max.x,position.x)),MAX(box.min.y,MIN(box.max.y,position.y))};
+        if(Vector2_distance(&nearest,&position)>=occupant->collision)continue;
+        moving=true;
+        float xlo=fabsf(wc3_sub(position.x,box.min.x)),xhi=fabsf(wc3_sub(position.x,box.max.x));
+        float ylo=fabsf(wc3_sub(position.y,box.min.y)),yhi=fabsf(wc3_sub(position.y,box.max.y));
+        float dx=wc3_mul(wc3_random_unit(&level.pathing_random),32);
+        float dy=wc3_mul(wc3_random_unit(&level.pathing_random),32);
+        float clearance=wc3_add(G_UnitCollision(occupant->class_id),128);
+        vec2_t destination;
+        if(MIN(ylo,yhi)<=MIN(xlo,xhi)) {
+            destination.x=wc3_add(position.x,dx);
+            destination.y=yhi<=ylo ? wc3_add(wc3_add(box.max.y,clearance),dy) :
+                wc3_sub(wc3_sub(box.min.y,clearance),dy);
+        } else {
+            destination.y=wc3_add(position.y,dy);
+            destination.x=xhi<=xlo ? wc3_add(wc3_add(box.max.x,clearance),dx) :
+                wc3_sub(wc3_sub(box.min.x,clearance),dx);
+        }
+        if(occupant->current_order_id!=G_OrderId("move"))
+            G_IssueUnitPointOrder(occupant,"move",&destination,false,occupant->s.player,0);
+        if(!unit->inuse || unit->spawn_time!=generation || G_IsDeferredFree(unit) ||
+           G_UnitMoveRevision(unit)!=revision)return PLACE_INVALID_BUILDING;
+    }
+    return moving ? PLACE_OCCUPANTS_MOVING : PLACE_OK;
 }
 
 float G_BuildApproachDistance(uint32_t building_id) {
