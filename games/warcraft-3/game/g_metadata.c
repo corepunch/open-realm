@@ -509,6 +509,11 @@ static slkField_t const ability_schema[] = {
     AB_ID_LEVELS("DataG", 6), AB_ID_LEVELS("DataH", 7), AB_ID_LEVELS("DataI", 8),
     AB_F_LEVELS("UnitID", unitID, STB_SLK_FOURCC),
     AB_F_LEVELS("BuffID", buffID, STB_SLK_STR),
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC stores one effect-link column for all ability ranks. */
+    AB_F("EfctID", efctID, 0, STB_SLK_STR), AB_F("EfctID", efctID, 1, STB_SLK_STR),
+    AB_F("EfctID", efctID, 2, STB_SLK_STR), AB_F("EfctID", efctID, 3, STB_SLK_STR),
+#endif
     AB_F_LEVELS("EfctID", efctID, STB_SLK_STR),
     { "CastCheck",    offsetof(AbilityData_t, castCheck),    STB_SLK_STR }, /* ROC */
     { "DurCheck",     offsetof(AbilityData_t, durCheck),     STB_SLK_STR }, /* ROC */

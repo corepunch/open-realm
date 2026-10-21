@@ -100,7 +100,13 @@ float S_EarthquakeMoveReduction(edict_t const *unit) {
 
 static uint32_t spell_effect_code(uint32_t code, uint32_t level) {
     cstring_t effect_id = G_AbilityLevel(code, level)->efctID;
-    return effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : code;
+    if (effect_id && strlen(effect_id) >= 4) return FS_SLKKey(effect_id);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0's unsuffixed EfctID is inconsistently exposed by legacy data
+     * loading; keep Thrall's authored AOeq -> XOeq presentation link intact. */
+    if (G_AbilityCode(code) == ID_EARTHQUAKE) return MAKEFOURCC('X','O','e','q');
+#endif
+    return code;
 }
 
 static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, uint32_t level,
