@@ -20,6 +20,7 @@
 #include <windows.h>
 #endif
 
+/* Share one monotonic clock across engine and game diagnostics without wall-clock jumps. */
 double Com_MonotonicMilliseconds(void) {
 #ifdef _WIN32
     LARGE_INTEGER counter, frequency;

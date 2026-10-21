@@ -16,10 +16,12 @@ static struct {
     double model_ms, portrait_probe_ms, portrait_load_ms;
 } cl_model_load_debug;
 
+/* Start a fresh set of counters for one client preload/refresh phase. */
 void CL_ResetModelLoadDebug(void) {
     memset(&cl_model_load_debug, 0, sizeof(cl_model_load_debug));
 }
 
+/* Emit aggregate model and portrait work for the named map-loading phase. */
 void CL_ReportModelLoadDebug(cstring_t phase, cstring_t map) {
     WC3_MAP_LOAD_LOG("map=%s phase=%s visits=%u cached=%u model-loads=%u model-ms=%.3f portrait-probes=%u portrait-loads=%u portrait-probe-ms=%.3f portrait-load-ms=%.3f\n",
                      map, phase, cl_model_load_debug.visits, cl_model_load_debug.cached,

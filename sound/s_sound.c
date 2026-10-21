@@ -19,37 +19,13 @@
 sState_t s;
 
 #ifdef WC3_DEBUG_MAP_LOAD
-typedef struct {
-    char path[512];
-    double ms;
-    uint32_t bytes;
-} sMapLoadSlowMp3_t;
 static struct {
     uint32_t requests, unique_paths, new_handles, cache_hits, failed_reads, failed_loads;
     uint32_t wav_files, mp3_files;
     uint64_t bytes_read;
-    double lookup_ms, file_read_ms, wav_parse_ms, wav_resample_ms, mp3_decode_ms, load_ms;
-    sMapLoadSlowMp3_t slow_mp3[8];
+    double lookup_ms, file_read_ms, wav_parse_ms, wav_resample_ms, mp3_decode_ms, max_mp3_decode_ms, load_ms;
     bool active;
 } s_map_load_sound_stats;
-
-static void S_RecordSlowMapLoadMp3(cstring_t path, uint32_t bytes, double ms) {
-    uint32_t slot = (uint32_t)(sizeof(s_map_load_sound_stats.slow_mp3) /
-                               sizeof(s_map_load_sound_stats.slow_mp3[0]));
-    for (uint32_t i = 0; i < sizeof(s_map_load_sound_stats.slow_mp3) /
-                            sizeof(s_map_load_sound_stats.slow_mp3[0]); i++) {
-        if (ms > s_map_load_sound_stats.slow_mp3[i].ms) { slot = i; break; }
-    }
-    if (slot == sizeof(s_map_load_sound_stats.slow_mp3) /
-                sizeof(s_map_load_sound_stats.slow_mp3[0])) return;
-    for (uint32_t i = (uint32_t)(sizeof(s_map_load_sound_stats.slow_mp3) /
-                                 sizeof(s_map_load_sound_stats.slow_mp3[0])) - 1; i > slot; i--)
-        s_map_load_sound_stats.slow_mp3[i] = s_map_load_sound_stats.slow_mp3[i - 1];
-    snprintf(s_map_load_sound_stats.slow_mp3[slot].path,
-             sizeof(s_map_load_sound_stats.slow_mp3[slot].path), "%s", path);
-    s_map_load_sound_stats.slow_mp3[slot].bytes = bytes;
-    s_map_load_sound_stats.slow_mp3[slot].ms = ms;
-}
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -244,11 +220,6 @@ static sfxcache_t *S_ResampleLoad(char const *path) {
     }
 #endif
     if (!file_data || !file_size) {
-#ifdef WC3_DEBUG_MAP_LOAD
-        if (s_map_load_sound_stats.active)
-            WC3_MAP_LOAD_LOG("sound-read-failure path=%s fs-file-exists=%u\n",
-                             path, FS_FileExists(path) ? 1u : 0u);
-#endif
         fprintf(stderr, "[sound] %s: failed to read audio file\n", path);
         FS_FreeFile(file_data);
         return NULL;
@@ -268,7 +239,8 @@ static sfxcache_t *S_ResampleLoad(char const *path) {
         if (s_map_load_sound_stats.active && is_mp3) {
             double const decode_ms = WC3_MAP_LOAD_NOW() - phase_start;
             s_map_load_sound_stats.mp3_decode_ms += decode_ms;
-            S_RecordSlowMapLoadMp3(path, file_size, decode_ms);
+            if (decode_ms > s_map_load_sound_stats.max_mp3_decode_ms)
+                s_map_load_sound_stats.max_mp3_decode_ms = decode_ms;
         }
 #endif
         if (!sc) fprintf(stderr, "[sound] %s: %s\n", path,
@@ -531,7 +503,7 @@ void S_BeginRegistration(void) {
 void S_EndRegistration(void) {
 #ifdef WC3_DEBUG_MAP_LOAD
     if (s_map_load_sound_stats.active) {
-        WC3_MAP_LOAD_LOG("phase=client-sound-detail requests=%u unique-paths=%u new-handles=%u cache-hits=%u failed-reads=%u failed-loads=%u wav=%u mp3=%u bytes=%llu lookup-ms=%.3f read-ms=%.3f wav-parse-ms=%.3f wav-resample-ms=%.3f mp3-decode-ms=%.3f load-ms=%.3f\n",
+        WC3_MAP_LOAD_LOG("phase=client-sound-detail requests=%u unique-paths=%u new-handles=%u cache-hits=%u failed-reads=%u failed-loads=%u wav=%u mp3=%u bytes=%llu lookup-ms=%.3f read-ms=%.3f wav-parse-ms=%.3f wav-resample-ms=%.3f mp3-decode-ms=%.3f max-mp3-decode-ms=%.3f load-ms=%.3f\n",
                          s_map_load_sound_stats.requests, s_map_load_sound_stats.unique_paths,
                          s_map_load_sound_stats.new_handles, s_map_load_sound_stats.cache_hits,
                          s_map_load_sound_stats.failed_reads, s_map_load_sound_stats.failed_loads,
@@ -539,14 +511,8 @@ void S_EndRegistration(void) {
                          (unsigned long long)s_map_load_sound_stats.bytes_read,
                          s_map_load_sound_stats.lookup_ms, s_map_load_sound_stats.file_read_ms,
                          s_map_load_sound_stats.wav_parse_ms, s_map_load_sound_stats.wav_resample_ms,
-                         s_map_load_sound_stats.mp3_decode_ms, s_map_load_sound_stats.load_ms);
-        for (uint32_t i = 0; i < sizeof(s_map_load_sound_stats.slow_mp3) /
-                                sizeof(s_map_load_sound_stats.slow_mp3[0]); i++) {
-            sMapLoadSlowMp3_t const *entry = s_map_load_sound_stats.slow_mp3 + i;
-            if (!entry->path[0]) break;
-            WC3_MAP_LOAD_LOG("phase=client-sound-slowest-mp3 rank=%u path=%s bytes=%u decode-ms=%.3f\n",
-                             i + 1, entry->path, entry->bytes, entry->ms);
-        }
+                         s_map_load_sound_stats.mp3_decode_ms, s_map_load_sound_stats.max_mp3_decode_ms,
+                         s_map_load_sound_stats.load_ms);
         s_map_load_sound_stats.active = false;
     }
 #endif

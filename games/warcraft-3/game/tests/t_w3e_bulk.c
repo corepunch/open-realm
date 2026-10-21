@@ -3,12 +3,14 @@
 #include "common/war3map_vertices.h"
 #include <stdlib.h>
 
+/* Match the engine allocation callback while keeping fixture ownership local. */
 static handle_t Test_W3EAlloc(long size) {
     void *memory = malloc((size_t)size);
     if (memory) memset(memory, 0, (size_t)size);
     return memory;
 }
 
+/* Release memory returned by the fixture allocator. */
 static void Test_W3EFree(handle_t memory) {
     free(memory);
 }

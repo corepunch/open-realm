@@ -7,6 +7,7 @@
 #include <windows.h>
 #endif
 
+/* Renderer and game modules are separately linked; diagnostics cannot call engine common symbols. */
 static inline double WC3_MapLoadMonotonicMilliseconds(void) {
 #ifdef _WIN32
     LARGE_INTEGER counter, frequency;

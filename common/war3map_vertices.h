@@ -6,10 +6,11 @@
 
 /* W3E vertices occupy seven bytes on disk, not sizeof(war3mapVertex_t).
  * Preserve this packed format for both collision and renderer terrain. */
-#define W3E_VERTEX_BATCH 4096u
-#define W3E_MAX_VERTEX_DIMENSION 2049u
-#define W3E_MAX_VERTICES (1024u * 1024u)
+#define W3E_VERTEX_BATCH 4096u // vertices; bounds stack reads to 28 KiB while amortizing MPQ calls
+#define W3E_MAX_VERTEX_DIMENSION 2049u // vertices; bounds each axis before applying the one-million-vertex cap
+#define W3E_MAX_VERTICES (1024u * 1024u) // vertices; caps decoded terrain allocation at about 14 MiB
 
+/* Decode one seven-byte little-endian W3E record into the shared runtime shape. */
 static inline void W3E_DecodeVertex(uint8_t const *data, war3mapVertex_t *vert) {
     uint16_t const water_and_edge = (uint16_t)data[2] | ((uint16_t)data[3] << 8);
     uint8_t const flags = data[4];
@@ -31,8 +32,9 @@ static inline void W3E_DecodeVertex(uint8_t const *data, war3mapVertex_t *vert) 
     vert->level = cliff_and_layer & 0x0fu;
 }
 
-#define W3E_MAX_PALETTE_ENTRIES 256u
+#define W3E_MAX_PALETTE_ENTRIES 256u // entries; bounds malformed W3E palette allocations to 1 KiB
 
+/* Reject short MPQ reads so callers never decode partially initialized fields. */
 static inline bool W3E_ReadExact(handle_t file, void *dst, uint32_t size) {
     uint32_t actual = 0;
     return SFileReadFile(file, dst, size, &actual, NULL) && actual == size;
@@ -53,6 +55,7 @@ static inline bool W3E_ReadPalette(handle_t file, uint32_t *count, uint32_t **id
     return *ids && W3E_ReadExact(file, *ids, *count * sizeof(**ids));
 }
 
+/* Read the fixed W3E header and bounded ground/cliff palettes in file order. */
 static inline bool W3E_ReadHeader(handle_t file, war3map_t *map, handle_t (*alloc)(long)) {
     if (!file || !map || !alloc) return false;
     return W3E_ReadExact(file, &map->header, sizeof(map->header)) &&
