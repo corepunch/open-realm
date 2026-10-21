@@ -202,10 +202,47 @@ asset-resolution tests now mock `gi.FileExists` rather than `gi.ReadFile`.
 They cover path selection and priority-mount teardown without requiring
 retail assets. Run `make test` and the affected native game/server builds,
 then compare matched OrcX01 `spawn-entities` and whole loading-cycle
-medians for first load, restart, and menu-return cases. The new lookup
-change has **no measured speedup yet**. If spawning remains dominant,
-profile repeated shadow names, model candidates, and path textures before
-introducing any map-scoped caches.
+medians for first load, restart, and menu-return cases. The later capture
+below provides an initial, uncontrolled spawn comparison; it is not enough
+to establish a speedup. If spawning remains dominant, profile repeated
+shadow names, model candidates, and path textures before introducing any
+map-scoped caches.
+
+### October 21 follow-up: repeated OrcX01 loads
+
+The later `openwarcraft3.log` capture contains six completed loads of the same
+OrcX01 map in one application session. It does not record the executable
+revision, build flags, machine details, or exact restart scenario for each
+load. Treat it as directional evidence, not a controlled comparison. The
+first load includes decoding 149 MP3s; the five subsequent loads reuse the
+sound cache.
+
+| Load | Client load cycle | Server `G_LoadMap` | Client refresh |
+|---|---:|---:|---:|
+| Initial | 16.822 s | 8.617 s | 7.858 s |
+| Warm 1 | 9.731 s | 7.927 s | 1.638 s |
+| Warm 2 | 9.059 s | 7.234 s | 1.661 s |
+| Warm 3 | 8.971 s | 7.167 s | 1.641 s |
+| Warm 4 | 9.094 s | 7.279 s | 1.653 s |
+| Warm 5 | 9.262 s | 7.424 s | 1.677 s |
+
+Warm-load medians are **9.094 s** for the client cycle, **7.279 s** for server
+`G_LoadMap`, and **1.653 s** for client refresh. The initial client cycle is
+1.074 s faster than the preceding 17.896 s capture in the W3E follow-up, but
+the runs are not controlled and this difference should not be attributed to a
+specific change. The current server `CM_LoadMap` is about 1.2–1.3 s and
+renderer map registration about 0.7–1.0 s. W3E reads remain in the low
+millisecond range, consistent with the earlier terrain measurements.
+
+`G_SpawnEntities` is 3.745 s on the initial load and 3.764–4.081 s on warm
+loads (median **3.814 s**). This is close to the earlier repeated-load median
+of 3.936 s and does not demonstrate a spawn-probe speedup. Initial sound
+registration takes 3.810 s, including 2.832 s of MP3 decoding; warm sound
+registration takes about 0.6 ms with 414 cache hits. The missing Pig Farm
+sound and empty LOS-blocker model fallback recur. The log also contains
+unsupported retained-field warnings for several splats and a failed read for
+`Sound\\Units\\Combat\\`; none prevents the map from loading. Investigate
+these asset/rendering messages separately from load-time measurements.
 
 ### Acceptance and measurement gates
 
