@@ -2626,10 +2626,10 @@ struct edict_s {
     edict_t *attack_alternative; /* Weak rejected candidate; resolves only at its saved incarnation. */
     uint32_t attack_alternative_spawn_time;
     uint32_t attack_acquisition_suppressed; /* Explicit target owner clears retail Attack20.4000. */
-    edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
-    uint32_t item_drop_spawn_time; /* captured point-drop item incarnation */
+    edict_t *item_drop; /* item retained by an Inventory pickup, drop or handoff */
+    uint32_t item_drop_spawn_time; /* retained Inventory item incarnation */
     uint32_t item_drop_target_spawn_time;
-    float item_drop_range; /* Captured terminal range; target approach uses half. */
+    float item_drop_range; /* Captured range; Give/Pawn approach uses half, pickup uses full. */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;
     edict_t *soul_trap_head; /* carrier-owned list of trapped unit edicts */
@@ -4316,6 +4316,7 @@ void S_ReleaseEntangledMineForTree(edict_t *);
 void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
 void S_UnitAbilityMoveChanged(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
+abilityOrderResult_t S_UnitTargetOrderAdmission(edict_t *,abilityCall_t const *);
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *, cstring_t, edict_t *);
 /* A callback may install the successor itself. Consuming that queue head must
  * not send the displaced order's accepted notification to the successor. */
@@ -5136,6 +5137,7 @@ void S_CargoLoadComplete(edict_t *, edict_t *, bool);
 void S_CargoDropComplete(edict_t *, edict_t *, bool);
 void S_InventoryDropComplete(edict_t *, edict_t *, bool);
 void S_InventoryTargetComplete(edict_t *, edict_t *, bool);
+void S_InventoryPickupComplete(edict_t *, edict_t *, bool);
 bool S_OrderDropItemTarget(edict_t *, edict_t *, edict_t *);
 bool G_GiveCarriedItem(edict_t *, edict_t *);
 bool G_ItemPawnable(edict_t const *);
@@ -5269,7 +5271,8 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
 bool G_PickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemScripted(edict_t *unit, edict_t *item);
 bool G_AddItemToSlotScripted(edict_t *unit, edict_t *item, uint32_t slot);
-bool G_OrderPickupItem(edict_t *unit, edict_t *item);
+bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item);
+void G_ShowInventoryFull(edict_t *unit);
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);

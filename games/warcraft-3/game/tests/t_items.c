@@ -39,6 +39,8 @@ static bool item_test_location_callback(edict_t *clent, vec2_t const *location) 
     return false;
 }
 
+typedef struct {stbIniCache_t misc;bool started,configured,scripts;} itemPickupTest_t;
+
 static void item_noop_write(pfWriteType_t type, void const *value) {
     (void)type;
     (void)value;
@@ -1522,7 +1524,7 @@ TEST(wc3_items, shimmerweed_powerup_without_ability_bypasses_inventory) {
     }
     item = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), ITEM_PICKUP_RANGE + 100, 0);
     item->data.ItemData = &shimmerweed;
-    T_ASSERT(G_OrderPickupItem(unit, item));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", item, false, unit->s.player));
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(item->item->pending_use_removal);
     T_EQ(item->item->charges, 0);
@@ -1566,8 +1568,8 @@ TEST(wc3_items, full_inventory_order_pickup_accepts_only_powerups) {
     rune->data.ItemData = &speed_data;
     ordinary = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), ITEM_PICKUP_RANGE + 100, 0);
 
-    T_ASSERT(!G_OrderPickupItem(unit, ordinary));
-    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "smart", ordinary, false, unit->s.player));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", rune, false, unit->s.player));
     T_ASSERT(unit->goalentity == rune);
 }
 
@@ -1810,7 +1812,7 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
     T_EQ(G_InventoryCapacity(unit), 2);
     T_ASSERT(!G_InventoryCanGetItems(unit));
     T_ASSERT(!G_InventoryCanDropItems(unit));
-    T_ASSERT(!G_OrderPickupItem(unit, item));
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "smart", item, false, unit->s.player));
 
     /* UnitAddItem/UnitAddItemToSlot style script operations call the direct
      * mutation path and are intentionally not blocked by inv4. */
@@ -3123,20 +3125,60 @@ TEST(wc3_items, drop_restores_same_item_to_world) {
     T_NOT_NULL(item->area.prev);
 }
 
+/* Pickup is now a physical owner. Drive its actual scheduler in these older
+ * transaction fixtures, preserving the caller's Misc and script-start flags. */
+static itemPickupTest_t item_pickup_start(edict_t *unit) {
+    itemPickupTest_t saved={game.config.misc,level.started,level.scriptsConfigured,level.scriptsStarted};
+    game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nPickupItemRange=150\n"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    unit->svflags|=SVF_MONSTER;unit->targtype=TARG_GROUND;unit->think=monster_think;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    return saved;
+}
+static void item_pickup_tick(void) {level.time+=FRAMETIME;globals.RunFrame();}
+static void item_pickup_end(itemPickupTest_t saved) {
+    level.started=saved.started;level.scriptsConfigured=saved.configured;level.scriptsStarted=saved.scripts;
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=saved.misc;
+}
+
 TEST(wc3_items, pickup_order_waits_for_simulation_tick) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(0, 0);
     edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE - 1, 0);
 
+    itemPickupTest_t saved=item_pickup_start(unit);
     T_ASSERT(unit_issuetargetorder(unit, "smart", item));
     T_NULL(unit->inventory[0]);
     T_ASSERT(item->item->in_world);
 
-    unit->currentmove->think(unit);
+    for(unsigned frame=0;frame<100 && item->item->carrier!=unit;frame++)item_pickup_tick();
 
     T_ASSERT(unit->inventory[0] == item);
     T_ASSERT(!item->item || !item->item->in_world);
     T_NULL(unit->goalentity);
+    item_pickup_end(saved);
+}
+
+/* RoC has no authored Inventory row on this Hero. Its implicit owner must
+ * still receive ordinary admission and activation through the public path. */
+TEST(wc3_items, roc_implicit_inventory_collects_through_public_smart_scheduler) {
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(roc_inventory_slk),*old=G_SetSLKRows("AbilityData",rows);
+    UnitAbilities_t abilities={.abilList="",.heroAbilList=""};
+    edict_t *unit=make_item_test_inventory_unit(0,0);
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('r','a','t','f'),400,0);
+    itemPickupTest_t saved=item_pickup_start(unit);
+    ((mapInfo_t *)level.mapinfo)->fileFormat=24;unit->data.UnitAbilities=&abilities;
+    T_ASSERT(!G_ActorHasAbilityCode(unit,MAKEFOURCC('A','I','n','v')));
+    T_EQ(G_InventoryCapacity(unit),6);
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"smart",item,false,unit->s.player));
+    T_EQ(unit->current_order_id,G_OrderId("smart"));T_NULL(item->item->carrier);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityInventory));
+    for(unsigned frame=0;frame<150 && unit->current_order_id;frame++)item_pickup_tick();
+    T_EQ(unit->inventory[0],item);T_EQ(item->item->carrier,unit);
+    T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));
+    item_pickup_end(saved);G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
 TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_first) {
@@ -3188,21 +3230,19 @@ TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_
 
 TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 100, 0);
-
-    T_ASSERT(G_OrderPickupItem(unit, item));
-    unit->currentmove->think(unit);
-    T_ASSERT(item->item->in_world);
-    T_ASSERT(unit->s.origin2.x > 0);
-
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->in_world = false;
-    unit->currentmove->think(unit);
-    T_NULL(unit->goalentity);
-    T_NULL(unit->inventory[0]);
-    T_STREQ(unit->currentmove->animation, "stand");
+    edict_t *unit=make_item_test_inventory_unit(0,0);
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('r','a','t','f'),ITEM_PICKUP_RANGE+100,0);
+    itemPickupTest_t saved=item_pickup_start(unit);
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"smart",item,false,unit->s.player));
+    for(unsigned frame=0;frame<10 && unit->s.origin2.x==0;frame++)item_pickup_tick();
+    T_ASSERT(item->item->in_world);T_ASSERT(unit->s.origin2.x>0);
+    /* A real competing carrier replaces the old impossible in_world=false,
+     * carrier=NULL mutation. The admitted approach still reaches its terminal. */
+    edict_t *other=make_item_test_inventory_unit(0,128);
+    T_ASSERT(G_AddItemScripted(other,item));
+    for(unsigned frame=0;frame<100 && unit->current_order_id;frame++)item_pickup_tick();
+    T_NULL(unit->goalentity);T_NULL(unit->inventory[0]);T_EQ(item->item->carrier,other);
+    T_STREQ(unit->currentmove->animation,"stand");item_pickup_end(saved);
 }
 
 /* Scripted insertion preserves the same item through its world-drop and
@@ -4704,7 +4744,7 @@ TEST(wc3_items, inventory_without_use_permission_carries_runes_and_quest_items) 
     rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
     rune->data.ItemData = &rune_data;
     G_SetItemCharges(rune, 3);
-    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", rune, false, unit->s.player));
     T_ASSERT(G_PickupItem(unit, rune));
     T_ASSERT(unit->inventory[0] == rune);
     T_ASSERT(!rune->item->pending_use_removal);
@@ -4718,7 +4758,7 @@ TEST(wc3_items, inventory_without_use_permission_carries_runes_and_quest_items) 
 
     third = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
     third->data.ItemData = &rune_data;
-    T_ASSERT(!G_OrderPickupItem(unit, third));
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "smart", third, false, unit->s.player));
     T_ASSERT(!G_PickupItem(unit, third));
     T_ASSERT(third->item->in_world);
     T_NULL(third->item->carrier);
@@ -4751,17 +4791,20 @@ TEST(wc3_items, pickup_approach_rechecks_inv4_after_ability_change) {
     level.mapinfo = &tft;
     unit = make_item_test_inventory_unit(0, 0);
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 200, 0);
-    T_ASSERT(G_OrderPickupItem(unit, item));
+    itemPickupTest_t saved=item_pickup_start(unit);
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", item, false, unit->s.player));
     T_ASSERT(unit->goalentity == item);
     unit->data.UnitAbilities = &no_pickup;
     T_EQ(G_InventoryCapacity(unit), 2);
     T_ASSERT(!G_InventoryCanGetItems(unit));
     T_NOT_NULL(unit->currentmove);
-    if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    item_pickup_tick();T_EQ(unit->goalentity,item);
+    for(unsigned frame=0;frame<100 && unit->current_order_id;frame++)item_pickup_tick();
     T_NULL(unit->goalentity);
     T_ASSERT(item->item->in_world);
     T_NULL(item->item->carrier);
 
+    item_pickup_end(saved);
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);
     level.mapinfo = old_map;

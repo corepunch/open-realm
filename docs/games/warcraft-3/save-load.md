@@ -1,3 +1,10 @@
+Save221 retains ordinary Inventory pickup as a physical target continuation.
+The callback roster includes `S_InventoryPickupComplete`; item identity and the
+captured approach range use the existing Inventory fields. Live terminal range
+remains a separate Misc read. Save220 and earlier are rejected. Public scheduler
+tests cover saves before admission, during the approach and after range or
+item/Inventory mutations, including callback-owned Move and pause/removal.
+
 Save220 retains Inventory's independent item/recipient packet identities,
 captured terminal range and physical target lifetime policy. Give, Pawn and
 target-bound Drop restore their concrete move identity; both point and target

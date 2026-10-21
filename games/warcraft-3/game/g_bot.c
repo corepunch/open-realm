@@ -2948,7 +2948,7 @@ void G_BotUpdateHeroItems(player_t *player) {
             (item = G_BotNearestGroundItem(hero))) {
             if (hero->currentmove && hero->currentmove->proc == CAbilityInventory && hero->goalentity == item)
                 continue;
-            if (G_OrderPickupItem(hero, item)) continue;
+            if (G_IssueUnitTargetOrder(hero, "smart", item, false, hero->s.player)) continue;
         }
         if (buy_due && G_BotBuyBestShopItem(player, hero)) break;
     }

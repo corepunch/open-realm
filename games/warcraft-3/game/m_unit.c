@@ -1336,9 +1336,6 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
 
     self->movement.holding_position = false;
     if (!strcmp(order, "smart")) {
-        if (G_IsItem(target)) {
-            return G_OrderPickupItem(self, target);
-        }
         {
             abilityOrderResult_t const result = S_UnitIssuedTargetOrder(self, order, target);
             if (result != ABILITY_ORDER_UNHANDLED) return result == ABILITY_ORDER_ACCEPTED;
@@ -1539,6 +1536,7 @@ static abilityOrderResult_t unit_target_order_admission(edict_t *self,abilityCal
     if(owner)result=owner->proc(self,A_TARGET_ORDER_ADMIT,call);
     if(result==ABILITY_ORDER_UNHANDLED && active && (!owner || owner->proc!=active))
         result=active(self,A_TARGET_ORDER_ADMIT,call);
+    if(result==ABILITY_ORDER_UNHANDLED)result=S_UnitTargetOrderAdmission(self,call);
     return result;
 }
 
@@ -1565,6 +1563,7 @@ static bool unit_issue_target_order(edict_t *self, cstring_t order, edict_t *tar
     /* A hidden miner holds Unit198: original680320 cancels successors and
      * appends without dispatch, retaining its head until exit (H012). */
     bool const inside_mine=S_GoldMineWorkerIsInside(self);
+    bool packet_owner=false;
     vec2_t point=target->s.origin2;
     /* Validate/intercept through the owner before clearing pending work. A
      * same-target interaction can retain its current task and public head. */
@@ -1572,6 +1571,7 @@ static bool unit_issue_target_order(edict_t *self, cstring_t order, edict_t *tar
         abilityCall_t call = {.issued_target_order = {target, order, queue || fallback, &point}};
         abilityOrderResult_t const result=unit_target_order_admission(self,&call);
         if (result == ABILITY_ORDER_REJECTED) return false;
+        packet_owner=result==ABILITY_ORDER_ACCEPTED;
         if (result == ABILITY_ORDER_POINT)
             return unit_issue_point_order(self,order,&point,queue,issuer_player,0,fallback);
         if (result == ABILITY_ORDER_INTERCEPTED) {
@@ -1622,6 +1622,13 @@ static bool unit_issue_target_order(edict_t *self, cstring_t order, edict_t *tar
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, &point, target,
                                                issuer_player, 0.0f, 0);
         return accepted;
+    }
+    /* A concrete owner may request ordinary packet activation so publication
+     * precedes its constructor, as it already does for selected-unit packets. */
+    if(packet_owner) {
+        unitOrder_t packet;
+        if(!unit_prepare_order_packet(&packet,order,UNIT_ORDER_TARGET_ENTITY,&point,target,issuer_player,0,G_OrderId(order)))return false;
+        return G_AdmitUnitOrder(self,&packet,!queue);
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     {

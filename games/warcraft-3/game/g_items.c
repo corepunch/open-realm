@@ -48,7 +48,7 @@ static void G_RefreshInventoryUI(edict_t *unit) {
     }
 }
 
-static void G_ShowInventoryFull(edict_t *unit) {
+void G_ShowInventoryFull(edict_t *unit) {
     edict_t *player;
 
     if (!unit || unit->s.player >= MAX_PLAYERS || !level.mapinfo) {
@@ -497,7 +497,7 @@ int32_t G_FindFreeInventorySlot(edict_t const *unit) {
 /* A zero-slot inventory may still use a rune or ability-less quest powerup.
  * Ordinary items still require an available inventory slot. */
 static bool G_IsAbilitylessPowerup(edict_t const *item);
-static bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
+bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
     return G_InventoryCanUseItems(unit) &&
            (S_ItemPowerup(unit, item).ability || G_IsAbilitylessPowerup(item));
 }
@@ -649,8 +649,8 @@ static bool G_IsAbilitylessPowerup(edict_t const *item) {
     return !abilities || !*abilities || !strcmp(abilities, "_");
 }
 
-/* Scripted insertion dispatches immediately; gameplay pickup keeps its queued
- * publication until the physical pickup producer has its own timing evidence. */
+/* Direct pickup callers retain queued publication. Scripted insertion and the
+ * Inventory terminal use the synchronous insertion sink recovered from retail. */
 static void G_ItemPickupEvent(edict_t *unit, edict_t *item, bool scripted) {
     if(scripted)G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
     else {
@@ -730,69 +730,6 @@ bool G_AddItemScripted(edict_t *unit, edict_t *item) {
         if(!G_IsItem(item) || item->spawn_time!=generation)return false;
     }
     return G_PickupItemInternal(unit,item,true);
-}
-
-static void G_StopPickupOrder(edict_t *unit) {
-    S_SetMoveGoal(unit, &unit->goalentity, NULL);
-    if (unit->stand) {
-        unit->stand(unit);
-    } else {
-        unit_stand(unit);
-    }
-}
-
-static void G_PickupItemThink(edict_t *unit) {
-    edict_t *item = unit->goalentity;
-    float distance;
-    float move_distance;
-
-    /* Tech or an ability override may revoke player pickup permission while
-     * the carrier is walking. Recheck at execution, not just at order issue. */
-    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item)) {
-        G_StopPickupOrder(unit);
-        return;
-    }
-    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
-        G_ShowInventoryFull(unit);
-        G_StopPickupOrder(unit);
-        return;
-    }
-
-    distance = M_DistanceToGoal(unit);
-    if (distance <= ITEM_PICKUP_RANGE) {
-        if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0 &&
-            !G_CanConsumePickupPowerup(unit, item)) {
-            G_ShowInventoryFull(unit);
-        }
-        G_StopPickupOrder(unit);
-        return;
-    }
-
-    move_distance = unit_movedistance(unit);
-    if (move_is_blocked(unit, distance, move_distance)) {
-        G_StopPickupOrder(unit);
-        return;
-    }
-    unit_changeangle(unit);
-    unit_moveindirection(unit);
-}
-
-static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, CAbilityInventory };
-
-bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
-    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item) ||
-        (unit->aiflags & AI_IMMOBILE)) {
-        return false;
-    }
-    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
-        G_ShowInventoryFull(unit);
-        return false;
-    }
-
-    S_SetMoveGoal(unit, &unit->goalentity, item);
-    move_reset_progress(unit);
-    unit_setmove(unit, &item_move_pickup);
-    return true;
 }
 
 /* World publication is shared by explicit drops and Inventory detachment;

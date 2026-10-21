@@ -5,7 +5,9 @@
  * then a range-checked drop action. Give/Pawn retain a recipient and independent
  * item identity; Move owns their half-range approach. */
 static void inventory_drop_think(edict_t *),inventory_drop_leave(edict_t *);
-static void inventory_target_think(edict_t *);
+static void inventory_target_think(edict_t *),inventory_pickup_think(edict_t *);
+static umove_t inventory_move_pickup={.animation="walk",.think=inventory_pickup_think,.proc=CAbilityInventory,
+    .sample_pose=S_PublishMovement,.leave=inventory_drop_leave};
 static umove_t inventory_move_drop = {.animation="walk",.think=inventory_drop_think,.proc=CAbilityInventory,
     .sample_pose=S_PublishMovement,.leave=inventory_drop_leave};
 /*54efe0 retains the admitted recipient even when it now rejects receipt. */
@@ -17,12 +19,16 @@ static umove_t inventory_move_pawn={.animation="walk",.think=inventory_target_th
     .sample_pose=S_PublishMovement,.leave=inventory_drop_leave};
 static queuedOrderResult_t inventory_drop_activate(edict_t *,unitOrder_t const *);
 static queuedOrderResult_t inventory_target_activate(edict_t *,unitOrder_t const *);
+static queuedOrderResult_t inventory_pickup_activate(edict_t *,unitOrder_t const *);
+static abilityOrderResult_t inventory_pickup_admit(edict_t *,abilityCall_t const *);
 
 /* Inventory is also the move identity for pickup and drop orders. */
 BZ_ABILITY_PROC(CAbilityInventory) {
     switch(msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_QUEUE_ORDER_START,A_QUEUE_ORDER_CANCEL,A_MOVE_LEAVE,A_DISABLE);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_QUEUE_ORDER_START,A_QUEUE_ORDER_CANCEL,A_MOVE_LEAVE,A_DISABLE,A_TARGET_ORDER_ADMIT);
+    case A_TARGET_ORDER_ADMIT:
+        return inventory_pickup_admit(ent,call);
     case A_DISABLE:
         /* Removal has already erased the concrete rawcode. Ordinary disable
          * contributions retain it and must not release carried items. */
@@ -38,6 +44,12 @@ BZ_ABILITY_PROC(CAbilityInventory) {
         }
         return false;
     case A_QUEUE_ORDER_START:
+        if(call->queued_order->target_type==UNIT_ORDER_TARGET_ENTITY && !strcmp(call->queued_order->order,"smart")) {
+            unitOrder_t const *packet=call->queued_order;
+            edict_t *item=packet->target_number<globals.num_edicts ? g_edicts+packet->target_number : NULL;
+            if(G_IsItem(item) && item->spawn_time==packet->target_spawn_time)
+                return inventory_pickup_activate(ent,packet);
+        }
         if(call->queued_order->target_type==UNIT_ORDER_TARGET_ENTITY_ITEM)
             return inventory_target_activate(ent,call->queued_order);
         if(call->queued_order->target_type!=UNIT_ORDER_TARGET_POINT_ITEM)return QUEUED_ORDER_UNHANDLED;
@@ -251,4 +263,64 @@ bool S_OrderDropItemTarget(edict_t *unit,edict_t *item,edict_t *target) {
     }
     snprintf(packet.order,sizeof(packet.order),"%s","dropitem");
     return G_AdmitUnitOrder(unit,&packet,true);
+}
+
+/*55bb10 admits a complete ordinary packet before replacing work. Visibility
+ * is initial admission; capacity and inv4 are rechecked by the terminal. */
+static abilityOrderResult_t inventory_pickup_admit(edict_t *unit,abilityCall_t const *call) {
+    if(!call || !call->issued_target_order.order || strcmp(call->issued_target_order.order,"smart") ||
+       !G_IsItem(call->issued_target_order.target))return ABILITY_ORDER_UNHANDLED;
+    edict_t *item=call->issued_target_order.target;
+    if(!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit,item))return ABILITY_ORDER_REJECTED;
+    if(G_FindFreeInventorySlot(unit)<0 && !G_CanConsumePickupPowerup(unit,item)) {
+        G_ShowInventoryFull(unit);return ABILITY_ORDER_REJECTED;
+    }
+    return ABILITY_ORDER_ACCEPTED;
+}
+
+/*56b360 rereads live PickupItemRange and inv4 after the physical task ends.
+ * Hidden admitted items remain collectible; an item now owned elsewhere does not. */
+void S_InventoryPickupComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || unit->currentmove!=&inventory_move_pickup)return;
+    if(!arrived && unit->movement.group_id)return;
+    edict_t *item=unit->item_drop;
+    uint32_t const spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
+    if(G_IsItem(item) && item->spawn_time==unit->item_drop_spawn_time && !item->item->carrier &&
+       !G_IsDeferredFree(item) && !item->item->pending_use_removal && G_InventoryCanGetItems(unit) &&
+       S_UnitTargetInMoveRange(unit,item,inventory_range("PickupItemRange")))
+        /* The ordinary validator has retained the item; the common insertion
+         * sink dispatches Pickup synchronously while this Smart head is live. */
+        G_AddItemScripted(unit,item);
+    if(unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) && G_UnitMoveRevision(unit)==revision) {
+        S_SetMoveGoal(unit,&unit->goalentity,NULL);unit->stand(unit);
+    }
+}
+
+/* Admission always creates d0171, even inside range. An immobile source
+ * cannot construct physical movement and attempts the terminal immediately. */
+static void inventory_pickup_think(edict_t *unit) {
+    edict_t *item=unit->item_drop;
+    if(!G_IsItem(item) || item->spawn_time!=unit->item_drop_spawn_time || G_IsDeferredFree(item)) {
+        unit->stand(unit);return;
+    }
+    if(S_UnitTargetChaseActive(unit,CAbilityInventory))return;
+    if(!S_BeginUnitTargetChase(unit,item,unit->item_drop_range,CAbilityInventory,S_InventoryPickupComplete))
+        S_InventoryPickupComplete(unit,unit,false);
+    /* Items have no unit health state; their retained incarnation owns life. */
+    else S_SetUnitTargetChaseLife(unit,MOVE_TARGET_RETAIN_DEAD);
+}
+
+/* The ordinary target packet owns item identity; Inventory owns its physical
+ * continuation independently of later visibility, capacity or carrier changes. */
+static queuedOrderResult_t inventory_pickup_activate(edict_t *unit,unitOrder_t const *packet) {
+    edict_t *item=packet->target_number<globals.num_edicts ? g_edicts+packet->target_number : NULL;
+    if(!G_IsItem(item) || item->spawn_time!=packet->target_spawn_time)return QUEUED_ORDER_UNHANDLED;
+    S_SetMoveGoal(unit,&unit->goalentity,item);move_reset_progress(unit);
+    unit_setmove(unit,&inventory_move_pickup);
+    unit->item_drop=item;unit->item_drop_spawn_time=item->spawn_time;
+    unit->item_drop_range=inventory_range("PickupItemRange");unit->current_order_id=packet->order_id;
+    uint32_t const revision=G_UnitMoveRevision(unit);
+    inventory_pickup_think(unit);
+    return unit->currentmove==&inventory_move_pickup && G_UnitMoveRevision(unit)==revision ?
+        QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }

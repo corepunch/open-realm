@@ -141,6 +141,19 @@ substitute for leaf closure.
 
 ## Progress
 
+TARGET-01.2 adds ordinary Smart pickup as an Inventory-owned packet and full-range
+target continuation. Native V8b retains six observations, three unhooked controls
+and2610 matching public markers across stock150/authored64/zero ranges. Public
+engine/save checks cover the captured range boundary and adjacent values,
+independent live terminal range, immobile sources, retained item mutations,
+callback-owned Move, pause/removal and implicit RoC Hero Inventory. Save221
+registers the pickup completion callback. Focused Classic/TFT checks pass36
+Inventory tests/5123 assertions and129 item tests/11356 assertions; optional
+SC2API and the save/dispatcher/API suites also pass. This is a partial slice:
+**25 ->25 open; zero whole leaves closed. TARGET-01.2 remains active** for the
+remaining producer/range/heading/force/stop and complete firing-poll rows.
+[Pickup evidence and limits](inventory-and-items.md#ordinary-pickup-native-corpus-v8b).
+
 TARGET-01.2's Give/Pawn checkpoint is integrated in `df55e31bb`. Inventory owns
 independent item/recipient identities, half-range physical approaches, target-bound
 queued Drop and synchronous guarded transfers. Callback-owned movement, Pawn's

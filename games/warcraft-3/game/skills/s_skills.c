@@ -973,6 +973,11 @@ intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t 
     return result;
 }
 
+/* Admission and activation queries return an owner result, not a boolean. */
+static bool unit_order_result_message(abilityMsg_t msg) {
+    return msg==A_ISSUED_TARGET_ORDER || msg==A_TARGET_ORDER_ADMIT || msg==A_QUEUE_ORDER_START;
+}
+
 /* Dispatch lifecycle notifications to the unit's concrete authored abilities.
  * The active order is visited first, then innate hooks and AbilityData rows;
  * stop-first queries retain the owning procedure's result. */
@@ -987,7 +992,7 @@ static intptr_t unit_dispatch_authored_abilities_uncached(edict_t *ent, abilityM
     if (include_channel && msg == A_MOVE_LEAVE && ent->channel && ent->channel->code) {
         intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, ent->channel->code,
                                                             seen, &count, capacity, false);
-        if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result;
+        if (unit_order_result_message(msg) && result != ABILITY_ORDER_UNHANDLED) return result;
         handled |= result != 0;
         if (stop_first && handled) return true;
     }
@@ -1010,7 +1015,7 @@ static intptr_t unit_dispatch_authored_abilities_uncached(edict_t *ent, abilityM
 #endif
             invoke.item = item;
             result = S_AbilityMessage(ent, msg, &invoke);
-            if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result;
+            if (unit_order_result_message(msg) && result != ABILITY_ORDER_UNHANDLED) return result;
             handled |= result != 0;
             if (stop_first && handled) return true;
         }
@@ -1018,7 +1023,7 @@ static intptr_t unit_dispatch_authored_abilities_uncached(edict_t *ent, abilityM
 #define DISPATCH_AUTHORED_ABILITY(code_) do { \
         intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, (code_), \
                                                              seen, &count, capacity, true); \
-        if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result; \
+        if (unit_order_result_message(msg) && result != ABILITY_ORDER_UNHANDLED) return result; \
         handled |= result != 0; \
         if (stop_first && handled) return true; \
     } while (0)
@@ -1315,7 +1320,7 @@ static intptr_t unit_dispatch_authored_abilities_execute(edict_t *ent, abilityMs
     if (!plan) return unit_dispatch_authored_abilities_uncached(ent,msg,payload,stop_first,include_innate,include_channel);
 #define UNIT_EVENT_RESULT(result_) do { \
     intptr_t const result = (result_); \
-    if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result; \
+    if (unit_order_result_message(msg) && result != ABILITY_ORDER_UNHANDLED) return result; \
     handled |= result != 0; \
     if (stop_first && handled) return true; \
 } while (0)
@@ -1476,7 +1481,7 @@ bool S_InitPreparedUnitAbilities(edict_t *ent, unitRuntimeType_t *type) {
 #ifdef BZ_TESTS
 static uint32_t engine_event_visits;
 #endif
-static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
+static intptr_t unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
     bool handled = false;
     FOR_LOOP(i, num_engine_events) {
         if (!engine_event_receives(i, msg)) continue;
@@ -1488,7 +1493,9 @@ static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg,
         event_call = MAKE(abilityCall_t, .item = item);
         if (call) event_call = *call;
         event_call.item = item;
-        handled |= S_AbilityMessage(ent, msg, &event_call) != 0;
+        intptr_t result=S_AbilityMessage(ent,msg,&event_call);
+        if(unit_order_result_message(msg) && result!=ABILITY_ORDER_UNHANDLED)return result;
+        handled|=result!=0;
     }
     return handled;
 }
@@ -1633,6 +1640,14 @@ abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *issuer, cstring_t order, e
         issuer, A_ISSUED_TARGET_ORDER, &call, true, false, false);
 }
 
+/* Admission queries retain the concrete owner's enum through cached and
+ * uncached dispatch, including implicit Inventory on classic Heroes. */
+abilityOrderResult_t S_UnitTargetOrderAdmission(edict_t *ent,abilityCall_t const *call) {
+    intptr_t result=unit_dispatch_authored_abilities(ent,A_TARGET_ORDER_ADMIT,call,true,true,false);
+    if(result==ABILITY_ORDER_UNHANDLED)result=unit_dispatch_engine_event_abilities(ent,A_TARGET_ORDER_ADMIT,call);
+    return (abilityOrderResult_t)result;
+}
+
 /* Accepted instant/spell orders can leave the current movement object untouched.
  * Give registered policies and innate behavior owners a generic post-accept hook. */
 bool S_UnitAbilityOrderAccepted(edict_t *ent, cstring_t order) {
@@ -1664,7 +1679,14 @@ queuedOrderResult_t S_UnitQueuedOrderEvent(edict_t *ent, unitOrder_t const *queu
     if (!ability || !ability->proc) return false;
     item = MAKE(abilityitem_t, .code = queued->order_id, .ability = ability);
     call = MAKE(abilityCall_t, .item = &item, .queued_order = queued);
-    return (queuedOrderResult_t)S_AbilityMessage(ent, msg, &call);
+    queuedOrderResult_t result=(queuedOrderResult_t)S_AbilityMessage(ent,msg,&call);
+    /* Shared order names may select a different concrete owner from the
+     * target shape. Consult those owners before the generic Move fallback. */
+    if(result==QUEUED_ORDER_UNHANDLED && msg==A_QUEUE_ORDER_START)
+        result=(queuedOrderResult_t)unit_dispatch_authored_abilities(ent,msg,&call,true,true,false);
+    if(result==QUEUED_ORDER_UNHANDLED && msg==A_QUEUE_ORDER_START)
+        result=(queuedOrderResult_t)unit_dispatch_engine_event_abilities(ent,msg,&call);
+    return result;
 }
 
 static bool unit_target_ability_try(edict_t *target, edict_t *issuer, cstring_t order, uint32_t code,
@@ -3001,5 +3023,30 @@ TEST(wc3_ability_dispatch, classname_lookup_keeps_first_rows_without_registry_sc
     T_ASSERT(ability_name_comparisons < 1024 * 12);
     InitAbilities();
     T_ASSERT(FindAbilityByClassname("CmdMove") == abilitylist + 1);
+}
+/* Shared-order fallback must preserve enum results in both event-plan paths. */
+static intptr_t order_result_proc(edict_t *ent,abilityMsg_t msg,abilityCall_t const *call) {
+    if(msg==A_UNIT_EVENT_MASK)return UNIT_MESSAGE_SUBSCRIPTIONS(A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START);
+    if(msg==A_TARGET_ORDER_ADMIT)return ABILITY_ORDER_ACCEPTED;
+    if(msg==A_QUEUE_ORDER_START)return QUEUED_ORDER_REPLACED;
+    return CAbilityPassive(ent,msg,call);
+}
+TEST(wc3_ability_dispatch, shared_order_queries_preserve_owner_enum_results) {
+    InitAbilities();
+    ability_t const *move=FindAbilityByClassname("Amov"),*inv=FindAbilityByClassname("AInv");
+    abilityProc_t old_move=move->proc,old_inv=inv->proc;
+    S_ReplaceAbilityProcedure(move,order_result_proc);S_ReplaceAbilityProcedure(inv,order_result_proc);
+    UnitAbilities_t row={.abilList=""};UnitData_t data={0};
+    edict_t ent={.inuse=true,.data.UnitAbilities=&row,.data.UnitData=&data};
+    abilityCall_t call={0};
+    FOR_LOOP(uncached,2) {
+        unit_events_force_uncached=uncached;
+        FOR_LOOP(pass,2) {
+            T_EQ(S_UnitTargetOrderAdmission(&ent,&call),ABILITY_ORDER_ACCEPTED);
+            T_EQ(unit_dispatch_authored_abilities(&ent,A_QUEUE_ORDER_START,&call,true,true,false),QUEUED_ORDER_REPLACED);
+        }
+    }
+    unit_events_force_uncached=false;
+    S_ReplaceAbilityProcedure(move,old_move);S_ReplaceAbilityProcedure(inv,old_inv);S_ClearUnitEventPlans();
 }
 #endif

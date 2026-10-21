@@ -603,7 +603,7 @@ TEST(wc3_items, itemdrop_item_loss_retains_point_owner_through_save_and_arrival)
 /* Extend the same VM, preserving the public carrier/item handles across saves. */
 static edict_t *ItemGiveRecipient(itemDropFixture_t *f,vec2_t point) {
     Stb_IniCacheFree(&game.config.misc);
-    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nDropItemRange=100\nGiveItemRange=150\nPawnItemRange=130\n"));
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nDropItemRange=100\nGiveItemRange=150\nPawnItemRange=130\nPickupItemRange=150\n"));
     cstring_t program=
         "globals\nunit giveRecipient=null\nendglobals\n"
         "function giveInit takes nothing returns nothing\n"
@@ -1614,13 +1614,206 @@ TEST(wc3_inventory_orders, give_and_script_bypass_ordinary_pickup_permission) {
         ItemDropCall(mode==0 ? "giveIssue" : mode==1 ? "canGetScript" : "canGetSmart");
         bool const receive=mode!=2 || can_get;
         if(mode==0 || mode==1)T_EQ(target->inventory[0],f.item);
-        /* Smart pickup owns a live move before it publishes a public order ID.
-         * Advance the real scheduler until attachment, rather than skipping it. */
+        /* Smart publishes its head before the retained pickup task completes.
+         * Advance the real scheduler until attachment. */
         for(unsigned frame=0;frame<100 && mode==2 && can_get && f.item->item->carrier!=target;frame++)ItemDropStep();
         T_EQ(target->current_order_id,0);
         T_EQ(f.item->item->carrier,receive ? target : NULL);T_EQ(target->inventory[0],receive ? f.item : NULL);
         T_EQ(f.item->item->in_world,!receive);
         ItemDropEnd(&f);G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+/* Native55bb10 gives ordinary Smart pickup its own target task, using the
+ * authored PickupItemRange. The retained item survives both save boundaries. */
+TEST(wc3_inventory_orders, pickup_authored_range_owns_target_task_through_save) {
+    float const ranges[]={150,64,0};
+    FOR_LOOP(setting,3)FOR_LOOP(saved,3) {
+        itemDropFixture_t f;
+        ItemDropBegin(&f,(itemDropParams_t){.scene=DROP_FAR,.range=100,.point={1104,1056}});
+        ItemDropCall("dropUnequip");
+        char misc[96];snprintf(misc,sizeof(misc),"[Misc]\nPickupItemRange=%g\nDropItemRange=100\n",ranges[setting]);
+        Stb_IniCacheFree(&game.config.misc);T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,misc));
+        char script[]="function pickupPlace takes nothing returns nothing\n"
+            "call SetItemPosition(dropItem,1104.0,1056.0)\nendfunction\n"
+            "function pickupIssue takes nothing returns nothing\n"
+            "call BJassAssert(IssueTargetOrder(dropActor,\"smart\",dropItem),\"public pickup admitted\")\nendfunction\n";
+        T_ASSERT(jass_dobuffer(level.vm,script));ItemDropCall("pickupPlace");
+        if(saved==1)ItemDropRestore(&f,"wc3-pickup-before-admission.bin");
+        ItemDropCall("pickupIssue");
+        T_EQ(f.actor->current_order_id,G_OrderId("smart"));T_EQ(f.actor->goalentity,f.item);
+        T_NULL(f.item->item->carrier);T_ASSERT(f.item->item->in_world);
+        moveGroup_t const *group=move_unit_group(f.actor);T_NOT_NULL(group);
+        if(group) {
+            T_EQ(group->target,f.item);T_EQ(group->owner_ability,GetAbilityIndex(CAbilityInventory)+1);
+            T_EQ(group->receiver,f.actor);T_NOT_NULL(group->complete);
+        }
+        if(saved==2)ItemDropRestore(&f,"wc3-pickup-physical.bin");
+        for(unsigned frame=0;frame<150 && f.actor->current_order_id==G_OrderId("smart");frame++)ItemDropStep();
+        T_EQ(f.actor->current_order_id,0);T_NULL(move_unit_group(f.actor));
+        /* Native zero-range far pickup reaches the raw target perimeter,
+         * then rejects collection outside the independent radial predicate. */
+        T_EQ(f.item->item->carrier,setting==2 ? NULL : f.actor);
+        T_EQ(f.actor->inventory[0],setting==2 ? NULL : f.item);
+        T_EQ(f.item->item->in_world,setting==2);
+        ItemDropEnd(&f);
+    }
+}
+
+/* V8b2..4 use Hpal32 plus the item's minimum1 at range+33 and its adjacent
+ * quarter-unit inputs. Mobile pickup always admits an approach before receipt. */
+TEST(wc3_inventory_orders, pickup_range_boundary_and_adjacent_inputs_keep_physical_owner) {
+    float const ranges[]={150,64,0},offsets[]={-.25f,0,.25f};
+    FOR_LOOP(setting,3)FOR_LOOP(side,3)FOR_LOOP(saved,2) {
+        itemDropFixture_t f;
+        ItemDropBegin(&f,(itemDropParams_t){.scene=DROP_FAR,.range=100,.point={1104,1056}});
+        ItemDropCall("dropUnequip");
+        char misc[64];snprintf(misc,sizeof(misc),"[Misc]\nPickupItemRange=%g\n",ranges[setting]);
+        Stb_IniCacheFree(&game.config.misc);T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,misc));
+        char script[512];snprintf(script,sizeof(script),"function pickupBoundary takes nothing returns nothing\n"
+            "call SetItemPosition(dropItem,%.2f,1056.0)\n"
+            "call BJassAssert(IssueTargetOrder(dropActor,\"smart\",dropItem),\"pickup boundary admitted\")\nendfunction\n",
+            704+ranges[setting]+33+offsets[side]);
+        T_ASSERT(jass_dobuffer(level.vm,script));ItemDropCall("pickupBoundary");
+        T_EQ(f.actor->current_order_id,851971);T_NULL(f.item->item->carrier);
+        T_ASSERT(S_UnitTargetChaseActive(f.actor,CAbilityInventory));
+        if(saved)ItemDropRestore(&f,"wc3-pickup-boundary.bin");
+        for(unsigned frame=0;frame<150 && f.actor->current_order_id;frame++)ItemDropStep();
+        T_EQ(f.actor->current_order_id,0);T_NULL(move_unit_group(f.actor));
+        T_EQ(f.item->item->carrier,f.actor);T_EQ(f.actor->inventory[0],f.item);
+        ItemDropEnd(&f);
+    }
+}
+
+/*55bb10 captures approach range, but56b360 rereads live Misc at completion.
+ * Widening/narrowing the terminal must not rewrite the admitted physical task. */
+TEST(wc3_inventory_orders, pickup_terminal_rereads_range_without_rebinding_approach) {
+    FOR_LOOP(narrow,2)FOR_LOOP(saved,2) {
+        itemDropFixture_t f;
+        ItemDropBegin(&f,(itemDropParams_t){.scene=DROP_FAR,.range=100,.point={1104,1056}});
+        ItemDropCall("dropUnequip");
+        char misc[64];snprintf(misc,sizeof(misc),"[Misc]\nPickupItemRange=%u\n",narrow ? 150 : 64);
+        Stb_IniCacheFree(&game.config.misc);T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,misc));
+        char script[]="function pickupRangeIssue takes nothing returns nothing\n"
+            "call SetItemPosition(dropItem,1104.0,1056.0)\n"
+            "call BJassAssert(IssueTargetOrder(dropActor,\"smart\",dropItem),\"pickup range admitted\")\nendfunction\n";
+        T_ASSERT(jass_dobuffer(level.vm,script));ItemDropCall("pickupRangeIssue");ItemDropStep();
+        moveGroup_t const *group=move_unit_group(f.actor);T_NOT_NULL(group);
+        float const approach=group ? group->members[0].arrival_range : 0;
+        Stb_IniCacheFree(&game.config.misc);
+        T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,narrow ? "[Misc]\nPickupItemRange=0\n" : "[Misc]\nPickupItemRange=150\n"));
+        if(saved)ItemDropRestore(&f,"wc3-pickup-live-range.bin");
+        group=move_unit_group(f.actor);T_NOT_NULL(group);
+        if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(approach));
+        T_FEQ(f.actor->item_drop_range,narrow ? 150 : 64,0);
+        for(unsigned frame=0;frame<150 && f.actor->current_order_id;frame++)ItemDropStep();
+        T_EQ(f.actor->current_order_id,0);T_NULL(move_unit_group(f.actor));
+        T_EQ(f.item->item->carrier,narrow ? NULL : f.actor);
+        T_EQ(f.item->item->in_world,narrow);
+        ItemDropEnd(&f);
+    }
+}
+
+/* V8 scenes5..15: constructor admission and terminal collection are separate.
+ * Hiding, inventory loss and another carrier do not cancel admitted routing. */
+TEST(wc3_inventory_orders, pickup_terminal_mutation_and_callback_matrix) {
+    FOR_LOOP(mode,7)FOR_LOOP(saved,2) {
+        itemDropFixture_t f;
+        ItemDropBegin(&f,(itemDropParams_t){.scene=DROP_FAR,.range=100,.point={1104,1056}});
+        ItemDropCall("dropUnequip");
+        Stb_IniCacheFree(&game.config.misc);
+        T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nPickupItemRange=150\nDropItemRange=100\n"));
+        char script[2048];
+        cstring_t program="function pickupEvent takes nothing returns nothing\n"
+            "if GetManipulatedItem()==dropItem then\n"
+            "call BJassAssert(GetUnitCurrentOrder(dropActor)==851971,\"pickup callback retains Smart head\")\n%s\nendif\nendfunction\n"
+            "function pickupInit takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterUnitEvent(t,dropActor,ConvertUnitEvent(86))\n"
+            "call TriggerAddAction(t,function pickupEvent)\ncall SetItemPosition(dropItem,1104.0,1056.0)\nendfunction\n"
+            "function pickupIssue takes nothing returns nothing\n"
+            "call BJassAssert(IssueTargetOrder(dropActor,\"smart\",dropItem),\"pickup admitted\")\nendfunction\n"
+            "function pickupMutate takes nothing returns nothing\n%s\nendfunction\n";
+        /* Unit pickup event86 is distinct from player-unit pickup event48. */
+        cstring_t action=mode==4 ? "call BJassAssert(IssuePointOrder(dropActor,\"move\",512.0,1056.0),\"pickup callback Move\")" :
+                         mode==5 ? "call RemoveItem(dropItem)" : "";
+        cstring_t mutations[]={"call SetItemVisible(dropItem,false)",
+            "call BJassAssert(UnitRemoveAbility(dropActor,'AInv'),\"Inventory removed\")",
+            "call UnitAddItem(dropActor,CreateItem('ratf',704.0,1056.0))\n"
+            "call UnitAddItem(dropActor,CreateItem('ratf',704.0,1056.0))\n"
+            "call UnitAddItem(dropActor,CreateItem('ratf',704.0,1056.0))\n"
+            "call UnitAddItem(dropActor,CreateItem('ratf',704.0,1056.0))\n"
+            "call UnitAddItem(dropActor,CreateItem('ratf',704.0,1056.0))\n"
+            "call UnitAddItem(dropActor,CreateItem('ratf',704.0,1056.0))",
+            "call UnitAddItem(CreateUnit(Player(0),'Hpal',1500.0,1056.0,0.0),dropItem)","","",
+            "call BJassAssert(IssueImmediateOrder(dropActor,\"stop\"),\"pickup Stop\")"};
+        snprintf(script,sizeof(script),program,action,mutations[mode]);
+        T_ASSERT(jass_dobuffer(level.vm,script));ItemDropCall("pickupInit");ItemDropCall("pickupIssue");
+        ItemDropStep();ItemDropCall("pickupMutate");
+        uint32_t const itemnum=f.item-g_edicts;
+        if(saved)ItemDropRestore(&f,"wc3-pickup-terminal.bin");
+        for(unsigned frame=0;frame<150 && f.actor->current_order_id==851971;frame++)ItemDropStep();
+        T_NE(f.actor->current_order_id,851971);T_ASSERT(!S_UnitTargetChaseActive(f.actor,CAbilityInventory));
+        if(mode==0 || mode==4) {
+            T_EQ(f.item->item->carrier,f.actor);T_EQ(f.actor->inventory[0],f.item);
+            if(mode==4)T_EQ(f.actor->current_order_id,G_OrderId("move"));
+        } else if(mode==5)T_ASSERT(!G_IsItem(g_edicts+itemnum));
+        else {
+            T_NE(f.item->item->carrier,f.actor);
+            if(mode!=6)T_ASSERT(f.actor->s.origin2.x>850);
+            if(mode!=3)T_ASSERT(f.item->item->in_world);
+        }
+        ItemDropEnd(&f);
+    }
+}
+
+/* V8b5/6: even an immobile Inventory admits Smart and attempts its terminal
+ * immediately; the authored range decides collection independently of movement. */
+TEST(wc3_inventory_orders, pickup_immobile_attempts_authored_terminal_synchronously) {
+    float const ranges[]={150,64,0};
+    FOR_LOOP(setting,3)FOR_LOOP(far,2) {
+        itemDropFixture_t f;
+        ItemDropBegin(&f,(itemDropParams_t){.scene=DROP_BUILDING_NEAR,.range=100,.point={804,1024}});
+        ItemDropCall("dropUnequip");
+        char misc[96];snprintf(misc,sizeof(misc),"[Misc]\nPickupItemRange=%g\n",ranges[setting]);
+        Stb_IniCacheFree(&game.config.misc);T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,misc));
+        char script[512];snprintf(script,sizeof(script),"function pickupFarm takes nothing returns nothing\n"
+            "call SetItemPosition(dropItem,%.1f,1024.0)\n"
+            "call BJassAssert(IssueTargetOrder(dropActor,\"smart\",dropItem),\"immobile pickup admitted\")\nendfunction\n",far ? 1104.0 : 804.0);
+        T_ASSERT(jass_dobuffer(level.vm,script));ItemDropCall("pickupFarm");
+        T_EQ(f.actor->current_order_id,0);T_NULL(move_unit_group(f.actor));
+        T_EQ(f.item->item->carrier,!far && setting<2 ? f.actor : NULL);
+        T_EQ(f.item->item->in_world,far || setting==2);
+        ItemDropEnd(&f);
+    }
+}
+
+/* Pause reconstructs the pickup producer; removal retires the retained item
+ * identity without assigning a replacement item at the same storage slot. */
+TEST(wc3_inventory_orders, pickup_pause_and_item_removal_release_physical_owner) {
+    FOR_LOOP(remove_item,2)FOR_LOOP(saved,2) {
+        itemDropFixture_t f;
+        ItemDropBegin(&f,(itemDropParams_t){.scene=DROP_FAR,.range=100,.point={1104,1056}});
+        ItemDropCall("dropUnequip");
+        Stb_IniCacheFree(&game.config.misc);
+        T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nPickupItemRange=150\n"));
+        char script[]="function pickupBegin takes nothing returns nothing\n"
+            "call SetItemPosition(dropItem,1104.0,1056.0)\n"
+            "call BJassAssert(IssueTargetOrder(dropActor,\"smart\",dropItem),\"pickup admitted\")\nendfunction\n";
+        T_ASSERT(jass_dobuffer(level.vm,script));ItemDropCall("pickupBegin");ItemDropStep();
+        if(saved)ItemDropRestore(&f,"wc3-pickup-lifetime.bin");
+        if(remove_item) {
+            ItemDropCall("dropRemove");
+            FOR_LOOP(frame,4)ItemDropStep();
+            T_EQ(f.actor->current_order_id,0);T_NULL(move_unit_group(f.actor));
+        } else {
+            ItemDropCall("dropPause");vec2_t const position=f.actor->s.origin2;
+            FOR_LOOP(frame,4)ItemDropStep();
+            T_FEQ(f.actor->s.origin2.x,position.x,0);T_NULL(f.item->item->carrier);
+            ItemDropCall("dropUnpause");
+            for(unsigned frame=0;frame<150 && f.item->item->carrier!=f.actor;frame++)ItemDropStep();
+            T_EQ(f.actor->current_order_id,0);T_NULL(move_unit_group(f.actor));T_EQ(f.item->item->carrier,f.actor);
+        }
+        ItemDropEnd(&f);
     }
 }
 

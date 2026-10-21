@@ -176,11 +176,15 @@ order, while the Footman receives no replacement order. This is especially
 important for ROC campaign heroes whose implicit `AInv` fallback is not present
 in `UnitAbilities.slk`.
 
-The order keeps the item as its goal and checks it every simulation tick. It
-moves while the center-to-center distance is greater than
-`ITEM_PICKUP_RANGE` (150 world units), then attempts the authoritative
-inventory transition. The order stops if the item was removed, hidden, picked
-up by another unit, or otherwise left world state.
+Inventory admits an ordinary Smart packet and retains the item incarnation
+through a Move target task. It captures `Misc.PickupItemRange` for the full-range
+approach, then rereads the live value for terminal collection. Hiding the admitted
+item, filling the inventory or transferring the item elsewhere preserves the
+approach; terminal validation decides whether collection succeeds. Item removal
+and Stop retire the retained task. A mobile source constructs the approach even
+when already nearby; an immobile source attempts the terminal synchronously.
+[Native evidence and lifecycle checks](#ordinary-pickup-native-corpus-v8b)
+describe the range boundaries, callbacks and save behavior.
 
 When every slot exposed by the inventory ability is occupied, the transition
 does not modify either entity. The world item stays linked and visible, and
@@ -1136,7 +1140,7 @@ supplies150 and checks source release, recipient attachment and public-head
 retirement before the native returns. Distant scheduler/save cases remain in
 the Inventory suite; direct thinker execution cannot validate the physical task.
 
-### Ordinary pickup producer: remaining ownership gap
+### Ordinary pickup producer recovery
 
 Original Inventory callback `561680` routes Smart (`d0003`) to `55bb10`.
 That factory creates a target action `d017e` with zero range followed by a
@@ -1144,29 +1148,27 @@ That factory creates a target action `d017e` with zero range followed by a
 target with a null optional association.
 The event-task order surrounds that chain with `d0148,d014a` before and
 `d014c,d014e,d0178,d0144` after. This is static factory evidence; no exact pickup
-trajectory or terminal/failed-path behavior is certified by it. The current
-`G_OrderPickupItem` / `G_PickupItemThink` path in `g_items.c` still uses direct
-steering and fixed `ITEM_PICKUP_RANGE=150`, so it does not implement the recovered
-producer. This belongs to the remaining TARGET-01.2 producer matrix, before
-advancing to another leaf. Recover its terminal `56b360` and admission/lifetime
-contracts, then drive public Smart with authored ranges and actual scheduler
-steps. Do not infer those contracts from forced Give or scripted insertion.
+trajectory or terminal/failed-path behavior was certified by that initial
+recovery. The prior `G_OrderPickupItem` / `G_PickupItemThink` path used direct
+steering and fixed `ITEM_PICKUP_RANGE=150`. The V8b recovery below supplies the
+missing native admission, terminal and lifetime evidence for its replacement.
+Forced Give and scripted insertion have distinct admission contracts.
 
 Terminal `56b360` resolves the retained item through `55b4c0`, rejects it through
 `5460b0`, rereads live `PickupItemRange`, and calls the same configured-range
 query with selector1 before attachment/consumption (`56bcb0` / `541f70`). The
 factory and terminal therefore have separate range reads; changing the range
 during approach must be tested explicitly. The terminal also consults live
-Inventory disable/availability and item powerup state. These observations are
-static; event timing, removal, pause and exact movement still need native
-repeats/controls and public engine/save regressions before port acceptance.
+Inventory disable/availability and item powerup state. The range reread is
+covered by public engine tests that change Misc during the approach, including
+a cold save. V8b covers native event timing, removal and pause. Exact-clock
+pickup trajectory parity remains outside this evidence corpus.
 
 After correcting the obsolete API timing fixture, `wc3_api.*` passes411 tests /
-59738 assertions in both Classic and TFT. The first full batch still runs the
-old compiled fixture, so its known two assertion failures per edition are not
-an engine failure or a passing batch claim. The corrected API suite was built
-from identical game sources in the focused worktree; broader batch results
-remain pending completion.
+59738 assertions in both Classic and TFT. The earlier full batch used the
+old compiled fixture and failed its two assertions per edition. The corrected
+API suite was built from identical game sources in the focused worktree; this
+focused result does not turn that failed batch into a passing checkpoint.
 
 ### Ordinary pickup native corpus (V8b)
 
@@ -1201,9 +1203,29 @@ item, and can issue Move or remove the item. Marker timer labels may advance
 inside that native call; function nesting and the retained native clock own the
 synchronous timing evidence.
 
-The engine pickup port remains an isolated candidate until its focused,
-optional-build, save and refreshed integration gates pass. This native corpus
-reports `engine_parity:false` and closes no leaf.
+The engine port moves ordinary pickup into `CAbilityInventory`, replacing the
+fixed-range direct thinker with the ordinary packet and full-range target-task
+owners. Shared ability dispatch preserves admission/activation enum results in
+both cached and uncached paths; it also reaches implicit RoC Hero Inventory.
+The terminal uses the common synchronous insertion sink after its own retained
+identity, permission and live-range checks. A movement revision/lifetime guard
+preserves a Move issued inside Pickup. Save221 records the callback and restores
+the retained approach using existing Inventory fields; Save220 is rejected.
+
+Default Classic/TFT checks pass36 Inventory tests /5123 assertions,129 item tests /
+11356 assertions,30 ability-dispatch tests /15557 assertions,411 API tests /59738
+assertions,4 cursor tests /76 assertions and236 save tests /68338 assertions per
+edition. The Inventory matrix includes stock150/authored64/zero ranges, equality
+and adjacent quarter-unit inputs, changing live range during a retained approach,
+immobile sources, target/Inventory mutations, synchronous callbacks, pause and
+removal, with cold-save continuations. The implicit RoC fixture has neither an
+AInv row nor an authored Inventory ability. SC2API=1 passes35 interface tests /
+324 assertions and the item, dispatcher, Inventory and save suites in both
+editions; the two subsequently added tests change no production behavior.
+
+The portable native corpus keeps `engine_parity:false`: these checks establish
+producer/lifecycle behavior, not complete exact-clock pickup trajectories.
+TARGET-01.2 remains open for its wider producer/firing matrix; no leaf closes.
 
 The earlier full batch finished with the obsolete API expectation in one shard
 per edition (the corrected411-test API suite passes separately), plus five

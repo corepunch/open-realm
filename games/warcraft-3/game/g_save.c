@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 220; /* Inventory target/item packets and captured terminal range. */
+static uint32_t const save_version = 221; /* Inventory pickup target continuation and terminal callback. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -193,6 +193,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_CargoDropComplete),
     SAVE_CFUNCTION(S_InventoryDropComplete),
     SAVE_CFUNCTION(S_InventoryTargetComplete),
+    SAVE_CFUNCTION(S_InventoryPickupComplete),
 };
 
 static int SaveCFunctionIndex(void *func) {
