@@ -141,6 +141,14 @@ substitute for leaf closure.
 
 ## Progress
 
+The Inventory integration checkpoint at `6e94bb257` passes actual `make test
+TEST_JOBS=16`:10108 native tests across34 JUnit reports with zero
+failures/errors/skips, plus3056 Python evidence tests. Captain473, Group012,
+SupportGoal, Waygate377 and point-drop gates were freshly verified before the
+batch. Subsequent Entangle research changes no engine source and passes50
+focused evidence/corpus Python checks. The independent failing Entangle
+candidate remains outside main. **25 ->25 open; TARGET-01.2 stays active.**
+
 TARGET-01.2's next failing producer is Entangle: stock Aent500 admits distant
 rooted and already-uprooted Trees, retaining852147 through placement, unroot,
 approach and facing/root tasks. Two native observations and an unhooked control

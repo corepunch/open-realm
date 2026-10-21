@@ -21888,3 +21888,13 @@ callback replacement and cold saves still need their acceptance rows. This
 native corpus declares `engine_parity:false`; it proves neither exact-clock full
 trajectories nor the complete placement/facing query matrix. **TARGET-01.2 stays
 active; zero whole leaves close and25 remain.**
+
+
+Inventory checkpoint73 verifies commit `6e94bb257` with actual `make test
+TEST_JOBS=16` exit0:10108 native tests across34 JUnit reports, zero
+failures/errors/skips, and3056 Python evidence tests. The later Entangle
+native-corpus commit `007beedec` changes no engine source and separately passes
+50 focused evidence/corpus Python checks. The failing Entangle engine candidate
+is excluded from that snapshot. The persistent record is
+`pickup73/full-checkpoint.json` under the TARGET-01.2 analysis runtime; archived
+log SHA256 is `77367f88e3b41ade57aef0f73139c7d7fef8e92f6b6c8d75f78d8feb90ac16c3`.

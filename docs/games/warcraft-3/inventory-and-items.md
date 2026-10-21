@@ -1246,5 +1246,11 @@ RoC pickup regression. Each report satisfies its corpus manifest result checks:
 All frozen native bundles, map bytes and instruction guards remain unchanged.
 The point-drop manifest's obsolete139-test expectation is corrected to the
 actual133-test gate. Python rejection tests validate the refreshed contracts.
-These are fresh affected gates; the earlier failed full batch remains a failed
-checkpoint until a separate complete run passes.
+The following complete checkpoint passes on commit `6e94bb257`: actual
+`make test TEST_JOBS=16` exit0,10108 native tests in34 JUnit reports with no
+failures/errors/skips, and3056 Python evidence tests. The archived record is
+`pickup73/full-checkpoint.json` under the TARGET-01.2 analysis runtime, with log
+SHA256 `77367f88e3b41ade57aef0f73139c7d7fef8e92f6b6c8d75f78d8feb90ac16c3`.
+This is a separate passing checkpoint; the earlier failed batch remains part
+of the history. The subsequent Entangle evidence commit changes no engine
+source and passes50 focused native-evidence/corpus Python checks separately.
