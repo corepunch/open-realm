@@ -20,6 +20,19 @@
 #include <windows.h>
 #endif
 
+double Com_MonotonicMilliseconds(void) {
+#ifdef _WIN32
+    LARGE_INTEGER counter, frequency;
+    if (!QueryPerformanceFrequency(&frequency) || !QueryPerformanceCounter(&counter) || !frequency.QuadPart)
+        return 0.0;
+    return (double)counter.QuadPart * 1000.0 / (double)frequency.QuadPart;
+#else
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) return 0.0;
+    return (double)now.tv_sec * 1000.0 + (double)now.tv_nsec / 1000000.0;
+#endif
+}
+
 #ifdef _WIN32
 #include <io.h>
 #include <direct.h>

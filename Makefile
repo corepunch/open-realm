@@ -69,6 +69,9 @@ endif
 ifeq ($(WC3_DEBUG_TUTORIAL_FLOW),1)
 	CFLAGS += -DWC3_DEBUG_TUTORIAL_FLOW
 endif
+ifeq ($(WC3_DEBUG_MAP_LOAD),1)
+	CFLAGS += -DWC3_DEBUG_MAP_LOAD
+endif
 # Include Warcraft III result/score investigation logging only when requested.
 ifeq ($(WC3_DEBUG_SCORE),1)
 	CFLAGS += -DBZ_WC3_DEBUG_SCORE

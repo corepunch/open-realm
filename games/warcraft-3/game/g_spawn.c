@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/map_load_debug.h"
 #include "games/warcraft-3/common/difficulty.h"
 #include "jass/jass.h"
 
@@ -914,11 +915,14 @@ void G_SpawnEntities(cstring_t map_path) {
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
     G_InitWaypoints();
 
-    uint32_t spawn_count = 0;
+    uint32_t spawn_count = 0, spawned_entities = 0, spawned_units = 0;
+    uint32_t spawned_destructables = 0, spawned_static_scenery = 0, skipped_script_owned = 0;
     FOR_EACH_LIST(doodad_t const, doodad, entities) {
         if ((spawn_count++ & 127u) == 0) gi.LoadingFrame();
-        if (!G_LoadMapUnitData() && G_MapObjectCreatedByMapScript(doodad->doodID))
+        if (!G_LoadMapUnitData() && G_MapObjectCreatedByMapScript(doodad->doodID)) {
+            skipped_script_owned++;
             continue;
+        }
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
 //            int a=0;
 //            printf("%.4s", )
@@ -947,6 +951,10 @@ void G_SpawnEntities(cstring_t map_path) {
             ent->s.scale = row->defScale > 0.0f ? row->defScale : 1.0f;
         }
         SP_CallSpawn(ent);
+        spawned_entities++;
+        if (ent->s.flags & EF_UNIT) spawned_units++;
+        if (G_IsDestructable(ent)) spawned_destructables++;
+        if (ent->svflags & SVF_STATIC_SCENERY) spawned_static_scenery++;
         G_FillMapPlacedUnitMana(ent);
         if (ent->s.flags & EF_UNIT) {
             G_PlayerScoreUnitTrained(ent); /* preplaced map units count */
@@ -995,6 +1003,9 @@ void G_SpawnEntities(cstring_t map_path) {
     CM_BakeStaticObstacles();
     /* Start simulation from the map load itself so dedicated and listen-server restores share one lifecycle. */
     level.started = true;
+    WC3_MAP_LOAD_LOG("map=%s phase=spawn-counts placements=%u spawned=%u units=%u destructables=%u static-scenery=%u skipped-script-owned=%u\n",
+                     map_path, spawn_count, spawned_entities, spawned_units, spawned_destructables,
+                     spawned_static_scenery, skipped_script_owned);
 }
  
 /* Spawn a unit at a point while allowing map-restoration paths to skip presentation-only birth. */

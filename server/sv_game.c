@@ -148,6 +148,7 @@ void SV_InitGameProgs(void) {
     import.MinimapPing = SV_MinimapPing;
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
+    import.MonotonicMilliseconds = Com_MonotonicMilliseconds;
     import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
     import.RequestMap = SV_RequestMap;

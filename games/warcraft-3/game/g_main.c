@@ -32,6 +32,7 @@
 #define WC3_PATH_WORK_BUDGET 65536
 #include "common/ui_constants.h"
 #include "games/warcraft-3/common/minimap.h"
+#include "games/warcraft-3/common/map_load_debug.h"
 #include "jass/jass.h"
 #include "hud/score_screen_table.h"
 #include <stdarg.h>
@@ -752,11 +753,16 @@ void G_ApplyTilesetWaterHeight(mapInfo_t const *info) {
 }
 
 static bool G_LoadMap(cstring_t mapFilename) {
+    double const map_start = WC3_GAME_MAP_LOAD_NOW();
+    double stage_start = map_start;
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
+        WC3_GAME_MAP_LOAD_REPORT(mapFilename, "CM_LoadMap-failed", stage_start);
         G_SetMapUnitOverrides(NULL);
         G_SetMapAbilityOverrides(NULL);
         return false;
     }
+    WC3_GAME_MAP_LOAD_REPORT(mapFilename, "CM_LoadMap", stage_start);
+    stage_start = WC3_GAME_MAP_LOAD_NOW();
     gi.LoadingFrame();
     /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
      * animation metadata cache uses those indices too, so retaining it across
@@ -771,6 +777,8 @@ static bool G_LoadMap(cstring_t mapFilename) {
     UI_ResetHud();
     G_ApplyMapGameDataSet(CM_GetMapInfo());
     G_ApplyTilesetWaterHeight(CM_GetMapInfo());
+    WC3_GAME_MAP_LOAD_REPORT(mapFilename, "map-data-set", stage_start);
+    stage_start = WC3_GAME_MAP_LOAD_NOW();
     /* Resolve presentation from the active map data set before publishing the
      * gameplay media contract. */
     cstring_t marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");
@@ -784,13 +792,20 @@ static bool G_LoadMap(cstring_t mapFilename) {
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Bind every panel once so write
      * paths do not parse FDF on first use. */
     UI_LoadHud();
+    WC3_GAME_MAP_LOAD_REPORT(mapFilename, "hud-bind", stage_start);
+    stage_start = WC3_GAME_MAP_LOAD_NOW();
     gi.LoadingFrame();
     G_SpawnEntities(mapFilename);
+    WC3_GAME_MAP_LOAD_REPORT(mapFilename, "spawn-entities", stage_start);
+    stage_start = WC3_GAME_MAP_LOAD_NOW();
     gi.LoadingFrame();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
+    WC3_GAME_MAP_LOAD_REPORT(mapFilename, "start-scripts", stage_start);
     gi.LoadingFrame();
     level.started = true;
+    WC3_MAP_LOAD_LOG("map=%s phase=G_LoadMap total-ms=%.3f\n", mapFilename,
+                     WC3_GAME_MAP_LOAD_NOW() - map_start);
     return true;
 }
 
@@ -957,8 +972,14 @@ static void G_ApplyMapGameDataSet(mapInfo_t const *mapinfo) {
      * skin table. */
     Stb_IniCacheLoad(&game.config.map_skin, "war3mapSkin.txt");
     InitConstants();
+    double init_unit_data_start = WC3_GAME_MAP_LOAD_NOW();
     InitUnitData();
+    WC3_MAP_LOAD_LOG("phase=map-unit-data ms=%.3f\n",
+                     WC3_GAME_MAP_LOAD_NOW() - init_unit_data_start);
+    init_unit_data_start = WC3_GAME_MAP_LOAD_NOW();
     InitAbilities();
+    WC3_MAP_LOAD_LOG("phase=map-abilities ms=%.3f\n",
+                     WC3_GAME_MAP_LOAD_NOW() - init_unit_data_start);
 }
 
 static void G_RunJassTests(cstring_t script, cstring_t entry) {
@@ -1032,8 +1053,14 @@ static void G_InitGame(void) {
     game.data_prefix[0] = '\0';
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
+    double init_unit_data_start = WC3_GAME_MAP_LOAD_NOW();
     InitUnitData();
+    WC3_MAP_LOAD_LOG("phase=process-unit-data ms=%.3f\n",
+                     WC3_GAME_MAP_LOAD_NOW() - init_unit_data_start);
+    init_unit_data_start = WC3_GAME_MAP_LOAD_NOW();
     InitAbilities();
+    WC3_MAP_LOAD_LOG("phase=process-abilities ms=%.3f\n",
+                     WC3_GAME_MAP_LOAD_NOW() - init_unit_data_start);
     G_ResetSelectionSoundState();
     G_ResetSoundPresentationState();
     G_CommandErrorReset();

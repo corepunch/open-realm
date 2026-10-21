@@ -400,6 +400,7 @@ extern struct world_state world;
 
 /* Implemented by the selected game's common/world_*.c. */
 bool     CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield);
+double   Com_MonotonicMilliseconds(void);
 vec2_t  CM_GetNormalizedMapPosition(float x, float y);
 vec2_t  CM_GetDenormalizedMapPosition(float x, float y);
 

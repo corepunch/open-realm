@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/map_load_debug.h"
 #include "common/ui_constants.h"
 #include <float.h>
 #include <math.h>
@@ -170,20 +171,23 @@ void CM_ReadMapScript(handle_t archive);
 static handle_t cm_w3_map_archive;
 static handle_t cm_w3_map_data;
 
-static cmW3Read_t const cm_w3_readers[] = {
-    CM_ReadPathMap,
-    CM_ReadHeightmap,
-    CM_ReadDoodads,
-    CM_ReadUnitDoodads,
-    CM_ReadInfo,
-    CM_ReadWeather,
-    CM_ReadUnits,
-    CM_ReadItems,
-    CM_ReadAbilities,
-    CM_ReadDestructables,
-    CM_ReadDoodadOverrides,
-    CM_ReadStrings,
-    CM_ReadMapScript,
+static struct {
+    cmW3Read_t read;
+    cstring_t name;
+} const cm_w3_readers[] = {
+    { CM_ReadPathMap, "pathing" },
+    { CM_ReadHeightmap, "heightmap" },
+    { CM_ReadDoodads, "doodads" },
+    { CM_ReadUnitDoodads, "unit-doodads" },
+    { CM_ReadInfo, "info" },
+    { CM_ReadWeather, "weather" },
+    { CM_ReadUnits, "units" },
+    { CM_ReadItems, "items" },
+    { CM_ReadAbilities, "abilities" },
+    { CM_ReadDestructables, "destructables" },
+    { CM_ReadDoodadOverrides, "doodad-overrides" },
+    { CM_ReadStrings, "strings" },
+    { CM_ReadMapScript, "map-script" },
 };
 
 #ifdef BZ_CLIENT_WORLD
@@ -562,24 +566,33 @@ static void CM_W3ClearMapData(void) {
 
 bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
     uint32_t mapSize = 0;
+    double stage_start = WC3_MAP_LOAD_NOW();
 
     CM_W3ClearMapData();
     cm_w3_map_data = FS_ReadFile(mapFilename, &mapSize);
+    WC3_MAP_LOAD_LOG("map=%s phase=map-file-read bytes=%u ms=%.3f\n", mapFilename, mapSize,
+                     WC3_MAP_LOAD_NOW() - stage_start);
     if (!cm_w3_map_data || mapSize == 0) {
         SAFE_DELETE(cm_w3_map_data, MemFree);
         Com_Error(ERR_DROP, "CM_LoadMap: failed to read map %s\n", mapFilename);
         return false;
     }
+    stage_start = WC3_MAP_LOAD_NOW();
     if (!SFileOpenArchiveFromMemory(cm_w3_map_data, mapSize, 0, &cm_w3_map_archive)) {
         SAFE_DELETE(cm_w3_map_data, MemFree);
         Com_Error(ERR_DROP, "CM_LoadMap: failed to open map archive %s\n", mapFilename);
         return false;
     }
+    WC3_MAP_LOAD_LOG("map=%s phase=archive-open bytes=%u ms=%.3f\n", mapFilename, mapSize,
+                     WC3_MAP_LOAD_NOW() - stage_start);
     /* Keep the open map as the highest-priority FS source so sheet/INI loaders
      * (G_ReadGameDataFile) see map-imported Units\*.txt and war3mapMisc.txt. */
     FS_SetPriorityArchive(cm_w3_map_archive);
     FOR_LOOP(i, sizeof(cm_w3_readers) / sizeof(*cm_w3_readers)) {
-        cm_w3_readers[i](cm_w3_map_archive);
+        stage_start = WC3_MAP_LOAD_NOW();
+        cm_w3_readers[i].read(cm_w3_map_archive);
+        WC3_MAP_LOAD_LOG("map=%s phase=map-reader:%s ms=%.3f\n", mapFilename,
+                         cm_w3_readers[i].name, WC3_MAP_LOAD_NOW() - stage_start);
         yield();
     }
     return true;
