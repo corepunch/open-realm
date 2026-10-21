@@ -60611,11 +60611,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "756360583d104b3dd7c80fd118aac5614abcabccfc460309352c23a2dc5d8df2"
+      "sha256": "52b3b5eb8ac889c5fcbe5ec7e81ab7e3373f5a9ca59c5cd2908a02289de08024"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "e9570695a4253161957c3d5889bb876e7ee012f7ff79444b6f01613391b8b4f8"
+      "sha256": "7526b716465561fe496655ad025ebbc93c86ded7fb3cc10ee8f597ffbf61b758"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -70271,7 +70271,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_goldmine.c",
-      "sha256": "98e5b304eede611b6572b69706c2740e86d07ca3c3cb62cd77d6816f7fdeb290"
+      "sha256": "2c224294995f0a8c1100dba0037d750145cd89ba0bd049b7b9a9a1722e08f94a"
     },
     {
       "path": "games/warcraft-3/game/tests/t_harvest012.c",

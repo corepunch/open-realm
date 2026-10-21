@@ -155,6 +155,8 @@ occupant, interruption and half-second retry corpora preserve5094 matching
 public markers;48 Entangle evidence tests pass. The complete six-site occupant
 matrix, adjacent317.75/318/318.25 ranges, callback-owned replacement/removal and
 cold pending-retry saves pass12 public tests/1052 assertions per edition.
+A subsequent Root-admission callback regression preserves replacement Entangle;
+all13 Entangle tests/1067 assertions and20 Root tests/3060 assertions pass per edition.
 Root/Building/Save/Pools/Clock/dispatch checks bring focused validation to502
 tests/113387 assertions per edition. All five affected native gates now pass
 against integrated `ab8dc61e3` in Classic and TFT: Captain473, Group012,

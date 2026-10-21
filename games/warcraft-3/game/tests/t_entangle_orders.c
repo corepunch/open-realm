@@ -344,4 +344,30 @@ TEST(wc3_entangle_orders, adjacent_authored_ranges_choose_direct_or_retained_roo
         EntEnd(&f);
     }
 }
+
+TEST(wc3_entangle_orders, occupant_root_admission_callback_preserves_replacement_entangle) {
+    entangleFixture_t f;EntBegin(&f,333,true,false);
+    char script[]="globals\nunit entWorker\nboolean entReplaced=false\nendglobals\n"
+        "function entOccupant takes nothing returns nothing\n"
+        "set entWorker=CreateUnit(Player(0),'hpea',1024.0,960.0,0.0)\n"
+        "call SetUnitAcquireRange(entWorker,0.0)\ncall SetUnitMoveSpeed(entWorker,1.0)\nendfunction\n"
+        "function entReplaceParent takes nothing returns nothing\n"
+        "call DisableTrigger(GetTriggeringTrigger())\nset entReplaced=true\n"
+        "call BJassAssert(IssueTargetOrder(entTree,\"entangle\",entMine),\"replacement Entangle admission\")\n"
+        "call SetUnitMoveSpeed(entWorker,270.0)\nendfunction\n"
+        "function entObserveOccupant takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(t,entWorker,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+        "call TriggerAddAction(t,function entReplaceParent)\n"
+        "call IssueImmediateOrder(entWorker,\"stop\")\nendfunction\n"
+        "function entCheckReplacement takes nothing returns nothing\n"
+        "call BJassAssert(entReplaced,\"Root admission occupant callback fired\")\nendfunction\n";
+    T_ASSERT(jass_dobuffer(level.vm,script));EntCall("entOccupant");EntCall("entIssue");
+    EntCall("entObserveOccupant");
+    for(unsigned i=0;i<900 && !EntOverlay(&f);i++)EntStep();
+    EntCall("entCheckReplacement");
+    T_NOT_NULL(EntOverlay(&f));T_ASSERT(S_AncientIsRooted(f.tree));
+    T_EQ(f.tree->current_order_id,0);
+    EntEnd(&f);
+}
+
 #endif

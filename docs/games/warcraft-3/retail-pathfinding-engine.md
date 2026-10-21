@@ -22156,3 +22156,25 @@ changed production-source fingerprints were refreshed in their fixture specs;
 original captures and literal expected results remain unchanged. The next
 batched full checkpoint is still pending. The Inventory checkpoint above
 remains the latest completed full-suite result.
+
+Pending Root placement retries under Pause/Sleep remain an evidence gap. V7's
+retry captures cover fast/slow occupants without either suspension; V5 and the
+engine pause test suspend the preceding physical approach. The archived
+437aa0/406bc0 helpers schedule and resume the deferred task without a local pause
+check, but that does not establish the behavior of scheduler/event delivery or
+internal-task dispatch while suspended. Acceptance still requires suspending
+after the first placement45 retry is scheduled, crossing its deadline, then
+resuming while observing the retry counter, dispatch and Root state. Neither
+frozen nor continuing retry semantics are claimed by the existing evidence.
+
+The subsequent callback regression issues a replacement Entangle from a
+friendly occupant's Move event during Root admission. Before the fix, Root
+correctly rejected the superseded invocation, but its caller unconditionally
+finished the newly installed parent: the replacement was accepted yet never
+rooted or created its overlay. Failed Root/Morph cleanup now checks the
+requesting incarnation and movement revision; final activation also checks
+liveness before reading pooled state. The public scheduler regression fails
+two assertions before the fix and passes afterward. All13 Entangle tests/1067
+assertions and20 Root tests/3060 assertions pass in each edition; durable
+red/green evidence is in `entangle-review156-checkpoint.json` under the same
+analysis runtime. This adds no serialized fields or network changes.

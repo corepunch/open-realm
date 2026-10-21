@@ -1525,6 +1525,15 @@ static void entangle_finish(edict_t *tree) {
 static void entangle_walk_think(edict_t *tree);
 static umove_t entangle_walk={.animation="walk",.think=entangle_walk_think,.proc=CAbilityEntangle,.sample_pose=S_PublishMovement};
 
+/* Occupant Move callbacks can admit a replacement Entangle synchronously.
+ * Failed Root admission may retire only the parent that requested it. */
+static void entangle_begin_root(edict_t *tree,vec2_t const *point) {
+    uint32_t generation=tree->spawn_time,revision=G_UnitMoveRevision(tree);
+    if(!S_AncientBeginOwnedRoot(tree,point,S_EntangleRootComplete) &&
+       tree->inuse && tree->spawn_time==generation && !G_IsDeferredFree(tree) &&
+       G_UnitMoveRevision(tree)==revision)entangle_finish(tree);
+}
+
 void S_EntangleApproachComplete(edict_t *receiver,edict_t *tree,bool arrived) {
     if(receiver!=tree || !tree->entangle || tree->entangle->phase!=ENTANGLE_APPROACH)return;
     if(tree->currentmove!=&entangle_walk) {entangle_release(tree);return;}
@@ -1532,7 +1541,7 @@ void S_EntangleApproachComplete(edict_t *receiver,edict_t *tree,bool arrived) {
     if(!entangle_retained_mine(tree) ||
        !S_UnitPointInMoveRange(tree,&tree->entangle->destination,0)) {entangle_finish(tree);return;}
     tree->entangle->phase=ENTANGLE_ROOTING;
-    if(!S_AncientBeginOwnedRoot(tree,&tree->entangle->destination,S_EntangleRootComplete))entangle_finish(tree);
+    entangle_begin_root(tree,&tree->entangle->destination);
 }
 
 static void entangle_walk_think(edict_t *tree) {
@@ -1591,15 +1600,19 @@ static queuedOrderResult_t entangle_activate(edict_t *tree,unitOrder_t const *pa
         .order_id=packet->order_id,.destination=point,.instant=instant};
     if(S_AncientIsRooted(tree)) {
         tree->entangle->phase=ENTANGLE_UNROOTING;
-        if(!S_AncientBeginOwnedMorph(tree,false,S_EntangleRootComplete))entangle_finish(tree);
+        uint32_t morph_revision=G_UnitMoveRevision(tree);
+        if(!S_AncientBeginOwnedMorph(tree,false,S_EntangleRootComplete) &&
+           tree->inuse && tree->spawn_time==generation && !G_IsDeferredFree(tree) &&
+           G_UnitMoveRevision(tree)==morph_revision)entangle_finish(tree);
     } else if(approach) {
         tree->entangle->phase=ENTANGLE_APPROACH;
         unit_setmove(tree,&entangle_walk);entangle_walk_think(tree);
     } else {
         tree->entangle->phase=ENTANGLE_ROOTING;
-        if(!S_AncientBeginOwnedRoot(tree,&point,S_EntangleRootComplete))entangle_finish(tree);
+        entangle_begin_root(tree,&point);
     }
-    return tree->entangle->phase ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
+    return tree->inuse && tree->spawn_time==generation && !G_IsDeferredFree(tree) &&
+        tree->entangle && tree->entangle->phase ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }
 
 BZ_ABILITY_PROC(CAbilityEntangle) {
