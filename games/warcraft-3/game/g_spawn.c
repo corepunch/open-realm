@@ -406,16 +406,9 @@ edict_t *G_Spawn(void) {
     return edict;
 }
 
-/* Confirm a candidate variation resolves through the authoritative VFS. */
+/* Probe authored variations through the engine VFS without reading model contents. */
 static bool SP_DoodadModelExists(cstring_t filename) {
-    uint32_t size = 0;
-    handle_t data;
-
-    if (!filename || !*filename) return false;
-    data = gi.ReadFile(filename, &size);
-    if (!data) return false;
-    gi.MemFree(data);
-    return true;
+    return filename && *filename && gi.FileExists(filename);
 }
 
 /* Resolve an authored doodad model and only use a variation file that exists. */
@@ -801,6 +794,59 @@ static vec3_t G_CenterSpecialDoodad(vec3_t min_corner, pathTex_t const *footprin
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+
+/* These mocks exercise the real spawn/shadow selection paths without retail MPQs. */
+static cstring_t spawn_probe_existing;
+static uint32_t spawn_probe_calls, spawn_probe_images;
+static bool G_TestSpawnFileExists(cstring_t path) {
+    spawn_probe_calls++;
+    return spawn_probe_existing && !strcmp(path, spawn_probe_existing);
+}
+static int G_TestSpawnImageIndex(cstring_t path) {
+    (void)path;
+    spawn_probe_images++;
+    return 71;
+}
+
+TEST(wc3_spawn, shadow_texture_probes_blp_then_optional_dds_without_full_file_reads) {
+    struct game_import const saved = gi;
+    gi.FileExists = G_TestSpawnFileExists;
+    gi.ImageIndex = G_TestSpawnImageIndex;
+
+    spawn_probe_existing = "ReplaceableTextures\\Shadows\\Shadow.blp";
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", true), 71);
+    T_EQ(spawn_probe_calls, 1);
+    T_EQ(spawn_probe_images, 1);
+
+    spawn_probe_existing = "ReplaceableTextures\\Shadows\\Shadow.dds";
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", true), 71);
+    T_EQ(spawn_probe_calls, 2);
+    T_EQ(spawn_probe_images, 1);
+
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", false), 0);
+    T_EQ(spawn_probe_calls, 1);
+    T_EQ(spawn_probe_images, 0);
+
+    spawn_probe_existing = NULL;
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", true), 0);
+    T_EQ(spawn_probe_calls, 2);
+    T_EQ(spawn_probe_images, 0);
+
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("_", true), 0);
+    T_EQ(G_LoadShadowTexture("", true), 0);
+    T_EQ(G_LoadShadowTexture(NULL, true), 0);
+    T_EQ(spawn_probe_calls, 0);
+    T_EQ(spawn_probe_images, 0);
+
+    spawn_probe_existing = NULL;
+    gi = saved;
+}
+
 static vec2_t special_doodad_sample;
 static float special_doodad_test_height;
 static float G_TestSpecialDoodadHeight(float x, float y) {

@@ -42,10 +42,8 @@ static int selection_sound_index_77_alias(cstring_t path, cstring_t alias) { (vo
 
 static char death_sound_path[256];
 static cstring_t death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
-static handle_t death_sound_probe(cstring_t path, uint32_t *size) {
-    if (strcmp(path, death_sound_existing)) return NULL;
-    *size = 1;
-    return malloc(1);
+static bool death_sound_probe(cstring_t path) {
+    return !strcmp(path, death_sound_existing);
 }
 static int death_sound_index(cstring_t path) {
     strlcpy(death_sound_path, path, sizeof(death_sound_path));
@@ -112,7 +110,7 @@ TEST(wc3_unit, death_sound_uses_existing_numbered_asset) {
     setup_test_world();
     death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
     death_sound_path[0] = '\0';
-    gi.ReadFile = death_sound_probe;
+    gi.FileExists = death_sound_probe;
     gi.SoundIndex = death_sound_index;
     G_RegisterUnitSounds(&ent);
     T_STREQ(death_sound_path, "Units\\Human\\Test\\TestDeath1.wav");
@@ -129,7 +127,7 @@ TEST(wc3_unit, death_sound_uses_existing_unnumbered_asset) {
     setup_test_world();
     death_sound_existing = "Units\\Human\\Test\\TestDeath.wav";
     death_sound_path[0] = '\0';
-    gi.ReadFile = death_sound_probe;
+    gi.FileExists = death_sound_probe;
     gi.SoundIndex = death_sound_index;
     G_RegisterUnitSounds(&ent);
     T_STREQ(death_sound_path, death_sound_existing);

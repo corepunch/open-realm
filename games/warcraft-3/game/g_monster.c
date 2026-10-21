@@ -236,14 +236,9 @@ uint32_t M_LoadUberSplat(cstring_t uber_splat) {
     }
 }
 
+/* Probe only VFS presence; image/sound registration still owns actual loading. */
 static bool G_FileExists(cstring_t filename) {
-    uint32_t filesize = 0;
-    handle_t buffer = gi.ReadFile(filename, &filesize);
-    if (buffer) {
-        gi.MemFree(buffer);
-        return true;
-    }
-    return false;
+    return filename && *filename && gi.FileExists(filename);
 }
 
 static bool G_HasShadowName(cstring_t shadow) {

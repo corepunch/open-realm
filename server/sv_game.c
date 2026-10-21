@@ -153,6 +153,7 @@ void SV_InitGameProgs(void) {
     import.SetPaused = SV_SetPaused;
     import.RequestMap = SV_RequestMap;
     import.RequestQuit = SV_RequestQuit;
+    import.FileExists = FS_FileExists;
     import.ReadFile = FS_ReadFile;
     import.ReadFileAll = FS_ReadFileAll;
     import.SetPriorityArchive = FS_SetPriorityArchive;

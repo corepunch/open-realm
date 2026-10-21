@@ -1810,13 +1810,8 @@ static int capture_spawn_model(cstring_t name) {
 
 static cstring_t doodad_model_probe_existing;
 
-static handle_t doodad_model_probe_read(cstring_t name, uint32_t *size) {
-    if (size) *size = 0;
-    if (doodad_model_probe_existing && !strcmp(name, doodad_model_probe_existing)) {
-        if (size) *size = 1;
-        return malloc(1);
-    }
-    return NULL;
+static bool doodad_model_probe_exists(cstring_t name) {
+    return doodad_model_probe_existing && !strcmp(name, doodad_model_probe_existing);
 }
 
 TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
@@ -1844,7 +1839,7 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     slkTestData_t *varied_rows = parse_slk_string(varied_slk);
     slkTestData_t *saved = G_SetSLKRows("Doodads", single_rows);
     int (*old_index)(cstring_t) = gi.ModelIndex;
-    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    bool (*old_exists)(cstring_t) = gi.FileExists;
     edict_t ent = { .class_id = MAKEFOURCC('L','O','o','2'), .variation = 0 };
 
     setup_test_world();
@@ -1858,7 +1853,7 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     ent.class_id = MAKEFOURCC('L','O','o','2');
     ent.variation = 2;
     doodad_model_probe_existing = "Doodads\\LordaeronSummer\\Props\\BannerHuman\\BannerHuman2.mdx";
-    gi.ReadFile = doodad_model_probe_read;
+    gi.FileExists = doodad_model_probe_exists;
     SP_CallSpawn(&ent);
     T_STREQ(spawn_model, "Doodads\\LordaeronSummer\\Props\\BannerHuman\\BannerHuman2.mdx");
 
@@ -1866,7 +1861,7 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     free_slk_rows(single_rows);
     free_slk_rows(varied_rows);
     doodad_model_probe_existing = NULL;
-    gi.ReadFile = old_read;
+    gi.FileExists = old_exists;
     gi.ModelIndex = old_index;
 }
 
@@ -1962,7 +1957,7 @@ TEST(wc3_slk, map_w3d_original_variations_and_custom_inheritance) {
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old;
     int (*old_model)(cstring_t) = gi.ModelIndex;
-    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    bool (*old_exists)(cstring_t) = gi.FileExists;
     edict_t ent = { .class_id = MAKEFOURCC('D','0','0','1'), .variation = 2 };
 
     setup_test_world();
@@ -1970,13 +1965,13 @@ TEST(wc3_slk, map_w3d_original_variations_and_custom_inheritance) {
     G_SetMapUnitOverrides(&info);
     T_EQ(G_Doodad(ent.class_id)->numVar, 3);
     gi.ModelIndex = capture_spawn_model;
-    gi.ReadFile = doodad_model_probe_read;
+    gi.FileExists = doodad_model_probe_exists;
     doodad_model_probe_existing = "Doodads\\Original\\Original2.mdx";
     SP_CallSpawn(&ent);
     T_STREQ(spawn_model, "Doodads\\Original\\Original2.mdx");
 
     doodad_model_probe_existing = NULL;
-    gi.ReadFile = old_read;
+    gi.FileExists = old_exists;
     gi.ModelIndex = old_model;
     G_SetMapUnitOverrides(NULL);
     G_SetSLKRows("Doodads", old);
@@ -2024,19 +2019,19 @@ TEST(wc3_slk, doodad_model_missing_variation_falls_back_to_unsuffixed_asset) {
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *saved = G_SetSLKRows("Doodads", rows);
     int (*old_index)(cstring_t) = gi.ModelIndex;
-    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    bool (*old_exists)(cstring_t) = gi.FileExists;
     edict_t ent = { .class_id = MAKEFOURCC('L','O','o','2'), .variation = 2 };
 
     setup_test_world();
     spawn_model[0] = '\0';
     gi.ModelIndex = capture_spawn_model;
     doodad_model_probe_existing = "Doodads\\Props\\Banner\\Banner.mdx";
-    gi.ReadFile = doodad_model_probe_read;
+    gi.FileExists = doodad_model_probe_exists;
     SP_CallSpawn(&ent);
     T_STREQ(spawn_model, "Doodads\\Props\\Banner\\Banner.mdx");
 
     doodad_model_probe_existing = NULL;
-    gi.ReadFile = old_read;
+    gi.FileExists = old_exists;
     gi.ModelIndex = old_index;
     G_SetSLKRows("Doodads", saved);
     free_slk_rows(rows);

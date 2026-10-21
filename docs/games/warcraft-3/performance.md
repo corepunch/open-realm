@@ -111,11 +111,11 @@ based on new measured results rather than treating the order as fixed.
    vertex flags/values, and source ordering. Compare server heightmap,
    client heightmap when present, renderer terrain parse, and end-to-end
    cycle times; verify cliffs, ramps, water, blight, pathing and minimap.
-2. **Eliminate redundant whole-file existence reads during spawning.** Trace
-   `G_FileExists` and `SP_DoodadModelExists` and expose the existing
-   `FS_FileExists` facility to the game module where appropriate. Preserve
-   archive precedence and fallback behavior; do not conflate existence with
-   successful reading or decoding. Measure spawn time and memory/IO changes.
+2. **Eliminate redundant whole-file existence reads during spawning (implemented; benchmark pending).** The game now probes `G_FileExists` and
+   `SP_DoodadModelExists` through `game_import.FileExists`/`FS_FileExists`
+   rather than reading/freeing each full asset. Preserve archive precedence,
+   verify missing-variation and shadow fallback, and remeasure spawn time
+   and memory/I/O. Presence does not establish successful decoding.
 3. **Index SLK typed-conversion lookups.** Investigate per-table row/column
    indexes and seen-row-ID handling, preserving case rules, duplicate IDs,
    row precedence, custom map overrides and RoC/TFT schema differences.
@@ -148,6 +148,64 @@ based on new measured results rather than treating the order as fixed.
    second of repeated model registration, including portrait probes and GPU
    uploads. Re-profile `G_StartScripts`, spawn dispatch and residual server
    work; prioritize only what the new end-to-end profiles justify.
+
+
+### October 21 follow-up: W3E result and spawn asset probes
+
+The subsequent instrumented OrcX01 first-load capture
+`openwarcraft3(20261021-143458).log` (external user log) observed
+**17.896 s** for the full client load cycle, versus **25.427 s** for the
+previous unoptimized first load. These are two separate runs, not controlled
+medians. Client W3E heightmap reading decreased from 2,629.035 ms to
+**2.567 ms** and renderer W3E parsing from 2,597.571 ms to **5.469 ms**.
+The combined client `CM_LoadMap` phase decreased from 3,879.519 ms to
+1,227.635 ms, and renderer `RegisterMap` from 3,577.415 ms to 1,025.508
+ms. The newer build did not print `G_LoadMap` server diagnostics: **do not
+claim measured server-phase gains from this capture**. Visual/pathing checks
+and repeated-run medians remain necessary.
+
+The next focused optimization replaces only two server game-side
+**read-and-free existence probes**, leaving actual asset registration and
+loader ownership intact:
+
+| Game call | Previously | Now | Selection behavior |
+|---|---|---|---|
+| `G_FileExists` (`g_monster.c`) | `gi.ReadFile` then `gi.MemFree` | `gi.FileExists` | Try shadow `.blp` first, optional `.dds`, then original default shadow fallback |
+| `SP_DoodadModelExists` (`g_spawn.c`) | `gi.ReadFile` then `gi.MemFree` | `gi.FileExists` | Probe variation `N.mdx` only when `numVar > 1`; fall back to unsuffixed `.mdx` when absent |
+
+`server/sv_game.c` wires `game_import.FileExists` directly to the existing
+`FS_FileExists` in `common/common.c`. That VFS service checks the current
+priority map MPQ first, then mounted archives, nested/loose assets and game
+data directories as available. It does not read or allocate an entire asset
+just to decide whether to register its name. No cached existence results
+are retained across map changes, avoiding stale map-import decisions.
+Because the shared `game_import` structure gains a callback, rebuild/relink
+the server and all game modules together. The universal client is unchanged.
+
+**Existence is not decode success.** `FS_FileExists` intentionally answers
+whether a path is present, not whether an archive entry decompresses or a
+model/image parses. A corrupt present variation could therefore pass the
+probe where the old `ReadFile` test would have failed. The asset loader is
+still responsible for errors and fallback policy; this is a compatibility
+edge case to check with malformed MPQs rather than asserting perfect
+read-success equivalence. The normal **missing-file** fallback order is
+unchanged.
+
+Focused tests: `wc3_spawn.shadow_texture_probes_blp_then_optional_dds_without_full_file_reads`,
+`wc3_slk.doodad_model_uses_file_stem_and_only_appends_real_variations`,
+`wc3_slk.doodad_model_missing_variation_falls_back_to_unsuffixed_asset`,
+`wc3_slk.map_w3d_original_variations_and_custom_inheritance`,
+`wc3_unit.death_sound_uses_existing_numbered_asset`,
+`wc3_unit.death_sound_uses_existing_unnumbered_asset`, and
+`commands.priority_archive_file_exists_tracks_map_mount`. The existing
+asset-resolution tests now mock `gi.FileExists` rather than `gi.ReadFile`.
+They cover path selection and priority-mount teardown without requiring
+retail assets. Run `make test` and the affected native game/server builds,
+then compare matched OrcX01 `spawn-entities` and whole loading-cycle
+medians for first load, restart, and menu-return cases. The new lookup
+change has **no measured speedup yet**. If spawning remains dominant,
+profile repeated shadow names, model candidates, and path textures before
+introducing any map-scoped caches.
 
 ### Acceptance and measurement gates
 

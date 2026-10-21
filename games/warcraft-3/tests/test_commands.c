@@ -336,6 +336,44 @@ TEST(commands, share_authored_ui_assets_are_readable) {
     if (data) FS_FreeFile(data);
 }
 
+/* The game import now probes these same VFS rules during map spawning.
+ * A mounted map MPQ must override archives/loose paths, and removing that
+ * priority mount must immediately remove its private asset from lookup. */
+TEST(commands, priority_archive_file_exists_tracks_map_mount) {
+    static uint8_t const payload[] = { 'M', 'A', 'P' };
+    cstring_t const filename = "ReplaceableTextures\\Shadows\\WC3PriorityProbe.blp";
+    cstring_t const archive_path = Test_TempPath("wc3-priority-exists.mpq");
+    handle_t archive = NULL;
+    uint32_t size = 0;
+    void *data = NULL;
+    handle_t const previous = FS_GetPriorityArchive();
+
+    setup_command_tests();
+    T_ASSERT(!FS_FileExists(filename));
+    T_ASSERT(SFileCreateArchive(archive_path, 0, 16, &archive));
+    T_NOT_NULL(archive);
+    if (!archive) return;
+    T_ASSERT(SFileAddFileFromBuffer(archive, filename, payload, sizeof(payload)));
+    T_ASSERT(SFileCloseArchive(archive));
+    archive = NULL;
+    T_ASSERT(SFileOpenArchive(archive_path, 0, 0, &archive));
+    T_NOT_NULL(archive);
+    if (!archive) return;
+    FS_SetPriorityArchive(archive);
+    T_ASSERT(FS_FileExists(filename));
+    data = FS_ReadFile(filename, &size);
+    T_NOT_NULL(data);
+    T_EQ(size, sizeof(payload));
+    if (data) {
+        T_ASSERT(!memcmp(data, payload, sizeof(payload)));
+        FS_FreeFile(data);
+    }
+    FS_SetPriorityArchive(previous);
+    T_ASSERT(!FS_FileExists(filename));
+    T_ASSERT(SFileCloseArchive(archive));
+    remove(archive_path);
+}
+
 TEST(commands, command_and_cvar_completion) {
     char out[128];
 
