@@ -680,7 +680,9 @@ void CL_PrepRefresh(void) {
     if (report_load)
         WC3_MAP_LOAD_LOG("map=%s phase=client-refresh-models count=%u ms=%.3f\n",
                          cl.configstrings[CS_WORLD], registered_models, WC3_MAP_LOAD_NOW() - stage_start);
+#ifdef WC3_DEBUG_MAP_LOAD
     if (report_load) CL_ReportModelLoadDebug("client-refresh-model-detail", cl.configstrings[CS_WORLD]);
+#endif
     CL_LoadingStage(0.60f);
 
     uint32_t registered_images = 0;
@@ -751,6 +753,10 @@ void CL_PrepRefresh(void) {
             WC3_MAP_LOAD_LOG("map=%s phase=client-load-cycle ms=%.3f\n",
                              cl.configstrings[CS_WORLD], WC3_MAP_LOAD_NOW() - client_map_load_debug_start);
     }
+#ifndef WC3_DEBUG_MAP_LOAD
+    (void)stage_start;
+    (void)refresh_start;
+#endif
 }
 
 void V_RenderView(void) {

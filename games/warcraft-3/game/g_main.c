@@ -980,6 +980,9 @@ static void G_ApplyMapGameDataSet(mapInfo_t const *mapinfo) {
     InitAbilities();
     WC3_MAP_LOAD_LOG("phase=map-abilities ms=%.3f\n",
                      WC3_GAME_MAP_LOAD_NOW() - init_unit_data_start);
+#ifndef WC3_DEBUG_MAP_LOAD
+    (void)init_unit_data_start;
+#endif
 }
 
 static void G_RunJassTests(cstring_t script, cstring_t entry) {
@@ -1067,6 +1070,9 @@ static void G_InitGame(void) {
     G_RegisterGlobalSounds();
     UI_ResetHud();
     fprintf(stderr, "Game initialized.\n\n");
+#ifndef WC3_DEBUG_MAP_LOAD
+    (void)init_unit_data_start;
+#endif
 }
 
 static void G_ShutdownGame(void) {

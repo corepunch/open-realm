@@ -194,4 +194,7 @@ void CL_PrepLoading(void) {
     SCR_UpdateLoadingPlaque();
     WC3_MAP_LOAD_LOG("map=%s phase=client-preload-total ms=%.3f\n",
                      cl.configstrings[CS_WORLD], WC3_MAP_LOAD_NOW() - load_start);
+#ifndef WC3_DEBUG_MAP_LOAD
+    (void)stage_start;
+#endif
 }

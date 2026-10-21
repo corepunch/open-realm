@@ -1282,6 +1282,9 @@ void R_RegisterMap(cstring_t mapFileName) {
     R_ReclaimStreamedTextures(0);
     WC3_MAP_LOAD_LOG("map=%s phase=renderer-register-reclaim-textures ms=%.3f\n",
                      mapFileName, WC3_MAP_LOAD_NOW() - stage_start);
+#ifndef WC3_DEBUG_MAP_LOAD
+    (void)stage_start;
+#endif
 }
 
 void R_SetupEnvironmentLighting(void) {

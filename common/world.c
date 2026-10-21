@@ -1,4 +1,5 @@
 #include "common.h"
+#include "common/war3map_vertices.h"
 #include <ctype.h>
 
 #ifndef _WIN32
@@ -698,70 +699,22 @@ static void __attribute__((unused)) CM_ReadUnitDoodads(handle_t archive) {
     SFileCloseFile(file);
 }
 
-static bool CM_ReadWar3MapVertex(handle_t file, war3mapVertex_t *vert) {
-    uint16_t water_and_edge;
-    uint8_t flags;
-    uint8_t variation;
-    uint8_t cliff_and_layer;
-
-    if (!file || !vert) {
-        return false;
-    }
-    memset(vert, 0, sizeof(*vert));
-    if (!SFileReadFile(file, &vert->accurate_height, sizeof(vert->accurate_height), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &water_and_edge, sizeof(water_and_edge), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &flags, sizeof(flags), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &variation, sizeof(variation), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &cliff_and_layer, sizeof(cliff_and_layer), NULL, NULL)) {
-        return false;
-    }
-
-    vert->waterlevel = water_and_edge & 0x3FFF;
-    vert->mapedge = (water_and_edge & 0x4000) != 0;
-    vert->ground = flags & 0x0F;
-    vert->ramp = (flags & 0x10) != 0;
-    vert->blight = (flags & 0x20) != 0;
-    vert->water = (flags & 0x40) != 0;
-    vert->boundary = (flags & 0x80) != 0;
-    vert->cliffVariation = (variation >> 5) & 0x07;
-    vert->groundVariation = variation & 0x1F;
-    vert->cliff = (cliff_and_layer >> 4) & 0x0F;
-    vert->level = cliff_and_layer & 0x0F;
-    return true;
-}
-
 static void __attribute__((unused)) CM_ReadHeightmap(handle_t archive) {
-    world.map = MemAlloc(sizeof(war3map_t));
     handle_t file;
     if (!SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file)) {
+        Com_Error(ERR_DROP, "CM_ReadHeightmap: missing war3map.w3e\n");
         return;
     }
-    SFileReadFile(file, &world.map->header, 4, NULL, NULL);
-    SFileReadFile(file, &world.map->version, 4, NULL, NULL);
-    SFileReadFile(file, &world.map->tileset, 1, NULL, NULL);
-    SFileReadFile(file, &world.map->custom, 4, NULL, NULL);
-    SFileReadArray(file, world.map, grounds, 4, MemAlloc);
-    SFileReadArray(file, world.map, cliffs, 4, MemAlloc);
-    SFileReadFile(file, &world.map->width, 4, NULL, NULL);
-    SFileReadFile(file, &world.map->height, 4, NULL, NULL);
-    SFileReadFile(file, &world.map->center, 8, NULL, NULL);
-    uint32_t const num_vertices = world.map->width * world.map->height;
-    int const vertexblocksize = sizeof(war3mapVertex_t) * num_vertices;
-    world.map->vertices = MemAlloc(vertexblocksize);
-    FOR_LOOP(i, num_vertices) {
-        if (!CM_ReadWar3MapVertex(file, (war3mapVertex_t *)world.map->vertices + i)) {
-            break;
-        }
+    world.map = MemAlloc(sizeof(war3map_t));
+    if (!W3E_ReadHeader(file, world.map, MemAlloc)) {
+        SFileCloseFile(file);
+        Com_Error(ERR_DROP, "CM_ReadHeightmap: invalid W3E header\n");
+        return;
     }
+    bool const valid_vertices = W3E_ReadVertexBlock(file, world.map, MemAlloc, MemFree);
     SFileCloseFile(file);
+    if (!valid_vertices)
+        Com_Error(ERR_DROP, "CM_ReadHeightmap: invalid or truncated W3E vertex block\n");
 }
 
 void CM_ReadModification(handle_t file, unitModification_t *mod) {

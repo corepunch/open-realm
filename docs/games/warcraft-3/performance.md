@@ -597,3 +597,40 @@ Caching one selected edge point for an entire resource leg was rejected after ru
 `CM_FindApproachPointToFootprintForRadius` now makes that adaptive selection cheap without changing its authored-footprint semantics. The pathmap owns a reusable one-byte-per-cell scratch mask. For each blocked footprint pixel, the helper marks only nearby pathmap cell centres whose exact grid-rectangle distance is within the requested range; it then scans those marked candidates once. This replaces the nested candidate-by-footprint distance scan with footprint-area times a small local range plus one candidate pass. Once a direct candidate has been found, farther candidates also skip redundant line-walkability traces. The mask is scratch state only and is cleared over the small search rectangle on each call.
 
 Keep the single `CM_DistanceToPathingFootprint` call in the per-think interaction-range check: that authored-footprint distance decides exact mine/deposit completion. The optimized cost is the optional staging search, not the behavior-owned interaction boundary. `wc3_pathfinding.footprint_approach_respects_sparse_path_texture` protects irregular footprint accuracy, and `wc3_movement.gold_return_reselects_footprint_edge_after_displacement` protects the adaptive lane behavior that prevents the Town Hall dance.
+
+## October 21 W3E terrain bulk-decoding implementation (pending benchmark)
+
+The OrcX01 profiling log `openwarcraft3(20261021-134309).log` captures one first load
+(25.427 s) and five subsequent loads in one process (median 15.404 s). During
+repeated loads, server heightmap reading was around 2.7 s, while renderer
+`FileReadWar3Map` terrain parsing was around 2.8 s. These numbers are *before*
+this optimization, not evidence of a measured speedup. The first load additionally
+parses the map on the client, while repeated same-map loads in this log do not.
+
+`common/world.c:CM_ReadHeightmap` and
+`games/warcraft-3/renderer/w3m/r_war3map.c:FileReadWar3Map` use the shared
+`common/war3map_vertices.h` W3E reader. The serialized vertex is **seven bytes**
+(two LE16 values and three packed bytes); `war3mapVertex_t` is an expanded
+in-memory representation, not a file layout. The reader now takes **4096 vertices
+per MPQ read** instead of five calls per vertex, decoding the entire packed record
+without relying on a struct cast. Each request verifies the returned byte count
+because `SFileReadFile` can return success for a short read. The scratch buffer
+is fixed-size (28 KiB), and successful decoded vertices use the caller's existing
+map-owned allocator. The reader rejects truncated data, invalid/oversized
+geometry, and palette counts over 256, without exposing a partially decoded
+vertex array. Both callers retain map-replacement cleanup responsibilities; a rejected
+server W3E stops `CM_LoadMapFormat` before later readers run.
+
+`wc3_terrain.w3e_*` tests in `games/warcraft-3/game/tests/t_w3e_bulk.c`
+cover packed flags, batch boundaries, and malformed input using tiny synthetic
+MPQs. Verify with the affected native build and `make test`, then replay terrain,
+water, cliffs, ramps, blight, fog/minimap, and repeated map transitions on RoC
+and TFT. This change deliberately does **not** share terrain data between renderer
+and collision world; their decoded arrays remain independently owned.
+
+For a useful timing comparison, capture at least five measurements of each
+relevant load scenario on the same build mode, hardware, and data set. Compare
+`CM_LoadMap` heightmap, renderer terrain parse, and end-to-end loading medians,
+and track peak RAM. Keep initial load, same-map restart, and return-to-menu
+reload separate. If diagnostics are enabled, use a matching diagnostic build for
+both baselines; do not claim a gain solely from the prior unoptimized log.

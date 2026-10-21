@@ -593,8 +593,16 @@ bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
         cm_w3_readers[i].read(cm_w3_map_archive);
         WC3_MAP_LOAD_LOG("map=%s phase=map-reader:%s ms=%.3f\n", mapFilename,
                          cm_w3_readers[i].name, WC3_MAP_LOAD_NOW() - stage_start);
+        /* Com_Error(ERR_DROP) only reports; do not continue with a partial W3E map. */
+        if (cm_w3_readers[i].read == CM_ReadHeightmap && (!world.map || !world.map->vertices)) {
+            CM_W3ClearMapData();
+            return false;
+        }
         yield();
     }
+#ifndef WC3_DEBUG_MAP_LOAD
+    (void)stage_start;
+#endif
     return true;
 }
 
