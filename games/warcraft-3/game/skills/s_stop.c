@@ -92,6 +92,11 @@ bool S_IssueStopOrder(edict_t *ent) {
      * physical task until its cleanup completes. */
     if (!ent->inuse || ent->spawn_time != spawn_time || M_IsDead(ent)) return true;
     bool const removing = G_IsDeferredFree(ent);
+    /* Retire the old logical owner before publishing Stop. Its inverse may
+     * synchronously issue orders; the pending outer Stop still owns admission. */
+    S_UnitAbilityMoveLeave(ent, CAbilityStop);
+    if (!ent->inuse || ent->spawn_time != spawn_time ||
+        (G_IsDeferredFree(ent) && !removing) || M_IsDead(ent)) return true;
     uint32_t const revision = G_UnitMoveRevision(ent);
     ent->current_order_id = order_id;
     S_UnitAbilityOrderAccepted(ent, "stop");

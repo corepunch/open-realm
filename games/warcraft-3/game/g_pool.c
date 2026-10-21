@@ -112,6 +112,7 @@ DEFINE_POOL(unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP)
 /* Hide-capable units retain this state even while walking in daylight. */
 DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, MAX_ENTITIES)
 DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(couple, Couple, couple_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(health_regen, HealthRegen, healthRegen_t, MAX_ENTITIES)
 DEFINE_POOL_CALLBACKS(shadow_strike, ShadowStrike, shadowStrike_t, LIFECYCLE_POOL_CAP, (void)0, S_ForgetShadowStrike(ent))
@@ -236,6 +237,7 @@ void G_PoolsReset(void) {
     G_ResetUnsummonPool();
     G_ResetShadowMeldPool();
     G_ResetMilitiaPool();
+    G_ResetCouplePool();
     G_ResetPolymorphPool();
     G_ResetShadowStrikePool();
     G_ResetHealthRegenPool();
@@ -277,6 +279,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeUnsummon(ent);
     G_FreeShadowMeld(ent);
     G_FreeMilitia(ent);
+    G_FreeCouple(ent);
     G_FreePolymorph(ent);
     G_FreeShadowStrike(ent);
     G_FreeHealthRegen(ent);
@@ -341,6 +344,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(unsummon, Unsummon, unsummon_t);
     CHECK_POOL(shadowmeld, ShadowMeld, shadowMeld_t);
     CHECK_POOL(militia, Militia, militia_t);
+    CHECK_POOL(couple, Couple, couple_t);
     CHECK_POOL(polymorph, Polymorph, polymorph_t);
     CHECK_POOL(shadow_strike, ShadowStrike, shadowStrike_t);
     CHECK_POOL(health_regen, HealthRegen, healthRegen_t);

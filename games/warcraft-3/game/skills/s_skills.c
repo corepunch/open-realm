@@ -32,6 +32,8 @@ static cstring_t const patrol_orders[] = { "patrol", NULL };
 static cstring_t const attack_orders[] = { "attack", "attackonce", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
+static cstring_t const archer_couple_orders[]={"mounthippogryph",NULL};
+static cstring_t const hippo_couple_orders[]={"loadarcher",NULL};
 static cstring_t const militia_orders[] = { "militiaconvert", "militiaunconvert", NULL };
 static cstring_t const entangle_orders[] = {
     "entangle", "entangleinstant", "autoentangle", "autoentangleinstant", NULL
@@ -507,8 +509,8 @@ static ability_t abilitylist[] = {
     { "Aadm", CAbilityAbolishMagic, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Abolish Magic */
     { "Amim", CAbilityPassive, AB_PASSIVE },  /* Spell Immunity */
     { "Ault", CAbilityPassive, AB_PASSIVE },  /* Ultravision */
-    { "Acoa", CAbilityCoupleArcher, AB_SPELL, SPELL_TARGET_UNIT },  /* Mount Hippogryph */
-    { "Acoh", CAbilityCoupleHippogryph, AB_SPELL, SPELL_TARGET_UNIT },  /* Pick up Archer */
+    { "Acoa", CAbilityCoupleArcher, AB_COMMAND, SPELL_TARGET_UNIT, archer_couple_orders },  /* Mount Hippogryph */
+    { "Acoh", CAbilityCoupleHippogryph, AB_COMMAND, SPELL_TARGET_UNIT, hippo_couple_orders },  /* Pick up Archer */
     { "Adec", CAbilityDecouple, AB_SPELL, SPELL_TARGET_NONE },  /* Dismount */
     { "Acor", CAbilityCorrosiveBreath, AB_PASSIVE },  /* Corrosive Breath */
     { "AEst", CAbilityScout, AB_PASSIVE },  /* Scout */

@@ -2158,6 +2158,13 @@ typedef struct {
     bool returning;         /* current pairing order is militiaunconvert */
 } militia_t;
 
+/* Legacy/custom target-couple (Acoa/Acoh), independent of Couple Instant. */
+typedef struct {
+    edict_t *partner;
+    uint32_t partner_spawn_time, ability, serial, partner_serial;
+    bool active, reciprocal, ready, suspended;
+} couple_t;
+
 typedef struct {
     uint32_t ability;          /* Aply-derived ability that owns the active morph */
     uint32_t buff;             /* configured timed buff; stock Sorceress uses Bply */
@@ -2427,6 +2434,7 @@ struct edict_s {
     uint32_t harvested_lumber;
     uint32_t harvested_gold;
     militia_t *militia;
+    couple_t *couple;
     polymorph_t *polymorph;
     raven_t *raven;
     morph_t *morph;
@@ -4868,6 +4876,7 @@ bool G_TransformUnitType(edict_t *, uint32_t);
 bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
 void G_PublishIssuedTargetOrder(edict_t *, cstring_t, edict_t *, uint32_t);
+void G_PublishIssuedTargetOrderId(edict_t *,uint32_t,cstring_t,edict_t *,uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
 bool G_RetainSuspendedUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, bool, uint32_t, float);
 bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);
@@ -5114,6 +5123,7 @@ float S_GoldMineMiningDuration(edict_t const *);
 uint32_t S_GoldMineCapacity(edict_t const *);
 bool S_GoldMineCanHarvest(edict_t const *);
 bool S_GoldMineWorkerIsInside(edict_t const *);
+void S_CoupleApproachComplete(edict_t *, edict_t *, bool);
 void S_MilitiaApproachComplete(edict_t *, edict_t *, bool);
 void S_CancelMilitiaPairing(edict_t *);
 void S_MilitiaExpire(edict_t *);
@@ -5413,6 +5423,8 @@ void G_FreeShadowMeld(edict_t *ent);
 shadowMeld_t *G_AllocShadowMeld(void);
 void G_FreeMilitia(edict_t *ent);
 militia_t *G_AllocMilitia(void);
+void G_FreeCouple(edict_t *ent);
+couple_t *G_AllocCouple(void);
 void G_FreePolymorph(edict_t *ent);
 polymorph_t *G_AllocPolymorph(void);
 healthRegen_t *G_AllocHealthRegen(void);

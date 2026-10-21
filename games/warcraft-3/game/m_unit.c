@@ -1103,9 +1103,8 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
         .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER,true);
 }
 
-void G_PublishIssuedTargetOrder(edict_t *self, cstring_t order,
-                                      edict_t *target, uint32_t issuer_player) {
-    uint32_t const order_id = unit_order_event_id(order);
+void G_PublishIssuedTargetOrderId(edict_t *self,uint32_t order_id,cstring_t order,
+                                   edict_t *target,uint32_t issuer_player) {
 
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
@@ -1128,6 +1127,10 @@ void G_PublishIssuedTargetOrder(edict_t *self, cstring_t order,
     }
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
         .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,.source=target,.value=order_id }, EVENT_UNIT_ISSUED_TARGET_ORDER,true);
+}
+
+void G_PublishIssuedTargetOrder(edict_t *self,cstring_t order,edict_t *target,uint32_t issuer_player) {
+    G_PublishIssuedTargetOrderId(self,unit_order_event_id(order),order,target,issuer_player);
 }
 
 /*6bccc0 includes selection members that will not receive a mobile order.

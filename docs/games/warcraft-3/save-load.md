@@ -1,3 +1,14 @@
+Save224 adds game-owned reciprocal target-coupling state in a sparse `couple_t`
+pool. The edict pointer is `F_IGNORE` with `FIELD_RUNTIME`; the pool descriptor
+allocates it on load and translates its partner through `F_EDICT`. Partner
+incarnation, configured ability, local/peer serials and active, reciprocal, ready
+and suspended flags survive. `S_CoupleApproachComplete` is registered in the C
+callback roster; shared physical-group persistence retains the ordinary zero-range
+target approach. Save223 and earlier layouts are rejected. Coupling checkpoint190
+exercises linked and lone ready saves, pause-role replay
+and cold continuation; full checkpoint175 predates this layout.
+See [target coupling](hippogryph-couple.md#save224-and-validation-status).
+
 Save223 retains Militia pairing's Hall pointer as `F_EDICT`, its spawn
 incarnation, conversion direction and captured `pair_range`. The callback roster
 registers `S_MilitiaApproachComplete`; shared physical-group state saves the

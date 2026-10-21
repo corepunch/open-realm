@@ -77,6 +77,15 @@ static uint32_t couple_count(uint32_t class_id, uint32_t player) {
 	return n;
 }
 
+/* Terminal effect tests retain the authored merge mapping independently of
+ * the public reciprocal producer exercised by t_couple_orders.c. */
+static bool couple_terminal_effect(edict_t *caster,uint32_t code,edict_t *partner) {
+    abilityitem_t item=S_AbilityItem(code);
+    spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=partner};
+    abilityCall_t call={.item=&item,.target=&target};
+    return S_AbilityMessage(caster,A_VALIDATE,&call) && S_AbilityMessage(caster,A_EXECUTE,&call);
+}
+
 TEST(wc3_spell, hippogryph_couple_procedures_registered) {
 	T_EQ(S_AbilityItem(BZ_ACOA).ability->proc, CAbilityCoupleArcher);
 	T_EQ(S_AbilityItem(BZ_ACOH).ability->proc, CAbilityCoupleHippogryph);
@@ -101,7 +110,7 @@ TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 	coupleFix_t fix;
 	edict_t *rider;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
-	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
+	T_ASSERT(couple_terminal_effect(fix.caster, BZ_ACOA, fix.partner));
 	/* Execute frees both inputs; spent Cost is observed only on reject paths. */
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
@@ -118,7 +127,7 @@ TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 	coupleFix_t fix;
 	edict_t *rider = NULL;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
-	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
+	T_ASSERT(couple_terminal_effect(fix.caster, BZ_ACOH, fix.partner));
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
 	T_EQ(couple_count(BZ_OGRU, 0), 2);
@@ -133,12 +142,12 @@ TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
 	float mana;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
 	mana = fix.caster->mana.value;
-	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.enemy));
+	T_ASSERT(!couple_terminal_effect(fix.caster, BZ_ACOA, fix.enemy));
 	T_FEQ(fix.caster->mana.value, mana, 0.001f);
-	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.wrong));
+	T_ASSERT(!couple_terminal_effect(fix.caster, BZ_ACOA, fix.wrong));
 	T_FEQ(fix.caster->mana.value, mana, 0.001f);
 	fix.partner->health.value = 0;
-	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
+	T_ASSERT(!couple_terminal_effect(fix.caster, BZ_ACOA, fix.partner));
 	T_FEQ(fix.caster->mana.value, mana, 0.001f);
 	T_ASSERT(fix.caster->inuse);
 	couple_done(&fix);

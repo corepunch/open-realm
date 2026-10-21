@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 223; /* Retained Militia pairing target, range and approach callback. */
+static uint32_t const save_version = 224; /* Reciprocal legacy Couple ownership, ready latch and pause replay. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -186,6 +186,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_AncientFacingComplete),
     SAVE_CFUNCTION(S_EntangleApproachComplete),
     SAVE_CFUNCTION(S_MilitiaApproachComplete),
+    SAVE_CFUNCTION(S_CoupleApproachComplete),
     SAVE_CFUNCTION(S_EntangleRootComplete),
     SAVE_CFUNCTION(S_AttackTargetChaseComplete),
     SAVE_CFUNCTION(S_AttackRecoveryComplete),
@@ -766,6 +767,15 @@ static field_t const unsummon_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const couple_fields[] = {
+    TF(couple_t, partner, F_EDICT, 0, FIELD_NONE),
+    TF(couple_t, partner_spawn_time, F_INT),
+    TF(couple_t, ability, F_INT),
+    TF(couple_t, serial, F_INT),
+    TF(couple_t, partner_serial, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const militia_fields[] = {
     TF(militia_t, partner, F_EDICT, 0, FIELD_NONE),
     TF(militia_t, partner_spawn_time, F_INT),
@@ -1284,6 +1294,7 @@ field_t edict_fields[] = {
     F(edict_s, unsummon, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, shadowmeld, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, couple, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, polymorph, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, shadow_strike, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, health_regen, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3332,6 +3343,7 @@ POOL_ALLOC(Sacrifice)
 POOL_ALLOC(Unsummon)
 POOL_ALLOC(ShadowMeld)
 POOL_ALLOC(Militia)
+POOL_ALLOC(Couple)
 POOL_ALLOC(Polymorph)
 POOL_ALLOC(ShadowStrike)
 POOL_ALLOC(HealthRegen)
@@ -3367,6 +3379,7 @@ static savePool_t const save_pools[] = {
     { "unsummon", offsetof(edict_t, unsummon), sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon },
     { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld },
     { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia },
+    { "couple", offsetof(edict_t, couple), sizeof(couple_t), couple_fields, SaveAllocCouple },
     { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph },
     { "shadow_strike", offsetof(edict_t, shadow_strike), sizeof(shadowStrike_t), scalar_pool_fields, SaveAllocShadowStrike },
     { "health_regen", offsetof(edict_t, health_regen), sizeof(healthRegen_t), scalar_pool_fields, SaveAllocHealthRegen },
@@ -5530,6 +5543,26 @@ TEST(wc3_save, rejects_version_214_before_retained_point_task_layout) {
     T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
     T_EQ(header.version,save_version);
     T_ASSERT(write_save_fixture_header(current,previous,214,header.edict_size));
+    unit->user_data=377;
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
+    T_EQ(unit->user_data,377);
+    T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
+    remove(current);remove(previous);
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_save, rejects_version_223_before_reciprocal_couple_layout) {
+    cstring_t current=Test_TempPath("save-couple-current.bin");
+    cstring_t previous=Test_TempPath("save-couple-v223.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    T_ASSERT(WriteGame(current));
+    FILE *file=fopen(current,"rb");T_NOT_NULL(file);if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,223,header.edict_size));
     unit->user_data=377;
     T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
     T_EQ(unit->user_data,377);
