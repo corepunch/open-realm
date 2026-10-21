@@ -21832,3 +21832,59 @@ subsequent evidence/manifest changes are verified separately by their focused
 Python suites. Frozen output: `captain376-mask216/full-checkpoint.json` under
 the analysis runtime root, log SHA256
 `82078e3149935ea9ef3a0ef2d2dc2a053196ea01f6ad628dc43479c750b8af6c`.
+
+
+## Entangle command admission and placement producer (TARGET-01.2)
+
+After the Inventory pickup integration, the next concrete producer counterexample
+is `Aent`. Original callback5614a0 handles ordinary Entangle `d00b3` and instant
+Entangle `d00b4` through562420. Its target producer5624f0 separates a rooted,
+already-in-range source from the placement branch. The latter consults54fd60,
+creates the retained `d018b` action and zero-range ordinary `d016b` point task,
+and can prepend the unroot event `d0190`. At point completion,56a930 appends
+`d018f` and facing before rooting; terminal56a840 checks rooted state and the
+configured range again. Point admission and terminal target range are separate.
+
+Two V2 observations and an unhooked control match all187 public markers each,
+561 overall, on the identical authored map. The portable native bundle is
+[retail-entangle-producer-1.27.json.gz](../../../tools/ghidra/fixtures/retail-entangle-producer-1.27.json.gz).
+Its four exact map/capture sources live beside the
+[probe](../../../tools/ghidra/fixtures/research/entangle-producer/itemdrop_probe.j).
+The original stock Aent range is500, verified at every recorded configured-range
+query. All Trees start at704,1024; the nearby mine is1216,1024 and the distant
+mine1536,1024. The mobile cases finish the public Unroot before Entangle admission.
+
+| Source and target | Entangle return | Immediate public head | Final Tree center | Result |
+| --- | --- | ---: | --- | --- |
+| Rooted, nearby | accepted | 0 | 704,1024 | immediate overlay |
+| Rooted, distant | accepted | 852147 | 896,960 | unroot, approach, face/root, overlay |
+| Uprooted, nearby | accepted | 852147 | 704,1024 | face/root, overlay |
+| Uprooted, distant | accepted | 852147 | 896,960 | approach, face/root, overlay |
+
+The earlier V1 exploratory capture issued the mobile cases before Unroot ended;
+its rejected admissions are not evidence for the uprooted contract. V2 waits for
+that transition, verifies head0 before issue, and preserves every public sample
+against the repeat/control. The audit also rejects changed source/map bytes,
+configured/point ranges, omitted retained actions or post-approach facing tasks,
+observer hooks in the control and weakened completion/repeat streams:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_entangle_producer.py'
+```
+
+Twelve evidence tests pass. The engine admission regression is retained in the
+separate Entangle worktree and as `takeover-entangle-admission76-engine.patch`
+under `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/`. It drives the public
+order API with stock-shaped500 range and rooted/mobile source state: both
+Classic and TFT reproduce six failed assertions across the three missing cases.
+The existing immediate rooted-near case passes. This failing candidate is not
+integrated into the passing game suite.
+
+`entangle_goldmine_start` in `skills/s_goldmine.c` currently rejects an uprooted
+source or a rooted source outside range, omitting this retained placement/root
+producer. Complete that owner and its inverse before moving to another producer.
+Authored/zero range, equality/adjacent geometry, Stop, pause, target/ability loss,
+callback replacement and cold saves still need their acceptance rows. This
+native corpus declares `engine_parity:false`; it proves neither exact-clock full
+trajectories nor the complete placement/facing query matrix. **TARGET-01.2 stays
+active; zero whole leaves close and25 remain.**

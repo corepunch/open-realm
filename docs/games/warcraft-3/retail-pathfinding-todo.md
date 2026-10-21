@@ -141,6 +141,16 @@ substitute for leaf closure.
 
 ## Progress
 
+TARGET-01.2's next failing producer is Entangle: stock Aent500 admits distant
+rooted and already-uprooted Trees, retaining852147 through placement, unroot,
+approach and facing/root tasks. Two native observations and an unhooked control
+match561 public markers; twelve portable evidence/rejection tests pass. A separate
+public engine regression reproduces six failed assertions per edition for the
+three missing admission cases. The immediate rooted-near control passes.
+Complete that owner, authored/boundary range and interruption/save rows before
+advancing. **25 ->25 open; zero whole leaves closed.**
+[Entangle evidence and exact blocker](retail-pathfinding-engine.md#entangle-command-admission-and-placement-producer-target-012).
+
 TARGET-01.2 commit `0394ad967` adds ordinary Smart pickup as an Inventory-owned packet and full-range
 target continuation. Native V8b retains six observations, three unhooked controls
 and2610 matching public markers across stock150/authored64/zero ranges. Public
