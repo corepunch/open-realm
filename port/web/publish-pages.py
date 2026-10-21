@@ -15,7 +15,8 @@ RUNTIME_SUFFIXES = {
     '.woff', '.woff2', '.ttf', '.ogg', '.mp3',
 }
 REQUIRED = ('index.html', 'index.js', 'index.wasm',
-            'filesystem-bridge.js', 'installer.js', 'ios-home-screen.js',
+            'filesystem-bridge.js', 'installer.js', 'fullscreen-controls.js',
+            'ios-home-screen.js',
             'manifest.webmanifest', 'icons/openrealm-180.png',
             'icons/openrealm-192.png', 'icons/openrealm-512.png')
 PAGES_ASSETS = ('pages-isolation.js', 'coi-serviceworker.js')
