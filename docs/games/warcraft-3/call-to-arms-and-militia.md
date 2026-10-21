@@ -7,20 +7,20 @@ eligible Hall and orders nearby Peasants/Militia; `Amil` belongs to the worker
 and owns the Peasant <-> Militia transform. The transform keeps the same edict
 so selection, groups, and JASS unit handles continue to identify the same unit.
 
-The worker-side target orders are:
+The native worker-side target orders are:
 
 | Order | Meaning |
 | --- | --- |
-| `militia` | approach an eligible same-owner `Amic` Hall, then arm |
-| `militiaoff` | approach an eligible same-owner `Amic` Hall, then return to Peasant form |
+| `militiaconvert` (852071) | approach an eligible same-owner `Amic` Hall, then arm |
+| `militiaunconvert` (852651) | approach an eligible same-owner `Amic` Hall, then return to Peasant form |
 
-`G_IssueUnitTargetOrder()` must explicitly admit both strings and
-`unit_issuetargetorder_now()` must route them to `S_MilitiaTargetOrder()`. These
-are not generic `move`/`smart` orders. While approaching the Hall, the Militia
-pairing move uses the normal `walk` animation; do not override that movement
-state with `stand` while continuing to translate the worker.
+The current engine still routes the distinct `militia`/`militiaoff` strings as
+target orders and uses a footprint approach without the native facing gate.
+That behavior is being corrected under TARGET-01.2; it is not the retail target
+contract. [Native producer evidence](retail-pathfinding-engine.md#militia-target-command-producer)
+records the accepted names, range/facing branches and interruption captures.
 
-## Data Flow
+## Current Engine Data Flow
 
 ```text
 Amic/Amil command button
@@ -67,13 +67,13 @@ write `svc_layout` directly from the transform. Without this explicit portrait
 invalidation, natural `Bmil` expiry can leave a selected Peasant displaying the
 old Militia portrait even though the world entity has already reverted.
 
-## Target-Order Dispatch Contract
+## Target-Order Dispatch Work
 
-`repair`, `militia`, and `militiaoff` are specialized target orders admitted by
-`G_IssueUnitTargetOrder()`. Keep all three when resolving changes to the generic
-target-order whitelist; dropping the Militia orders prevents a successful Hall
-search from ever reaching `S_MilitiaTargetOrder()`. The regression test
-`wc3_unit.militia_target_order_reaches_militia_behavior` protects this contract.
+Native target admission must distinguish `militiaconvert`/`militiaunconvert`
+from immediate `militia`/`militiaoff`. The legacy
+`wc3_unit.militia_target_order_reaches_militia_behavior` test currently protects
+the old string routing; it does not certify native order identity. New public
+JASS regressions cover the correct names and retained facing continuation.
 
 ## Remaining Parity Work
 

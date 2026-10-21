@@ -172,6 +172,14 @@ successful full invocation. See [checkpoint evidence](retail-pathfinding-engine.
 **25 ->25 open; zero whole leaves closed.**
 [Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
 
+The next serial TARGET-01.2 producer is Militia: native target names are
+militiaconvert/militiaunconvert, with authored-range approach or FLT_MAX
+facing-only continuation. Portable producer/lifecycle audits pass37 tests and
+retain2994 accepted public markers plus a separate wrong-name rejection corpus.
+The independent engine regression fails18 assertions per edition; implementation
+is pending. [Native producer](retail-pathfinding-engine.md#militia-target-command-producer).
+
+
 TARGET-01.2 commit `0394ad967` adds ordinary Smart pickup as an Inventory-owned packet and full-range
 target continuation. Native V8b retains six observations, three unhooked controls
 and2610 matching public markers across stock150/authored64/zero ranges. Public

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "engine_parity": false,
+  "pins": {
+    "accepted": {
+      "map": "ca4a48d9c96c2ed233c60be32a87404fc574e0890845fc8e3e2c997d54f64a58",
+      "sources": {
+        "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+        "itemdrop_make_map.py": "a0be57b22266a35e60801010704699b4af0cbd18548550702042ef576cbdb44d",
+        "itemdrop_observer.js": "34a646cda073f3090bc6b5092b7548602da01d3938ee2d2b40ae02416186c1bc",
+        "itemdrop_probe.j": "996b520d2a2c647ed48677b8dfb91d244c50a52e15411fdcdb0946d41c8ca105"
+      }
+    },
+    "rejected_wrong_names": {
+      "map": "7703d4a72a0ec9c14ad7739ef476f1ce2d926bfc9a12e58956a296b8b05f22bc",
+      "sources": {
+        "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+        "itemdrop_make_map.py": "9d0cfea6c289f30e3b163e4bb9e8820878ff73c06885405cc99648999018bb85",
+        "itemdrop_observer.js": "34a646cda073f3090bc6b5092b7548602da01d3938ee2d2b40ae02416186c1bc",
+        "itemdrop_probe.j": "5f865461cab1d410eeacfb990c882a6a60154ed3678e8b9003c3e4b21bbd22fc"
+      }
+    }
+  },
+  "public_digests": {
+    "accepted": "9786b22226f0b37d17c31869c57000123e227d1b8baa76bb5c14f1d33f03e483",
+    "rejected_wrong_names": "e4941734b0e79dcbfbfc097158d66ab54241a5da43c52914e8f52b6beedf1962"
+  }
+}

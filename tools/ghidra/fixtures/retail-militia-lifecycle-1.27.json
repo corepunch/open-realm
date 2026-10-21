@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "engine_parity": false,
+  "pins": {
+    "map": "7f0bdb0510d144d5d98cc57a940b3eb9fdc2299db83b9398c17a4b745b961de4",
+    "sources": {
+      "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+      "itemdrop_make_map.py": "e71f9e76c6edbc23f63fc0ea43ad7b7d203a575f4d7851464f82d5bd0acec527",
+      "itemdrop_observer.js": "34a646cda073f3090bc6b5092b7548602da01d3938ee2d2b40ae02416186c1bc",
+      "itemdrop_probe.j": "88c2bee2b8ea7651a0b16e8895a81eca8bfbb09401192994014adacde9531f83"
+    },
+    "public": "467239ffcd50c4e2c0657a848719d22111319a3207bd4620c9f2935ace452a58"
+  }
+}

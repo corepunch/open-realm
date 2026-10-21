@@ -22212,3 +22212,48 @@ The inherited UI selection callback's control-authority check is a separate
 unverified gap: carrying the issuer identity does not itself authorize control.
 The callback fix above restores data/target feedback without claiming that gap
 closed. TARGET-01.2 and all25 remaining leaves stay open.
+
+
+### Militia target command producer
+
+Native `CAbilityMilitia` (`Amil`, vtable6fb701e0) dispatches public target orders
+through642a20 ->6433b0 ->62e8f0. The exact names are `militiaconvert`852071 and
+`militiaunconvert`852651. `militia`852072 and `militiaoff`852073 are distinct
+orders: the original six-row target probe rejects all six requests. That
+rejection corpus remains separate from the corrected accepted producer corpus.
+
+62e8f0 reads the Hall's `Amic` cast range through417a70, checks configured range
+and the target perimeter, then the0.2-radian facing window. The first-rank333
+probe preserves both conversion directions:
+
+| Initial relation | Native continuation |
+| --- | --- |
+| Outside range | d0174 target approach with authored333 |
+| Inside range, facing Hall | No physical task; synchronous transform |
+| Inside range, facing away | d0174 with FLT_MAX; turn at unchanged position |
+
+The d0188 completion64b280 rechecks partner eligibility and authored range/
+perimeter before628b70 changes Bmil; d0144 terminal handling is64b4d0. Static
+ABI evidence confirms ECX ability, target/public-order stack arguments and RET8.
+The native rank field is zero-based; the sampled first rank is index0.
+
+Two observations and an unhooked control match all508 public markers each for
+the six accepted scenes (1524 total). Separate lifecycle captures match490
+markers each (1470 total): Stop/replacement cancel during approach and facing;
+Hall removal stops before the next five-tick sample; removing Hall Amic or
+worker Amil preserves approach until its terminal point and then prevents
+conversion. Pause preserves position and resume completes conversion. Ability
+removal is not worker removal. Adjacent range values, reverse lifecycle,
+callback mutation and cold-save behavior remain outside these native captures.
+
+Portable sources are under `fixtures/research/militia-producer`,
+`militia-rejected-names` and `militia-lifecycle`; the two retail-militia bundles,
+specs and `research/militia_*_evidence.py` auditors preserve exact bytes,
+provenance, complete public streams and producer parameters. All37 mutation
+checks pass. Both accepted corpora retain `engine_parity:false`. Reproduce with
+`python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_militia_*.py'`.
+The independent public-JASS engine candidate currently reproduces18 failed
+assertions across two tests/78 assertions per edition; the main engine has not
+yet adopted this producer. TARGET-01.2 remains open. See
+[Call to Arms and Militia](call-to-arms-and-militia.md) for the existing transform
+and economy behavior, which this producer work does not claim to fully verify.
