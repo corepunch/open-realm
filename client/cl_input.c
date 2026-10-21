@@ -1243,6 +1243,10 @@ static uint32_t CL_TestEntitiesInRect(viewDef_t const *view, rect_t const *rect,
     array[0] = 7; array[1] = 8; array[2] = 9;
     return 3;
 }
+static uint32_t CL_TestNoEntitiesInRect(viewDef_t const *view, rect_t const *rect, uint32_t max, uint32_t *array) {
+    (void)view; (void)rect; (void)max; (void)array;
+    return 0;
+}
 static uint32_t marquee_test_capacity, marquee_test_hits;
 static uint32_t CL_TestManyEntitiesInRect(viewDef_t const *view, rect_t const *rect, uint32_t max, uint32_t *array) {
     (void)view;
@@ -2195,7 +2199,7 @@ TEST(client_input, hybrid_mouse_and_touch_preserve_press_owner) {
     memset(&touch_pan, 0, sizeof(touch_pan)); touch_is_direct = CL_TestTouchDirect;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     re.GetWindowSize = CL_TestWindowSize; re.TraceMinimap = CL_TestNoMinimap;
-    re.TraceEntity = CL_TestSelectEntity;
+    re.TraceEntity = CL_TestSelectEntity; re.EntitiesInRect = CL_TestNoEntitiesInRect;
     SZ_Init(&cls.netchan.message, data, sizeof(data));
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
     e = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 200, .y = 210 } };
