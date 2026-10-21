@@ -2,6 +2,48 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## October 21 native map-loading profile
+
+The capture in [`screenshots/2026-10-21/perf-full-loading.txt`](../../../screenshots/2026-10-21/perf-full-loading.txt)
+contains about 14K `cpu/cycles/P` samples and reports no lost samples. Its call graph puts 53.67% of sampled cycles under
+`SV_Map`, including 47.87% under `G_LoadMap`. These are inclusive sampled-cycle shares, not wall-clock durations; parent
+and child percentages overlap. The capture includes `SV_InitGame` as well as `SV_Map`, and does not record the map,
+build mode, command line, elapsed time, or whether the run was a cold start or a map replacement. Use it to choose
+measurements, not to estimate load seconds or claim a speedup.
+
+The largest visible `G_LoadMap` branches are:
+
+| Branch | Inclusive share | Profile detail |
+|--------|----------------:|----------------|
+| `G_SpawnEntities` | 16.18% | `SP_SpawnDestructable` is 10.17%; `G_LoadShadowTexture`/`G_FileExists` accounts for 6.12%, `M_LoadPathTex` 4.02%, and doodad model existence checks about 3.84%. |
+| `CM_LoadMap` | 15.46% | `CM_ReadHeightmap` is 10.64%, mostly MPQ sector inflation (10.55%); `CM_ReadDoodads` is 3.62%. |
+| `G_StartScripts` | 9.61% | Script execution creates units; `CreateUnit`/`SP_SpawnUnit` accounts for 7.85%, with unit sound registration visible beneath it. |
+| `G_ApplyMapGameDataSet` | 6.39% | `InitUnitData` is 6.15%; SLK loading and typed conversion are prominent. |
+
+The profile and current code suggest these follow-ups, in order of low-risk opportunity and evidence:
+
+1. **Measure phases in wall time first.** Add or use monotonic timings for process initialization, `SV_Map`, and its map-read, data-load, entity-spawn, and script-start phases. Repeat cold-start and map-replacement runs with the same map, build mode, data set, and command line; record medians. Keep timings diagnostic and avoid per-entity production logging.
+2. **Avoid reading whole assets for existence checks.** `G_FileExists` calls `gi.ReadFile`, then frees the returned bytes. `G_LoadShadowTexture` uses it before registering the image, and `SP_DoodadModelExists` reads a candidate MDX before model registration. The engine already has `FS_FileExists`, which opens and closes the matching file without reading/decompressing its contents, but the game import surface currently exposes `ReadFile`, not this existence query. Exposing a suitable query could remove redundant full reads. Preserve VFS archive priority and test found/missing files and variation fallback.
+3. **Reuse map-scoped presentation data.** Repeated shadow resolution and path-texture loads may revisit the same filenames for many placements. Measure filename frequency first. A map-lifetime cache for resolved shadows and immutable decoded path textures could avoid repeated searches, decompression, and TGA parsing; define ownership and clear it on map replacement before sharing allocations between edicts.
+4. **Index sheet rows and fields during typed conversion.** `FS_LoadSheetTyped` calls `FS_FindSheetCell` for schema fields, which linearly scans rows and fields, and detects duplicate row IDs by scanning all prior output IDs. A per-table row/column index plus a seen-ID set can reduce repeated scans. Preserve table precedence, case rules, duplicate behavior, and map overlays; the remaining SLK index work is also listed in [the SLK format notes](../../../games/warcraft-3/file-formats/slk.md).
+5. **Measure sound startup work separately.** `G_RegisterUnitSounds` reaches `G_SoundFileDuration`, which reads the complete sound asset when a duration has not yet been cached. Count unique files and format/decode cost before considering lazy duration calculation or format-specific metadata reads; duration feeds sound timing and must remain correct.
+6. **Keep heightmap inflation as a separate target.** `CM_ReadHeightmap` currently reads each vertex field with separate `SFileReadFile` calls, while the profile assigns most of this branch to MPQ inflation. Bulk-reading the vertex payload could reduce per-call overhead but will not remove decompression cost. Benchmark that change independently; consider parsed-map caching only if same-map reloads are an important measured scenario and cache invalidation/ownership can be made explicit.
+
+No load-time optimization is established by this capture alone. After each change, compare wall-clock medians and a new weighted profile on the same scenario, and run the affected tests/builds. Do not compare the percentages from this combined startup/map capture directly with a map-only run.
+
+### Map-loading optimization plan
+
+Implement and review each pass separately. A pass proceeds only when its focused behavior tests pass and the controlled load benchmark shows a repeatable improvement or establishes that the target is not worth further work.
+
+0. **Establish a comparable baseline.** Record the exact map, edition/data set, build mode, command line, hardware, and whether the run is a cold process start or a map replacement. Time process initialization and `SV_Map` phases with a monotonic clock; run each scenario repeatedly and report medians and spread. Capture a weighted profile for the same interval. Keep cold-start and map-replacement results separate.
+1. **Remove redundant whole-file existence reads.** Add a game-import query backed by `FS_FileExists`; replace the read-and-free checks in `G_FileExists` and `SP_DoodadModelExists`. Preserve filesystem source precedence and the existing BLP/DDS and doodad-variation fallback rules. Test present and missing assets, archive priority, and fallback selection. Compare file bytes read and phase timings before and after.
+2. **Cache repeated map presentation assets if measurements support it.** Count unique and repeated shadow names, path-texture filenames, and doodad model candidates. Add bounded, map-scoped caches only for assets with meaningful repetition. Share decoded path textures as immutable data, define who owns and frees each allocation, and clear all cache entries on map teardown/replacement. Test cache hit/miss equivalence, destructable death/pathing behavior, map replacement, and memory cleanup; compare both load time and peak memory.
+3. **Index sheet conversion.** Add per-table row/column lookup indexes and a seen-row-ID set to typed conversion. Keep cached source tables immutable and preserve map/import precedence, case-insensitive column matching, first-match lookup, and duplicate-row semantics. Extend sheet tests for duplicate rows, duplicate columns across precedence layers, and overlays. Compare `InitUnitData` and `G_ApplyMapGameDataSet` timings for both RoC and TFT fixtures/data sets.
+4. **Reduce sound-duration startup work only if it remains material.** Instrument unique duration reads and time them by format. If full-file reads are significant, add a safe metadata-only duration path for formats whose headers contain a trustworthy total duration, or defer calculation where sound timing permits. Retain the current full parser as a fallback for unsupported/ambiguous files. Test duration results against the current parser and test sound scheduling/lifetimes before comparing startup time.
+5. **Evaluate heightmap reads independently.** First bulk-read the serialized vertex block and decode it in memory, preserving all current validation and field values. This targets per-call overhead; it is not expected to remove zlib cost. Compare `CM_ReadHeightmap` CPU time and the resulting terrain/pathing tests. If inflation still dominates and same-map reloads matter, evaluate parsed terrain reuse as a separate proposal with explicit archive identity, map lifetime, invalidation, and memory limits.
+
+After each pass, run its focused tests plus `make test` and the affected native build before committing. Re-profile the same scenario; stop or reorder the plan when a pass does not produce a repeatable benefit or changes which phase dominates. Keep diagnostic counters behind a test/debug-only mechanism and remove temporary tracing before merge.
+
 ## September 21 CPU profile: Graveyard update scan
 
 Inspection of `build/perf-full.txt` found about 7K `cpu/cycles/P` samples, no lost samples,
