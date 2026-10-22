@@ -158,6 +158,8 @@ BZ_ABILITY_PROC(CAbilityColdArrows);
 BZ_ABILITY_PROC(CAbilityCharm);
 BZ_ABILITY_PROC(CAbilityEatTree);
 BZ_ABILITY_PROC(CAbilityManaBattery);
+/* Non-caching, custom-alias-aware Moon Well update dispatch guard. */
+bool S_MoonWellMayUpdate(edict_t const *ent);
 BZ_ABILITY_PROC(CAbilityBlightedGoldMine);
 BZ_ABILITY_PROC(CAbilityBlightGrowth);
 BZ_ABILITY_PROC(CAbilityAcolyteHarvest);

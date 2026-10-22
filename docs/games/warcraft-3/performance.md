@@ -2,6 +2,29 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## October 22 ARM64 Moon Well update filtering
+
+The latest ARM64 profile, after the ability-update dispatch patch, still
+identifies `CAbilityManaBattery` inside `S_RunAbilityUpdates`. Its Moon Well
+`A_UPDATE` handler previously checked every authored skill with
+`G_ActorHasSkill` before determining whether it inherited `Ambt`; this repeated
+native list parsing even for units with only unrelated abilities.
+
+The dispatcher now uses `S_MoonWellMayUpdate` to reject units whose native and
+runtime-added abilities have no `Ambt` base (including custom `AbilityData.code`
+aliases). The original `moon_well_alias` still makes the final ownership check,
+including removed native abilities, but tests class membership *before* calling
+`G_ActorHasSkill`. Genuine Moon Wells incur an extra lightweight class scan;
+non-owners avoid the much more costly repeated ownership lookups.
+
+The filter is recomputed every tick: no saved derived state, network changes,
+or debug logs. `A_DISABLE`, `A_DEATH` and `A_UNIT_REMOVE` continue to own effect
+cleanup; construction suppresses persistent effects as before. The tests in
+`t_spell.c` exercise unrelated abilities, custom inherited aliases, runtime
+additions/removals, authored-list changes, and construction cleanup. Recheck
+matching campaign scenes and `S_RunAbilityUpdates`/`CAbilityManaBattery` samples
+alongside repeated frame-time measurements; CPU sample percentages are not FPS.
+
 ## October 22 ARM64 per-unit ability-update dispatch
 
 The RG40XX-H `cycles:ppp` capture after the MDX pose-reuse change samples

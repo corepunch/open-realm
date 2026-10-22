@@ -153,30 +153,63 @@ static void eat_tree_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
 
 /* ---- Moon Well (Ambt): replenish, autocast, and night regeneration -------- */
 
-static uint32_t moon_well_alias(edict_t const * ent) {
+/* Resolve the authored base before consulting G_ActorHasSkill. Most units
+ * carry other abilities, and checking ownership of every unrelated code
+ * reparses their entire native list for every token on every update tick.
+ * Custom map aliases must still be resolved through AbilityData. */
+static bool moon_well_is_alias(uint32_t alias) {
+    return alias == ID_MOON_WELL || G_AbilityCode(alias) == ID_MOON_WELL;
+}
+
+/* Cheap, conservative dispatch guard: ownership/removal stays authoritative
+ * in moon_well_alias. Re-evaluate each tick so UnitAddAbility, map overrides,
+ * morphs and save/load require no derived state or invalidation protocol. */
+bool S_MoonWellMayUpdate(edict_t const *ent) {
+    if (!ent) return false;
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t alias = 0;
+            if (strlen(token) != 4) continue;
+            memcpy(&alias, token, 4);
+            if (moon_well_is_alias(alias)) return true;
+        }
+    }
+    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
+        uint32_t const alias = ent->unit_state->overrides.added[i];
+        if (alias && moon_well_is_alias(alias)) return true;
+    }
+    return false;
+}
+
+static uint32_t moon_well_alias(edict_t const *ent) {
     char token_code[5] = {0};
 
     if (!ent) return 0;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
             uint32_t alias = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            if (strlen(token) != 4) continue;
             memcpy(&alias, token, 4);
-            if (alias == ID_MOON_WELL || G_AbilityCode(alias) == ID_MOON_WELL)
+            if (moon_well_is_alias(alias) && G_ActorHasSkill(ent, token))
                 return alias;
         }
     }
     FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
         uint32_t const alias = ent->unit_state->overrides.added[i];
-        if (!alias) continue;
+        if (!alias || !moon_well_is_alias(alias)) continue;
         memcpy(token_code, &alias, 4);
         token_code[4] = '\0';
-        if (G_ActorHasSkill(ent, token_code) &&
-            (alias == ID_MOON_WELL || G_AbilityCode(alias) == ID_MOON_WELL))
-            return alias;
+        if (G_ActorHasSkill(ent, token_code)) return alias;
     }
     return 0;
 }
+
+#ifdef BZ_TESTS
+uint32_t S_TestMoonWellAlias(edict_t const *ent) { return moon_well_alias(ent); }
+static uint32_t moon_well_update_calls;
+void S_TestResetMoonWellUpdateCalls(void) { moon_well_update_calls = 0; }
+uint32_t S_TestMoonWellUpdateCalls(void) { return moon_well_update_calls; }
+#endif
 
 static void moon_well_warn_missing_data(uint32_t alias) {
     static uint32_t warned[256];
@@ -358,7 +391,12 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
     case A_AUTOCAST_ON: return ent && ent->unit_state->autocast == code;
     case A_AUTOCAST_SET: return true;
     case A_AUTOCAST_ACQUIRE: return code && moon_well_autocast_acquire(ent, code);
-    case A_UPDATE: moon_well_update_effect(ent); return true;
+    case A_UPDATE:
+#ifdef BZ_TESTS
+        moon_well_update_calls++;
+#endif
+        moon_well_update_effect(ent);
+        return true;
     case A_NATURAL_MANA_REGEN_BLOCKED:
         if (!ent || !code || G_AbilityCode(code) != ID_MOON_WELL) return false;
         {

@@ -829,6 +829,8 @@ void S_RunAbilityUpdates(edict_t *ent) {
             continue; /* A_UPDATE only cancels an expired active channel */
         } else if (proc == CAbilityEntangledGoldMine && (!ent || !ent->mineoverlay)) {
             continue; /* gold income requires an established mine overlay */
+        } else if (proc == CAbilityManaBattery && !S_MoonWellMayUpdate(ent)) {
+            continue; /* skip unrelated native/custom abilities before owner lookup */
         } else if (proc == CAbilityGraveyard &&
                    !update_may_have_ability(ent, MAKEFOURCC('A','g','y','d'))) {
             continue;

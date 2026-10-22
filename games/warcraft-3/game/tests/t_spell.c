@@ -10,6 +10,9 @@ void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
 void S_TestResetMoonWellMissingDataWarningCalls(void);
 uint32_t S_TestMoonWellMissingDataWarningCalls(void);
+uint32_t S_TestMoonWellAlias(edict_t const *);
+void S_TestResetMoonWellUpdateCalls(void);
+uint32_t S_TestMoonWellUpdateCalls(void);
 
 static pfWriteType_t terrain_deform_capture_types[32];
 static int32_t terrain_deform_capture_values[32];
@@ -2673,6 +2676,101 @@ TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
     G_UpdateTimeOfDay();
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+/* Registration-order updates must not invoke the expensive Moon Well
+ * ownership resolver on units with unrelated native abilities. Dynamic unit
+ * data must be reflected on the very next tick, without a saveable cache. */
+TEST(wc3_spell, moon_well_dispatch_skips_unrelated_native_abilities) {
+    UnitAbilities_t plain = { .abilList = "Aatk,Afoo" };
+    UnitAbilities_t well_abilities = { .abilList = "Aatk,Ambt" };
+    edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+
+    unit->data.UnitAbilities = &plain;
+    unit->health.value = 0.0f; /* no presentation effect spawned by the test */
+    S_TestResetMoonWellUpdateCalls();
+    T_ASSERT(!S_MoonWellMayUpdate(unit));
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellUpdateCalls(), 0);
+
+    unit->data.UnitAbilities = &well_abilities;
+    T_ASSERT(S_MoonWellMayUpdate(unit));
+    T_EQ(S_TestMoonWellAlias(unit), MAKEFOURCC('A','m','b','t'));
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellUpdateCalls(), 1);
+
+    unit->data.UnitAbilities = &plain;
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellUpdateCalls(), 1);
+}
+
+/* A custom Moon Well inherits from Ambt even when neither its alias nor its
+ * parent is a native ability on other units. Runtime adds/removes and native
+ * removals must not return a stale cached ownership decision. */
+TEST(wc3_spell, moon_well_dispatch_preserves_custom_alias_and_runtime_changes) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"Ambt\"\n"
+        "C;Y3;X1;K\"Afoo\"\nC;Y3;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t native = { .abilList = "Afoo,AqW1" };
+    UnitAbilities_t unrelated = { .abilList = "Afoo" };
+    uint32_t const custom = MAKEFOURCC('A','q','W','1');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+    edict_t *runtime;
+
+    unit->health.value = 0.0f;
+    unit->data.UnitAbilities = &native;
+    T_EQ(G_AbilityCode(custom), MAKEFOURCC('A','m','b','t'));
+    T_ASSERT(S_MoonWellMayUpdate(unit));
+    T_EQ(S_TestMoonWellAlias(unit), custom);
+    S_TestResetMoonWellUpdateCalls();
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellUpdateCalls(), 1);
+
+    T_ASSERT(G_ActorRemoveSkill(unit, custom));
+    T_ASSERT(S_MoonWellMayUpdate(unit)); /* harmless conservative positive */
+    T_EQ(S_TestMoonWellAlias(unit), 0);
+    unit->data.UnitAbilities = &unrelated;
+    T_ASSERT(!S_MoonWellMayUpdate(unit));
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellUpdateCalls(), 1);
+
+    runtime = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+    runtime->health.value = 0.0f;
+    runtime->data.UnitAbilities = &unrelated;
+    T_ASSERT(G_ActorAddSkill(runtime, custom));
+    T_ASSERT(S_MoonWellMayUpdate(runtime));
+    T_EQ(S_TestMoonWellAlias(runtime), custom);
+    S_RunAbilityUpdates(runtime);
+    T_EQ(S_TestMoonWellUpdateCalls(), 2);
+
+    T_ASSERT(G_ActorRemoveSkill(runtime, custom));
+    T_ASSERT(!S_MoonWellMayUpdate(runtime));
+    T_EQ(S_TestMoonWellAlias(runtime), 0);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_dispatch_keeps_construction_effect_cleanup) {
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+    edict_t *effect = G_Spawn();
+
+    well->data.UnitAbilities = &abilities;
+    well->construction = G_AllocConstruction();
+    T_NOT_NULL(well->construction);
+    well->construction->paused = true;
+    well->construction->type = CONSTRUCTION_NIGHTELF;
+    T_NOT_NULL(effect);
+    effect->owner = well;
+    effect->summon_ability = MAKEFOURCC('A','m','b','t');
+    effect->s.flags |= EF_NOT_SELECTABLE;
+    S_TestResetMoonWellUpdateCalls();
+    S_RunAbilityUpdates(well);
+    T_EQ(S_TestMoonWellUpdateCalls(), 1);
+    T_ASSERT(!effect->inuse);
 }
 
 TEST(wc3_spell, non_moon_well_updates_do_not_scan_for_effect_cleanup) {
