@@ -35,9 +35,9 @@ The command path rejects an unavailable spell before opening a target cursor and
 
 ## Runtime behavior
 
-A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. `edict_t.polymorph` snapshots the model handle, model scale, and base movement speed needed for restoration. The configured morph unit contributes its model/scale and authored movement speed while the Polymorph buff is live.
+A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. The `polymorph_t` component (`G_GetPolymorph`, attached with `G_AddComponent(unit, COMPONENT_POLYMORPH)` on the first cast) snapshots the model handle, model scale, and base movement speed needed for restoration. The configured morph unit contributes its model/scale and authored movement speed while the Polymorph buff is live.
 
-The morph interrupts the current incompatible action and queued orders. While `polymorph.active` is set, attack orders and new spell casts are rejected. Fresh movement orders remain legal, using the temporary movement speed. `S_HumanCanAttack()` also rejects autonomous attacks so acquisition cannot bypass order validation.
+The morph interrupts the current incompatible action and queued orders. While the Polymorph component is attached, attack orders and new spell casts are rejected. Fresh movement orders remain legal, using the temporary movement speed. `S_HumanCanAttack()` also rejects autonomous attacks so acquisition cannot bypass order validation.
 
 Re-casting the same configured buff uses `unit_addtimedstatus()`'s existing refresh semantics. The original presentation snapshot is recorded only on the first transition, so a refresh cannot turn the temporary form into the restore target.
 
@@ -57,7 +57,7 @@ Death retires the active restore contract so an expired timer cannot revive or r
 
 `polymorph` is registered as Warcraft order ID `852074`, so the canonical string/numeric order router introduced by the spell-order work can dispatch owned `Aply` abilities through the same spell pipeline.
 
-`IsUnitType(unit, UNIT_TYPE_POLYMORPHED)` (`ConvertUnitType(22)`) reflects `edict_t.polymorph.active`; it does not infer Polymorph from the temporary model or a particular sheep rawcode.
+`IsUnitType(unit, UNIT_TYPE_POLYMORPHED)` (`ConvertUnitType(22)`) reflects `S_UnitPolymorphed`, i.e. component presence; it does not infer Polymorph from the temporary model or a particular sheep rawcode.
 
 ## Save/load
 

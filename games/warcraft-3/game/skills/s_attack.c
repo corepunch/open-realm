@@ -127,16 +127,15 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         rocket->goalentity = desc->target;
         rocket->channel->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            rocket->artillery = G_AllocArtillery();
-            assert(rocket->artillery);
-            rocket->artillery->attack_type = desc->attack->type;
-            rocket->artillery->area_targets = desc->area_targets;
-            rocket->artillery->targets_allowed = desc->attack->targetsAllowed;
-            rocket->artillery->area_full = desc->attack->areaFull;
-            rocket->artillery->area_medium = desc->attack->areaMedium;
-            rocket->artillery->area_small = desc->attack->areaSmall;
-            rocket->artillery->factor_medium = desc->attack->factorMedium;
-            rocket->artillery->factor_small = desc->attack->factorSmall;
+            artillery_t *splash = G_AddComponent(rocket, COMPONENT_ARTILLERY);
+            splash->attack_type = desc->attack->type;
+            splash->area_targets = desc->area_targets;
+            splash->targets_allowed = desc->attack->targetsAllowed;
+            splash->area_full = desc->attack->areaFull;
+            splash->area_medium = desc->attack->areaMedium;
+            splash->area_small = desc->attack->areaSmall;
+            splash->factor_medium = desc->attack->factorMedium;
+            splash->factor_small = desc->attack->factorSmall;
         }
     } else {
         rocket->goalentity = desc->target;

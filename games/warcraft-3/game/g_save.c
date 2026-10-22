@@ -138,7 +138,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 105 extracts unit feature records from the base edict. */
 /* Version 106 guards Wander private destination ownership across entity-slot reuse. */
 /* Version 107 replaces Way Gate and Avatar edict pointers with typed component attachments. */
-static uint32_t const save_version = 107;
+/* Version 108 moves Polymorph, Raven Form, Ensnare and artillery profiles onto the component list. */
+static uint32_t const save_version = 108;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -617,6 +618,7 @@ static field_t const unit_info_fields[] = {
 };
 
 static field_t const artillery_fields[] = {
+    TF(artillery_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(artillery_t, attack_type, F_INT), TF(artillery_t, area_targets, F_INT),
     TF(artillery_t, targets_allowed, F_INT),
     TF(artillery_t, area_full, F_FLOAT), TF(artillery_t, area_medium, F_FLOAT),
@@ -726,6 +728,7 @@ static field_t const avatar_fields[] = {
 };
 
 static field_t const polymorph_fields[] = {
+    TF(polymorph_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(polymorph_t, ability, F_INT),
     TF(polymorph_t, buff, F_INT),
     TF(polymorph_t, form_type, F_INT),
@@ -736,6 +739,7 @@ static field_t const polymorph_fields[] = {
 };
 
 static field_t const raven_fields[] = {
+    TF(raven_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(raven_t, fly_height, F_FLOAT),
     TF(raven_t, rise_start, F_FLOAT),
     TF(raven_t, rise_duration, F_FLOAT),
@@ -744,6 +748,7 @@ static field_t const raven_fields[] = {
 };
 
 static field_t const ensnare_fields[] = {
+    TF(ensnare_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(ensnare_t, adjust, F_FLOAT),
     TF(ensnare_t, height, F_FLOAT),
     TF(ensnare_t, start, F_INT),
@@ -1001,10 +1006,7 @@ field_t edict_fields[] = {
     F(edict_s, unsummon, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, shadowmeld, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, polymorph, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, raven, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, blight_growth, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, ensnare, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, mineoverlay, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1014,7 +1016,6 @@ field_t edict_fields[] = {
     F(edict_s, cargo, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, artillery, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sleep, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, soultrap, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2246,10 +2247,10 @@ static savePool_t const save_pools[] = {
     { "unsummon", offsetof(edict_t, unsummon), sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP },
     { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP },
     { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP },
-    { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP },
-    { "raven", offsetof(edict_t, raven), sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP },
+    { "polymorph", 0, sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP, COMPONENT_POLYMORPH },
+    { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
     { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP },
-    { "ensnare", offsetof(edict_t, ensnare), sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP },
+    { "ensnare", 0, sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP, COMPONENT_ENSNARE },
     { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP },
     { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP },
     { "mineoverlay", offsetof(edict_t, mineoverlay), sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP },
@@ -2259,7 +2260,7 @@ static savePool_t const save_pools[] = {
     { "cargo", offsetof(edict_t, cargo), sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP },
     { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP },
     { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
-    { "artillery", offsetof(edict_t, artillery), sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP },
+    { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
     { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
     { "sleep", offsetof(edict_t, sleep), sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP },
     { "soultrap", offsetof(edict_t, soultrap), sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP },
@@ -2453,9 +2454,10 @@ static void RebindEntityModels(edict_t *ent) {
     }
     if (ent->data.UnitUI->modelFile) {
         G_NormalizeModelFilename(ent->data.UnitUI->modelFile, model_filename, sizeof(model_filename));
-        if (ent->polymorph) {
-            ent->polymorph->original_model = G_RegisterModel(model_filename);
-            G_NormalizeModelFilename(G_UnitUI(ent->polymorph->form_type)->modelFile, model_filename, sizeof(model_filename));
+        polymorph_t *morph = G_GetPolymorph(ent);
+        if (morph) {
+            morph->original_model = G_RegisterModel(model_filename);
+            G_NormalizeModelFilename(G_UnitUI(morph->form_type)->modelFile, model_filename, sizeof(model_filename));
         }
         ent->s.model = G_RegisterModel(model_filename);
     }
@@ -2846,9 +2848,9 @@ TEST(wc3_save, polymorphed_unit_rebinds_form_and_original_models_after_load) {
     old = G_SetSLKRows("UnitUI", rows);
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
     unit->s.flags |= EF_UNIT;
-    unit->polymorph = G_AllocPolymorph();
-    unit->polymorph->form_type = MAKEFOURCC('o', 'p', 'e', 'o');
-    unit->polymorph->original_model = 4;
+    polymorph_t *morph = G_AddComponent(unit, COMPONENT_POLYMORPH);
+    morph->form_type = MAKEFOURCC('o', 'p', 'e', 'o');
+    morph->original_model = 4;
     unit->s.model = 5;
     T_ASSERT(WriteGame(filename));
     T_ASSERT(save_test_read_with_model_stub(filename));
@@ -2856,8 +2858,9 @@ TEST(wc3_save, polymorphed_unit_rebinds_form_and_original_models_after_load) {
     G_NormalizeModelFilename(G_UnitUI(MAKEFOURCC('o', 'p', 'e', 'o'))->modelFile, form, sizeof(form));
     T_ASSERT(original[0] && form[0] && strcmp(original, form));
     T_ASSERT(save_test_model_index(original, false) > 0 && save_test_model_index(form, false) > 0);
-    T_NOT_NULL(unit->polymorph);
-    if (unit->polymorph) T_EQ(unit->polymorph->original_model, save_test_model_index(original, false));
+    morph = G_GetPolymorph(unit);
+    T_NOT_NULL(morph);
+    if (morph) T_EQ(morph->original_model, save_test_model_index(original, false));
     T_EQ(unit->s.model, save_test_model_index(form, false));
     G_SetSLKRows("UnitUI", old); free_slk_rows(rows);
     remove(filename);
@@ -3358,6 +3361,10 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     G_GetWaygate(unit)->destination = (vec2_t){128, 256};
     G_GetWaygate(unit)->active = true;
     G_GetAvatar(unit)->health = 275;
+    G_GetPolymorph(unit)->form_type = MAKEFOURCC('o','p','e','o');
+    G_GetRaven(unit)->rise_state = RAVEN_RISE_ACTIVE;
+    G_GetEnsnare(unit)->phase = ENSNARE_HEIGHT_RISE;
+    G_GetArtillery(unit)->area_full = 40.0f;
     unit->cargo->count = 1;
     unit->cargo->units[0] = target;
     unit->ancient_root->mode = ANCIENT_ROOTING;
@@ -3411,6 +3418,10 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_FEQ(G_GetAvatar(unit)->health, 275, 0.001f);
     T_EQ(G_GetAvatar(unit)->component.id, COMPONENT_AVATAR);
     T_EQ(G_GetWaygate(unit)->component.id, COMPONENT_WAYGATE);
+    T_EQ(G_GetPolymorph(unit)->form_type, MAKEFOURCC('o','p','e','o'));
+    T_EQ(G_GetRaven(unit)->rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(G_GetEnsnare(unit)->phase, ENSNARE_HEIGHT_RISE);
+    T_FEQ(G_GetArtillery(unit)->area_full, 40.0f, 0.001f);
     T_FEQ(G_GetWaygate(unit)->destination.x, 128, 0.001f);
     T_FEQ(G_GetWaygate(unit)->destination.y, 256, 0.001f);
     T_EQ(unit->cargo->count, 1);

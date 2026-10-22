@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 107, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 108, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -364,7 +364,7 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 
 The saved quest graph occupies fixed `MAX_QUESTS` slots. `header.quests` is diagnostic metadata only: load restores the saved quest slots, so the number of active quests created during map startup may differ from the snapshot. This avoids rejecting valid same-map saves when startup has already recreated a different active quest set. `wc3_save.active_quest_count_may_differ_before_restore` covers this case.
 
-Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while `polymorph` is live, in which case `polymorph->original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
+Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while the Polymorph component is attached, in which case its `original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
 
 `wc3_save.fog_exploration_round_trips_and_visibility_restarts_clear` checks that exploration survives, transient visibility clears, dirty rows request resynchronization, and (when compiled) packed masks match the byte grids.
 
@@ -1042,3 +1042,14 @@ links, and restores only after decoding and validating the complete record.
 Truncated/rejected loads reset all pools and list heads. Earlier versions are
 rejected, and the network wire contract is unchanged.
 See [pooled state and components](pooled-entity-state.md#optional-components).
+
+## Second component slice (version 108)
+
+Polymorph, Raven Form, Ensnare and the artillery splash profile move onto the
+component list with `COMPONENT_POLYMORPH`, `COMPONENT_RAVEN`, `COMPONENT_ENSNARE`
+and `COMPONENT_ARTILLERY`. Their `edict_t` members and `F_IGNORE` schema rows are
+removed; each payload's field table starts with the runtime `component.next`
+exclusion and the pool descriptor carries the exact component ID. The model rebind
+after load reaches the Polymorph snapshot through `G_GetPolymorph`, and projectile
+impact in `g_phys.c` reads the saved splash profile through `G_GetArtillery`.
+Version 107 saves are rejected; the wire format is unchanged.

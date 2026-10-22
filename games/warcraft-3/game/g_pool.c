@@ -60,10 +60,10 @@ DEFINE_POOL(sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
@@ -73,7 +73,7 @@ DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
 DEFINE_POOL(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(sleep, Sleep, sleep_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(soultrap, SoulTrap, soulTrap_t, LIFECYCLE_POOL_CAP)
@@ -89,14 +89,24 @@ DEFINE_POOL(route, Route, routeCache_t, MAX_ENTITIES)
 DEFINE_POOL(wander, Wander, wander_t, MAX_ENTITIES)
 DEFINE_POOL(channel, Channel, channel_t, LIFECYCLE_POOL_CAP)
 
-static void *AllocWaygateComponent(void) { return G_AllocWaygate(); }
-static void *AllocAvatarComponent(void) { return G_AllocAvatar(); }
+/* Typed allocators keep their concrete return type; the registry needs the untyped record. */
+#define COMPONENT_ALLOC(Name) static void *Alloc##Name##Component(void) { return G_Alloc##Name(); }
+COMPONENT_ALLOC(Waygate)
+COMPONENT_ALLOC(Avatar)
+COMPONENT_ALLOC(Polymorph)
+COMPONENT_ALLOC(Raven)
+COMPONENT_ALLOC(Ensnare)
+COMPONENT_ALLOC(Artillery)
 
 /* Exact IDs authorize the concrete layout; families and authored rawcodes are separate concepts. */
 static componentType_t const *ComponentType(componentId_t id) {
     static componentType_t const component_types[] = {
         { COMPONENT_WAYGATE, AllocWaygateComponent, ReleaseWaygate },
-        { COMPONENT_AVATAR, AllocAvatarComponent, ReleaseAvatar }
+        { COMPONENT_AVATAR, AllocAvatarComponent, ReleaseAvatar },
+        { COMPONENT_POLYMORPH, AllocPolymorphComponent, ReleasePolymorph },
+        { COMPONENT_RAVEN, AllocRavenComponent, ReleaseRaven },
+        { COMPONENT_ENSNARE, AllocEnsnareComponent, ReleaseEnsnare },
+        { COMPONENT_ARTILLERY, AllocArtilleryComponent, ReleaseArtillery }
     };
     FOR_LOOP(i, sizeof(component_types) / sizeof(component_types[0]))
         if (component_types[i].id == id) return component_types + i;
@@ -143,6 +153,10 @@ void G_FreeComponent(edict_t *ent, componentId_t id) {
 
 void G_FreeWaygate(edict_t *ent) { G_FreeComponent(ent, COMPONENT_WAYGATE); }
 void G_FreeAvatar(edict_t *ent) { G_FreeComponent(ent, COMPONENT_AVATAR); }
+void G_FreePolymorph(edict_t *ent) { G_FreeComponent(ent, COMPONENT_POLYMORPH); }
+void G_FreeRaven(edict_t *ent) { G_FreeComponent(ent, COMPONENT_RAVEN); }
+void G_FreeEnsnare(edict_t *ent) { G_FreeComponent(ent, COMPONENT_ENSNARE); }
+void G_FreeArtillery(edict_t *ent) { G_FreeComponent(ent, COMPONENT_ARTILLERY); }
 
 /* Unit spawn and explicit ability/status mutations establish ownership; reads never allocate. */
 void G_InitUnitState(edict_t *ent) {
@@ -249,10 +263,7 @@ void G_PoolsReset(void) {
             g_edicts[i].unsummon = NULL;
             g_edicts[i].shadowmeld = NULL;
             g_edicts[i].militia = NULL;
-            g_edicts[i].polymorph = NULL;
-            g_edicts[i].raven = NULL;
             g_edicts[i].blight_growth = NULL;
-            g_edicts[i].ensnare = NULL;
             g_edicts[i].ancient_root = NULL;
             g_edicts[i].goldmine = NULL;
             g_edicts[i].mineoverlay = NULL;
@@ -261,7 +272,6 @@ void G_PoolsReset(void) {
             g_edicts[i].destructable = NULL;
             g_edicts[i].cargo = NULL;
             g_edicts[i].stock = NULL;
-            g_edicts[i].artillery = NULL;
             g_edicts[i].sleep = NULL;
             g_edicts[i].soultrap = NULL;
             g_edicts[i].unit_state = NULL;
@@ -329,10 +339,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeUnsummon(ent);
     G_FreeShadowMeld(ent);
     G_FreeMilitia(ent);
-    G_FreePolymorph(ent);
-    G_FreeRaven(ent);
     G_FreeBlightGrowth(ent);
-    G_FreeEnsnare(ent);
     G_FreeAncientRoot(ent);
     G_FreeGoldMine(ent);
     G_FreeMineOverlay(ent);
@@ -341,7 +348,6 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeDestructable(ent);
     G_FreeCargo(ent);
     G_FreeStock(ent);
-    G_FreeArtillery(ent);
     G_FreeSleep(ent);
     G_FreeSoulTrap(ent);
     G_FreeUnitState(ent);
@@ -388,10 +394,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(unsummon, Unsummon, unsummon_t);
     CHECK_POOL(shadowmeld, ShadowMeld, shadowMeld_t);
     CHECK_POOL(militia, Militia, militia_t);
-    CHECK_POOL(polymorph, Polymorph, polymorph_t);
-    CHECK_POOL(raven, Raven, raven_t);
     CHECK_POOL(blight_growth, BlightGrowth, blightGrowth_t);
-    CHECK_POOL(ensnare, Ensnare, ensnare_t);
     CHECK_POOL(ancient_root, AncientRoot, ancientRoot_t);
     CHECK_POOL(goldmine, GoldMine, goldMine_t);
     CHECK_POOL(mineoverlay, MineOverlay, mineOverlay_t);
@@ -400,7 +403,6 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(destructable, Destructable, destructable_t);
     CHECK_POOL(cargo, Cargo, cargo_t);
     CHECK_POOL(stock, Stock, stock_t);
-    CHECK_POOL(artillery, Artillery, artillery_t);
     CHECK_POOL(sleep, Sleep, sleep_t);
     CHECK_POOL(soultrap, SoulTrap, soulTrap_t);
     CHECK_POOL(unit_state, UnitState, unitState_t);
@@ -426,10 +428,10 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(unit->unsummon);
     T_NULL(unit->shadowmeld);
     T_NULL(unit->militia);
-    T_NULL(unit->polymorph);
-    T_NULL(unit->raven);
+    T_NULL(G_GetPolymorph(unit));
+    T_NULL(G_GetRaven(unit));
     T_NULL(unit->blight_growth);
-    T_NULL(unit->ensnare);
+    T_NULL(G_GetEnsnare(unit));
     T_NULL(unit->ancient_root);
     T_NULL(unit->goldmine);
     T_NULL(unit->mineoverlay);
@@ -439,7 +441,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(unit->cargo);
     T_NULL(unit->stock);
     T_NULL(G_GetWaygate(unit));
-    T_NULL(unit->artillery);
+    T_NULL(G_GetArtillery(unit));
     T_NULL(G_GetAvatar(unit));
     T_NULL(unit->sleep);
     T_NULL(unit->soultrap);
@@ -506,5 +508,35 @@ TEST(wc3_components, mixed_list_release_reuse_and_entity_lifetime) {
     G_AddComponent(unit, COMPONENT_WAYGATE);
     G_PoolsReset();
     T_NULL(unit->components);
+}
+
+/* Every registered type allocates a zeroed header-first record, is found by exact ID only, and drains on teardown. */
+TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_ids) {
+    static componentId_t const ids[] = {
+        COMPONENT_WAYGATE, COMPONENT_AVATAR, COMPONENT_POLYMORPH, COMPONENT_RAVEN, COMPONENT_ENSNARE, COMPONENT_ARTILLERY
+    };
+    reset_entities();
+    edict_t *unit = G_Spawn();
+    FOR_LOOP(i, sizeof(ids) / sizeof(ids[0])) {
+        component_t *record = G_AddComponent(unit, ids[i]);
+        T_EQ(record->id, ids[i]);
+        T_ASSERT(unit->components == record);
+        FOR_LOOP(j, sizeof(ids) / sizeof(ids[0]))
+            T_ASSERT((G_GetComponent(unit, ids[j]) != NULL) == (j <= i));
+    }
+    T_ASSERT(G_GetPolymorph(unit) == G_GetComponent(unit, COMPONENT_POLYMORPH));
+    T_ASSERT(G_GetRaven(unit) == G_GetComponent(unit, COMPONENT_RAVEN));
+    T_ASSERT(G_GetEnsnare(unit) == G_GetComponent(unit, COMPONENT_ENSNARE));
+    T_ASSERT(G_GetArtillery(unit) == G_GetComponent(unit, COMPONENT_ARTILLERY));
+    G_GetArtillery(unit)->area_full = 40.0f;
+    G_FreeArtillery(unit); /* Interior removal keeps the later-attached neighbours linked. */
+    T_NULL(G_GetArtillery(unit));
+    T_NOT_NULL(G_GetEnsnare(unit));
+    T_NOT_NULL(G_GetWaygate(unit));
+    artillery_t *again = G_AddComponent(unit, COMPONENT_ARTILLERY);
+    T_FEQ(again->area_full, 0, 0.001f); /* Reuse hands back zeroed storage. */
+    G_PoolsReleaseEdict(unit);
+    T_NULL(unit->components);
+    FOR_LOOP(i, sizeof(ids) / sizeof(ids[0])) T_NULL(G_GetComponent(unit, ids[i]));
 }
 #endif

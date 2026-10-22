@@ -2,7 +2,7 @@
 
 ## Ownership and access
 
-Sparse lifecycle records live in `game/g_pool.c`. Most attach directly to `edict_t` pointers; Way Gate and Avatar use the component list described below. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Allocate explicitly at the owning lifecycle entry point with `G_AllocAncientRoot()` or the corresponding PascalCase allocator. Reads never allocate and never substitute a shared zero object.
+Sparse lifecycle records live in `game/g_pool.c`. Most attach directly to `edict_t` pointers; Way Gate, Avatar, Polymorph, Raven Form, Ensnare and artillery splash profiles use the component list described below. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Allocate explicitly at the owning lifecycle entry point with `G_AllocAncientRoot()` or the corresponding PascalCase allocator. Reads never allocate and never substitute a shared zero object.
 
 ```c
 if (!ent->ancient_root)
@@ -18,19 +18,34 @@ The reference is id Software's [Quake II edict definition](https://github.com/id
 
 ## Optional components
 
-`edict_t.components` owns an intrusive singly linked list. `waygate_t` and `avatar_t`
-start with `component_t { uint32_t id; component_t *next; }`; their former edict
-members are removed. `COMPONENT_WAYGATE` and `COMPONENT_AVATAR` are stable exact
+`edict_t.components` owns an intrusive singly linked list. `waygate_t`, `avatar_t`,
+`polymorph_t`, `raven_t`, `ensnare_t` and `artillery_t` start with
+`component_t { uint32_t id; component_t *next; }`; their former edict members are
+removed. `COMPONENT_WAYGATE`, `COMPONENT_AVATAR`, `COMPONENT_POLYMORPH`,
+`COMPONENT_RAVEN`, `COMPONENT_ENSNARE` and `COMPONENT_ARTILLERY` are stable exact
 layout IDs, independent of authored ability rawcodes. There is one instance of
 each type per entity. No runtime ability inheritance or component update loop is
 introduced; existing ability procedures and scheduling retain behavior ownership.
 
-- `G_GetComponent` / `G_GetWaygate` / `G_GetAvatar` only query; null entities and
-  absent records return null. Cache the typed result within an operation.
+| Component | Owner | Attached by | Released by |
+|-----------|-------|-------------|-------------|
+| Way Gate | `s_waygate.c` | JASS destination/activation natives | entity teardown |
+| Avatar | `s_human_abilities.c` | Avatar activation | Avatar expiry/dispel |
+| Polymorph | `s_human_abilities.c` | first successful `Aply` cast; refreshes keep the first snapshot | buff expiry, `S_PolymorphRemove`, death |
+| Raven Form | `s_raven.c` | `ravenform`/`unravenform` order after the type rebind | entity teardown; `rise_state` marks settled forms |
+| Ensnare | `s_campaign_abilities.c` | gradual DataA land or rise; a snapped land frees it | finished rise, non-flyer, zero DataA |
+| Artillery | `s_attack.c` | fixed-point projectile launch with an authored weapon | projectile teardown after `g_phys.c` impact |
+
+- `G_GetComponent` and the typed getters (`G_GetWaygate`, `G_GetAvatar`,
+  `G_GetPolymorph`, `G_GetRaven`, `G_GetEnsnare`, `G_GetArtillery`) only query;
+  null entities and absent records return null. Cache the typed result within an
+  operation; the owning behaviours hold one local pointer per transition.
 - `G_AddComponent` explicitly allocates from the existing typed pool, prepends
   the common header, and returns the existing record on repeated initialization.
-- `G_FreeComponent` unlinks before returning storage to its typed pool.
-  `G_FreeWaygate` and `G_FreeAvatar` retain the owning behavior's release API.
+- `G_FreeComponent` unlinks before returning storage to its typed pool. The
+  per-type `G_Free*` wrappers retain each owning behavior's release API, so
+  `S_PolymorphRemove`, Ensnare's snap/finish paths and unit death keep their
+  existing cleanup ordering.
 - `G_PoolsReleaseEdict` drains the component list. It performs raw storage cleanup;
   ability-owned inverses still run in their existing lifecycle paths.
 - `G_PoolsReset` clears heads and pools without following potentially partial
@@ -53,19 +68,30 @@ casts to an arbitrary derived payload. Retail binary evidence establishes abilit
 objects, owner/reference plumbing and inheritance, but does not establish this
 per-edict linked-list layout: see [binary evidence](ability-inheritance-binary.md).
 
-Format 107 persists exact component IDs and payloads in the existing typed pool
-sections. The edict head and record `next` links are runtime exclusions. Restore
+Formats 107 and 108 persist exact component IDs and payloads in the existing typed
+pool sections (108 added Polymorph, Raven Form, Ensnare and artillery). The edict head and record `next` links are runtime exclusions. Restore
 validates the saved ID against the section type, clears links, and attaches only
 a completely decoded record. List order is not a gameplay contract and may change
 on restore. Counts, capacity checks and entity-reference fixups retain the pool
 contract. Earlier versions are rejected; network messages are unchanged.
 
 `wc3_components.mixed_list_release_reuse_and_entity_lifetime` covers mixed-list
-lookup, head/non-head removal, zeroed reuse, edict teardown and reset.
-`wc3_save.component_links_are_transient_and_wrong_type_is_rejected` checks link
-exclusion and exact-type validation. Existing all-pool and truncated-load tests
-cover mixed direct/component restoration and cleanup; Avatar and Way Gate suites
-exercise the real ability and JASS lifecycle paths.
+lookup, head/non-head removal, zeroed reuse, edict teardown and reset;
+`wc3_components.every_registered_type_attaches_releases_and_rejects_other_ids`
+walks the whole registry. `wc3_save.component_links_are_transient_and_wrong_type_is_rejected`
+checks link exclusion and exact-type validation. The all-pool and truncated-load
+tests cover mixed direct/component restoration and cleanup; the per-field
+`SAVE_COMPONENT_*_FIELD_TEST` round trips in `t_game.c` and the artillery
+projectile save test reach payloads through the typed getters. Avatar, Way Gate,
+Polymorph, Raven Form, Ensnare and artillery suites exercise the real ability,
+projectile and JASS lifecycle paths.
+
+Migration order so far follows the smallest ability-owned records with one owning
+`skills/s_*.c` file each. Remaining direct attachments (construction, research,
+rally, food, buildwork, revival, sacrifice, unsummon, Shadow Meld, militia, blight
+growth, Ancient Root, mines, item, destructable, cargo, stock, sleep, Soul Trap,
+channel and the `MAX_ENTITIES` unit/movement records) keep their pointers; the
+unit/combat/movement set stays direct until measurements justify list lookup.
 
 Verification commands (run gameplay suites for both RoC/TFT in each configuration):
 

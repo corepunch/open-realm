@@ -258,9 +258,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
 }
 
 /* Record presence is the authoritative Polymorph state for orders and JASS. */
-bool S_UnitPolymorphed(edict_t const *unit) {
-    return unit && unit->polymorph;
-}
+bool S_UnitPolymorphed(edict_t const *unit) { return G_GetPolymorph(unit) != NULL; }
 
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
 static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint32_t code) {
@@ -314,11 +312,12 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
 /* Restore the target's saved presentation and movement state when Polymorph ends. */
 void S_PolymorphRemove(edict_t *unit) {
     gameClient_t *client;
+    polymorph_t const *morph = G_GetPolymorph(unit);
 
-    if (!unit || !unit->polymorph) return;
-    unit->s.model = unit->polymorph->original_model;
-    unit->s.scale = unit->polymorph->original_scale;
-    unit->unitinfo.MoveSpeed = unit->polymorph->original_move_speed;
+    if (!morph) return;
+    unit->s.model = morph->original_model;
+    unit->s.scale = morph->original_scale;
+    unit->unitinfo.MoveSpeed = morph->original_move_speed;
     G_FreePolymorph(unit);
     unit->animation = NULL;
     if (!M_IsDead(unit)) {
@@ -341,6 +340,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     UnitUI_t const *ui;
     UnitBalance_t const *balance;
     PATHSTR model_filename;
+    polymorph_t *morph;
     int model;
     float duration;
 
@@ -378,17 +378,16 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
         return;
     }
 
-    if (!st.entity->polymorph) {
-        st.entity->polymorph = G_AllocPolymorph();
-        assert(st.entity->polymorph);
-        st.entity->polymorph->original_model = st.entity->s.model;
-        st.entity->polymorph->original_scale = st.entity->s.scale;
-        st.entity->polymorph->original_move_speed = st.entity->unitinfo.MoveSpeed;
+    morph = G_GetPolymorph(st.entity);
+    if (!morph) { /* The first application owns the inverse; refreshes keep that snapshot. */
+        morph = G_AddComponent(st.entity, COMPONENT_POLYMORPH);
+        morph->original_model = st.entity->s.model;
+        morph->original_scale = st.entity->s.scale;
+        morph->original_move_speed = st.entity->unitinfo.MoveSpeed;
     }
-    assert(st.entity->polymorph);
-    st.entity->polymorph->ability = spell->code;
-    st.entity->polymorph->buff = buff_code;
-    st.entity->polymorph->form_type = form_type;
+    morph->ability = spell->code;
+    morph->buff = buff_code;
+    morph->form_type = form_type;
     st.entity->s.model = model;
     st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
     if (balance->speed > 0.0f) st.entity->unitinfo.MoveSpeed = balance->speed;
@@ -854,5 +853,6 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) avatar_expire_internal(unit, false);
-    if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
+    polymorph_t const *morph = G_GetPolymorph(unit);
+    if (morph && code == morph->buff) S_PolymorphRemove(unit);
 }

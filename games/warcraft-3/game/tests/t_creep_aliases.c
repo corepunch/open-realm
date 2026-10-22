@@ -232,11 +232,11 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     target->unitinfo.MoveSpeed = 234.0f;
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     T_EQ(G_UnitStatusLevel(target, BZ_BPLY), 1);
-    T_NOT_NULL(target->polymorph);
+    T_NOT_NULL(G_GetPolymorph(target));
     /* Refreshing the morph must preserve the first application's inverse. */
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     S_PolymorphRemove(target);
-    T_NULL(target->polymorph);
+    T_NULL(G_GetPolymorph(target));
     T_EQ(target->s.model, original_model);
     T_FEQ(target->s.scale, 1.37f, 0.001f);
     T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
@@ -244,7 +244,7 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     morphed_model = target->s.model;
     unit_die(target, NULL);
-    T_NULL(target->polymorph);
+    T_NULL(G_GetPolymorph(target));
     T_ASSERT(!S_UnitPolymorphed(target));
     S_PolymorphRemove(target);
     T_EQ(target->s.model, morphed_model);
