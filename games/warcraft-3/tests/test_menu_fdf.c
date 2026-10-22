@@ -423,6 +423,33 @@ static void test_cvar_set(cstring_t name, cstring_t value) {
     if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
 }
 
+TEST(menu_fdf, saved_game_map_selects_tft_archives_from_campaign_path) {
+    menuImport_t saved = mi;
+    bool saved_expansion = test_fs_expansion;
+
+    mi.Cvar_Set = test_cvar_set;
+    test_fs_expansion = false;
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    T_ASSERT(SinglePlayerMenu_PrepareSavedGameMap("Maps\\FrozenThrone\\Campaign\\Human01.w3m"));
+    T_ASSERT(test_fs_expansion);
+    T_STREQ(captured_cvar_name, "fs_expansion");
+    T_STREQ(captured_cvar_value, "1");
+
+    test_fs_expansion = false;
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    T_ASSERT(SinglePlayerMenu_PrepareSavedGameMap("maps/frozenthrone/campaign/human01.w3m"));
+    T_ASSERT(test_fs_expansion);
+
+    test_fs_expansion = false;
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    T_ASSERT(!SinglePlayerMenu_PrepareSavedGameMap("Maps\\Campaign\\Human02.w3m"));
+    T_ASSERT(!test_fs_expansion);
+    T_STREQ(captured_cvar_name, "");
+
+    test_fs_expansion = saved_expansion;
+    mi = saved;
+}
+
 static void test_user_path(cstring_t rel, string_t out, uint32_t out_size) {
     (void)rel;
     if (!out || !out_size) return;

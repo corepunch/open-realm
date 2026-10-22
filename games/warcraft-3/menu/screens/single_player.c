@@ -1302,6 +1302,17 @@ void SinglePlayerMenu_SelectSavedGame(uint32_t index) {
     SinglePlayer_UpdateSaveButtons();
 }
 
+bool SinglePlayerMenu_PrepareSavedGameMap(cstring_t map) {
+    static cstring_t const backslash_prefix = "Maps\\FrozenThrone\\Campaign\\";
+    static cstring_t const slash_prefix = "Maps/FrozenThrone/Campaign/";
+    bool const is_tft_campaign = map &&
+        (!strncasecmp(map, backslash_prefix, strlen(backslash_prefix)) ||
+         !strncasecmp(map, slash_prefix, strlen(slash_prefix)));
+
+    if (is_tft_campaign && mi.Cvar_Set) mi.Cvar_Set("fs_expansion", "1");
+    return is_tft_campaign;
+}
+
 void SinglePlayerMenu_LoadSelectedSave(void) {
     PATHSTR map;
     cstring_t name;
@@ -1316,6 +1327,7 @@ void SinglePlayerMenu_LoadSelectedSave(void) {
         SinglePlayer_RefreshSaves();
         return;
     }
+    SinglePlayerMenu_PrepareSavedGameMap(map);
     mi.LoadSavedGame(name);
 }
 

@@ -63,6 +63,7 @@ void SinglePlayerMenu_ShowMain(void);
 void SinglePlayerMenu_ShowCampaign(void);
 void SinglePlayerMenu_ShowSavedGames(void);
 void SinglePlayerMenu_SelectSavedGame(uint32_t index);
+bool SinglePlayerMenu_PrepareSavedGameMap(cstring_t map);
 void SinglePlayerMenu_LoadSelectedSave(void);
 void SinglePlayerMenu_ConfirmDeleteSave(void);
 void SinglePlayerMenu_DeleteSelectedSave(void);
