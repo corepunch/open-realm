@@ -775,11 +775,11 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
 }
 
 bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInventoryItem_t *out) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     cstring_t item_name;
     cstring_t art;
 
-    if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
+    if (!ent || !out || slot >= G_InventoryCapacity(ent) || !rec ||
         rec->carrier != ent || rec->inventory_slot != slot || rec->in_world) return false;
 
     memset(out, 0, sizeof(*out));

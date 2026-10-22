@@ -2123,7 +2123,9 @@ static edict_t *G_BotNearestGroundItem(edict_t *hero) {
     edict_t *best = NULL;
     int32_t best_priority = INT32_MIN;
     float best_distance = 0.0f;
-    FILTER_EDICTS(item, G_IsItem(item) && G_GetItem(item)->in_world) {
+    FILTER_EDICTS(item, item->inuse) {
+        item_t const *rec = G_ItemState(item);
+        if (!rec || !rec->in_world) continue;
         ItemData_t const *data = G_ItemData(item->class_id);
         float distance = Vector2_distance(&hero->s.origin2, &item->s.origin2);
         if (!data || distance > BOT_HERO_ITEM_RADIUS || !G_CanPickupItem(hero, item)) continue;

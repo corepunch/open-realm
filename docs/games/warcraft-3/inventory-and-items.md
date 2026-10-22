@@ -767,3 +767,11 @@ callbacks complete, and then disappears. An ability-less quest pickup does
 **not** fabricate item-use events or unlock a specific campaign chapter.
 Map scripts/campaign progression own the secret-level unlock; no global
 `sclp` special case is required in the item system.
+
+## Validated component lookup
+
+`G_ItemState(ent)` returns validated Item state without allocating and rejects
+non-item target types before traversing components. Use its returned pointer when
+classification and payload access are both needed; `G_IsItem` is its boolean wrapper.
+Raw `G_GetItem` is appropriate inside initialization/teardown and partial-state
+transitions. See [component lookup](pooled-entity-state.md#optional-components).

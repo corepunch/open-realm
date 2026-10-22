@@ -1132,7 +1132,7 @@ bool G_ShopPawnItem(shopPawnItemParams_t *params) {
     edict_t *shop = params ? params->shop : NULL;
     edict_t *carrier = params ? params->carrier : NULL;
     edict_t *item = params ? params->item : NULL;
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     gameClient_t *client = clent ? clent->client : NULL;
     ItemData_t const *data;
     float distance;
@@ -1142,7 +1142,7 @@ bool G_ShopPawnItem(shopPawnItemParams_t *params) {
     uint32_t lumber;
 
     if (!G_CanUseItemShop(client, shop) || !G_ActorHasSkill(shop, "Apit") ||
-        !carrier || carrier->s.player != client->ps.number || !G_IsItem(item) ||
+        !carrier || carrier->s.player != client->ps.number || !rec ||
         rec->carrier != carrier || rec->in_world) return false;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     if (!data) return false;

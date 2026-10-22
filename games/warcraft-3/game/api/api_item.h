@@ -64,12 +64,14 @@ uint32_t SetItemCharges(jass_t *j) {
 uint32_t SetItemDropID(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     int32_t unit_id = jass_checkinteger(j, 2);
-    if (item && G_IsItem(item)) G_GetItem(item)->drop_id = (uint32_t)unit_id;
+    item_t *rec = G_ItemState(item);
+    if (rec) rec->drop_id = (uint32_t)unit_id;
     return 0;
 }
 uint32_t GetItemDropID(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, item && G_IsItem(item) ? (int32_t)G_GetItem(item)->drop_id : 0);
+    item_t const *rec = G_ItemState(item);
+    return jass_pushinteger(j, rec ? (int32_t)rec->drop_id : 0);
 }
 uint32_t GetItemX(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
@@ -94,9 +96,9 @@ uint32_t SetItemPosition(jass_t *j) {
 }
 uint32_t SetItemDropOnDeath(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     bool flag = jass_checkboolean(j, 2);
-    if (item && G_IsItem(item)) {
+    if (item && rec) {
         rec->drop_on_death_set = true;
         rec->drop_on_death = flag;
     }
@@ -104,9 +106,9 @@ uint32_t SetItemDropOnDeath(jass_t *j) {
 }
 uint32_t SetItemDroppable(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     bool flag = jass_checkboolean(j, 2);
-    if (item && G_IsItem(item)) {
+    if (item && rec) {
         rec->droppable_set = true;
         rec->droppable = flag;
     }
@@ -160,7 +162,8 @@ uint32_t EnumItemsInRect(jass_t *j) {
     if (!r) return 0;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
-        if (!G_IsItem(ent) || !G_GetItem(ent)->in_world ||
+        item_t const *rec = G_ItemState(ent);
+        if (!rec || !rec->in_world ||
             !Box2_containsPoint(r, &ent->s.origin2)) continue;
         currentenumitem = ent;
         if (jass_evaluateboolexpr(j, filter, ent) && actionFunc) {

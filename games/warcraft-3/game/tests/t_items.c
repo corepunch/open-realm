@@ -225,6 +225,46 @@ static edict_t *make_unit_shop_patron(float x, float y, uint32_t player) {
     return unit;
 }
 
+/* Classification must preserve carried/consumed handles and leave non-item entities unmodified. */
+TEST(wc3_items, validated_state_preserves_identity_and_never_allocates) {
+    reset_entities();
+    edict_t *ent = G_Spawn();
+    ent->class_id = MAKEFOURCC('r','a','t','f');
+    ent->targtype = TARG_ITEM;
+    T_NULL(G_ItemState(NULL));
+    T_NULL(G_ItemState(ent));
+    T_NULL(ent->components);
+    item_t *rec = G_AddComponent(ent, COMPONENT_ITEM);
+    ent->data.ItemData = NULL;
+    T_NULL(G_ItemState(ent));
+    rec->in_world = true;
+    T_ASSERT(G_ItemState(ent) == rec);
+    ent->targtype = TARG_NONE;
+    T_NULL(G_ItemState(ent));
+    T_ASSERT(G_GetItem(ent) == rec);
+    ent->targtype = TARG_ITEM;
+    ent->inuse = false;
+    T_NULL(G_ItemState(ent));
+    ent->inuse = true;
+    uint32_t code = ent->class_id;
+    ent->class_id = 0;
+    T_NULL(G_ItemState(ent));
+    ent->class_id = code;
+    rec->in_world = false;
+    rec->carrier = ent;
+    T_ASSERT(G_ItemState(ent) == rec);
+    rec->carrier = NULL;
+    rec->pending_use_removal = true;
+    T_ASSERT(G_ItemState(ent) == rec);
+    rec->pending_use_removal = false;
+    ItemData_t data = { .file = "test-item.mdx" };
+    ent->data.ItemData = &data;
+    T_ASSERT(G_ItemState(ent) == rec);
+    data.file = NULL;
+    T_NULL(G_ItemState(ent));
+    ent->data.ItemData = NULL;
+}
+
 TEST(wc3_items, spawn_initializes_world_state) {
     edict_t *item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 64);
 
