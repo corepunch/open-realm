@@ -1233,7 +1233,7 @@ static void SinglePlayer_CreateSavedGamePanel(void) {
         snprintf(saved_game_panel->Name, sizeof(saved_game_panel->Name), "SavedGamesPanel");
         UI_SetSize(saved_game_panel, 0.42f, 0.39f);
         UI_SetPoint(saved_game_panel, FRAMEPOINT_CENTER, single_player.SinglePlayerMenu,
-                    FRAMEPOINT_CENTER, 0.10f, 0.0f);
+                    FRAMEPOINT_CENTER, -0.12f, 0.0f);
         saved_game_title = UI_CloneFrameTree(UI_FindFrame("StandardTitleTextTemplate"), saved_game_panel);
         if (saved_game_title) {
             snprintf(saved_game_title->Name, sizeof(saved_game_title->Name), "SavedGamesTitle");
