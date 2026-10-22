@@ -208,9 +208,8 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	mine->s.renderfx &= ~RF_HIDDEN;
 	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
 	thinker->owner = mine;
-	if (!thinker->channel) thinker->channel = G_AllocChannel();
-	assert(thinker->channel);
-	thinker->channel->owner_spawn_time = mine->spawn_time;
+	G_AddComponent(thinker, COMPONENT_CHANNEL);
+	G_GetChannel(thinker)->owner_spawn_time = mine->spawn_time;
 	thinker->class_id = code;
 	thinker->wait = (float)level;
 	thinker->collision = collision;

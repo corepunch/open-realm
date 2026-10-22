@@ -1147,3 +1147,11 @@ payloads are scalar; Stock keeps its counted `items`/`units` struct arrays behin
 runtime `component.next` exclusion. The edict schema no longer carries a `stock`
 member, which the shop stock round-trip test now asserts. Version 111 saves are
 rejected; the wire format is unchanged.
+
+## Seventh component slice (version 113)
+
+The spell Channel record moves onto the component list (`COMPONENT_CHANNEL`).
+`channel->source_item` keeps its `F_EDICT` fixup behind the runtime
+`component.next` exclusion; the cast serial, owner/target spawn times and origin
+stay scalar. Channel is also the last typed pool in the stream, so the truncated
+pool test still uses it. Version 112 saves are rejected; the wire format is unchanged.

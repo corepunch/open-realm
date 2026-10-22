@@ -118,14 +118,13 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     rocket->missile->attack_type = desc->attack_type;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        if (!rocket->channel) rocket->channel = G_AllocChannel();
-        assert(rocket->channel);
-        rocket->channel->origin = *desc->fixed_target;
+        G_AddComponent(rocket, COMPONENT_CHANNEL);
+        G_GetChannel(rocket)->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
         rocket->goalentity = desc->target;
-        rocket->channel->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+        G_GetChannel(rocket)->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
             artillery_t *splash = G_AddComponent(rocket, COMPONENT_ARTILLERY);
             splash->attack_type = desc->attack->type;
@@ -981,7 +980,7 @@ static bool attack_ground_valid(edict_t const *ent) {
 }
 
 static float attack_ground_distance(edict_t const *ent) {
-    return ent ? Vector2_distance(&ent->s.origin2, &ent->channel->origin) : FLT_MAX;
+    return ent ? Vector2_distance(&ent->s.origin2, &G_GetChannel(ent)->origin) : FLT_MAX;
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
@@ -1012,7 +1011,7 @@ static void throw_artillery_ground(edict_t *ent) {
     vec2_t impact;
 
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    impact = ent->channel->origin;
+    impact = G_GetChannel(ent)->origin;
     damage = (int)ai_rolldamage1(ent, 1);
     M_GetEntityMatrix(&ent->s, &matrix);
     origin = Matrix4_multiply_vector3(&matrix, &ent->unit_state->attack1.origin);
@@ -1100,9 +1099,8 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     unit->goalentity = waypoint;
     unit->unit_state->attack_target_spawn_time = 0;
     attack_ground_walk(unit);
-    if (!unit->channel) unit->channel = G_AllocChannel();
-    assert(unit->channel);
-    unit->channel->origin = *point;
+    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_GetChannel(unit)->origin = *point;
     return true;
 }
 

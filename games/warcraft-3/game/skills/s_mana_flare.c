@@ -37,6 +37,7 @@ static int mana_flare_damage(edict_t *flare, edict_t *victim, float cost) {
  * Channel: Bmfl on caster, DataE armor, flare enemies that spend mana in Area.
  */
 BZ_ABILITY_PROC(CAbilityManaFlare) {
+    channel_t *cast = G_GetChannel(ent);
 	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_MANA_FLARE;
 	uint32_t level;
 	cstring_t buff;
@@ -48,7 +49,7 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 		S_SpellApplyTimedStatus(ent, buff, level, S_SpellHeroDuration(code, level, ent));
 		return true;
 	case A_UPDATE:
-		if (ent && ent->channel && ent->channel->code == code && !G_UnitStatusLevel(ent, ID_BMFL))
+		if (ent && cast && cast->code == code && !G_UnitStatusLevel(ent, ID_BMFL))
 			S_SpellCancelChannel(ent);
 		return true;
 	case A_CANCEL:
@@ -57,7 +58,7 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 		if (G_UnitStatusLevel(ent, ID_BMFL)) mana_flare_strip(ent);
 		return true;
 	case A_MOVE_LEAVE:
-		if (ent && ent->channel && ent->channel->code == code) {
+		if (ent && cast && cast->code == code) {
 			S_SpellCancelChannel(ent);
 			return true;
 		}

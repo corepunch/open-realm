@@ -519,7 +519,7 @@ TEST(wc3_spell, custom_spells_keep_identity_in_validation_and_channel_completion
     T_NOT_NULL(thinker);
     level.time = thinker->freetime; G_RunEntity(thinker);
     level.time = thinker->freetime; G_RunEntity(thinker);
-    T_ASSERT(!caster->channel || caster->channel->code == 0);
+    T_ASSERT(!G_GetChannel(caster) || G_GetChannel(caster)->code == 0);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -659,13 +659,12 @@ TEST(wc3_spell, relationship_uses_passive_alliance_not_other_flags) {
 
 TEST(wc3_spell, channel_cancel_stun) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = MAKEFOURCC('A','H','b','z');
-	caster->channel->origin = caster->s.origin2;
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
+	G_GetChannel(caster)->origin = caster->s.origin2;
 	unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel->code, 0);
+	T_EQ((int)G_GetChannel(caster)->code, 0);
 }
 
 /* Expired status slots must stop contributing before the status cleanup tick. */
@@ -673,74 +672,68 @@ TEST(wc3_spell, expired_stun_does_not_cancel_channel_before_cleanup) {
     edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
     level.time = 1000;
     unit_addtimedstatus(caster, "Bstu", 1, 0.1f);
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    caster->channel->code = MAKEFOURCC('A','H','b','z');
-    caster->channel->origin = caster->s.origin2;
+    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
+    G_GetChannel(caster)->origin = caster->s.origin2;
     level.time = 1100;
     spell_run_frame(caster);
-    T_EQ(caster->channel->code, MAKEFOURCC('A','H','b','z'));
+    T_EQ(G_GetChannel(caster)->code, MAKEFOURCC('A','H','b','z'));
 }
 
 TEST(wc3_spell, channel_cancel_death) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = MAKEFOURCC('A','H','b','z');
-	caster->channel->origin = caster->s.origin2;
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
+	G_GetChannel(caster)->origin = caster->s.origin2;
 	caster->health.value = 0;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel->code, 0);
+	T_EQ((int)G_GetChannel(caster)->code, 0);
 }
 
 TEST(wc3_spell, channel_cancel_movement) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = MAKEFOURCC('A','H','b','z');
-	caster->channel->origin.x = 100; caster->channel->origin.y = 100;
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
+	G_GetChannel(caster)->origin.x = 100; G_GetChannel(caster)->origin.y = 100;
 	caster->s.origin.x = 101; caster->s.origin.y = 100;
 	caster->s.origin2.x = 101; caster->s.origin2.y = 100;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel->code, 0);
+	T_EQ((int)G_GetChannel(caster)->code, 0);
 }
 
 TEST(wc3_spell, channel_persists_no_movement) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = MAKEFOURCC('A','H','b','z');
-	caster->channel->origin = caster->s.origin2;
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
+	G_GetChannel(caster)->origin = caster->s.origin2;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel->code, (int)MAKEFOURCC('A','H','b','z'));
+	T_EQ((int)G_GetChannel(caster)->code, (int)MAKEFOURCC('A','H','b','z'));
 }
 
 TEST(wc3_spell, channel_cancel_clears_code) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = MAKEFOURCC('A','H','b','z');
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	S_SpellCancelChannel(caster);
-	T_EQ((int)caster->channel->code, 0);
+	T_EQ((int)G_GetChannel(caster)->code, 0);
 	T_STREQ(caster->currentmove->animation, "stand");
 }
 
 TEST(wc3_spell, channel_cancel_noop_empty) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = 0;
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = 0;
 	S_SpellCancelChannel(caster);
-	T_EQ((int)caster->channel->code, 0);
+	T_EQ((int)G_GetChannel(caster)->code, 0);
 }
 
 TEST(wc3_spell, channel_run_frame_noop_when_idle) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = 0;
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = 0;
 	unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel->code, 0);
+	T_EQ((int)G_GetChannel(caster)->code, 0);
 }
 
 /* ---- Toggle bypass ---- */
@@ -2429,11 +2422,10 @@ TEST(wc3_spell, hero_duration_uses_herodur_col) {
 TEST(wc3_spell, spell_is_channeling_detects_active) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	T_ASSERT(!S_SpellIsChanneling(caster));
-	if (!caster->channel) caster->channel = G_AllocChannel();
-	assert(caster->channel);
-	caster->channel->code = MAKEFOURCC('A','H','b','z');
+	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	T_ASSERT(S_SpellIsChanneling(caster));
-	caster->channel->code = 0;
+	G_GetChannel(caster)->code = 0;
 	T_ASSERT(!S_SpellIsChanneling(caster));
 }
 
@@ -2460,9 +2452,8 @@ TEST(wc3_spell, channel_owner_resolves_only_captured_incarnation) {
     edict_t *thinker;
     uint32_t spawn_time;
 
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
-    caster->channel->serial = 6;
+    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_GetChannel(caster)->serial = 6;
     thinker = S_SpellChannelThinker(caster, MAKEFOURCC('A','H','d','r'));
     T_ASSERT(S_SpellChannelOwner(thinker) == caster);
     spawn_time = caster->spawn_time;
@@ -2478,9 +2469,8 @@ TEST(wc3_spell, channel_target_resolves_only_captured_incarnation) {
     edict_t *thinker;
     uint32_t spawn_time;
 
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
-    caster->channel->serial = 7;
+    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_GetChannel(caster)->serial = 7;
     thinker = S_SpellChannelTargetThinker(caster, MAKEFOURCC('A','H','d','r'), target);
     T_ASSERT(S_SpellChannelTarget(thinker) == target);
     spawn_time = target->spawn_time;
@@ -2496,9 +2486,8 @@ TEST(wc3_spell, projectile_owner_resolves_only_captured_incarnation) {
     uint32_t spawn_time = caster->spawn_time;
 
     missile->owner = caster;
-    if (!missile->channel) missile->channel = G_AllocChannel();
-    assert(missile->channel);
-    missile->channel->owner_spawn_time = caster->spawn_time;
+    G_AddComponent(missile, COMPONENT_CHANNEL);
+    G_GetChannel(missile)->owner_spawn_time = caster->spawn_time;
     T_ASSERT(S_SpellProjectileOwner(missile) == caster);
     caster->spawn_time++;
     T_NULL(S_SpellProjectileOwner(missile));
@@ -3947,9 +3936,8 @@ TEST(wc3_spell, entangling_roots_tracks_source_interrupts_channel_and_ticks_auth
     caster->s.player = 0; target->s.player = 1;
     target->health.value = target->health.max_value = 100.0f;
     target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
-    if (!target->channel) target->channel = G_AllocChannel();
-    assert(target->channel);
-    target->channel->code = MAKEFOURCC('A','H','m','t');
+    G_AddComponent(target, COMPONENT_CHANNEL);
+    G_GetChannel(target)->code = MAKEFOURCC('A','H','m','t');
 
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
     slot = unit_findstatus(target, MAKEFOURCC('B','E','e','r'));
@@ -3958,7 +3946,7 @@ TEST(wc3_spell, entangling_roots_tracks_source_interrupts_channel_and_ticks_auth
     T_EQ(slot->rank, 1);
     T_EQ(slot->source, caster);
     T_EQ(slot->source_spawn_time, caster->spawn_time);
-    T_ASSERT(!target->channel || target->channel->code == 0);
+    T_ASSERT(!G_GetChannel(target) || G_GetChannel(target)->code == 0);
     T_ASSERT(!S_UnitCanTranslate(target));
 
     level.time += 1000;
@@ -4004,12 +3992,11 @@ TEST(wc3_spell, entangling_roots_death_cleanup_and_failed_status_do_not_interrup
         target->unit_state->statuses[i].level = 1;
         target->unit_state->statuses[i].timestamp = G_Time() + 60000;
     }
-    if (!target->channel) target->channel = G_AllocChannel();
-    assert(target->channel);
-    target->channel->code = MAKEFOURCC('A','H','m','t');
+    G_AddComponent(target, COMPONENT_CHANNEL);
+    G_GetChannel(target)->code = MAKEFOURCC('A','H','m','t');
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
     T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
-    T_EQ(target->channel->code, MAKEFOURCC('A','H','m','t'));
+    T_EQ(G_GetChannel(target)->code, MAKEFOURCC('A','H','m','t'));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -4225,9 +4212,8 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
     T_ASSERT(WriteGame(Test_TempPath("divine-shield-save.bin")));
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
-    caster->channel->code = 0; if (thinker) thinker->think = NULL;
+    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_GetChannel(caster)->code = 0; if (thinker) thinker->think = NULL;
     T_ASSERT(ReadGame(Test_TempPath("divine-shield-save.bin")));
     FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
@@ -4254,7 +4240,7 @@ TEST(wc3_spell, divine_shield_expiry_rejects_recycled_caster_slot) {
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHds")));
     FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
-    T_NOT_NULL(thinker ? thinker->channel : NULL);
+    T_NOT_NULL(thinker ? G_GetChannel(thinker) : NULL);
     caster->spawn_time++;
     G_SetUnitFlag(caster, UNIT_FLAG_INVULNERABLE, true);
     if (thinker) { level.time = thinker->spawn_time; divine_shield_think(thinker); }
@@ -6206,7 +6192,7 @@ TEST(wc3_spell, chain_lightning_stops_if_caster_slot_is_reused) {
     test_execute_code(caster, "AOcl", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = first));
     FILTER_EDICTS(ent, ent->think == chain_lightning_think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
-    T_EQ(thinker->channel->owner_spawn_time, 100);
+    T_EQ(G_GetChannel(thinker)->owner_spawn_time, 100);
 
     /* Reusing the caster edict slot must not let the old delayed cast continue. */
     caster->spawn_time = 101;

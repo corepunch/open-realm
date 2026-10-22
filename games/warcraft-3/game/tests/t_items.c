@@ -2828,7 +2828,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     T_NOT_NULL(hero->goalentity);
     if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
     T_EQ(G_ItemCharges(item), 4);
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->channel->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
     T_NOT_NULL(approach);
@@ -2852,7 +2852,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_ClientCommand(player, 3, far_click);
     T_NOT_NULL(hero->goalentity);
     if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->channel->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
     T_NOT_NULL(approach);
@@ -2881,7 +2881,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_UseItem(hero, 0);
     G_ClientCommand(player, 3, another_far_click);
     approach = NULL;
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->channel->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
     T_NOT_NULL(approach);
@@ -2910,7 +2910,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_UseItem(hero, 0);
     G_ClientCommand(player, 3, save_far_click);
     approach = NULL;
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->channel->source_item == item &&
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item &&
                   ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
@@ -4147,23 +4147,23 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
     T_ASSERT(thinker->inuse && thinker->think);
-    T_ASSERT(thinker->channel->source_item == gem);
-    T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
-    T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
+    T_ASSERT(G_GetChannel(thinker)->source_item == gem);
+    T_EQ(G_GetChannel(thinker)->owner_spawn_time, carrier->spawn_time);
+    T_EQ(G_GetChannel(thinker)->target_spawn_time, target->spawn_time);
 
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
         /* g_save.c checks the append-only v47 roster identity directly; this
          * round trip verifies the pending thinker pointer and its payload. */
-        thinker->think = NULL; thinker->channel->source_item = NULL;
+        thinker->think = NULL; G_GetChannel(thinker)->source_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
         T_NOT_NULL(thinker->think);
         T_EQ(thinker->think, S_SpellTargetApproachThink);
-        T_ASSERT(thinker->channel->source_item == gem);
-        T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
-        T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
+        T_ASSERT(G_GetChannel(thinker)->source_item == gem);
+        T_EQ(G_GetChannel(thinker)->owner_spawn_time, carrier->spawn_time);
+        T_EQ(G_GetChannel(thinker)->target_spawn_time, target->spawn_time);
         carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
         if (thinker->think) thinker->think(thinker);
         T_ASSERT(!thinker->inuse);

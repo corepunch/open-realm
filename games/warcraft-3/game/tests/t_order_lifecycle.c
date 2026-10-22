@@ -334,12 +334,11 @@ TEST(wc3_order_lifecycle, queued_hold_preserves_later_fifo_work) {
 TEST(wc3_order_lifecycle, hold_position_interrupts_active_channel) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0);
-    if (!unit->channel) unit->channel = G_AllocChannel();
-    assert(unit->channel);
-    unit->channel->code = MAKEFOURCC('A','x','x','x');
+    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_GetChannel(unit)->code = MAKEFOURCC('A','x','x','x');
 
     T_ASSERT(S_HoldPosition(unit));
-    T_ASSERT(!unit->channel || unit->channel->code == 0);
+    T_ASSERT(!G_GetChannel(unit) || G_GetChannel(unit)->code == 0);
     T_ASSERT(unit->orders->holding_position);
 }
 

@@ -4910,9 +4910,9 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     T_NOT_NULL(missile);
     T_ASSERT(missile->owner == caster);
     T_ASSERT(missile->goalentity == target);
-    T_ASSERT(missile->channel);
-    T_EQ(missile->channel->owner_spawn_time, caster->spawn_time);
-    T_EQ(missile->channel->target_spawn_time, target->spawn_time);
+    T_ASSERT(G_GetChannel(missile));
+    T_EQ(G_GetChannel(missile)->owner_spawn_time, caster->spawn_time);
+    T_EQ(G_GetChannel(missile)->target_spawn_time, target->spawn_time);
     T_ASSERT(missile->currentmove == &holdpos_move_stand);
     T_ASSERT(WriteGame(filename));
 
@@ -4922,8 +4922,8 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     missile->velocity = 0.0f;
     missile->movetype = MOVETYPE_NONE;
     missile->currentmove = NULL;
-    missile->channel->owner_spawn_time = 0;
-    missile->channel->target_spawn_time = 0;
+    G_GetChannel(missile)->owner_spawn_time = 0;
+    G_GetChannel(missile)->target_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
 
     T_ASSERT(S_SpellProjectileOwner(missile) == caster);
@@ -4948,9 +4948,8 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     thinker->class_id = ability;
     thinker->s.origin2 = (vec2_t){ 192.0f, -64.0f };
     thinker->spawn_time = 34567;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->think = human_ability_think;
 
     T_ASSERT(WriteGame(filename));
@@ -4958,7 +4957,7 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     thinker->class_id = 0;
     thinker->s.origin2 = (vec2_t){ 0 };
     thinker->spawn_time = 0;
-    thinker->channel->owner_spawn_time = 0;
+    G_GetChannel(thinker)->owner_spawn_time = 0;
     thinker->think = NULL;
     T_ASSERT(ReadGame(filename));
 
@@ -4968,7 +4967,7 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     T_FEQ(thinker->s.origin2.x, 192.0f, 0.001f);
     T_FEQ(thinker->s.origin2.y, -64.0f, 0.001f);
     T_EQ(thinker->spawn_time, 34567);
-    T_EQ(thinker->channel->owner_spawn_time, caster->spawn_time);
+    T_EQ(G_GetChannel(thinker)->owner_spawn_time, caster->spawn_time);
 
     caster->spawn_time++;
     T_NULL(S_SpellChannelOwner(thinker));
@@ -5109,8 +5108,8 @@ TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     remove(filename);
 }
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, unit_state->autocast, MAKEFOURCC('A', 'h', 'e', 'a'))
-SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel->code, MAKEFOURCC('A', 'H', 'd', 'r'))
-SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel->serial, 7)
+SAVE_COMPONENT_INT_FIELD_TEST(field_channel_code_round_trip, channel, G_GetChannel, code, MAKEFOURCC('A', 'H', 'd', 'r'))
+SAVE_COMPONENT_INT_FIELD_TEST(field_channel_serial_round_trip, channel, G_GetChannel, serial, 7)
 
 TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
     uint32_t const formats[] = { 24, 25 };
@@ -5192,8 +5191,8 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         remove(filename);
     }
 }
-SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel->owner_spawn_time, 200)
-SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel->target_spawn_time, 300)
+SAVE_COMPONENT_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel, G_GetChannel, owner_spawn_time, 200)
+SAVE_COMPONENT_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel, G_GetChannel, target_spawn_time, 300)
 /* Component payload descriptors remain concrete even though the edict no longer has these members. */
 TEST(wc3_save, avatar_component_fields_round_trip) {
     cstring_t filename = Test_TempPath("wc3-avatar-fields.bin");
@@ -5318,11 +5317,10 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
-    if (!unit->channel) unit->channel = G_AllocChannel();
-    assert(unit->channel);
-    unit->channel->origin = (vec2_t){ 12.5f, 34.5f };
-    T_ASSERT(WriteGame(filename)); unit->channel->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
-    T_FEQ(unit->channel->origin.x, 12.5f, 0.001f); T_FEQ(unit->channel->origin.y, 34.5f, 0.001f);
+    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_GetChannel(unit)->origin = (vec2_t){ 12.5f, 34.5f };
+    T_ASSERT(WriteGame(filename)); G_GetChannel(unit)->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
+    T_FEQ(G_GetChannel(unit)->origin.x, 12.5f, 0.001f); T_FEQ(G_GetChannel(unit)->origin.y, 34.5f, 0.001f);
     remove(filename);
 }
 
@@ -5791,7 +5789,7 @@ SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "orders->patrol_b", orders->patro
 SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "orders->patrol_target", orders->patrol_target, 0)
 SAVE_PTR_FIELD_TEST(field_goal_entity_round_trip, "goalentity", goalentity, 0)
 SAVE_PTR_FIELD_TEST(field_item_drop_round_trip, "orders->item_drop", orders->item_drop, 0)
-SAVE_PTR_FIELD_TEST(field_spell_item_round_trip, "channel->source_item", channel->source_item, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_spell_item_round_trip, channel, G_GetChannel, source_item, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_head_round_trip, soultrap, G_GetSoulTrap, head, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, soultrap, G_GetSoulTrap, carrier, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_next_round_trip, soultrap, G_GetSoulTrap, next, 0)
@@ -5980,26 +5978,24 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     unit->vision->reveal_until = 97531;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
-    if (!chain->channel) chain->channel = G_AllocChannel();
-    assert(chain->channel);
-    chain->channel->owner_spawn_time = unit->spawn_time;
+    G_AddComponent(chain, COMPONENT_CHANNEL);
+    G_GetChannel(chain)->owner_spawn_time = unit->spawn_time;
     chain->s.origin2 = (vec2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
     chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
     chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
-    if (!chain_marker->channel) chain_marker->channel = G_AllocChannel();
-    assert(chain_marker->channel);
-    chain_marker->owner = chain; chain_marker->channel->owner_spawn_time = chain->spawn_time;
+    G_AddComponent(chain_marker, COMPONENT_CHANNEL);
+    chain_marker->owner = chain; G_GetChannel(chain_marker)->owner_spawn_time = chain->spawn_time;
     chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
     reincarnation->owner = unit; reincarnation->class_id = MAKEFOURCC('A', 'O', 'r', 'e');
-    reincarnation->channel = G_AllocChannel(); assert(reincarnation->channel);
-    reincarnation->channel->owner_spawn_time = unit->spawn_time;
+    G_AddComponent(reincarnation, COMPONENT_CHANNEL); assert(G_GetChannel(reincarnation));
+    G_GetChannel(reincarnation)->owner_spawn_time = unit->spawn_time;
     acid_bomb->owner = unit; acid_bomb->goalentity = mine; acid_bomb->class_id = MAKEFOURCC('A', 'N', 'a', 'b');
-    acid_bomb->channel = G_AllocChannel(); assert(acid_bomb->channel);
-    acid_bomb->channel->owner_spawn_time = unit->spawn_time;
-    acid_bomb->channel->target_spawn_time = mine->spawn_time;
+    G_AddComponent(acid_bomb, COMPONENT_CHANNEL); assert(G_GetChannel(acid_bomb));
+    G_GetChannel(acid_bomb)->owner_spawn_time = unit->spawn_time;
+    G_GetChannel(acid_bomb)->target_spawn_time = mine->spawn_time;
     morph->owner = unit; morph->resources = MAKEFOURCC('h', 'd', 'h', 'u');
-    morph->channel = G_AllocChannel(); assert(morph->channel);
-    morph->channel->owner_spawn_time = unit->spawn_time;
+    G_AddComponent(morph, COMPONENT_CHANNEL); assert(G_GetChannel(morph));
+    G_GetChannel(morph)->owner_spawn_time = unit->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
@@ -6007,11 +6003,11 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     land_mine->think = death_aoe->think = monster_think;
     reincarnation->think = acid_bomb->think = morph->think = monster_think;
     reincarnation->owner = acid_bomb->owner = acid_bomb->goalentity = morph->owner = NULL;
-    reincarnation->channel->owner_spawn_time = acid_bomb->channel->owner_spawn_time = 0;
-    acid_bomb->channel->target_spawn_time = morph->channel->owner_spawn_time = 0;
+    G_GetChannel(reincarnation)->owner_spawn_time = G_GetChannel(acid_bomb)->owner_spawn_time = 0;
+    G_GetChannel(acid_bomb)->target_spawn_time = G_GetChannel(morph)->owner_spawn_time = 0;
     morph->resources = 0;
     chain->resources = chain->freetime = 0;
-    chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
+    chain_marker->class_id = chain_marker->svflags = G_GetChannel(chain_marker)->owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = chain_marker->goalentity = NULL;
     G_InitVisibility(unit);
     unit->vision->reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
@@ -6033,11 +6029,11 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(land_mine->think == land_mine_think && death_aoe->think == death_damage_aoe_think);
     T_ASSERT(reincarnation->think == reincarnation_think && acid_bomb->think == acid_bomb_think);
     T_ASSERT(reincarnation->owner == unit && acid_bomb->owner == unit && acid_bomb->goalentity == mine);
-    T_EQ(reincarnation->channel->owner_spawn_time, unit->spawn_time);
-    T_EQ(acid_bomb->channel->owner_spawn_time, unit->spawn_time);
-    T_EQ(acid_bomb->channel->target_spawn_time, mine->spawn_time);
+    T_EQ(G_GetChannel(reincarnation)->owner_spawn_time, unit->spawn_time);
+    T_EQ(G_GetChannel(acid_bomb)->owner_spawn_time, unit->spawn_time);
+    T_EQ(G_GetChannel(acid_bomb)->target_spawn_time, mine->spawn_time);
     T_ASSERT(morph->think == morph_end && morph->owner == unit);
-    T_EQ(morph->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(G_GetChannel(morph)->owner_spawn_time, unit->spawn_time);
     T_EQ(morph->resources, MAKEFOURCC('h', 'd', 'h', 'u'));
     T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
     T_ASSERT(far_sight->think == far_sight_think);
@@ -6046,13 +6042,13 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_EQ(far_sight->spawn_time, 9876);
     T_ASSERT(chain->think == chain_lightning_think && chain->owner == unit);
     T_EQ(chain->class_id, MAKEFOURCC('A', 'O', 'c', 'l'));
-    T_EQ(chain->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(G_GetChannel(chain)->owner_spawn_time, unit->spawn_time);
     T_FEQ(chain->s.origin2.x, 321.0f, 0.001f); T_FEQ(chain->s.origin2.y, 654.0f, 0.001f);
     T_FEQ(chain->collision, 500.0f, 0.001f); T_FEQ(chain->wait, 45.0f, 0.001f);
     T_FEQ(chain->velocity, 0.9f, 0.001f); T_EQ(chain->resources, 3); T_EQ(chain->freetime, 4321);
     T_EQ(chain_marker->class_id, MAKEFOURCC('C', 'L', 'v', 's')); T_ASSERT(chain_marker->svflags & SVF_NOCLIENT);
     T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
-    T_EQ(chain_marker->channel->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
+    T_EQ(G_GetChannel(chain_marker)->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
     remove(filename);
 }
 
@@ -6069,14 +6065,14 @@ TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {
     thinker->think = lsh_think;
     T_ASSERT(WriteGame(filename));
     thinker->owner = thinker->goalentity = NULL;
-    thinker->channel->owner_spawn_time = thinker->channel->target_spawn_time = 0;
+    G_GetChannel(thinker)->owner_spawn_time = G_GetChannel(thinker)->target_spawn_time = 0;
     thinker->think = NULL;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(thinker->think == lsh_think);
     T_ASSERT(S_SpellChannelOwner(thinker) == owner);
     T_ASSERT(S_SpellChannelTarget(thinker) == target);
-    T_EQ(thinker->channel->owner_spawn_time, owner->spawn_time);
-    T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
+    T_EQ(G_GetChannel(thinker)->owner_spawn_time, owner->spawn_time);
+    T_EQ(G_GetChannel(thinker)->target_spawn_time, target->spawn_time);
     remove(filename);
 }
 

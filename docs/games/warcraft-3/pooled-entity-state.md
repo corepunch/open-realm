@@ -2,7 +2,7 @@
 
 ## Ownership and access
 
-Sparse lifecycle records live in `game/g_pool.c`. Ability-owned and producer-owned records attach through the component list described below; construction, item, destructable, channel and the `MAX_ENTITIES` unit/movement records still attach directly to `edict_t` pointers. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Attach explicitly at the owning lifecycle entry point with `G_AddComponent` (components) or the PascalCase `G_Alloc*` allocator (direct pointers). Reads never allocate and never substitute a shared zero object.
+Sparse lifecycle records live in `game/g_pool.c`. Ability-owned and producer-owned records attach through the component list described below; construction, item, destructable and the `MAX_ENTITIES` unit/movement records still attach directly to `edict_t` pointers. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Attach explicitly at the owning lifecycle entry point with `G_AddComponent` (components) or the PascalCase `G_Alloc*` allocator (direct pointers). Reads never allocate and never substitute a shared zero object.
 
 ```c
 ancientRoot_t *root = G_GetAncientRoot(ent);
@@ -22,10 +22,10 @@ The reference is id Software's [Quake II edict definition](https://github.com/id
 `polymorph_t`, `raven_t`, `ensnare_t`, `artillery_t`, `sleep_t`, `rally_t`,
 `sacrifice_t`, `unsummon_t`, `blightGrowth_t`, `shadowMeld_t`, `militia_t`,
 `revival_t`, `buildwork_t`, `ancientRoot_t`, `goldMine_t`, `mineOverlay_t`,
-`acolyteMine_t`, `cargo_t`, `soulTrap_t`, `research_t`, `food_t` and `stock_t` start with
+`acolyteMine_t`, `cargo_t`, `soulTrap_t`, `research_t`, `food_t`, `stock_t` and `channel_t` start with
 `component_t { uint32_t id; component_t *next; }`; their former edict members are
 removed. The `COMPONENT_*` enumerators in `g_local.h` (`COMPONENT_WAYGATE` through
-`COMPONENT_STOCK`) are stable exact layout IDs, independent of authored
+`COMPONENT_CHANNEL`) are stable exact layout IDs, independent of authored
 ability rawcodes. There is one instance of
 each type per entity. No runtime ability inheritance or component update loop is
 introduced; existing ability procedures and scheduling retain behavior ownership.
@@ -56,13 +56,14 @@ introduced; existing ability procedures and scheduling retain behavior ownership
 | Research | `s_train.c`, `g_building.c` | research queue items and in-place building upgrades; the whole record is written at queue time | completion/cancel free the queue item or the upgrade record |
 | Food | `g_food.c` | first non-zero food used/made transaction | entity teardown; ownership transfer and HUD queries check presence |
 | Stock | `g_stock.c` | shop slot assignment or first stock initialization | entity teardown; stock lists are rewritten in place |
+| Channel | `s_spell.c` and the spell owners | cast begin, channel thinkers, fixed-target missiles and markers | entity teardown; `code` 0 marks an idle record whose `serial` keeps increasing |
 
 - `G_GetComponent` and the typed getters (`G_GetWaygate`, `G_GetAvatar`,
   `G_GetPolymorph`, `G_GetRaven`, `G_GetEnsnare`, `G_GetArtillery`, `G_GetSleep`,
   `G_GetRally`, `G_GetSacrifice`, `G_GetUnsummon`, `G_GetBlightGrowth`,
   `G_GetShadowMeld`, `G_GetMilitia`, `G_GetRevival`, `G_GetBuildwork`,
   `G_GetAncientRoot`, `G_GetGoldMine`, `G_GetMineOverlay`, `G_GetAcolyteMine`,
-  `G_GetCargo`, `G_GetSoulTrap`, `G_GetResearch`, `G_GetFood`, `G_GetStock`) only query;
+  `G_GetCargo`, `G_GetSoulTrap`, `G_GetResearch`, `G_GetFood`, `G_GetStock`, `G_GetChannel`) only query;
   `G_UnitIsResearching` folds the presence-and-upgrade check used by queue walkers;
   `G_HeroIsReviving`/`G_HeroAwaitsRevival` fold the common null-and-flag check;
   null entities and absent records return null. Cache the typed result within an
@@ -99,7 +100,7 @@ Formats 107 to 112 persist exact component IDs and payloads in the existing type
 pool sections (108 added Polymorph, Raven Form, Ensnare and artillery; 109 added
 Sleep, Rally, Sacrifice, Unsummon and Blight Growth; 110 added Shadow Meld,
 Militia, Revival and Buildwork; 111 added Ancient Root, the three mine records,
-Cargo and Soul Trap; 112 added Research, Food and shop Stock). Entity references inside a payload (`rally->entity`,
+Cargo and Soul Trap; 112 added Research, Food and shop Stock; 113 added the spell Channel). Entity references inside a payload (`rally->entity`,
 `sacrifice->worker`, `unsummon->target`, `revival->producer`, `revival->queue_next`,
 `ancient_root->approach_goal`, `goldmine->mine`, the mine overlay links, `acolyte_mine->mine`,
 `cargo->units[]` and the Soul Trap links) keep their `F_EDICT` fixups;
@@ -126,10 +127,12 @@ attach their records with `G_AttachComponent`.
 
 Migration order so far follows the smallest ability-owned records with one owning
 `skills/s_*.c` file each. Remaining direct attachments (construction, item,
-destructable, channel and the `MAX_ENTITIES` unit/movement records) keep their
-pointers; the unit/combat/movement set stays direct until measurements justify
-list lookup. Food is read on every production and death transition and by the
-SC2API observation, so it is the first non-ability record on a moderately warm path. Cargo presence is read by the HUD and the SC2API
+destructable and the `MAX_ENTITIES` unit/movement records) keep their pointers;
+the unit/combat/movement set stays direct until measurements justify list lookup.
+Food is read on every production and death transition and by the SC2API
+observation. Channel is the first per-frame query on every entity:
+`spell_run_frame` reads it from `G_RunEntity`, so a unit's component list should
+stay short; measure before adding records that every unit carries. Cargo presence is read by the HUD and the SC2API
 observation for every selected or observed unit; mine overlay and acolyte lookups
 run inside `FILTER_EDICTS` sweeps on mine events only.
 Revival is read by the production-queue walkers in `s_train.c` and the HUD, so

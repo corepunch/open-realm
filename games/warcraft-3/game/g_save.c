@@ -143,7 +143,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 110 moves Shadow Meld, Militia, Hero revival and worker build/repair state onto the component list. */
 /* Version 111 moves AncientRoot, GoldMine, MineOverlay, AcolyteMine, Cargo, SoulTrap onto the component list. */
 /* Version 112 moves Research, Food, Stock onto the component list. */
-static uint32_t const save_version = 112;
+/* Version 113 moves Channel onto the component list. */
+static uint32_t const save_version = 113;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -919,6 +920,7 @@ static field_t const sleep_fields[] = {
 };
 
 static field_t const channel_fields[] = {
+    TF(channel_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(channel_t, source_item, F_EDICT, 0, FIELD_NONE),
     TF(channel_t, source_item_spawn_time, F_INT),
     TF(channel_t, code, F_INT),
@@ -1026,7 +1028,6 @@ field_t edict_fields[] = {
     F(edict_s, inventory, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, harvest, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, vision, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, channel, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, movement, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, route, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, wander, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2272,7 +2273,7 @@ static savePool_t const save_pools[] = {
     { "inventory", offsetof(edict_t, inventory), sizeof(inventory_t), inventory_fields, SaveAllocInventory, MAX_ENTITIES },
     { "harvest", offsetof(edict_t, harvest), sizeof(harvest_t), harvest_fields, SaveAllocHarvest, MAX_ENTITIES },
     { "vision", offsetof(edict_t, vision), sizeof(visibility_t), vision_fields, SaveAllocVisibility, MAX_ENTITIES },
-    { "channel", offsetof(edict_t, channel), sizeof(channel_t), channel_fields, SaveAllocChannel, LIFECYCLE_POOL_CAP },
+    { "channel", 0, sizeof(channel_t), channel_fields, SaveAllocChannel, LIFECYCLE_POOL_CAP, COMPONENT_CHANNEL },
 };
 
 static void *SavePoolSlot(edict_t const *ent, savePool_t const *pool) {

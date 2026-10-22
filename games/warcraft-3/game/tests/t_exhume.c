@@ -282,7 +282,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
         level.time += FRAMETIME;
         G_RunEntities();
     }
-    T_EQ(caster->channel->code, MAKEFOURCC('A', 'c', 'a', 'n'));
+    T_EQ(G_GetChannel(caster)->code, MAKEFOURCC('A', 'c', 'a', 'n'));
     T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
     exh_done(&fix);
 }
