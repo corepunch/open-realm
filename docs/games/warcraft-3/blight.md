@@ -29,7 +29,7 @@ The shared `pathmap.terrain`, `pathmap.original`, and `pathmap.data` stay untouc
 - `Area`: maximum radius;
 - `Duration`: seconds between expansion steps.
 
-The unit stores the concrete alias, current radius, and next expansion deadline in `edict.blight_growth`. The state is initialized on unit bind/ability add, cleared on ability removal/unit removal, and uses the restored simulation clock. Per-player `SetPlayerAbilityAvailable` suppression stops expansion without deleting existing Blight; when availability returns, an overdue step may happen immediately, matching Warsmash's disabled-tick behavior.
+The unit stores the concrete alias, current radius, and next expansion deadline in its `blightGrowth_t` component (`G_GetBlightGrowth`, attached with `G_AddComponent(ent, COMPONENT_BLIGHT_GROWTH)`). The state is initialized on unit bind/ability add, cleared on ability removal/unit removal, and uses the restored simulation clock. Per-player `SetPlayerAbilityAvailable` suppression stops expansion without deleting existing Blight; when availability returns, an overdue step may happen immediately, matching Warsmash's disabled-tick behavior.
 
 The implementation intentionally does not erase Blight when the source dies or disappears. `Abli` paints world state; removal is an explicit Blight operation, not reference-counted aura teardown.
 
@@ -43,7 +43,7 @@ Natural HP regeneration with `uhrt=blight` queries the current Blight field at t
 
 ## Save/load
 
-Save format 32 writes the final game-owned Blight plane after the level field stream and restores it before entity records. Each unit's `blight_growth` scalar state is part of the raw versioned `edict_t` record. This preserves both script mutations and the expansion progress/deadline of `Abli` sources. The saved byte count must exactly match the Blight grid initialized for the freshly loaded map.
+Save format 32 writes the final game-owned Blight plane after the level field stream and restores it before entity records. Each unit's Blight Growth scalar state is a component payload in the typed pool section (see [pooled entity state](pooled-entity-state.md#optional-components)). This preserves both script mutations and the expansion progress/deadline of `Abli` sources. The saved byte count must exactly match the Blight grid initialized for the freshly loaded map.
 
 ## Client presentation
 

@@ -39,7 +39,7 @@ refactor reproduces that failure in the effect lifecycle test and fixes it throu
 
 `UnitData.canSleep` (`usle`) is already parsed from Warcraft unit data and is the
 authored default for whether a unit may use natural night sleep.  Runtime spawn
-initialization copies that value into `edict_s.sleep.can_sleep`; `UnitAddSleep`
+initialization copies that value into the unit's `sleep_t` component (`G_GetSleep(unit)->can_sleep`); `UnitAddSleep`
 may then change the runtime value for neutral units without mutating the shared
 SLK row.
 
@@ -133,9 +133,10 @@ prevents new natural sleep.
 
 ## Save/load
 
-The mutable natural-sleep fields live on `edict_s`, so they cross the ordinary
-raw-edict save boundary together with the unit.  Save format version 15 marks the
-`edict_t` layout change.  `currentmove` already uses the existing `F_MMOVE`
+The mutable natural-sleep fields live in the `sleep_t` component, persisted in the
+typed pool section with the unit's entity index (format 109; see
+[pooled entity state](pooled-entity-state.md#optional-components)). Save format
+version 15 originally added them to the raw edict.  `currentmove` already uses the existing `F_MMOVE`
 relocation contract, so a unit saved while using the static creep-sleep move can
 restore that move without serializing an address. This ownership refactor changes
 neither the edict layout nor its field schema; saves use the existing same-build

@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 108, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 109, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -1053,3 +1053,14 @@ exclusion and the pool descriptor carries the exact component ID. The model rebi
 after load reaches the Polymorph snapshot through `G_GetPolymorph`, and projectile
 impact in `g_phys.c` reads the saved splash profile through `G_GetArtillery`.
 Version 107 saves are rejected; the wire format is unchanged.
+
+## Third component slice (version 109)
+
+Sleep, Rally, Sacrifice, Unsummon and Blight Growth move onto the component list
+(`COMPONENT_SLEEP`, `COMPONENT_RALLY`, `COMPONENT_SACRIFICE`, `COMPONENT_UNSUMMON`,
+`COMPONENT_BLIGHT_GROWTH`). Their edict members and `F_IGNORE` schema rows are
+removed. `rally->entity`, `sacrifice->worker` and `unsummon->target` keep their
+`F_EDICT` fixups behind the runtime `component.next` exclusion; Blight Growth and
+Sleep payloads are scalar. The SC2API observation reads rally state through
+`G_GetRally`, and Train checks queued Sacrifice results through `G_GetSacrifice`.
+Version 108 saves are rejected; the wire format is unchanged.

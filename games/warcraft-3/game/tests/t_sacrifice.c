@@ -115,8 +115,8 @@ TEST(wc3_spell, sacrifice_pit_target_hides_acolyte_and_queues_shade) {
     result->collision = 16.0f;
     T_EQ(result->class_id, ID_SHADE);
     T_ASSERT(G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
-    T_ASSERT(result->sacrifice);
-    T_ASSERT(result->sacrifice->worker == fix.acolyte);
+    T_NOT_NULL(G_GetSacrifice(result));
+    T_ASSERT(G_GetSacrifice(result)->worker == fix.acolyte);
     T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
     T_ASSERT(G_UnitHasFlag(fix.acolyte, UNIT_FLAG_PAUSED));
     /* Sacrifice does not reserve the Shade's food while the Acolyte still owns
@@ -147,7 +147,7 @@ TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_ex
     T_ASSERT(!fix.acolyte->inuse);
     T_ASSERT(result->inuse);
     T_ASSERT(!G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
-    T_NULL(result->sacrifice);
+    T_NULL(G_GetSacrifice(result));
     T_ASSERT(!(result->s.renderfx & RF_HIDDEN));
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
     sac_done(&fix);
@@ -292,8 +292,8 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     T_ASSERT(fix.pit->build == result);
-    T_ASSERT(result->sacrifice);
-    T_ASSERT(result->sacrifice->worker == fix.acolyte);
+    T_NOT_NULL(G_GetSacrifice(result));
+    T_ASSERT(G_GetSacrifice(result)->worker == fix.acolyte);
     result_balance = *result->data.UnitBalance;
     result_balance.buildTime = 1;
     result_balance.foodUsed = 1;

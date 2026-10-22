@@ -139,7 +139,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 106 guards Wander private destination ownership across entity-slot reuse. */
 /* Version 107 replaces Way Gate and Avatar edict pointers with typed component attachments. */
 /* Version 108 moves Polymorph, Raven Form, Ensnare and artillery profiles onto the component list. */
-static uint32_t const save_version = 108;
+/* Version 109 moves Sleep, Rally, Sacrifice, Unsummon and Blight Growth onto the component list. */
+static uint32_t const save_version = 109;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -639,6 +640,7 @@ static field_t const construction_fields[] = {
 };
 
 static field_t const rally_fields[] = {
+    TF(rally_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(rally_t, entity, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -650,11 +652,13 @@ static field_t const revival_fields[] = {
 };
 
 static field_t const sacrifice_fields[] = {
+    TF(sacrifice_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(sacrifice_t, worker, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const unsummon_fields[] = {
+    TF(unsummon_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(unsummon_t, target, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -897,6 +901,7 @@ static field_t const soultrap_fields[] = {
 };
 
 static field_t const sleep_fields[] = {
+    TF(sleep_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(sleep_t, can_sleep, F_INT),
     TF(sleep_t, sleeping, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
@@ -998,15 +1003,11 @@ field_t edict_fields[] = {
     F(edict_s, summon_ability, F_INT),
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, rally, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, food, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, buildwork, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, revival, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, sacrifice, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, unsummon, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, shadowmeld, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, blight_growth, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, mineoverlay, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1016,7 +1017,6 @@ field_t edict_fields[] = {
     F(edict_s, cargo, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, sleep, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, soultrap, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2239,17 +2239,17 @@ static savePool_t const save_pools[] = {
     { "wander", offsetof(edict_t, wander), sizeof(wander_t), wander_fields, SaveAllocWander, MAX_ENTITIES },
     { "construction", offsetof(edict_t, construction), sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP },
     { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP },
-    { "rally", offsetof(edict_t, rally), sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP },
+    { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
     { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP },
     { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP },
     { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP },
-    { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP },
-    { "unsummon", offsetof(edict_t, unsummon), sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP },
+    { "sacrifice", 0, sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP, COMPONENT_SACRIFICE },
+    { "unsummon", 0, sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP, COMPONENT_UNSUMMON },
     { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP },
     { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP },
     { "polymorph", 0, sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP, COMPONENT_POLYMORPH },
     { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
-    { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP },
+    { "blight_growth", 0, sizeof(blightGrowth_t), component_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
     { "ensnare", 0, sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP, COMPONENT_ENSNARE },
     { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP },
     { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP },
@@ -2262,7 +2262,7 @@ static savePool_t const save_pools[] = {
     { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
     { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
     { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
-    { "sleep", offsetof(edict_t, sleep), sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP },
+    { "sleep", 0, sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP, COMPONENT_SLEEP },
     { "soultrap", offsetof(edict_t, soultrap), sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP },
     { "unit_state", offsetof(edict_t, unit_state), sizeof(unitState_t), unit_state_fields, SaveAllocUnitState, MAX_ENTITIES },
     { "sound", offsetof(edict_t, sound), sizeof(unitSounds_t), sound_fields, SaveAllocSounds, MAX_ENTITIES },
@@ -3356,8 +3356,12 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->buildwork->gold_accum = 2.5f;
     unit->shadowmeld->fade_start = 1750;
     unit->shadowmeld->hide_order_active = true;
-    unit->blight_growth->ability = MAKEFOURCC('A','b','l','i');
-    unit->blight_growth->radius = 192.0f;
+    G_GetBlightGrowth(unit)->ability = MAKEFOURCC('A','b','l','i');
+    G_GetBlightGrowth(unit)->radius = 192.0f;
+    G_GetSleep(unit)->sleeping = true;
+    G_GetRally(unit)->entity = target;
+    G_GetSacrifice(unit)->worker = target;
+    G_GetUnsummon(unit)->target = target;
     G_GetWaygate(unit)->destination = (vec2_t){128, 256};
     G_GetWaygate(unit)->active = true;
     G_GetAvatar(unit)->health = 275;
@@ -3412,8 +3416,12 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_FEQ(unit->buildwork->gold_accum, 2.5f, 0.001f);
     T_EQ(unit->shadowmeld->fade_start, 1750);
     T_ASSERT(unit->shadowmeld->hide_order_active);
-    T_EQ(unit->blight_growth->ability, MAKEFOURCC('A','b','l','i'));
-    T_FEQ(unit->blight_growth->radius, 192.0f, 0.001f);
+    T_EQ(G_GetBlightGrowth(unit)->ability, MAKEFOURCC('A','b','l','i'));
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 192.0f, 0.001f);
+    T_ASSERT(G_GetSleep(unit)->sleeping);
+    T_ASSERT(G_GetRally(unit)->entity == target);
+    T_ASSERT(G_GetSacrifice(unit)->worker == target);
+    T_ASSERT(G_GetUnsummon(unit)->target == target);
     T_ASSERT(G_GetWaygate(unit)->active);
     T_FEQ(G_GetAvatar(unit)->health, 275, 0.001f);
     T_EQ(G_GetAvatar(unit)->component.id, COMPONENT_AVATAR);

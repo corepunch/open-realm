@@ -70,19 +70,22 @@ static bool neutral_hostile_sleep_disabled(void) {
 
 /* Report whether a unit retains the runtime permission to enter natural sleep. */
 bool G_UnitCanSleep(edict_t const *unit) {
-    return unit_is_neutral_sleep_candidate(unit) && unit->sleep && unit->sleep->can_sleep;
+    sleep_t const *sleep = G_GetSleep(unit);
+    return unit_is_neutral_sleep_candidate(unit) && sleep && sleep->can_sleep;
 }
 
 /* Distinguish the authored creep sleep move from other animation moves. */
 bool G_UnitIsSleeping(edict_t const *unit) {
-    return unit && unit->sleep && unit->sleep->sleeping && unit->currentmove == &creep_sleep_move;
+    sleep_t const *sleep = G_GetSleep(unit);
+    return sleep && sleep->sleeping && unit->currentmove == &creep_sleep_move;
 }
 
 /* Clear natural sleep and remove its persistent target presentation effect. */
 static void creep_sleep_leave(edict_t *unit) {
-    if (!unit || !unit->sleep || !unit->sleep->sleeping)
+    sleep_t *sleep = G_GetSleep(unit);
+    if (!sleep || !sleep->sleeping)
         return;
-    unit->sleep->sleeping = false;
+    sleep->sleeping = false;
     remove_creep_sleep_overlay(unit);
 }
 
@@ -104,7 +107,7 @@ static bool creep_sleep_enter(edict_t *unit, uint32_t code) {
     }
 
     unit_setmove(unit, &creep_sleep_move);
-    unit->sleep->sleeping = true;
+    G_GetSleep(unit)->sleeping = true; /* G_UnitCanSleep established the record above. */
     add_creep_sleep_overlay(unit, code);
     return true;
 }
@@ -131,23 +134,22 @@ BZ_ABILITY_PROC(CAbilitySleepAlways) {
 /* ACsp is implicit in UnitData.canSleep; it consumes lifecycle messages even when
  * the unit has no explicit ACsp command-card entry. The clock remains game-owned. */
 BZ_ABILITY_PROC(CAbilityCreepSleep) {
+    sleep_t *sleep;
     switch (msg) {
     case A_UNIT_INIT:
-        if (!ent->sleep && !ent->data.UnitData->canSleep) return true;
-        if (!ent->sleep) ent->sleep = G_AllocSleep();
-        assert(ent->sleep);
-        ent->sleep->can_sleep = ent->data.UnitData->canSleep;
-        if (!ent->sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
+        if (!G_GetSleep(ent) && !ent->data.UnitData->canSleep) return true;
+        sleep = G_AddComponent(ent, COMPONENT_SLEEP);
+        sleep->can_sleep = ent->data.UnitData->canSleep;
+        if (!sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
         return true;
     case A_IDLE: return call && call->item && creep_sleep_enter(ent, call->item->code);
     case A_ENABLE:
     case A_DISABLE:
         if (!unit_is_neutral_sleep_candidate(ent)) return false;
-        if (!ent->sleep && msg == A_DISABLE) return true;
-        if (!ent->sleep) ent->sleep = G_AllocSleep();
-        assert(ent->sleep);
-        ent->sleep->can_sleep = msg == A_ENABLE;
-        if (!ent->sleep->can_sleep) creep_sleep_wake(ent);
+        if (!G_GetSleep(ent) && msg == A_DISABLE) return true;
+        sleep = G_AddComponent(ent, COMPONENT_SLEEP);
+        sleep->can_sleep = msg == A_ENABLE;
+        if (!sleep->can_sleep) creep_sleep_wake(ent);
         return true;
     default: return CAbilitySleepAlways(ent, msg, call);
     }

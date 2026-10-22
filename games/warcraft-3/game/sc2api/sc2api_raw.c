@@ -272,11 +272,12 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
          * therefore cannot change the observation from a hidden entity rally
          * to a newly exposed default. Never invoke the mutating resolver for
          * an entity whose current state this player cannot observe. */
-        if (ent->rally && ent->rally->type == RALLY_TARGET_POINT)
+        rally_t const *rec = G_GetRally(ent);
+        if (rec && rec->type == RALLY_TARGET_POINT)
             rally_type = G_ResolveRallyTarget((edict_t *)ent, &rally_point, &rally_entity);
-        else if (ent->rally && ent->rally->type == RALLY_TARGET_ENTITY) {
-            edict_t *target = ent->rally->entity;
-            if (target && target->inuse && target->spawn_time == ent->rally->entity_spawn_time &&
+        else if (rec && rec->type == RALLY_TARGET_ENTITY) {
+            edict_t *target = rec->entity;
+            if (target && target->inuse && target->spawn_time == rec->entity_spawn_time &&
                 G_FowPlayerCanHoverEntity(player, target))
                 rally_type = G_ResolveRallyTarget((edict_t *)ent, &rally_point, &rally_entity);
         }
