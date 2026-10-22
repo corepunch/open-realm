@@ -1685,7 +1685,8 @@ typedef enum {
     COMPONENT_SOULTRAP = 21,
     COMPONENT_RESEARCH = 22,
     COMPONENT_FOOD = 23,
-    COMPONENT_STOCK = 24
+    COMPONENT_STOCK = 24,
+    COMPONENT_CHANNEL = 25
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -2054,6 +2055,7 @@ typedef struct {
 
 /* Spell channel identity and cast serial; stale callbacks cannot match a replacement cast. */
 typedef struct {
+    component_t component;
     uint32_t code;     // ability code being channeled (0 = none)
     uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
     uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
@@ -2289,7 +2291,6 @@ struct edict_s {
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
     uint32_t unit_flags; /* independent entity gameplay switches; unitFlags_t */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
-    channel_t *channel;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     vec2_t old_origin; /* prior event sample: region/proximity events also track teleports, independent of travel */
@@ -4362,6 +4363,7 @@ static inline soulTrap_t *G_GetSoulTrap(edict_t const *ent) { return G_GetCompon
 static inline research_t *G_GetResearch(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RESEARCH); }
 static inline food_t *G_GetFood(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_FOOD); }
 static inline stock_t *G_GetStock(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_STOCK); }
+static inline channel_t *G_GetChannel(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CHANNEL); }
 /* A queue item or building researches while its record names an upgrade; completed research frees the record. */
 static inline bool G_UnitIsResearching(edict_t const *ent) { research_t const *r = G_GetResearch(ent); return r && r->upgrade; }
 /* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */

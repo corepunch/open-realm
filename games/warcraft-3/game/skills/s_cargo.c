@@ -477,9 +477,8 @@ static bool corpse_cargo_start(edict_t *transport, edict_t *corpse, uint32_t cod
     thinker->owner = transport;
     thinker->goalentity = corpse;
     thinker->class_id = code;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->target_spawn_time = corpse->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->target_spawn_time = corpse->spawn_time;
     thinker->think = corpse_cargo_approach_think;
     return true;
 }

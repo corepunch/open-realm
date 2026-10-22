@@ -608,9 +608,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = human_ability_think; human_ability_think(thinker);
 }

@@ -2876,9 +2876,9 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     if (missile) {
         T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
         T_ASSERT(missile->goalentity == target);
-        T_EQ(missile->channel->target_spawn_time, target->spawn_time);
-        T_FEQ(missile->channel->origin.x, 200.0f, 0.001f);
-        T_FEQ(missile->channel->origin.y, 0.0f, 0.001f);
+        T_EQ(G_GetChannel(missile)->target_spawn_time, target->spawn_time);
+        T_FEQ(G_GetChannel(missile)->origin.x, 200.0f, 0.001f);
+        T_FEQ(G_GetChannel(missile)->origin.y, 0.0f, 0.001f);
         T_NOT_NULL(G_GetArtillery(missile));
         T_EQ(G_GetArtillery(missile)->attack_type, ATK_NORMAL);
         T_EQ(G_GetArtillery(missile)->area_targets, WC3_TARGET_FLAG_GROUND);
@@ -2915,8 +2915,8 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     attacker->aiflags |= AI_IMMOBILE; /* in-range static artillery may still fire */
 
     T_ASSERT(S_OrderAttackGround(attacker, &point));
-    T_FEQ(attacker->channel->origin.x, point.x, 0.001f);
-    T_FEQ(attacker->channel->origin.y, point.y, 0.001f);
+    T_FEQ(G_GetChannel(attacker)->origin.x, point.x, 0.001f);
+    T_FEQ(G_GetChannel(attacker)->origin.y, point.y, 0.001f);
     T_NOT_NULL(attacker->currentmove);
     attacker->currentmove->think(attacker); /* walk state -> attack windup */
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttackGround);
@@ -2930,8 +2930,8 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     T_NOT_NULL(missile);
     if (missile) {
         T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
-        T_FEQ(missile->channel->origin.x, point.x, 0.001f);
-        T_FEQ(missile->channel->origin.y, point.y, 0.001f);
+        T_FEQ(G_GetChannel(missile)->origin.x, point.x, 0.001f);
+        T_FEQ(G_GetChannel(missile)->origin.y, point.y, 0.001f);
     }
 }
 
@@ -4034,7 +4034,7 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
     unit->currentmove->think(unit);
     FILTER_EDICTS(ent, ent->owner == unit && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
-    if (missile) T_FEQ(missile->channel->origin.x, point.x, 0.001f);
+    if (missile) T_FEQ(G_GetChannel(missile)->origin.x, point.x, 0.001f);
 }
 
 /* Expiry removes the restriction; the retained order then progresses. */
@@ -4079,10 +4079,10 @@ TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
     T_ASSERT(!unit->currentmove || unit->currentmove->proc != CAbilityAttackGround);
     S_OrderAttackGround(unit, &point);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
-    T_FEQ(unit->channel->origin.x, point.x, 0.001f);
+    T_FEQ(G_GetChannel(unit)->origin.x, point.x, 0.001f);
     S_OrderAttackGround(unit, &other);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
-    T_FEQ(unit->channel->origin.x, other.x, 0.001f);
+    T_FEQ(G_GetChannel(unit)->origin.x, other.x, 0.001f);
 }
 
 

@@ -30,7 +30,7 @@ typedef struct {
  * All hero/unit spells route through a single cmd entry point (spell_cmd) that
  * reads the ability code, validates mana/cooldown, configures targeting, and
  * dispatches an A_EXECUTE message once a valid target is
- * acquired.  channeled spells set ent->channel state; spell_run_frame()
+ * acquired.  channeled spells set G_GetChannel(ent) state; spell_run_frame()
  * enforces movement-cancel for them.
  *
  * Design mirrors:
@@ -77,7 +77,7 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
         return true;
     case A_VALIDATE: return true;
     case A_MOVE_LEAVE:
-        if (ent && ent->channel && ent->channel->code == call->item->code) S_SpellCancelChannel(ent);
+        if (ent && G_GetChannel(ent) && G_GetChannel(ent)->code == call->item->code) S_SpellCancelChannel(ent);
         return true;
     default:
         return false;
@@ -586,7 +586,7 @@ void S_SpellCursorSplat(edict_t *clent, float radius) {
 }
 
 bool S_SpellIsChanneling(edict_t *caster) {
-    return caster && caster->channel && caster->channel->code != 0;
+    return caster && G_GetChannel(caster) && G_GetChannel(caster)->code != 0;
 }
 
 /* Some temporary summons own a timed lifecycle but are not destroyable by
@@ -600,10 +600,11 @@ bool S_SummonIsDispelImmune(edict_t const *unit) {
 }
 
 void S_SpellCancelChannel(edict_t *caster) {
+    channel_t *cast = G_GetChannel(caster);
     uint32_t code;
-    if (!caster || !caster->channel || !caster->channel->code) return;
-    code = caster->channel->code;
-    caster->channel->code = 0;
+    if (!caster || !cast || !cast->code) return;
+    code = cast->code;
+    cast->code = 0;
     /* Notify the channeled ability so it can strip owned buffs (Mana Flare Bmfl). */
     {
         abilityitem_t item = S_AbilityItem(code);
@@ -619,20 +620,19 @@ edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) 
     edict_t *ent = G_Spawn();
     if (!ent) return NULL;
     ent->owner = owner; ent->class_id = code; ent->goalentity = target;
-    ent->channel = G_AllocChannel();
-    assert(ent->channel);
-    ent->channel->owner_spawn_time = owner ? owner->spawn_time : 0;
-    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
+    channel_t *cast = G_AddComponent(ent, COMPONENT_CHANNEL);
+    cast->owner_spawn_time = owner ? owner->spawn_time : 0;
+    cast->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
 }
 
 /* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
 edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
     edict_t *ent;
-    assert(caster && caster->channel);
+    assert(caster && G_GetChannel(caster));
     ent = S_SpellIdentityThinker(caster, code, NULL);
     if (!ent) return NULL;
-    ent->channel->serial = caster->channel->serial;
+    G_GetChannel(ent)->serial = G_GetChannel(caster)->serial;
     return ent;
 }
 
@@ -642,7 +642,7 @@ edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *ta
     edict_t *ent = S_SpellChannelThinker(caster, code);
     if (!ent) return NULL;
     ent->goalentity = target;
-    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
+    G_GetChannel(ent)->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
 }
 
@@ -651,16 +651,18 @@ edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *ta
  * liveness, timing and cancellation policy remain with the owning lifecycle. */
 edict_t *S_SpellChannelOwner(edict_t const *ent) {
     edict_t *owner;
-    if (!ent || !ent->channel || !(owner = ent->owner) || !owner->inuse) return NULL;
-    return owner->spawn_time == ent->channel->owner_spawn_time ? owner : NULL;
+    channel_t const *cast = G_GetChannel(ent);
+    if (!cast || !(owner = ent->owner) || !owner->inuse) return NULL;
+    return owner->spawn_time == cast->owner_spawn_time ? owner : NULL;
 }
 
 /* Resolve the unit incarnation captured by a target-channel thinker. Liveness,
  * range, relation and completion policy remain with the owning ability. */
 edict_t *S_SpellChannelTarget(edict_t const *ent) {
     edict_t *target;
-    if (!ent || !ent->channel || !(target = ent->goalentity) || !target->inuse) return NULL;
-    return target->spawn_time == ent->channel->target_spawn_time ? target : NULL;
+    channel_t const *cast = G_GetChannel(ent);
+    if (!cast || !(target = ent->goalentity) || !target->inuse) return NULL;
+    return target->spawn_time == cast->target_spawn_time ? target : NULL;
 }
 
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
@@ -668,15 +670,15 @@ bool S_SpellChannelActive(edict_t *ent) {
     edict_t *caster = S_SpellChannelOwner(ent);
     if (!caster) return false;
     spell_run_frame(caster);
-    return !M_IsDead(caster) && caster->channel && caster->channel->code == ent->class_id &&
-        caster->channel->serial == ent->channel->serial;
+    return !M_IsDead(caster) && G_GetChannel(caster) && G_GetChannel(caster)->code == ent->class_id &&
+        G_GetChannel(caster)->serial == G_GetChannel(ent)->serial;
 }
 
 /* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
 void S_SpellEndChannel(edict_t *ent) {
     edict_t *caster = S_SpellChannelOwner(ent);
-    if (caster && caster->channel && caster->channel->code == ent->class_id &&
-        caster->channel->serial == ent->channel->serial)
+    if (caster && G_GetChannel(caster) && G_GetChannel(caster)->code == ent->class_id &&
+        G_GetChannel(caster)->serial == G_GetChannel(ent)->serial)
         S_SpellCancelChannel(caster);
     G_FreeEdict(ent);
 }
@@ -686,7 +688,8 @@ void S_SpellEndChannel(edict_t *ent) {
 /* Per-frame channel enforcement: if the caster has moved from cast_origin,
  * cancel the channel.  Called from G_RunEntity. */
 void spell_run_frame(edict_t *ent) {
-    if (!ent->channel || !ent->channel->code)
+    channel_t *cast = G_GetChannel(ent);
+    if (!cast || !cast->code)
         return;
 
     /* Stun or death interrupts channel. */
@@ -698,8 +701,8 @@ void spell_run_frame(edict_t *ent) {
     /* Movement cancel: caster moved from the position where channel began. */
     unsummon_t const *approach = G_GetUnsummon(ent);
     if (!(approach && approach->approaching) &&
-        (fabsf(ent->s.origin.x - ent->channel->origin.x) > 0.5f ||
-        fabsf(ent->s.origin.y - ent->channel->origin.y) > 0.5f)) {
+        (fabsf(ent->s.origin.x - cast->origin.x) > 0.5f ||
+        fabsf(ent->s.origin.y - cast->origin.y) > 0.5f)) {
         S_SpellCancelChannel(ent);
         return;
     }
@@ -746,12 +749,12 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);
 
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
 static void spell_begin_channel(edict_t *caster, uint32_t code) {
+    channel_t *cast = G_GetChannel(caster);
     if (caster->stand) caster->stand(caster);
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
-    caster->channel->serial++;
-    caster->channel->code = code;
-    caster->channel->origin = caster->s.origin2;
+    cast = G_AddComponent(caster, COMPONENT_CHANNEL);
+    cast->serial++;
+    cast->code = code;
+    cast->origin = caster->s.origin2;
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
@@ -880,7 +883,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    edict_t *source_item = thinker && thinker->channel ? thinker->channel->source_item : NULL;
+    edict_t *source_item = thinker && G_GetChannel(thinker) ? G_GetChannel(thinker)->source_item : NULL;
     bool const point_target = spell && target == thinker &&
         (spell->target_type == SPELL_TARGET_POINT || spell->target_type == SPELL_TARGET_UNIT_OR_POINT);
     /* Ability-owned entity cursors retain the entity and incarnation while
@@ -891,7 +894,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     spellTarget_t st;
 
     if (!caster || M_IsDead(caster) || !target || !spell ||
-        !spell_item_source_valid(caster, source_item, thinker->channel->source_item_spawn_time) ||
+        !spell_item_source_valid(caster, source_item, G_GetChannel(thinker)->source_item_spawn_time) ||
         (!point_target && !entity_point_target && spell->target_type != SPELL_TARGET_UNIT &&
          spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
         if (caster && caster->goalentity == thinker) {
@@ -938,7 +941,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         if (caster->goalentity == target) caster->goalentity = NULL;
         unit_stand(caster);
         spell_execute_point_target(clent, caster, code, level, spell, &target->s.origin2,
-                                   source_item, thinker->channel->source_item_spawn_time, thinker);
+                                   source_item, G_GetChannel(thinker)->source_item_spawn_time, thinker);
         G_FreeEdict(thinker);
         return;
     }
@@ -962,7 +965,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
 
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
-        .source_item = source_item, .source_item_spawn_time = thinker->channel->source_item_spawn_time
+        .source_item = source_item, .source_item_spawn_time = G_GetChannel(thinker)->source_item_spawn_time
     };
     unit_stand(caster);
     spell_execute_unit_target(&params, thinker);
@@ -985,13 +988,12 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
     thinker->goalentity = goal;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
-    thinker->channel->target_spawn_time = target ? target->spawn_time : 0;
+    channel_t *cast = G_AddComponent(thinker, COMPONENT_CHANNEL);
+    cast->owner_spawn_time = caster->spawn_time;
+    cast->target_spawn_time = target ? target->spawn_time : 0;
     thinker->class_id = code;
-    thinker->channel->source_item = source_item;
-    thinker->channel->source_item_spawn_time = source_item_spawn_time;
+    cast->source_item = source_item;
+    cast->source_item_spawn_time = source_item_spawn_time;
     thinker->think = S_SpellTargetApproachThink;
     thinker->freetime = G_Time();
     /* Replace the old pending cast before installing a new Move order. A unit
@@ -1361,10 +1363,9 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     missile->s.player = caster->s.player;
     G_InheritUnitTeamColor(missile, caster);
     missile->goalentity = target;
-    if (!missile->channel) missile->channel = G_AllocChannel();
-    assert(missile->channel);
-    missile->channel->owner_spawn_time = caster->spawn_time;
-    missile->channel->target_spawn_time = target->spawn_time;
+    channel_t *cast = G_AddComponent(missile, COMPONENT_CHANNEL);
+    cast->owner_spawn_time = caster->spawn_time;
+    cast->target_spawn_time = target->spawn_time;
     missile->owner = caster;
     missile->velocity = MAX(0.0f, speed) / 1000.0f;
     missile->movetype = MOVETYPE_FLYMISSILE;
@@ -1406,8 +1407,9 @@ void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
  * attributed an older projectile impact. */
 edict_t *S_SpellProjectileOwner(edict_t *missile) {
     edict_t *owner;
-    if (!missile || !missile->channel || !(owner = missile->owner) || !owner->inuse) return NULL;
-    return owner->spawn_time == missile->channel->owner_spawn_time ? owner : NULL;
+    channel_t const *cast = G_GetChannel(missile);
+    if (!cast || !(owner = missile->owner) || !owner->inuse) return NULL;
+    return owner->spawn_time == cast->owner_spawn_time ? owner : NULL;
 }
 
 /* Resolve the original unit incarnation carried by a homing spell missile.
@@ -1415,8 +1417,9 @@ edict_t *S_SpellProjectileOwner(edict_t *missile) {
  * conditions invalidate their ability-specific effect. */
 edict_t *S_SpellProjectileTarget(edict_t *missile) {
     edict_t *target;
-    if (!missile || !missile->channel || !(target = missile->goalentity) || !target->inuse) return NULL;
-    return target->spawn_time == missile->channel->target_spawn_time ? target : NULL;
+    channel_t const *cast = G_GetChannel(missile);
+    if (!cast || !(target = missile->goalentity) || !target->inuse) return NULL;
+    return target->spawn_time == cast->target_spawn_time ? target : NULL;
 }
 
 /* Shared eligibility for chained/bouncing unit spells. Selection order,

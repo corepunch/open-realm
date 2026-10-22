@@ -197,7 +197,7 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
     job->starting = true;
     job->approaching = false;
     G_GetUnsummon(thinker)->approaching = false;
-    worker->channel->origin = worker->s.origin2;
+    G_GetChannel(worker)->origin = worker->s.origin2;
     worker->goalentity = NULL;
     unit_setmove(worker, &unsummon_move_channel);
     job->starting = false;
@@ -208,6 +208,7 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
 }
 
 static void ai_unsummon_walk(edict_t *worker) {
+    channel_t *cast = G_GetChannel(worker);
     unsummon_t const *job = G_GetUnsummon(worker);
     edict_t *building = job ? job->target : NULL;
     float distance, footprint, step;
@@ -215,7 +216,7 @@ static void ai_unsummon_walk(edict_t *worker) {
     edict_t *thinker = NULL;
 
     if (!job || !job->approaching || !unsummon_target_valid(worker, building)) {
-        if (worker && worker->channel && worker->channel->code) S_SpellCancelChannel(worker);
+        if (worker && cast && cast->code) S_SpellCancelChannel(worker);
         return;
     }
     in_range = unsummon_in_range(worker, building);
@@ -229,7 +230,7 @@ static void ai_unsummon_walk(edict_t *worker) {
          * the thinker created by this approach order may start here. */
         FILTER_EDICTS(ent, ent->inuse && ent->think == unsummon_think &&
             ent->owner == worker && ent->class_id == job->ability &&
-            ent->channel->serial == worker->channel->serial &&
+            G_GetChannel(ent)->serial == cast->serial &&
             G_GetUnsummon(ent)->target == building &&
             S_SpellChannelTarget(ent) == building) {
             thinker = ent;
@@ -295,8 +296,8 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
         /* S_SpellCancelChannel clears code before A_CANCEL, but preserves serial.
          * A retired approach thinker must not cancel a later cast of this code.
          * Started demolition is intentionally independent of later cancellation. */
-        if (!caster->channel || !thinker->channel ||
-            thinker->channel->serial != caster->channel->serial) continue;
+        if (!G_GetChannel(caster) || !G_GetChannel(thinker) ||
+            G_GetChannel(thinker)->serial != G_GetChannel(caster)->serial) continue;
         {
             edict_t *target = S_SpellChannelTarget(thinker);
             if (target) unsummon_remove_status(target);
@@ -323,7 +324,7 @@ BZ_ABILITY_PROC(CAbilityUnsummon) {
     case A_MOVE_LEAVE: {
         unsummon_t const *job = G_GetUnsummon(ent);
         if (job && job->starting) return true;
-        if (ent && ent->channel && ent->channel->code) S_SpellCancelChannel(ent);
+        if (ent && G_GetChannel(ent) && G_GetChannel(ent)->code) S_SpellCancelChannel(ent);
         return true;
     }
     default:

@@ -137,7 +137,7 @@ TEST(wc3_spell, volcano_first_wave_damages_unit_and_building_with_factor) {
     vec2_t point = fix.enemy->s.origin2;
     T_ASSERT(G_UnitIsBuilding(fix.building->class_id));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
-    T_EQ(fix.caster->channel->code, BZ_ANVC);
+    T_EQ(G_GetChannel(fix.caster)->code, BZ_ANVC);
     T_FEQ(fix.enemy->health.value, 460, 0.001f);
     T_FEQ(fix.building->health.value, 880, 0.001f);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BSTU), 1);
@@ -207,7 +207,7 @@ TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
     T_FEQ(fix.enemy->health.value, 460, 0.001f);
     level.time = thinker->freetime; G_RunEntities();
     T_FEQ(fix.enemy->health.value, 420, 0.001f);
-    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
+    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
     T_ASSERT(!thinker->inuse);
     volcano_done(fix);
 }
@@ -220,7 +220,7 @@ TEST(wc3_spell, volcano_caster_move_cancels_remaining_waves) {
     T_NOT_NULL(thinker);
     fix.caster->s.origin2.x += 10; fix.caster->s.origin.x += 10;
     level.time = thinker->freetime; G_RunEntities();
-    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
+    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
     T_FEQ(fix.enemy->health.value, 460, 0.001f);
     T_ASSERT(!thinker->inuse);
     volcano_done(fix);

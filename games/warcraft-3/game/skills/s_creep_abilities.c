@@ -175,9 +175,8 @@ static void death_damage_aoe(edict_t *ent, uint32_t code) {
         return;
     }
     thinker->owner = ent;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = ent->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = ent->spawn_time;
     thinker->class_id = code;
     thinker->wait = (float)level;
     thinker->s.origin2 = ent->s.origin2;
