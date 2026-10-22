@@ -497,6 +497,7 @@ void S_AncientBeginMorph(edict_t *unit, bool rooted) {
     ancientRoot_t *root = G_GetAncientRoot(unit);
     float duration;
     if (!unit) return;
+    assert(root);
     duration = ancient_root_duration(unit, rooted);
     if (duration < 0.0f) return;
     root->approaching = false;
@@ -511,6 +512,7 @@ static void ancient_root_commit(edict_t *unit, bool rooted) {
     ancientRoot_t *root = G_GetAncientRoot(unit);
     abilityLevel_t const *level;
     if (!unit || !unit->inuse || M_IsDead(unit)) return;
+    assert(root);
     level = G_AbilityLevel(root->ability, 1);
     if (rooted) {
         ancient_root_restore_pathing(unit);
@@ -556,10 +558,11 @@ static bool ancient_root_validate(edict_t *unit, vec2_t const *point, vec2_t *sn
 
 static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     edict_t *unit;
+    ancientRoot_t *root;
     vec2_t snapped;
     if (!clent || !clent->client || !point || !(unit = G_GetMainSelectedUnit(clent->client)) ||
         !G_UnitCanControl(clent->client, unit) || !ancient_root_ability(unit) ||
-        G_GetAncientRoot(unit)->mode != ANCIENT_UPROOTED) {
+        !(root = G_GetAncientRoot(unit)) || root->mode != ANCIENT_UPROOTED) {
         G_ShowCommandErrorKey(clent, "Cantrootunit", "Target is no longer rootable.");
         G_ClearRootPlacementCursor(clent);
         return false;
@@ -571,7 +574,6 @@ static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     G_ClearRootPlacementCursor(clent);
     clent->client->menu.on_location_selected = NULL;
     clent->client->menu.supports_order_queue = false;
-    ancientRoot_t *root = G_GetAncientRoot(unit);
     root->destination = snapped;
     root->mode = ANCIENT_ROOTING;
     root->approaching = true;

@@ -26,6 +26,7 @@ static void G_ApplyDestructableAlivePathing(edict_t *ent) {
 
 static void G_ApplyDestructableDeathPathing(edict_t *ent) {
     destructable_t *dstr = G_GetDestructable(ent);
+    assert(ent && dstr);
     ent->pathtex = dstr->placement_solid
         ? dstr->death_pathtex
         : NULL;
@@ -138,8 +139,9 @@ bool G_DestructableIsAttackable(edict_t const *ent) {
 }
 
 bool G_DestructableIsWalkable(edict_t const *ent) {
+    destructable_t *dstr = G_GetDestructable(ent);
     return G_IsDestructable(ent) && ent->data.DestructableData->walkable &&
-        G_GetDestructable(ent)->placement_solid && !G_GetDestructable(ent)->dead;
+        dstr->placement_solid && !dstr->dead;
 }
 
 /* Warcraft target flags are shared with ordinary unit weapon targeting;
@@ -447,17 +449,18 @@ bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
 }
 
 bool G_SetDestructableLife(edict_t *ent, float life) {
+    destructable_t *dstr = G_GetDestructable(ent);
     if (!G_IsDestructable(ent)) {
         return false;
     }
     if (life <= 0.0f) {
-        if (G_GetDestructable(ent)->dead) {
+        if (dstr->dead) {
             ent->health.value = 0.0f;
             return true;
         }
         return G_KillDestructable(ent, NULL);
     }
-    if (G_GetDestructable(ent)->dead) {
+    if (dstr->dead) {
         return G_RestoreDestructable(ent, life, false);
     }
     ent->health.value = MAX(0.0f, MIN(life, ent->health.max_value));

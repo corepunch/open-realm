@@ -464,6 +464,8 @@ static void unit_spawn_script_explosion(edict_t *self) {
 }
 
 void unit_die(edict_t *self, edict_t *attacker) {
+    cargo_t *hold = G_GetCargo(self);
+    mineOverlay_t *ovl = G_GetMineOverlay(self);
     gameClient_t *owner;
     uint32_t selected_mask;
     bool summon_explodes, script_explodes;
@@ -499,7 +501,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
          * queue. Clear it before generic death cleanup walks build links. */
         self->build = NULL;
     }
-    if ((G_GetMineOverlay(self) && G_GetMineOverlay(self)->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
+    if ((ovl && ovl->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);
     if (G_UnitHasFlag(self, UNIT_FLAG_TRAINING)) G_ClearTrainingQueueFood(self);
@@ -524,7 +526,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
         self->sound->world_pending_event = EV_DEATH;
     }
     /* Destroying a transport ejects its passengers at the wreck. */
-    if (G_GetCargo(self) && G_GetCargo(self)->count > 0) {
+    if (hold && hold->count > 0) {
         cargo_drop_all(self);
     }
     /* Inventory abilities own their death policy. Non-Hero Backpack carriers

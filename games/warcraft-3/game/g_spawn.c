@@ -505,7 +505,7 @@ static void SP_DestructableModelFilename(DestructableData_t const *row,
 }
 
 static void SP_SpawnDestructable(edict_t *edict) {
-    destructable_t *dstr = G_GetDestructable(edict);
+    destructable_t *dstr;
     DestructableData_t const *row = edict->data.DestructableData;
     cstring_t path_tex = row->pathingTexture;
     float radius = row->radius;
@@ -1146,13 +1146,14 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
 
         FOR_LOOP(i, globals.num_edicts) {
             edict_t *existing = &g_edicts[i];
+            destructable_t *dstr = G_GetDestructable(existing);
             float distance;
 
             if (!existing->inuse ||
                 existing->class_id != class_id ||
                 !G_IsDestructable(existing) ||
-                !G_GetDestructable(existing)->map_placed ||
-                G_GetDestructable(existing)->script_bound) {
+                !dstr->map_placed ||
+                dstr->script_bound) {
                 continue;
             }
 

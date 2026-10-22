@@ -286,9 +286,11 @@ static void unsummon_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
 }
 
 static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
+    channel_t *caster_cast = G_GetChannel(caster);
     if (!caster || !code) return;
     for (uint32_t i = 1; i < globals.num_edicts; i++) {
         edict_t *thinker = g_edicts + i;
+        channel_t *thinker_cast = G_GetChannel(thinker);
         unsummon_t *job = G_GetUnsummon(thinker);
         if (!thinker->inuse || thinker->think != unsummon_think ||
             thinker->class_id != code || !job || !job->approaching || S_SpellChannelOwner(thinker) != caster)
@@ -296,8 +298,8 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
         /* S_SpellCancelChannel clears code before A_CANCEL, but preserves serial.
          * A retired approach thinker must not cancel a later cast of this code.
          * Started demolition is intentionally independent of later cancellation. */
-        if (!G_GetChannel(caster) || !G_GetChannel(thinker) ||
-            G_GetChannel(thinker)->serial != G_GetChannel(caster)->serial) continue;
+        if (!caster_cast || !thinker_cast ||
+            thinker_cast->serial != caster_cast->serial) continue;
         {
             edict_t *target = S_SpellChannelTarget(thinker);
             if (target) unsummon_remove_status(target);
@@ -310,6 +312,7 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
 }
 
 BZ_ABILITY_PROC(CAbilityUnsummon) {
+    channel_t *cast = G_GetChannel(ent);
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
@@ -324,7 +327,7 @@ BZ_ABILITY_PROC(CAbilityUnsummon) {
     case A_MOVE_LEAVE: {
         unsummon_t const *job = G_GetUnsummon(ent);
         if (job && job->starting) return true;
-        if (ent && G_GetChannel(ent) && G_GetChannel(ent)->code) S_SpellCancelChannel(ent);
+        if (ent && cast && cast->code) S_SpellCancelChannel(ent);
         return true;
     }
     default:

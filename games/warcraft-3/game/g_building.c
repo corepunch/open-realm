@@ -1561,12 +1561,13 @@ float G_BuildApproachDistance(uint32_t building_id) {
 }
 
 void G_UpdateConstructionAnimation(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     animation_t const *anim;
     float duration, fraction;
     uint32_t first, last, span, frame;
 
-    if (!building || !G_GetConstruction(building) || !building->data.UnitBalance) return;
-    if (building->data.UnitBalance->buildTime <= 0 && G_GetConstruction(building)->duration_ms <= 0) return;
+    if (!building || !site || !building->data.UnitBalance) return;
+    if (building->data.UnitBalance->buildTime <= 0 && site->duration_ms <= 0) return;
 
     /* Construction owns the birth sequence. Re-resolve it instead of relying
      * on whatever animation happened to be left on the entity by a previous
@@ -1577,9 +1578,9 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    duration = G_GetConstruction(building)->duration_ms > 0 ? G_GetConstruction(building)->duration_ms :
+    duration = site->duration_ms > 0 ? site->duration_ms :
                (float)building->data.UnitBalance->buildTime * 1000.0f;
-    fraction = MAX(0.0f, MIN(1.0f, G_GetConstruction(building)->progress / duration));
+    fraction = MAX(0.0f, MIN(1.0f, site->progress / duration));
     first = anim->interval[0];
     last = anim->interval[1];
     span = last - first;
@@ -1589,8 +1590,8 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     if (building->s.frame != frame) {
         fprintf(stderr, "WC3_BUILD animation building=%ld id=%.4s type=%d paused=%u progress=%.1f/%.1f health=%.1f/%.1f frame=%u->%u range=%u-%u\n",
                 (long)(building - g_edicts), (cstring_t)&building->class_id,
-                G_GetConstruction(building)->type, G_GetConstruction(building)->paused,
-                G_GetConstruction(building)->progress, duration, building->health.value,
+                site->type, site->paused,
+                site->progress, duration, building->health.value,
                 building->health.max_value, building->s.frame, frame, first, last);
     }
 #endif
@@ -1663,6 +1664,7 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
 static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool inside) {
     construction_t *site = G_GetConstruction(building);
     if (!building || !worker) return;
+    assert(site);
     site->worker = worker;
     site->worker_spawn_time = worker->spawn_time;
     site->worker_inside = inside;
@@ -1797,6 +1799,7 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
  * Publish whether any worker is *actually working* so render particles cannot
  * continue on a held Birth frame after the final Peasant moves away. */
 static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     bool working = false;
     bool const was_paused = (building->s.flags & EF_MDX_EMISSION_PAUSED) != 0;
 #ifdef WC3_DEBUG_BUILD
@@ -1804,7 +1807,7 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
     edict_t const *working_worker = NULL;
 #endif
 
-    if (G_GetConstruction(building)->type != CONSTRUCTION_HUMAN) return;
+    if (site->type != CONSTRUCTION_HUMAN) return;
     if (!G_UnitHasFlag(building, UNIT_FLAG_PAUSED)) {
         FOR_LOOP(i, globals.num_edicts) {
             edict_t const *worker = &g_edicts[i];
@@ -1825,7 +1828,7 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
                 (long)(building - g_edicts), (cstring_t)&building->class_id,
                 was_paused, !working,
                 working_worker ? (long)(working_worker - g_edicts) : -1L,
-                G_GetConstruction(building)->progress, building->health.value,
+                site->progress, building->health.value,
                 building->health.max_value, building->s.frame,
                 building->build ? (long)(building->build - g_edicts) : -1L);
     }
@@ -1839,12 +1842,12 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
             last_status_log[number] = now;
             fprintf(stderr, "WC3_BUILD paused-status building=%u id=%.4s time=%u progress=%.1f duration=%.1f health=%.1f/%.1f frame=%u anim=%s range=%u-%u flags=0x%08x worker=%ld build=%ld\n",
                     number, (cstring_t)&building->class_id, now,
-                    G_GetConstruction(building)->progress, G_GetConstruction(building)->duration_ms,
+                    site->progress, site->duration_ms,
                     building->health.value, building->health.max_value, building->s.frame,
                     anim && anim->name[0] ? anim->name : "<none>",
                     anim ? anim->interval[0] : 0, anim ? anim->interval[1] : 0,
                     building->s.flags,
-                    G_GetConstruction(building)->worker ? (long)(G_GetConstruction(building)->worker - g_edicts) : -1L,
+                    site->worker ? (long)(site->worker - g_edicts) : -1L,
                     building->build ? (long)(building->build - g_edicts) : -1L);
         }
     }
@@ -1899,17 +1902,19 @@ void G_RunConstructionFrame(edict_t *building) {
  * worker before the target enters death/completion cleanup; otherwise workers
  * retain pointers to an entity whose construction state no longer exists. */
 void G_StopConstruction(edict_t *building) {
-    if (!building || !G_GetConstruction(building)) return;
+    construction_t *site = G_GetConstruction(building);
+    if (!building || !site) return;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-stop building=%ld id=%.4s type=%d health=%.1f/%.1f progress=%.1f primary=%ld build=%ld\n",
-            (long)(building - g_edicts), (cstring_t)&building->class_id, G_GetConstruction(building)->type,
-            building->health.value, building->health.max_value, G_GetConstruction(building)->progress,
-            G_GetConstruction(building)->primary_builder ? (long)(G_GetConstruction(building)->primary_builder - g_edicts) : -1L,
+            (long)(building - g_edicts), (cstring_t)&building->class_id, site->type,
+            building->health.value, building->health.max_value, site->progress,
+            site->primary_builder ? (long)(site->primary_builder - g_edicts) : -1L,
             building->build ? (long)(building->build - g_edicts) : -1L);
 #endif
 
-    FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building &&
-                           G_GetBuildwork(worker) && G_GetBuildwork(worker)->ability) {
+    FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building) {
+        buildwork_t const *work = G_GetBuildwork(worker);
+        if (!work || !work->ability) continue;
         S_CancelRepair(worker);
         if (worker->stand) worker->stand(worker);
     }
@@ -1934,33 +1939,34 @@ static int32_t G_ConstructionCancelRefund(int32_t paid) {
  * construct-cancel events and refund only the recorded base construction
  * payment, then use ordinary unit death for selection/food/death semantics. */
 bool G_CancelStructureConstruction(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     gameClient_t *payer;
     int32_t gold, lumber;
 
-    if (!building || !building->inuse || !G_GetConstruction(building) ||
+    if (!building || !building->inuse || !site ||
         (building->svflags & SVF_DEADMONSTER) || !G_UnitIsStructure(building)) {
         return false;
     }
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-cancel building=%ld id=%.4s health=%.1f/%.1f progress=%.1f payer=%d\n",
             (long)(building - g_edicts), (cstring_t)&building->class_id, building->health.value,
-            building->health.max_value, G_GetConstruction(building)->progress, G_GetConstruction(building)->payer);
+            building->health.max_value, site->progress, site->payer);
 #endif
 
-    gold = G_GetConstruction(building)->paid
-        ? G_ConstructionCancelRefund(G_GetConstruction(building)->gold) : 0;
-    lumber = G_GetConstruction(building)->paid
-        ? G_ConstructionCancelRefund(G_GetConstruction(building)->lumber) : 0;
-    payer = G_GetPlayerClientByNumber(G_GetConstruction(building)->payer);
+    gold = site->paid
+        ? G_ConstructionCancelRefund(site->gold) : 0;
+    lumber = site->paid
+        ? G_ConstructionCancelRefund(site->lumber) : 0;
+    payer = G_GetPlayerClientByNumber(site->payer);
 
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
     G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_CANCEL);
 
-    if (G_GetConstruction(building)->paid && payer &&
-        payer->ps.number == G_GetConstruction(building)->payer) {
+    if (site->paid && payer &&
+        payer->ps.number == site->payer) {
         payer->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += gold;
         payer->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += lumber;
-        G_GetConstruction(building)->paid = false;
+        site->paid = false;
         G_InvalidateCommands(payer);
         G_MarkMultiboardPlayerDirty(payer->ps.number);
         if (payer->connected)
@@ -1972,6 +1978,7 @@ bool G_CancelStructureConstruction(edict_t *building) {
 }
 
 void G_CompleteConstruction(edict_t *building) {
+    construction_t *building_site = G_GetConstruction(building);
     gameClient_t *client;
     edict_t *hidden_construction_worker = NULL;
     bool legacy;
@@ -1982,22 +1989,22 @@ void G_CompleteConstruction(edict_t *building) {
      * self-linking building->build.  Both lifecycles must converge here so
      * completion grants supply and publishes CONSTRUCT_FINISH exactly once. */
     legacy = building->build == building;
-    if (!G_GetConstruction(building) && !legacy) return;
+    if (!building_site && !legacy) return;
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-enter building=%ld id=%.4s player=%u legacy=%d active=%d primary_builder=%ld build_link=%ld health=%.1f/%.1f\n",
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
-                (unsigned)building->s.player, legacy, (G_GetConstruction(building) != NULL),
-                G_GetConstruction(building) && G_GetConstruction(building)->primary_builder
-                    ? (long)(G_GetConstruction(building)->primary_builder - globals.edicts) : -1L,
+                (unsigned)building->s.player, legacy, (building_site != NULL),
+                building_site && building_site->primary_builder
+                    ? (long)(building_site->primary_builder - globals.edicts) : -1L,
                 building->build ? (long)(building->build - globals.edicts) : -1L,
                 building->health.value, building->health.max_value);
     }
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
-    if (G_GetConstruction(building) && G_GetConstruction(building)->worker_inside)
+    if (building_site && building_site->worker_inside)
         hidden_construction_worker = G_ConstructionWorker(building);
-    if (G_GetConstruction(building)) G_ReleaseConstructionWorker(building, true);
+    if (building_site) G_ReleaseConstructionWorker(building, true);
     G_SetConstructionLoopSound(building, false);
     G_FreeConstruction(building);
     building->aiflags &= ~AI_HOLD_FRAME;

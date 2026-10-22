@@ -168,6 +168,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     G_CancelHeroRevives(unit);
     G_CancelTrainingQueue(unit, true);
     if (G_BuildingUpgradeActive(unit)) G_CancelBuildingUpgrade(unit);
+    ledger = G_GetFood(unit); /* Cancelling the queue may have attached or rewritten the ledger. */
     old_player = unit->s.player;
     old_client = G_FoodClient(old_player);
     new_client = G_FoodClient(player);

@@ -152,8 +152,10 @@ static componentType_t const *ComponentType(componentId_t id) {
         { COMPONENT_CONSTRUCTION, AllocConstructionComponent, ReleaseConstruction },
         { COMPONENT_ITEM, AllocItemComponent, ReleaseItem }
     };
-    FOR_LOOP(i, sizeof(component_types) / sizeof(component_types[0]))
-        if (component_types[i].id == id) return component_types + i;
+    /* IDs are dense from 1, so the table is indexed directly; the identity
+     * check keeps a reordered row from silently selecting another pool. */
+    size_t const count = sizeof(component_types) / sizeof(component_types[0]);
+    if (id >= 1 && (size_t)id <= count && component_types[id - 1].id == id) return component_types + id - 1;
     gi.error("WC3 unknown component type %u", (unsigned)id);
     abort();
 }

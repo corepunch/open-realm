@@ -611,7 +611,8 @@ void UI_UpdateCursorPresentation(gameClient_t *client) {
     }
     if (client->menu.dragged_item) {
         item = G_GetDraggedItem(client);
-        if (item && G_BuildInventoryItem(G_GetItem(item)->carrier, item, G_GetItem(item)->inventory_slot, &icon) && icon.art[0]) {
+        item_t *rec = G_GetItem(item);
+        if (item && G_BuildInventoryItem(rec->carrier, item, rec->inventory_slot, &icon) && icon.art[0]) {
             client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = WC3_POINTER_HOLDING;
             client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = gi.ImageIndex(icon.art);
         }

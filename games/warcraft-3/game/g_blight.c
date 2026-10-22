@@ -48,10 +48,11 @@ static float G_SnapBlightCorner(float value, float minimum) {
 }
 
 static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
+    destructable_t *dstr = G_GetDestructable(ent);
     pathTex_t const *pathtex;
 
-    if (!ent || !G_IsDestructable(ent) || G_GetDestructable(ent)->dead) return false;
-    pathtex = G_GetDestructable(ent)->alive_pathtex;
+    if (!ent || !G_IsDestructable(ent) || dstr->dead) return false;
+    pathtex = dstr->alive_pathtex;
     if (!pathtex || !pathtex->width || !pathtex->height)
         return G_IsPointBlighted(&ent->s.origin2);
     FOR_LOOP(y, pathtex->height) FOR_LOOP(x, pathtex->width) {
@@ -65,8 +66,9 @@ static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
 }
 
 void G_BlightMarkDestructable(edict_t *ent) {
-    if (!ent || !G_IsDestructable(ent) || G_GetDestructable(ent)->blighted) return;
-    G_GetDestructable(ent)->blighted = true;
+    destructable_t *dstr = G_GetDestructable(ent);
+    if (!ent || !G_IsDestructable(ent) || dstr->blighted) return;
+    dstr->blighted = true;
     ent->vertex_color = MAKE(color32_t, 120, 185, 72, 255);
     G_SetUnitFlag(ent, UNIT_FLAG_VERTEX_COLOR_SET, true);
     /* Preserve the authored replaceable texture: synthesizing a Blight

@@ -134,10 +134,11 @@ BZ_ABILITY_PROC(CAbilitySleepAlways) {
 /* ACsp is implicit in UnitData.canSleep; it consumes lifecycle messages even when
  * the unit has no explicit ACsp command-card entry. The clock remains game-owned. */
 BZ_ABILITY_PROC(CAbilityCreepSleep) {
+    sleep_t *ent_sleep = G_GetSleep(ent);
     sleep_t *sleep;
     switch (msg) {
     case A_UNIT_INIT:
-        if (!G_GetSleep(ent) && !ent->data.UnitData->canSleep) return true;
+        if (!ent_sleep && !ent->data.UnitData->canSleep) return true;
         sleep = G_AddComponent(ent, COMPONENT_SLEEP);
         sleep->can_sleep = ent->data.UnitData->canSleep;
         if (!sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
@@ -146,7 +147,7 @@ BZ_ABILITY_PROC(CAbilityCreepSleep) {
     case A_ENABLE:
     case A_DISABLE:
         if (!unit_is_neutral_sleep_candidate(ent)) return false;
-        if (!G_GetSleep(ent) && msg == A_DISABLE) return true;
+        if (!ent_sleep && msg == A_DISABLE) return true;
         sleep = G_AddComponent(ent, COMPONENT_SLEEP);
         sleep->can_sleep = msg == A_ENABLE;
         if (!sleep->can_sleep) creep_sleep_wake(ent);

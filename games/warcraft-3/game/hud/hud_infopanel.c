@@ -813,6 +813,7 @@ uint32_t UI_WriteBuildingQueueShell(edict_t *ent, cstring_t action_key, bool sho
 }
 
 void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
+    cargo_t *hold = G_GetCargo(ent);
     UnitBalance_t const *balance = ent->data.UnitBalance;
     UnitWeapons_t const *weapons = ent->data.UnitWeapons;
     cstring_t name = G_LevelString(G_UnitProfile(ent->class_id)->properNames);
@@ -844,7 +845,7 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
          * custom maps can author a different number of visible slots. The
          * stock FDF has no slot frame definitions, so these native proxy
          * frames use inline authored values as permitted for native controls. */
-        if (G_GetCargo(ent) && G_GetCargo(ent)->count > 0 && S_CargoCapacity(ent) > 0) {
+        if (hold && hold->count > 0 && S_CargoCapacity(ent) > 0) {
             uint32_t const capacity = S_CargoCapacity(ent);
             cstring_t const slot_art = Theme_String("CargoBackdrop", NULL);
             uint32_t slot_image;
