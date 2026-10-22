@@ -41,6 +41,7 @@ Owner/shared-vision Shadow Meld presentation now reuses the WC3 per-client verte
 
 `games/warcraft-3/game/tests/t_shadowmeld.c` covers:
 
+- per-tick update-dispatch gating correctly following immediate runtime ability addition/removal, authored list changes, and hero rank acquisition without a persistent ability cache;
 - `Ashm`/`Ahid` no longer resolving to Wind Walk and remaining distinct effect classes;
 - both classes exposing the stock `ambush` order id;
 - class-scoped ability availability with both classes present, including the still-available class retaining passive Shadow Meld;

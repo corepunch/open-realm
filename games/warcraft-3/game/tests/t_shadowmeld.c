@@ -197,6 +197,51 @@ TEST(wc3_shadowmeld, passive_fades_after_stationary_night_interval) {
     shadowmeld_done(&fix);
 }
 
+/* The dispatcher must not retain a stale negative result when scripts add an
+ * ability, the unit's authored list changes, or the Hero skill rank is learned. */
+TEST(wc3_shadowmeld, update_dispatch_rechecks_dynamic_and_authored_ownership) {
+    shadowmeldFix_t fix;
+    UnitAbilities_t const empty_abilities = { .abilList = "Aatk" };
+    UnitAbilities_t const native_abilities = { .abilList = "Aatk,Ashm" };
+
+    shadowmeld_setup(&fix);
+    fix.unit->data.UnitAbilities = &empty_abilities;
+    ARRAY_COUNT(fix.unit->abilities.added) = 0;
+    memset(fix.unit->heroabilities, 0, sizeof(fix.unit->heroabilities));
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+
+    S_RunAbilityUpdates(fix.unit);
+    T_ASSERT(!fix.unit->shadowmeld ||
+             (!fix.unit->shadowmeld->active && !fix.unit->shadowmeld->fading));
+
+    /* Runtime ability addition must become visible on the very next tick. */
+    T_ASSERT(G_ActorAddSkill(fix.unit, ID_ASHM));
+    shadowmeld_tick(fix.unit, 1);
+    T_NOT_NULL(fix.unit->shadowmeld);
+    T_ASSERT(fix.unit->shadowmeld->fading);
+
+    /* Removal uses the normal disable event to break the active fade. */
+    T_ASSERT(G_ActorRemoveSkill(fix.unit, ID_ASHM));
+    shadowmeld_tick(fix.unit, 1);
+    T_ASSERT(!fix.unit->shadowmeld->fading);
+    T_ASSERT(!fix.unit->shadowmeld->active);
+
+    /* Authored list changes and hero ranks cannot depend on a cached bit. */
+    fix.unit->data.UnitAbilities = &native_abilities;
+    shadowmeld_tick(fix.unit, 1);
+    T_ASSERT(fix.unit->shadowmeld->fading);
+    S_ShadowMeldBreak(fix.unit); /* unit-type changes retire the old fade */
+    fix.unit->data.UnitAbilities = &empty_abilities;
+    shadowmeld_tick(fix.unit, 1);
+    T_ASSERT(!fix.unit->shadowmeld->fading);
+
+    fix.unit->heroabilities[0] = MAKE(heroability_t, .code = ID_AHID, .level = 1);
+    shadowmeld_tick(fix.unit, 1);
+    T_ASSERT(fix.unit->shadowmeld->fading);
+    shadowmeld_done(&fix);
+}
+
 TEST(wc3_shadowmeld, passive_fade_duration_uses_authored_shm1) {
     shadowmeldFix_t fix;
     AbilityData_t *ability;

@@ -2,6 +2,39 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## October 22 ARM64 per-unit ability-update dispatch
+
+The RG40XX-H `cycles:ppp` capture after the MDX pose-reuse change samples
+`monster_think -> S_RunAbilityUpdates` at 11.37% inclusive cycles, with a
+3.45% branch into `shadowmeld_common` and repeated
+`G_UnitAbilityLevel`/`G_HeroSkillLevel`/`actor_has_skill` lookups. These are
+inclusive sample shares, not time savings or an FPS estimate.
+
+`S_RunAbilityUpdates` still invokes the handlers in the original registration
+order and runs `S_UpdateUnitPassiveEffects` unconditionally. It now uses
+conservative per-tick negative guards for Shadow Meld (`Ashm`/`Ahid`),
+Graveyard (`Agyd`) and Exhume (`Aexh`). Native ability strings and runtime
+additions are checked without repeatedly entering hero/ability resolution;
+any learned Hero ability is deliberately treated as a possible alias. The
+original handler remains authoritative for removed, unavailable, inherited
+or custom abilities. No persistent per-unit cache is stored, so runtime
+ability changes, unit-type changes and save/load do not require invalidation.
+
+The state-only callbacks for Raven Form, Ensnare, Blight Growth, Mana Flare
+and Entangled Gold Mine are skipped when their required state is absent.
+Other handlers remain unconditional because Root can initialize itself from
+unit data and Disease Cloud resolves arbitrary aliases. Moon Well has a
+separate custom-alias-aware guard; its effect lifecycle callbacks remain
+active. Existing Shadow Meld state always reaches its handler; ability-disable
+lifecycle events still own fade/Hide cleanup.
+
+`tests/t_shadowmeld.c` covers absence, immediate runtime addition/removal,
+authored-list changes and hero-rank ownership through the real dispatcher.
+Existing Raven/Ensnare/corpse/mine tests cover the state-dependent paths.
+After rebuilding on ARM64, compare the same scene's `shadowmeld_common`,
+`G_UnitAbilityLevel` and `S_RunAbilityUpdates` samples and repeated median
+frame times. The profiler percentages alone do not establish speedup.
+
 ## October 21 native CPU profile
 
 An October 21 native CPU profile contains about 14K `cpu/cycles/P` samples and reports no lost samples. Its call graph puts 53.67% of sampled cycles under

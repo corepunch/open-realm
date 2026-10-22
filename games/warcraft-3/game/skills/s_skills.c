@@ -772,10 +772,72 @@ ability_t const *FindAbilityByOrder(cstring_t order) {
     return NULL;
 }
 
-/* Persistent effects can outlive their active order; the callback owns its per-unit state checks. */
+/* This is a conservative negative check, not an ability cache. UnitAddAbility,
+ * UnitRemoveAbility, morphs, hero ranks, and custom unit data can change between
+ * successive ticks (or after loading). False positives are harmless: the owner
+ * procedure still validates the full ability state. An active hero slot might
+ * resolve to this code through a custom AbilityData parent, so do not reject it
+ * based on the slot's literal rawcode. */
+static bool update_may_have_ability(edict_t const *ent, uint32_t code) {
+    char name[5] = {0};
+    cstring_t native;
+    if (!ent || !code) return false;
+    FOR_LOOP(i, MAX_HERO_ABILITIES)
+        if (ent->heroabilities[i].level) return true;
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))
+        if (ent->abilities.added[i] == code) return true;
+    native = ent->data.UnitAbilities ? ent->data.UnitAbilities->abilList : NULL;
+    if (!native) return false;
+    memcpy(name, &code, 4);
+    /* A substring hit can only cause extra work; it cannot suppress a valid
+     * owner. Exact token and removed-ability checks stay in the real handler. */
+    return strstr(native, name) != NULL;
+}
+
+/* Shadow Meld has two registered update procedures, both of which make several
+ * hero/skill lookups even on ordinary non-Night-Elf units. One conservative
+ * check skips both when neither can own the unit. Retained state still
+ * reaches the original handlers; explicit disable events own removal cleanup. */
+static bool update_may_need_shadowmeld(edict_t const *ent) {
+    if (!ent) return false;
+    if (ent->shadowmeld) return true;
+    return update_may_have_ability(ent, MAKEFOURCC('A','s','h','m')) ||
+           update_may_have_ability(ent, MAKEFOURCC('A','h','i','d'));
+}
+
+/* These guards only skip callbacks that cannot perform any work. Keep the
+ * original registration order and leave generic passive updates unconditional.
+ * All decisions are made on this tick; no per-edict derived cache to serialize
+ * or invalidate after runtime ability changes and save/load. */
 void S_RunAbilityUpdates(edict_t *ent) {
-    FOR_LOOP(i, num_updates)
-        ability_updates[i](ent, A_UPDATE, NULL);
+    bool shadow_checked = false, shadow_needed = false;
+    FOR_LOOP(i, num_updates) {
+        abilityProc_t const proc = ability_updates[i];
+        if (proc == CAbilityShadowMeld || proc == CAbilityShadowMeldAkama) {
+            if (!shadow_checked) {
+                shadow_needed = update_may_need_shadowmeld(ent);
+                shadow_checked = true;
+            }
+            if (!shadow_needed) continue;
+        } else if (proc == CAbilityRavenForm && (!ent || !ent->raven)) {
+            continue; /* rise animation and height only exist with raven state */
+        } else if (proc == CAbilityEnsnare && (!ent || !ent->ensnare)) {
+            continue; /* landing/rising height only exists with ensnare state */
+        } else if (proc == CAbilityBlightGrowth && (!ent || !ent->blight_growth)) {
+            continue; /* Abli initializes its state on A_UNIT_INIT/A_ENABLE */
+        } else if (proc == CAbilityManaFlare && (!ent || !ent->channel)) {
+            continue; /* A_UPDATE only cancels an expired active channel */
+        } else if (proc == CAbilityEntangledGoldMine && (!ent || !ent->mineoverlay)) {
+            continue; /* gold income requires an established mine overlay */
+        } else if (proc == CAbilityGraveyard &&
+                   !update_may_have_ability(ent, MAKEFOURCC('A','g','y','d'))) {
+            continue;
+        } else if (proc == CAbilityExhumeCorpses &&
+                   !update_may_have_ability(ent, MAKEFOURCC('A','e','x','h'))) {
+            continue;
+        }
+        proc(ent, A_UPDATE, NULL);
+    }
     S_UpdateUnitPassiveEffects(ent);
 }
 
