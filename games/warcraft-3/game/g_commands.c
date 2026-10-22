@@ -1973,7 +1973,7 @@ CLIENTCOMMAND(CargoUnload) {
     transport = G_GetMainSelectedUnit(client);
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, transport) || slot < 0) return;
-    if (!transport->cargo || (uint32_t)slot >= transport->cargo->count) return;
+    if (!G_GetCargo(transport) || (uint32_t)slot >= G_GetCargo(transport)->count) return;
     S_CargoUnloadAt(transport, (uint32_t)slot);
 }
 

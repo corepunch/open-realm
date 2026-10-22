@@ -1127,3 +1127,14 @@ runtime exclusions; Shadow Meld and Buildwork payloads are scalar. The productio
 queue walkers (`ProductionNext`, HUD queue, `Get_Commands_f`) read revival state
 through `G_HeroIsReviving` and `G_GetRevival`. Version 109 saves are rejected; the
 wire format is unchanged.
+
+## Fifth component slice (version 111)
+
+Ancient Root, the Gold Mine admission record, Haunted/Entangled mine overlays, the
+Acolyte slot record, Cargo and Soul Trap move onto the component list
+(`COMPONENT_ANCIENT_ROOT`, `COMPONENT_GOLDMINE`, `COMPONENT_MINE_OVERLAY`,
+`COMPONENT_ACOLYTE_MINE`, `COMPONENT_CARGO`, `COMPONENT_SOULTRAP`). Every entity
+reference inside those payloads keeps its `F_EDICT` fixup (including the
+`cargo->units[]` array and the four Soul Trap links) behind the runtime
+`component.next` exclusion. `G_InitGoldMine` now attaches through `G_AddComponent`.
+Version 110 saves are rejected; the wire format is unchanged.

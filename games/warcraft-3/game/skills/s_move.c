@@ -695,7 +695,7 @@ static void unit_turn_toward(edict_t *self, float target) {
 /* Stationary attacks/work can face their target without owning route scratch. */
 void unit_facegoal(edict_t *self) {
     if (!self || !self->goalentity || ((self->aiflags & AI_IMMOBILE) &&
-        !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))) return;
+        !(S_AncientIsRooted(self) && G_GetAncientRoot(self)->rooted_turning))) return;
     vec2_t delta = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     if (Vector2_len(&delta) > 0.001f) unit_turn_toward(self, atan2f(delta.y, delta.x));
 }

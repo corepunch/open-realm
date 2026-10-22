@@ -64,19 +64,19 @@ DEFINE_STORAGE(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(item, Item, item_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
-DEFINE_POOL(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(sleep, Sleep, sleep_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(soultrap, SoulTrap, soulTrap_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(soultrap, SoulTrap, soulTrap_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(unit_state, UnitState, unitState_t, MAX_ENTITIES)
 DEFINE_POOL(sound, Sounds, unitSounds_t, MAX_ENTITIES)
 DEFINE_POOL(missile, Missile, attackMissile_t, MAX_ENTITIES)
@@ -106,6 +106,12 @@ COMPONENT_ALLOC(ShadowMeld)
 COMPONENT_ALLOC(Militia)
 COMPONENT_ALLOC(Revival)
 COMPONENT_ALLOC(Buildwork)
+COMPONENT_ALLOC(AncientRoot)
+COMPONENT_ALLOC(GoldMine)
+COMPONENT_ALLOC(MineOverlay)
+COMPONENT_ALLOC(AcolyteMine)
+COMPONENT_ALLOC(Cargo)
+COMPONENT_ALLOC(SoulTrap)
 
 /* Exact IDs authorize the concrete layout; families and authored rawcodes are separate concepts. */
 static componentType_t const *ComponentType(componentId_t id) {
@@ -124,7 +130,13 @@ static componentType_t const *ComponentType(componentId_t id) {
         { COMPONENT_SHADOWMELD, AllocShadowMeldComponent, ReleaseShadowMeld },
         { COMPONENT_MILITIA, AllocMilitiaComponent, ReleaseMilitia },
         { COMPONENT_REVIVAL, AllocRevivalComponent, ReleaseRevival },
-        { COMPONENT_BUILDWORK, AllocBuildworkComponent, ReleaseBuildwork }
+        { COMPONENT_BUILDWORK, AllocBuildworkComponent, ReleaseBuildwork },
+        { COMPONENT_ANCIENT_ROOT, AllocAncientRootComponent, ReleaseAncientRoot },
+        { COMPONENT_GOLDMINE, AllocGoldMineComponent, ReleaseGoldMine },
+        { COMPONENT_MINE_OVERLAY, AllocMineOverlayComponent, ReleaseMineOverlay },
+        { COMPONENT_ACOLYTE_MINE, AllocAcolyteMineComponent, ReleaseAcolyteMine },
+        { COMPONENT_CARGO, AllocCargoComponent, ReleaseCargo },
+        { COMPONENT_SOULTRAP, AllocSoulTrapComponent, ReleaseSoulTrap }
     };
     FOR_LOOP(i, sizeof(component_types) / sizeof(component_types[0]))
         if (component_types[i].id == id) return component_types + i;
@@ -184,6 +196,12 @@ void G_FreeShadowMeld(edict_t *ent) { G_FreeComponent(ent, COMPONENT_SHADOWMELD)
 void G_FreeMilitia(edict_t *ent) { G_FreeComponent(ent, COMPONENT_MILITIA); }
 void G_FreeRevival(edict_t *ent) { G_FreeComponent(ent, COMPONENT_REVIVAL); }
 void G_FreeBuildwork(edict_t *ent) { G_FreeComponent(ent, COMPONENT_BUILDWORK); }
+void G_FreeAncientRoot(edict_t *ent) { G_FreeComponent(ent, COMPONENT_ANCIENT_ROOT); }
+void G_FreeGoldMine(edict_t *ent) { G_FreeComponent(ent, COMPONENT_GOLDMINE); }
+void G_FreeMineOverlay(edict_t *ent) { G_FreeComponent(ent, COMPONENT_MINE_OVERLAY); }
+void G_FreeAcolyteMine(edict_t *ent) { G_FreeComponent(ent, COMPONENT_ACOLYTE_MINE); }
+void G_FreeCargo(edict_t *ent) { G_FreeComponent(ent, COMPONENT_CARGO); }
+void G_FreeSoulTrap(edict_t *ent) { G_FreeComponent(ent, COMPONENT_SOULTRAP); }
 
 /* Unit spawn and explicit ability/status mutations establish ownership; reads never allocate. */
 void G_InitUnitState(edict_t *ent) {
@@ -206,7 +224,7 @@ void G_InitHarvest(edict_t *ent) {
 /* The mine attaches admission state on first worker entry; worker membership uses the same role. */
 void G_InitGoldMine(edict_t *ent) {
     assert(ent);
-    if (!ent->goldmine) ent->goldmine = G_AllocGoldMine();
+    G_AddComponent(ent, COMPONENT_GOLDMINE);
 }
 
 /* Explicit inventory ownership entry; observation does not allocate. */
@@ -283,15 +301,9 @@ void G_PoolsReset(void) {
             g_edicts[i].construction = NULL;
             g_edicts[i].research = NULL;
             g_edicts[i].food = NULL;
-            g_edicts[i].ancient_root = NULL;
-            g_edicts[i].goldmine = NULL;
-            g_edicts[i].mineoverlay = NULL;
-            g_edicts[i].acolyte_mine = NULL;
             g_edicts[i].item = NULL;
             g_edicts[i].destructable = NULL;
-            g_edicts[i].cargo = NULL;
             g_edicts[i].stock = NULL;
-            g_edicts[i].soultrap = NULL;
             g_edicts[i].unit_state = NULL;
             g_edicts[i].sound = NULL;
             g_edicts[i].missile = NULL;
@@ -350,15 +362,9 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeConstruction(ent);
     G_FreeResearch(ent);
     G_FreeFood(ent);
-    G_FreeAncientRoot(ent);
-    G_FreeGoldMine(ent);
-    G_FreeMineOverlay(ent);
-    G_FreeAcolyteMine(ent);
     G_FreeItem(ent);
     G_FreeDestructable(ent);
-    G_FreeCargo(ent);
     G_FreeStock(ent);
-    G_FreeSoulTrap(ent);
     G_FreeUnitState(ent);
     G_FreeSounds(ent);
     G_FreeMissile(ent);
@@ -396,15 +402,9 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(construction, Construction, construction_t);
     CHECK_POOL(research, Research, research_t);
     CHECK_POOL(food, Food, food_t);
-    CHECK_POOL(ancient_root, AncientRoot, ancientRoot_t);
-    CHECK_POOL(goldmine, GoldMine, goldMine_t);
-    CHECK_POOL(mineoverlay, MineOverlay, mineOverlay_t);
-    CHECK_POOL(acolyte_mine, AcolyteMine, acolyteMine_t);
     CHECK_POOL(item, Item, item_t);
     CHECK_POOL(destructable, Destructable, destructable_t);
-    CHECK_POOL(cargo, Cargo, cargo_t);
     CHECK_POOL(stock, Stock, stock_t);
-    CHECK_POOL(soultrap, SoulTrap, soulTrap_t);
     CHECK_POOL(unit_state, UnitState, unitState_t);
     CHECK_POOL(sound, Sounds, unitSounds_t);
     CHECK_POOL(missile, Missile, attackMissile_t);
@@ -432,19 +432,19 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(G_GetRaven(unit));
     T_NULL(G_GetBlightGrowth(unit));
     T_NULL(G_GetEnsnare(unit));
-    T_NULL(unit->ancient_root);
-    T_NULL(unit->goldmine);
-    T_NULL(unit->mineoverlay);
-    T_NULL(unit->acolyte_mine);
+    T_NULL(G_GetAncientRoot(unit));
+    T_NULL(G_GetGoldMine(unit));
+    T_NULL(G_GetMineOverlay(unit));
+    T_NULL(G_GetAcolyteMine(unit));
     T_NULL(unit->item);
     T_NULL(unit->destructable);
-    T_NULL(unit->cargo);
+    T_NULL(G_GetCargo(unit));
     T_NULL(unit->stock);
     T_NULL(G_GetWaygate(unit));
     T_NULL(G_GetArtillery(unit));
     T_NULL(G_GetAvatar(unit));
     T_NULL(G_GetSleep(unit));
-    T_NULL(unit->soultrap);
+    T_NULL(G_GetSoulTrap(unit));
     T_NULL(unit->unit_state);
     T_NULL(unit->sound);
     T_NULL(unit->missile);
@@ -456,9 +456,9 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(unit->route);
     T_NULL(unit->wander);
     T_NULL(unit->channel);
-    unit->ancient_root = G_AllocAncientRoot();
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
     G_PoolsReset();
-    T_NULL(unit->ancient_root);
+    T_NULL(G_GetAncientRoot(unit));
 }
 
 TEST(wc3_pools, destructable_pool_holds_more_than_the_default_cap) {
@@ -515,7 +515,7 @@ TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_i
     static componentId_t const ids[] = {
         COMPONENT_WAYGATE, COMPONENT_AVATAR, COMPONENT_POLYMORPH, COMPONENT_RAVEN, COMPONENT_ENSNARE, COMPONENT_ARTILLERY,
         COMPONENT_SLEEP, COMPONENT_RALLY, COMPONENT_SACRIFICE, COMPONENT_UNSUMMON, COMPONENT_BLIGHT_GROWTH,
-        COMPONENT_SHADOWMELD, COMPONENT_MILITIA, COMPONENT_REVIVAL, COMPONENT_BUILDWORK
+        COMPONENT_SHADOWMELD, COMPONENT_MILITIA, COMPONENT_REVIVAL, COMPONENT_BUILDWORK, COMPONENT_ANCIENT_ROOT, COMPONENT_GOLDMINE, COMPONENT_MINE_OVERLAY, COMPONENT_ACOLYTE_MINE, COMPONENT_CARGO, COMPONENT_SOULTRAP
     };
     reset_entities();
     edict_t *unit = G_Spawn();
@@ -539,6 +539,12 @@ TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_i
     T_ASSERT(G_GetMilitia(unit) == G_GetComponent(unit, COMPONENT_MILITIA));
     T_ASSERT(G_GetRevival(unit) == G_GetComponent(unit, COMPONENT_REVIVAL));
     T_ASSERT(G_GetBuildwork(unit) == G_GetComponent(unit, COMPONENT_BUILDWORK));
+    T_ASSERT(G_GetAncientRoot(unit) == G_GetComponent(unit, COMPONENT_ANCIENT_ROOT));
+    T_ASSERT(G_GetGoldMine(unit) == G_GetComponent(unit, COMPONENT_GOLDMINE));
+    T_ASSERT(G_GetMineOverlay(unit) == G_GetComponent(unit, COMPONENT_MINE_OVERLAY));
+    T_ASSERT(G_GetAcolyteMine(unit) == G_GetComponent(unit, COMPONENT_ACOLYTE_MINE));
+    T_ASSERT(G_GetCargo(unit) == G_GetComponent(unit, COMPONENT_CARGO));
+    T_ASSERT(G_GetSoulTrap(unit) == G_GetComponent(unit, COMPONENT_SOULTRAP));
     T_ASSERT(!G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(unit));
     G_GetRevival(unit)->reviving = true;
     T_ASSERT(G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(NULL));

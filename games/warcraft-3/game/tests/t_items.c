@@ -3730,8 +3730,8 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
     T_ASSERT(grom->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(!M_IsDead(grom));
     T_ASSERT(grom->s.renderfx & RF_HIDDEN);
-    T_ASSERT(carrier->soultrap->head == grom);
-    T_ASSERT(grom->soultrap->carrier == carrier);
+    T_ASSERT(G_GetSoulTrap(carrier)->head == grom);
+    T_ASSERT(G_GetSoulTrap(grom)->carrier == carrier);
     T_ASSERT(gem->item->pending_use_removal);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
     level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
@@ -3933,8 +3933,8 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_EQ(soul_count, 2);
     T_ASSERT(!G_ItemDroppable(filled));
     T_NULL(existing_soul->item->soul_target);
-    T_ASSERT(target->soultrap->item != existing_soul);
-    T_ASSERT(target->soultrap->item == filled);
+    T_ASSERT(G_GetSoulTrap(target)->item != existing_soul);
+    T_ASSERT(G_GetSoulTrap(target)->item == filled);
     T_ASSERT(filled->item->soul_target == target);
     T_EQ(carrier->vision->forced[1], 1);
     T_ASSERT(!G_DropItemAtScripted(carrier, 1, &carrier->s.origin2));
@@ -3969,7 +3969,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
         if (G_InventoryItem(carrier, i) && G_InventoryItem(carrier, i)->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
     T_EQ(soul_count, 3);
     T_ASSERT(filled2 != filled);
-    T_ASSERT(target2->soultrap->item == filled2);
+    T_ASSERT(G_GetSoulTrap(target2)->item == filled2);
     T_ASSERT(filled2->item->soul_target == target2);
     T_EQ(carrier->vision->forced[1], 2);
 
@@ -3979,9 +3979,9 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));
     G_SetHealth(carrier, 0.0f);
     unit_die(carrier, NULL);
-    T_NULL(carrier->soultrap);
-    T_NULL(target->soultrap);
-    T_NULL(target2->soultrap);
+    T_NULL(G_GetSoulTrap(carrier));
+    T_NULL(G_GetSoulTrap(target));
+    T_NULL(G_GetSoulTrap(target2));
     T_ASSERT(!M_IsDead(target));
     T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
     T_FEQ(target->s.origin2.x, 192.0f, 0.001f);
@@ -4034,7 +4034,7 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
     T_NOT_NULL(client->menu.on_entity_selected);
     T_ASSERT(G_InventoryItem(carrier, 0) == gem);
     T_EQ(gem->item->charges, 1);
-    T_NULL(target->soultrap);
+    T_NULL(G_GetSoulTrap(target));
     T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
 }
 
@@ -4042,12 +4042,12 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
 TEST(wc3_items, unused_soul_trap_state_stays_absent) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(64, 64);
-    T_NULL(unit->soultrap);
+    T_NULL(G_GetSoulTrap(unit));
     T_ASSERT(G_ActorAddSkill(unit, MAKEFOURCC('A','s','o','u')));
     S_UnitAbilityEvent(unit, A_DISABLE);
-    T_NULL(unit->soultrap);
+    T_NULL(G_GetSoulTrap(unit));
     G_FreeEdict(unit);
-    T_NULL(unit->soultrap);
+    T_NULL(G_GetSoulTrap(unit));
 }
 
 TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
@@ -4061,21 +4061,21 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     target->s.player = 1;
     T_ASSERT(G_ActorAddSkill(carrier, asou));
     T_ASSERT(G_ActorAddSkill(target, asou));
-    carrier->soultrap = G_AllocSoulTrap();
-    target->soultrap = G_AllocSoulTrap();
-    carrier->soultrap->possession_added = true;
+    G_AddComponent(carrier, COMPONENT_SOULTRAP);
+    G_AddComponent(target, COMPONENT_SOULTRAP);
+    G_GetSoulTrap(carrier)->possession_added = true;
     filled = make_item_test_world_item(MAKEFOURCC('s','o','u','l'), 64, 64);
     filled->data.ItemData = G_ItemData(MAKEFOURCC('s','o','u','l'));
     T_ASSERT(G_AddItemToSlot(carrier, filled, 0));
 
-    carrier->soultrap->head = target;
-    carrier->soultrap->head_spawn_time = target->spawn_time;
-    target->soultrap->carrier = carrier;
-    target->soultrap->carrier_spawn_time = carrier->spawn_time;
-    target->soultrap->viewer = target->s.player;
+    G_GetSoulTrap(carrier)->head = target;
+    G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
+    G_GetSoulTrap(target)->carrier = carrier;
+    G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
+    G_GetSoulTrap(target)->viewer = target->s.player;
     G_AddUnitForcedVisibility(carrier, target->s.player);
-    target->soultrap->item = filled;
-    target->soultrap->item_spawn_time = filled->spawn_time;
+    G_GetSoulTrap(target)->item = filled;
+    G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN;
     target->svflags |= SVF_NOCLIENT;
@@ -4089,7 +4089,7 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     G_FreeEdict(target);
 
     T_ASSERT(!target->inuse);
-    T_NULL(carrier->soultrap);
+    T_NULL(G_GetSoulTrap(carrier));
     T_ASSERT(!G_ActorHasSkill(carrier, "Asou"));
     T_NULL(G_InventoryItem(carrier, 0));
     T_ASSERT(!filled->inuse);
@@ -4262,14 +4262,14 @@ TEST(wc3_items, orc08_scripted_soul_slot_swap_keeps_item_bound_to_carrier) {
     if (!carrier || !other || !soul || !target) return;
     target->s.player = 1;
     target->aiflags |= AI_SOUL_TRAPPED;
-    carrier->soultrap = G_AllocSoulTrap();
-    target->soultrap = G_AllocSoulTrap();
-    target->soultrap->carrier = carrier;
-    target->soultrap->carrier_spawn_time = carrier->spawn_time;
-    carrier->soultrap->head = target;
-    carrier->soultrap->head_spawn_time = target->spawn_time;
-    target->soultrap->item = soul;
-    target->soultrap->item_spawn_time = soul->spawn_time;
+    G_AddComponent(carrier, COMPONENT_SOULTRAP);
+    G_AddComponent(target, COMPONENT_SOULTRAP);
+    G_GetSoulTrap(target)->carrier = carrier;
+    G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
+    G_GetSoulTrap(carrier)->head = target;
+    G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
+    G_GetSoulTrap(target)->item = soul;
+    G_GetSoulTrap(target)->item_spawn_time = soul->spawn_time;
     if (!soul->item) soul->item = G_AllocItem();
     assert(soul->item);
     soul->item->soul_target = target;

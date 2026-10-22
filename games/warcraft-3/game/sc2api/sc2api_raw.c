@@ -169,6 +169,7 @@ static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) 
 }
 
 bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t *out) {
+    cargo_t *hold = G_GetCargo(ent);
     entityState_t state;
     bool visible;
     uint32_t cargo_capacity;
@@ -293,10 +294,10 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
 
         cargo_capacity = S_CargoCapacity((edict_t *)ent);
         if (cargo_capacity) {
-            out->cargo_space_taken = (int32_t)(ent->cargo ? ent->cargo->count : 0);
+            out->cargo_space_taken = (int32_t)(hold ? hold->count : 0);
             out->cargo_space_max = (int32_t)cargo_capacity;
-            FOR_LOOP(i, MIN((ent->cargo ? ent->cargo->count : 0), (uint32_t)MAX_CARGO)) {
-                edict_t *passenger = ent->cargo->units[i];
+            FOR_LOOP(i, MIN((hold ? hold->count : 0), (uint32_t)MAX_CARGO)) {
+                edict_t *passenger = hold->units[i];
                 wc3Sc2PassengerUnit_t *p;
                 if (!passenger || !passenger->inuse) continue;
                 p = &out->passengers[out->passenger_count++];

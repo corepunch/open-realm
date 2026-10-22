@@ -75,10 +75,10 @@ void G_FreeEdict(edict_t *ent) {
      * cancellation refund. */
     if (G_BuildingUpgradeActive(ent)) G_StopBuildingUpgrade(ent, false);
     if (ent->construction) G_StopConstruction(ent);
-    if ((ent->mineoverlay && ent->mineoverlay->parent) || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
+    if ((G_GetMineOverlay(ent) && G_GetMineOverlay(ent)->parent) || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);
-    if (ent->cargo && ent->cargo->count > 0) cargo_drop_all(ent);
+    if (G_GetCargo(ent) && G_GetCargo(ent)->count > 0) cargo_drop_all(ent);
     S_CancelRepair(ent); /* No-op without an active Repair rawcode. */
     /* Remove both the active accepted-build indicator and any owner-only
      * indicators attached to delayed Shift-build queue entries. Direct
