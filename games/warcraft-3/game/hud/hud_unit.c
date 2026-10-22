@@ -491,7 +491,7 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
-    if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || !ent->cargo || ent->cargo->count == 0)) return;
+    if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || !G_GetCargo(ent) || G_GetCargo(ent)->count == 0)) return;
     if (G_HasCommandRawcode(buttons, *count, rawcode)) {
         if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-duplicate", ability, true, false);
         return;
@@ -580,7 +580,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     w = ent->data.UnitWeapons;
     a = ent->data.UnitAbilities;
     is_burrow = S_CargoIsBurrow(ent);
-    burrow_occupied = is_burrow && ent->cargo && ent->cargo->count > 0;
+    burrow_occupied = is_burrow && G_GetCargo(ent) && G_GetCargo(ent)->count > 0;
 
     /* Unsummon owns the building until destruction. Rally metadata remains
      * editable, but actions and cancellation are hidden. */

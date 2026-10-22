@@ -5242,8 +5242,8 @@ TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     edict_t overlay = {
         .svflags = SVF_MONSTER,
         .s = { .player = 3 },
-        .mineoverlay = &overlay_state,
     };
+    G_AttachComponent(&overlay, &overlay_state.component, COMPONENT_MINE_OVERLAY);
     parent.health.value = 100.0f;
     overlay.health.value = 100.0f;
 
@@ -5285,7 +5285,7 @@ TEST(wc3_api, customize_entity_packs_hover_cargo_count_and_capacity) {
 
     ent.health.value = 100.0f;
     cargo_t cargo_state = { .count = 3 };
-    ent.cargo = &cargo_state;
+    G_AttachComponent(&ent, &cargo_state.component, COMPONENT_CARGO);
     globals.CustomizeEntity(3, &ent, &state);
     T_EQ(EntityCargoCount(state.stats[ENT_CARGO]), 3);
     T_EQ(EntityCargoCapacity(state.stats[ENT_CARGO]), 4);

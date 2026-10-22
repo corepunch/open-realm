@@ -3589,16 +3589,15 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
     mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -64, -64);
     builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
-    if (!builder->goldmine) builder->goldmine = G_AllocGoldMine();
-    assert(builder->goldmine);
-    builder->goldmine->mine = mine; builder->goldmine->mine_spawn_time = mine->spawn_time;
-    G_SetUnitFlag(builder, UNIT_FLAG_INVULNERABLE, true); builder->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); mine->goldmine->occupants = 1;
+    G_AddComponent(builder, COMPONENT_GOLDMINE);
+    G_GetGoldMine(builder)->mine = mine; G_GetGoldMine(builder)->mine_spawn_time = mine->spawn_time;
+    G_SetUnitFlag(builder, UNIT_FLAG_INVULNERABLE, true); builder->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); G_GetGoldMine(mine)->occupants = 1;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
-    T_ASSERT(!S_GoldMineWorkerIsInside(builder)); T_EQ((mine->goldmine ? mine->goldmine->occupants : 0), 0);
+    T_ASSERT(!S_GoldMineWorkerIsInside(builder)); T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 0);
     T_ASSERT(!(builder->s.renderfx & RF_HIDDEN)); T_ASSERT(!G_UnitHasFlag(builder, UNIT_FLAG_INVULNERABLE));
     T_EQ(builder->orders->build_project, barracks); T_NOT_NULL(builder->goalentity);
 }

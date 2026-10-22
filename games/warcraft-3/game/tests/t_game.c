@@ -4252,9 +4252,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->orders->explicit_allied_attack = true;
     G_InitInventory(first);
     first->inventory->slots[2] = second;
-    if (!first->cargo) first->cargo = G_AllocCargo();
-    assert(first->cargo);
-    first->cargo->units[3] = second;
+    G_AddComponent(first, COMPONENT_CARGO);
+    G_GetCargo(first)->units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
     first->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -4360,7 +4359,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->orders->follow_target = NULL;
     first->orders->explicit_allied_attack = false;
     first->inventory->slots[2] = NULL;
-    first->cargo->units[3] = NULL;
+    G_GetCargo(first)->units[3] = NULL;
     first->animation_props = "";
     first->animation_request = "";
     memset(first->unit_state->statuses, 0, sizeof(first->unit_state->statuses));
@@ -4455,7 +4454,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].orders->follow_target == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].orders->explicit_allied_attack);
     T_ASSERT(G_InventoryItem(&g_edicts[first - g_edicts], 2) == &g_edicts[second - g_edicts]);
-    T_ASSERT(g_edicts[first - g_edicts].cargo->units[3] == &g_edicts[second - g_edicts]);
+    T_ASSERT(G_GetCargo(&g_edicts[first - g_edicts])->units[3] == &g_edicts[second - g_edicts]);
     T_STREQ(g_edicts[first - g_edicts].animation_props, "alternate,work");
     T_STREQ(g_edicts[first - g_edicts].animation_request, "stand ready");
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
@@ -4902,7 +4901,7 @@ TEST(wc3_save, route_cache_rebuilds_after_load) {
     T_EQ(unit->route->serial, 42);
     remove(file);
 }
-SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, goldmine->occupants, 5)
+SAVE_COMPONENT_INT_FIELD_TEST(field_peons_inside_round_trip, goldmine, G_GetGoldMine, occupants, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
 SAVE_INT_FIELD_TEST(field_script_explosion_round_trip, aiflags, AI_SCRIPT_EXPLODED)
@@ -5499,39 +5498,37 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     acolyte = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     parent->resources = 7777;
-    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
-    assert(overlay->mineoverlay);
-    overlay->mineoverlay->parent = parent;
-    overlay->mineoverlay->parent_spawn_time = parent->spawn_time;
-    overlay->mineoverlay->income_time = 12345;
-    overlay->mineoverlay->active_interval_index = 3;
-    overlay->mineoverlay->entangle_permanent_before = true;
-    if (!acolyte->acolyte_mine) acolyte->acolyte_mine = G_AllocAcolyteMine();
-    assert(acolyte->acolyte_mine);
-    acolyte->acolyte_mine->mine = overlay;
-    acolyte->acolyte_mine->mine_spawn_time = overlay->spawn_time;
-    acolyte->acolyte_mine->slot = 4;
+    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_GetMineOverlay(overlay)->parent = parent;
+    G_GetMineOverlay(overlay)->parent_spawn_time = parent->spawn_time;
+    G_GetMineOverlay(overlay)->income_time = 12345;
+    G_GetMineOverlay(overlay)->active_interval_index = 3;
+    G_GetMineOverlay(overlay)->entangle_permanent_before = true;
+    G_AddComponent(acolyte, COMPONENT_ACOLYTE_MINE);
+    G_GetAcolyteMine(acolyte)->mine = overlay;
+    G_GetAcolyteMine(acolyte)->mine_spawn_time = overlay->spawn_time;
+    G_GetAcolyteMine(acolyte)->slot = 4;
 
     T_ASSERT(WriteGame(filename));
-    overlay->mineoverlay->parent = NULL;
-    overlay->mineoverlay->parent_spawn_time = 0;
-    overlay->mineoverlay->income_time = 0;
-    overlay->mineoverlay->active_interval_index = 0;
-    overlay->mineoverlay->entangle_permanent_before = false;
-    acolyte->acolyte_mine->mine = NULL;
-    acolyte->acolyte_mine->mine_spawn_time = 0;
-    acolyte->acolyte_mine->slot = -1;
+    G_GetMineOverlay(overlay)->parent = NULL;
+    G_GetMineOverlay(overlay)->parent_spawn_time = 0;
+    G_GetMineOverlay(overlay)->income_time = 0;
+    G_GetMineOverlay(overlay)->active_interval_index = 0;
+    G_GetMineOverlay(overlay)->entangle_permanent_before = false;
+    G_GetAcolyteMine(acolyte)->mine = NULL;
+    G_GetAcolyteMine(acolyte)->mine_spawn_time = 0;
+    G_GetAcolyteMine(acolyte)->slot = -1;
     parent->resources = 0;
     T_ASSERT(ReadGame(filename));
 
-    T_ASSERT(overlay->mineoverlay->parent == parent);
-    T_EQ(overlay->mineoverlay->parent_spawn_time, parent->spawn_time);
-    T_EQ(overlay->mineoverlay->income_time, 12345);
-    T_EQ(overlay->mineoverlay->active_interval_index, 3);
-    T_ASSERT(overlay->mineoverlay->entangle_permanent_before);
-    T_ASSERT(acolyte->acolyte_mine->mine == overlay);
-    T_EQ(acolyte->acolyte_mine->mine_spawn_time, overlay->spawn_time);
-    T_EQ(acolyte->acolyte_mine->slot, 4);
+    T_ASSERT(G_GetMineOverlay(overlay)->parent == parent);
+    T_EQ(G_GetMineOverlay(overlay)->parent_spawn_time, parent->spawn_time);
+    T_EQ(G_GetMineOverlay(overlay)->income_time, 12345);
+    T_EQ(G_GetMineOverlay(overlay)->active_interval_index, 3);
+    T_ASSERT(G_GetMineOverlay(overlay)->entangle_permanent_before);
+    T_ASSERT(G_GetAcolyteMine(acolyte)->mine == overlay);
+    T_EQ(G_GetAcolyteMine(acolyte)->mine_spawn_time, overlay->spawn_time);
+    T_EQ(G_GetAcolyteMine(acolyte)->slot, 4);
     T_EQ(parent->resources, 7777);
     remove(filename);
 }
@@ -5544,25 +5541,23 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
     reset_entities();
     tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
-    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
-    assert(overlay->mineoverlay);
-    overlay->mineoverlay->entangle_tree = tree;
-    overlay->mineoverlay->entangle_tree_spawn_time = tree->spawn_time;
+    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_GetMineOverlay(overlay)->entangle_tree = tree;
+    G_GetMineOverlay(overlay)->entangle_tree_spawn_time = tree->spawn_time;
     T_NOT_NULL(desc);
     if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
     T_ASSERT(WriteGame(filename));
-    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
-    assert(overlay->mineoverlay);
-    overlay->mineoverlay->entangle_tree = NULL;
-    overlay->mineoverlay->entangle_tree_spawn_time = 0;
+    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_GetMineOverlay(overlay)->entangle_tree = NULL;
+    G_GetMineOverlay(overlay)->entangle_tree_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(overlay->mineoverlay->entangle_tree == tree);
-    T_EQ(overlay->mineoverlay->entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(G_GetMineOverlay(overlay)->entangle_tree == tree);
+    T_EQ(G_GetMineOverlay(overlay)->entangle_tree_spawn_time, tree->spawn_time);
 
     /* A recycled edict slot must not inherit the previous tree identity. */
     tree->spawn_time++;
-    T_ASSERT(overlay->mineoverlay->entangle_tree == tree);
-    T_NE(overlay->mineoverlay->entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(G_GetMineOverlay(overlay)->entangle_tree == tree);
+    T_NE(G_GetMineOverlay(overlay)->entangle_tree_spawn_time, tree->spawn_time);
     remove(filename);
 }
 
@@ -5612,13 +5607,13 @@ SAVE_COMPONENT_PTR_FIELD_TEST(field_revival_producer_round_trip, revival, G_GetR
 SAVE_COMPONENT_PTR_FIELD_TEST(field_revival_queue_next_round_trip, revival, G_GetRevival, queue_next, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, sacrifice, G_GetSacrifice, worker, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_unsummon_target_round_trip, unsummon, G_GetUnsummon, target, 0)
-SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine->mine", goldmine->mine, 0)
-SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay->parent", mineoverlay->parent, 0)
-SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay->caster", mineoverlay->caster, 0)
-SAVE_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, "mineoverlay->entangle_tree", mineoverlay->entangle_tree, 0)
-SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine->mine", acolyte_mine->mine, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_goldmine_round_trip, goldmine, G_GetGoldMine, mine, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, mineoverlay, G_GetMineOverlay, parent, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, mineoverlay, G_GetMineOverlay, caster, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, mineoverlay, G_GetMineOverlay, entangle_tree, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_acolyte_mine_round_trip, acolyte_mine, G_GetAcolyteMine, mine, 0)
 SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory->slots", inventory->slots[3], MAX_INVENTORY)
-SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo->units", cargo->units[4], MAX_CARGO)
+SAVE_PTR_LVALUE_TEST(field_cargo_round_trip, "cargo->units", G_GetCargo(unit)->units[4], MAX_CARGO)
 SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item->carrier", item->carrier, 0)
 SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
 SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "orders->attackmove_waypoint", orders->attackmove_waypoint, 0)
@@ -5628,16 +5623,16 @@ SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "orders->patrol_target", ord
 SAVE_PTR_FIELD_TEST(field_goal_entity_round_trip, "goalentity", goalentity, 0)
 SAVE_PTR_FIELD_TEST(field_item_drop_round_trip, "orders->item_drop", orders->item_drop, 0)
 SAVE_PTR_FIELD_TEST(field_spell_item_round_trip, "channel->source_item", channel->source_item, 0)
-SAVE_PTR_FIELD_TEST(field_soul_trap_head_round_trip, "soultrap->head", soultrap->head, 0)
-SAVE_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, "soultrap->carrier", soultrap->carrier, 0)
-SAVE_PTR_FIELD_TEST(field_soul_trap_next_round_trip, "soultrap->next", soultrap->next, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_head_round_trip, soultrap, G_GetSoulTrap, head, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, soultrap, G_GetSoulTrap, carrier, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_next_round_trip, soultrap, G_GetSoulTrap, next, 0)
 SAVE_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, "item->pending_use_carrier", item->pending_use_carrier, 0)
 SAVE_PTR_FIELD_TEST(field_item_soul_target_round_trip, "item->soul_target", item->soul_target, 0)
-SAVE_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soultrap->head_spawn_time, 210)
-SAVE_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soultrap->carrier_spawn_time, 220)
-SAVE_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soultrap->next_spawn_time, 230)
-SAVE_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soultrap->trapped_ability_added, 1)
-SAVE_INT_FIELD_TEST(field_soul_possession_added_round_trip, soultrap->possession_added, 1)
+SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soultrap, G_GetSoulTrap, head_spawn_time, 210)
+SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soultrap, G_GetSoulTrap, carrier_spawn_time, 220)
+SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soultrap, G_GetSoulTrap, next_spawn_time, 230)
+SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soultrap, G_GetSoulTrap, trapped_ability_added, 1)
+SAVE_COMPONENT_INT_FIELD_TEST(field_soul_possession_added_round_trip, soultrap, G_GetSoulTrap, possession_added, 1)
 SAVE_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item->pending_use_carrier_spawn_time, 240)
 SAVE_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item->pending_use_slot, 4)
 SAVE_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item->soul_target_spawn_time, 250)
@@ -5683,11 +5678,11 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     filled->class_id = MAKEFOURCC('s','o','u','l');
     filled->targtype = TARG_ITEM;
     carrier->s.player = 0; target->s.player = 1;
-    carrier->soultrap = G_AllocSoulTrap();
-    target->soultrap = G_AllocSoulTrap();
-    carrier->soultrap->head = target; carrier->soultrap->head_spawn_time = target->spawn_time;
-    target->soultrap->carrier = carrier; target->soultrap->carrier_spawn_time = carrier->spawn_time;
-    target->soultrap->item = filled; target->soultrap->item_spawn_time = filled->spawn_time;
+    G_AddComponent(carrier, COMPONENT_SOULTRAP);
+    G_AddComponent(target, COMPONENT_SOULTRAP);
+    G_GetSoulTrap(carrier)->head = target; G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
+    G_GetSoulTrap(target)->carrier = carrier; G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
+    G_GetSoulTrap(target)->item = filled; G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
     if (!filled->item) filled->item = G_AllocItem();
     assert(filled->item);
     filled->item->soul_target = target; filled->item->soul_target_spawn_time = target->spawn_time;
@@ -5696,19 +5691,19 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
 
     T_ASSERT(WriteGame(filename));
-    carrier->soultrap->head = NULL; carrier->soultrap->head_spawn_time = 0;
-    target->soultrap->carrier = NULL; target->soultrap->carrier_spawn_time = 0;
-    target->soultrap->item = NULL; target->soultrap->item_spawn_time = 0;
+    G_GetSoulTrap(carrier)->head = NULL; G_GetSoulTrap(carrier)->head_spawn_time = 0;
+    G_GetSoulTrap(target)->carrier = NULL; G_GetSoulTrap(target)->carrier_spawn_time = 0;
+    G_GetSoulTrap(target)->item = NULL; G_GetSoulTrap(target)->item_spawn_time = 0;
     filled->item->soul_target = NULL; filled->item->soul_target_spawn_time = 0;
     carrier->vision->forced[1] = 0;
     target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(carrier->soultrap->head == target);
-    T_EQ(carrier->soultrap->head_spawn_time, target->spawn_time);
-    T_ASSERT(target->soultrap->carrier == carrier);
-    T_EQ(target->soultrap->carrier_spawn_time, carrier->spawn_time);
-    T_ASSERT(target->soultrap->item == filled);
-    T_EQ(target->soultrap->item_spawn_time, filled->spawn_time);
+    T_ASSERT(G_GetSoulTrap(carrier)->head == target);
+    T_EQ(G_GetSoulTrap(carrier)->head_spawn_time, target->spawn_time);
+    T_ASSERT(G_GetSoulTrap(target)->carrier == carrier);
+    T_EQ(G_GetSoulTrap(target)->carrier_spawn_time, carrier->spawn_time);
+    T_ASSERT(G_GetSoulTrap(target)->item == filled);
+    T_EQ(G_GetSoulTrap(target)->item_spawn_time, filled->spawn_time);
     T_ASSERT(filled->item->soul_target == target);
     T_EQ(filled->item->soul_target_spawn_time, target->spawn_time);
     T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);

@@ -499,7 +499,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
          * queue. Clear it before generic death cleanup walks build links. */
         self->build = NULL;
     }
-    if ((self->mineoverlay && self->mineoverlay->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
+    if ((G_GetMineOverlay(self) && G_GetMineOverlay(self)->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);
     if (G_UnitHasFlag(self, UNIT_FLAG_TRAINING)) G_ClearTrainingQueueFood(self);
@@ -524,7 +524,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
         self->sound->world_pending_event = EV_DEATH;
     }
     /* Destroying a transport ejects its passengers at the wreck. */
-    if (self->cargo && self->cargo->count > 0) {
+    if (G_GetCargo(self) && G_GetCargo(self)->count > 0) {
         cargo_drop_all(self);
     }
     /* Inventory abilities own their death policy. Non-Hero Backpack carriers

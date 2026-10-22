@@ -63,8 +63,8 @@ static void exh_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
 static uint32_t exh_corpse_count(edict_t *wagon) {
 	uint32_t n = 0;
-	if (!wagon->cargo) return 0;
-	FOR_LOOP(i, wagon->cargo->count) {
+	if (!G_GetCargo(wagon)) return 0;
+	FOR_LOOP(i, G_GetCargo(wagon)->count) {
 		edict_t *ent = S_CargoUnitAt(wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent)) n++;
 	}
@@ -100,7 +100,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_tick(1999); T_EQ(exh_corpse_count(fix.wagon), 0);
 	exh_tick(1); T_EQ(exh_corpse_count(fix.wagon), 1);
 	corpse = NULL;
-	FOR_LOOP(i, fix.wagon->cargo->count) {
+	FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
 		edict_t *ent = S_CargoUnitAt(fix.wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent) && !corpse) corpse = ent;
 	}
@@ -109,7 +109,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	T_FEQ(corpse->s.origin2.y, fix.wagon->s.origin2.y, 0.001f);
 	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT(G_UnitHasFlag(corpse, UNIT_FLAG_PAUSED));
 	T_EQ((int)S_CargoCapacity(fix.wagon), 8);
-	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
+	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!G_GetCargo(fix.wagon) || G_GetCargo(fix.wagon)->count == 0);
 	exh_done(&fix);
 }
 
@@ -127,7 +127,7 @@ TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
 
     T_ASSERT(!S_CargoTryLoad(fix.wagon, living));
     T_ASSERT(!S_CargoOrderBoard(living, fix.wagon));
-    T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
+    T_ASSERT(!G_GetCargo(fix.wagon) || G_GetCargo(fix.wagon)->count == 0);
     T_ASSERT(!(living->s.renderfx & RF_HIDDEN));
     T_ASSERT(!G_UnitHasFlag(living, UNIT_FLAG_PAUSED));
     T_NULL(S_CargoTransportForUnit(living));
@@ -139,7 +139,7 @@ TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, fix.wagon->cargo->count) {
+    FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -180,7 +180,7 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
     T_NOT_NULL(thinker);
     fix.wagon->s.origin2.x = 220.0f; fix.wagon->s.origin.x = 220.0f;
     if (thinker) thinker->think(thinker);
-    T_EQ(fix.wagon->cargo->count, 1);
+    T_EQ(G_GetCargo(fix.wagon)->count, 1);
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     T_ASSERT(!thinker->inuse);
@@ -213,7 +213,7 @@ TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
 
     fix.wagon->s.origin2.x = 260.0f; fix.wagon->s.origin.x = 260.0f;
     if (thinker) thinker->think(thinker);
-    T_EQ(fix.wagon->cargo->count, 1);
+    T_EQ(G_GetCargo(fix.wagon)->count, 1);
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     exh_done(&fix);
@@ -229,7 +229,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, fix.wagon->cargo->count) {
+    FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -284,7 +284,7 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, fix.wagon->cargo->count) {
+    FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }

@@ -766,10 +766,9 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
     lumber->currentmove = &lumber_move; gold->currentmove = &gold_move;
     other->currentmove = &lumber_move; fighter->currentmove = &attack_move;
-    if (!gold->goldmine) gold->goldmine = G_AllocGoldMine();
-    assert(gold->goldmine);
-    gold->goldmine->mine = mine; gold->goldmine->mine_spawn_time = mine->spawn_time;
-    G_SetUnitFlag(gold, UNIT_FLAG_INVULNERABLE, true); gold->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); mine->goldmine->occupants = 1;
+    G_AddComponent(gold, COMPONENT_GOLDMINE);
+    G_GetGoldMine(gold)->mine = mine; G_GetGoldMine(gold)->mine_spawn_time = mine->spawn_time;
+    G_SetUnitFlag(gold, UNIT_FLAG_INVULNERABLE, true); gold->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); G_GetGoldMine(mine)->occupants = 1;
     S_SetCarriedResource(lumber, RETURN_RESOURCE_LUMBER, 7); S_SetCarriedResource(gold, RETURN_RESOURCE_GOLD, 5);
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_stop_gathering.ai", BOT_CAMPAIGN));
@@ -778,8 +777,8 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     T_NULL(gold->currentmove->proc);
     T_EQ((lumber->harvest ? lumber->harvest->lumber : 0), 7);
     T_EQ((gold->harvest ? gold->harvest->gold : 0), 5);
-    T_NULL(gold->goldmine->mine);
-    T_EQ((mine->goldmine ? mine->goldmine->occupants : 0), 0);
+    T_NULL(G_GetGoldMine(gold)->mine);
+    T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 0);
     T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
     T_ASSERT(!G_UnitHasFlag(gold, UNIT_FLAG_INVULNERABLE));
     T_EQ(other->currentmove->proc, CAbilityHarvest);
@@ -1831,9 +1830,8 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 1, &bot_hall_abilities);
     target = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 128, 0, 1, NULL);
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 256, 0, 1, NULL);
-    if (!tower->ancient_root) tower->ancient_root = G_AllocAncientRoot();
-    assert(tower->ancient_root);
-    tower->ancient_root->ability = 0;
+    G_AddComponent(tower, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(tower)->ability = 0;
     hall->data.UnitAbilities = &bot_hall_abilities;
     tower->data.UnitWeapons = &enabled_attack; tower->unit_state->attack1.type = ATK_PIERCE; tower->unit_state->attack1.range = 0;
 

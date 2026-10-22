@@ -2173,12 +2173,13 @@ static uint16_t G_UnitNameConfigstring(cstring_t name) {
  * Ordinary Agld mines own the reservoir directly; racial mine overlays expose
  * the live reservoir of their still-bound hidden parent. */
 static uint32_t G_HoverResourceValue(edict_t const *ent) {
+    mineOverlay_t *ovl = G_GetMineOverlay(ent);
     edict_t const *parent;
     uint32_t value;
 
     if (!ent) return 0;
-    if (S_GoldMineIsOverlay(ent) && ent->mineoverlay && (parent = ent->mineoverlay->parent)) {
-        if (!parent->inuse || parent->spawn_time != ent->mineoverlay->parent_spawn_time ||
+    if (S_GoldMineIsOverlay(ent) && ovl && (parent = ovl->parent)) {
+        if (!parent->inuse || parent->spawn_time != ovl->parent_spawn_time ||
             M_IsDead(parent) || !(parent->s.flags & EF_RESOURCE_SOURCE)) return 0;
         value = parent->resources;
     } else {
@@ -2336,7 +2337,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     if (hoverable) {
         uint32_t const cargo_capacity = S_CargoCapacity((edict_t *)ent);
         if (cargo_capacity > 0)
-            state->stats[ENT_CARGO] = EntityCargoPack(ent->cargo ? ent->cargo->count : 0, cargo_capacity);
+            state->stats[ENT_CARGO] = EntityCargoPack(G_GetCargo(ent) ? G_GetCargo(ent)->count : 0, cargo_capacity);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));

@@ -1718,7 +1718,13 @@ typedef enum {
     COMPONENT_SHADOWMELD = 12,
     COMPONENT_MILITIA = 13,
     COMPONENT_REVIVAL = 14,
-    COMPONENT_BUILDWORK = 15
+    COMPONENT_BUILDWORK = 15,
+    COMPONENT_ANCIENT_ROOT = 16,
+    COMPONENT_GOLDMINE = 17,
+    COMPONENT_MINE_OVERLAY = 18,
+    COMPONENT_ACOLYTE_MINE = 19,
+    COMPONENT_CARGO = 20,
+    COMPONENT_SOULTRAP = 21
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -1891,6 +1897,7 @@ typedef struct {
 
 /* Ancient root/unroot collision, placement and transition state retained by its ability. */
 typedef struct {
+    component_t component;
     ancientRootMode_t mode;
     uint32_t ability;
     uint32_t unit_type;
@@ -1909,6 +1916,7 @@ typedef struct {
 
 /* Finite gold reservoir and worker admission ownership for a mine entity. */
 typedef struct {
+    component_t component;
     edict_t *mine;
     uint32_t mine_spawn_time;
     uint32_t occupants; /* mine-owned admission count; worker-owned records use mine instead */
@@ -1917,6 +1925,7 @@ typedef struct {
 
 /* Haunted/Entangled mine overlay state; the original mine remains the gold reservoir. */
 typedef struct {
+    component_t component;
     edict_t *parent;
     uint32_t parent_spawn_time;
     uint32_t income_time;
@@ -1934,6 +1943,7 @@ typedef struct {
 
 /* Acolyte visible-slot harvesting relationship separate from hidden mine cargo. */
 typedef struct {
+    component_t component;
     edict_t *mine;
     uint32_t mine_spawn_time;
     int32_t slot;
@@ -1992,6 +2002,7 @@ typedef struct {
 
 /* Transport-owned occupant identity and capacity bookkeeping. */
 typedef struct {
+    component_t component;
     edict_t *units[MAX_CARGO];
     uint32_t count;
 } cargo_t;
@@ -2021,6 +2032,7 @@ typedef struct {
 
 /* Soul Trap-owned carrier list and trapped-target identity; absent outside active captures. */
 typedef struct {
+    component_t component;
     edict_t *head; /* carrier-owned list of trapped unit edicts */
     uint32_t head_spawn_time;
     edict_t *carrier; /* target-side back reference */
@@ -2260,23 +2272,14 @@ struct edict_s {
     routeCache_t *route;
     visibility_t *vision; /* optional forced/shared sight and invisibility reveal deadline */
     harvest_t *harvest; /* carried resources; absent while empty */
-    ancientRoot_t *ancient_root;
     uint32_t aiflags;
     uint32_t damage;
     attackMissile_t *missile; /* basic-attack launch profile; absent on spell missiles */
     uint32_t resources;
     uint32_t freetime;
-    goldMine_t *goldmine;
-    /* Racial mine overlays keep the original Agld unit as the sole finite
-     * gold reservoir. Haunted/Entangled mines own presentation/income only. */
-    mineOverlay_t *mineoverlay;
-    /* Acolyte harvesting is a visible fixed-slot relationship rather than the
-     * conventional hidden-inside/carry/return Gold Mine state above. */
-    acolyteMine_t *acolyte_mine;
     inventory_t *inventory; /* physical slots attach on first item ownership */
     item_t *item;
     destructable_t *destructable;
-    cargo_t *cargo;
     edict_t *ground_next;
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
@@ -2295,7 +2298,6 @@ struct edict_s {
     MOVETYPE movetype;
     TARGTYPE targtype;
     edict_t *goalentity; /* current behavior target: attacks, spells, missiles and travel share this lifecycle slot */
-    soulTrap_t *soultrap; /* optional carrier/target relationship, owned by Soul Trap */
     edict_t *combatentity;
     edict_t *owner;
     edict_t *build;
@@ -4348,6 +4350,12 @@ static inline shadowMeld_t *G_GetShadowMeld(edict_t const *ent) { return G_GetCo
 static inline militia_t *G_GetMilitia(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MILITIA); }
 static inline revival_t *G_GetRevival(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_REVIVAL); }
 static inline buildwork_t *G_GetBuildwork(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BUILDWORK); }
+static inline ancientRoot_t *G_GetAncientRoot(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ANCIENT_ROOT); }
+static inline goldMine_t *G_GetGoldMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_GOLDMINE); }
+static inline mineOverlay_t *G_GetMineOverlay(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MINE_OVERLAY); }
+static inline acolyteMine_t *G_GetAcolyteMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ACOLYTE_MINE); }
+static inline cargo_t *G_GetCargo(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CARGO); }
+static inline soulTrap_t *G_GetSoulTrap(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SOULTRAP); }
 /* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */
 static inline bool G_HeroIsReviving(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->reviving; }
 static inline bool G_HeroAwaitsRevival(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->awaiting; }

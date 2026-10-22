@@ -66,12 +66,11 @@ static edict_t *ancient_test_unit(bool rooted) {
     unit->svflags |= SVF_MONSTER;
     unit->s.player = 0;
     unit->stand = unit_stand;
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->ability = TEST_AROO;
-    unit->ancient_root->unit_type = unit->class_id;
-    unit->ancient_root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
-    unit->ancient_root->mode = rooted ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->ability = TEST_AROO;
+    G_GetAncientRoot(unit)->unit_type = unit->class_id;
+    G_GetAncientRoot(unit)->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
+    G_GetAncientRoot(unit)->mode = rooted ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
     if (rooted) {
         unit->s.flags |= EF_BUILDING;
         unit->aiflags |= AI_IMMOBILE;
@@ -92,7 +91,7 @@ TEST(wc3_ancient_root, rooted_turning_faces_target_without_travel) {
     setup_test_world();
     edict_t *unit = ancient_test_unit(true);
     edict_t *target = alloc_test_unit(TEST_HBAR, 64, 164);
-    unit->ancient_root->rooted_turning = true;
+    G_GetAncientRoot(unit)->rooted_turning = true;
     unit->goalentity = target;
     unit->s.angle = 0;
     T_ASSERT(S_AncientIsRooted(unit));
@@ -107,7 +106,7 @@ TEST(wc3_ancient_root, rooted_turning_faces_target_without_travel) {
     unit_changeangle_for_radius(unit, unit->collision);
     T_ASSERT(unit->s.angle > 0);
     T_NULL(unit->movement);
-    unit->ancient_root->rooted_turning = false;
+    G_GetAncientRoot(unit)->rooted_turning = false;
     unit->s.angle = 0;
     unit_facegoal(unit);
     T_FEQ(unit->s.angle, 0, 0.001f);
@@ -132,18 +131,17 @@ static void ancient_assert_direction_durations(cstring_t slk) {
     unit = ancient_test_unit(false);
     start = G_Time();
     S_AncientBeginMorph(unit, true);
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
-    T_EQ(unit->ancient_root->transition_end_time, start + 2250);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
+    T_EQ(G_GetAncientRoot(unit)->transition_end_time, start + 2250);
     T_FEQ(unit->wait, 2.25f, 0.001f);
     T_FEQ(unit->currentmove->animation_duration(unit), 2.25f, 0.001f);
 
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->mode = ANCIENT_ROOTED;
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTED;
     start = G_Time();
     S_AncientBeginMorph(unit, false);
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTING);
-    T_EQ(unit->ancient_root->transition_end_time, start + 6750);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTING);
+    T_EQ(G_GetAncientRoot(unit)->transition_end_time, start + 6750);
     T_FEQ(unit->wait, 6.75f, 0.001f);
     T_FEQ(unit->currentmove->animation_duration(unit), 6.75f, 0.001f);
 
@@ -169,13 +167,12 @@ TEST(wc3_ancient_root, missing_ability_data_does_not_start_morph) {
     edict_t *unit;
     reset_entities(); setup_test_world(); level.time = 1000;
     unit = ancient_test_unit(false);
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->ability = MAKEFOURCC('A','r','o','2');
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->ability = MAKEFOURCC('A','r','o','2');
 
     S_AncientBeginMorph(unit, true);
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTED);
-    T_ASSERT(!unit->ancient_root || unit->ancient_root->transition_end_time == 0);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTED);
+    T_ASSERT(!G_GetAncientRoot(unit) || G_GetAncientRoot(unit)->transition_end_time == 0);
     T_EQ(S_AncientAttackMask(unit), 3);
 
     G_SetSLKRows("AbilityData", old);
@@ -193,9 +190,8 @@ TEST(wc3_ancient_root, command_button_uses_uproot_art_while_rooted) {
     T_EQ(button.alternate_active, 0);
     T_EQ(button.engaged, 0);
 
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->mode = ANCIENT_ROOTED;
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTED;
     T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &button));
     T_STREQ(button.art, "TestUI\\Textures\\uproot.blp");
     T_STREQ(button.tooltip, "Uproot");
@@ -253,9 +249,9 @@ TEST(wc3_ancient_root, shop_command_card_keeps_uproot_position_and_click_dispatc
     T_EQ(ancient_root_button_y, (int16_t)(-(0.4660f + expected.y * 0.0440f) * UI_FRAMEPOINT_SCALE));
 
     G_ClientCommand(clent, 2, click);
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTING);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTING);
 
-    unit->ancient_root->mode = ANCIENT_UPROOTED;
+    G_GetAncientRoot(unit)->mode = ANCIENT_UPROOTED;
     unit->s.flags &= ~EF_BUILDING;
     unit->aiflags &= ~AI_IMMOBILE;
     unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
@@ -286,7 +282,7 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     unit = ancient_test_unit(true);
-    unit->ancient_root->ability = TEST_ARO2;
+    G_GetAncientRoot(unit)->ability = TEST_ARO2;
     unit->data.UnitWeapons = &weapons;
     unit->unit_state->attack1.type = ATK_NORMAL;
     unit->unit_state->attack2.type = ATK_NORMAL;
@@ -307,12 +303,12 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     T_ASSERT(attack_button);
     T_EQ(unit->unit_state->attack2.type, ATK_NORMAL); /* Rooted ranged weapon. */
 
-    unit->ancient_root->mode = ANCIENT_ROOTING;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
-    unit->ancient_root->mode = ANCIENT_UPROOTING;
+    G_GetAncientRoot(unit)->mode = ANCIENT_UPROOTING;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
 
-    unit->ancient_root->mode = ANCIENT_UPROOTED;
+    G_GetAncientRoot(unit)->mode = ANCIENT_UPROOTED;
     unit->s.flags &= ~EF_BUILDING;
     unit->aiflags &= ~AI_IMMOBILE;
     unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
@@ -330,7 +326,7 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     /* Map-start rooted Protectors can be queried before the A_UPDATE hook has
      * allocated ancient_root runtime state. Their authored Aro2 rooted attack
      * mask must still govern server validation and the command card. */
-    unit->ancient_root->mode = ANCIENT_ROOTED;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTED;
     unit->s.flags |= EF_BUILDING;
     unit->aiflags |= AI_IMMOBILE;
     unit->runtime.flags |= UNIT_BALANCE_BUILDING;
@@ -363,7 +359,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     unit = ancient_test_unit(true);
-    unit->ancient_root->ability = TEST_ARO1;
+    G_GetAncientRoot(unit)->ability = TEST_ARO1;
     unit->data.UnitWeapons = &weapons;
     unit->unit_state->attack1.type = unit->unit_state->attack2.type = ATK_NORMAL;
     unit->unit_state->attack1.targetsAllowed = unit->unit_state->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
@@ -402,7 +398,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     unit->currentmove->think(unit);
     T_STREQ(unit->currentmove->animation, "attack range");
 
-    unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOT_UNINITIALIZED;
     T_ASSERT(S_AncientIsRooted(unit));
     T_EQ(S_AncientRetaliationAttackMask(unit), 3);
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
@@ -424,7 +420,7 @@ TEST(wc3_ancient_root, uprooted_protector_does_not_counterattack_with_rooted_wea
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     unit = ancient_test_unit(false);
-    unit->ancient_root->ability = TEST_ARO2;
+    G_GetAncientRoot(unit)->ability = TEST_ARO2;
     unit->data.UnitWeapons = &weapons;
     unit->unit_state->attack1.type = unit->unit_state->attack2.type = ATK_NORMAL;
     unit->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
@@ -447,11 +443,11 @@ TEST(wc3_ancient_root, uprooted_protector_does_not_counterattack_with_rooted_wea
 
     /* Walking to the root site keeps the uprooted form and its weapons; only
      * the morph itself suppresses counterattacks. */
-    unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approaching = true;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
+    G_GetAncientRoot(unit)->approaching = true;
     T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
     T_EQ(S_AncientRetaliationAttackMask(unit), 1);
-    unit->ancient_root->approaching = false;
+    G_GetAncientRoot(unit)->approaching = false;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
     T_EQ(S_AncientRetaliationAttackMask(unit), 0);
 
@@ -472,19 +468,19 @@ TEST(wc3_ancient_root, uproot_morph_rejects_orders_until_authored_hero_duration)
     enemy->svflags |= SVF_MONSTER; enemy->s.player = 1;
 
     T_ASSERT(unit_issueimmediateorder(unit, "unroot"));
-    end_time = unit->ancient_root->transition_end_time;
+    end_time = G_GetAncientRoot(unit)->transition_end_time;
     T_EQ(end_time, G_Time() + 6750);
     T_ASSERT(!unit_issueimmediateorder(unit, "stop"));
     T_ASSERT(!unit_issueimmediateorder(unit, "unroot"));
     T_ASSERT(!G_IssueUnitPointOrder(unit, "move", &destination, false, 0, 0.0f));
     T_ASSERT(!G_IssueUnitTargetOrder(unit, "attack", enemy, false, 0));
     T_EQ(unit->currentmove->proc, CAbilityRoot);
-    T_EQ(unit->ancient_root->transition_end_time, end_time);
+    T_EQ(G_GetAncientRoot(unit)->transition_end_time, end_time);
 
     level.time = end_time - 1; ancient_update(unit);
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTING);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTING);
     level.time = end_time; ancient_update(unit);
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTED);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTED);
     T_ASSERT(!G_UnitIsStructure(unit));
     T_ASSERT(G_UnitIsBuilding(unit->class_id));
 
@@ -503,7 +499,7 @@ TEST(wc3_ancient_root, root_morph_rejects_orders_until_authored_duration) {
     enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
     enemy->svflags |= SVF_MONSTER; enemy->s.player = 1;
     S_AncientBeginMorph(unit, true);
-    end_time = unit->ancient_root->transition_end_time;
+    end_time = G_GetAncientRoot(unit)->transition_end_time;
     T_EQ(end_time, G_Time() + 2250);
     T_ASSERT(!unit_issueimmediateorder(unit, "stop"));
     T_ASSERT(!G_IssueUnitPointOrder(unit, "move", &destination, false, 0, 0.0f));
@@ -511,9 +507,9 @@ TEST(wc3_ancient_root, root_morph_rejects_orders_until_authored_duration) {
     T_EQ(unit->currentmove->proc, CAbilityRoot);
 
     level.time = end_time - 1; ancient_update(unit);
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
     level.time = end_time; ancient_update(unit);
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTED);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTED);
     T_ASSERT(G_UnitIsStructure(unit));
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -529,32 +525,31 @@ static void ancient_assert_morph_save_restore(bool rooted) {
     reset_entities(); setup_test_world(); level.time = 1000;
     unit = ancient_test_unit(!rooted);
     goal = alloc_test_unit(TEST_HBAR, 96.0f, 64.0f);
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->destination = (vec2_t){ 320.0f, 192.0f };
-    unit->ancient_root->approach_goal = goal;
-    unit->ancient_root->approach_goal_spawn_time = goal->spawn_time;
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->destination = (vec2_t){ 320.0f, 192.0f };
+    G_GetAncientRoot(unit)->approach_goal = goal;
+    G_GetAncientRoot(unit)->approach_goal_spawn_time = goal->spawn_time;
     S_AncientBeginMorph(unit, rooted);
-    end_time = unit->ancient_root->transition_end_time;
+    end_time = G_GetAncientRoot(unit)->transition_end_time;
 
     T_ASSERT(WriteGame(filename));
-    unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
-    unit->ancient_root->approach_goal = NULL;
-    unit->ancient_root->transition_end_time = 0;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOT_UNINITIALIZED;
+    G_GetAncientRoot(unit)->approach_goal = NULL;
+    G_GetAncientRoot(unit)->transition_end_time = 0;
     unit->currentmove = NULL;
     T_ASSERT(ReadGame(filename));
 
-    T_EQ(unit->ancient_root->mode, rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING);
-    T_EQ(unit->ancient_root->transition_end_time, end_time);
-    T_ASSERT(unit->ancient_root->approach_goal == goal);
-    T_EQ(unit->ancient_root->approach_goal_spawn_time, goal->spawn_time);
-    T_FEQ(unit->ancient_root->destination.x, 320.0f, 0.001f);
-    T_FEQ(unit->ancient_root->destination.y, 192.0f, 0.001f);
+    T_EQ(G_GetAncientRoot(unit)->mode, rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING);
+    T_EQ(G_GetAncientRoot(unit)->transition_end_time, end_time);
+    T_ASSERT(G_GetAncientRoot(unit)->approach_goal == goal);
+    T_EQ(G_GetAncientRoot(unit)->approach_goal_spawn_time, goal->spawn_time);
+    T_FEQ(G_GetAncientRoot(unit)->destination.x, 320.0f, 0.001f);
+    T_FEQ(G_GetAncientRoot(unit)->destination.y, 192.0f, 0.001f);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityRoot);
 
     level.time = end_time;
     ancient_update(unit);
-    T_EQ(unit->ancient_root->mode, rooted ? ANCIENT_ROOTED : ANCIENT_UPROOTED);
+    T_EQ(G_GetAncientRoot(unit)->mode, rooted ? ANCIENT_ROOTED : ANCIENT_UPROOTED);
     T_EQ(G_UnitIsStructure(unit), rooted);
     T_EQ(!!(unit->aiflags & AI_IMMOBILE), rooted);
     remove(filename);
@@ -578,14 +573,13 @@ TEST(wc3_ancient_root, approaching_root_remains_interruptible) {
 
     reset_entities(); setup_test_world(); level.time = 1000;
     unit = ancient_test_unit(false);
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approaching = true;
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
+    G_GetAncientRoot(unit)->approaching = true;
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &MAKE(vec2_t, .x = 256, .y = 256), false, 0, 0.0f));
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
     T_ASSERT(unit_issueimmediateorder(unit, "stop"));
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTED);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTED);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -618,7 +612,7 @@ TEST(wc3_ancient_root, command_rejects_blocked_placement_and_keeps_cursor_active
     blocker->collision = 16.0f;
 
     T_ASSERT(!client->menu.on_location_selected(player, &requested));
-    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTED);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_UPROOTED);
     T_ASSERT(client->menu.on_location_selected != NULL);
     player->client = NULL;
     memset(client, 0, sizeof(*client));
@@ -641,19 +635,19 @@ TEST(wc3_ancient_root, placement_order_walks_then_starts_root_morph_on_arrival) 
     T_EQ(G_EvaluateRootPlacement(unit, &requested, &snapped), PLACE_OK);
     ancient_begin_root_placement(player, unit);
     T_ASSERT(client->menu.on_location_selected(player, &requested));
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
-    T_ASSERT(unit->ancient_root->approaching);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
+    T_ASSERT(G_GetAncientRoot(unit)->approaching);
     T_EQ(unit->currentmove->proc, CAbilityMove);
-    T_ASSERT(unit->goalentity == unit->ancient_root->approach_goal);
-    T_EQ(unit->ancient_root->approach_goal_spawn_time, unit->goalentity->spawn_time);
+    T_ASSERT(unit->goalentity == G_GetAncientRoot(unit)->approach_goal);
+    T_EQ(G_GetAncientRoot(unit)->approach_goal_spawn_time, unit->goalentity->spawn_time);
     T_NULL(client->menu.on_location_selected);
 
-    unit->s.origin2 = unit->ancient_root->destination;
+    unit->s.origin2 = G_GetAncientRoot(unit)->destination;
     T_ASSERT(S_UnitAbilityMoveArrive(unit));
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
-    T_ASSERT(!unit->ancient_root || !unit->ancient_root->approaching);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
+    T_ASSERT(!G_GetAncientRoot(unit) || !G_GetAncientRoot(unit)->approaching);
     T_EQ(unit->currentmove->proc, CAbilityRoot);
-    T_EQ(unit->ancient_root->transition_end_time, G_Time() + 2250);
+    T_EQ(G_GetAncientRoot(unit)->transition_end_time, G_Time() + 2250);
 
     player->client = NULL;
     memset(client, 0, sizeof(*client));
@@ -678,15 +672,14 @@ TEST(wc3_ancient_root, ability_availability_is_enforced_by_simulation_dispatch) 
     T_ASSERT(!S_AncientAbilityAvailable(unit, eat.ability));
     T_ASSERT(!S_AbilityMessage(unit, A_VALIDATE, &call));
 
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
-    unit->ancient_root->mode = ANCIENT_UPROOTED;
+    G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(unit)->mode = ANCIENT_UPROOTED;
     unit->s.flags &= ~EF_BUILDING;
     unit->aiflags &= ~AI_IMMOBILE;
     T_ASSERT(S_AncientAbilityAvailable(unit, eat.ability));
     T_ASSERT(S_AbilityMessage(unit, A_VALIDATE, &call));
 
-    unit->ancient_root->mode = ANCIENT_UPROOTING;
+    G_GetAncientRoot(unit)->mode = ANCIENT_UPROOTING;
     T_ASSERT(!S_AncientAbilityAvailable(unit, eat.ability));
     T_ASSERT(!S_AbilityMessage(unit, A_VALIDATE, &call));
 
@@ -710,9 +703,8 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     T_ASSERT(!S_SpellAllowsTarget(TEST_AHHB, caster, target));
     T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','H','s','t'), caster, target));
 
-    if (!target->ancient_root) target->ancient_root = G_AllocAncientRoot();
-    assert(target->ancient_root);
-    target->ancient_root->mode = ANCIENT_UPROOTED;
+    G_AddComponent(target, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(target)->mode = ANCIENT_UPROOTED;
     target->s.flags &= ~EF_BUILDING;
     target->aiflags &= ~AI_IMMOBILE;
     target->runtime.flags &= ~UNIT_BALANCE_BUILDING;
@@ -730,9 +722,8 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     corpse_data.deathType |= UNIT_DEATH_TYPE_RAISE;
     corpse->data.UnitData = &corpse_data;
     T_ASSERT(!S_SpellAllowsCorpseTarget(MAKEFOURCC('A','H','s','t'), caster, corpse));
-    if (!corpse->ancient_root) corpse->ancient_root = G_AllocAncientRoot();
-    assert(corpse->ancient_root);
-    corpse->ancient_root->mode = ANCIENT_ROOTED;
+    G_AddComponent(corpse, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(corpse)->mode = ANCIENT_ROOTED;
     corpse->s.flags |= EF_BUILDING;
     T_ASSERT(S_SpellAllowsCorpseTarget(MAKEFOURCC('A','H','s','t'), caster, corpse));
 

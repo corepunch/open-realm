@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 110, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 111, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -1075,3 +1075,14 @@ runtime exclusions; Shadow Meld and Buildwork payloads are scalar. The productio
 queue walkers (`ProductionNext`, HUD queue, `Get_Commands_f`) read revival state
 through `G_HeroIsReviving` and `G_GetRevival`. Version 109 saves are rejected; the
 wire format is unchanged.
+
+## Fifth component slice (version 111)
+
+Ancient Root, the Gold Mine admission record, Haunted/Entangled mine overlays, the
+Acolyte slot record, Cargo and Soul Trap move onto the component list
+(`COMPONENT_ANCIENT_ROOT`, `COMPONENT_GOLDMINE`, `COMPONENT_MINE_OVERLAY`,
+`COMPONENT_ACOLYTE_MINE`, `COMPONENT_CARGO`, `COMPONENT_SOULTRAP`). Every entity
+reference inside those payloads keeps its `F_EDICT` fixup (including the
+`cargo->units[]` array and the four Soul Trap links) behind the runtime
+`component.next` exclusion. `G_InitGoldMine` now attaches through `G_AddComponent`.
+Version 110 saves are rejected; the wire format is unchanged.

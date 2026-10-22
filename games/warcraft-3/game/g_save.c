@@ -141,7 +141,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 108 moves Polymorph, Raven Form, Ensnare and artillery profiles onto the component list. */
 /* Version 109 moves Sleep, Rally, Sacrifice, Unsummon and Blight Growth onto the component list. */
 /* Version 110 moves Shadow Meld, Militia, Hero revival and worker build/repair state onto the component list. */
-static uint32_t const save_version = 110;
+/* Version 111 moves AncientRoot, GoldMine, MineOverlay, AcolyteMine, Cargo, SoulTrap onto the component list. */
+static uint32_t const save_version = 111;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -674,12 +675,14 @@ static field_t const militia_fields[] = {
 };
 
 static field_t const goldmine_fields[] = {
+    TF(goldMine_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(goldMine_t, occupants, F_INT),
     TF(goldMine_t, mine, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const mineoverlay_fields[] = {
+    TF(mineOverlay_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(mineOverlay_t, parent, F_EDICT, 0, FIELD_NONE),
     TF(mineOverlay_t, caster, F_EDICT, 0, FIELD_NONE),
     TF(mineOverlay_t, entangle_tree, F_EDICT, 0, FIELD_NONE),
@@ -687,6 +690,7 @@ static field_t const mineoverlay_fields[] = {
 };
 
 static field_t const acolyte_mine_fields[] = {
+    TF(acolyteMine_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(acolyteMine_t, mine, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -714,6 +718,7 @@ static field_t const destructable_fields[] = {
 };
 
 static field_t const cargo_fields[] = {
+    TF(cargo_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(cargo_t, units, F_EDICT, MAX_CARGO, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -764,6 +769,7 @@ static field_t const ensnare_fields[] = {
 };
 
 static field_t const ancient_root_fields[] = {
+    TF(ancientRoot_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(ancientRoot_t, destination, F_VECTOR),
     TF(ancientRoot_t, approach_goal, F_EDICT, 0, FIELD_NONE),
     TF(ancientRoot_t, approach_goal_spawn_time, F_INT),
@@ -889,6 +895,7 @@ static field_t const client_camera_fields[] = {
 };
 
 static field_t const soultrap_fields[] = {
+    TF(soulTrap_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(soulTrap_t, head, F_EDICT, 0, FIELD_NONE),
     TF(soulTrap_t, carrier, F_EDICT, 0, FIELD_NONE),
     TF(soulTrap_t, next, F_EDICT, 0, FIELD_NONE),
@@ -1007,16 +1014,10 @@ field_t edict_fields[] = {
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, food, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, goldmine, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, mineoverlay, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, acolyte_mine, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, item, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, destructable, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, cargo, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, soultrap, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, missile, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2250,19 +2251,19 @@ static savePool_t const save_pools[] = {
     { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
     { "blight_growth", 0, sizeof(blightGrowth_t), component_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
     { "ensnare", 0, sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP, COMPONENT_ENSNARE },
-    { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP },
-    { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP },
-    { "mineoverlay", offsetof(edict_t, mineoverlay), sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP },
-    { "acolyte_mine", offsetof(edict_t, acolyte_mine), sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP },
+    { "ancient_root", 0, sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP, COMPONENT_ANCIENT_ROOT },
+    { "goldmine", 0, sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP, COMPONENT_GOLDMINE },
+    { "mineoverlay", 0, sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP, COMPONENT_MINE_OVERLAY },
+    { "acolyte_mine", 0, sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP, COMPONENT_ACOLYTE_MINE },
     { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP },
     { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP },
-    { "cargo", offsetof(edict_t, cargo), sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP },
+    { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
     { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP },
     { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
     { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
     { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
     { "sleep", 0, sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP, COMPONENT_SLEEP },
-    { "soultrap", offsetof(edict_t, soultrap), sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP },
+    { "soultrap", 0, sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP, COMPONENT_SOULTRAP },
     { "unit_state", offsetof(edict_t, unit_state), sizeof(unitState_t), unit_state_fields, SaveAllocUnitState, MAX_ENTITIES },
     { "sound", offsetof(edict_t, sound), sizeof(unitSounds_t), sound_fields, SaveAllocSounds, MAX_ENTITIES },
     { "missile", offsetof(edict_t, missile), sizeof(attackMissile_t), missile_fields, SaveAllocMissile, MAX_ENTITIES },
@@ -3371,10 +3372,10 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     G_GetRaven(unit)->rise_state = RAVEN_RISE_ACTIVE;
     G_GetEnsnare(unit)->phase = ENSNARE_HEIGHT_RISE;
     G_GetArtillery(unit)->area_full = 40.0f;
-    unit->cargo->count = 1;
-    unit->cargo->units[0] = target;
-    unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approach_goal = target;
+    G_GetCargo(unit)->count = 1;
+    G_GetCargo(unit)->units[0] = target;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
+    G_GetAncientRoot(unit)->approach_goal = target;
     FILE *raw = tmpfile();
     T_NOT_NULL(raw);
     if (raw) {
@@ -3437,10 +3438,10 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_FEQ(G_GetArtillery(unit)->area_full, 40.0f, 0.001f);
     T_FEQ(G_GetWaygate(unit)->destination.x, 128, 0.001f);
     T_FEQ(G_GetWaygate(unit)->destination.y, 256, 0.001f);
-    T_EQ(unit->cargo->count, 1);
-    T_ASSERT(unit->cargo->units[0] == target);
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
-    T_ASSERT(unit->ancient_root->approach_goal == target);
+    T_EQ(G_GetCargo(unit)->count, 1);
+    T_ASSERT(G_GetCargo(unit)->units[0] == target);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
+    T_ASSERT(G_GetAncientRoot(unit)->approach_goal == target);
     remove(filename);
 }
 #endif
