@@ -93,11 +93,12 @@ bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
 
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
 static void avatar_expire_internal(edict_t *unit, bool remove_buff) {
-    if (!unit || !unit->avatar || !unit->avatar->level) return;
-    G_ApplyTemporaryArmorBonus(unit, -unit->avatar->armor);
-    G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar->damage);
-    unit->unit_state->temporary_health_bonus -= unit->avatar->health;
-    unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
+    avatar_t *avatar = G_GetAvatar(unit);
+    if (!avatar || !avatar->level) return;
+    G_ApplyTemporaryArmorBonus(unit, -avatar->armor);
+    G_ApplyTemporaryAttackDamageBonus(unit, -(float)avatar->damage);
+    unit->unit_state->temporary_health_bonus -= avatar->health;
+    unit->health.max_value = MAX(1.0f, unit->health.max_value - avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
     G_FreeAvatar(unit);
     if (remove_buff) human_remove_status(unit, BZ_AVATAR_BUFF);
@@ -113,7 +114,8 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
     wc3_status_apply_check_t check;
     (void)spell;
     (void)target; unit_updatestatuses(caster);
-    if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
+    avatar_t *avatar = G_GetAvatar(caster);
+    if (!S_SpellIsAliveTarget(caster) || (avatar && avatar->level)) return false;
     check = unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 });
     if (check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
@@ -123,19 +125,19 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
 static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     (void)target;
-    if ((caster->avatar && caster->avatar->level)) return;
+    avatar_t *avatar = G_GetAvatar(caster);
+    if (avatar && avatar->level) return;
     if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
-    if (!caster->avatar) caster->avatar = G_AllocAvatar();
-    assert(caster->avatar);
-    caster->avatar->level = rank; caster->avatar->armor = S_SpellData(spell->code, rank, 1);
-    caster->avatar->health = S_SpellData(spell->code, rank, 2); caster->avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
-    G_ApplyTemporaryArmorBonus(caster, caster->avatar->armor);
-    G_ApplyTemporaryAttackDamageBonus(caster, (float)caster->avatar->damage);
-    caster->unit_state->temporary_health_bonus += caster->avatar->health;
-    caster->health.max_value = MAX(1.0f, caster->health.max_value + caster->avatar->health);
-    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar->health)));
+    avatar = G_AddComponent(caster, COMPONENT_AVATAR);
+    avatar->level = rank; avatar->armor = S_SpellData(spell->code, rank, 1);
+    avatar->health = S_SpellData(spell->code, rank, 2); avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
+    G_ApplyTemporaryArmorBonus(caster, avatar->armor);
+    G_ApplyTemporaryAttackDamageBonus(caster, (float)avatar->damage);
+    caster->unit_state->temporary_health_bonus += avatar->health;
+    caster->health.max_value = MAX(1.0f, caster->health.max_value + avatar->health);
+    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, avatar->health)));
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 

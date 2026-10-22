@@ -149,3 +149,25 @@ build/bin/xctraceprof --top 30 build/test-time-profile.xml
 ```
 
 The final engine-test profile sampled `Test_Run` and showed `__bzero` as the largest leaf symbol, followed by JASS setup and test-specific work. This profile covers the engine-backed WC3 process; aggregate wall timing is required for the full multi-suite target.
+
+## Local macOS SDL event-test crash
+
+On 2026-10-22, the rebased state-refactor baseline passed CI and the complete
+`make test-wc3-engine WC3_PATTERN='wc3_*'` RoC/TFT gameplay suites, while local
+`make test` crashed in `client_input.menu_sdl_input_is_exclusive_with_world_presentation`.
+The macOS diagnostic report located the fault in `SDL_PushEvent_REAL` through
+Homebrew `sdl2-compat` and SDL3. Linking warned that this installed SDL runtime
+requires macOS 27.0 while the build targets 26.4; that warning is context, not a
+confirmed root cause. The same crash predates the component migration.
+
+Inspect `~/Library/Logs/DiagnosticReports/openwarcraft3-tests*.ips` for the actual
+faulting stack. This records completed tests before the fault:
+
+```sh
+TEST_SLOW_MS=0 TEST_SHARD=0/4 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test '*'
+```
+
+The `wc3_*` filter verifies gameplay but excludes client-input coverage and must
+not be reported as a passing full suite. Sandbox-denied UDP sockets are a separate
+failure; rerun the full suite with socket access before attributing those assertions
+to code changes.

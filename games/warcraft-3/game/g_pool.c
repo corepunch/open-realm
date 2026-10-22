@@ -2,7 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DEFINE_POOL(member, Name, type, POOL_CAP) \
+/* Component storage keeps typed pools; this registry owns only attachment and raw release. */
+typedef struct {
+    componentId_t id;
+    void *(*alloc)(void);
+    void (*release)(void *);
+} componentType_t;
+
+#define DEFINE_STORAGE(member, Name, type, POOL_CAP) \
 static struct { type data; uint16_t next; bool live; } member##_slots[POOL_CAP]; \
 static uint16_t member##_free; \
 static bool member##_ready; \
@@ -25,15 +32,21 @@ type *G_Alloc##Name(void) { \
     if (++member##_live > member##_peak) member##_peak = member##_live; \
     return &member##_slots[i].data; \
 } \
-void G_Free##Name(edict_t *ent) { \
-    assert(ent); \
-    if (!ent->member) return; \
-    uint16_t i = (uint16_t)(((unsigned char *)ent->member - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
+static void Release##Name(void *record) { \
+    uint16_t i = (uint16_t)(((unsigned char *)record - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
     assert(i > 0 && i < POOL_CAP && member##_slots[i].live); \
     member##_slots[i].live = false; \
     member##_live--; \
     member##_slots[i].next = member##_free; \
     member##_free = i; \
+}
+
+#define DEFINE_POOL(member, Name, type, POOL_CAP) \
+DEFINE_STORAGE(member, Name, type, POOL_CAP) \
+void G_Free##Name(edict_t *ent) { \
+    assert(ent); \
+    if (!ent->member) return; \
+    Release##Name(ent->member); \
     ent->member = NULL; \
 }
 
@@ -59,9 +72,9 @@ DEFINE_POOL(item, Item, item_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
 DEFINE_POOL(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(sleep, Sleep, sleep_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(soultrap, SoulTrap, soulTrap_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(unit_state, UnitState, unitState_t, MAX_ENTITIES)
@@ -75,6 +88,61 @@ DEFINE_POOL(movement, Movement, movement_t, MAX_ENTITIES)
 DEFINE_POOL(route, Route, routeCache_t, MAX_ENTITIES)
 DEFINE_POOL(wander, Wander, wander_t, MAX_ENTITIES)
 DEFINE_POOL(channel, Channel, channel_t, LIFECYCLE_POOL_CAP)
+
+static void *AllocWaygateComponent(void) { return G_AllocWaygate(); }
+static void *AllocAvatarComponent(void) { return G_AllocAvatar(); }
+
+/* Exact IDs authorize the concrete layout; families and authored rawcodes are separate concepts. */
+static componentType_t const *ComponentType(componentId_t id) {
+    static componentType_t const component_types[] = {
+        { COMPONENT_WAYGATE, AllocWaygateComponent, ReleaseWaygate },
+        { COMPONENT_AVATAR, AllocAvatarComponent, ReleaseAvatar }
+    };
+    FOR_LOOP(i, sizeof(component_types) / sizeof(component_types[0]))
+        if (component_types[i].id == id) return component_types + i;
+    gi.error("WC3 unknown component type %u", (unsigned)id);
+    abort();
+}
+
+/* Queries never allocate, including on edicts that do not own this behavior. */
+void *G_GetComponent(edict_t const *ent, componentId_t id) {
+    for (component_t *cur = ent ? ent->components : NULL; cur; cur = cur->next)
+        if (cur->id == id) return cur;
+    return NULL;
+}
+
+/* Restore and allocation both establish one owner and one instance of an exact type. */
+void G_AttachComponent(edict_t *ent, component_t *record, componentId_t id) {
+    assert(ent && record && !G_GetComponent(ent, id));
+    assert(!record->next && (!record->id || record->id == id));
+    *record = (component_t){ .id = id, .next = ent->components };
+    ent->components = record;
+}
+
+/* Explicit initialization is idempotent, while ordinary observation remains read-only. */
+void *G_AddComponent(edict_t *ent, componentId_t id) {
+    assert(ent);
+    component_t *record = G_GetComponent(ent, id);
+    if (record) return record;
+    record = ComponentType(id)->alloc();
+    G_AttachComponent(ent, record, id);
+    return record;
+}
+
+/* Unlink before releasing storage so head and interior removal preserve the remaining owner list. */
+void G_FreeComponent(edict_t *ent, componentId_t id) {
+    assert(ent);
+    for (component_t **link = &ent->components; *link; link = &(*link)->next) {
+        component_t *cur = *link;
+        if (cur->id != id) continue;
+        *link = cur->next;
+        ComponentType(id)->release(cur);
+        return;
+    }
+}
+
+void G_FreeWaygate(edict_t *ent) { G_FreeComponent(ent, COMPONENT_WAYGATE); }
+void G_FreeAvatar(edict_t *ent) { G_FreeComponent(ent, COMPONENT_AVATAR); }
 
 /* Unit spawn and explicit ability/status mutations establish ownership; reads never allocate. */
 void G_InitUnitState(edict_t *ent) {
@@ -170,6 +238,7 @@ void G_PoolsReportPeaks(void) {
 void G_PoolsReset(void) {
     if (g_edicts) {
         FOR_LOOP(i, globals.max_edicts) {
+            g_edicts[i].components = NULL;
             g_edicts[i].construction = NULL;
             g_edicts[i].research = NULL;
             g_edicts[i].rally = NULL;
@@ -192,9 +261,7 @@ void G_PoolsReset(void) {
             g_edicts[i].destructable = NULL;
             g_edicts[i].cargo = NULL;
             g_edicts[i].stock = NULL;
-            g_edicts[i].waygate = NULL;
             g_edicts[i].artillery = NULL;
-            g_edicts[i].avatar = NULL;
             g_edicts[i].sleep = NULL;
             g_edicts[i].soultrap = NULL;
             g_edicts[i].unit_state = NULL;
@@ -274,9 +341,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeDestructable(ent);
     G_FreeCargo(ent);
     G_FreeStock(ent);
-    G_FreeWaygate(ent);
     G_FreeArtillery(ent);
-    G_FreeAvatar(ent);
     G_FreeSleep(ent);
     G_FreeSoulTrap(ent);
     G_FreeUnitState(ent);
@@ -290,6 +355,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeRoute(ent);
     G_FreeWander(ent);
     G_FreeChannel(ent);
+    while (ent->components) G_FreeComponent(ent, ent->components->id);
 }
 
 #ifdef BZ_TESTS
@@ -334,9 +400,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(destructable, Destructable, destructable_t);
     CHECK_POOL(cargo, Cargo, cargo_t);
     CHECK_POOL(stock, Stock, stock_t);
-    CHECK_POOL(waygate, Waygate, waygate_t);
     CHECK_POOL(artillery, Artillery, artillery_t);
-    CHECK_POOL(avatar, Avatar, avatar_t);
     CHECK_POOL(sleep, Sleep, sleep_t);
     CHECK_POOL(soultrap, SoulTrap, soulTrap_t);
     CHECK_POOL(unit_state, UnitState, unitState_t);
@@ -374,9 +438,9 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(unit->destructable);
     T_NULL(unit->cargo);
     T_NULL(unit->stock);
-    T_NULL(unit->waygate);
+    T_NULL(G_GetWaygate(unit));
     T_NULL(unit->artillery);
-    T_NULL(unit->avatar);
+    T_NULL(G_GetAvatar(unit));
     T_NULL(unit->sleep);
     T_NULL(unit->soultrap);
     T_NULL(unit->unit_state);
@@ -407,5 +471,40 @@ TEST(wc3_pools, destructable_pool_holds_more_than_the_default_cap) {
 TEST(wc3_pools, register_model_ignores_missing_names) {
     T_EQ(G_RegisterModel(NULL), 0);
     T_EQ(G_RegisterModel(""), 0);
+}
+#endif
+
+#ifdef BZ_TESTS
+/* Mixed owners exercise lookup, non-head removal, pool reuse and entity teardown. */
+TEST(wc3_components, mixed_list_release_reuse_and_entity_lifetime) {
+    reset_entities();
+    edict_t *unit = G_Spawn();
+    T_NULL(G_GetComponent(unit, COMPONENT_WAYGATE));
+    T_NULL(unit->components);
+    waygate_t *gate = G_AddComponent(unit, COMPONENT_WAYGATE);
+    gate->destination = (vec2_t){128, 256};
+    avatar_t *avatar = G_AddComponent(unit, COMPONENT_AVATAR);
+    avatar->health = 250;
+    T_ASSERT(unit->components == &avatar->component);
+    T_ASSERT(unit->components->next == &gate->component);
+    T_ASSERT(G_GetComponent(unit, COMPONENT_WAYGATE) == gate);
+    T_ASSERT(G_AddComponent(unit, COMPONENT_WAYGATE) == gate);
+    G_FreeWaygate(unit);
+    T_NULL(G_GetComponent(unit, COMPONENT_WAYGATE));
+    T_ASSERT(G_GetComponent(unit, COMPONENT_AVATAR) == avatar);
+    T_NULL(unit->components->next);
+    waygate_t *again = G_AddComponent(unit, COMPONENT_WAYGATE);
+    T_ASSERT(again == gate);
+    T_FEQ(again->destination.x, 0, 0.001f);
+    T_EQ(again->component.id, COMPONENT_WAYGATE);
+    G_FreeWaygate(unit);
+    T_ASSERT(unit->components == &avatar->component);
+    G_FreeEdict(unit);
+    T_NULL(unit->components);
+    unit = G_Spawn();
+    T_NULL(unit->components);
+    G_AddComponent(unit, COMPONENT_WAYGATE);
+    G_PoolsReset();
+    T_NULL(unit->components);
 }
 #endif

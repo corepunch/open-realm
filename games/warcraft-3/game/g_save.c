@@ -137,7 +137,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 104 replaces independent unit booleans with flags and removes the derived stun mirror. */
 /* Version 105 extracts unit feature records from the base edict. */
 /* Version 106 guards Wander private destination ownership across entity-slot reuse. */
-static uint32_t const save_version = 106;
+/* Version 107 replaces Way Gate and Avatar edict pointers with typed component attachments. */
+static uint32_t const save_version = 107;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -716,6 +717,7 @@ static field_t const abilities_fields[] = {
 };
 
 static field_t const avatar_fields[] = {
+    TF(avatar_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(avatar_t, level, F_INT),
     TF(avatar_t, armor, F_FLOAT),
     TF(avatar_t, health, F_FLOAT),
@@ -1014,9 +1016,8 @@ field_t edict_fields[] = {
     F(edict_s, destructable, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, cargo, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, waygate, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, artillery, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, avatar, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sleep, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, soultrap, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2185,8 +2186,13 @@ typedef struct {
     field_t const *fields;
     void *(*alloc)(void);
     uint32_t capacity;
+    componentId_t component; /* zero for direct attachments; otherwise exact saved component type */
 } savePool_t;
 
+static field_t const component_fields[] = {
+    TF(component_t, next, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
 static field_t const scalar_pool_fields[] = { { NULL, 0, 0, 0, 0, 0 } };
 #define POOL_ALLOC(Name) static void *SaveAlloc##Name(void) { return G_Alloc##Name(); }
 POOL_ALLOC(Construction)
@@ -2255,9 +2261,9 @@ static savePool_t const save_pools[] = {
     { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP },
     { "cargo", offsetof(edict_t, cargo), sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP },
     { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP },
-    { "waygate", offsetof(edict_t, waygate), sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP },
+    { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
     { "artillery", offsetof(edict_t, artillery), sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP },
-    { "avatar", offsetof(edict_t, avatar), sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP },
+    { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
     { "sleep", offsetof(edict_t, sleep), sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP },
     { "soultrap", offsetof(edict_t, soultrap), sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP },
     { "unit_state", offsetof(edict_t, unit_state), sizeof(unitState_t), unit_state_fields, SaveAllocUnitState, MAX_ENTITIES },
@@ -2270,9 +2276,16 @@ static savePool_t const save_pools[] = {
 };
 
 static void *SavePoolSlot(edict_t const *ent, savePool_t const *pool) {
+    if (pool->component) return G_GetComponent(ent, pool->component);
     void *slot;
     memcpy(&slot, (uint8_t const *)ent + pool->offset, sizeof(slot));
     return slot;
+}
+
+/* Both restore and fixtures attach through the same owner contract. */
+static void AttachPoolSlot(edict_t *ent, savePool_t const *pool, void *slot) {
+    if (pool->component) G_AttachComponent(ent, slot, pool->component);
+    else memcpy((uint8_t *)ent + pool->offset, &slot, sizeof(slot));
 }
 
 static bool WritePool(FILE *f, savePool_t const *pool) {
@@ -2304,11 +2317,12 @@ static bool ReadPool(FILE *f, savePool_t const *pool) {
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.num_edicts ||
             !g_edicts[index].inuse || SavePoolSlot(g_edicts + index, pool)) return false;
         void *slot = pool->alloc();
-        memcpy((uint8_t *)(g_edicts + index) + pool->offset, &slot, sizeof(slot));
         if (!LoadBytes(f, slot, pool->size)) return false;
         ClearRuntimeFields(slot, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; field->name; field++)
             if (!ReadField(field, slot)) return false;
+        if (pool->component && ((component_t *)slot)->id != pool->component) return false;
+        AttachPoolSlot(g_edicts + index, pool, slot);
     }
     return true;
 }
@@ -3230,7 +3244,46 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
 #endif
 
 #ifdef BZ_TESTS
-/* A failed restoration must not expose earlier pools or a half-read final record. */
+/* Saved payloads retain exact type identity but never process-owned list links. */
+TEST(wc3_save, component_links_are_transient_and_wrong_type_is_rejected) {
+    reset_entities();
+    edict_t *unit = G_Spawn();
+    G_AddComponent(unit, COMPONENT_AVATAR);
+    waygate_t *gate = G_AddComponent(unit, COMPONENT_WAYGATE);
+    gate->destination = (vec2_t){128, 256};
+    T_NOT_NULL(gate->component.next);
+    savePool_t const *pool = NULL;
+    FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0]))
+        if (save_pools[i].component == COMPONENT_WAYGATE) pool = save_pools + i;
+    T_NOT_NULL(pool);
+    FILE *f = tmpfile();
+    T_NOT_NULL(f);
+    if (!f || !pool) { if (f) fclose(f); return; }
+    T_ASSERT(WritePool(f, pool));
+    rewind(f);
+    uint32_t count, index;
+    waygate_t saved;
+    T_ASSERT(LoadBytes(f, &count, sizeof(count)));
+    T_ASSERT(LoadBytes(f, &index, sizeof(index)));
+    T_ASSERT(LoadBytes(f, &saved, sizeof(saved)));
+    T_EQ(count, 1); T_EQ(index, unit - g_edicts);
+    T_EQ(saved.component.id, COMPONENT_WAYGATE);
+    T_NULL(saved.component.next);
+    T_NOT_NULL(gate->component.next); /* Saving must leave the live owner list intact. */
+    saved.component.id = COMPONENT_AVATAR;
+    rewind(f);
+    T_ASSERT(SaveBytes(f, &count, sizeof(count)));
+    T_ASSERT(SaveBytes(f, &index, sizeof(index)));
+    T_ASSERT(SaveBytes(f, &saved, sizeof(saved)));
+    rewind(f);
+    G_PoolsReset();
+    T_ASSERT(!ReadPool(f, pool));
+    T_NULL(unit->components);
+    G_PoolsReset(); /* Failed raw reads are reclaimed without gameplay callbacks. */
+    fclose(f);
+}
+
+/* A truncated late pool also detaches components decoded earlier in the stream. */
 TEST(wc3_save, failed_pool_restore_detaches_all_partial_records) {
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -3241,7 +3294,7 @@ TEST(wc3_save, failed_pool_restore_detaches_all_partial_records) {
         savePool_t const *pool = save_pools + i;
         if (!SavePoolSlot(unit, pool)) {
             void *slot = pool->alloc();
-            memcpy((uint8_t *)unit + pool->offset, &slot, sizeof(slot));
+            AttachPoolSlot(unit, pool, slot);
         }
         if (!strcmp(pool->name, "channel")) {
             uint32_t count = 1, index = (uint32_t)(unit - g_edicts);
@@ -3307,7 +3360,7 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
         if (SavePoolSlot(unit, save_pools + i)) continue;
         void *slot = save_pools[i].alloc();
-        memcpy((uint8_t *)unit + save_pools[i].offset, &slot, sizeof(slot));
+        AttachPoolSlot(unit, save_pools + i, slot);
     }
 
     unit->unit_state->next_status_id = 57;
@@ -3334,8 +3387,9 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->shadowmeld->hide_order_active = true;
     unit->blight_growth->ability = MAKEFOURCC('A','b','l','i');
     unit->blight_growth->radius = 192.0f;
-    unit->waygate->destination = (vec2_t){128, 256};
-    unit->waygate->active = true;
+    G_GetWaygate(unit)->destination = (vec2_t){128, 256};
+    G_GetWaygate(unit)->active = true;
+    G_GetAvatar(unit)->health = 275;
     unit->cargo->count = 1;
     unit->cargo->units[0] = target;
     unit->ancient_root->mode = ANCIENT_ROOTING;
@@ -3385,9 +3439,12 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_ASSERT(unit->shadowmeld->hide_order_active);
     T_EQ(unit->blight_growth->ability, MAKEFOURCC('A','b','l','i'));
     T_FEQ(unit->blight_growth->radius, 192.0f, 0.001f);
-    T_ASSERT(unit->waygate->active);
-    T_FEQ(unit->waygate->destination.x, 128, 0.001f);
-    T_FEQ(unit->waygate->destination.y, 256, 0.001f);
+    T_ASSERT(G_GetWaygate(unit)->active);
+    T_FEQ(G_GetAvatar(unit)->health, 275, 0.001f);
+    T_EQ(G_GetAvatar(unit)->component.id, COMPONENT_AVATAR);
+    T_EQ(G_GetWaygate(unit)->component.id, COMPONENT_WAYGATE);
+    T_FEQ(G_GetWaygate(unit)->destination.x, 128, 0.001f);
+    T_FEQ(G_GetWaygate(unit)->destination.y, 256, 0.001f);
     T_EQ(unit->cargo->count, 1);
     T_ASSERT(unit->cargo->units[0] == target);
     T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);

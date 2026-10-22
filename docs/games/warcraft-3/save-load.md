@@ -1083,3 +1083,14 @@ slot and verify that it disappears. A stale/invalid save must not crash or
 start a new map. Fixture-backed menu tests cover invalid and unreadable-save
 filtering, Quick Save naming, load dispatch, edition selection, and delete
 refresh. They do not exercise archive restoration or rendered retail layout.
+
+## Optional component attachments (version 107)
+
+Way Gate and Avatar records now attach through `edict_t.components`; their edict
+pointer fields are removed. Each concrete payload begins with an exact type ID
+and a runtime-only next link. `savePool_t.component` selects list lookup and
+attachment instead of an edict member offset. Save writes the type ID, excludes
+links, and restores only after decoding and validating the complete record.
+Truncated/rejected loads reset all pools and list heads. Earlier versions are
+rejected, and the network wire contract is unchanged.
+See [pooled state and components](pooled-entity-state.md#optional-components).
