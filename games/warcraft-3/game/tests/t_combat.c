@@ -316,9 +316,7 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!target->sleep) target->sleep = G_AllocSleep();
-    assert(target->sleep);
-    target->sleep->can_sleep = true;
+    ((sleep_t *)G_AddComponent(target, COMPONENT_SLEEP))->can_sleep = true;
     target->s.radius = 32.0f;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -367,9 +365,7 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!target->sleep) target->sleep = G_AllocSleep();
-    assert(target->sleep);
-    target->sleep->can_sleep = true;
+    ((sleep_t *)G_AddComponent(target, COMPONENT_SLEEP))->can_sleep = true;
     attacker->s.player = 0;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -3411,23 +3407,23 @@ TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
     unit->s.player = 0; unit->think = monster_think;
     unit->unit_state->overrides.added[0] = code; ARRAY_COUNT(unit->unit_state->overrides.added) = 1;
     T_ASSERT(S_UnitAbilityEvent(unit, A_UNIT_INIT));
-    T_FEQ(unit->blight_growth->radius, 0.0f, 0.001f);
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 0.0f, 0.001f);
     T_ASSERT(!G_IsPointBlighted(&first_ring));
 
     level.time = 200; G_RunEntities();
-    T_FEQ(unit->blight_growth->radius, 73.0f, 0.001f);
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 73.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&first_ring)); T_ASSERT(!G_IsPointBlighted(&second_ring));
 
     level.time = 400; G_RunEntities();
-    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 146.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&second_ring));
 
     G_SetPlayerAbilityAvailable(&game.clients[0], code, false);
     level.time = 600; G_RunEntities();
-    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 146.0f, 0.001f);
     G_SetPlayerAbilityAvailable(&game.clients[0], code, true);
     G_RunEntities();
-    T_FEQ(unit->blight_growth->radius, 219.0f, 0.001f);
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 219.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -3458,7 +3454,7 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
     unit->s.player = 0; unit->unit_state->overrides.added[0] = code; ARRAY_COUNT(unit->unit_state->overrides.added) = 1;
     T_ASSERT(S_UnitAbilityEvent(unit, A_UNIT_INIT));
     level.time = 200; S_RunAbilityUpdates(unit);
-    T_FEQ(unit->blight_growth->radius, 73.0f, 0.001f);
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 73.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&first_ring));
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);

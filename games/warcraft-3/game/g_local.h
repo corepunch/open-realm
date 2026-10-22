@@ -1709,7 +1709,12 @@ typedef enum {
     COMPONENT_POLYMORPH = 3,
     COMPONENT_RAVEN = 4,
     COMPONENT_ENSNARE = 5,
-    COMPONENT_ARTILLERY = 6
+    COMPONENT_ARTILLERY = 6,
+    COMPONENT_SLEEP = 7,
+    COMPONENT_RALLY = 8,
+    COMPONENT_SACRIFICE = 9,
+    COMPONENT_UNSUMMON = 10,
+    COMPONENT_BLIGHT_GROWTH = 11
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -1765,6 +1770,7 @@ typedef struct {
 
 /* Producer-owned rally point/entity identity retained for newly completed units. */
 typedef struct {
+    component_t component;
     rallyTargetType_t type;
     vec2_t point;
     edict_t *entity;
@@ -1798,6 +1804,7 @@ typedef struct {
 
 /* Hidden sacrifice-result queue record retaining the consumed worker for cancellation. */
 typedef struct {
+    component_t component;
     edict_t *worker;
     uint32_t worker_spawn_time;
     bool restore_paused;
@@ -1806,6 +1813,7 @@ typedef struct {
 
 /* Timed demolition/refund state owned by the active Unsummon ability. */
 typedef struct {
+    component_t component;
     edict_t *target;
     uint32_t target_spawn_time;
     uint32_t ability, level;
@@ -1856,6 +1864,7 @@ typedef struct {
 
 /* Ability-owned blight expansion schedule and source footprint state. */
 typedef struct {
+    component_t component;
     uint32_t ability;      /* concrete Abli-derived alias owning this state */
     float radius;       /* current expanded radius */
     uint32_t next_update;  /* next authored expansion deadline */
@@ -1995,6 +2004,7 @@ typedef struct {
 
 /* Sleep eligibility, wake timing and status ownership retained by the unit. */
 typedef struct {
+    component_t component;
     bool can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
     bool sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
 } sleep_t;
@@ -2237,18 +2247,12 @@ struct edict_s {
     auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
     construction_t *construction; /* pool slot; null if this unit is not under construction */
     research_t *research;
-    rally_t *rally;
     food_t *food;
     buildwork_t *buildwork;
     /* Hero revival state lives on the persistent Hero edict. While reviving,
      * queue_next links the Hero into a producer's ordinary production chain
      * without borrowing hero->build, which may have independent gameplay use. */
     revival_t *revival;
-    /* A sacrifice queue item is the hidden result unit.  Keep the consumed
-     * worker relationship on that item so cancellation/save-load do not need
-     * Sacrificial-Pit-specific state in generic unit AI. */
-    sacrifice_t *sacrifice;
-    unsummon_t *unsummon;
     uint32_t spawn_time;
     wander_t *wander;
     routeCache_t *route;
@@ -2256,7 +2260,6 @@ struct edict_s {
     visibility_t *vision; /* optional forced/shared sight and invisibility reveal deadline */
     harvest_t *harvest; /* carried resources; absent while empty */
     militia_t *militia;
-    blightGrowth_t *blight_growth;
     ancientRoot_t *ancient_root;
     uint32_t aiflags;
     uint32_t damage;
@@ -2280,7 +2283,6 @@ struct edict_s {
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
     uint32_t unit_flags; /* independent entity gameplay switches; unitFlags_t */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
-    sleep_t *sleep;
     channel_t *channel;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
@@ -4339,6 +4341,12 @@ static inline polymorph_t *G_GetPolymorph(edict_t const *ent) { return G_GetComp
 static inline raven_t *G_GetRaven(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RAVEN); }
 static inline ensnare_t *G_GetEnsnare(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ENSNARE); }
 static inline artillery_t *G_GetArtillery(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ARTILLERY); }
+static inline sleep_t *G_GetSleep(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SLEEP); }
+static inline rally_t *G_GetRally(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RALLY); }
+/* A sacrifice queue item is the hidden result unit; it keeps the consumed worker so generic unit AI stays Pit-free. */
+static inline sacrifice_t *G_GetSacrifice(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SACRIFICE); }
+static inline unsummon_t *G_GetUnsummon(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_UNSUMMON); }
+static inline blightGrowth_t *G_GetBlightGrowth(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BLIGHT_GROWTH); }
 waygate_t *G_AllocWaygate(void);
 void G_FreeArtillery(edict_t *ent);
 artillery_t *G_AllocArtillery(void);

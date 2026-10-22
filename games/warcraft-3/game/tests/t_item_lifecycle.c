@@ -351,9 +351,7 @@ TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     edict_t *creep = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     creep->svflags |= SVF_MONSTER;
-    if (!creep->sleep) creep->sleep = G_AllocSleep();
-    assert(creep->sleep);
-    creep->sleep->can_sleep = true;
+    ((sleep_t *)G_AddComponent(creep, COMPONENT_SLEEP))->can_sleep = true;
     creep->stand = unit_stand;
     unit_stand(creep);
     G_SetTimeOfDay(game.constants.duskTimeGameHours);

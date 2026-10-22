@@ -4416,9 +4416,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     G_SetUnitSharedVision(first, 0, true); G_SetUnitSharedVision(first, 7, true);
     G_InitMissile(first);
     first->missile->reflected = true;
-    if (!first->sleep) first->sleep = G_AllocSleep();
-    assert(first->sleep);
-    first->sleep->can_sleep = true;
+    ((sleep_t *)G_AddComponent(first, COMPONENT_SLEEP))->can_sleep = true;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
@@ -4529,8 +4527,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     G_SetUnitFlag(first, UNIT_FLAG_IGNORE_ALARM, false);
     first->vision->shared = 0;
     first->missile->reflected = false;
-    first->sleep->can_sleep = false;
-    first->sleep->sleeping = false;
+    G_GetSleep(first)->can_sleep = false;
+    G_GetSleep(first)->sleeping = false;
     first->owner = NULL;
     first->orders->follow_target = NULL;
     first->orders->explicit_allied_attack = false;
@@ -4574,8 +4572,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].vision->shared, (1u << 0) | (1u << 7));
     T_ASSERT(g_edicts[first - g_edicts].missile->reflected);
     T_ASSERT(G_UnitHasFlag(&g_edicts[first - g_edicts], UNIT_FLAG_IGNORE_ALARM));
-    T_ASSERT(g_edicts[first - g_edicts].sleep->can_sleep);
-    T_ASSERT(g_edicts[first - g_edicts].sleep->sleeping);
+    T_ASSERT(G_GetSleep(&g_edicts[first - g_edicts])->can_sleep);
+    T_ASSERT(G_GetSleep(&g_edicts[first - g_edicts])->sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
     T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
     T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
@@ -4831,7 +4829,7 @@ TEST(wc3_save, name) { \
 #define SAVE_COMPONENT_FLOAT_FIELD_TEST(name, pool, Getter, member, saved) \
     SAVE_SCALAR_FIELD_TEST(name, #pool "->" #member, Getter(unit)->member, saved, F_FLOAT, SAVE_CHECK_FLOAT)
 
-#define SAVE_PTR_FIELD_TEST(name, schema, field, count) \
+#define SAVE_PTR_LVALUE_TEST(name, schema, lvalue, count) \
 TEST(wc3_save, name) { \
     cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
     field_t const *desc = find_save_field(schema); \
@@ -4839,12 +4837,15 @@ TEST(wc3_save, name) { \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     edict_t *target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, count); } \
-    prepare_save_field(unit, #field); \
-    unit->field = target; \
-    T_ASSERT(WriteGame(filename)); unit->field = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(unit->field == target); \
-    unit->field = (edict_t *)((uint8_t *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
+    prepare_save_field(unit, schema); \
+    lvalue = target; \
+    T_ASSERT(WriteGame(filename)); lvalue = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(lvalue == target); \
+    lvalue = (edict_t *)((uint8_t *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
     remove(filename); \
 }
+#define SAVE_PTR_FIELD_TEST(name, schema, field, count) SAVE_PTR_LVALUE_TEST(name, schema, unit->field, count)
+#define SAVE_COMPONENT_PTR_FIELD_TEST(name, pool, Getter, member, count) \
+    SAVE_PTR_LVALUE_TEST(name, #pool "->" #member, Getter(unit)->member, count)
 
 SAVE_INT_FIELD_TEST(field_unit_flags_round_trip, unit_flags, UNIT_FLAG_IGNORE_ALARM | UNIT_FLAG_INVULNERABLE | UNIT_FLAG_PAUSED | UNIT_FLAG_NO_PATHING | UNIT_FLAG_TIMED_LIFE_PAUSED | UNIT_FLAG_TRAINING | UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED | UNIT_FLAG_RALLY_INDICATOR | UNIT_FLAG_USES_ALT_ICON | UNIT_FLAG_ANIMATION_OVERRIDE | UNIT_FLAG_VERTEX_COLOR_SET | UNIT_FLAG_VERTEX_COLOR_OVERRIDE_SET)
 
@@ -5264,11 +5265,10 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
 
     setup_test_world(); reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    if (!unit->blight_growth) unit->blight_growth = G_AllocBlightGrowth();
-    assert(unit->blight_growth);
-    unit->blight_growth->ability = ability;
-    unit->blight_growth->radius = 146.0f;
-    unit->blight_growth->next_update = 12345;
+    blightGrowth_t *growth = G_AddComponent(unit, COMPONENT_BLIGHT_GROWTH);
+    growth->ability = ability;
+    growth->radius = 146.0f;
+    growth->next_update = 12345;
     if (!unit->destructable) unit->destructable = G_AllocDestructable();
     assert(unit->destructable);
     unit->destructable->blighted = true;
@@ -5281,9 +5281,13 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
     unit->destructable->blighted = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_IsPointBlighted(&point));
-    T_EQ(unit->blight_growth->ability, ability);
-    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
-    T_EQ(unit->blight_growth->next_update, 12345u);
+    growth = G_GetBlightGrowth(unit); /* Restore attaches a fresh pool slot. */
+    T_NOT_NULL(growth);
+    if (growth) {
+        T_EQ(growth->ability, ability);
+        T_FEQ(growth->radius, 146.0f, 0.001f);
+        T_EQ(growth->next_update, 12345u);
+    }
     T_ASSERT(unit->destructable->blighted);
     remove(filename);
 }
@@ -5776,10 +5780,11 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
     remove(filename);
 }
 SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
-SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally->entity", rally->entity, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_rally_entity_round_trip, rally, G_GetRally, entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival->producer", revival->producer, 0)
 SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival->queue_next", revival->queue_next, 0)
-SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice->worker", sacrifice->worker, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, sacrifice, G_GetSacrifice, worker, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_unsummon_target_round_trip, unsummon, G_GetUnsummon, target, 0)
 SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine->mine", goldmine->mine, 0)
 SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay->parent", mineoverlay->parent, 0)
 SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay->caster", mineoverlay->caster, 0)

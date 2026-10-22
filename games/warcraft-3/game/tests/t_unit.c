@@ -1190,9 +1190,7 @@ TEST(wc3_unit, no_creep_sleep_player_state_blocks_new_natural_sleep) {
 
     creep->svflags |= SVF_MONSTER;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!creep->sleep) creep->sleep = G_AllocSleep();
-    assert(creep->sleep);
-    creep->sleep->can_sleep = true;
+    ((sleep_t *)G_AddComponent(creep, COMPONENT_SLEEP))->can_sleep = true;
     *no_creep_sleep = 1;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -1215,21 +1213,17 @@ TEST(wc3_unit, unit_add_sleep_policy_is_neutral_only_and_wakes_when_disabled) {
 
     neutral->svflags |= SVF_MONSTER;
     neutral->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!neutral->sleep) neutral->sleep = G_AllocSleep();
-    assert(neutral->sleep);
-    neutral->sleep->can_sleep = false;
+    ((sleep_t *)G_AddComponent(neutral, COMPONENT_SLEEP))->can_sleep = false;
     G_InitUnitOrders(player_unit);
     player_unit->svflags |= SVF_MONSTER;
     player_unit->s.player = 0;
-    if (!player_unit->sleep) player_unit->sleep = G_AllocSleep();
-    assert(player_unit->sleep);
-    player_unit->sleep->can_sleep = false;
+    ((sleep_t *)G_AddComponent(player_unit, COMPONENT_SLEEP))->can_sleep = false;
 
     G_UnitSetCanSleep(neutral, true);
     G_UnitSetCanSleep(player_unit, true);
     T_ASSERT(G_UnitCanSleep(neutral));
     T_ASSERT(!G_UnitCanSleep(player_unit));
-    T_ASSERT(!player_unit->sleep || !player_unit->sleep->can_sleep);
+    T_ASSERT(!G_GetSleep(player_unit) || !G_GetSleep(player_unit)->can_sleep);
 
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
