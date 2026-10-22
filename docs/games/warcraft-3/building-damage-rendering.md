@@ -84,6 +84,30 @@ The renderer registers these required models through the normal model registry. 
 
 The building renderer filters the returned `Sprite ` attachments by semantic names (`Sprite First`, `Sprite Second`, and so on). It must not assume linked-list order and must not invent random offsets when an authored slot is absent.
 
+### Renderer pose reuse
+
+`MDLX_BindBoneMatrices()` uses shared scratch node matrices for each model. When
+`MDX_RenderModel()` has just bound the parent model in the current draw,
+`R_W3RenderAttachmentModels()` passes that bind's generation to
+`MDLX_CollectAttachmentPositionsWithPose()`. If the model, frames or transform
+have changed—or another model was bound in between—attachment collection
+rebinds the bones normally. A culled model does not grant reuse: callers pass
+zero unless its render advanced the bind generation.
+
+Attachmentless models and searches without a matching attachment-name prefix
+return before binding any bones. This also avoids an unnecessary second pose
+calculation for models without attachment refs. Building-fire sprite slots are
+collected separately after the normal attachment children, so those paths still
+rebind when a child model has replaced the shared pose. The ordinary
+`MDLX_CollectAttachmentPositions()` API always recomputes its pose if needed
+and remains safe for event, selection, and other standalone lookups.
+
+Reuse is scoped to a single draw: it does not retain cached poses across entity
+instances, shadow/alpha passes, camera changes or animation time changes.
+Regression tests cover identical-pose reuse, child-model invalidation,
+transform/frame changes and missing attachments without requiring Warcraft MPQs.
+
+
 ## Network Contract
 
 `EF_BUILDING` remains in the existing `USHORT entityState_t.flags` field. The selected effect model is a separate `BYTE entityState_t.effect`, serialized as `NFT_BYTE`; `USHORT entityState_t.effect_flags` is serialized as `NFT_SHORT` and carries the effect kind plus authored attachment-slot mask. `net.entity_delta_preserves_effect_model` guards that contract.

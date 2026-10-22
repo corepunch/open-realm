@@ -537,14 +537,16 @@ static uint32_t R_W3AttachmentFrame(mdxModel_t const *parent, mdxModel_t const *
     return dst->interval[0] + MIN(span - 1, (uint32_t)(ratio * (float)span));
 }
 
-static void R_W3RenderAttachmentModels(renderEntity_t const *entity, mat4_t const *transform) {
+static void R_W3RenderAttachmentModels(renderEntity_t const *entity, mat4_t const *transform,
+                                       uint64_t parent_pose_generation) {
     mdxAttachmentPosition_t attachments[32];
     uint32_t count;
 
     if (!entity || !entity->model || !entity->model->mdx || !transform) return;
-    count = MDLX_CollectAttachmentPositions(entity->model->mdx, transform, entity->frame,
-                                             entity->oldframe, NULL, attachments,
-                                             sizeof(attachments) / sizeof(*attachments));
+    count = MDLX_CollectAttachmentPositionsWithPose(entity->model->mdx, transform,
+                                             entity->frame, entity->oldframe, NULL, attachments,
+                                             sizeof(attachments) / sizeof(*attachments),
+                                             parent_pose_generation);
     FOR_LOOP(i, count) {
         renderEntity_t child = *entity;
         model_t *model;
@@ -1644,8 +1646,11 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
         spawn->event_render_time = state.render_time;
         spawn->event_valid = state.valid;
     }
+    uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
     MDX_RenderModel(&child, spawn->model->mdx, &spawn->transform);
-    R_W3RenderAttachmentModels(&child, &spawn->transform);
+    uint64_t const pose_after = MDLX_BoundBonePoseGeneration();
+    R_W3RenderAttachmentModels(&child, &spawn->transform,
+                               pose_after != pose_before ? pose_after : 0);
     spawn->frame = frame;
     return true;
 }
@@ -2071,8 +2076,11 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
     MDLX_TickDetachedRibbons(); /* fade trails whose entity stopped drawing before this model draws */
     R_GetEntityMatrix(entity, &transform);
+    uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
     MDX_RenderModel(entity, R_W3SpecialModel(entity, &transform), &transform);
-    R_W3RenderAttachmentModels(entity, &transform);
+    uint64_t const pose_after = MDLX_BoundBonePoseGeneration();
+    R_W3RenderAttachmentModels(entity, &transform,
+                               pose_after != pose_before ? pose_after : 0);
 
     if ((entity->effect_flags & EFX_MODEL) && (entity->effect_flags & EFX_ATTACH_SLOTS) &&
         entity->effect_model && tr.render_phase != RENDER_PHASE_LIGHTS) {

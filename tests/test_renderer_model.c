@@ -1447,6 +1447,106 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
 }
 
 
+/* Shared MDX bones are scratch storage, not a persistent per-model cache.
+ * Reuse is valid only when the draw that supplied the generation bound the
+ * identical model, frames and transform, with no intervening child model. */
+TEST(renderer_model, mdx_attachment_reuses_just_bound_pose) {
+    mdxAttachment_t attachment = { 0 };
+    vec3_t pivots[] = { { 2.0f, 3.0f, 4.0f } };
+    mdxModel_t model = { .attachments = &attachment, .pivots = pivots, .num_pivots = 1 };
+    mdxAttachmentPosition_t positions[1] = { 0 };
+    mat4_t transform;
+    uint64_t generation;
+
+    attachment.node.node_id = 0;
+    attachment.node.parent_id = (uint32_t)-1;
+    snprintf(attachment.node.name, sizeof(attachment.node.name), "Sprite First Ref");
+    model.nodes[0] = &attachment.node;
+    model.node_list[0] = &attachment.node;
+    model.num_nodes = 1;
+    Matrix4_identity(&transform);
+    Matrix4_translate(&transform, &(vec3_t){ 10.0f, 20.0f, 30.0f });
+
+    MDLX_BindBoneMatrices(&model, &transform, 100, 90);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform, 100, 90,
+         "Sprite ", positions, 1, generation), 1);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_FEQ(positions[0].origin.x, 12.0f, 0.001f);
+    T_FEQ(positions[0].origin.y, 23.0f, 0.001f);
+    T_FEQ(positions[0].origin.z, 34.0f, 0.001f);
+
+    /* Explicitly untrusted requests retain the original full-bind contract. */
+    T_EQ(MDLX_CollectAttachmentPositions(&model, &transform, 100, 90,
+                                         NULL, positions, 1), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+}
+
+TEST(renderer_model, mdx_attachment_pose_reuse_invalidates_after_child_model) {
+    mdxAttachment_t parent_attachment = { 0 }, child_attachment = { 0 };
+    vec3_t pivots[] = { { 1.0f, 2.0f, 3.0f } };
+    mdxModel_t parent = { .attachments = &parent_attachment, .pivots = pivots, .num_pivots = 1 };
+    mdxModel_t child = { .attachments = &child_attachment, .pivots = pivots, .num_pivots = 1 };
+    mdxAttachmentPosition_t positions[1] = { 0 };
+    mat4_t transform, shifted;
+    uint64_t generation, after_child;
+
+    parent_attachment.node.node_id = 0;
+    parent_attachment.node.parent_id = (uint32_t)-1;
+    child_attachment.node.node_id = 0;
+    child_attachment.node.parent_id = (uint32_t)-1;
+    parent.nodes[0] = &parent_attachment.node;
+    parent.node_list[0] = &parent_attachment.node;
+    parent.num_nodes = 1;
+    child.nodes[0] = &child_attachment.node;
+    child.node_list[0] = &child_attachment.node;
+    child.num_nodes = 1;
+    Matrix4_identity(&transform);
+    shifted = transform;
+    Matrix4_translate(&shifted, &(vec3_t){ 40.0f, 0.0f, 0.0f });
+
+    MDLX_BindBoneMatrices(&parent, &transform, 20, 10);
+    generation = MDLX_BoundBonePoseGeneration();
+    MDLX_BindBoneMatrices(&child, &shifted, 20, 10);
+    after_child = MDLX_BoundBonePoseGeneration();
+    T_NE(after_child, generation);
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&parent, &transform, 20, 10,
+                                                 NULL, positions, 1, generation), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), after_child);
+    T_FEQ(positions[0].origin.x, 1.0f, 0.001f);
+
+    /* A same-model draw with a different transform is also a fresh pose. */
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&parent, &shifted, 20, 10,
+                                                 NULL, positions, 1, generation), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+    T_FEQ(positions[0].origin.x, 41.0f, 0.001f);
+
+    /* Interpolated frames must match, even when the model and transform do. */
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&parent, &shifted, 21, 10,
+                                                 NULL, positions, 1, generation), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+}
+
+TEST(renderer_model, mdx_attachment_missing_prefix_skips_pose_binding) {
+    mdxAttachment_t attachment = { 0 };
+    mdxModel_t model = { .attachments = &attachment };
+    mdxModel_t empty = { 0 };
+    mdxAttachmentPosition_t positions[1] = { 0 };
+    mat4_t transform;
+    uint64_t generation;
+
+    snprintf(attachment.node.name, sizeof(attachment.node.name), "Origin Ref");
+    Matrix4_identity(&transform);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&empty, &transform, 0, 0,
+                                                 NULL, positions, 1, 0), 0);
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform, 0, 0,
+                                                 "Sprite ", positions, 1, 0), 0);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+}
+
 TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
     vec3_t pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
     vec2_t uv[] = {{0,0}, {1,0}, {0,1}};

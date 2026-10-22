@@ -16,6 +16,20 @@ void R_EvalKeyframeValue(void const *left, void const *right, float t, MODELKEYT
 static mat4_t local_matrices[MDX_MAX_NODES];
 mat4_t node_matrices[MDX_MAX_NODES];
 
+/* node_matrices is a single scratch pose, shared by all MDX models. Its
+ * generation changes on every bind, so child rendering cannot make an older
+ * parent pose look reusable. This is a one-draw hint, not a frame cache. */
+static struct {
+    uint64_t generation;
+    mdxModel_t const *model;
+    mat4_t transform;
+    uint32_t frame, oldframe;
+} bound_bone_pose;
+
+uint64_t MDLX_BoundBonePoseGeneration(void) {
+    return bound_bone_pose.generation;
+}
+
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time) {
     FOR_LOOP(seqIndex, model->num_sequences) {
         mdxSequence_t const *seq = &model->sequences[seqIndex];
@@ -390,22 +404,51 @@ void MDLX_BindBoneMatrices(mdxModel_t const *model, mat4_t const *model_matrix, 
     }
     FOR_LOOP(i, model->num_nodes)
         R_GetNodeGlobalMatrix(model, model_matrix, model->node_list[i]);
+    bound_bone_pose.generation++;
+    /* Generation zero is reserved for an untrusted caller. */
+    if (!bound_bone_pose.generation) bound_bone_pose.generation++;
+    bound_bone_pose.model = model;
+    bound_bone_pose.transform = *model_matrix;
+    bound_bone_pose.frame = frame1;
+    bound_bone_pose.oldframe = frame0;
 }
 
 /* Resolve authored attachment pivots from the same interpolated node pose used
  * for geometry. Callers can filter by a name prefix (for example "Sprite ")
  * without depending on list order in the MDX file. */
-uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *model_matrix,
+uint32_t MDLX_CollectAttachmentPositionsWithPose(mdxModel_t const *model, mat4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
-                                      mdxAttachmentPosition_t *positions, uint32_t max_positions) {
+                                      mdxAttachmentPosition_t *positions, uint32_t max_positions,
+                                      uint64_t pose_generation) {
     uint32_t count = 0;
     size_t const prefix_len = prefix ? strlen(prefix) : 0;
 
-    if (!model || !model_matrix || !positions || !max_positions) {
+    if (!model || !model_matrix || !positions || !max_positions || !model->attachments) {
         return 0;
     }
 
-    MDLX_BindBoneMatrices(model, model_matrix, frame, oldframe);
+    /* Skip the bind when no attachment can match the requested prefix. In
+     * particular, attachmentless units should never recalculate their bones. */
+    if (prefix_len) {
+        bool matching = false;
+        FOR_EACH_LIST(mdxAttachment_t, candidate, model->attachments) {
+            if (!strncasecmp(candidate->node.name, prefix, prefix_len)) {
+                matching = true;
+                break;
+            }
+        }
+        if (!matching) return 0;
+    }
+
+    /* Only the caller holding the generation obtained from its own model
+     * rendering may reuse the shared matrices. Another model's bind changes
+     * that generation, including when drawing a nested attachment. */
+    if (!pose_generation || bound_bone_pose.generation != pose_generation ||
+        bound_bone_pose.model != model || bound_bone_pose.frame != frame ||
+        bound_bone_pose.oldframe != oldframe ||
+        memcmp(&bound_bone_pose.transform, model_matrix, sizeof(*model_matrix))) {
+        MDLX_BindBoneMatrices(model, model_matrix, frame, oldframe);
+    }
     FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
         mdxNode_t const *node = &attachment->node;
         vec3_t pivot = { 0, 0, 0 };
@@ -438,4 +481,11 @@ uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *
         }
     }
     return count;
+}
+
+uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *model_matrix,
+                                      uint32_t frame, uint32_t oldframe, cstring_t prefix,
+                                      mdxAttachmentPosition_t *positions, uint32_t max_positions) {
+    return MDLX_CollectAttachmentPositionsWithPose(model, model_matrix, frame, oldframe,
+                                                     prefix, positions, max_positions, 0);
 }
