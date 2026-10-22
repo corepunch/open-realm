@@ -6,7 +6,7 @@ The first target is Warcraft III on an arm64 Android tablet using SDL2 and GLES3
 `make android-probe` builds a standalone production-shader diagnostic.
 `make android-warcraft3` builds the full Warcraft III runtime and a platform MPQ importer.
 Retail game data is supplied by the user and is never included in either APK.
-See [iPad packaging](../packaging/ipad/README.md) for the existing mobile module/source split and
+See [iPad packaging](https://github.com/corepunch/open-realm/blob/main/packaging/ipad/README.md) for the existing mobile module/source split and
 [renderer platforms](build-and-renderer-platforms.md) for the GLES3 contract.
 
 Keep SDK downloads, AVD images, logs, and screenshots under ignored `build/android/`.

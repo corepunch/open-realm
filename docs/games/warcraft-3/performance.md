@@ -4,8 +4,7 @@ For process footprint, allocation profiling, and RAM reduction priorities, see [
 
 ## October 21 native CPU profile
 
-The capture in [`screenshots/2026-10-21/perf-full-loading.txt`](../../../screenshots/2026-10-21/perf-full-loading.txt)
-contains about 14K `cpu/cycles/P` samples and reports no lost samples. Its call graph puts 53.67% of sampled cycles under
+An October 21 native CPU profile contains about 14K `cpu/cycles/P` samples and reports no lost samples. Its call graph puts 53.67% of sampled cycles under
 `SV_Map`, including 47.87% under `G_LoadMap`. These are inclusive sampled-cycle shares, not wall-clock durations; parent
 and child percentages overlap. The capture includes `SV_InitGame` as well as `SV_Map`, and does not record the map,
 build mode, command line, elapsed time, or whether the run was a cold start or a map replacement. Use it to choose
