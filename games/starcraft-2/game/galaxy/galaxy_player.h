@@ -65,6 +65,14 @@ static uint32_t sc2_PlayerGroupPlayer(jass_t *j) {
     sc2GGroup_t *g = sc2_player_group(j); int32_t n = jass_checkinteger(j,2)-1;
     return jass_pushinteger(j,g && n >= 0 && n < g->count ? g->items[n] : -1);
 }
+/* Editor loops start at -1 and stop on -1; the next member is by player ID, not insertion order,
+ * so players added or removed during the loop are seen or skipped like the retail iterator. */
+static uint32_t sc2_PlayerGroupNextPlayer(jass_t *j) {
+    sc2GGroup_t *g = sc2_player_group(j); int32_t after = jass_checkinteger(j,2), next = -1;
+    if (g) for (int i = 0; i < g->count; i++)
+        if (g->items[i] > after && (next < 0 || g->items[i] < next)) next = g->items[i];
+    return jass_pushinteger(j,next);
+}
 static uint32_t sc2_PlayerGroupHasPlayer(jass_t *j) {
     sc2GGroup_t *g = sc2_player_group(j); int p = sc2_player_index(j,2);
     if (g) for (int i = 0; i < g->count; i++) if (g->items[i] == p) return jass_pushboolean(j,true);

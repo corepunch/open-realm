@@ -256,7 +256,18 @@ Remaining native coverage gaps:
 	one-second wait two seconds earlier than native SC2;
 - multidimensional Galaxy arrays use nested sparse VM arrays; every authored index is preserved for reads and writes;
 - objectives retain IDs, name/description, state, primary and visibility, but their HUD presentation is not yet implemented;
-- Galaxy `continue` remains parse-safe fallthrough rather than true loop continuation.
+- Galaxy `continue` remains parse-safe fallthrough rather than true loop continuation; inside a `for` it falls through to the step.
+
+Current (5.0) NativeLib and campaign scripts use C-style `for (init; cond; step)` loops and compound assignments
+(`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `<<=`, `>>=`). The parser lowers `for` to the init statement followed by a `TT_LOOP`
+of `[exitwhen !cond, body, step]`, and `a[i] op= v` to `a[i] = a[i] op (v)`, so index expressions run twice. Coverage lives in
+`galaxy.vm_for_*` and `galaxy.vm_compound_assignment_operators`. With 5.0 data, TRaynor01 now registers 127 triggers and enters
+`gt_Initialization_Func`. CampaignLib's `LoadCampaignData` then stops at the missing dialog subsystem; see
+[Galaxy native coverage](galaxy-native-coverage.md#current-50-data).
+
+Text expressions keep `~CODE~` token values per expression ID until `galaxy_reset`. `(main)` supplies the template. Without it,
+the ID itself is the template, because `StringExternal` does not read GameStrings yet. `PlayerGroupNextPlayer` returns the next
+member by player ID, so membership changes during a loop are honored.
 
 Do not replace missing map IDs or models with guessed defaults. Resolve them from the loaded SC2 map and catalog data.
 

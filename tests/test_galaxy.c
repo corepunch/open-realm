@@ -676,6 +676,88 @@ TEST(galaxy, vm_empty_main) {
     gal_destroy(&s);
 }
 
+/* SC2 5.0 NativeLib initializes its globals with C-style for loops. */
+TEST(galaxy, vm_for_loop_runs_init_condition_and_step) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "int gv_i = 99;\n"
+        "int gv_sum = 0;\n"
+        "void main() {\n"
+        "    for (gv_i = 0; gv_i <= 4; gv_i += 1) { gv_sum += gv_i; }\n"
+        "    if (gv_sum != 10) { TestFail(\"for loop should sum 0..4\"); }\n"
+        "    if (gv_i != 5) { TestFail(\"step should run after the last body\"); }\n"
+        "    for (gv_i = 0; gv_i < 0; gv_i += 1) { TestFail(\"false condition must skip the body\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_for_loop_empty_clauses_and_break) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "int gv_u = 3;\n"
+        "int gv_n = 0;\n"
+        "void main() {\n"
+        "    for (;; gv_u -= 1) {\n"
+        "        if (gv_u <= 0) { break; }\n"
+        "        gv_n += 1;\n"
+        "    }\n"
+        "    if (gv_n != 3) { TestFail(\"empty-clause for should run until break\"); }\n"
+        "    for ( ; gv_n > 0 ; ) { gv_n -= 2; }\n"
+        "    if (gv_n != -1) { TestFail(\"for without step should still loop\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_for_loop_in_function_body_with_locals) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "int count(int n) {\n"
+        "    int i;\n"
+        "    int total = 0;\n"
+        "    for (i = 1; ((i >= 1 && i <= n)); i += 1) {\n"
+        "        for (total = total; total < 100; total += 100) { }\n"
+        "        total -= 99;\n"
+        "    }\n"
+        "    return total;\n"
+        "}\n"
+        "void main() {\n"
+        "    if (count(3) != 3) { TestFail(\"nested for loops should count to 3\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_compound_assignment_operators) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "int[4] gv_arr;\n"
+        "int gv_i = 2;\n"
+        "int gv_bits = 1;\n"
+        "fixed gv_f = 1.5;\n"
+        "string gv_s = \"ab\";\n"
+        "void main() {\n"
+        "    gv_arr[gv_i] = 5;\n"
+        "    gv_arr[gv_i] *= 3;\n"
+        "    gv_arr[gv_i] -= 1;\n"
+        "    gv_arr[gv_i] /= 2;\n"
+        "    gv_arr[gv_i - 1] += gv_arr[gv_i] + 1;\n"
+        "    if (gv_arr[2] != 7) { TestFail(\"array compound assignment\"); }\n"
+        "    if (gv_arr[1] != 8) { TestFail(\"compound assignment with expression index\"); }\n"
+        "    gv_bits |= 4;\n"
+        "    gv_bits <<= 1;\n"
+        "    gv_bits &= 8;\n"
+        "    if (gv_bits != 8) { TestFail(\"bitwise compound assignment\"); }\n"
+        "    gv_f += 0.25;\n"
+        "    if (gv_f != 1.75) { TestFail(\"fixed compound assignment\"); }\n"
+        "    gv_s += \"c\";\n"
+        "    if (gv_s != \"abc\") { TestFail(\"string compound assignment\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
 TEST(galaxy, vm_int_arithmetic) {
     gal_state_t s = gal_new();
     T_ASSERT(gal_run(&s,
@@ -892,6 +974,81 @@ TEST(galaxy, vm_format_number) {
         "    if (credits(1234567) != \"Credits: 1,234,567\") { TestFail(\"nested format\"); }\n"
         "    if (FormatNumber(-1234) != \"-1,234\") { TestFail(\"negative format\"); }\n"
         "    if (FormatNumber(0) != \"0\" || FormatNumber(999) != \"999\") { TestFail(\"small format\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+/* CampaignLib's LoadCampaignData gates debug-only routes on the development category. */
+TEST(galaxy, vm_game_cheats_disabled) {
+    gal_state_t s = gal_new();
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg); native bool GameCheatsEnabled(int category);\n"
+        "const int c_gameCheatCategoryPublic = 0; const int c_gameCheatCategoryDevelopment = 1;\n"
+        "void main() {\n"
+        "    if (GameCheatsEnabled(c_gameCheatCategoryDevelopment) == true) { TestFail(\"development cheats\"); }\n"
+        "    if (GameCheatsEnabled(c_gameCheatCategoryPublic)) { TestFail(\"public cheats\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+/* CampaignLib assembles ~CODE~ templates; (main) supplies the template, values are per expression ID. */
+TEST(galaxy, vm_text_expression_tokens) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native void TextExpressionSetToken(string id, string code, text value);\n"
+        "native text TextExpressionAssemble(string id);\n"
+        "const string c_textExpressionTokenMain = \"(main)\";\n"
+        "void main() {\n"
+        "    TextExpressionSetToken(\"Param/Expression/A\", c_textExpressionTokenMain, \"PRELOAD: ~A~,~B~,~C~\");\n"
+        "    TextExpressionSetToken(\"Param/Expression/A\", \"A\", \"Marine\");\n"
+        "    TextExpressionSetToken(\"Param/Expression/A\", \"B\", \"x\");\n"
+        "    TextExpressionSetToken(\"Param/Expression/A\", \"B\", \"Raynor\");\n"
+        "    TextExpressionSetToken(\"Param/Expression/B\", \"C\", \"other id\");\n"
+        "    if (TextExpressionAssemble(\"Param/Expression/A\") != \"PRELOAD: Marine,Raynor,~C~\") { TestFail(\"assemble\"); }\n"
+        "    TextExpressionSetToken(\"Param/Expression/B\", c_textExpressionTokenMain, \"~C~ (UNAVAILABLE) ~\");\n"
+        "    if (TextExpressionAssemble(\"Param/Expression/B\") != \"other id (UNAVAILABLE) ~\") { TestFail(\"per id\"); }\n"
+        "}"));
+    gal_destroy(&s);
+    galaxy_reset();
+    s = gal_new();
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg); native text TextExpressionAssemble(string id);\n"
+        "void main() { if (TextExpressionAssemble(\"Param/Expression/A\") != \"Param/Expression/A\") { TestFail(\"reset\"); } }"));
+    gal_destroy(&s);
+}
+
+/* CampaignLib walks PlayerGroupAll with the 5.0 editor iterator: start at -1, stop at -1. */
+TEST(galaxy, vm_player_group_next_player) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native playergroup PlayerGroupEmpty(); native playergroup PlayerGroupAll();\n"
+        "native void PlayerGroupAdd(playergroup g, int p); native void PlayerGroupRemove(playergroup g, int p);\n"
+        "native int PlayerGroupNextPlayer(playergroup g, int i);\n"
+        "void main() {\n"
+        "    playergroup g = PlayerGroupEmpty();\n"
+        "    int p = -1; int seen = 0; int order = 0;\n"
+        "    PlayerGroupAdd(g, 7); PlayerGroupAdd(g, 2); PlayerGroupAdd(g, 0);\n"
+        "    while (true) {\n"
+        "        p = PlayerGroupNextPlayer(g, p);\n"
+        "        if (p < 0) { break; }\n"
+        "        if (p == 2) { PlayerGroupRemove(g, 7); PlayerGroupAdd(g, 5); }\n"
+        "        seen += 1; order = order * 10 + p;\n"
+        "    }\n"
+        "    if (seen != 3 || order != 25) { TestFail(\"ascending ids with live membership\"); }\n"
+        "    if (PlayerGroupNextPlayer(PlayerGroupEmpty(), -1) != -1) { TestFail(\"empty group\"); }\n"
+        "    if (PlayerGroupNextPlayer(PlayerGroupAll(), 15) != 16) { TestFail(\"all players\"); }\n"
         "}"));
     gal_destroy(&s);
 }

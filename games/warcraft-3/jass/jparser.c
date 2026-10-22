@@ -124,6 +124,27 @@ static token_t *alloc_token(TOKENTYPE type) {
     return token;
 }
 
+/* Deep copy, because every AST edge is owned and freed by JASS_FreeTokens. */
+static token_t *clone_tokens(token_t const *src) {
+    token_t *head = NULL;
+    token_t * *tail = &head;
+    for (; src; src = src->next) {
+        token_t *copy = alloc_token(src->type);
+        copy->flags = src->flags;
+        copy->primary = src->primary ? strdup(src->primary) : NULL;
+        copy->secondary = src->secondary ? strdup(src->secondary) : NULL;
+        copy->init = clone_tokens(src->init);
+        copy->body = clone_tokens(src->body);
+        copy->args = clone_tokens(src->args);
+        copy->condition = clone_tokens(src->condition);
+        copy->elseblock = clone_tokens(src->elseblock);
+        copy->index = clone_tokens(src->index);
+        *tail = copy;
+        tail = &copy->next;
+    }
+    return head;
+}
+
 /* Parsed programs own every AST edge and string; runtime declarations borrow those strings until VM close. */
 void JASS_FreeTokens(token_t *tokens) {
     while (tokens) {
@@ -625,18 +646,21 @@ wordExtractor_t(galaxy_statement_if) {
     return token;
 }
 
-/* `while (cond) { body }` maps to TT_LOOP with an injected TT_EXITWHEN
- * as the first body statement (same layout the VM expects). */
-wordExtractor_t(galaxy_statement_while) {
-    token_t *loop = alloc_token(TT_LOOP);
-    token_t *cond = parse_logical_expression(p);
-    /* exitwhen !cond */
+/* `exitwhen !cond` — the loop guard both while and for inject first. */
+static token_t *galaxy_loop_guard(token_t *cond) {
     token_t *not_cond = alloc_token(TT_CALL);
     not_cond->primary = strdup("__not");
     not_cond->args    = cond;
     token_t *exitwhen  = alloc_token(TT_EXITWHEN);
     exitwhen->condition = not_cond;
-    PUSH_BACK(token_t, exitwhen, loop->body);
+    return exitwhen;
+}
+
+/* `while (cond) { body }` maps to TT_LOOP with an injected TT_EXITWHEN
+ * as the first body statement (same layout the VM expects). */
+wordExtractor_t(galaxy_statement_while) {
+    token_t *loop = alloc_token(TT_LOOP);
+    PUSH_BACK(token_t, galaxy_loop_guard(parse_logical_expression(p)), loop->body);
     eat_token(p, "{");
     for (;;) {
         if (eat_token(p, "}")) break;
@@ -687,7 +711,23 @@ wordExtractor_t(galaxy_parse_local) {
     return token;
 }
 
-/* Parse an assignment (`name [idx] = expr;`) or a call expression (`name(args);`). */
+/* The lexer splits `+=` into `+` `=`; consume both and return the operator
+ * call name, or leave the stream untouched when this is not a compound op. */
+static cstring_t galaxy_eat_compound_operator(wordExtractor_t *p) {
+    static cstring_t const grammar[] = { "+", "-", "*", "/", "|", "&", "<<", ">>" };
+    wordExtractor_t ahead = *p;
+    cstring_t operatorid;
+
+    if (!token_in(parse_token(&ahead), grammar, sizeof(grammar) / sizeof(*grammar)))
+        return NULL;
+    operatorid = jass_getoperator(peek_token(p));
+    if (strcmp(parse_token(&ahead), "="))
+        return NULL;
+    *p = ahead;
+    return operatorid;
+}
+
+/* Parse an assignment (`name [idx] = expr;`, `name [idx] += expr;`) or a call expression (`name(args);`). */
 static token_t *galaxy_parse_expression_stmt(wordExtractor_t *p) {
     /* strdup immediately: parse_token returns a pointer to a static buffer that
      * subsequent eat_token / parse_token calls will overwrite. */
@@ -698,12 +738,25 @@ static token_t *galaxy_parse_expression_stmt(wordExtractor_t *p) {
     parse_array_indices(p, &indices);
 
     token_t *result = NULL;
-    if (eat_token(p, "=")) {
+    cstring_t compound = NULL;
+    if (eat_token(p, "=") || (compound = galaxy_eat_compound_operator(p))) {
         token_t *token    = alloc_token(TT_SET);
         token->secondary = name;   /* transfer ownership */
         token->index     = indices.index;
         token->body      = indices.body;
         token->init      = parse_logical_expression(p);
+        if (compound) {
+            /* `a[i] op= v` becomes `a[i] = a[i] op (v)`; index expressions are evaluated twice. */
+            token_t *current = alloc_token(indices.index ? TT_ARRAYACCESS : TT_IDENTIFIER);
+            token_t *oper = alloc_token(TT_CALL);
+            current->primary = strdup(name);
+            current->index = clone_tokens(indices.index);
+            current->body = clone_tokens(indices.body);
+            oper->primary = strdup(compound);
+            PUSH_BACK(token_t, current, oper->args);
+            PUSH_BACK(token_t, token->init, oper->args);
+            token->init = oper;
+        }
         eat_token(p, ";");
         result = token;
     } else if (eat_token(p, "(")) {
@@ -723,6 +776,37 @@ static token_t *galaxy_parse_expression_stmt(wordExtractor_t *p) {
     return result;
 }
 
+/* `for (init; cond; step) { body }` appends `init` to the enclosing block,
+ * then a TT_LOOP of [exitwhen !cond, body, step]. Every clause may be empty.
+ * `continue` is still a no-op, so it falls through to the step. */
+static void galaxy_parse_for(wordExtractor_t *p, token_t *block) {
+    token_t *loop = alloc_token(TT_LOOP);
+    token_t *step = NULL;
+
+    eat_token(p, "(");
+    if (!eat_token(p, ";")) {
+        token_t *init = galaxy_parse_expression_stmt(p);  /* eats ; */
+        PUSH_BACK(token_t, init, block->body);
+    }
+    if (!eat_token(p, ";")) {
+        loop->body = galaxy_loop_guard(parse_logical_expression(p));
+        eat_token(p, ";");
+    }
+    if (!eat_token(p, ")")) {
+        step = galaxy_parse_expression_stmt(p);
+        eat_token(p, ")");  /* an assignment's expression has usually eaten it */
+    }
+    eat_token(p, "{");
+    for (;;) {
+        if (eat_token(p, "}")) break;
+        if (!galaxy_parse_body_stmt(p, loop)) { PARSER_THROW("broken for body"); }
+    }
+    if (step) {
+        PUSH_BACK(token_t, step, loop->body);
+    }
+    PUSH_BACK(token_t, loop, block->body);
+}
+
 /* Dispatch one statement inside a function body. */
 static bool galaxy_parse_body_stmt(wordExtractor_t *p, token_t *function) {
     static parseClass_t statements[] = {
@@ -730,6 +814,7 @@ static bool galaxy_parse_body_stmt(wordExtractor_t *p, token_t *function) {
         { "break", galaxy_statement_break }, { "continue", galaxy_statement_continue }, { NULL }
     };
     if (!*peek_token(p)) return false;
+    if (eat_token(p, "for")) { galaxy_parse_for(p, function); return true; }
     grammarFunc_t func = eat_keyword(p, statements);
     token_t *stmt = NULL;
     if (func) {

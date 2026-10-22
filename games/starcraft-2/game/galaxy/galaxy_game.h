@@ -1,5 +1,78 @@
 /* galaxy_game.h — string, text, color, game, AI, and data-table natives */
 static uint32_t sc2_StringExternal(jass_t *j)     { cstring_t s = jass_checkstring(j,1); return jass_pushstring(j, s ? s : ""); }
+
+/* Text expressions keep token values per expression ID until map shutdown. GameStrings
+ * templates use ~CODE~ tokens; c_textExpressionTokenMain replaces the externalized template. */
+#define SC2_TEXT_EXPR_TOKENS 512 // tokens/map; CampaignLib and LibertyLib set a handful per expression
+#define SC2_TEXT_EXPR_MAIN "(main)"
+
+typedef struct { string_t id, code, value; } sc2TextToken_t;
+static sc2TextToken_t sc2_text_tokens[SC2_TEXT_EXPR_TOKENS];
+static uint32_t sc2_text_token_n;
+
+static void sc2_text_expressions_reset(void) {
+    for (uint32_t i = 0; i < sc2_text_token_n; i++) {
+        free(sc2_text_tokens[i].id); free(sc2_text_tokens[i].code); free(sc2_text_tokens[i].value);
+    }
+    memset(sc2_text_tokens, 0, sizeof(sc2_text_tokens));
+    sc2_text_token_n = 0;
+}
+
+static sc2TextToken_t *sc2_text_token(cstring_t id, cstring_t code, size_t code_len) {
+    for (uint32_t i = 0; i < sc2_text_token_n; i++)
+        if (!strcmp(sc2_text_tokens[i].id, id) && strlen(sc2_text_tokens[i].code) == code_len &&
+            !strncmp(sc2_text_tokens[i].code, code, code_len))
+            return &sc2_text_tokens[i];
+    return NULL;
+}
+
+static uint32_t sc2_TextExpressionSetToken(jass_t *j) {
+    cstring_t id = jass_checkstring(j, 1), code = jass_checkstring(j, 2), value = jass_checkstring(j, 3);
+    if (!id) id = "";
+    if (!code) code = "";
+    sc2TextToken_t *token = sc2_text_token(id, code, strlen(code));
+    if (!token) {
+        if (sc2_text_token_n == SC2_TEXT_EXPR_TOKENS) jass_rterror(j, "TextExpressionSetToken: token capacity exhausted");
+        token = &sc2_text_tokens[sc2_text_token_n++];
+        token->id = strdup(id); token->code = strdup(code);
+    }
+    free(token->value);
+    token->value = strdup(value ? value : "");
+    return 0;
+}
+
+/* Unset tokens stay literal, so a missing value is visible instead of silently blank. */
+static uint32_t sc2_TextExpressionAssemble(jass_t *j) {
+    cstring_t id = jass_checkstring(j, 1);
+    if (!id) id = "";
+    sc2TextToken_t const *main = sc2_text_token(id, SC2_TEXT_EXPR_MAIN, strlen(SC2_TEXT_EXPR_MAIN));
+    /* StringExternal does not consult GameStrings yet, so the externalized template is the ID itself. */
+    cstring_t src = main ? main->value : id;
+    size_t size = strlen(src) + 1;
+    for (cstring_t s = src; (s = strchr(s, '~')); ) {
+        cstring_t end = strchr(s + 1, '~');
+        if (!end) break;
+        sc2TextToken_t const *token = sc2_text_token(id, s + 1, (size_t)(end - s - 1));
+        if (token) size += strlen(token->value);
+        s = end + 1;
+    }
+    string_t out = jass_alloc((long)size), dst = out;
+    if (!out) jass_rterror(j, "TextExpressionAssemble: allocation failed");
+    while (*src) {
+        cstring_t end = *src == '~' ? strchr(src + 1, '~') : NULL;
+        sc2TextToken_t const *token = end ? sc2_text_token(id, src + 1, (size_t)(end - src - 1)) : NULL;
+        if (token) {
+            size_t len = strlen(token->value);
+            memcpy(dst, token->value, len);
+            dst += len; src = end + 1;
+        } else
+            *dst++ = *src++;
+    }
+    *dst = '\0';
+    uint32_t ret = jass_pushstring(j, out);
+    jass_free(out);
+    return ret;
+}
 /* Galaxy uses a null result to terminate whitespace-delimited word iteration. */
 static uint32_t sc2_StringWord(jass_t *j) {
     cstring_t str = jass_checkstring(j, 1), word;
@@ -69,6 +142,8 @@ static uint32_t sc2_FormatNumber(jass_t *j) {
     return jass_pushstring(j, out);
 }
 static uint32_t sc2_GameCheatAllow(jass_t *j)                { (void)j; return jass_pushnull(j); }
+/* No SC2 cheat codes or development mode exist here; CampaignLib uses this only to gate debug routes. */
+static uint32_t sc2_GameCheatsEnabled(jass_t *j)             { (void)jass_checkinteger(j, 1); return jass_pushboolean(j, false); }
 static uint32_t sc2_GameGetSpeedValue(jass_t *j)             { (void)j; return jass_pushnumber(j, 1.0f); }
 static uint32_t sc2_GameIsDebugOptionSet(jass_t *j)          { (void)j; return jass_pushboolean(j, false); }
 static uint32_t sc2_GameIsTestMap(jass_t *j)                 { (void)j; return jass_pushboolean(j, false); }

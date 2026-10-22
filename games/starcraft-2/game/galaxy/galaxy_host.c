@@ -121,6 +121,7 @@ void galaxy_loaded_reset(void);
 
 void galaxy_reset(void) {
     sc2_objectives_reset();
+    sc2_text_expressions_reset();
     sc2_collections_reset();
     memset(sc2_filters,0,sizeof(sc2_filters)); sc2_filter_n=1;
     memset(sc2_players,0,sizeof(sc2_players));
@@ -436,6 +437,7 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "FixedToString",                       sc2_FixedToString },
     { "FormatNumber",                        sc2_FormatNumber },
     { "GameCheatAllow",                      sc2_GameCheatAllow },
+    { "GameCheatsEnabled",                   sc2_GameCheatsEnabled },
     { "GameGetSpeedValue",                   sc2_GameGetSpeedValue },
     { "GameIsDebugOptionSet",                sc2_GameIsDebugOptionSet },
     { "GameIsTestMap",                       sc2_GameIsTestMap },
@@ -519,6 +521,7 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "PlayerGroupLoopDone",                 sc2_PlayerGroupLoopDone },
     { "PlayerGroupLoopEnd",                  sc2_PlayerGroupLoopEnd },
     { "PlayerGroupLoopStep",                 sc2_PlayerGroupLoopStep },
+    { "PlayerGroupNextPlayer",               sc2_PlayerGroupNextPlayer },
     { "PlayerGroupPlayer",                   sc2_PlayerGroupPlayer },
     { "PlayerGroupRemove",                   sc2_PlayerGroupRemove },
     { "PlayerGroupSingle",                   sc2_PlayerGroupSingle },
@@ -595,6 +598,8 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "SoundtrackPlay",                      sc2_SoundtrackPlay },
     { "SquareRoot",                          sc2_SquareRoot },
     { "StringExternal",                      sc2_StringExternal },
+    { "TextExpressionSetToken",              sc2_TextExpressionSetToken },
+    { "TextExpressionAssemble",              sc2_TextExpressionAssemble },
     { "StringReplaceWord",                   sc2_StringReplaceWord },
     { "StringSub",                           sc2_StringSub },
     { "StringToText",                        sc2_StringToText },

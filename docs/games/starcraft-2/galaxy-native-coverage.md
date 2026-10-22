@@ -5,7 +5,18 @@ This is the Markdown companion to [the JSON inventory](galaxy-native-coverage.js
 placeholder candidates**. See [Galaxy scripting](galaxy-scripting.md) for protected errors and runtime evidence, and
 [presentation state](galaxy-presentation.md) for the implemented objective/actor/catalog subset.
 
-The unit selection, cargo and order queries, AI option, team color, plane, ability, weapon, behavior, cooldown, and charge natives are also bound now. They keep bookkeeping on the unit without running catalog behavior; see [Unit state](galaxy-scripting.md#unit-state). The snapshot below still lists them as missing until the audit is rerun.
+The unit selection, cargo and order queries, AI option, team color, plane, ability, weapon, behavior, cooldown, and charge natives are also bound now. They keep bookkeeping on the unit without running catalog behavior; see [Unit state](galaxy-scripting.md#unit-state). `GameCheatsEnabled`, `TextExpressionSetToken`/`TextExpressionAssemble` and `PlayerGroupNextPlayer` are bound for the 5.0 CampaignLib route below. The snapshot below still lists them as missing until the audit is rerun.
+
+## Current (5.0) Data
+
+Running the same audit over the 5.0 TRaynor01 `MapScript.galaxy`, NativeLib, LibertyLib and CampaignLib finds 876 reachable
+functions, 234 missing bindings, and 121 placeholder candidates. The largest missing families are Dialog (25), Purchase (24),
+Research (20), Text (16), Trigger (14), Game (13), Mercenary (13), Victory (11) and Bank (10).
+
+At runtime the 5.0 `gt_Initialization_Func` calls `libCamp_gf_LoadCampaignData` before the intro trigger. That function sets up
+the campaign meta UI, so the intro cannot start until the dialog subsystem exists. With the natives above bound, the bounded run
+stops at `DialogControlHookupStandard`, which hooks the standard `ObjectivePanel` frame. The next calls are `DialogControlLastCreated`
+and `DialogControlSetPosition`. These need a dialog-control model owned by the server-authored UI, not individual stubs.
 
 ## What the Counts Mean
 
