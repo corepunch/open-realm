@@ -87,7 +87,8 @@ introduced; existing ability procedures and scheduling retain behavior ownership
 The static `component_types` registry in `g_pool.c` selects allocation and raw
 release. Save descriptors in `g_save.c` select the concrete payload schema and
 capacity. Adding a component requires both registrations, a header-first payload,
-and typed accessors; it does not require another edict pointer. Direct attachments
+and typed accessors; it does not require another edict pointer or a descriptor row
+for the list link. Direct attachments
 remain for the other records while migration proceeds.
 
 Lookup is O(attached components), rather than a direct load. Header and slot
@@ -125,7 +126,9 @@ capacity; a component record costs the same slot as before plus its header. Enti
 `cargo->units[]`, the Soul Trap links and the item `carrier`, `pending_use_carrier`
 and `soul_target` references) keep their `F_EDICT` fixups;
 `SAVE_COMPONENT_PTR_FIELD_TEST` covers each one. Militia's partner pairing stays a
-runtime exclusion. The edict head and record `next` links are runtime exclusions. Restore
+runtime exclusion. The edict head is a runtime exclusion, and `WritePool`/`ReadPool` clear every
+component pool's `next` link themselves, so a payload table lists only its
+fixups and type-specific exclusions. Restore
 validates the saved ID against the section type, clears links, and attaches only
 a completely decoded record. List order is not a gameplay contract and may change
 on restore. Counts, capacity checks and entity-reference fixups retain the pool

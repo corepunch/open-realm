@@ -625,7 +625,6 @@ static field_t const unit_info_fields[] = {
 };
 
 static field_t const artillery_fields[] = {
-    TF(artillery_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(artillery_t, attack_type, F_INT), TF(artillery_t, area_targets, F_INT),
     TF(artillery_t, targets_allowed, F_INT),
     TF(artillery_t, area_full, F_FLOAT), TF(artillery_t, area_medium, F_FLOAT),
@@ -640,39 +639,33 @@ static field_t const link_fields[] = {
 };
 
 static field_t const construction_fields[] = {
-    TF(construction_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(construction_t, primary_builder, F_EDICT, 0, FIELD_NONE),
     TF(construction_t, worker, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const rally_fields[] = {
-    TF(rally_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(rally_t, entity, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const revival_fields[] = {
-    TF(revival_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(revival_t, producer, F_EDICT, 0, FIELD_NONE),
     TF(revival_t, queue_next, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const sacrifice_fields[] = {
-    TF(sacrifice_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(sacrifice_t, worker, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const unsummon_fields[] = {
-    TF(unsummon_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(unsummon_t, target, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const militia_fields[] = {
-    TF(militia_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(militia_t, partner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(militia_t, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
     TF(militia_t, returning, F_IGNORE, 0, FIELD_RUNTIME),
@@ -680,14 +673,12 @@ static field_t const militia_fields[] = {
 };
 
 static field_t const goldmine_fields[] = {
-    TF(goldMine_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(goldMine_t, occupants, F_INT),
     TF(goldMine_t, mine, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const mineoverlay_fields[] = {
-    TF(mineOverlay_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(mineOverlay_t, parent, F_EDICT, 0, FIELD_NONE),
     TF(mineOverlay_t, caster, F_EDICT, 0, FIELD_NONE),
     TF(mineOverlay_t, entangle_tree, F_EDICT, 0, FIELD_NONE),
@@ -695,13 +686,11 @@ static field_t const mineoverlay_fields[] = {
 };
 
 static field_t const acolyte_mine_fields[] = {
-    TF(acolyteMine_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(acolyteMine_t, mine, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const item_fields[] = {
-    TF(item_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(item_t, carrier, F_EDICT, 0, FIELD_NONE),
     TF(item_t, pending_use_carrier, F_EDICT, 0, FIELD_NONE),
     TF(item_t, soul_target, F_EDICT, 0, FIELD_NONE),
@@ -714,7 +703,6 @@ static field_t const item_fields[] = {
 };
 
 static field_t const destructable_fields[] = {
-    TF(destructable_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, blighted, F_INT),
     TF(destructable_t, occluder_height, F_FLOAT),
     TF(destructable_t, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
@@ -725,7 +713,6 @@ static field_t const destructable_fields[] = {
 };
 
 static field_t const cargo_fields[] = {
-    TF(cargo_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(cargo_t, units, F_EDICT, MAX_CARGO, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -738,7 +725,6 @@ static field_t const abilities_fields[] = {
 };
 
 static field_t const avatar_fields[] = {
-    TF(avatar_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(avatar_t, level, F_INT),
     TF(avatar_t, armor, F_FLOAT),
     TF(avatar_t, health, F_FLOAT),
@@ -747,7 +733,6 @@ static field_t const avatar_fields[] = {
 };
 
 static field_t const polymorph_fields[] = {
-    TF(polymorph_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(polymorph_t, ability, F_INT),
     TF(polymorph_t, buff, F_INT),
     TF(polymorph_t, form_type, F_INT),
@@ -758,7 +743,6 @@ static field_t const polymorph_fields[] = {
 };
 
 static field_t const raven_fields[] = {
-    TF(raven_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(raven_t, fly_height, F_FLOAT),
     TF(raven_t, rise_start, F_FLOAT),
     TF(raven_t, rise_duration, F_FLOAT),
@@ -767,7 +751,6 @@ static field_t const raven_fields[] = {
 };
 
 static field_t const ensnare_fields[] = {
-    TF(ensnare_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(ensnare_t, adjust, F_FLOAT),
     TF(ensnare_t, height, F_FLOAT),
     TF(ensnare_t, start, F_INT),
@@ -776,7 +759,6 @@ static field_t const ensnare_fields[] = {
 };
 
 static field_t const ancient_root_fields[] = {
-    TF(ancientRoot_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(ancientRoot_t, destination, F_VECTOR),
     TF(ancientRoot_t, approach_goal, F_EDICT, 0, FIELD_NONE),
     TF(ancientRoot_t, approach_goal_spawn_time, F_INT),
@@ -902,7 +884,6 @@ static field_t const client_camera_fields[] = {
 };
 
 static field_t const soultrap_fields[] = {
-    TF(soulTrap_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(soulTrap_t, head, F_EDICT, 0, FIELD_NONE),
     TF(soulTrap_t, carrier, F_EDICT, 0, FIELD_NONE),
     TF(soulTrap_t, next, F_EDICT, 0, FIELD_NONE),
@@ -918,14 +899,12 @@ static field_t const soultrap_fields[] = {
 };
 
 static field_t const sleep_fields[] = {
-    TF(sleep_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(sleep_t, can_sleep, F_INT),
     TF(sleep_t, sleeping, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const channel_fields[] = {
-    TF(channel_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(channel_t, source_item, F_EDICT, 0, FIELD_NONE),
     TF(channel_t, source_item_spawn_time, F_INT),
     TF(channel_t, code, F_INT),
@@ -954,7 +933,6 @@ static field_t const shop_stock_item_fields[] = {
 };
 
 static field_t const stock_fields[] = {
-    TF(stock_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     F(stock_s, item_slots, F_INT),
     F(stock_s, unit_slots, F_INT),
     F(stock_s, items_initialized, F_INT),
@@ -2192,10 +2170,6 @@ typedef struct {
     componentId_t component; /* zero for direct attachments; otherwise exact saved component type */
 } savePool_t;
 
-static field_t const component_fields[] = {
-    TF(component_t, next, F_IGNORE, 0, FIELD_RUNTIME),
-    { NULL, 0, 0, 0, 0, 0 }
-};
 static field_t const scalar_pool_fields[] = { { NULL, 0, 0, 0, 0, 0 } };
 #define POOL_ALLOC(Name) static void *SaveAlloc##Name(void) { return G_Alloc##Name(); }
 POOL_ALLOC(Construction)
@@ -2243,18 +2217,18 @@ static savePool_t const save_pools[] = {
     { "route", offsetof(edict_t, route), sizeof(routeCache_t), route_fields, SaveAllocRoute, MAX_ENTITIES },
     { "wander", offsetof(edict_t, wander), sizeof(wander_t), wander_fields, SaveAllocWander, MAX_ENTITIES },
     { "construction", 0, sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP, COMPONENT_CONSTRUCTION },
-    { "research", 0, sizeof(research_t), component_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP, COMPONENT_RESEARCH },
+    { "research", 0, sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP, COMPONENT_RESEARCH },
     { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
-    { "food", 0, sizeof(food_t), component_fields, SaveAllocFood, LIFECYCLE_POOL_CAP, COMPONENT_FOOD },
-    { "buildwork", 0, sizeof(buildwork_t), component_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP, COMPONENT_BUILDWORK },
+    { "food", 0, sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP, COMPONENT_FOOD },
+    { "buildwork", 0, sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP, COMPONENT_BUILDWORK },
     { "revival", 0, sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP, COMPONENT_REVIVAL },
     { "sacrifice", 0, sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP, COMPONENT_SACRIFICE },
     { "unsummon", 0, sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP, COMPONENT_UNSUMMON },
-    { "shadowmeld", 0, sizeof(shadowMeld_t), component_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP, COMPONENT_SHADOWMELD },
+    { "shadowmeld", 0, sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP, COMPONENT_SHADOWMELD },
     { "militia", 0, sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP, COMPONENT_MILITIA },
     { "polymorph", 0, sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP, COMPONENT_POLYMORPH },
     { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
-    { "blight_growth", 0, sizeof(blightGrowth_t), component_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
+    { "blight_growth", 0, sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
     { "ensnare", 0, sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP, COMPONENT_ENSNARE },
     { "ancient_root", 0, sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP, COMPONENT_ANCIENT_ROOT },
     { "goldmine", 0, sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP, COMPONENT_GOLDMINE },
@@ -2264,7 +2238,7 @@ static savePool_t const save_pools[] = {
     { "destructable", 0, sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP, COMPONENT_DESTRUCTABLE },
     { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
     { "stock", 0, sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP, COMPONENT_STOCK },
-    { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
+    { "waygate", 0, sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
     { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
     { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
     { "sleep", 0, sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP, COMPONENT_SLEEP },
@@ -2303,6 +2277,9 @@ static bool WritePool(FILE *f, savePool_t const *pool) {
         uint32_t index = i;
         if (!ok || !g_edicts[i].inuse || !slot) continue;
         memcpy(temp, slot, pool->size);
+        /* The owner list link is process state for every component pool; the
+         * payload tables only describe fixups and type-specific exclusions. */
+        if (pool->component) ((component_t *)temp)->next = NULL;
         ClearRuntimeFields(temp, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; ok && field->name; field++)
             ok = WriteField1(field, temp);
@@ -2321,6 +2298,7 @@ static bool ReadPool(FILE *f, savePool_t const *pool) {
             !g_edicts[index].inuse || SavePoolSlot(g_edicts + index, pool)) return false;
         void *slot = pool->alloc();
         if (!LoadBytes(f, slot, pool->size)) return false;
+        if (pool->component) ((component_t *)slot)->next = NULL;
         ClearRuntimeFields(slot, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; field->name; field++)
             if (!ReadField(field, slot)) return false;

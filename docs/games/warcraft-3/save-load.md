@@ -1172,3 +1172,12 @@ Item moves onto the component list (`COMPONENT_ITEM`). The item `carrier`,
 charges, drop ID, user data, the pawnable/droppable/death-drop overrides and the
 world/inventory placement remain plain values of the payload. The section keeps
 `LIFECYCLE_POOL_CAP`. Version 114 saves are rejected; the wire format is unchanged.
+
+### Runtime link handling
+
+`WritePool` and `ReadPool` clear the `component.next` link of every component
+pool record themselves, using the descriptor's component ID, so the per-type
+field tables no longer carry a `component.next` exclusion row. The written bytes
+are identical to the row-based exclusion (the link was already zero in the file),
+so the format version does not change; the earlier slice sections describe the
+rows as they were introduced.
