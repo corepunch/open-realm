@@ -5171,10 +5171,9 @@ TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	item->targtype = TARG_ITEM;
-	if (!item->item) item->item = G_AllocItem();
-	assert(item->item);
-	item->item->in_world = true;
-	item->item->inventory_slot = -1;
+	G_AddComponent(item, COMPONENT_ITEM);
+	G_GetItem(item)->in_world = true;
+	G_GetItem(item)->inventory_slot = -1;
 	T_ASSERT(G_AddItemToSlot(attacker, item, 0));
 	S_PoisonOnHit(attacker, target);
 	S_PoisonOnHit(attacker, hero);

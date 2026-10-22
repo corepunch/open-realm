@@ -225,10 +225,9 @@ static edict_t *make_world_item(uint32_t class_id) {
     G_BindEntityData(item);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->in_world = true;
-    item->item->inventory_slot = -1;
+    G_AddComponent(item, COMPONENT_ITEM);
+    G_GetItem(item)->in_world = true;
+    G_GetItem(item)->inventory_slot = -1;
     return item;
 }
 

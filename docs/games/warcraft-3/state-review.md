@@ -195,12 +195,12 @@ real stun statuses rather than writing the removed mirror. The native flag test 
 
 ## Save and network contracts
 
-Save version 114 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
+Save version 115 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
 Ensnare, artillery profiles, Sleep, Rally, Sacrifice, Unsummon, Blight Growth,
 Shadow Meld, Militia, Hero revival, worker build/repair state, Ancient Root, the
-mine records, Cargo, Soul Trap, Research, Food, shop Stock, the spell Channel, Destructable and Construction now use the
-[component list](pooled-entity-state.md#optional-components); the remaining roles
-retain direct attachments. Movement, orders, route and wander records
+mine records, Cargo, Soul Trap, Research, Food, shop Stock, the spell Channel, Destructable, Construction and Item now use the
+[component list](pooled-entity-state.md#optional-components); the `MAX_ENTITIES`
+unit/movement roles retain direct attachments. Movement, orders, route and wander records
 use the existing entity-owned typed-pool serialization. Entity references have
 explicit fixups; route jobs, resumable steering and destination flow generations
 are process-local caches cleared on load. Guard intent and waypoint incarnations

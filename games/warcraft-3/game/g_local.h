@@ -1688,7 +1688,8 @@ typedef enum {
     COMPONENT_STOCK = 24,
     COMPONENT_CHANNEL = 25,
     COMPONENT_DESTRUCTABLE = 26,
-    COMPONENT_CONSTRUCTION = 27
+    COMPONENT_CONSTRUCTION = 27,
+    COMPONENT_ITEM = 28
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -1961,6 +1962,7 @@ typedef struct {
 
 /* Item-edict ownership, charges and inventory/world lifecycle state. */
 typedef struct {
+    component_t component;
     edict_t *carrier;
     int32_t inventory_slot;
     bool in_world;
@@ -2287,7 +2289,6 @@ struct edict_s {
     uint32_t resources;
     uint32_t freetime;
     inventory_t *inventory; /* physical slots attach on first item ownership */
-    item_t *item;
     edict_t *ground_next;
     float velocity;
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
@@ -4368,6 +4369,7 @@ static inline stock_t *G_GetStock(edict_t const *ent) { return G_GetComponent(en
 static inline channel_t *G_GetChannel(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CHANNEL); }
 static inline destructable_t *G_GetDestructable(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_DESTRUCTABLE); }
 static inline construction_t *G_GetConstruction(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CONSTRUCTION); }
+static inline item_t *G_GetItem(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ITEM); }
 /* A queue item or building researches while its record names an upgrade; completed research frees the record. */
 static inline bool G_UnitIsResearching(edict_t const *ent) { research_t const *r = G_GetResearch(ent); return r && r->upgrade; }
 /* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */

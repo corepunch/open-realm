@@ -6727,10 +6727,9 @@ static buildingTinyFixture_t building_tiny_fixture(cstring_t ability) {
     item_data = MAKE(ItemData_t, .abilList = ability, .uses = 2, .perishable = false);
     f.item = alloc_test_unit(MAKEFOURCC('s','t','w','p'), -200.0f, -200.0f);
     f.item->s.model = 1; f.item->movetype = MOVETYPE_NONE; f.item->targtype = TARG_ITEM;
-    if (!f.item->item) f.item->item = G_AllocItem();
-    assert(f.item->item);
-    f.item->item->carrier = NULL; f.item->item->inventory_slot = -1; f.item->item->in_world = true;
-    f.item->data.ItemData = &item_data; f.item->item->charges = 2; f.item->spawn_time = 1234;
+    G_AddComponent(f.item, COMPONENT_ITEM);
+    G_GetItem(f.item)->carrier = NULL; G_GetItem(f.item)->inventory_slot = -1; G_GetItem(f.item)->in_world = true;
+    f.item->data.ItemData = &item_data; G_GetItem(f.item)->charges = 2; f.item->spawn_time = 1234;
     gi.LinkEntity(f.item);
     T_ASSERT(G_AddItemToSlot(f.hero, f.item, 0));
     G_SelectEntity(f.player->client, f.hero);

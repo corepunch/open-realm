@@ -880,7 +880,7 @@ TEST(wc3_destructable, death_spawns_each_inline_result_once_as_world_item) {
     T_EQ(first->class_id, first_entries[0].itemID);
     T_EQ(second->class_id, second_entries[0].itemID);
     T_ASSERT(G_IsItem(first) && G_IsItem(second));
-    T_ASSERT(first->item->in_world && second->item->in_world);
+    T_ASSERT(G_GetItem(first)->in_world && G_GetItem(second)->in_world);
     T_EQ(first->s.player, PLAYER_NEUTRAL_PASSIVE);
     T_EQ(second->s.player, PLAYER_NEUTRAL_PASSIVE);
     T_ASSERT(Vector2_distance(&first->s.origin2, &second->s.origin2) > 0.0f);

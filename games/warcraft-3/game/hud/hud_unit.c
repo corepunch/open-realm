@@ -778,7 +778,7 @@ bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInvento
     cstring_t art;
 
     if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
-        item->item->carrier != ent || item->item->inventory_slot != slot || item->item->in_world) return false;
+        G_GetItem(item)->carrier != ent || G_GetItem(item)->inventory_slot != slot || G_GetItem(item)->in_world) return false;
 
     memset(out, 0, sizeof(*out));
     item_name = GetClassName(item->class_id);

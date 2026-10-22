@@ -3895,8 +3895,8 @@ TEST(wc3_game, fow_world_items_follow_position_instead_of_default_owner) {
     item = alloc_test_unit(MAKEFOURCC('I','t','e','m'), 1024.0f, 1024.0f);
     item->s.player = 0; /* Unowned map items can retain this default owner. */
     item->targtype = TARG_ITEM;
-    item->item = G_AllocItem();
-    item->item->in_world = true;
+    G_AddComponent(item, COMPONENT_ITEM);
+    G_GetItem(item)->in_world = true;
 
     G_FowUpdate();
 
@@ -5605,7 +5605,7 @@ SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, mineov
 SAVE_COMPONENT_PTR_FIELD_TEST(field_acolyte_mine_round_trip, acolyte_mine, G_GetAcolyteMine, mine, 0)
 SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory->slots", inventory->slots[3], MAX_INVENTORY)
 SAVE_PTR_LVALUE_TEST(field_cargo_round_trip, "cargo->units", G_GetCargo(unit)->units[4], MAX_CARGO)
-SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item->carrier", item->carrier, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_item_carrier_round_trip, item, G_GetItem, carrier, 0)
 SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
 SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "orders->attackmove_waypoint", orders->attackmove_waypoint, 0)
 SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "orders->patrol_a", orders->patrol_a, 0)
@@ -5617,16 +5617,16 @@ SAVE_COMPONENT_PTR_FIELD_TEST(field_spell_item_round_trip, channel, G_GetChannel
 SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_head_round_trip, soultrap, G_GetSoulTrap, head, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, soultrap, G_GetSoulTrap, carrier, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_next_round_trip, soultrap, G_GetSoulTrap, next, 0)
-SAVE_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, "item->pending_use_carrier", item->pending_use_carrier, 0)
-SAVE_PTR_FIELD_TEST(field_item_soul_target_round_trip, "item->soul_target", item->soul_target, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, item, G_GetItem, pending_use_carrier, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_item_soul_target_round_trip, item, G_GetItem, soul_target, 0)
 SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soultrap, G_GetSoulTrap, head_spawn_time, 210)
 SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soultrap, G_GetSoulTrap, carrier_spawn_time, 220)
 SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soultrap, G_GetSoulTrap, next_spawn_time, 230)
 SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soultrap, G_GetSoulTrap, trapped_ability_added, 1)
 SAVE_COMPONENT_INT_FIELD_TEST(field_soul_possession_added_round_trip, soultrap, G_GetSoulTrap, possession_added, 1)
-SAVE_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item->pending_use_carrier_spawn_time, 240)
-SAVE_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item->pending_use_slot, 4)
-SAVE_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item->soul_target_spawn_time, 250)
+SAVE_COMPONENT_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item, G_GetItem, pending_use_carrier_spawn_time, 240)
+SAVE_COMPONENT_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item, G_GetItem, pending_use_slot, 4)
+SAVE_COMPONENT_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item, G_GetItem, soul_target_spawn_time, 250)
 SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity, 0)
 SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "orders->resource_goal", orders->resource_goal, 0)
 SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)
@@ -5674,9 +5674,8 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     G_GetSoulTrap(carrier)->head = target; G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
     G_GetSoulTrap(target)->carrier = carrier; G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
     G_GetSoulTrap(target)->item = filled; G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
-    if (!filled->item) filled->item = G_AllocItem();
-    assert(filled->item);
-    filled->item->soul_target = target; filled->item->soul_target_spawn_time = target->spawn_time;
+    G_AddComponent(filled, COMPONENT_ITEM);
+    G_GetItem(filled)->soul_target = target; G_GetItem(filled)->soul_target_spawn_time = target->spawn_time;
     G_AddUnitForcedVisibility(carrier, target->s.player);
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
@@ -5685,7 +5684,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     G_GetSoulTrap(carrier)->head = NULL; G_GetSoulTrap(carrier)->head_spawn_time = 0;
     G_GetSoulTrap(target)->carrier = NULL; G_GetSoulTrap(target)->carrier_spawn_time = 0;
     G_GetSoulTrap(target)->item = NULL; G_GetSoulTrap(target)->item_spawn_time = 0;
-    filled->item->soul_target = NULL; filled->item->soul_target_spawn_time = 0;
+    G_GetItem(filled)->soul_target = NULL; G_GetItem(filled)->soul_target_spawn_time = 0;
     carrier->vision->forced[1] = 0;
     target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
     T_ASSERT(ReadGame(filename));
@@ -5695,8 +5694,8 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     T_EQ(G_GetSoulTrap(target)->carrier_spawn_time, carrier->spawn_time);
     T_ASSERT(G_GetSoulTrap(target)->item == filled);
     T_EQ(G_GetSoulTrap(target)->item_spawn_time, filled->spawn_time);
-    T_ASSERT(filled->item->soul_target == target);
-    T_EQ(filled->item->soul_target_spawn_time, target->spawn_time);
+    T_ASSERT(G_GetItem(filled)->soul_target == target);
+    T_EQ(G_GetItem(filled)->soul_target_spawn_time, target->spawn_time);
     T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(!M_IsDead(target));
