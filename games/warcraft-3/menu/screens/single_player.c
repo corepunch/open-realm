@@ -1426,8 +1426,6 @@ static void SinglePlayer_BindCampaignMenu(void) {
 
 static void SinglePlayerMenu_Init(void) {
     mi.Printf("SinglePlayerMenu_Init\n");
-    if (mi.Cvar_Register)
-        mi.Cvar_Register("wc3_saved_game_ui_debug", "0", 0);
     SinglePlayer_LoadCampaignData();
     SinglePlayer_LoadCampaignProgress();
     memset(&campaign_list, 0, sizeof(campaign_list));

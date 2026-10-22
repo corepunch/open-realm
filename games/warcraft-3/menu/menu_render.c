@@ -64,33 +64,6 @@ static bool UI_FrameIndex(frameDef_t const *frame, uint32_t *index) {
     return true;
 }
 
-static bool ui_saved_game_draw_traced[MAX_UI_CLASSES];
-
-static bool UI_SavedGameTraceEnabled(void) {
-    cstring_t value = mi.Cvar_String ? mi.Cvar_String("wc3_saved_game_ui_debug", "0") : "0";
-    return value && atoi(value) != 0;
-}
-
-static bool UI_IsSavedGameFrame(frameDef_t const *frame) {
-    for (frameDef_t const *parent = frame; parent; parent = parent->Parent) {
-        if (!strcmp(parent->Name, "SavedGamesPanel")) return true;
-    }
-    return false;
-}
-
-static void UI_TraceSavedGameDraw(frameDef_t const *frame, rect_t const *rect) {
-    uint32_t index;
-    if (!UI_SavedGameTraceEnabled() || !frame || !rect || !UI_IsSavedGameFrame(frame) ||
-        !UI_FrameIndex(frame, &index) || ui_saved_game_draw_traced[index]) return;
-    ui_saved_game_draw_traced[index] = true;
-    fprintf(stderr,
-            "WC3_SAVE_UI draw name=%s type=%d parent=%s size=%.4fx%.4f "
-            "rect=%.4f,%.4f %.4fx%.4f disabled=%d command=\"%s\"\n",
-            frame->Name, (int)frame->Type,
-            frame->Parent ? frame->Parent->Name : "<none>", frame->Width, frame->Height,
-            rect->x, rect->y, rect->w, rect->h, frame->disabled, frame->OnClick);
-}
-
 static bool UI_TextHasLineBreak(cstring_t text) {
     for (cstring_t p = text ? text : ""; *p; p++) {
         if (*p == '\n' || *p == '\r') {
@@ -527,12 +500,6 @@ static void UI_ButtonEventHandler(frameDef_t *frame, menuMouseEvent_t event, flo
         bool was_pressed = (frame->ui_flags & UIFLAG_PRESSED) != 0;
         frame->ui_flags &= ~UIFLAG_PRESSED;
         if (was_pressed && frame->OnClick[0]) {
-            if (UI_SavedGameTraceEnabled() && UI_IsSavedGameFrame(frame)) {
-                fprintf(stderr,
-                        "WC3_SAVE_UI click name=%s parent=%s point=%.4f,%.4f command=\"%s\"\n",
-                        frame->Name, frame->Parent ? frame->Parent->Name : "<none>",
-                        fdf_x, fdf_y, frame->OnClick);
-            }
             UI_PlayGlueClick();
             UI_QueueCommand(frame->OnClick);
         }
@@ -964,7 +931,6 @@ static void UI_DrawFrameOne(frameDef_t const *frame) {
     if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->Type != FT_SPRITE)) {
         return;
     }
-    UI_TraceSavedGameDraw((frameDef_t *)frame, rect);
     
     /* Render based on frame type */
     switch (frame->Type) {
