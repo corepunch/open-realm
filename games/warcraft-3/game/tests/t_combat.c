@@ -864,10 +864,9 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gate->targtype = TARG_DEBRIS;
     gate->health.value = gate->health.max_value = 500.0f;
     gate->collision = 50.0f;
-    if (!gate->destructable) gate->destructable = G_AllocDestructable();
-    assert(gate->destructable);
-    gate->destructable->placement_solid = true;
-    gate->destructable->pathing_active = true;
+    G_AddComponent(gate, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(gate)->placement_solid = true;
+    G_GetDestructable(gate)->pathing_active = true;
     attacker->s.player = 0;
     attacker->collision = 16.0f;
     attacker->unit_state->attack1.type = ATK_NORMAL;
@@ -902,8 +901,7 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
     gate = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 128.0f, 0.0f);
     gate->svflags &= ~SVF_MONSTER;
     gate->targtype = TARG_DEBRIS;
-    if (!gate->destructable) gate->destructable = G_AllocDestructable();
-    assert(gate->destructable);
+    G_AddComponent(gate, COMPONENT_DESTRUCTABLE);
     attacker->unit_state->attack1.type = ATK_NORMAL;
     attacker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->unit_state->attack2.type = ATK_SIEGE;

@@ -80,9 +80,8 @@ static edict_t *make_moving_unit(float x, float y) {
 static edict_t *make_harvest_tree(float x, float y, float life) {
     edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), x, y);
     SP_monster_tree(tree);
-    if (!tree->destructable) tree->destructable = G_AllocDestructable();
-    assert(tree->destructable);
-    tree->destructable->item_table = (uint32_t)-1;
+    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(tree)->item_table = (uint32_t)-1;
     tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = life;
     return tree;
@@ -2020,9 +2019,8 @@ static edict_t *make_smart_destructable(float x, float y,
     edict_t *dest = G_Spawn();
     dest->class_id = MAKEFOURCC('L','T','0','5');
     dest->data.DestructableData = data;
-    if (!dest->destructable) dest->destructable = G_AllocDestructable();
-    assert(dest->destructable);
-    dest->destructable->placement_solid = true;
+    G_AddComponent(dest, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(dest)->placement_solid = true;
     dest->health.value = dest->health.max_value = 500.0f;
     dest->targtype = targtype;
     dest->s.origin2 = (vec2_t){ x, y };
@@ -2767,16 +2765,16 @@ TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
     wisp->data.UnitData = &wisp_data;
     wisp->collision = 16.0f;
     wisp->unitinfo.MoveSpeed = 220.0f;
-    tree->destructable->placement_solid = true;
-    tree->destructable->pathing_active = true;
+    G_GetDestructable(tree)->placement_solid = true;
+    G_GetDestructable(tree)->pathing_active = true;
     tree_path->width = tree_path->height = 3;
     FOR_LOOP(i, 9) tree_path->map[i] = (color32_t){0, 255, 0, 255};
     tree->pathtex = blocking_tree->pathtex = tree_path;
-    tree->destructable->alive_pathtex = blocking_tree->destructable->alive_pathtex = tree_path;
-    tree->destructable->placement_solid = blocking_tree->destructable->placement_solid = true;
-    tree->destructable->pathing_active = blocking_tree->destructable->pathing_active = true;
+    G_GetDestructable(tree)->alive_pathtex = G_GetDestructable(blocking_tree)->alive_pathtex = tree_path;
+    G_GetDestructable(tree)->placement_solid = G_GetDestructable(blocking_tree)->placement_solid = true;
+    G_GetDestructable(tree)->pathing_active = G_GetDestructable(blocking_tree)->pathing_active = true;
     CM_BakeStaticObstacles();
-    T_ASSERT(tree->destructable && !tree->destructable->dead && tree->destructable->placement_solid);
+    T_ASSERT(G_GetDestructable(tree) && !G_GetDestructable(tree)->dead && G_GetDestructable(tree)->placement_solid);
     T_ASSERT(!CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
                                                 M_UnitStaticPathingFlags(wisp)));
     HARVEST_RANGE = 128.0f;
@@ -2865,15 +2863,15 @@ TEST(wc3_movement, wisp_autoharvest_reaches_tree_from_blocked_approach) {
     wisp->unitinfo.MoveSpeed = 220.0f;
     tree_path->width = tree_path->height = 4;
     memcpy(tree_path->map, tree_cells, sizeof(tree_cells));
-    tree->pathtex = tree->destructable->alive_pathtex = tree_path;
+    tree->pathtex = G_GetDestructable(tree)->alive_pathtex = tree_path;
     tree->s.angle = 4.712389f; /* NightElf07 ATtr records use this rotation. */
-    tree->destructable->placement_solid = true;
-    tree->destructable->pathing_active = true;
+    G_GetDestructable(tree)->placement_solid = true;
+    G_GetDestructable(tree)->pathing_active = true;
     for (int i = 0; i < 3; i++) {
-        nearby_trees[i]->pathtex = nearby_trees[i]->destructable->alive_pathtex = tree_path;
+        nearby_trees[i]->pathtex = G_GetDestructable(nearby_trees[i])->alive_pathtex = tree_path;
         nearby_trees[i]->s.angle = 4.712389f;
-        nearby_trees[i]->destructable->placement_solid = true;
-        nearby_trees[i]->destructable->pathing_active = true;
+        G_GetDestructable(nearby_trees[i])->placement_solid = true;
+        G_GetDestructable(nearby_trees[i])->pathing_active = true;
     }
     CM_BakeStaticObstacles();
 
@@ -3252,8 +3250,7 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
-    if (!mill->construction) mill->construction = G_AllocConstruction();
-    assert(mill->construction);
+    G_AddComponent(mill, COMPONENT_CONSTRUCTION);
     S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
     worker->s.renderfx |= RF_HAS_LUMBER;
 
@@ -3276,8 +3273,7 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
     complete_hall->s.player = unfinished_hall->s.player = worker->s.player;
     make_live_dropoff(complete_hall, &return_gold_lumber_abilities);
     make_live_dropoff(unfinished_hall, &return_gold_lumber_abilities);
-    if (!unfinished_hall->construction) unfinished_hall->construction = G_AllocConstruction();
-    assert(unfinished_hall->construction);
+    G_AddComponent(unfinished_hall, COMPONENT_CONSTRUCTION);
     S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
 
     T_ASSERT(!S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
@@ -3616,10 +3612,9 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
-    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-    assert(bridge->destructable);
-    bridge->destructable->placement_solid = true;
-    bridge->destructable->occluder_height = 32.0f; /* does not offset non-elevator bridges */
+    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(bridge)->placement_solid = true;
+    G_GetDestructable(bridge)->occluder_height = 32.0f; /* does not offset non-elevator bridges */
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
@@ -3642,13 +3637,13 @@ TEST(wc3_movement, elevator_level_controls_ground_unit_height_and_clears_on_exit
 
     deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
     deck->data.DestructableData = &elevator_data;
-    deck->destructable = G_AllocDestructable();
-    deck->destructable->placement_solid = true;
+    G_AddComponent(deck, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(deck)->placement_solid = true;
     deck->pathtex = (pathTex_t *)&path;
     deck->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain);
     G_RegisterGroundSurface(deck);
     FOR_LOOP(level_index, 3) {
-        deck->destructable->occluder_height = level_index * 128.0f;
+        G_GetDestructable(deck)->occluder_height = level_index * 128.0f;
         M_CheckGround(unit);
         T_FEQ(unit->s.origin.z, terrain + level_index * 128.0f, 0.01f);
     }
@@ -3677,9 +3672,8 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
 
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0');
         bridge->data.DestructableData = &bridge_data;
-        if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-        assert(bridge->destructable);
-        bridge->destructable->placement_solid = true;
+        G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+        G_GetDestructable(bridge)->placement_solid = true;
         bridge->pathtex = (pathTex_t *)&bridge_path;
         bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 100.0f);
         bridge->targtype = TARG_BRIDGE;
@@ -3702,9 +3696,8 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
-    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-    assert(bridge->destructable);
-    bridge->destructable->placement_solid = true;
+    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(bridge)->placement_solid = true;
 
     G_RegisterGroundSurface(bridge);
     T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
@@ -3791,9 +3784,8 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     unit->data.UnitData = &float_data;
     set_uniform_test_water_height(32.0f);
     bridge->data.DestructableData = &bridge_data;
-    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-    assert(bridge->destructable);
-    bridge->destructable->placement_solid = true;
+    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(bridge)->placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);
@@ -5176,7 +5168,7 @@ TEST(wc3_movement, entangle_tft_uses_authored_overlay_unit_id) {
     T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && !overlay->construction);
+    T_ASSERT(overlay && !G_GetConstruction(overlay));
     T_ASSERT(overlay && overlay->build != overlay);
     T_EQ(overlay->s.class_id, MAKEFOURCC('h','b','a','r'));
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
@@ -5216,7 +5208,7 @@ TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishe
     T_ASSERT(G_UnitStartNextQueuedOrder(caster));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && !overlay->construction);
+    T_ASSERT(overlay && !G_GetConstruction(overlay));
     T_EQ(G_UnitQueuedOrderCount(caster), 0);
 
     gi.Write = old_write;
@@ -5289,7 +5281,7 @@ TEST(wc3_movement, auto_entangle_nearby_starts_normal_construction) {
     T_ASSERT(S_AutoEntangleNearby(caster, false));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->construction);
+    T_ASSERT(overlay && G_GetConstruction(overlay));
 
     gi.Write = old_write;
     gi.unicast = old_unicast;
@@ -5335,7 +5327,7 @@ TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
     T_EQ(G_GetAncientRoot(caster)->mode, ANCIENT_ROOTED);
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->construction);
+    T_ASSERT(overlay && G_GetConstruction(overlay));
     T_NULL(movement_find_entangle_overlay(caster, far_parent));
 
     S_RunAbilityUpdates(caster);
@@ -5358,8 +5350,7 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
     mine->data.UnitAbilities = &test_entangled_mine;
     mine->s.player = wisp->s.player = 0;
-    if (!mine->construction) mine->construction = G_AllocConstruction();
-    assert(mine->construction);
+    G_AddComponent(mine, COMPONENT_CONSTRUCTION);
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->stand = unit_stand;
     unit_stand(wisp);
@@ -5396,8 +5387,8 @@ TEST(wc3_movement, harvest_order_boards_wisp_into_entangled_mine) {
     mine->s.player = wisp->s.player = 0;
     setup_test_goldmine(parent, &test_goldmine_stock, 5000);
     mine->data.UnitAbilities = &test_entangled_mine;
-    mine->construction = G_AllocConstruction();
-    T_NOT_NULL(mine->construction);
+    G_AddComponent(mine, COMPONENT_CONSTRUCTION);
+    T_NOT_NULL(G_GetConstruction(mine));
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
 
@@ -5471,8 +5462,7 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
     producer->stand = unit_stand;
     producer->s.player = mine->s.player = wisp->s.player = 0;
     mine->data.UnitAbilities = &test_entangled_mine;
-    if (!mine->construction) mine->construction = G_AllocConstruction();
-    assert(mine->construction);
+    G_AddComponent(mine, COMPONENT_CONSTRUCTION);
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
     wisp->data.UnitBalance = &balance;
@@ -5554,7 +5544,7 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
     T_ASSERT(overlay && G_GetMineOverlay(overlay)->entangle_permanent_before);
-    T_ASSERT(overlay && overlay->construction);
+    T_ASSERT(overlay && G_GetConstruction(overlay));
 
     T_ASSERT(WriteGame(filename));
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, false));

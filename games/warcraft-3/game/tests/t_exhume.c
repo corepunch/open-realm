@@ -398,8 +398,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
     graveyard->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
-    if (!graveyard->construction) graveyard->construction = G_AllocConstruction();
-    assert(graveyard->construction);
+    G_AddComponent(graveyard, COMPONENT_CONSTRUCTION);
 
     S_RunAbilityUpdates(graveyard);
     T_NULL(graveyard_test_thinker(graveyard));
@@ -418,7 +417,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
 
     /* A restored/stale producer must also stop if its owner becomes incomplete,
      * so it cannot continue producing from a pre-construction timer. */
-    graveyard->construction = G_AllocConstruction();
+    G_AddComponent(graveyard, COMPONENT_CONSTRUCTION);
     graveyard_think(thinker);
     T_ASSERT(!thinker->inuse);
 

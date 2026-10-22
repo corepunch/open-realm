@@ -102,7 +102,7 @@ static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability
     abilityLevel_t const *row;
     cstring_t targets;
 
-    if (!target || !G_IsDestructable(target) || target->destructable->dead || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) return false;
+    if (!target || !G_IsDestructable(target) || G_GetDestructable(target)->dead || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) return false;
     row = G_AbilityLevel(code, ability_level);
     targets = row ? row->targs : NULL;
     if (!targets || !*targets) return false;

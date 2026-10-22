@@ -134,14 +134,15 @@ static uint32_t sc2api_ability_code_for_order(uint32_t order_id) {
 }
 
 static float sc2api_build_progress(edict_t const *ent) {
+    construction_t *site = G_GetConstruction(ent);
     float duration;
 
-    if (!ent || !ent->construction || !ent->data.UnitBalance ||
+    if (!ent || !site || !ent->data.UnitBalance ||
         ent->data.UnitBalance->buildTime <= 0) {
         return 1.0f;
     }
-    duration = ent->construction->duration_ms > 0.0f ? ent->construction->duration_ms : (float)ent->data.UnitBalance->buildTime * 1000.0f;
-    return MAX(0.0f, MIN(1.0f, ent->construction->progress / duration));
+    duration = site->duration_ms > 0.0f ? site->duration_ms : (float)ent->data.UnitBalance->buildTime * 1000.0f;
+    return MAX(0.0f, MIN(1.0f, site->progress / duration));
 }
 
 static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) {

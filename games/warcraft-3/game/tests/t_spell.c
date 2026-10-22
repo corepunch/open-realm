@@ -1168,10 +1168,8 @@ TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
     footman->targtype = TARG_GROUND;
     crate->targtype = TARG_DEBRIS; tree->targtype = TARG_TREE;
     crate->svflags |= SVF_STATIC_SCENERY; tree->svflags |= SVF_STATIC_SCENERY;
-    if (!crate->destructable) crate->destructable = G_AllocDestructable();
-    assert(crate->destructable);
-    if (!tree->destructable) tree->destructable = G_AllocDestructable();
-    assert(tree->destructable);
+    G_AddComponent(crate, COMPONENT_DESTRUCTABLE);
+    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
 
     T_FEQ(S_DevotionArmorBonus(footman), 3.0f, 0.001f);
     T_FEQ(S_DevotionArmorBonus(crate), 0.0f, 0.001f);
@@ -2598,19 +2596,18 @@ TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
     well->data.UnitBalance = &balance;
     well->mana.max_value = 100.0f;
     well->mana.value = 50.0f;
-    if (!well->construction) well->construction = G_AllocConstruction();
-    assert(well->construction);
-    well->construction->type = CONSTRUCTION_NIGHTELF;
+    G_AddComponent(well, COMPONENT_CONSTRUCTION);
+    G_GetConstruction(well)->type = CONSTRUCTION_NIGHTELF;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
     T_ASSERT(G_IsNight());
 
     FOR_LOOP(tick, 9) G_RunEntity(well);
-    T_ASSERT(well->construction);
+    T_ASSERT(G_GetConstruction(well));
     T_FEQ(well->mana.value, 50.0f, 0.001f);
     G_RunEntity(well);
-    T_ASSERT(!well->construction);
+    T_ASSERT(!G_GetConstruction(well));
     T_FEQ(well->mana.value, 50.2f, 0.001f);
 
     G_SetTimeOfDay(12.0f);
@@ -2662,10 +2659,9 @@ TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
     well->data.UnitBalance = &balance;
     well->mana.max_value = 100.0f;
     well->mana.value = 50.0f;
-    if (!well->construction) well->construction = G_AllocConstruction();
-    assert(well->construction);
-    well->construction->paused = true;
-    well->construction->type = CONSTRUCTION_NIGHTELF;
+    G_AddComponent(well, COMPONENT_CONSTRUCTION);
+    G_GetConstruction(well)->paused = true;
+    G_GetConstruction(well)->type = CONSTRUCTION_NIGHTELF;
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
     S_TestResetMoonWellMissingDataWarningCalls();
@@ -5846,8 +5842,7 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     building->health.value = building->health.max_value = 500;
     rooted_ancient->health.value = rooted_ancient->health.max_value = 500;
     uprooted_ancient->health.value = uprooted_ancient->health.max_value = 500;
-    if (!tree->destructable) tree->destructable = G_AllocDestructable();
-    assert(tree->destructable);
+    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
     tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = 500;
     level.time = 0;
@@ -5979,11 +5974,9 @@ TEST(wc3_spell, earthquake_respects_authored_relationship_and_destructable_token
     friend_building->health.value = friend_building->health.max_value = 500;
     enemy_ground->health.value = enemy_ground->health.max_value = 500;
     enemy_building->health.value = enemy_building->health.max_value = 500;
-    if (!tree->destructable) tree->destructable = G_AllocDestructable();
-    assert(tree->destructable);
+    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
     tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE;
-    if (!debris->destructable) debris->destructable = G_AllocDestructable();
-    assert(debris->destructable);
+    G_AddComponent(debris, COMPONENT_DESTRUCTABLE);
     debris->svflags &= ~SVF_MONSTER; debris->targtype = TARG_DEBRIS;
     tree->health.value = tree->health.max_value = 500;
     debris->health.value = debris->health.max_value = 500;

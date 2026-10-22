@@ -997,7 +997,7 @@ BZ_ABILITY_PROC(CAbilityTinyStructure) {
         return false;
     }
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
-    if (building->inuse && building->construction &&
+    if (building->inuse && G_GetConstruction(building) &&
         S_SpellDuration(code, level, false) <= 0.0f)
         G_CompleteConstruction(building);
     return true;

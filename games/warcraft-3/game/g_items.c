@@ -519,7 +519,7 @@ static bool G_TransferCarriedItemInternal(edict_t *recipient, edict_t *item, boo
 
     if (!G_IsItem(item) || item->item->in_world || item->item->pending_use_removal ||
         !recipient || !recipient->inuse || recipient->targtype == TARG_ITEM ||
-        recipient->destructable || recipient->client || M_IsDead(recipient) ||
+        G_GetDestructable(recipient) || recipient->client || M_IsDead(recipient) ||
         !G_UnitHasInventory(recipient))
         return false;
     source = item->item->carrier;
@@ -839,7 +839,7 @@ static bool G_CanGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipie
         !G_UnitIsWorldActive(recipient) || M_IsDead(recipient) ||
         recipient == source || (recipient->s.renderfx & RF_HIDDEN) ||
         G_IsDeferredFree(recipient) || recipient->targtype == TARG_ITEM ||
-        recipient->destructable || recipient->client || !G_UnitHasInventory(recipient) ||
+        G_GetDestructable(recipient) || recipient->client || !G_UnitHasInventory(recipient) ||
         !G_PlayerTreatsPlayerAsAlly(source->s.player, recipient->s.player) ||
         !G_InventoryCanDropItems(source) || !G_IsItem(item) || item->item->in_world ||
         item->item->carrier != source || !G_ItemDroppable(item) ||

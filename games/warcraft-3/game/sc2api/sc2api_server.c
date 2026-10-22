@@ -892,7 +892,7 @@ static void sc2_query_available_abilities(wc3Sc2PbWriter_t *writer, uint64_t tag
          * SC2 QueryAvailableAbilities returns concrete placement abilities.
          * Publish the worker's authored build rawcodes here using the same
          * authoritative state check and resource-ignore policy as the submenu. */
-        if (!unit->construction && !G_BuildingUpgradeActive(unit) &&
+        if (!G_GetConstruction(unit) && !G_BuildingUpgradeActive(unit) &&
             G_UnitCanSpendResources(WC3_SC2API_PlayerClient(session.player), unit) &&
             G_UnitHasBuildMenu(unit) && G_UnitProfile(unit->class_id) && G_UnitProfile(unit->class_id)->builds) {
             cstring_t builds = G_UnitProfile(unit->class_id)->builds;

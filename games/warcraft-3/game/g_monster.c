@@ -94,7 +94,7 @@ void M_MoveFrame(edict_t *self) {
      * independently of authoritative construction progress. Human progress is
      * Repair-driven; Orc/Undead/Night Elf progress is advanced by
      * G_RunConstructionFrame(). */
-    if ((self->aiflags & AI_HOLD_FRAME) && self->construction) {
+    if ((self->aiflags & AI_HOLD_FRAME) && G_GetConstruction(self)) {
         G_UpdateConstructionAnimation(self);
         return;
     }
@@ -618,7 +618,7 @@ void G_RegisterGroundSurface(edict_t *ent) {
     G_UnregisterGroundSurface(ent);
     ent->ground_next = level.ground_surfaces;
     level.ground_surfaces = ent;
-    if (!ent->destructable->dead && ent->destructable->placement_solid)
+    if (!G_GetDestructable(ent)->dead && G_GetDestructable(ent)->placement_solid)
         ent->s.flags |= EF_GROUND_SURFACE;
 }
 

@@ -126,7 +126,7 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
         origin = (vec3_t){ point.x, point.y, 0 };
     } else if ((type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY) && target) {
         origin = target->s.origin;
-        if (target->destructable) {
+        if (G_GetDestructable(target)) {
             origin.z += 192.0f;
         }
     } else {

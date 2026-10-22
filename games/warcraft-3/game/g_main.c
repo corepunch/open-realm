@@ -2024,7 +2024,7 @@ void G_AccumulatePlayerFood(gameClient_t *client) {
     FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && client->ps.number == ent->s.player) {
         if (ent->svflags & SVF_DEADMONSTER || G_UnitHasFlag(ent, UNIT_FLAG_TRAINING)) continue;
         G_SetUnitFoodUsed(ent, ent->data.UnitBalance->foodUsed);
-        if (!ent->construction) G_SetUnitFoodMade(ent, ent->data.UnitBalance->foodMade);
+        if (!G_GetConstruction(ent)) G_SetUnitFoodMade(ent, ent->data.UnitBalance->foodMade);
     }
     G_RecomputePlayerUpkeep(client);
 }

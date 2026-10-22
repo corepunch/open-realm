@@ -137,7 +137,7 @@ uint32_t SetDestructableOccluderHeight(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     float const height = jass_checknumber(j, 2);
     if (G_IsDestructable(d)) {
-        d->destructable->occluder_height = height;
+        G_GetDestructable(d)->occluder_height = height;
         if (height > 0.0f || d->targtype == TARG_TREE)
             d->s.flags |= EF_FOW_BLOCKER;
         else
@@ -149,7 +149,7 @@ uint32_t SetDestructableOccluderHeight(jass_t *j) {
 }
 uint32_t GetDestructableOccluderHeight(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushnumber(j, G_IsDestructable(d) ? d->destructable->occluder_height : 0.0f);
+    return jass_pushnumber(j, G_IsDestructable(d) ? G_GetDestructable(d)->occluder_height : 0.0f);
 }
 uint32_t DestructableRestoreLife(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");

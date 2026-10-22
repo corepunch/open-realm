@@ -144,7 +144,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 111 moves AncientRoot, GoldMine, MineOverlay, AcolyteMine, Cargo, SoulTrap onto the component list. */
 /* Version 112 moves Research, Food, Stock onto the component list. */
 /* Version 113 moves Channel onto the component list. */
-static uint32_t const save_version = 113;
+/* Version 114 moves Destructable, Construction onto the component list. */
+static uint32_t const save_version = 114;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -638,6 +639,7 @@ static field_t const link_fields[] = {
 };
 
 static field_t const construction_fields[] = {
+    TF(construction_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(construction_t, primary_builder, F_EDICT, 0, FIELD_NONE),
     TF(construction_t, worker, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
@@ -710,6 +712,7 @@ static field_t const item_fields[] = {
 };
 
 static field_t const destructable_fields[] = {
+    TF(destructable_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, blighted, F_INT),
     TF(destructable_t, occluder_height, F_FLOAT),
     TF(destructable_t, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1015,9 +1018,7 @@ static field_t const sound_fields[] = {
 
 field_t edict_fields[] = {
     F(edict_s, summon_ability, F_INT),
-    F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, item, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, destructable, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2237,7 +2238,7 @@ static savePool_t const save_pools[] = {
     { "movement", offsetof(edict_t, movement), sizeof(movement_t), movement_fields, SaveAllocMovement, MAX_ENTITIES },
     { "route", offsetof(edict_t, route), sizeof(routeCache_t), route_fields, SaveAllocRoute, MAX_ENTITIES },
     { "wander", offsetof(edict_t, wander), sizeof(wander_t), wander_fields, SaveAllocWander, MAX_ENTITIES },
-    { "construction", offsetof(edict_t, construction), sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP },
+    { "construction", 0, sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP, COMPONENT_CONSTRUCTION },
     { "research", 0, sizeof(research_t), component_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP, COMPONENT_RESEARCH },
     { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
     { "food", 0, sizeof(food_t), component_fields, SaveAllocFood, LIFECYCLE_POOL_CAP, COMPONENT_FOOD },
@@ -2256,7 +2257,7 @@ static savePool_t const save_pools[] = {
     { "mineoverlay", 0, sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP, COMPONENT_MINE_OVERLAY },
     { "acolyte_mine", 0, sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP, COMPONENT_ACOLYTE_MINE },
     { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP },
-    { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP },
+    { "destructable", 0, sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP, COMPONENT_DESTRUCTABLE },
     { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
     { "stock", 0, sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP, COMPONENT_STOCK },
     { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
@@ -2606,7 +2607,7 @@ bool ReadGame(cstring_t filename) {
         edict_t *ent = g_edicts + i;
         if (!ent->inuse) continue;
         if (ent->class_id) RebindEntityModels(ent);
-        if (ent->destructable) G_RestoreDestructableData(ent);
+        if (G_GetDestructable(ent)) G_RestoreDestructableData(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
     /* SV_Map baked obstacles from the map's initial placements. Restored
@@ -3096,16 +3097,16 @@ TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
     deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
     deck->s.class_id = deck->class_id;
     G_BindEntityData(deck);
-    deck->destructable = G_AllocDestructable();
-    deck->destructable->occluder_height = 256.0f;
+    G_AddComponent(deck, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(deck)->occluder_height = 256.0f;
     deck->queued_animation = G_InternAnimationName("stand third");
     T_ASSERT(WriteGame(filename));
-    deck->destructable->occluder_height = 0.0f;
+    G_GetDestructable(deck)->occluder_height = 0.0f;
     deck->queued_animation = "";
     T_ASSERT(ReadGame(filename));
     deck = &g_edicts[index];
-    T_NOT_NULL(deck->destructable);
-    if (deck->destructable) T_FEQ(deck->destructable->occluder_height, 256.0f, 0.001f);
+    T_NOT_NULL(G_GetDestructable(deck));
+    if (G_GetDestructable(deck)) T_FEQ(G_GetDestructable(deck)->occluder_height, 256.0f, 0.001f);
     T_STREQ(deck->queued_animation, "stand third");
     remove(filename);
     G_SetSLKRows("DestructableData", saved);
@@ -3346,8 +3347,8 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->missile->attack_type = ATK_PIERCE;
     unit->missile->reflected = true;
     unit->sound->owner_pending = 17;
-    unit->construction->progress = 13.5f;
-    unit->construction->worker = target;
+    G_GetConstruction(unit)->progress = 13.5f;
+    G_GetConstruction(unit)->worker = target;
     G_GetResearch(unit)->upgrade = MAKEFOURCC('R','h','m','e');
     G_GetResearch(unit)->progress = 9.25f;
     G_GetFood(unit)->used = 3;
@@ -3409,9 +3410,9 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_EQ(unit->missile->attack_type, ATK_PIERCE);
     T_ASSERT(unit->missile->reflected);
     T_EQ(unit->sound->owner_pending, 17);
-    T_ASSERT(unit->construction);
-    T_FEQ(unit->construction->progress, 13.5f, 0.001f);
-    T_ASSERT(unit->construction->worker == target);
+    T_ASSERT(G_GetConstruction(unit));
+    T_FEQ(G_GetConstruction(unit)->progress, 13.5f, 0.001f);
+    T_ASSERT(G_GetConstruction(unit)->worker == target);
     T_EQ(G_GetResearch(unit)->upgrade, MAKEFOURCC('R','h','m','e'));
     T_FEQ(G_GetResearch(unit)->progress, 9.25f, 0.001f);
     T_EQ(G_GetFood(unit)->used, 3); T_EQ(G_GetFood(unit)->made, 10);

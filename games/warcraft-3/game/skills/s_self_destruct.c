@@ -24,7 +24,7 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 static bool self_destruct_allows_destructable(uint32_t code, uint32_t level, edict_t *target) {
     abilityLevel_t const *row;
     cstring_t targets;
-    if (!G_IsDestructable(target) || target->destructable->dead || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE))
+    if (!G_IsDestructable(target) || G_GetDestructable(target)->dead || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE))
         return false;
     row = G_AbilityLevel(code, level);
     targets = row ? row->targs : NULL;
@@ -116,7 +116,7 @@ BZ_ABILITY_PROC(CAbilitySelfDestruct) {
         if (call->target->type == SPELL_TARGET_UNIT) {
             edict_t *target = call->target->entity;
             return target && target->inuse && target != ent &&
-                ((G_IsDestructable(target) && !target->destructable->dead && !G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) ||
+                ((G_IsDestructable(target) && !G_GetDestructable(target)->dead && !G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) ||
                  S_SpellIsAliveTarget(target));
         }
         return false;
