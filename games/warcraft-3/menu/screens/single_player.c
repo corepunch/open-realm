@@ -1147,11 +1147,15 @@ static frameDef_t *SinglePlayer_SaveButton(cstring_t name, cstring_t title,
     outer = UI_CloneFrameTree(single_player.LoadSavedBackdrop, saved_game_panel);
     if (!outer) return NULL;
     snprintf(outer->Name, sizeof(outer->Name), "%s", name);
-    UI_SetSize(outer, 0.09f, 0.034f);
+    /* Clones retain the authored LoadSavedBackdrop's opposing anchors. Clear
+     * them so our explicit button width and left position control the rect. */
+    outer->AnyPointsSet = false;
+    UI_SetSize(outer, 0.123f, 0.034f);
     UI_SetPoint(outer, FRAMEPOINT_TOPLEFT, saved_game_panel, FRAMEPOINT_TOPLEFT, x, -0.345f);
     button = UI_FindChildFrame(outer, "LoadSavedButton");
     label = button ? UI_FindChildFrame(button, "LoadSavedButtonText") : NULL;
     if (!button || !label) return NULL;
+    button->AnyPointsSet = false;
     UI_SetPoint(button, FRAMEPOINT_TOPLEFT, outer, FRAMEPOINT_TOPLEFT, 0, 0);
     UI_SetPoint(button, FRAMEPOINT_BOTTOMRIGHT, outer, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
     UI_SetText(label, "%s", title);
@@ -1194,13 +1198,17 @@ static void SinglePlayer_RefreshSaves(void) {
         for (cstring_t name = names; *name; name += strlen(name) + 1) {
             PATHSTR map;
             uiMapListItem_t *item;
+            size_t name_len = strlen(name);
+            cstring_t display = !strcasecmp(name, "quick") ? "Quick Save" : name;
+            size_t display_len = strlen(display);
             if (saved_games.count >= UI_MAX_MAP_LIST_ITEMS) break;
             if (!SinglePlayer_SaveNameSafe(name) ||
-                strlen(name) >= sizeof(saved_games.items[0].path) ||
+                name_len >= sizeof(saved_games.items[0].path) ||
+                display_len >= sizeof(saved_games.items[0].name) ||
                 !mi.GetSaveMap(name, map, sizeof(map))) continue;
             item = &saved_games.items[saved_games.count++];
-            snprintf(item->path, sizeof(item->path), "%s", name);
-            snprintf(item->name, sizeof(item->name), "%s", !strcasecmp(name, "quick") ? "Quick Save" : name);
+            memcpy(item->path, name, name_len + 1);
+            memcpy(item->name, display, display_len + 1);
         }
     }
     for (uint32_t i = 0; i < saved_games.count; i++) {
@@ -1418,6 +1426,8 @@ static void SinglePlayer_BindCampaignMenu(void) {
 
 static void SinglePlayerMenu_Init(void) {
     mi.Printf("SinglePlayerMenu_Init\n");
+    if (mi.Cvar_Register)
+        mi.Cvar_Register("wc3_saved_game_ui_debug", "0", 0);
     SinglePlayer_LoadCampaignData();
     SinglePlayer_LoadCampaignProgress();
     memset(&campaign_list, 0, sizeof(campaign_list));
