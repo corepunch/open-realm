@@ -3618,6 +3618,155 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     T_ASSERT(found);
 }
 
+/* A tight datagram must either contain every tint or none. Weather and
+ * lightning headers precede the staged tints; no second entity pass may
+ * overwrite them, and a normal untinted entity contributes no entry. */
+TEST(wc3_api, tint_datagram_staging_preserves_wire_order_and_all_or_nothing_fit) {
+    uint8_t data[256] = { 0 };
+    vec3_t source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
+    box2_t bounds = { .min = {0, 0}, .max = {128, 128} };
+    edict_t *first, *untinted, *second;
+    gweather_t *weather;
+    gLightning_t *lightning;
+    uint32_t tint_offset, exact_size, sent, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
+    untinted = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 48, 32);
+    first->vertex_color_set = true;
+    first->vertex_color = MAKE(color32_t, 210, 150, 100, 255);
+    second->vertex_color_set = true;
+    second->vertex_color = MAKE(color32_t, 120, 160, 220, 128);
+    T_ASSERT(!untinted->vertex_color_set);
+    weather = G_WeatherAdd(&bounds, MAKEFOURCC('R','A','h','r'), true);
+    T_NOT_NULL(weather);
+    lightning = G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = MAKEFOURCC('C','L','P','B'), .source = &source, .target = &target,
+        .color = COLOR32_WHITE, .duration_ms = 2000,
+    });
+    T_NOT_NULL(lightning);
+
+    tint_offset = sizeof(uint16_t) + sizeof(wc3WeatherEffect_t) +
+                  sizeof(uint16_t) + sizeof(lightningEffect_t);
+    exact_size = tint_offset + sizeof(uint16_t) + 2 * (sizeof(uint16_t) + sizeof(color32_t));
+    T_ASSERT(exact_size <= sizeof(data));
+    sent = G_WriteClientDatagram(NULL, data, exact_size);
+    T_EQ(sent, exact_size);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header & BZ_GAME_DATAGRAM_COUNT_MASK, 1u);
+    T_ASSERT(header & BZ_GAME_DATAGRAM_LIGHTNING);
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header) + sizeof(wc3WeatherEffect_t);
+    memcpy(&count, data + offset, sizeof(count));
+    T_EQ(count, 1u); /* lightning count */
+    memcpy(&count, data + tint_offset, sizeof(count));
+    T_EQ(count, 2u);
+    offset = tint_offset + sizeof(count);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+    T_EQ(number, (uint16_t)first->s.number);
+    T_EQ(color.r, 210); T_EQ(color.g, 150); T_EQ(color.a, 255);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color));
+    T_EQ(number, (uint16_t)second->s.number);
+    T_EQ(color.r, 120); T_EQ(color.b, 220); T_EQ(color.a, 128);
+
+    /* One byte short: preserve the weather and lightning, omit *all* tints. */
+    sent = G_WriteClientDatagram(NULL, data, exact_size - 1);
+    T_EQ(sent, tint_offset);
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_LIGHTNING);
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_ENTITY_TINTS));
+}
+
+TEST(wc3_api, tint_datagram_reserves_pending_blight_mask_before_staging) {
+    uint8_t data[256];
+    edict_t *client_ent, *unit;
+    uint32_t minimum_mask, just_short, size, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
+    unit->s.player = 0;
+    unit->vertex_color_set = true;
+    unit->vertex_color = MAKE(color32_t, 40, 60, 80, 200);
+    minimum_mask = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
+    just_short = sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color) + minimum_mask - 1;
+    T_ASSERT(just_short + 1 <= sizeof(data));
+
+    G_BlightMarkClientFull(client_ent);
+    size = G_WriteClientDatagram(client_ent, data, just_short);
+    T_ASSERT(size >= sizeof(header) + sizeof(terrainMaskChunk_t));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_ENTITY_TINTS));
+
+    G_BlightMarkClientFull(client_ent);
+    size = G_WriteClientDatagram(client_ent, data, just_short + 1);
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1u);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+    T_EQ(number, (uint16_t)unit->s.number);
+    T_EQ(color.r, 40); T_EQ(color.g, 60); T_EQ(color.b, 80); T_EQ(color.a, 200);
+    T_ASSERT(size >= offset + sizeof(terrainMaskChunk_t));
+}
+
+TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
+    uint8_t data[128];
+    edict_t *client_ent, *unit;
+    uint32_t size, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
+    unit->s.player = 0;
+    T_ASSERT(!unit->vertex_color_set);
+    unit->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1u);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color));
+    T_EQ(number, (uint16_t)unit->s.number);
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_EQ(color.a, 89); /* round(255 * 0.35) */
+    T_EQ(size, sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color));
+
+    unit->runtime.flags &= ~UNIT_BALANCE_GHOST_INVISIBLE;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    memcpy(&count, data + sizeof(header), sizeof(count));
+    T_EQ(count, 0u);
+    T_EQ(size, sizeof(header) + sizeof(count));
+}
+
 TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
     UnitUI_t ui = { .tintRed = 224, .tintGreen = 232, .tintBlue = 255 };
     edict_t unit = { .data.UnitUI = &ui };

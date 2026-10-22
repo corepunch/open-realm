@@ -66,6 +66,21 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
     color = G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) ? unit->vertex_color : COLOR32_WHITE;
     presentation_alpha = G_UnitDissipatePresentationAlpha(unit);
 
+    /* Most entities have no authored tint or presentation fade. An ordinary
+     * entity cannot acquire viewer-relative alpha without Shadow Meld,
+     * permanent/ghost invisibility, or an invisibility-backed RF_HIDDEN state.
+     * Reject those before the potentially expensive FoW/detector queries.
+     * This is only a candidate check: the original visibility and fade logic
+     * below remains authoritative for all possible tinted entities. */
+    if (!unit->vertex_color_set && presentation_alpha >= 1.0f) {
+        if (!client_ent || !client_ent->client) return false;
+        player = client_ent->client->ps.number;
+        if (unit->s.player != player && !G_FowPlayersShareVision(player, unit->s.player)) return false;
+        if (!unit->shadowmeld && !(unit->s.renderfx & RF_HIDDEN) &&
+            !(unit->runtime.flags & (UNIT_BALANCE_PERMANENT_INVISIBLE | UNIT_BALANCE_GHOST_INVISIBLE)))
+            return false;
+    }
+
     if (client_ent && client_ent->client) {
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayerCanSeeEntity(player, unit)) return false;
@@ -87,7 +102,7 @@ uint32_t G_WriteClientDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
     uint32_t weather_count = 0, lightning_count = 0, tint_count = 0, terrain_mask_size = 0;
     uint32_t const tint_wire_size = sizeof(uint16_t) + sizeof(color32_t);
     uint32_t const lightning_header_size = sizeof(uint16_t);
-    uint32_t base, lightning_need, mask_min, tint_need;
+    uint32_t base, lightning_need, mask_min, tint_need, tint_offset, tint_capacity;
     uint8_t *out = data;
     uint16_t wire_count;
     bool emit_lightning, emit_tints, emit_terrain_mask;
@@ -105,20 +120,43 @@ uint32_t G_WriteClientDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
         }
         lightning_count++;
     }
-    FOR_LOOP(i, globals.num_edicts) {
-        color32_t color;
-        if (G_ClientVertexColor(ent, &g_edicts[i], &color)) tint_count++;
-    }
     base = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t);
     lightning_need = lightning_header_size + lightning_count * sizeof(lightningEffect_t);
     mask_min = 0;
     if (G_BlightDatagramPending(ent) && level.blight.width)
         mask_min = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
-    tint_need = sizeof(uint16_t) + tint_count * tint_wire_size;
-    /* Wire order is weather, lightning, tints, terrain mask; gate each section on the cumulative fit. */
+    /* Wire order is weather, lightning, tints, terrain mask. The lightning
+     * and terrain decisions do not depend on the tint count. */
     emit_lightning = lightning_count && base + lightning_need <= size;
     emit_terrain_mask = mask_min && base + (emit_lightning ? lightning_need : 0) + mask_min <= size;
-    emit_tints = base + (emit_lightning ? lightning_need : 0) + (emit_terrain_mask ? mask_min : 0) + tint_need <= size;
+
+    /* Stage tint entries at their final wire offset in the caller's buffer.
+     * Reserving the terrain minimum preserves the old all-or-nothing fit rule
+     * without allocating a 16K-entity scratch array or running FoW twice.
+     * If they do not all fit, omit the tint section; the terrain writer may
+     * overwrite these staged bytes as it did before. */
+    tint_offset = base + (emit_lightning ? lightning_need : 0);
+    tint_capacity = 0;
+    if (tint_offset <= size &&
+        sizeof(uint16_t) + (emit_terrain_mask ? mask_min : 0) <= size - tint_offset) {
+        tint_capacity = (size - tint_offset - sizeof(uint16_t) -
+                         (emit_terrain_mask ? mask_min : 0)) / tint_wire_size;
+    }
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const *unit = &g_edicts[i];
+        color32_t color;
+        if (!G_ClientVertexColor(ent, unit, &color)) continue;
+        if (tint_count < tint_capacity) {
+            uint16_t number = (uint16_t)unit->s.number;
+            uint32_t offset = tint_offset + sizeof(uint16_t) + tint_count * tint_wire_size;
+            memcpy(data + offset, &number, sizeof(number));
+            memcpy(data + offset + sizeof(number), &color, sizeof(color));
+        }
+        tint_count++;
+    }
+    tint_need = sizeof(uint16_t) + tint_count * tint_wire_size;
+    emit_tints = tint_offset <= size &&
+        tint_need + (emit_terrain_mask ? mask_min : 0) <= size - tint_offset;
     if (!emit_tints && tint_count) {
         fprintf(stderr, "G_WriteClientDatagram: tint snapshot needs %u bytes, buffer has %u; omitting tints\n",
             (unsigned)(base + (emit_lightning ? lightning_need : 0) + tint_need), (unsigned)size);
@@ -153,16 +191,7 @@ uint32_t G_WriteClientDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
     if (emit_tints) {
         uint16_t wire_tint_count = (uint16_t)tint_count;
         memcpy(out, &wire_tint_count, sizeof(wire_tint_count));
-        out += sizeof(wire_tint_count);
-        FOR_LOOP(i, globals.num_edicts) {
-            edict_t *unit = &g_edicts[i];
-            uint16_t number;
-            color32_t color;
-            if (!G_ClientVertexColor(ent, unit, &color)) continue;
-            number = (uint16_t)unit->s.number;
-            memcpy(out, &number, sizeof(number)); out += sizeof(number);
-            memcpy(out, &color, sizeof(color)); out += sizeof(color);
-        }
+        out += sizeof(wire_tint_count) + tint_count * tint_wire_size;
     }
     if (emit_terrain_mask) {
         terrain_mask_size = G_BlightWriteDatagram(ent, out, size - (uint32_t)(out - data));
