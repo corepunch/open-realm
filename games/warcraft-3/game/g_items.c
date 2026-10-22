@@ -287,10 +287,11 @@ bool G_InventoryCanDropItems(edict_t const *unit) {
 }
 
 bool G_ItemDroppable(edict_t const *item) {
+    item_t *rec = G_GetItem(item);
     ItemData_t const *data;
 
     if (!G_IsItem(item)) return false;
-    if (G_GetItem(item)->droppable_set) return G_GetItem(item)->droppable;
+    if (rec->droppable_set) return rec->droppable;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     if (!data || !data->id) {
         fprintf(stderr, "WC3 ItemData: row unresolved for item %.4s; drop rejected\n",
@@ -756,8 +757,9 @@ void G_DropInventoryOnDeath(edict_t *unit) {
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
         edict_t *item = G_InventoryItem(unit, slot);
+        item_t *rec = G_GetItem(item);
         if (!G_IsItem(item) || G_ItemAbilitiesPreventDrop(unit, item)) continue;
-        if (G_GetItem(item)->drop_on_death_set ? G_GetItem(item)->drop_on_death : default_drop)
+        if (rec->drop_on_death_set ? rec->drop_on_death : default_drop)
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
 }

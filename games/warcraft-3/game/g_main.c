@@ -2278,7 +2278,8 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     /* World items have no health/mana hover bars, but their authored display
      * name should still appear when the pointer rests on a visible pickup. */
     if (G_IsItem((edict_t *)ent)) {
-        if (G_GetItem(ent) && G_GetItem(ent)->in_world && !(state->renderfx & RF_HIDDEN) &&
+        item_t const *rec = G_GetItem(ent);
+        if (rec && rec->in_world && !(state->renderfx & RF_HIDDEN) &&
             !(state->flags & EF_NOT_SELECTABLE) && G_FowPlayerCanHoverEntity(player, ent)) {
             state->name = G_UnitNameConfigstring(G_ObjectName(ent->class_id));
             /* The client's shared world-hover gate requires a positive health
@@ -2336,8 +2337,10 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     }
     if (hoverable) {
         uint32_t const cargo_capacity = S_CargoCapacity((edict_t *)ent);
-        if (cargo_capacity > 0)
-            state->stats[ENT_CARGO] = EntityCargoPack(G_GetCargo(ent) ? G_GetCargo(ent)->count : 0, cargo_capacity);
+        if (cargo_capacity > 0) {
+            cargo_t const *hold = G_GetCargo(ent);
+            state->stats[ENT_CARGO] = EntityCargoPack(hold ? hold->count : 0, cargo_capacity);
+        }
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));

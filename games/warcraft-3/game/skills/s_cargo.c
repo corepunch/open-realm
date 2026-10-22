@@ -66,8 +66,9 @@ uint32_t S_CargoCapacity(edict_t *transport) {
 }
 
 static bool cargo_has_capacity(edict_t *transport, uint32_t needed) {
+    cargo_t *hold = G_GetCargo(transport);
     uint32_t const capacity = S_CargoCapacity(transport);
-    uint32_t const count = transport && G_GetCargo(transport) ? G_GetCargo(transport)->count : 0;
+    uint32_t const count = transport && hold ? hold->count : 0;
     return capacity > 0 && count + needed <= capacity && count + needed <= MAX_CARGO;
 }
 
@@ -126,9 +127,11 @@ static void cargo_update_entangled_animation(edict_t *transport, uint32_t old_co
 }
 
 bool S_CargoAttacksEnabled(edict_t const *ent) {
+    cargo_t const *hold;
     if (!ent) return false;
     if (!S_CargoIsBurrow((edict_t *)ent)) return true;
-    return G_GetCargo(ent) && G_GetCargo(ent)->count > 0;
+    hold = G_GetCargo(ent);
+    return hold && hold->count > 0;
 }
 
 static void cargo_update_burrow_attacks(edict_t *transport) {
@@ -257,16 +260,18 @@ static uint32_t cargo_unload_interval_ms(edict_t *transport) {
  * normal monster scheduler suspends it during pause/stun. An independent
  * thinker used to keep ejecting passengers after the order was cancelled. */
 static void cargo_unload_all(edict_t *transport) {
+    cargo_t *hold = G_GetCargo(transport);
     if (M_IsDead(transport)) return;
-    if (G_GetCargo(transport)->count == 0) { unit_stand(transport); return; }
+    if (hold->count == 0) { unit_stand(transport); return; }
     if (G_Time() < transport->freetime) return;
     S_CargoUnloadAt(transport, 0);
-    if (G_GetCargo(transport)->count == 0) unit_stand(transport);
+    if (hold->count == 0) unit_stand(transport);
     else transport->freetime = G_Time() + cargo_unload_interval_ms(transport);
 }
 
 bool S_CargoBeginUnloadAll(edict_t *transport) {
-    if (!transport || !transport->inuse || !G_GetCargo(transport) || !G_GetCargo(transport)->count || M_IsDead(transport) ||
+    cargo_t *hold = G_GetCargo(transport);
+    if (!transport || !transport->inuse || !hold || !hold->count || M_IsDead(transport) ||
         G_UnitHasFlag(transport, UNIT_FLAG_PAUSED) || unit_hasstatusstate(transport, WC3_STATUS_STATE_STUNNED) || !cargo_living_hold_alias(transport)) return false;
     if (transport->currentmove == &cargo_move_unload) return true;
     order_stop_cleanup(transport);
@@ -285,10 +290,11 @@ static void cargo_clear_pending_unload(edict_t *transport) {
 }
 
 static bool cargo_begin_unload_at(edict_t *transport, vec2_t const *point, uint32_t ability_code) {
+    cargo_t *hold = G_GetCargo(transport);
     vec2_t destination;
     edict_t *waypoint;
 
-    if (!transport || !point || !transport->inuse || !G_GetCargo(transport) || !G_GetCargo(transport)->count || M_IsDead(transport) ||
+    if (!transport || !point || !transport->inuse || !hold || !hold->count || M_IsDead(transport) ||
         G_UnitHasFlag(transport, UNIT_FLAG_PAUSED) || unit_hasstatusstate(transport, WC3_STATUS_STATE_STUNNED) || !cargo_living_hold_alias(transport) || !ability_code) return false;
     destination = *point;
     if (!CM_ClosestPathablePointForRadiusFlags(point, transport->collision,
@@ -320,9 +326,11 @@ static bool cargo_unload_move_arrive(edict_t *transport, abilityCall_t const *ca
 
 edict_t *S_CargoTransportForUnit(edict_t const *unit) {
     if (!unit) return NULL;
-    FILTER_EDICTS(transport, transport->inuse && G_GetCargo(transport) && G_GetCargo(transport)->count > 0) {
-        FOR_LOOP(i, G_GetCargo(transport)->count) {
-            if (G_GetCargo(transport)->units[i] == unit) return transport;
+    FILTER_EDICTS(transport, transport->inuse) {
+        cargo_t const *hold = G_GetCargo(transport);
+        if (!hold || hold->count == 0) continue;
+        FOR_LOOP(i, hold->count) {
+            if (hold->units[i] == unit) return transport;
         }
     }
     return NULL;
@@ -331,10 +339,12 @@ edict_t *S_CargoTransportForUnit(edict_t const *unit) {
 /* Release a worker from its transport before the worker edict is removed or retasked. */
 void S_CargoReleaseUnit(edict_t *unit) {
     edict_t *transport;
+    cargo_t const *hold;
 
     if (!unit || !(transport = S_CargoTransportForUnit(unit))) return;
-    FOR_LOOP(i, G_GetCargo(transport)->count) {
-        if (G_GetCargo(transport)->units[i] == unit) {
+    hold = G_GetCargo(transport);
+    FOR_LOOP(i, hold->count) {
+        if (hold->units[i] == unit) {
             cargo_drop_unit(transport, i);
             return;
         }
@@ -722,14 +732,15 @@ static uint32_t battlestations_collect(edict_t *transport, edict_t * *out, uint3
 
 BZ_COMMAND_PROC(AbilityBattlestations) {
     edict_t *transport = G_GetMainSelectedUnit(clent->client);
+    cargo_t *hold = G_GetCargo(transport);
     edict_t *candidates[MAX_CARGO];
     uint32_t capacity, free_slots, count;
 
     if (!transport || !S_CargoIsBurrow(transport)) return;
-    G_AddComponent(transport, COMPONENT_CARGO);
+    hold = G_AddComponent(transport, COMPONENT_CARGO);
     capacity = S_CargoCapacity(transport);
-    if (capacity <= G_GetCargo(transport)->count) return;
-    free_slots = MIN(capacity - G_GetCargo(transport)->count, (uint32_t)MAX_CARGO);
+    if (capacity <= hold->count) return;
+    free_slots = MIN(capacity - hold->count, (uint32_t)MAX_CARGO);
     count = battlestations_collect(transport, candidates, free_slots);
     FOR_LOOP(i, count) S_CargoOrderBoard(candidates[i], transport);
     Get_Commands_f(clent);
@@ -739,13 +750,14 @@ BZ_COMMAND_PROC(AbilityBattlestations) {
 
 static bool drop_selectlocation(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
+    cargo_t *hold = G_GetCargo(caster);
 
-    if (!caster || !G_GetCargo(caster) || G_GetCargo(caster)->count == 0 || !point) return false;
+    if (!caster || !hold || hold->count == 0 || !point) return false;
     if (clent->client->menu.ability_code == BZ_AMED) {
         bool dropped = false;
-        while (G_GetCargo(caster)->count > 0 &&
-               S_CorpseCargoIsStored(S_CargoUnitAt(caster, G_GetCargo(caster)->count - 1)))
-            dropped |= S_CargoUnloadAt(caster, G_GetCargo(caster)->count - 1);
+        while (hold->count > 0 &&
+               S_CorpseCargoIsStored(S_CargoUnitAt(caster, hold->count - 1)))
+            dropped |= S_CargoUnloadAt(caster, hold->count - 1);
         return dropped;
     }
     return cargo_begin_unload_at(caster, point, clent->client->menu.ability_code);
@@ -774,7 +786,8 @@ BZ_ABILITY_PROC(CAbilityCargoDrop) {
 /* ---- Drop Instant (Adri): unload every occupant immediately ------------- */
 BZ_COMMAND_PROC(AbilityCargoDropInstant) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster || !G_GetCargo(caster) || G_GetCargo(caster)->count == 0) return;
+    cargo_t *hold = G_GetCargo(caster);
+    if (!caster || !hold || hold->count == 0) return;
     /* Retire timed unloading before a new passenger can board this frame. */
     order_stop_cleanup(caster);
     cargo_drop_all(caster);

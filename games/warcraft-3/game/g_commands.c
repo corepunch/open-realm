@@ -1971,9 +1971,10 @@ CLIENTCOMMAND(CargoUnload) {
 
     if (!clent || !(client = clent->client) || argc < 2) return;
     transport = G_GetMainSelectedUnit(client);
+    cargo_t *hold = G_GetCargo(transport);
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, transport) || slot < 0) return;
-    if (!G_GetCargo(transport) || (uint32_t)slot >= G_GetCargo(transport)->count) return;
+    if (!hold || (uint32_t)slot >= hold->count) return;
     S_CargoUnloadAt(transport, (uint32_t)slot);
 }
 
@@ -2022,9 +2023,10 @@ static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
 
     if (!client || !location) return false;
     item = G_GetDraggedItem(client);
-    unit = G_IsItem(item) ? G_GetItem(item)->carrier : NULL;
+    item_t *rec = G_GetItem(item);
+    unit = G_IsItem(item) ? rec->carrier : NULL;
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
-        !G_IsItem(item) || G_GetItem(item)->carrier != unit)
+        !G_IsItem(item) || rec->carrier != unit)
         return false;
     if (!G_OrderDropItemAt(unit, item, location)) return false;
     G_SendPointConfirmation(clent, location, false);
@@ -2043,7 +2045,8 @@ CLIENTCOMMAND(ItemDrag) {
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
         slot < 0 || (uint32_t)slot >= G_InventoryCapacity(unit)) return;
     item = G_InventoryItem(unit, slot);
-    if (!G_IsItem(item) || G_GetItem(item)->carrier != unit || G_GetItem(item)->in_world) return;
+    item_t *rec = G_GetItem(item);
+    if (!G_IsItem(item) || rec->carrier != unit || rec->in_world) return;
 
     /* Right-clicking an occupied inventory button enters the same server-owned
      * target-mode lifecycle used by WC3 point abilities. A following left-click

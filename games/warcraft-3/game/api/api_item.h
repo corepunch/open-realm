@@ -94,19 +94,21 @@ uint32_t SetItemPosition(jass_t *j) {
 }
 uint32_t SetItemDropOnDeath(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
+    item_t *rec = G_GetItem(item);
     bool flag = jass_checkboolean(j, 2);
     if (item && G_IsItem(item)) {
-        G_GetItem(item)->drop_on_death_set = true;
-        G_GetItem(item)->drop_on_death = flag;
+        rec->drop_on_death_set = true;
+        rec->drop_on_death = flag;
     }
     return 0;
 }
 uint32_t SetItemDroppable(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
+    item_t *rec = G_GetItem(item);
     bool flag = jass_checkboolean(j, 2);
     if (item && G_IsItem(item)) {
-        G_GetItem(item)->droppable_set = true;
-        G_GetItem(item)->droppable = flag;
+        rec->droppable_set = true;
+        rec->droppable = flag;
     }
     return 0;
 }
@@ -206,7 +208,8 @@ uint32_t IsItemVisible(jass_t *j) {
 }
 uint32_t IsItemOwned(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushboolean(j, whichItem && G_GetItem(whichItem)->carrier && !G_GetItem(whichItem)->in_world);
+    item_t *rec = G_GetItem(whichItem);
+    return jass_pushboolean(j, whichItem && rec->carrier && !rec->in_world);
 }
 uint32_t IsItemPowerup(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
@@ -216,10 +219,11 @@ uint32_t IsItemPowerup(jass_t *j) {
 }
 uint32_t SetItemPawnable(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
+    item_t *rec = G_GetItem(whichItem);
     bool flag = jass_checkboolean(j, 2);
     if (whichItem) {
-        G_GetItem(whichItem)->pawnable_set = true;
-        G_GetItem(whichItem)->pawnable = flag;
+        rec->pawnable_set = true;
+        rec->pawnable = flag;
     }
     return 0;
 }

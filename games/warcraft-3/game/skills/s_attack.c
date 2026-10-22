@@ -118,13 +118,13 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     rocket->missile->attack_type = desc->attack_type;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        G_AddComponent(rocket, COMPONENT_CHANNEL);
-        G_GetChannel(rocket)->origin = *desc->fixed_target;
+        channel_t *cast = G_AddComponent(rocket, COMPONENT_CHANNEL);
+        cast->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
         rocket->goalentity = desc->target;
-        G_GetChannel(rocket)->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+        cast->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
             artillery_t *splash = G_AddComponent(rocket, COMPONENT_ARTILLERY);
             splash->attack_type = desc->attack->type;

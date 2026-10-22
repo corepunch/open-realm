@@ -95,9 +95,10 @@ static void militia_sync_form(edict_t *unit, uint32_t ability) {
 }
 
 static bool militia_partner_valid(edict_t *worker, edict_t *hall) {
+    militia_t *state = G_GetMilitia(worker);
     if (!worker || !hall || !hall->inuse || M_IsDead(worker) || M_IsDead(hall)) return false;
     if (worker->s.player != hall->s.player || G_UnitHasFlag(worker, UNIT_FLAG_PAUSED) || G_UnitHasFlag(hall, UNIT_FLAG_PAUSED)) return false;
-    if (hall != G_GetMilitia(worker)->partner || hall->spawn_time != G_GetMilitia(worker)->partner_spawn_time) return false;
+    if (hall != state->partner || hall->spawn_time != state->partner_spawn_time) return false;
     if (!militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'))) return false;
     return militia_hall_ability_alias(hall, false) != 0;
 }
@@ -229,7 +230,8 @@ static bool militia_transform_back(edict_t *militia, bool resume_work) {
 }
 
 static void ai_militia_pair_walk(edict_t *worker) {
-    edict_t *hall = worker ? G_GetMilitia(worker)->partner : NULL;
+    militia_t *state = G_GetMilitia(worker);
+    edict_t *hall = worker ? state->partner : NULL;
     float distance, step;
 
     if (!militia_partner_valid(worker, hall)) {
@@ -240,7 +242,7 @@ static void ai_militia_pair_walk(edict_t *worker) {
         return;
     }
     if (militia_in_range(worker, hall)) {
-        bool const transformed = G_GetMilitia(worker)->returning
+        bool const transformed = state->returning
             ? militia_transform_back(worker, true)
             : militia_transform_forward(worker);
         if (!transformed) {
@@ -364,10 +366,11 @@ static edict_t *militia_find_partner(edict_t *worker, uint32_t worker_ability) {
 }
 
 static bool militia_toggle_on(edict_t *unit) {
+    militia_t *state = G_GetMilitia(unit);
     uint32_t ability, militia_type;
 
     if (!unit) return false;
-    if (G_GetMilitia(unit) && G_GetMilitia(unit)->active) return true;
+    if (state && state->active) return true;
     ability = militia_actor_ability_alias(unit, MAKEFOURCC('A','m','i','l'));
     militia_type = ability ? S_SpellDataId(ability, 1, 2) : 0;
     return militia_type && unit->class_id == militia_type;

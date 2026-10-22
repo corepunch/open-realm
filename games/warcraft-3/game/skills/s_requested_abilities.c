@@ -458,12 +458,15 @@ static void mass_teleport_cleanup(edict_t *thinker) {
      * channel identity without invoking S_SpellChannelActive() (which can
      * itself cancel channels while iterating thinkers). */
     if (target && thinker->wait < 0.5f) {
-        FILTER_EDICTS(other, other != thinker && other->think == mass_teleport_think &&
-                      other->goalentity == target && G_GetChannel(other) &&
-                      G_GetChannel(other)->target_spawn_time == target->spawn_time) {
-            edict_t *owner = S_SpellChannelOwner(other);
-            if (owner && G_GetChannel(owner) && G_GetChannel(owner)->code == other->class_id &&
-                G_GetChannel(owner)->serial == G_GetChannel(other)->serial && !M_IsDead(owner)) {
+        FILTER_EDICTS(other, other != thinker && other->think == mass_teleport_think && other->goalentity == target) {
+            channel_t const *other_cast = G_GetChannel(other);
+            edict_t *owner;
+            channel_t const *owner_cast;
+            if (!other_cast || other_cast->target_spawn_time != target->spawn_time) continue;
+            owner = S_SpellChannelOwner(other);
+            owner_cast = G_GetChannel(owner);
+            if (owner && owner_cast && owner_cast->code == other->class_id &&
+                owner_cast->serial == other_cast->serial && !M_IsDead(owner)) {
                 newer_pause_owner = true;
                 break;
             }
@@ -999,9 +1002,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
     thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
-    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
-    G_GetChannel(thinker)->target_spawn_time = st.entity->spawn_time;
+    channel_t *cast = G_AddComponent(thinker, COMPONENT_CHANNEL);
+    cast->owner_spawn_time = caster->spawn_time;
+    cast->target_spawn_time = st.entity->spawn_time;
     thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
 }

@@ -95,6 +95,18 @@ alignment costs apply to every reserved typed-pool slot, including unused ones;
 a smaller edict alone does not establish lower total memory consumption. Keep
 hot unit/combat and movement access direct until measurements justify migration.
 
+Each operation reads a record once: owners hold one local pointer per entity
+(for example `site`, `rec`, `hold`, `wares`) and refresh it only after a call
+that attaches the record, such as `G_InitItemStock` or a construction strategy.
+Per-frame predicates look the record up only on the path that needs it: the
+pathing blocker filter and the ground-surface walk read one destructable record
+per candidate, the snapshot customizer reads item and cargo state only for
+items and transports, and the edict sweeps (`FILTER_EDICTS`) test one cached
+record per edict instead of repeating the lookup inside the condition. An owned
+transition asserts the record it requires (`assert(site)`), while classification
+queries test the pointer. The registry indexes the dense IDs directly and
+verifies the row identity.
+
 A class/superclass mask is not a concrete-layout identity. If family queries
 become necessary, represent them separately; family matches must never authorize
 casts to an arbitrary derived payload. Retail binary evidence establishes ability

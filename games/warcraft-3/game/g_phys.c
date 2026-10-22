@@ -106,6 +106,7 @@ void SV_Physics_Toss(edict_t *ent) {
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     distance = ent->velocity * FRAMETIME;
     if (fixed_target) {
+        assert(cast);
         target = MAKE(vec3_t, cast->origin.x, cast->origin.y,
                       CM_GetHeightAtPoint(cast->origin.x, cast->origin.y));
     } else {

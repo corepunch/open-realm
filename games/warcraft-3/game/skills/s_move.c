@@ -347,12 +347,15 @@ bool M_UnitMoveDisabled(edict_t const *ent) {
  * effects, missiles), and the opposite air/ground layer (flyers and ground
  * units pass through each other). */
 static bool filter_blockers(edict_t const *ent) {
+    destructable_t const *dstr;
     if (ent == trymove_self || IS_HOLLOW(ent) || ent->collision <= 0.0f)
         return false;
     /* An alive walkable destructable is a ground surface, not a circle-shaped
-     * obstacle. Its authored path texture remains responsible for deck edges. */
-    if (G_IsDestructable(ent) && !G_GetDestructable(ent)->dead &&
-        G_GetDestructable(ent)->placement_solid && ent->pathtex &&
+     * obstacle. Its authored path texture remains responsible for deck edges.
+     * Every spawned destructable carries its record, so one lookup classifies it. */
+    dstr = G_GetDestructable(ent);
+    if (dstr && !dstr->dead &&
+        dstr->placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable) return false;
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
@@ -1273,8 +1276,9 @@ void M_CheckGround(edict_t *self) {
         for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
             pathTex_t const *pathtex = surface->pathtex;
             pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
-            if (!surface->inuse || G_GetDestructable(surface)->dead ||
-                !G_GetDestructable(surface)->placement_solid || !pathtex) continue;
+            destructable_t const *dstr = G_GetDestructable(surface);
+            if (!surface->inuse || dstr->dead ||
+                !dstr->placement_solid || !pathtex) continue;
             bool const elevator = surface->class_id == MAKEFOURCC('D','T','r','x') ||
                 surface->class_id == MAKEFOURCC('D','T','r','f');
             /* Only animated elevators extend support to the unit collision
@@ -1285,7 +1289,7 @@ void M_CheckGround(edict_t *self) {
             /* Blizzard.j synchronously changes the logical elevator level.
              * Other walkable bridges retain their authored world-space Z. */
             height = MAX(height, surface->s.origin.z +
-                (elevator ? G_GetDestructable(surface)->occluder_height : 0.0f));
+                (elevator ? dstr->occluder_height : 0.0f));
         }
     }
     self->s.ground_offset = self->unitinfo.FlyHeight;

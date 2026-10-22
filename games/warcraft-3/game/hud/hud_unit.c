@@ -565,6 +565,7 @@ static bool G_BuildHeroReviveButton(edict_t *altar, edict_t *hero, uint8_t slot,
 }
 
 uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons) {
+    cargo_t *ent_hold = G_GetCargo(ent);
     uint8_t count = 0;
     UnitBalance_t const *b;
     UnitWeapons_t const *w;
@@ -580,7 +581,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     w = ent->data.UnitWeapons;
     a = ent->data.UnitAbilities;
     is_burrow = S_CargoIsBurrow(ent);
-    burrow_occupied = is_burrow && G_GetCargo(ent) && G_GetCargo(ent)->count > 0;
+    burrow_occupied = is_burrow && ent_hold && ent_hold->count > 0;
 
     /* Unsummon owns the building until destruction. Rally metadata remains
      * editable, but actions and cancellation are hidden. */
@@ -774,11 +775,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
 }
 
 bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInventoryItem_t *out) {
+    item_t *rec = G_GetItem(item);
     cstring_t item_name;
     cstring_t art;
 
     if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
-        G_GetItem(item)->carrier != ent || G_GetItem(item)->inventory_slot != slot || G_GetItem(item)->in_world) return false;
+        rec->carrier != ent || rec->inventory_slot != slot || rec->in_world) return false;
 
     memset(out, 0, sizeof(*out));
     item_name = GetClassName(item->class_id);
@@ -848,16 +850,20 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
          build = G_HeroIsReviving(build) ? G_GetRevival(build)->queue_next : build->build) {
         uint32_t duration;
         float progress = 0;
+        construction_t const *site = G_GetConstruction(build);
+        research_t const *build_study = G_GetResearch(build);
+        revival_t const *revival = G_GetRevival(build);
+        food_t const *ledger = G_GetFood(build);
 
         if (G_UnitIsResearching(build)) {
             gameCommandButton_t button;
-            duration = (uint32_t)(MAX(0.0f, G_GetResearch(build)->duration) * 1000.0f);
-            if (G_BuildCommandButton(ent, GetClassName(G_GetResearch(build)->upgrade), true,
-                                     (uint32_t)G_GetResearch(build)->level, &button)) {
+            duration = (uint32_t)(MAX(0.0f, build_study->duration) * 1000.0f);
+            if (G_BuildCommandButton(ent, GetClassName(build_study->upgrade), true,
+                                     (uint32_t)build_study->level, &button)) {
                 UI_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
             }
-            if (count == 0 && G_GetResearch(build)->duration > 0.0f) {
-                progress = G_GetResearch(build)->progress / G_GetResearch(build)->duration;
+            if (count == 0 && build_study->duration > 0.0f) {
+                progress = build_study->progress / build_study->duration;
                 progress = MAX(0, MIN(progress, 1));
             }
         } else {
@@ -866,16 +872,16 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
              * progress bar used to run on the unit's buildTime instead. */
             duration = G_HeroIsReviving(build)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
-                : (G_GetConstruction(build) && G_GetConstruction(build)->duration_ms > 0.0f)
-                ? (uint32_t)G_GetConstruction(build)->duration_ms
+                : (site && site->duration_ms > 0.0f)
+                ? (uint32_t)site->duration_ms
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
                 if (G_HeroIsReviving(build) && duration > 0) {
-                    progress = G_GetRevival(build)->progress / ((float)duration / 1000.0f);
+                    progress = revival->progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
-                } else if (G_GetConstruction(build) && G_GetConstruction(build)->type == CONSTRUCTION_HUMAN && duration > 0) {
-                    progress = G_GetConstruction(build)->progress / (float)duration;
+                } else if (site && site->type == CONSTRUCTION_HUMAN && duration > 0) {
+                    progress = site->progress / (float)duration;
                     progress = MAX(0, MIN(progress, 1));
                     bool working = false;
                     FOR_LOOP(worker_index, globals.num_edicts) {
@@ -889,7 +895,7 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
                     progress = build->health.value / build->health.max_value;
                     progress = MAX(0, MIN(progress, 1));
                 }
-                food_blocked = G_UnitHasFlag(build, UNIT_FLAG_TRAINING) && cost > 0 && (!G_GetFood(build) || G_GetFood(build)->used == 0) && G_FoodLimitsEnabled();
+                food_blocked = G_UnitHasFlag(build, UNIT_FLAG_TRAINING) && cost > 0 && (!ledger || ledger->used == 0) && G_FoodLimitsEnabled();
             }
             UI_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
         }
@@ -911,17 +917,17 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
         }
         queue[count].progress = MAX(0.0f, MIN(progress, 1.0f));
 #ifdef WC3_DEBUG_BUILD
-        if (count == 0 && G_GetConstruction(build) && G_GetConstruction(build)->type == CONSTRUCTION_HUMAN) {
+        if (count == 0 && site && site->type == CONSTRUCTION_HUMAN) {
             fprintf(stderr, "WC3_BUILD queue-progress producer=%ld building=%ld id=%.4s construction_paused=%u progress=%.1f health=%.1f/%.1f fraction=%.4f duration_ms=%u queue_start=%u queue_end=%u frame=%u\n",
                     (long)(ent - g_edicts), (long)(build - g_edicts),
-                    (cstring_t)&build->class_id, G_GetConstruction(build)->paused,
-                    G_GetConstruction(build)->progress, build->health.value,
+                    (cstring_t)&build->class_id, site->paused,
+                    site->progress, build->health.value,
                     build->health.max_value, progress, duration,
                     queue[count].starttime, queue[count].endtime, build->s.frame);
         }
 #endif
         count++;
-        if ((G_HeroIsReviving(build) && G_GetRevival(build)->queue_next == build) ||
+        if ((G_HeroIsReviving(build) && revival->queue_next == build) ||
             (!G_HeroIsReviving(build) && build->build == build)) {
             break;
         }
