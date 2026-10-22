@@ -35,6 +35,24 @@ map doodads and destructables receive during spawn. A non-null
 zero row for unknown rawcodes, and `G_BindEntityData` binds that pointer to
 scenery too.
 
+`regen_aura_cache_update` builds one shared provider snapshot per simulation
+frame (and again if the ability-data generation changes). For each in-use edict,
+`aura_resolve_owned_abilities` walks the native `abilList` once, then the
+runtime-added list, then ranked hero slots; it fills the 14 distinct aura-family
+slots as it goes. This is equivalent to calling `S_ResolveAbilityAlias` once
+per family but avoids parsing the same list for every family. The first matching
+alias within each source category wins, and native abilities outrank added and
+hero entries. Removed native/added skills are ignored; hero slots retain their
+actual levels. Separate combat DataA/DataB consumers share the resolved ability.
+The snapshot does not persist across frames: changes to runtime skills, hero
+ranks and ability data are still observed on the next provider refresh.
+
+`wc3_spell.aura_provider_discovery_preserves_alias_precedence_and_ranks`
+compares the bulk discovery results against the standalone resolver across
+native aliases, added abilities, hero ranks, removed aliases and direct
+fixture edits. `combat_aura_alias_resolution_scales_with_edicts` also checks
+that discovery visits each live edict at most once per cache rebuild.
+
 `S_UpdateHeroAuraEffects` selects the strongest eligible Devotion or Unholy Aura
 for each recipient and keeps that buff's `TargetArt` on the recipient. The
 ability's own `TargetArt` is a second effect, spawned only on the unit that owns

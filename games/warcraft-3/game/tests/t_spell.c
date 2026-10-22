@@ -5,6 +5,7 @@
 
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
+bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent);
 void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
 void S_TestResetMoonWellMissingDataWarningCalls(void);
@@ -1783,8 +1784,9 @@ TEST(wc3_spell, combat_aura_alias_resolution_scales_with_edicts) {
     S_TestResetHeroAuraAliasResolves();
     FOR_LOOP(i, AURA_TARGETS)
         T_FEQ(S_UnholyHealthRegen(targets[i]), 10.0f, 0.001f);
-    /* One shared provider pass should replace per-recipient scans and alias parsing. */
-    T_ASSERT(S_TestHeroAuraAliasResolves() <= globals.num_edicts * 16);
+    /* A single ownership walk per in-use provider, not 14 independent scans. */
+    T_ASSERT(S_TestHeroAuraAliasResolves() > 0);
+    T_ASSERT(S_TestHeroAuraAliasResolves() <= globals.num_edicts);
 
     FOR_LOOP(i, AURA_SOURCES) T_ASSERT(G_ActorRemoveSkill(sources[i], MAKEFOURCC('X','U','a','u')));
     level.time = AURA_UPDATE_MS; level.framenum++;
@@ -1792,6 +1794,47 @@ TEST(wc3_spell, combat_aura_alias_resolution_scales_with_edicts) {
     T_ASSERT(G_ActorAddSkill(sources[0], MAKEFOURCC('X','U','a','u')));
     level.time += AURA_UPDATE_MS; level.framenum++;
     T_FEQ(S_UnholyHealthRegen(targets[0]), 10.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, aura_provider_discovery_preserves_alias_precedence_and_ranks) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"XUau\"\nC;Y2;X2;K\"AUau\"\n"
+        "C;Y3;X1;K\"XHad\"\nC;Y3;X2;K\"AHad\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "XUau,XHad" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *source;
+
+    reset_entities();
+    setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    source->data.UnitAbilities = &abilities;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 3);
+    source->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','a','s','l'), .level = 2);
+    source->abilities.added[0] = MAKEFOURCC('A','C','a','c');
+
+    T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','U','a','u')).alias,
+         MAKEFOURCC('X','U','a','u'));
+    T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','U','a','u')).level, 1);
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+
+    /* A removed native alias falls back to a ranked hero ability. */
+    source->abilities.removed[0] = MAKEFOURCC('X','U','a','u');
+    T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','U','a','u')).level, 3);
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+
+    /* Removing the added ability exposes the still-learned hero and native
+     * entries; an unrelated direct list edit must not leave a stale snapshot. */
+    source->abilities.added[0] = 0;
+    source->data.UnitAbilities = NULL;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    source->heroabilities[0].level = 0;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

@@ -55,6 +55,34 @@ static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
     { ID_SLOW_AURA, 2, true }
 };
 
+/* Distinct provider families, in lookup order.  `combat` below can reference
+ * the same owned ability more than once for its separate data columns. */
+typedef enum {
+    AURA_OWNED_LIFE_ORC,
+    AURA_OWNED_LIFE_BLIGHT,
+    AURA_OWNED_MANA,
+    AURA_OWNED_DEVOTION,
+    AURA_OWNED_UNHOLY,
+    AURA_OWNED_BRILLIANCE,
+    AURA_OWNED_ENDURANCE,
+    AURA_OWNED_VAMPIRIC,
+    AURA_OWNED_TRUESHOT,
+    AURA_OWNED_THORNS,
+    AURA_OWNED_COMMAND,
+    AURA_OWNED_COMMAND_NEUTRAL,
+    AURA_OWNED_WAR_DRUMS,
+    AURA_OWNED_SLOW,
+    AURA_OWNED_COUNT
+} auraOwnedSlot_t;
+
+static uint32_t const aura_owned_codes[AURA_OWNED_COUNT] = {
+    ID_REGEN_LIFE_ORC, ID_REGEN_LIFE_BLIGHT, ID_REGEN_MANA,
+    ID_DEVOTION_AURA, ID_UNHOLY_AURA, ID_BRILLIANCE,
+    ID_ENDURANCE_AURA, ID_VAMPIRIC_AURA, ID_TRUESHOT_AURA,
+    ID_THORNS_AURA, ID_COMMAND_AURA, ID_COMMAND_AURA_NEUTRAL,
+    ID_WAR_DRUMS, ID_SLOW_AURA
+};
+
 typedef struct {
     edict_t *source;
     bool active;
@@ -169,6 +197,65 @@ static auraAbilityRef_t actor_aura_ability(edict_t *ent, uint32_t base_code) {
     auraAbilityRef_t result = { resolved.alias, resolved.level };
     return result;
 }
+
+/* The shared provider snapshot used to call S_ResolveAbilityAlias fourteen
+ * times per edict per frame.  Walk each ownership source once instead, preserving
+ * the resolver's native -> added -> ranked hero precedence, first match within
+ * each source, and runtime removal checks.  Do not cache these results across
+ * frames: scripts can alter ability ownership and hero ranks at runtime. */
+static void aura_record_owned_alias(auraAbilityRef_t resolved[AURA_OWNED_COUNT],
+                                    uint32_t alias, uint32_t level) {
+    uint32_t const base = G_AbilityCode(alias);
+    FOR_LOOP(i, AURA_OWNED_COUNT) {
+        if (!resolved[i].alias && (aura_owned_codes[i] == alias || aura_owned_codes[i] == base)) {
+            resolved[i].alias = alias;
+            resolved[i].level = level;
+        }
+    }
+}
+
+static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved[AURA_OWNED_COUNT]) {
+    char alias_name[5] = {0};
+    memset(resolved, 0, sizeof(*resolved) * AURA_OWNED_COUNT);
+    if (!ent) return;
+#ifdef BZ_TESTS
+    /* Counts provider discovery passes, not individual family matches. */
+    test_hero_aura_alias_resolves++;
+#endif
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t alias = 0;
+            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            memcpy(&alias, token, sizeof(alias));
+            aura_record_owned_alias(resolved, alias, 1);
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const alias = ent->abilities.added[i];
+        if (!alias) continue;
+        memcpy(alias_name, &alias, 4);
+        if (G_ActorHasSkill(ent, alias_name)) aura_record_owned_alias(resolved, alias, 1);
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *hero = ent->heroabilities + i;
+        if (hero->level) aura_record_owned_alias(resolved, hero->code, hero->level);
+    }
+}
+
+#ifdef BZ_TESTS
+/* Regression oracle: the indexed discovery must agree with the original
+ * standalone resolver for every aura family, including alias/rawcode rank. */
+bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent) {
+    auraAbilityRef_t resolved[AURA_OWNED_COUNT];
+    aura_resolve_owned_abilities(ent, resolved);
+    FOR_LOOP(i, AURA_OWNED_COUNT) {
+        abilityAliasRef_t const expected = S_ResolveAbilityAlias(ent, aura_owned_codes[i]);
+        if (resolved[i].alias != expected.alias || resolved[i].level != expected.level)
+            return false;
+    }
+    return true;
+}
+#endif
 
 static auraAbilityRef_t unit_ability_with_proc(edict_t *ent, abilityProc_t proc) {
     auraAbilityRef_t result = {0};
@@ -366,34 +453,37 @@ static void regen_aura_cache_update(void) {
         return;
     regen_source_count = 0;
     FOR_LOOP(i, globals.num_edicts) {
+        edict_t *source = g_edicts + i;
         regenAuraSource_t *entry = regen_sources + regen_source_count;
+        auraAbilityRef_t owned[AURA_OWNED_COUNT];
         bool has_combat_aura = false;
 
-        entry->source = g_edicts + i;
-        entry->life_orc = actor_aura_ability(entry->source, ID_REGEN_LIFE_ORC);
-        entry->life_blight = actor_aura_ability(entry->source, ID_REGEN_LIFE_BLIGHT);
-        entry->mana = actor_aura_ability(entry->source, ID_REGEN_MANA);
-        entry->active = S_AuraUnitActive(entry->source);
-        entry->devotion = actor_aura_ability(entry->source, ID_DEVOTION_AURA);
-        entry->unholy = actor_aura_ability(entry->source, ID_UNHOLY_AURA);
-        FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
-            uint32_t k;
-            if (aura_cache_keys[j].code == ID_DEVOTION_AURA)
-                entry->combat[j] = entry->devotion;
-            else if (aura_cache_keys[j].code == ID_UNHOLY_AURA)
-                entry->combat[j] = entry->unholy;
-            else {
-                for (k = 0; k < j; k++)
-                    if (aura_cache_keys[k].code == aura_cache_keys[j].code) break;
-                if (k < j)
-                    entry->combat[j] = entry->combat[k];
-                else
-                    entry->combat[j] = actor_aura_ability(entry->source, aura_cache_keys[j].code);
+        /* Vacant slots cannot own or provide an aura. */
+        if (!source->inuse) continue;
+        aura_resolve_owned_abilities(source, owned);
+        entry->source = source;
+        entry->life_orc = owned[AURA_OWNED_LIFE_ORC];
+        entry->life_blight = owned[AURA_OWNED_LIFE_BLIGHT];
+        entry->mana = owned[AURA_OWNED_MANA];
+        entry->devotion = owned[AURA_OWNED_DEVOTION];
+        entry->unholy = owned[AURA_OWNED_UNHOLY];
+        FOR_LOOP(j, HERO_AURA_CACHE_KEYS) {
+            uint32_t const code = aura_cache_keys[j].code;
+            auraAbilityRef_t ability = {0};
+            FOR_LOOP(k, AURA_OWNED_COUNT) {
+                if (aura_owned_codes[k] == code) {
+                    ability = owned[k];
+                    break;
+                }
             }
-            if (entry->combat[j].alias) has_combat_aura = true;
+            entry->combat[j] = ability;
+            if (ability.alias) has_combat_aura = true;
         }
         if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
-            entry->devotion.alias || entry->unholy.alias || has_combat_aura) regen_source_count++;
+            entry->devotion.alias || entry->unholy.alias || has_combat_aura) {
+            entry->active = S_AuraUnitActive(source);
+            regen_source_count++;
+        }
     }
     regen_cache_frame = level.framenum;
     regen_cache_generation = ability_generation;
