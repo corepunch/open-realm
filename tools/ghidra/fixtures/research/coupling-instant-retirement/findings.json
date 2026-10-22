@@ -1,0 +1,9 @@
+{
+  "dll_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "kind": "read-only static continuation; no new native capture",
+  "health_trigger": "6984c0 registers scalar bridge unit+98 threshold listener d019f. 690490 dispatches d019f to679bb0. The life setter698a40 updates scalar then emits separate d01e6; do not claim d01e6 invokes death.",
+  "death_queue": "679bb0 commits death, dispatches Lost and internal death, cancels orders, calls678280(1,1), prepends d0153/d0178/d0144/action4. 678280 selects death/decay continuation; merge4ca180 clears0x200 on both inputs, excluding d0158/d0159 flesh/bone branches.",
+  "authored_delay": "For the ordinary d0155 continuation,69bef0 plays death then reads678020(rawcode) into scalar and calls69c620(delay,0). 678020 returns profile+0x74. 66bf40 fills profile[0x1d] from6a9310 inherited scalar descriptor+a4. 6b0870 binds+a4 to UnitData field literal death. Thus the continuation delay is authored per input unit type; not a universal3 seconds or minimum. Missing profile returns runtimezero.",
+  "completion": "69c620 cancels prior Unit180 completion and schedules d019d through0608d0. 690490 handles d019d by popping current internal task and dispatching successors; d0154 is death continuation, d015a removes abilities and invokes virtual5c. The sampled first type0 time is not an exact scheduler deadline measurement.",
+  "limits": ["No new runtime scheduler hook or authored death-value variant.", "Other unit flags, heroes and exceptional corpse branches are outside captured stock actors.", "No spawn-failure rollback established.", "Inherited descriptive Ghidra annotations are retained verbatim but are not fresh evidence."]
+}

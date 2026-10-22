@@ -312,7 +312,17 @@ Both original rawcodes still resolve. Later samples lose both handles.
 
 Stock and authored-range traces put the first both-type-zero sample 150 probe
 ticks after the first rider sample (3 seconds). These are sampled endpoints,
-not an exact reclamation deadline. Do not replace this lifecycle with immediate
+not an exact reclamation deadline. Static follow-up resolves the authored delay
+to each original unit's `UnitData.slk` `death` value: `6b0870` binds the field
+name, `6a9310` reads it, `66bf40` caches it at profile offset `0x74`, and
+`678020` retrieves it by rawcode. The `d0155` handler `69bef0` supplies this
+value to `69c620`, scheduling `d019d`. Merge clears corpse-eligibility bit
+`0x200`, omitting flesh/bone phases while retaining that authored death delay.
+The frozen field/continuation exports are in
+`tools/ghidra/fixtures/research/coupling-instant-retirement/`.
+The life threshold listener `6984c0` emits `d019f` into `679bb0`; the separate
+`d01e6` notification is not itself the death trigger. Do not replace this
+lifecycle with immediate
 `G_FreeEdict`, or equate world removal with the later public death event.
 Original exports and accepted capture provenance are retained under
 `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-instant193/` in

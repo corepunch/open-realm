@@ -70883,7 +70883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/hippogryph-couple.md",
-      "sha256": "75a5de93462d0e36d1b88c149647b60e758d42184e478c68a7e5d88b4bfaf001"
+      "sha256": "79284433efab93da06904ec3fb6f6381fda7a254257bfe35a01c32ea3fbdf4c4"
     },
     {
       "path": "games/warcraft-3/game/skills/s_couple.c",
@@ -71164,6 +71164,18 @@
     {
       "path": "tools/ghidra/fixtures/research/coupling-instant-callback/merge-lifetime/sha256.json",
       "sha256": "13d1fc633b050e83f3e65f95ac34b6b044b249c54f89d87bb71acea60aefc7da"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-retirement/findings.json",
+      "sha256": "02a592cea4d1afa9a50c6ad5013b111a24b58603e5d73130a3674ff040e90d95"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-retirement/sha256.json",
+      "sha256": "294d064733a946a3ba94ecee62b0b6ba3f8b5871bd943aa58cf47e1a7cb12dd1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-retirement/static-exports.json",
+      "sha256": "70100eaf5e5b02aa12668a956a515a7cbb3883a7b2e0fd92d65fceb571d97c76"
     }
   ]
 }
