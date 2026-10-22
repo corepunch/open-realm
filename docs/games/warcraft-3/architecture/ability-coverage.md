@@ -50,6 +50,17 @@ are explicit passive rows. ROC and TFT `ability_audit` rows match for this block
 Timed statuses remain generic `abilstatus[]` records. Their common duration and
 expiration bookkeeping stays in `unit_updatestatuses()`; add apply, refresh, or remove
 procedure cases only when a status record can resolve its owning ability unambiguously.
+`unit_updatestatuses()` keeps a transient per-edict bit index of timed slots to
+avoid scanning empty records every frame. `unit_applystatus()` and
+`unit_removestatus[_deferred]()` maintain it across additions, replacements,
+refreshes, and callbacks; raw/direct status writes must call
+`unit_status_invalidate_update_mask()` so the next update rebuilds from
+`abilstatus[]`. The index is not saved; see [WC3 save/load](../save-load.md#timed-status-update-index).
+An ARM64 RG40XX-H `perf report --stdio --no-children` capture (about 7K cycles
+samples) attributed 8.15% exclusive samples to the `cbz` empty-slot check at
+`unit_updatestatuses+0xa8` in that profiled build. The index specifically
+removes the repeated empty-slot scan; this percentage is not a predicted FPS
+gain. Profile the *new* binary again to measure the improvement.
 
 Abilities are discovered through the static `abilitylist[]` in
 `games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the

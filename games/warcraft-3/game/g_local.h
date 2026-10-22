@@ -2148,6 +2148,8 @@ typedef struct {
     uint32_t shortcut_alert_until; /* transient Hero-button damage pulse */
     heroability_t ranks[MAX_HERO_ABILITIES];
     heroabilitystatus_t statuses[MAX_UNIT_STATUSES];
+    /* Derived index of occupied timed statuses; rebuilt after spawn/load. */
+    uint32_t timed_status_update_mask;
     uint32_t next_status_id;
     abilityCooldown_t cooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s overrides;
@@ -3227,6 +3229,7 @@ bool unit_affectingcombat(edict_t *);
  * A zero deadline is unscheduled; expiry is exclusive. */
 bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint32_t now_ms);
 void unit_updatestatuses(edict_t *);
+void unit_status_invalidate_update_mask(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
 void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 /* For grouped removal/replacement; caller must reconcile flags once afterward. */

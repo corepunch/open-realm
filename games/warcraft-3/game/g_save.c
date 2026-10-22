@@ -953,6 +953,8 @@ static field_t const unit_state_fields[] = {
     TF(unitState_t, score_level_xp, F_INT),
     TF(unitState_t, shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     TF(unitState_t, statuses, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
+    /* Derived from the authoritative status records after loading. */
+    TF(unitState_t, timed_status_update_mask, F_IGNORE, 0, FIELD_RUNTIME),
     TF(unitState_t, overrides, F_STRUCT, 1, abilities_fields),
     TF(unitState_t, next_status_id, F_INT),
     TF(unitState_t, autocast, F_INT),
@@ -2637,6 +2639,33 @@ failed_entities:
 
 #ifdef BZ_TESTS
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
+TEST(wc3_save, timed_status_index_rebuilds_from_saved_unit_state) {
+    cstring_t filename = Test_TempPath("wc3-timed-status-index-save.bin");
+    edict_t *unit;
+    uint32_t index;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    index = (uint32_t)(unit - g_edicts);
+    level.time = 1000;
+    T_ASSERT(unit_addtimedstatus(unit, "Bstu", 1, 10.0f));
+    T_ASSERT(unit_addstatus(unit, "Beng", 1));
+    unit_updatestatuses(unit);
+    T_ASSERT(unit->unit_state->timed_status_update_mask != 0);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + index;
+    T_EQ(unit->unit_state->timed_status_update_mask, 0u);
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
+    T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','e','n','g')), 1u);
+    level.time = 11001;
+    unit_updatestatuses(unit);
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
+    T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','e','n','g')), 1u);
+    remove(filename);
+}
 
 /* The mission may be temporarily reduced while the campaign/default remains
  * Hard. A restored save must not consult the current frontend preference or

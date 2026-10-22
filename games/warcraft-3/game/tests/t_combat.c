@@ -3609,6 +3609,65 @@ TEST(wc3_combat, scripted_status_removal_preserves_independent_stun) {
     T_ASSERT(!unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
 }
 
+/* Regression: the initial empty fast path must not hide subsequently applied
+ * timed slots, and expired/removed slots must be reflected in the index. */
+TEST(wc3_combat, timed_status_index_handles_empty_apply_and_remove) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    unit_updatestatuses(ent); /* Populate the empty index. */
+    unit_addstatus(ent, "Bstu", 1); /* Persistent status is not ticked. */
+    unit_updatestatuses(ent);
+    T_ASSERT(ent->stunned);
+    slot = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(slot);
+    T_EQ(slot->timestamp, 0);
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!ent->stunned);
+
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(ent->stunned);
+    level.time = 1051;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    T_ASSERT(!ent->stunned);
+    unit_updatestatuses(ent); /* Expired last slot: empty fast path again. */
+
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    level.time = 1102;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+}
+
+/* Expiry of one status must not suppress a later occupied status slot. */
+TEST(wc3_combat, timed_status_index_handles_sparse_expiration) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_addtimedstatus(ent, "Beng", 1, 0.15f));
+    level.time = 1051;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    T_NOT_NULL(unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
+    level.time = 1151;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
+}
+
+/* Explicit direct edits, as in synthetic test fixtures, invalidate the index. */
+TEST(wc3_combat, timed_status_index_rebuilds_after_direct_edit) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    ent->unit_state->statuses[8] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','u'), .level = 1, .timestamp = 1050
+    };
+    unit_status_invalidate_update_mask(ent);
+    level.time = 1051;
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->statuses[8].level, 0);
+}
+
 TEST(wc3_combat, timed_life_status_kills_unit) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     _die_call_count = 0;

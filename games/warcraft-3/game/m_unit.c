@@ -1979,6 +1979,7 @@ typedef struct status_removal_guard_s {
     struct status_removal_guard_s *previous;
 } status_removal_guard_t;
 static status_removal_guard_t *status_removal_stack;
+static void unit_status_track_timed_slot(edict_t *, heroabilitystatus_t const *);
 
 static void unit_removestatus_core(edict_t *ent, heroabilitystatus_t *status,
                                    status_remove_reason_t reason, bool reconcile) {
@@ -2008,6 +2009,7 @@ static void unit_removestatus_core(edict_t *ent, heroabilitystatus_t *status,
     if ((status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) && !other_targetart_owner)
         G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
+    unit_status_track_timed_slot(ent, status);
     status_removal_stack = guard.previous;
     if (reconcile) {
         unit_refreshstatusflags(ent);
@@ -2041,15 +2043,56 @@ bool unit_status_take_due_tick(heroabilitystatus_t *slot, uint32_t interval_ms, 
     return true;
 }
 
+/* Status records are sparse and 152 bytes each. Index only timed slots so
+ * entities without timed statuses avoid scanning every record each frame.
+ * The high bit validates the mask; zeroed/restored state builds lazily. */
+#define TIMED_STATUS_UPDATE_VALID (1u << MAX_UNIT_STATUSES)
+#define TIMED_STATUS_UPDATE_BITS (TIMED_STATUS_UPDATE_VALID - 1u)
+
+static void unit_status_track_timed_slot(edict_t *ent, heroabilitystatus_t const *slot) {
+    uint32_t bit;
+    if (!ent || !ent->unit_state || !(ent->unit_state->timed_status_update_mask & TIMED_STATUS_UPDATE_VALID)) return;
+    bit = 1u << (slot - ent->unit_state->statuses);
+    if (slot->level && slot->timestamp) ent->unit_state->timed_status_update_mask |= bit;
+    else ent->unit_state->timed_status_update_mask &= ~bit;
+}
+
+void unit_status_invalidate_update_mask(edict_t *ent) {
+    if (ent && ent->unit_state) ent->unit_state->timed_status_update_mask = 0;
+}
+
 void unit_updatestatuses(edict_t *ent) {
-    uint32_t now = G_Time();
+    uint32_t now;
     bool changed = false;
     bool kill = false;
     bool militia_expired = false;
+    uint32_t mask;
 
-    FOR_LOOP(i, ent->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t *status = ent->unit_state->statuses + i;
+    if (!ent || !ent->unit_state) return;
+    mask = ent->unit_state->timed_status_update_mask;
+    if (!(mask & TIMED_STATUS_UPDATE_VALID)) {
+        mask = TIMED_STATUS_UPDATE_VALID;
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            heroabilitystatus_t const *status = ent->unit_state->statuses + i;
+            if (status->level && status->timestamp) mask |= 1u << i;
+        }
+        ent->unit_state->timed_status_update_mask = mask;
+    }
+    if (!(mask & TIMED_STATUS_UPDATE_BITS)) return;
+    now = G_Time();
+
+    /* Read the live mask on each iteration: callbacks can alter higher slots. */
+    for (uint32_t next = 0; next < MAX_UNIT_STATUSES;) {
+        uint32_t remaining = ent->unit_state->timed_status_update_mask &
+            TIMED_STATUS_UPDATE_BITS & (TIMED_STATUS_UPDATE_BITS << next);
+        heroabilitystatus_t *status;
+        uint32_t index;
+        if (!remaining) break;
+        index = (uint32_t)__builtin_ctz(remaining);
+        next = index + 1;
+        status = ent->unit_state->statuses + index;
         if (!status->level || !status->timestamp) {
+            unit_status_track_timed_slot(ent, status);
             continue;
         }
         if (now >= status->timestamp) {
@@ -2063,6 +2106,7 @@ void unit_updatestatuses(edict_t *ent) {
             unit_removestatus_deferred(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
         } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
+        unit_status_track_timed_slot(ent, status);
     }
     if (changed) {
         unit_refreshstatusflags(ent);
@@ -2174,6 +2218,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                     status->duration_ms = 0;
                 }
             }
+            unit_status_track_timed_slot(ent, status);
             if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
                 G_SpawnStatusEffectTarget(status->code, ent, "origin");
             unit_refreshstatusflags(ent);
@@ -2204,6 +2249,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
     slot->rank = app->rank;
     slot->next_tick = 0;
+    unit_status_track_timed_slot(ent, slot);
     if (slot->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
         G_SpawnStatusEffectTarget(slot->code, ent, "origin");
     unit_refreshstatusflags(ent);

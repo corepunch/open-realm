@@ -1,12 +1,24 @@
 # Warcraft III Save/Load
 
+## Timed status update index
+
+`unitState_t.timed_status_update_mask` is a transient, derived index of
+`statuses[]` slots where `level && timestamp`. Bit `MAX_UNIT_STATUSES`
+marks the index valid; a zero value requests a lazy rebuild from the
+serialized status records. The field is excluded from the save stream with
+`FIELD_RUNTIME`; status contents and simulation-clock deadlines remain
+authoritative. Since `unitState_t` uses field-based serialization, adding this
+runtime-only field does not change the save format version. After load the
+first `unit_updatestatuses()` call rebuilds the index before checking
+expirations and dispatching timed ticks.
+
 ## Contract
 
 The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. Scripted save and load requests are deferred to VM-safe/session boundaries (see Scripted zone saves below).
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 100, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, the current save format version, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
