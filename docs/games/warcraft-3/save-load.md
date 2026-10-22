@@ -1064,5 +1064,6 @@ Manual check in both editions: open Load Saved Game with no saves, create a
 named save and a quick save from gameplay, return to the main menu, select each
 slot and load, scroll a list longer than 12 rows, cancel deletion, delete a
 slot and verify that it disappears. A stale/invalid save must not crash or
-start a new map. These UI and runtime checks were not performed by the patch
-author; run the project's normal build/tests and visually inspect the layout.
+start a new map. Fixture-backed menu tests cover invalid and unreadable-save
+filtering, Quick Save naming, load dispatch, edition selection, and delete
+refresh. They do not exercise archive restoration or rendered retail layout.

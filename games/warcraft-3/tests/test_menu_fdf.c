@@ -508,14 +508,15 @@ TEST(menu_fdf, saved_game_browser_filters_loads_and_deletes_through_menu_callbac
     mi.DeleteSave = test_delete_saved_game;
     mi.LoadSavedGame = test_load_saved_game;
     mi.Cvar_Set = test_cvar_set;
-    T_ASSERT(UI_EnsureFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf"));
+    mi.Cvar_Register = test_cvar_register;
+    M_Init();
 
     test_skip_menu_transitions = true;
     M_ShowSinglePlayerMenu();
     test_glue_tick(667);
     test_glue_tick(1000);
     T_ASSERT(UI_GetCurrentScreen() == &singlePlayerMenuScreen);
-    SinglePlayerMenu_ShowSavedGames();
+    Cmd_ExecuteString("menu_single_player_saved_games");
 
     panel = UI_FindFrame("SavedGamesPanel");
     list = UI_FindFrame("SavedGamesList");
@@ -545,30 +546,27 @@ TEST(menu_fdf, saved_game_browser_filters_loads_and_deletes_through_menu_callbac
     T_STREQ(state->items[0].path, "quick");
     T_STREQ(state->items[1].path, "chapter-01");
 
-    SinglePlayerMenu_SelectSavedGame(1);
-    SinglePlayerMenu_LoadSelectedSave();
+    Cmd_ExecuteString("menu_single_player_save_select 1");
+    Cmd_ExecuteString("menu_single_player_save_load");
     T_STREQ(test_saved_game_loaded, "chapter-01");
     T_ASSERT(!test_fs_expansion);
-    SinglePlayerMenu_SelectSavedGame(0);
-    SinglePlayerMenu_LoadSelectedSave();
+    Cmd_ExecuteString("menu_single_player_save_select 0");
+    Cmd_ExecuteString("menu_single_player_save_load");
     T_STREQ(test_saved_game_loaded, "quick");
     T_ASSERT(test_fs_expansion);
     T_EQ(test_saved_game_load_count, 2);
 
-    SinglePlayerMenu_SelectSavedGame(1);
-    SinglePlayerMenu_ConfirmDeleteSave();
+    Cmd_ExecuteString("menu_single_player_save_select 1");
+    Cmd_ExecuteString("menu_single_player_save_delete_confirm");
     T_ASSERT(UI_FindFrame("SavedGameDeleteModal") != NULL);
-    SinglePlayerMenu_DeleteSelectedSave();
+    Cmd_ExecuteString("menu_single_player_save_delete");
     T_STREQ(test_saved_game_deleted, "chapter-01");
     T_EQ(state->count, 1);
     T_STREQ(state->items[0].path, "quick");
 
-    Cmd_ExecuteString("menu_ingame");
+    M_Shutdown();
     test_fs_expansion = saved_expansion;
     test_skip_menu_transitions = saved_skip_transitions;
-    UI_ResetGlueSceneModels();
-    UI_ClearTemplates();
-    UI_ClearTextures();
     mi = saved;
 }
 
