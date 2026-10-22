@@ -1957,8 +1957,21 @@ typedef struct {
     uint32_t count;
 } cargo_t;
 
+/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
+typedef enum {
+    COMPONENT_WAYGATE = 1,
+    COMPONENT_AVATAR = 2
+} componentId_t;
+
+/* Intrusive owner list; links are process-owned and rebuilt after loading. */
+typedef struct component_s {
+    uint32_t id;
+    struct component_s *next;
+} component_t;
+
 /* Way Gate-owned destination and activation state retained independently of traveler routes. */
 typedef struct {
+    component_t component;
     vec2_t destination;
     bool destination_set;
     bool active;
@@ -1966,6 +1979,7 @@ typedef struct {
 
 /* Avatar-owned reversible unit-stat and presentation snapshot. */
 typedef struct {
+    component_t component;
     uint32_t level;
     float armor, health;
     int32_t damage;
@@ -2258,7 +2272,6 @@ struct edict_s {
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
-    avatar_t *avatar;
     uint32_t unit_flags; /* independent entity gameplay switches; unitFlags_t */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     sleep_t *sleep;
@@ -2266,7 +2279,7 @@ struct edict_s {
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     vec2_t old_origin; /* prior event sample: region/proximity events also track teleports, independent of travel */
-    waygate_t *waygate;
+    component_t *components; /* optional records owned by this edict */
     movement_t *movement; /* non-null while a travel operation owns routing scratch */
     unitOrders_t *orders; /* retained command intent, independent of active travel */
     edictStat_t health;
@@ -4251,9 +4264,8 @@ extern struct game_export globals;
 extern struct game_import gi;
 extern struct level_locals level;
 
-/* Sparse lifecycles live in pools (Quake's gclient_t pattern). The edict holds
- * a null pointer until the behavior starts. Movement, attacks, and health stay
- * inline because almost every unit touches them. */
+/* Sparse lifecycles use typed pools, attached by direct pointers or the component list.
+ * Reads never allocate; owning transitions establish records explicitly. */
 /* Most pools peak in the hundreds across the retail campaigns (measured with
  * G_PoolsReportPeaks). Map-placed destructables each own a persistent record
  * and peak near 5,000 (NightElf04, UndeadX01), so that pool is sized separately. */
@@ -4308,6 +4320,12 @@ cargo_t *G_AllocCargo(void);
 void G_FreeStock(edict_t *ent);
 stock_t *G_AllocStock(void);
 void G_FreeWaygate(edict_t *ent);
+void *G_GetComponent(edict_t const *ent, componentId_t id);
+void *G_AddComponent(edict_t *ent, componentId_t id);
+void G_AttachComponent(edict_t *ent, component_t *record, componentId_t id);
+void G_FreeComponent(edict_t *ent, componentId_t id);
+static inline waygate_t *G_GetWaygate(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_WAYGATE); }
+static inline avatar_t *G_GetAvatar(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_AVATAR); }
 waygate_t *G_AllocWaygate(void);
 void G_FreeArtillery(edict_t *ent);
 artillery_t *G_AllocArtillery(void);

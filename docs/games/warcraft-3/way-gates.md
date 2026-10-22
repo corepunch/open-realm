@@ -133,3 +133,7 @@ make test-wc3-engine WC3_PATTERN='wc3_save.waygate*'
 ```
 
 Then run the normal full test target before merge.
+
+Runtime destination/activation state is a `waygate_t` component, queried through
+`G_GetWaygate` and explicitly attached by destination/activation setters.
+See [component ownership and persistence](pooled-entity-state.md#optional-components).

@@ -4603,7 +4603,7 @@ static void prepare_save_field(edict_t *unit, cstring_t name) {
     savePool_t const *pool = find_save_pool(name);
     if (pool && !SavePoolSlot(unit, pool)) {
         void *slot = pool->alloc();
-        memcpy((uint8_t *)unit + pool->offset, &slot, sizeof(slot));
+        AttachPoolSlot(unit, pool, slot);
     }
 }
 
@@ -5023,10 +5023,28 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
 }
 SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel->owner_spawn_time, 200)
 SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel->target_spawn_time, 300)
-SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar->level, 2)
-SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar->damage, 31)
-SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar->armor, 7.0f)
-SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar->health, 600.0f)
+/* Component payload descriptors remain concrete even though the edict no longer has these members. */
+TEST(wc3_save, avatar_component_fields_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-avatar-fields.bin");
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    avatar_t *avatar = G_AddComponent(unit, COMPONENT_AVATAR);
+    avatar->level = 2; avatar->damage = 31; avatar->armor = 7; avatar->health = 600;
+    T_EQ(find_save_field("avatar->level")->type, F_INT);
+    T_EQ(find_save_field("avatar->damage")->type, F_INT);
+    T_EQ(find_save_field("avatar->armor")->type, F_FLOAT);
+    T_EQ(find_save_field("avatar->health")->type, F_FLOAT);
+    T_ASSERT(WriteGame(filename));
+    G_FreeAvatar(unit);
+    T_ASSERT(ReadGame(filename));
+    avatar = G_GetAvatar(unit);
+    T_NOT_NULL(avatar);
+    if (avatar) {
+        T_EQ(avatar->level, 2); T_EQ(avatar->damage, 31);
+        T_FEQ(avatar->armor, 7, 0.001f); T_FEQ(avatar->health, 600, 0.001f);
+    }
+    remove(filename);
+}
 SAVE_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven->fly_height, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_unitinfo_prop_window_round_trip, unitinfo.PropWindow, 37.5f)
 SAVE_FLOAT_FIELD_TEST(field_attack1_backswing_round_trip, unit_state->attack1.backswingPoint, 0.35f)

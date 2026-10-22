@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 100, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 107, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -1031,3 +1031,14 @@ world alone; later rejection does not promise level or VM rollback.
 Regressions cover a truncated final pool after every earlier pool loaded, and a
 checksummed extra payload byte after a valid VM snapshot. Both rejection paths
 must leave no typed records attached.
+
+## Optional component attachments (version 107)
+
+Way Gate and Avatar records now attach through `edict_t.components`; their edict
+pointer fields are removed. Each concrete payload begins with an exact type ID
+and a runtime-only next link. `savePool_t.component` selects list lookup and
+attachment instead of an edict member offset. Save writes the type ID, excludes
+links, and restores only after decoding and validating the complete record.
+Truncated/rejected loads reset all pools and list heads. Earlier versions are
+rejected, and the network wire contract is unchanged.
+See [pooled state and components](pooled-entity-state.md#optional-components).

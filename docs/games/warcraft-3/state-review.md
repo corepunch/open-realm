@@ -195,7 +195,9 @@ real stun statuses rather than writing the removed mirror. The native flag test 
 
 ## Save and network contracts
 
-Save version 106 rejects prior layouts. Movement, orders, route and wander records
+Save version 107 rejects prior layouts. Way Gate and Avatar now use the
+[component list](pooled-entity-state.md#optional-components); the remaining roles
+retain direct attachments. Movement, orders, route and wander records
 use the existing entity-owned typed-pool serialization. Entity references have
 explicit fixups; route jobs, resumable steering and destination flow generations
 are process-local caches cleared on load. Guard intent and waypoint incarnations
