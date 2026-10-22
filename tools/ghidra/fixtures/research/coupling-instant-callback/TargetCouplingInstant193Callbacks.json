@@ -1,0 +1,15 @@
+{
+  "setting": "stock",
+  "ability_overrides": false,
+  "base_sha256": "9870fb6e56618f09343982a3eabd2b51265373834a27085cf8fb8f8552dca41d",
+  "map_sha256": "26e782a01c732ef12f2a5f27c47ec9b624706119a3afbee08d68c6d907829378",
+  "sources": {
+    "itemdrop_make_map.py": "b85bb43decb799374bd27788d267fa58ca6fdcdab926664e04f277d6da34a459",
+    "itemdrop_probe.j": "79b6684dfcdb446ad39127a5d39b5cc686ff3442699959bac7be4618a9c44ec2"
+  },
+  "overrides": {
+    "war3map.j": "5567a1dca630bd64386e58410f6c7f0f2c74bd09db4155d2d46bab7e8e7daa66",
+    "war3map.w3a": "b76875c50ef704dbbf7f02c982445971d1bbd61aebe2e4b28ddc58a1d66317d5",
+    "war3mapMisc.txt": "9228e80214645e550ae836c1305f694e65795186a85b606c43d5aa48236ce794"
+  }
+}

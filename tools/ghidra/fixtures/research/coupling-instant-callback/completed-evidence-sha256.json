@@ -1,0 +1,19 @@
+{
+  "audit_callbacks.py": "82bf2c70650c7fb05270d69b6dafb2b25b5846c2199f648ebd560a61a2ab9ad7",
+  "audit_mutations.py": "d09304d4e1022b8cc0a8588916ee9dd558ce0217fc1914a79e9bec211e388b68",
+  "validated-summary.json": "ac045dd0cb9e7710b34d010ee87fdaf7e36ea9fa8ccc64337e094660441c4a5b",
+  "mutation-summary.json": "f02dca86b7a905e4a9915a9cab997d2895be88ece08dc943e9f013f05dd09a1f",
+  "frozen-sources.json": "171d4c6bb79b99dc85a9b0dbfa2efea5e40eb168e9d3f875bf3f82c8090dea71",
+  "observe1.jsonl": "a53fbdbea32aa8a9c8decdd9f69f10123f0d3247b65e0e9c727c1b77094d0bb0",
+  "observe1.log": "fed3e65ee9046fb88de34928b9f7314a023380a51254cb569b5fab3d30c3481c",
+  "observe1.wine.log": "682c7902b55e9e1ca8769ed77ef51f98bb8a1d6f0e5f7b3f2e5661f2504a3798",
+  "observe1-preload.txt": "4d71af861a8191535b04ac747d6bb9f2f96a6c79cb9e02a0ffde8c1dcd93007c",
+  "observe2.jsonl": "dc3e0215de1d5d88cb1399e5525b24bdc53dc9257d286df0a6eb8665ef72d230",
+  "observe2.log": "2e554f68b6c9069bc12a7b9b7e4448b72319ebc5047ef2db22fd98ae93cf50bc",
+  "observe2.wine.log": "682c7902b55e9e1ca8769ed77ef51f98bb8a1d6f0e5f7b3f2e5661f2504a3798",
+  "observe2-preload.txt": "892d9efd119cf7c00f103308d23b99b03ec9b45820b4e8d28541baa3d4de88fb",
+  "control1.jsonl": "f439102001e559350e9f198a2715330293c5d760d64e6d323e8c2be5e781dfd3",
+  "control1.log": "3e8d542358d5fa14aeee0e6d01eb68bb52d57abbfec9e7015d5716e7804f6993",
+  "control1.wine.log": "682c7902b55e9e1ca8769ed77ef51f98bb8a1d6f0e5f7b3f2e5661f2504a3798",
+  "control1-preload.txt": "42f04a0defe25a6e688f9e426b03a18746310a93b22fb5ce4dfc4de63d779d1a"
+}

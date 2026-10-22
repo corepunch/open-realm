@@ -1,0 +1,959 @@
+{
+  "passed": true,
+  "markers_per_capture": 1625,
+  "matching_public_markers": 4875,
+  "public_stream_sha256": "0f6330cc0148d8b4dd7faca464ae012e391dc4598a24682ffa0a75892b63a41c",
+  "projection": [
+    {
+      "scene": 0,
+      "producers": [
+        {
+          "actor": 1700885091,
+          "tick": 100,
+          "caller": 4341351,
+          "range": 2139095039,
+          "counter": 1091
+        },
+        {
+          "actor": 1701341552,
+          "tick": 100,
+          "caller": 4237183,
+          "range": 0,
+          "counter": 1091
+        }
+      ],
+      "terminals": [
+        {
+          "actor": 1700885091,
+          "tick": 105,
+          "counter": 1097
+        },
+        {
+          "actor": 1701341552,
+          "tick": 200,
+          "counter": 1161
+        }
+      ],
+      "inverses": [
+        {
+          "actor": 1701341552,
+          "tick": 200,
+          "caller": 5124808,
+          "counter": 1161
+        },
+        {
+          "actor": 1700885091,
+          "tick": 200,
+          "caller": 5032147,
+          "counter": 1161
+        },
+        {
+          "actor": 1700885091,
+          "tick": 200,
+          "caller": 5175529,
+          "counter": 1161
+        },
+        {
+          "actor": 1701341552,
+          "tick": 205,
+          "caller": 5032147,
+          "counter": 1161
+        },
+        {
+          "actor": 1701341552,
+          "tick": 205,
+          "caller": 5175529,
+          "counter": 1161
+        }
+      ]
+    },
+    {
+      "scene": 1,
+      "producers": [
+        {
+          "actor": 1700885091,
+          "tick": 500,
+          "caller": 4341351,
+          "range": 2139095039,
+          "counter": 1357
+        },
+        {
+          "actor": 1701341552,
+          "tick": 500,
+          "caller": 4237183,
+          "range": 0,
+          "counter": 1357
+        }
+      ],
+      "terminals": [
+        {
+          "actor": 1701341552,
+          "tick": 630,
+          "counter": 1445
+        }
+      ],
+      "inverses": [
+        {
+          "actor": 1700885091,
+          "tick": 500,
+          "caller": 5175529,
+          "counter": 1357
+        },
+        {
+          "actor": 1701341552,
+          "tick": 630,
+          "caller": 5124808,
+          "counter": 1445
+        },
+        {
+          "actor": 1701341552,
+          "tick": 630,
+          "caller": 5032147,
+          "counter": 1445
+        },
+        {
+          "actor": 1701341552,
+          "tick": 630,
+          "caller": 5175529,
+          "counter": 1445
+        }
+      ]
+    },
+    {
+      "scene": 2,
+      "producers": [
+        {
+          "actor": 1700885091,
+          "tick": 900,
+          "caller": 4341351,
+          "range": 2139095039,
+          "counter": 1624
+        }
+      ],
+      "terminals": [
+        {
+          "actor": 1700885091,
+          "tick": 905,
+          "counter": 1630
+        }
+      ],
+      "inverses": [
+        {
+          "actor": 1700885091,
+          "tick": 1198,
+          "caller": 5032147,
+          "counter": 1823
+        },
+        {
+          "actor": 1700885091,
+          "tick": 1198,
+          "caller": 5175529,
+          "counter": 1823
+        }
+      ]
+    },
+    {
+      "scene": 3,
+      "producers": [
+        {
+          "actor": 1700885091,
+          "tick": 1300,
+          "caller": 4341351,
+          "range": 2139095039,
+          "counter": 1891
+        },
+        {
+          "actor": 1701341552,
+          "tick": 1300,
+          "caller": 4237183,
+          "range": 0,
+          "counter": 1891
+        }
+      ],
+      "terminals": [
+        {
+          "actor": 1700885091,
+          "tick": 1305,
+          "counter": 1897
+        }
+      ],
+      "inverses": [
+        {
+          "actor": 1700885091,
+          "tick": 1315,
+          "caller": 5032147,
+          "counter": 1901
+        },
+        {
+          "actor": 1701341552,
+          "tick": 1315,
+          "caller": 5175529,
+          "counter": 1901
+        },
+        {
+          "actor": 1700885091,
+          "tick": 1315,
+          "caller": 5175529,
+          "counter": 1901
+        },
+        {
+          "actor": 1700885091,
+          "tick": 1315,
+          "caller": 5175529,
+          "counter": 1901
+        }
+      ]
+    },
+    {
+      "scene": 4,
+      "producers": [
+        {
+          "actor": 1700885091,
+          "tick": 1700,
+          "caller": 4341351,
+          "range": 2139095039,
+          "counter": 2157
+        },
+        {
+          "actor": 1701341552,
+          "tick": 1700,
+          "caller": 4237183,
+          "range": 0,
+          "counter": 2157
+        }
+      ],
+      "terminals": [
+        {
+          "actor": 1700885091,
+          "tick": 1705,
+          "counter": 2163
+        }
+      ],
+      "inverses": [
+        {
+          "actor": 1701341552,
+          "tick": 1715,
+          "caller": 5175529,
+          "counter": 2167
+        },
+        {
+          "actor": 1700885091,
+          "tick": 1715,
+          "caller": 5032147,
+          "counter": 2167
+        },
+        {
+          "actor": 1700885091,
+          "tick": 1715,
+          "caller": 5175529,
+          "counter": 2167
+        }
+      ]
+    },
+    {
+      "scene": 5,
+      "producers": [],
+      "terminals": [],
+      "inverses": []
+    }
+  ],
+  "scenes": [
+    {
+      "scene": 0,
+      "events": [
+        {
+          "tick": "100",
+          "scene": "0",
+          "label": "issued-immediate",
+          "oid": "852508",
+          "actor": "1",
+          "target": "0",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "100",
+          "scene": "0",
+          "label": "issued-target",
+          "oid": "852508",
+          "actor": "1",
+          "target": "2",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "100",
+          "scene": "0",
+          "label": "issued-target",
+          "oid": "852507",
+          "actor": "2",
+          "target": "1",
+          "ah": "852508",
+          "hh": "852507"
+        },
+        {
+          "tick": "205",
+          "scene": "0",
+          "label": "issued-immediate",
+          "oid": "851972",
+          "actor": "1",
+          "target": "0",
+          "ah": "851972",
+          "hh": "852507"
+        }
+      ],
+      "contexts": [],
+      "death_events": [
+        {
+          "tick": "205",
+          "scene": "0",
+          "label": "death",
+          "actor": "2"
+        },
+        {
+          "tick": "205",
+          "scene": "0",
+          "label": "death",
+          "actor": "1"
+        }
+      ],
+      "return": {
+        "tick": "100",
+        "scene": "0",
+        "label": "order-return",
+        "ah": "852508",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "180.000",
+        "al": "310.000",
+        "hh": "852507",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      },
+      "settled": {
+        "tick": "398",
+        "scene": "0",
+        "label": "settled",
+        "ah": "0",
+        "ax": "0.000",
+        "ay": "0.000",
+        "af": "0.000",
+        "al": "0.000",
+        "hh": "0",
+        "hx": "0.000",
+        "hy": "0.000",
+        "hf": "0.000",
+        "hl": "0.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "0",
+        "aa": "0",
+        "ht": "0",
+        "ha": "0",
+        "pa": "0",
+        "ph": "0",
+        "riders": "1",
+        "rx": "792.750",
+        "ry": "1039.750"
+      }
+    },
+    {
+      "scene": 1,
+      "events": [
+        {
+          "tick": "500",
+          "scene": "1",
+          "label": "issued-immediate",
+          "oid": "852508",
+          "actor": "1",
+          "target": "0",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "500",
+          "scene": "1",
+          "label": "issued-target",
+          "oid": "852508",
+          "actor": "1",
+          "target": "2",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "500",
+          "scene": "1",
+          "label": "issued-point",
+          "oid": "851986",
+          "actor": "1",
+          "target": "0",
+          "ah": "851986",
+          "hh": "0"
+        },
+        {
+          "tick": "500",
+          "scene": "1",
+          "label": "issued-target",
+          "oid": "852507",
+          "actor": "2",
+          "target": "1",
+          "ah": "851986",
+          "hh": "852507"
+        }
+      ],
+      "contexts": [
+        {
+          "tick": "500",
+          "scene": "1",
+          "label": "after-nested-context",
+          "oid": "852508",
+          "sameactor": "1"
+        }
+      ],
+      "death_events": [
+        {
+          "tick": "631",
+          "scene": "1",
+          "label": "death",
+          "actor": "2"
+        },
+        {
+          "tick": "631",
+          "scene": "1",
+          "label": "death",
+          "actor": "1"
+        }
+      ],
+      "return": {
+        "tick": "500",
+        "scene": "1",
+        "label": "order-return",
+        "ah": "851986",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "180.000",
+        "al": "310.000",
+        "hh": "852507",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      },
+      "settled": {
+        "tick": "798",
+        "scene": "1",
+        "label": "settled",
+        "ah": "0",
+        "ax": "0.000",
+        "ay": "0.000",
+        "af": "0.000",
+        "al": "0.000",
+        "hh": "0",
+        "hx": "0.000",
+        "hy": "0.000",
+        "hf": "0.000",
+        "hl": "0.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "0",
+        "aa": "0",
+        "ht": "0",
+        "ha": "0",
+        "pa": "0",
+        "ph": "0",
+        "riders": "1",
+        "rx": "598.000",
+        "ry": "849.500"
+      }
+    },
+    {
+      "scene": 2,
+      "events": [
+        {
+          "tick": "900",
+          "scene": "2",
+          "label": "issued-immediate",
+          "oid": "852508",
+          "actor": "1",
+          "target": "0",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "900",
+          "scene": "2",
+          "label": "issued-target",
+          "oid": "852508",
+          "actor": "1",
+          "target": "2",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "900",
+          "scene": "2",
+          "label": "issued-target",
+          "oid": "852507",
+          "actor": "2",
+          "target": "1",
+          "ah": "852508",
+          "hh": "852507"
+        },
+        {
+          "tick": "900",
+          "scene": "2",
+          "label": "issued-point",
+          "oid": "851986",
+          "actor": "2",
+          "target": "0",
+          "ah": "852508",
+          "hh": "851986"
+        }
+      ],
+      "contexts": [
+        {
+          "tick": "900",
+          "scene": "2",
+          "label": "after-nested-context",
+          "oid": "852507",
+          "sameactor": "1"
+        }
+      ],
+      "death_events": [],
+      "return": {
+        "tick": "900",
+        "scene": "2",
+        "label": "order-return",
+        "ah": "852508",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "180.000",
+        "al": "310.000",
+        "hh": "851986",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      },
+      "settled": {
+        "tick": "1198",
+        "scene": "2",
+        "label": "settled",
+        "ah": "852508",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "8.113",
+        "al": "310.000",
+        "hh": "0",
+        "hx": "1781.525",
+        "hy": "778.747",
+        "hf": "314.266",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      }
+    },
+    {
+      "scene": 3,
+      "events": [
+        {
+          "tick": "1300",
+          "scene": "3",
+          "label": "issued-immediate",
+          "oid": "852508",
+          "actor": "1",
+          "target": "0",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "1300",
+          "scene": "3",
+          "label": "issued-target",
+          "oid": "852508",
+          "actor": "1",
+          "target": "2",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "1300",
+          "scene": "3",
+          "label": "issued-target",
+          "oid": "852507",
+          "actor": "2",
+          "target": "1",
+          "ah": "852508",
+          "hh": "852507"
+        },
+        {
+          "tick": "1315",
+          "scene": "3",
+          "label": "issued-immediate",
+          "oid": "851972",
+          "actor": "1",
+          "target": "0",
+          "ah": "851972",
+          "hh": "852507"
+        },
+        {
+          "tick": "1315",
+          "scene": "3",
+          "label": "issued-immediate",
+          "oid": "851972",
+          "actor": "2",
+          "target": "0",
+          "ah": "0",
+          "hh": "851972"
+        },
+        {
+          "tick": "1315",
+          "scene": "3",
+          "label": "issued-point",
+          "oid": "851986",
+          "actor": "1",
+          "target": "0",
+          "ah": "851986",
+          "hh": "851972"
+        },
+        {
+          "tick": "1315",
+          "scene": "3",
+          "label": "issued-immediate",
+          "oid": "851972",
+          "actor": "1",
+          "target": "0",
+          "ah": "851972",
+          "hh": "0"
+        }
+      ],
+      "contexts": [
+        {
+          "tick": "1315",
+          "scene": "3",
+          "label": "after-nested-context",
+          "oid": "851972",
+          "sameactor": "1"
+        }
+      ],
+      "death_events": [],
+      "return": {
+        "tick": "1300",
+        "scene": "3",
+        "label": "order-return",
+        "ah": "852508",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "180.000",
+        "al": "310.000",
+        "hh": "852507",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      },
+      "settled": {
+        "tick": "1598",
+        "scene": "3",
+        "label": "settled",
+        "ah": "0",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "8.113",
+        "al": "310.000",
+        "hh": "0",
+        "hx": "1496.703",
+        "hy": "1028.477",
+        "hf": "179.076",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      }
+    },
+    {
+      "scene": 4,
+      "events": [
+        {
+          "tick": "1700",
+          "scene": "4",
+          "label": "issued-immediate",
+          "oid": "852508",
+          "actor": "1",
+          "target": "0",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "1700",
+          "scene": "4",
+          "label": "issued-target",
+          "oid": "852508",
+          "actor": "1",
+          "target": "2",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "1700",
+          "scene": "4",
+          "label": "issued-target",
+          "oid": "852507",
+          "actor": "2",
+          "target": "1",
+          "ah": "852508",
+          "hh": "852507"
+        },
+        {
+          "tick": "1715",
+          "scene": "4",
+          "label": "issued-immediate",
+          "oid": "851972",
+          "actor": "1",
+          "target": "0",
+          "ah": "851972",
+          "hh": "852507"
+        },
+        {
+          "tick": "1715",
+          "scene": "4",
+          "label": "issued-point",
+          "oid": "851986",
+          "actor": "1",
+          "target": "0",
+          "ah": "851986",
+          "hh": "852507"
+        },
+        {
+          "tick": "1715",
+          "scene": "4",
+          "label": "issued-immediate",
+          "oid": "851972",
+          "actor": "2",
+          "target": "0",
+          "ah": "851986",
+          "hh": "851972"
+        }
+      ],
+      "contexts": [
+        {
+          "tick": "1715",
+          "scene": "4",
+          "label": "after-nested-context",
+          "oid": "851972",
+          "sameactor": "1"
+        }
+      ],
+      "death_events": [],
+      "return": {
+        "tick": "1700",
+        "scene": "4",
+        "label": "order-return",
+        "ah": "852508",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "180.000",
+        "al": "310.000",
+        "hh": "852507",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      },
+      "settled": {
+        "tick": "1998",
+        "scene": "4",
+        "label": "settled",
+        "ah": "0",
+        "ax": "518.614",
+        "ay": "776.818",
+        "af": "233.130",
+        "al": "310.000",
+        "hh": "0",
+        "hx": "1488.724",
+        "hy": "1028.616",
+        "hf": "179.036",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      }
+    },
+    {
+      "scene": 5,
+      "events": [
+        {
+          "tick": "2100",
+          "scene": "5",
+          "label": "issued-immediate",
+          "oid": "852508",
+          "actor": "1",
+          "target": "0",
+          "ah": "852508",
+          "hh": "0"
+        },
+        {
+          "tick": "2100",
+          "scene": "5",
+          "label": "issued-point",
+          "oid": "851986",
+          "actor": "1",
+          "target": "0",
+          "ah": "851986",
+          "hh": "0"
+        }
+      ],
+      "contexts": [
+        {
+          "tick": "2100",
+          "scene": "5",
+          "label": "after-nested-context",
+          "oid": "852508",
+          "sameactor": "1"
+        }
+      ],
+      "death_events": [],
+      "return": {
+        "tick": "2100",
+        "scene": "5",
+        "label": "order-return",
+        "ah": "851986",
+        "ax": "704.000",
+        "ay": "1024.000",
+        "af": "180.000",
+        "al": "310.000",
+        "hh": "0",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      },
+      "settled": {
+        "tick": "2398",
+        "scene": "5",
+        "label": "settled",
+        "ah": "0",
+        "ax": "519.602",
+        "ay": "778.314",
+        "af": "233.607",
+        "al": "310.000",
+        "hh": "0",
+        "hx": "1536.000",
+        "hy": "1024.000",
+        "hf": "0.000",
+        "hl": "525.000",
+        "accepted": "1",
+        "reht": "1",
+        "at": "1700885091",
+        "aa": "1",
+        "ht": "1701341552",
+        "ha": "1",
+        "pa": "0",
+        "ph": "0",
+        "riders": "0",
+        "rx": "0.000",
+        "ry": "0.000"
+      }
+    }
+  ],
+  "limitations": [
+    "Nested Move only, not callback removal/owner/ability mutation.",
+    "Restored GetIssuedOrderId and GetTriggerUnit measured; target-response restoration not measured.",
+    "Death order Hippo then Archer observed in these two merge scenes; no universal death-order claim.",
+    "Deferred original lifetime sampled, not exact reclamation timestamp.",
+    "Lone source waiting bounded through age398."
+  ]
+}

@@ -70883,7 +70883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/hippogryph-couple.md",
-      "sha256": "b5e7ace506f1f4a49026c6c9f93fc37ab17d37e7de50fc8777184034d8f0a23d"
+      "sha256": "75a5de93462d0e36d1b88c149647b60e758d42184e478c68a7e5d88b4bfaf001"
     },
     {
       "path": "games/warcraft-3/game/skills/s_couple.c",
@@ -71084,6 +71084,86 @@
     {
       "path": "tests/test_wc3_pathfinding_coupling_instant_lifecycle.py",
       "sha256": "fef0dda4b823357661f9b0b6a585c5b326f22ae47b4c71792e713f2bd1ef9aa4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-callback-1.27.json",
+      "sha256": "242685cb502a88f57fcf0c86b81259c9f385df11f7a9a94a8cd63b70be013495"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-callback-1.27.json.gz",
+      "sha256": "48f367cf6a954380f6f60bcdfcd67da9355e0f7beffcff49d54cf8729d3695a0"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_instant_callback_evidence.py",
+      "sha256": "e1cf319c82b7fdd39cd193f08e9e701c8a252d2ed10ec418b41bf0307650683b"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_instant_callback.py",
+      "sha256": "119c1f06d4669daf1595844ec729f606f4aa6c037414ff7085ef7187849ef602"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/itemdrop_capture.py",
+      "sha256": "a1fb990e678194dd1b9e2c359df772b25d506e0885814370d523b8ef1b3c73e0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/itemdrop_make_map.py",
+      "sha256": "b85bb43decb799374bd27788d267fa58ca6fdcdab926664e04f277d6da34a459"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/itemdrop_probe.j",
+      "sha256": "79b6684dfcdb446ad39127a5d39b5cc686ff3442699959bac7be4618a9c44ec2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/itemdrop_observer.js",
+      "sha256": "7ffd6b6060efccc9874329cd0cdcf2906c6cd323fe19f5b24f90e6544df07554"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/capture-launch.py",
+      "sha256": "b37f5d922a8d7c50c8e415fe83ec8776fa3003b18fc374f60897927d008ee9b5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/capture-design.json",
+      "sha256": "cb3dd45e5f0fbe743c471d3e13f32f843da92532fcbeefc29cbcbc7e9471b89a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/source-before-map.json",
+      "sha256": "8955feaf071e11afb5156d13e8bdc2abd1d088dd8f0df45cb10d467a4b3ff654"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/TargetCouplingInstant193Callbacks.json",
+      "sha256": "1bea3b6807e5c0482e637902252bec8ca671de7d9f685e7bcfee47bc971ceeb5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/frozen-sources.json",
+      "sha256": "171d4c6bb79b99dc85a9b0dbfa2efea5e40eb168e9d3f875bf3f82c8090dea71"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/audit_callbacks.py",
+      "sha256": "82bf2c70650c7fb05270d69b6dafb2b25b5846c2199f648ebd560a61a2ab9ad7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/validated-summary.json",
+      "sha256": "ac045dd0cb9e7710b34d010ee87fdaf7e36ea9fa8ccc64337e094660441c4a5b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/completed-evidence-sha256.json",
+      "sha256": "927113ef90455d01ecee0d8dc9a1f4585989e932d1057102a163de7e08bc12d8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/merge-lifetime/static-exports.json",
+      "sha256": "758c7f8c511e3aaa64def91da088b33461e053cfbb185bbd08e01b785d58389a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/merge-lifetime/findings.json",
+      "sha256": "4142da64225a26a2a4ddf926fa5e733faeb5c7238d52db0ea9afd401c9ce3549"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/merge-lifetime/public-retention-projection.json",
+      "sha256": "2cc1045c600f5f34e2539564349be67abd62a8fd29a2cdb42c834bc882cf700e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-callback/merge-lifetime/sha256.json",
+      "sha256": "13d1fc633b050e83f3e65f95ac34b6b044b249c54f89d87bb71acea60aefc7da"
     }
   ]
 }

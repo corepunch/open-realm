@@ -278,3 +278,50 @@ continuation. Run the portable checks with:
 ```sh
 python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_coupling_instant_lifecycle.py'
 ```
+
+
+### Couple Instant callback replacement and merge retirement
+
+The accepted native `callback-v1` witness uses six fresh pairs, two observations
+and an unhooked control: 1,625 identical public records per run. It replaces
+orders with Move at distinct synchronous event boundaries:
+
+| Callback boundary | Observed continuation |
+| --- | --- |
+| Initial issued-immediate 852508 | Nested source Move survives; no coupling approach is constructed. |
+| Synthesized issued-target 852508 | Source approach already exists and is canceled by Move; peer 852507 still starts and can merge with the moving source. |
+| Reciprocal issued-target 852507 | Nested peer Move suppresses peer approach construction; source retains its lone 852508 wait. |
+| Source Stop callback during an outer source Stop | The outer Stop supersedes the nested source Move. |
+| Source Stop callback during an outer peer Stop | The nested source Move survives the outer peer Stop. |
+
+A blanket revision check after every callback cannot reproduce these results.
+The normal immediate/target admission guards apply before construction, while
+synthetic selected-target publication occurs after source construction and does
+not cancel the remaining peer coordination. The witness verifies restoration
+of `GetIssuedOrderId` and `GetTriggerUnit` after nested callbacks; it does not
+measure target-response restoration or callback removal/owner/ability mutations.
+
+Static terminal `4ca180` first calls each original unit's virtual slot `0x84`
+(`6882e0`, world removal), then creates the configured result. On success it
+calls slot `0x124` (`698a40`) on the originals. That setter clamps life to zero
+through `058190` and dispatches internal `d01e6` via `650ed0`; it is not a direct
+storage destructor. In the two observed merge scenes, public death callbacks
+arrive for Hippo then Archer. The rider already exists at the Hippo callback,
+which sees Hippo life 0 and Archer life 310; the Archer callback sees both at 0.
+Both original rawcodes still resolve. Later samples lose both handles.
+
+Stock and authored-range traces put the first both-type-zero sample 150 probe
+ticks after the first rider sample (3 seconds). These are sampled endpoints,
+not an exact reclamation deadline. Do not replace this lifecycle with immediate
+`G_FreeEdict`, or equate world removal with the later public death event.
+Original exports and accepted capture provenance are retained under
+`/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-instant193/` in
+`merge-lifetime/` and `callback-v1/`. The portable `retail-coupling-instant-callback-1.27.json[.gz]` includes these
+exports and streams; 36 focused tests verify callback identity, heads, exact
+streams, sequential death observations and semantic mutations. Run:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_coupling_instant_callback.py'
+```
+
+Engine implementation and saved retirement remain pending validation.

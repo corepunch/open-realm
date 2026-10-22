@@ -1,0 +1,20 @@
+{
+  "contract": "4ca180 retires both originals from world before creating result, then sets each original life0 through virtual124 on successful creation. Do not map to immediate G_FreeEdict or infer ordinary KillUnit.",
+  "vtable": {
+    "CUnit": "6fb77eb0",
+    "slot84": "6f6882e0",
+    "slot124": "6f698a40"
+  },
+  "steps": [
+    "caster flags5c clear200; slot84 ->6882e0 ->688300: world-retired flags published before synchronous TargetLost651010",
+    "remove matching caster buffs; unregister own target death subscription652cb0",
+    "same target world retirement and matching buff removal",
+    "spawn configured UnitID at caster position/facing",
+    "if spawn succeeds, slot124(0) for caster then target;698a40 assembly uses unit+98 life bridge058190 then dispatches d01e6 via650ed0",
+    "No destructor or direct Unit_BeginDeathTasks679bb0 call in this function; health-threshold scheduler consequences remain separate"
+  ],
+  "public": "All accepted stock/range successful merges first retain both raw types with life0, then first both-type0 sampled150ticks later (~3sec). Lifecycle late pauseHippo merge lacks sufficient remaining window for type0. Existing sampling does not prove exact free timestamp.",
+  "getter": "Registered GetUnitTypeId2040c0 resolves JASS unit then returns rawcode; returns0 only if resolution fails. Dead/world-retired alone does not force0.",
+  "open": "Exact health-threshold/death-task/destruction continuation and public death callback presence not yet certified by existing records; callback-v1 adds death trigger to merge control without changing previous evidence.",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+}
