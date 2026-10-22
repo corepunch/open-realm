@@ -1660,8 +1660,43 @@ typedef struct shopStockItem_s {
     uint32_t delay_end;
 } shopStockItem_t;
 
+/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
+typedef enum {
+    COMPONENT_WAYGATE = 1,
+    COMPONENT_AVATAR = 2,
+    COMPONENT_POLYMORPH = 3,
+    COMPONENT_RAVEN = 4,
+    COMPONENT_ENSNARE = 5,
+    COMPONENT_ARTILLERY = 6,
+    COMPONENT_SLEEP = 7,
+    COMPONENT_RALLY = 8,
+    COMPONENT_SACRIFICE = 9,
+    COMPONENT_UNSUMMON = 10,
+    COMPONENT_BLIGHT_GROWTH = 11,
+    COMPONENT_SHADOWMELD = 12,
+    COMPONENT_MILITIA = 13,
+    COMPONENT_REVIVAL = 14,
+    COMPONENT_BUILDWORK = 15,
+    COMPONENT_ANCIENT_ROOT = 16,
+    COMPONENT_GOLDMINE = 17,
+    COMPONENT_MINE_OVERLAY = 18,
+    COMPONENT_ACOLYTE_MINE = 19,
+    COMPONENT_CARGO = 20,
+    COMPONENT_SOULTRAP = 21,
+    COMPONENT_RESEARCH = 22,
+    COMPONENT_FOOD = 23,
+    COMPONENT_STOCK = 24
+} componentId_t;
+
+/* Intrusive owner list; links are process-owned and rebuilt after loading. */
+typedef struct component_s {
+    uint32_t id;
+    struct component_s *next;
+} component_t;
+
 /* Shop-owned stock list retained across patron selection and purchases. */
 typedef struct stock_s {
+    component_t component;
     uint32_t item_slots, unit_slots;
     bool items_initialized;
     uint32_t item_count;
@@ -1702,37 +1737,6 @@ typedef enum {
     MOVE_DIAG_ROUTE_WAIT,
 } moveDiagState_t;
 
-/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
-typedef enum {
-    COMPONENT_WAYGATE = 1,
-    COMPONENT_AVATAR = 2,
-    COMPONENT_POLYMORPH = 3,
-    COMPONENT_RAVEN = 4,
-    COMPONENT_ENSNARE = 5,
-    COMPONENT_ARTILLERY = 6,
-    COMPONENT_SLEEP = 7,
-    COMPONENT_RALLY = 8,
-    COMPONENT_SACRIFICE = 9,
-    COMPONENT_UNSUMMON = 10,
-    COMPONENT_BLIGHT_GROWTH = 11,
-    COMPONENT_SHADOWMELD = 12,
-    COMPONENT_MILITIA = 13,
-    COMPONENT_REVIVAL = 14,
-    COMPONENT_BUILDWORK = 15,
-    COMPONENT_ANCIENT_ROOT = 16,
-    COMPONENT_GOLDMINE = 17,
-    COMPONENT_MINE_OVERLAY = 18,
-    COMPONENT_ACOLYTE_MINE = 19,
-    COMPONENT_CARGO = 20,
-    COMPONENT_SOULTRAP = 21
-} componentId_t;
-
-/* Intrusive owner list; links are process-owned and rebuilt after loading. */
-typedef struct component_s {
-    uint32_t id;
-    struct component_s *next;
-} component_t;
-
 /* Projectile-owned fixed-point splash/impact profile captured when artillery launches. */
 typedef struct artillery_s {
     component_t component;
@@ -1771,6 +1775,7 @@ typedef struct {
 
 /* Producer-owned queued research progress and authored upgrade identity. */
 typedef struct {
+    component_t component;
     uint32_t upgrade;     /* research rawcode on queue edicts; target unit type on in-place upgrades */
     int32_t level;        /* 1-based level being researched */
     int32_t gold, lumber; /* exact charged cost, retained for cancellation */
@@ -1789,6 +1794,7 @@ typedef struct {
 
 /* Unit-owned food contribution/reservation ledger applied once across production/death transitions. */
 typedef struct {
+    component_t component;
     int32_t used; /* food currently accounted to s.player; queue-head reservations live here */
     int32_t made; /* food capacity currently accounted to s.player */
 } food_t;
@@ -2265,8 +2271,6 @@ struct edict_s {
     uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
     auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
     construction_t *construction; /* pool slot; null if this unit is not under construction */
-    research_t *research;
-    food_t *food;
     uint32_t spawn_time;
     wander_t *wander;
     routeCache_t *route;
@@ -2281,7 +2285,6 @@ struct edict_s {
     item_t *item;
     destructable_t *destructable;
     edict_t *ground_next;
-    stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
     uint32_t unit_flags; /* independent entity gameplay switches; unitFlags_t */
@@ -4356,6 +4359,11 @@ static inline mineOverlay_t *G_GetMineOverlay(edict_t const *ent) { return G_Get
 static inline acolyteMine_t *G_GetAcolyteMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ACOLYTE_MINE); }
 static inline cargo_t *G_GetCargo(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CARGO); }
 static inline soulTrap_t *G_GetSoulTrap(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SOULTRAP); }
+static inline research_t *G_GetResearch(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RESEARCH); }
+static inline food_t *G_GetFood(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_FOOD); }
+static inline stock_t *G_GetStock(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_STOCK); }
+/* A queue item or building researches while its record names an upgrade; completed research frees the record. */
+static inline bool G_UnitIsResearching(edict_t const *ent) { research_t const *r = G_GetResearch(ent); return r && r->upgrade; }
 /* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */
 static inline bool G_HeroIsReviving(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->reviving; }
 static inline bool G_HeroAwaitsRevival(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->awaiting; }

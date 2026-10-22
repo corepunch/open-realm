@@ -571,11 +571,10 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->build = NULL;
     G_FreeConstruction(building);
     building->currentmove = NULL;
-    if (!building->research) building->research = G_AllocResearch();
-    assert(building->research);
-    building->research->upgrade = building->class_id;
-    building->research->duration = 100.0f;
-    building->research->progress = 50.0f;
+    G_AddComponent(building, COMPONENT_RESEARCH);
+    G_GetResearch(building)->upgrade = building->class_id;
+    G_GetResearch(building)->duration = 100.0f;
+    G_GetResearch(building)->progress = 50.0f;
 
     /* In-place upgrades use the same transport even though their waiting
      * queue backdrop is hidden. */
@@ -637,11 +636,10 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     building->build = NULL;
     G_FreeConstruction(building);
     building->currentmove = NULL;
-    if (!building->research) building->research = G_AllocResearch();
-    assert(building->research);
-    building->research->upgrade = building->class_id;
-    building->research->duration = 100.0f;
-    building->research->progress = 50.0f;
+    G_AddComponent(building, COMPONENT_RESEARCH);
+    G_GetResearch(building)->upgrade = building->class_id;
+    G_GetResearch(building)->duration = 100.0f;
+    G_GetResearch(building)->progress = 50.0f;
     G_InvalidateUnitInfoPanel(building);
 
     building_queue_frame_count = 0;
@@ -676,9 +674,8 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     building->s.player = trainee->s.player = client->ps.number;
     building->build = trainee;
     G_SetUnitFlag(trainee, UNIT_FLAG_TRAINING, true);
-    if (!trainee->food) trainee->food = G_AllocFood();
-    assert(trainee->food);
-    trainee->food->used = 1;
+    G_AddComponent(trainee, COMPONENT_FOOD);
+    G_GetFood(trainee)->used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
     building->unit_state->statuses[0] = (heroabilitystatus_t){
@@ -758,11 +755,11 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     T_ASSERT(G_BuildingUpgradeActive(building));
     T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
     T_EQ(building->class_id, source_id);
-    T_EQ(building->research->upgrade, target_id);
-    T_FEQ(building->research->duration, 140.0f, 0.001f);
+    T_EQ(G_GetResearch(building)->upgrade, target_id);
+    T_FEQ(G_GetResearch(building)->duration, 140.0f, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 280);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 340);
-    T_EQ(building->food->used, 3);
+    T_EQ(G_GetFood(building)->used, 3);
     T_EQ(G_GetPlayerTechInProgress(client, target_id), 1);
     T_ASSERT(building->aiflags & AI_HOLD_FRAME);
     T_EQ(level.events.write, 2);
@@ -775,7 +772,7 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     T_EQ(building->class_id, source_id);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 500);
-    T_EQ(building->food->used, 2);
+    T_EQ(G_GetFood(building)->used, 2);
     T_EQ(G_GetPlayerTechInProgress(client, target_id), 0);
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
     T_EQ(level.events.write, 4);
@@ -806,7 +803,7 @@ TEST(wc3_building, instant_build_cheat_completes_building_upgrade_on_next_frame)
 
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
     T_ASSERT(G_BuildingUpgradeActive(building));
-    T_FEQ(building->research->progress, 0.0f, 0.001f);
+    T_FEQ(G_GetResearch(building)->progress, 0.0f, 0.001f);
 
     G_RunBuildingUpgradeFrame(building);
 
@@ -843,9 +840,8 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     level.events.read = level.events.write = 0;
 
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
-    if (!building->research) building->research = G_AllocResearch();
-    assert(building->research);
-    building->research->progress = building->research->duration;
+    G_AddComponent(building, COMPONENT_RESEARCH);
+    G_GetResearch(building)->progress = G_GetResearch(building)->duration;
     G_RunBuildingUpgradeFrame(building);
 
     T_ASSERT(building == identity);
@@ -853,8 +849,8 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     T_EQ(building->class_id, target_id);
     T_FEQ(building->health.max_value, 1500.0f, 0.001f);
     T_FEQ(building->health.value, 750.0f, 0.001f);
-    T_EQ(building->food->used, 3);
-    T_EQ(building->food->made, 14);
+    T_EQ(G_GetFood(building)->used, 3);
+    T_EQ(G_GetFood(building)->made, 14);
     T_EQ(G_GetPlayerTechInProgress(client, target_id), 0);
     T_EQ(G_GetPlayerTechCountValue(client, target_id), 1);
     T_EQ(level.events.write, 4);
@@ -962,9 +958,9 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
 
     T_ASSERT(G_QueueResearch(producer, upgrade));
     T_NOT_NULL(producer->build);
-    T_ASSERT(producer->build->research->upgrade != 0);
-    T_EQ(producer->build->research->upgrade, upgrade);
-    T_EQ(producer->build->research->level, 1);
+    T_ASSERT(G_GetResearch(producer->build)->upgrade != 0);
+    T_EQ(G_GetResearch(producer->build)->upgrade, upgrade);
+    T_EQ(G_GetResearch(producer->build)->level, 1);
     T_EQ(G_GetPlayerTechInProgress(client, upgrade), 1);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 400);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 450);
@@ -1015,7 +1011,7 @@ TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
 
     T_ASSERT(G_QueueResearch(producer, upgrade));
     T_NOT_NULL(producer->build);
-    T_ASSERT(producer->build->research->duration > 0.0f);
+    T_ASSERT(G_GetResearch(producer->build)->duration > 0.0f);
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
 
@@ -1129,9 +1125,8 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
     G_RunEvents();
     jass_runevents(level.vm);
     T_NOT_NULL(producer->build);
-    if (!producer->build->research) producer->build->research = G_AllocResearch();
-    assert(producer->build->research);
-    producer->build->research->duration = 0.0f;
+    G_AddComponent(producer->build, COMPONENT_RESEARCH);
+    G_GetResearch(producer->build)->duration = 0.0f;
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
     producer->currentmove->think(producer);
@@ -4358,14 +4353,14 @@ TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
     T_ASSERT(G_StartNightElfConstruction(worker, building));
     T_EQ(building->construction->type, CONSTRUCTION_NIGHTELF);
     T_ASSERT(building->construction->consumes_worker);
-    T_ASSERT(!worker->food || worker->food->used == 0);
+    T_ASSERT(!G_GetFood(worker) || G_GetFood(worker)->used == 0);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 
     G_StopConstruction(building);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
     T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_EQ(worker->food->used, worker_balance.foodUsed);
+    T_EQ(G_GetFood(worker)->used, worker_balance.foodUsed);
     T_NULL(building->construction);
 }
 
@@ -4512,7 +4507,7 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     T_NULL(building->build);
     T_NULL(builder->build);
     T_ASSERT(!G_GetBuildwork(builder) || G_GetBuildwork(builder)->ability == 0);
-    T_ASSERT(!building->food || building->food->used == 0);
+    T_ASSERT(!G_GetFood(building) || G_GetFood(building)->used == 0);
     T_EQ(G_GetPlayerTechCountValue(client, barracks), 0);
     T_EQ(level.events.write, 4);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
@@ -4655,7 +4650,7 @@ TEST(wc3_building, legacy_orc_burrow_completion_publishes_construct_finish_and_g
     T_NULL(building->build);
     T_EQ(building_stand_calls, 1);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
-    T_EQ(building->food->made, 10);
+    T_EQ(G_GetFood(building)->made, 10);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 10);
     T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
@@ -4708,7 +4703,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_EQ(building->s.sound, 0);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
-    T_EQ(building->food->made, 6);
+    T_EQ(G_GetFood(building)->made, 6);
     T_EQ(building_stand_calls, 1);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT], 1);
     T_ASSERT(building->sound->owner_pending != 0);

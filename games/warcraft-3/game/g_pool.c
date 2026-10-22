@@ -51,9 +51,9 @@ void G_Free##Name(edict_t *ent) { \
 }
 
 DEFINE_POOL(construction, Construction, construction_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(research, Research, research_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(research, Research, research_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(rally, Rally, rally_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(food, Food, food_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(food, Food, food_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(buildwork, Buildwork, buildwork_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(revival, Revival, revival_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP)
@@ -71,7 +71,7 @@ DEFINE_STORAGE(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(item, Item, item_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
 DEFINE_STORAGE(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
@@ -112,6 +112,9 @@ COMPONENT_ALLOC(MineOverlay)
 COMPONENT_ALLOC(AcolyteMine)
 COMPONENT_ALLOC(Cargo)
 COMPONENT_ALLOC(SoulTrap)
+COMPONENT_ALLOC(Research)
+COMPONENT_ALLOC(Food)
+COMPONENT_ALLOC(Stock)
 
 /* Exact IDs authorize the concrete layout; families and authored rawcodes are separate concepts. */
 static componentType_t const *ComponentType(componentId_t id) {
@@ -136,7 +139,10 @@ static componentType_t const *ComponentType(componentId_t id) {
         { COMPONENT_MINE_OVERLAY, AllocMineOverlayComponent, ReleaseMineOverlay },
         { COMPONENT_ACOLYTE_MINE, AllocAcolyteMineComponent, ReleaseAcolyteMine },
         { COMPONENT_CARGO, AllocCargoComponent, ReleaseCargo },
-        { COMPONENT_SOULTRAP, AllocSoulTrapComponent, ReleaseSoulTrap }
+        { COMPONENT_SOULTRAP, AllocSoulTrapComponent, ReleaseSoulTrap },
+        { COMPONENT_RESEARCH, AllocResearchComponent, ReleaseResearch },
+        { COMPONENT_FOOD, AllocFoodComponent, ReleaseFood },
+        { COMPONENT_STOCK, AllocStockComponent, ReleaseStock }
     };
     FOR_LOOP(i, sizeof(component_types) / sizeof(component_types[0]))
         if (component_types[i].id == id) return component_types + i;
@@ -202,6 +208,9 @@ void G_FreeMineOverlay(edict_t *ent) { G_FreeComponent(ent, COMPONENT_MINE_OVERL
 void G_FreeAcolyteMine(edict_t *ent) { G_FreeComponent(ent, COMPONENT_ACOLYTE_MINE); }
 void G_FreeCargo(edict_t *ent) { G_FreeComponent(ent, COMPONENT_CARGO); }
 void G_FreeSoulTrap(edict_t *ent) { G_FreeComponent(ent, COMPONENT_SOULTRAP); }
+void G_FreeResearch(edict_t *ent) { G_FreeComponent(ent, COMPONENT_RESEARCH); }
+void G_FreeFood(edict_t *ent) { G_FreeComponent(ent, COMPONENT_FOOD); }
+void G_FreeStock(edict_t *ent) { G_FreeComponent(ent, COMPONENT_STOCK); }
 
 /* Unit spawn and explicit ability/status mutations establish ownership; reads never allocate. */
 void G_InitUnitState(edict_t *ent) {
@@ -299,11 +308,8 @@ void G_PoolsReset(void) {
         FOR_LOOP(i, globals.max_edicts) {
             g_edicts[i].components = NULL;
             g_edicts[i].construction = NULL;
-            g_edicts[i].research = NULL;
-            g_edicts[i].food = NULL;
             g_edicts[i].item = NULL;
             g_edicts[i].destructable = NULL;
-            g_edicts[i].stock = NULL;
             g_edicts[i].unit_state = NULL;
             g_edicts[i].sound = NULL;
             g_edicts[i].missile = NULL;
@@ -360,11 +366,8 @@ void G_PoolsReset(void) {
 void G_PoolsReleaseEdict(edict_t *ent) {
     assert(ent);
     G_FreeConstruction(ent);
-    G_FreeResearch(ent);
-    G_FreeFood(ent);
     G_FreeItem(ent);
     G_FreeDestructable(ent);
-    G_FreeStock(ent);
     G_FreeUnitState(ent);
     G_FreeSounds(ent);
     G_FreeMissile(ent);
@@ -400,11 +403,8 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_EQ(memcmp(unit->member, &empty, sizeof(empty)), 0); \
 } while (0)
     CHECK_POOL(construction, Construction, construction_t);
-    CHECK_POOL(research, Research, research_t);
-    CHECK_POOL(food, Food, food_t);
     CHECK_POOL(item, Item, item_t);
     CHECK_POOL(destructable, Destructable, destructable_t);
-    CHECK_POOL(stock, Stock, stock_t);
     CHECK_POOL(unit_state, UnitState, unitState_t);
     CHECK_POOL(sound, Sounds, unitSounds_t);
     CHECK_POOL(missile, Missile, attackMissile_t);
@@ -419,9 +419,9 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
 #undef CHECK_POOL
     G_PoolsReleaseEdict(unit);
     T_NULL(unit->construction);
-    T_NULL(unit->research);
+    T_NULL(G_GetResearch(unit));
     T_NULL(G_GetRally(unit));
-    T_NULL(unit->food);
+    T_NULL(G_GetFood(unit));
     T_NULL(G_GetBuildwork(unit));
     T_NULL(G_GetRevival(unit));
     T_NULL(G_GetSacrifice(unit));
@@ -439,7 +439,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(unit->item);
     T_NULL(unit->destructable);
     T_NULL(G_GetCargo(unit));
-    T_NULL(unit->stock);
+    T_NULL(G_GetStock(unit));
     T_NULL(G_GetWaygate(unit));
     T_NULL(G_GetArtillery(unit));
     T_NULL(G_GetAvatar(unit));
@@ -515,7 +515,7 @@ TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_i
     static componentId_t const ids[] = {
         COMPONENT_WAYGATE, COMPONENT_AVATAR, COMPONENT_POLYMORPH, COMPONENT_RAVEN, COMPONENT_ENSNARE, COMPONENT_ARTILLERY,
         COMPONENT_SLEEP, COMPONENT_RALLY, COMPONENT_SACRIFICE, COMPONENT_UNSUMMON, COMPONENT_BLIGHT_GROWTH,
-        COMPONENT_SHADOWMELD, COMPONENT_MILITIA, COMPONENT_REVIVAL, COMPONENT_BUILDWORK, COMPONENT_ANCIENT_ROOT, COMPONENT_GOLDMINE, COMPONENT_MINE_OVERLAY, COMPONENT_ACOLYTE_MINE, COMPONENT_CARGO, COMPONENT_SOULTRAP
+        COMPONENT_SHADOWMELD, COMPONENT_MILITIA, COMPONENT_REVIVAL, COMPONENT_BUILDWORK, COMPONENT_ANCIENT_ROOT, COMPONENT_GOLDMINE, COMPONENT_MINE_OVERLAY, COMPONENT_ACOLYTE_MINE, COMPONENT_CARGO, COMPONENT_SOULTRAP, COMPONENT_RESEARCH, COMPONENT_FOOD, COMPONENT_STOCK
     };
     reset_entities();
     edict_t *unit = G_Spawn();
@@ -545,6 +545,9 @@ TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_i
     T_ASSERT(G_GetAcolyteMine(unit) == G_GetComponent(unit, COMPONENT_ACOLYTE_MINE));
     T_ASSERT(G_GetCargo(unit) == G_GetComponent(unit, COMPONENT_CARGO));
     T_ASSERT(G_GetSoulTrap(unit) == G_GetComponent(unit, COMPONENT_SOULTRAP));
+    T_ASSERT(G_GetResearch(unit) == G_GetComponent(unit, COMPONENT_RESEARCH));
+    T_ASSERT(G_GetFood(unit) == G_GetComponent(unit, COMPONENT_FOOD));
+    T_ASSERT(G_GetStock(unit) == G_GetComponent(unit, COMPONENT_STOCK));
     T_ASSERT(!G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(unit));
     G_GetRevival(unit)->reviving = true;
     T_ASSERT(G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(NULL));

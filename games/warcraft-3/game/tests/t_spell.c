@@ -3850,7 +3850,7 @@ TEST(wc3_spell, animate_dead_prefers_higher_level_corpse_and_restores_temporary_
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AUan")));
     T_ASSERT(M_IsDead(low)); T_ASSERT(!M_IsDead(high)); T_EQ(high->s.player, 0); T_ASSERT(high->owner == caster);
     T_ASSERT(!(high->aiflags & AI_HOLD_FRAME)); T_EQ(G_UnitStatusLevel(high, FS_SLKKey("BTLF")), 1);
-    T_ASSERT(!high->food || high->food->used == 0); T_EQ(high->summon_ability, FS_SLKKey("AUan"));
+    T_ASSERT(!G_GetFood(high) || G_GetFood(high)->used == 0); T_EQ(high->summon_ability, FS_SLKKey("AUan"));
     T_ASSERT(high->aiflags & AI_CORPSE_UNRAISABLE); T_ASSERT(high->aiflags & AI_CORPSE_NO_DECAY); T_ASSERT(G_UnitHasFlag(high, UNIT_FLAG_INVULNERABLE));
     T_EQ(ARRAY_COUNT(high->unit_state->overrides.added), 1); T_EQ(high->unit_state->overrides.added[0], MAKEFOURCC('A','I','n','v'));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -5629,7 +5629,7 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	T_EQ(nearest->spawn_time, nearest_spawn); T_EQ(nearest->s.player, 0);
 	T_FEQ(nearest->health.value, 160.0f, .001f);
 	T_ASSERT(!(nearest->svflags & SVF_DEADMONSTER)); T_ASSERT(!(nearest->s.flags & EF_NOT_SELECTABLE));
-	T_EQ(nearest->food->used, 5); T_ASSERT(M_IsDead(next)); T_ASSERT(M_IsDead(allied_corpse));
+	T_EQ(G_GetFood(nearest)->used, 5); T_ASSERT(M_IsDead(next)); T_ASSERT(M_IsDead(allied_corpse));
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
 	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_ASSERT(!M_IsDead(next));
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));

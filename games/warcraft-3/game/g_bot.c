@@ -2139,10 +2139,10 @@ static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
     FILTER_EDICTS(shop, shop->inuse && G_CanUseItemShop(client, shop) && G_BotHeroNearShop(hero, shop)) {
         if (G_FindShopPatron(client, shop) != hero) continue;
         FOR_LOOP(i, G_UpdateShopItemStock(shop)) {
-            uint32_t item_id = shop->stock->items[i].id;
+            uint32_t item_id = G_GetStock(shop)->items[i].id;
             ItemData_t const *data = G_ItemData(item_id);
             float distance;
-            if (shop->stock->items[i].current <= 0 || !data || !data->file ||
+            if (G_GetStock(shop)->items[i].current <= 0 || !data || !data->file ||
                 !G_ShopItemRequirementsSatisfied(client, item_id, NULL, 0)) continue;
             if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, data->goldcost) ||
                 client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < (uint32_t)MAX(0, data->lumbercost)) continue;

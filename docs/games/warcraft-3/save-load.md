@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 111, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 112, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -1086,3 +1086,12 @@ reference inside those payloads keeps its `F_EDICT` fixup (including the
 `cargo->units[]` array and the four Soul Trap links) behind the runtime
 `component.next` exclusion. `G_InitGoldMine` now attaches through `G_AddComponent`.
 Version 110 saves are rejected; the wire format is unchanged.
+
+## Sixth component slice (version 112)
+
+Research, the Food ledger and shop Stock move onto the component list
+(`COMPONENT_RESEARCH`, `COMPONENT_FOOD`, `COMPONENT_STOCK`). Research and Food
+payloads are scalar; Stock keeps its counted `items`/`units` struct arrays behind the
+runtime `component.next` exclusion. The edict schema no longer carries a `stock`
+member, which the shop stock round-trip test now asserts. Version 111 saves are
+rejected; the wire format is unchanged.

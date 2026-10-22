@@ -3185,9 +3185,9 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
     T_ASSERT(G_UnitHasFlag(second, UNIT_FLAG_TRAINING));
     T_ASSERT(second->s.renderfx & RF_HIDDEN);
     T_FEQ(second->health.value, 0.0f, 0.01f);
-    T_EQ(first->food->used, 2);
-    T_EQ(first->food->made, 4);
-    T_EQ(second->food->used, 2);
+    T_EQ(G_GetFood(first)->used, 2);
+    T_EQ(G_GetFood(first)->made, 4);
+    T_EQ(G_GetFood(second)->used, 2);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 4);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 104);
 }

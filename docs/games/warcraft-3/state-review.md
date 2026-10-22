@@ -195,10 +195,10 @@ real stun statuses rather than writing the removed mirror. The native flag test 
 
 ## Save and network contracts
 
-Save version 111 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
+Save version 112 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
 Ensnare, artillery profiles, Sleep, Rally, Sacrifice, Unsummon, Blight Growth,
 Shadow Meld, Militia, Hero revival, worker build/repair state, Ancient Root, the
-mine records, Cargo and Soul Trap now use the
+mine records, Cargo, Soul Trap, Research, Food and shop Stock now use the
 [component list](pooled-entity-state.md#optional-components); the remaining roles
 retain direct attachments. Movement, orders, route and wander records
 use the existing entity-owned typed-pool serialization. Entity references have

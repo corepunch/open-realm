@@ -142,7 +142,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 109 moves Sleep, Rally, Sacrifice, Unsummon and Blight Growth onto the component list. */
 /* Version 110 moves Shadow Meld, Militia, Hero revival and worker build/repair state onto the component list. */
 /* Version 111 moves AncientRoot, GoldMine, MineOverlay, AcolyteMine, Cargo, SoulTrap onto the component list. */
-static uint32_t const save_version = 111;
+/* Version 112 moves Research, Food, Stock onto the component list. */
+static uint32_t const save_version = 112;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -946,6 +947,7 @@ static field_t const shop_stock_item_fields[] = {
 };
 
 static field_t const stock_fields[] = {
+    TF(stock_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     F(stock_s, item_slots, F_INT),
     F(stock_s, unit_slots, F_INT),
     F(stock_s, items_initialized, F_INT),
@@ -1012,11 +1014,8 @@ static field_t const sound_fields[] = {
 field_t edict_fields[] = {
     F(edict_s, summon_ability, F_INT),
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, food, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, item, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, destructable, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2238,9 +2237,9 @@ static savePool_t const save_pools[] = {
     { "route", offsetof(edict_t, route), sizeof(routeCache_t), route_fields, SaveAllocRoute, MAX_ENTITIES },
     { "wander", offsetof(edict_t, wander), sizeof(wander_t), wander_fields, SaveAllocWander, MAX_ENTITIES },
     { "construction", offsetof(edict_t, construction), sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP },
-    { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP },
+    { "research", 0, sizeof(research_t), component_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP, COMPONENT_RESEARCH },
     { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
-    { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP },
+    { "food", 0, sizeof(food_t), component_fields, SaveAllocFood, LIFECYCLE_POOL_CAP, COMPONENT_FOOD },
     { "buildwork", 0, sizeof(buildwork_t), component_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP, COMPONENT_BUILDWORK },
     { "revival", 0, sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP, COMPONENT_REVIVAL },
     { "sacrifice", 0, sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP, COMPONENT_SACRIFICE },
@@ -2258,7 +2257,7 @@ static savePool_t const save_pools[] = {
     { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP },
     { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP },
     { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
-    { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP },
+    { "stock", 0, sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP, COMPONENT_STOCK },
     { "waygate", 0, sizeof(waygate_t), component_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
     { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
     { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
@@ -3348,10 +3347,10 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->sound->owner_pending = 17;
     unit->construction->progress = 13.5f;
     unit->construction->worker = target;
-    unit->research->upgrade = MAKEFOURCC('R','h','m','e');
-    unit->research->progress = 9.25f;
-    unit->food->used = 3;
-    unit->food->made = 10;
+    G_GetResearch(unit)->upgrade = MAKEFOURCC('R','h','m','e');
+    G_GetResearch(unit)->progress = 9.25f;
+    G_GetFood(unit)->used = 3;
+    G_GetFood(unit)->made = 10;
     G_GetBuildwork(unit)->ability = MAKEFOURCC('A','r','e','p');
     G_GetBuildwork(unit)->gold_accum = 2.5f;
     G_GetShadowMeld(unit)->fade_start = 1750;
@@ -3412,9 +3411,9 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_ASSERT(unit->construction);
     T_FEQ(unit->construction->progress, 13.5f, 0.001f);
     T_ASSERT(unit->construction->worker == target);
-    T_EQ(unit->research->upgrade, MAKEFOURCC('R','h','m','e'));
-    T_FEQ(unit->research->progress, 9.25f, 0.001f);
-    T_EQ(unit->food->used, 3); T_EQ(unit->food->made, 10);
+    T_EQ(G_GetResearch(unit)->upgrade, MAKEFOURCC('R','h','m','e'));
+    T_FEQ(G_GetResearch(unit)->progress, 9.25f, 0.001f);
+    T_EQ(G_GetFood(unit)->used, 3); T_EQ(G_GetFood(unit)->made, 10);
     T_EQ(G_GetBuildwork(unit)->ability, MAKEFOURCC('A','r','e','p'));
     T_FEQ(G_GetBuildwork(unit)->gold_accum, 2.5f, 0.001f);
     T_EQ(G_GetShadowMeld(unit)->fade_start, 1750);

@@ -2111,7 +2111,7 @@ TEST(wc3_combat, hero_revive) {
     T_ASSERT((h->svflags & SVF_DEADMONSTER) == 0);       /* alive again */
     T_FEQ(h->s.origin2.x, 100.0f, 0.01f);
     T_FEQ(h->s.origin2.y, 200.0f, 0.01f);
-    T_EQ(h->food->used, h->data.UnitBalance->foodUsed);
+    T_EQ(G_GetFood(h)->used, h->data.UnitBalance->foodUsed);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->data.UnitBalance->foodUsed);
 }
 
