@@ -311,7 +311,7 @@ static void moon_well_update_effect(edict_t * well) {
     if (!well || !(alias = moon_well_alias(well)) || M_IsDead(well)) return;
     /* An authored Moon Well can enter an in-place upgrade construction state.
      * Keep its presentation suppressed while that state is active. */
-    if (well->construction) {
+    if (G_GetConstruction(well)) {
         S_MoonWellEffectsRelease(well);
         return;
     }
@@ -450,7 +450,7 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
                 moon_well_warn_missing_data(code);
                 return true;
             }
-            return ent->construction ||
+            return G_GetConstruction(ent) ||
                    (data->level[0].data[4].number != 0.0f && !G_IsNight()); /* DataE */
         }
     case A_DEATH:
@@ -604,7 +604,7 @@ static void ancient_root_command(edict_t *clent) {
         root->mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
     }
     if (root->mode == ANCIENT_ROOTED) {
-        if (G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || unit->construction || unit->build || G_BuildingUpgradeActive(unit)) {
+        if (G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || G_GetConstruction(unit) || unit->build || G_BuildingUpgradeActive(unit)) {
             G_ShowCommandErrorKey(clent, "Cantrootunit", "Unable to uproot while this Ancient is busy.");
             return;
         }
@@ -704,7 +704,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
             root = G_GetAncientRoot(ent); /* The update may have attached the record. */
         }
         if (!strcmp(call->order, "unroot") && ent && root && root->mode == ANCIENT_ROOTED &&
-            !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) && !ent->construction && !ent->build && !G_BuildingUpgradeActive(ent)) {
+            !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) && !G_GetConstruction(ent) && !ent->build && !G_BuildingUpgradeActive(ent)) {
             root->destination = ent->s.origin2;
             S_ReleaseEntangledMineForTree(ent);
             S_AncientBeginMorph(ent, false);

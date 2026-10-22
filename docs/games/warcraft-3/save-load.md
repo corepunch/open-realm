@@ -1155,3 +1155,12 @@ The spell Channel record moves onto the component list (`COMPONENT_CHANNEL`).
 `component.next` exclusion; the cast serial, owner/target spawn times and origin
 stay scalar. Channel is also the last typed pool in the stream, so the truncated
 pool test still uses it. Version 112 saves are rejected; the wire format is unchanged.
+
+## Eighth component slice (version 114)
+
+Destructable and Construction move onto the component list
+(`COMPONENT_DESTRUCTABLE`, `COMPONENT_CONSTRUCTION`). The construction
+`primary_builder` and `worker` references keep their `F_EDICT` fixups; the
+destructable pathing textures and drop-set views stay process-owned exclusions and
+are rebuilt from object data after load, as before. The destructable section keeps
+`DESTRUCTABLE_POOL_CAP`. Version 113 saves are rejected; the wire format is unchanged.

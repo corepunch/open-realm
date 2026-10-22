@@ -5263,16 +5263,15 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
     growth->ability = ability;
     growth->radius = 146.0f;
     growth->next_update = 12345;
-    if (!unit->destructable) unit->destructable = G_AllocDestructable();
-    assert(unit->destructable);
-    unit->destructable->blighted = true;
+    G_AddComponent(unit, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(unit)->blighted = true;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(WriteGame(filename));
 
     G_SetBlightPoint(&point, false);
     G_FreeBlightGrowth(unit);
-    unit->destructable->blighted = false;
+    G_GetDestructable(unit)->blighted = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_IsPointBlighted(&point));
     growth = G_GetBlightGrowth(unit); /* Restore attaches a fresh pool slot. */
@@ -5282,7 +5281,7 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
         T_FEQ(growth->radius, 146.0f, 0.001f);
         T_EQ(growth->next_update, 12345u);
     }
-    T_ASSERT(unit->destructable->blighted);
+    T_ASSERT(G_GetDestructable(unit)->blighted);
     remove(filename);
 }
 
@@ -5571,50 +5570,49 @@ TEST(wc3_save, construction_payment_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
-    if (!unit->construction) unit->construction = G_AllocConstruction();
-    assert(unit->construction);
-    unit->construction->type = CONSTRUCTION_NAGA;
-    unit->construction->worker = worker;
-    unit->construction->worker_spawn_time = 1234;
-    unit->construction->worker_inside = true;
-    unit->construction->consumes_worker = true;
-    unit->construction->restore_invulnerable = true;
-    unit->construction->worker_release_time = 5678;
-    unit->construction->restore_paused = true;
-    unit->construction->restore_hidden = true;
-    unit->construction->paid = true;
-    unit->construction->payer = 3;
-    unit->construction->gold = 100;
-    unit->construction->lumber = 80;
+    G_AddComponent(unit, COMPONENT_CONSTRUCTION);
+    G_GetConstruction(unit)->type = CONSTRUCTION_NAGA;
+    G_GetConstruction(unit)->worker = worker;
+    G_GetConstruction(unit)->worker_spawn_time = 1234;
+    G_GetConstruction(unit)->worker_inside = true;
+    G_GetConstruction(unit)->consumes_worker = true;
+    G_GetConstruction(unit)->restore_invulnerable = true;
+    G_GetConstruction(unit)->worker_release_time = 5678;
+    G_GetConstruction(unit)->restore_paused = true;
+    G_GetConstruction(unit)->restore_hidden = true;
+    G_GetConstruction(unit)->paid = true;
+    G_GetConstruction(unit)->payer = 3;
+    G_GetConstruction(unit)->gold = 100;
+    G_GetConstruction(unit)->lumber = 80;
 
     T_ASSERT(WriteGame(filename));
-    unit->construction->type = CONSTRUCTION_NONE;
-    unit->construction->worker = NULL;
-    unit->construction->worker_spawn_time = 0;
-    unit->construction->worker_inside = false;
-    unit->construction->consumes_worker = false;
-    unit->construction->restore_invulnerable = false;
-    unit->construction->restore_paused = false;
-    unit->construction->restore_hidden = false;
-    unit->construction->worker_release_time = 0;
-    unit->construction->paid = false;
-    unit->construction->payer = 0;
-    unit->construction->gold = 0;
-    unit->construction->lumber = 0;
+    G_GetConstruction(unit)->type = CONSTRUCTION_NONE;
+    G_GetConstruction(unit)->worker = NULL;
+    G_GetConstruction(unit)->worker_spawn_time = 0;
+    G_GetConstruction(unit)->worker_inside = false;
+    G_GetConstruction(unit)->consumes_worker = false;
+    G_GetConstruction(unit)->restore_invulnerable = false;
+    G_GetConstruction(unit)->restore_paused = false;
+    G_GetConstruction(unit)->restore_hidden = false;
+    G_GetConstruction(unit)->worker_release_time = 0;
+    G_GetConstruction(unit)->paid = false;
+    G_GetConstruction(unit)->payer = 0;
+    G_GetConstruction(unit)->gold = 0;
+    G_GetConstruction(unit)->lumber = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(unit->construction->type, CONSTRUCTION_NAGA);
-    T_ASSERT(unit->construction->worker == worker);
-    T_EQ(unit->construction->worker_spawn_time, 1234);
-    T_ASSERT(unit->construction->worker_inside);
-    T_ASSERT(unit->construction->consumes_worker);
-    T_ASSERT(unit->construction->restore_invulnerable);
-    T_ASSERT(unit->construction->restore_paused);
-    T_ASSERT(unit->construction->restore_hidden);
-    T_EQ(unit->construction->worker_release_time, 5678);
-    T_ASSERT(unit->construction->paid);
-    T_EQ(unit->construction->payer, 3);
-    T_EQ(unit->construction->gold, 100);
-    T_EQ(unit->construction->lumber, 80);
+    T_EQ(G_GetConstruction(unit)->type, CONSTRUCTION_NAGA);
+    T_ASSERT(G_GetConstruction(unit)->worker == worker);
+    T_EQ(G_GetConstruction(unit)->worker_spawn_time, 1234);
+    T_ASSERT(G_GetConstruction(unit)->worker_inside);
+    T_ASSERT(G_GetConstruction(unit)->consumes_worker);
+    T_ASSERT(G_GetConstruction(unit)->restore_invulnerable);
+    T_ASSERT(G_GetConstruction(unit)->restore_paused);
+    T_ASSERT(G_GetConstruction(unit)->restore_hidden);
+    T_EQ(G_GetConstruction(unit)->worker_release_time, 5678);
+    T_ASSERT(G_GetConstruction(unit)->paid);
+    T_EQ(G_GetConstruction(unit)->payer, 3);
+    T_EQ(G_GetConstruction(unit)->gold, 100);
+    T_EQ(G_GetConstruction(unit)->lumber, 80);
     remove(filename);
 }
 
@@ -5634,23 +5632,22 @@ TEST(wc3_save, tiny_construction_round_trips_in_roc_and_tft_map_state) {
         snprintf(name, sizeof(name), "wc3-save-tiny-construction-%u.bin", (unsigned)formats[i]);
         snprintf(filename, sizeof(filename), "%s", Test_TempPath(name));
         building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
-        if (!building->construction) building->construction = G_AllocConstruction();
-        assert(building->construction);
-        building->construction->type = CONSTRUCTION_TINY;
-        building->construction->progress = 4000.0f;
-        building->construction->duration_ms = 9000.0f;
+        G_AddComponent(building, COMPONENT_CONSTRUCTION);
+        G_GetConstruction(building)->type = CONSTRUCTION_TINY;
+        G_GetConstruction(building)->progress = 4000.0f;
+        G_GetConstruction(building)->duration_ms = 9000.0f;
         building->build = building;
 
         T_ASSERT(WriteGame(filename));
-        building->construction->type = CONSTRUCTION_NONE;
-        building->construction->progress = 0.0f;
-        building->construction->duration_ms = 0.0f;
+        G_GetConstruction(building)->type = CONSTRUCTION_NONE;
+        G_GetConstruction(building)->progress = 0.0f;
+        G_GetConstruction(building)->duration_ms = 0.0f;
         building->build = NULL;
         T_ASSERT(ReadGame(filename));
-        T_ASSERT(building->construction);
-        T_EQ(building->construction->type, CONSTRUCTION_TINY);
-        T_FEQ(building->construction->progress, 4000.0f, 0.001f);
-        T_FEQ(building->construction->duration_ms, 9000.0f, 0.001f);
+        T_ASSERT(G_GetConstruction(building));
+        T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_TINY);
+        T_FEQ(G_GetConstruction(building)->progress, 4000.0f, 0.001f);
+        T_FEQ(G_GetConstruction(building)->duration_ms, 9000.0f, 0.001f);
         T_ASSERT(building->build == building);
         remove(filename);
     }
@@ -5728,7 +5725,7 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
     remove(filename);
 }
 
-SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_primary_builder_round_trip, construction, G_GetConstruction, primary_builder, 0)
 SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "unit_state->statuses.source", unit_state->statuses[3].source, 0)
 
 TEST(wc3_save, status_source_incarnation_round_trip) {
@@ -5768,7 +5765,7 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
     T_NULL(S_SpellStatusSource(slot));
     remove(filename);
 }
-SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
+SAVE_COMPONENT_PTR_FIELD_TEST(field_construction_worker_round_trip, construction, G_GetConstruction, worker, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_rally_entity_round_trip, rally, G_GetRally, entity, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_revival_producer_round_trip, revival, G_GetRevival, producer, 0)
 SAVE_COMPONENT_PTR_FIELD_TEST(field_revival_queue_next_round_trip, revival, G_GetRevival, queue_next, 0)
@@ -5888,16 +5885,15 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     militia_t *state = G_AddComponent(unit, COMPONENT_MILITIA);
     state->partner = (edict_t *)(uintptr_t)1;
-    if (!unit->destructable) unit->destructable = G_AllocDestructable();
-    assert(unit->destructable);
-    unit->destructable->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
-    ARRAY_COUNT(unit->destructable->drop_sets) = 7;
+    G_AddComponent(unit, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(unit)->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
+    ARRAY_COUNT(G_GetDestructable(unit)->drop_sets) = 7;
     T_ASSERT(WriteGame(filename));
-    state->partner = NULL; unit->destructable->drop_sets = NULL;
-    ARRAY_COUNT(unit->destructable->drop_sets) = 0;
+    state->partner = NULL; G_GetDestructable(unit)->drop_sets = NULL;
+    ARRAY_COUNT(G_GetDestructable(unit)->drop_sets) = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT((!G_GetMilitia(unit) || !G_GetMilitia(unit)->partner) && (!unit->destructable || !unit->destructable->drop_sets));
-    T_EQ(ARRAY_COUNT(unit->destructable->drop_sets), 0);
+    T_ASSERT((!G_GetMilitia(unit) || !G_GetMilitia(unit)->partner) && (!G_GetDestructable(unit) || !G_GetDestructable(unit)->drop_sets));
+    T_EQ(ARRAY_COUNT(G_GetDestructable(unit)->drop_sets), 0);
     remove(filename);
 }
 

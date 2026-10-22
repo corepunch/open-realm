@@ -127,8 +127,7 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     other->s.player = 1;
     done->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER; training->svflags |= SVF_MONSTER;
     dead->svflags |= SVF_MONSTER | SVF_DEADMONSTER; other->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     G_SetUnitFlag(training, UNIT_FLAG_TRAINING, true);
     builder->s.player = 2; builder->health.value = 100; builder->orders->build_project = MAKEFOURCC('h','b','a','r');
     mine->resources = 1000;
@@ -151,8 +150,7 @@ TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town)
     hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
     done = alloc_test_unit(footman, 64, 0); done->s.player = 2; done->svflags |= SVF_MONSTER;
     building = alloc_test_unit(footman, 96, 0); building->s.player = 2; building->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     training = alloc_test_unit(footman, 1024, 0); training->s.player = 2; training->svflags |= SVF_MONSTER;
     G_SetUnitFlag(training, UNIT_FLAG_TRAINING, true);
     pending_builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
@@ -1146,8 +1144,7 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     edict_t *building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
     edict_t *enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));

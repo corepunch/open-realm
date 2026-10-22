@@ -99,7 +99,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
 }
 
 static bool shadowmeld_stationary(edict_t const *unit) {
-    if (!unit || M_IsDead((edict_t *)unit) || G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || unit->construction ||
+    if (!unit || M_IsDead((edict_t *)unit) || G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || G_GetConstruction(unit) ||
         (unit->svflags & SVF_NOCLIENT) || S_GoldMineWorkerIsInside((edict_t *)unit))
         return false;
     /* Ordinary idle and Hold Position stand moves do not own an ability proc.

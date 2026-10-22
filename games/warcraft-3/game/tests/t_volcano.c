@@ -70,9 +70,8 @@ static edict_t *volcano_make_destructable(float life, float x, float y, TARGTYPE
     ent->s.origin2 = MAKE(vec2_t, x, y);
     ent->targtype = type;
     ent->health.value = ent->health.max_value = life;
-    if (!ent->destructable) ent->destructable = G_AllocDestructable();
-    assert(ent->destructable);
-    ent->destructable->item_table = (uint32_t)-1; /* no random loot table */
+    G_AddComponent(ent, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(ent)->item_table = (uint32_t)-1; /* no random loot table */
     return ent;
 }
 
@@ -176,8 +175,8 @@ TEST(wc3_spell, volcano_damages_trees_and_debris_in_area) {
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     T_FEQ(fix.tree->health.value, 160, 0.001f);
     T_FEQ(fix.debris->health.value, 160, 0.001f);
-    T_ASSERT(!fix.tree->destructable || !fix.tree->destructable->dead);
-    T_ASSERT(!fix.debris->destructable || !fix.debris->destructable->dead);
+    T_ASSERT(!G_GetDestructable(fix.tree) || !G_GetDestructable(fix.tree)->dead);
+    T_ASSERT(!G_GetDestructable(fix.debris) || !G_GetDestructable(fix.debris)->dead);
     volcano_done(fix);
 }
 

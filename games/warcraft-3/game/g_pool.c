@@ -50,7 +50,7 @@ void G_Free##Name(edict_t *ent) { \
     ent->member = NULL; \
 }
 
-DEFINE_POOL(construction, Construction, construction_t, LIFECYCLE_POOL_CAP)
+DEFINE_STORAGE(construction, Construction, construction_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(research, Research, research_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(rally, Rally, rally_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(food, Food, food_t, LIFECYCLE_POOL_CAP)
@@ -69,7 +69,7 @@ DEFINE_STORAGE(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(item, Item, item_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
+DEFINE_STORAGE(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
 DEFINE_STORAGE(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
 DEFINE_STORAGE(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
@@ -116,6 +116,8 @@ COMPONENT_ALLOC(Research)
 COMPONENT_ALLOC(Food)
 COMPONENT_ALLOC(Stock)
 COMPONENT_ALLOC(Channel)
+COMPONENT_ALLOC(Destructable)
+COMPONENT_ALLOC(Construction)
 
 /* Exact IDs authorize the concrete layout; families and authored rawcodes are separate concepts. */
 static componentType_t const *ComponentType(componentId_t id) {
@@ -144,7 +146,9 @@ static componentType_t const *ComponentType(componentId_t id) {
         { COMPONENT_RESEARCH, AllocResearchComponent, ReleaseResearch },
         { COMPONENT_FOOD, AllocFoodComponent, ReleaseFood },
         { COMPONENT_STOCK, AllocStockComponent, ReleaseStock },
-        { COMPONENT_CHANNEL, AllocChannelComponent, ReleaseChannel }
+        { COMPONENT_CHANNEL, AllocChannelComponent, ReleaseChannel },
+        { COMPONENT_DESTRUCTABLE, AllocDestructableComponent, ReleaseDestructable },
+        { COMPONENT_CONSTRUCTION, AllocConstructionComponent, ReleaseConstruction }
     };
     FOR_LOOP(i, sizeof(component_types) / sizeof(component_types[0]))
         if (component_types[i].id == id) return component_types + i;
@@ -214,6 +218,8 @@ void G_FreeResearch(edict_t *ent) { G_FreeComponent(ent, COMPONENT_RESEARCH); }
 void G_FreeFood(edict_t *ent) { G_FreeComponent(ent, COMPONENT_FOOD); }
 void G_FreeStock(edict_t *ent) { G_FreeComponent(ent, COMPONENT_STOCK); }
 void G_FreeChannel(edict_t *ent) { G_FreeComponent(ent, COMPONENT_CHANNEL); }
+void G_FreeDestructable(edict_t *ent) { G_FreeComponent(ent, COMPONENT_DESTRUCTABLE); }
+void G_FreeConstruction(edict_t *ent) { G_FreeComponent(ent, COMPONENT_CONSTRUCTION); }
 
 /* Unit spawn and explicit ability/status mutations establish ownership; reads never allocate. */
 void G_InitUnitState(edict_t *ent) {
@@ -310,9 +316,7 @@ void G_PoolsReset(void) {
     if (g_edicts) {
         FOR_LOOP(i, globals.max_edicts) {
             g_edicts[i].components = NULL;
-            g_edicts[i].construction = NULL;
             g_edicts[i].item = NULL;
-            g_edicts[i].destructable = NULL;
             g_edicts[i].unit_state = NULL;
             g_edicts[i].sound = NULL;
             g_edicts[i].missile = NULL;
@@ -367,9 +371,7 @@ void G_PoolsReset(void) {
 
 void G_PoolsReleaseEdict(edict_t *ent) {
     assert(ent);
-    G_FreeConstruction(ent);
     G_FreeItem(ent);
-    G_FreeDestructable(ent);
     G_FreeUnitState(ent);
     G_FreeSounds(ent);
     G_FreeMissile(ent);
@@ -403,9 +405,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     type empty; memset(&empty, 0, sizeof(empty)); \
     T_EQ(memcmp(unit->member, &empty, sizeof(empty)), 0); \
 } while (0)
-    CHECK_POOL(construction, Construction, construction_t);
     CHECK_POOL(item, Item, item_t);
-    CHECK_POOL(destructable, Destructable, destructable_t);
     CHECK_POOL(unit_state, UnitState, unitState_t);
     CHECK_POOL(sound, Sounds, unitSounds_t);
     CHECK_POOL(missile, Missile, attackMissile_t);
@@ -418,7 +418,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(wander, Wander, wander_t);
 #undef CHECK_POOL
     G_PoolsReleaseEdict(unit);
-    T_NULL(unit->construction);
+    T_NULL(G_GetConstruction(unit));
     T_NULL(G_GetResearch(unit));
     T_NULL(G_GetRally(unit));
     T_NULL(G_GetFood(unit));
@@ -437,7 +437,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(G_GetMineOverlay(unit));
     T_NULL(G_GetAcolyteMine(unit));
     T_NULL(unit->item);
-    T_NULL(unit->destructable);
+    T_NULL(G_GetDestructable(unit));
     T_NULL(G_GetCargo(unit));
     T_NULL(G_GetStock(unit));
     T_NULL(G_GetWaygate(unit));
@@ -464,10 +464,10 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
 TEST(wc3_pools, destructable_pool_holds_more_than_the_default_cap) {
     reset_entities();
     edict_t *first = G_Spawn();
-    first->destructable = G_AllocDestructable();
+    G_AddComponent(first, COMPONENT_DESTRUCTABLE);
     FOR_LOOP(i, DESTRUCTABLE_POOL_CAP - 2) T_ASSERT(G_AllocDestructable() != NULL);
     G_PoolsReset();
-    T_NULL(first->destructable);
+    T_NULL(G_GetDestructable(first));
 }
 
 TEST(wc3_pools, register_model_ignores_missing_names) {
@@ -515,7 +515,7 @@ TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_i
     static componentId_t const ids[] = {
         COMPONENT_WAYGATE, COMPONENT_AVATAR, COMPONENT_POLYMORPH, COMPONENT_RAVEN, COMPONENT_ENSNARE, COMPONENT_ARTILLERY,
         COMPONENT_SLEEP, COMPONENT_RALLY, COMPONENT_SACRIFICE, COMPONENT_UNSUMMON, COMPONENT_BLIGHT_GROWTH,
-        COMPONENT_SHADOWMELD, COMPONENT_MILITIA, COMPONENT_REVIVAL, COMPONENT_BUILDWORK, COMPONENT_ANCIENT_ROOT, COMPONENT_GOLDMINE, COMPONENT_MINE_OVERLAY, COMPONENT_ACOLYTE_MINE, COMPONENT_CARGO, COMPONENT_SOULTRAP, COMPONENT_RESEARCH, COMPONENT_FOOD, COMPONENT_STOCK, COMPONENT_CHANNEL
+        COMPONENT_SHADOWMELD, COMPONENT_MILITIA, COMPONENT_REVIVAL, COMPONENT_BUILDWORK, COMPONENT_ANCIENT_ROOT, COMPONENT_GOLDMINE, COMPONENT_MINE_OVERLAY, COMPONENT_ACOLYTE_MINE, COMPONENT_CARGO, COMPONENT_SOULTRAP, COMPONENT_RESEARCH, COMPONENT_FOOD, COMPONENT_STOCK, COMPONENT_CHANNEL, COMPONENT_DESTRUCTABLE, COMPONENT_CONSTRUCTION
     };
     reset_entities();
     edict_t *unit = G_Spawn();
@@ -549,6 +549,8 @@ TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_i
     T_ASSERT(G_GetFood(unit) == G_GetComponent(unit, COMPONENT_FOOD));
     T_ASSERT(G_GetStock(unit) == G_GetComponent(unit, COMPONENT_STOCK));
     T_ASSERT(G_GetChannel(unit) == G_GetComponent(unit, COMPONENT_CHANNEL));
+    T_ASSERT(G_GetDestructable(unit) == G_GetComponent(unit, COMPONENT_DESTRUCTABLE));
+    T_ASSERT(G_GetConstruction(unit) == G_GetComponent(unit, COMPONENT_CONSTRUCTION));
     T_ASSERT(!G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(unit));
     G_GetRevival(unit)->reviving = true;
     T_ASSERT(G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(NULL));

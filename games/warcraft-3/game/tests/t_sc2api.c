@@ -772,7 +772,7 @@ TEST(wc3_sc2api, raw_destructable_uses_neutral_namespaced_unit_type) {
     ent->class_id = ent->s.class_id = data.id;
     ent->spawn_time = 1234;
     ent->data.DestructableData = &data;
-    ent->destructable = G_AllocDestructable();
+    G_AddComponent(ent, COMPONENT_DESTRUCTABLE);
     ent->health.max_value = ent->health.value = 100.0f;
     ent->s.player = PLAYER_NEUTRAL_PASSIVE;
     gi.LinkEntity(ent);

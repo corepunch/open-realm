@@ -600,7 +600,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
 
     /* Construction has its own command-card state.  Returning no buttons for
      * every birth move made spawned Human buildings impossible to cancel. */
-    if (ent->construction) {
+    if (G_GetConstruction(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancelBuild, false, 0);
         return count;
     }
@@ -866,16 +866,16 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
              * progress bar used to run on the unit's buildTime instead. */
             duration = G_HeroIsReviving(build)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
-                : (build->construction && build->construction->duration_ms > 0.0f)
-                ? (uint32_t)build->construction->duration_ms
+                : (G_GetConstruction(build) && G_GetConstruction(build)->duration_ms > 0.0f)
+                ? (uint32_t)G_GetConstruction(build)->duration_ms
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
                 if (G_HeroIsReviving(build) && duration > 0) {
                     progress = G_GetRevival(build)->progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
-                } else if (build->construction && build->construction->type == CONSTRUCTION_HUMAN && duration > 0) {
-                    progress = build->construction->progress / (float)duration;
+                } else if (G_GetConstruction(build) && G_GetConstruction(build)->type == CONSTRUCTION_HUMAN && duration > 0) {
+                    progress = G_GetConstruction(build)->progress / (float)duration;
                     progress = MAX(0, MIN(progress, 1));
                     bool working = false;
                     FOR_LOOP(worker_index, globals.num_edicts) {
@@ -911,11 +911,11 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
         }
         queue[count].progress = MAX(0.0f, MIN(progress, 1.0f));
 #ifdef WC3_DEBUG_BUILD
-        if (count == 0 && build->construction && build->construction->type == CONSTRUCTION_HUMAN) {
+        if (count == 0 && G_GetConstruction(build) && G_GetConstruction(build)->type == CONSTRUCTION_HUMAN) {
             fprintf(stderr, "WC3_BUILD queue-progress producer=%ld building=%ld id=%.4s construction_paused=%u progress=%.1f health=%.1f/%.1f fraction=%.4f duration_ms=%u queue_start=%u queue_end=%u frame=%u\n",
                     (long)(ent - g_edicts), (long)(build - g_edicts),
-                    (cstring_t)&build->class_id, build->construction->paused,
-                    build->construction->progress, build->health.value,
+                    (cstring_t)&build->class_id, G_GetConstruction(build)->paused,
+                    G_GetConstruction(build)->progress, build->health.value,
                     build->health.max_value, progress, duration,
                     queue[count].starttime, queue[count].endtime, build->s.frame);
         }

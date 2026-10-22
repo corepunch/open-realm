@@ -84,7 +84,7 @@ static bool earthquake_allows_unit(uint32_t code, cstring_t targets, edict_t *ca
 
 static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
-    if (!G_IsDestructable(target) || target->destructable->dead) return false;
+    if (!G_IsDestructable(target) || G_GetDestructable(target)->dead) return false;
     if (targets && *targets) {
         if (target->targtype == TARG_TREE && !S_SpellTargetHasToken(targets, "tree", NULL)) return false;
         if (target->targtype == TARG_DEBRIS && !S_SpellTargetHasToken(targets, "debris", NULL)) return false;

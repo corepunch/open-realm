@@ -68,7 +68,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
     uint32_t retaliation = S_AncientIsRooted(attacker) ? S_AncientRetaliationAttackMask(attacker) : 0;
-    if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
+    if (attacker && target && G_GetDestructable(target) && target->targtype == TARG_TREE) {
         if (attacker->unit_state->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->unit_state->attack1;
         if (attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->unit_state->attack2;
     }
@@ -221,7 +221,7 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
            ((mask & 2u) && attacker->unit_state->attack2.type == ATK_MAGIC &&
              (attacker->unit_state->attack2.targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target))))))) return false;
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
-    if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
+    if (G_GetDestructable(target)) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && (((mask & 1u) && attacker->unit_state->attack1.type != ATK_NONE && (attacker->unit_state->attack1.targetsAllowed & flag)) ||

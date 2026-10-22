@@ -1544,15 +1544,14 @@ TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queu
     edict_t *worker = make_unit(0, 0);
     edict_t *building = make_unit(0, 0);
 
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     building->build = building;
     worker->build = building;
 
     unit_die(worker, NULL);
 
     T_ASSERT(worker->svflags & SVF_DEADMONSTER);
-    T_ASSERT(building->construction);
+    T_ASSERT(G_GetConstruction(building));
     T_ASSERT(building->build == building);
 }
 
@@ -1565,14 +1564,13 @@ TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
 
     altar->data.UnitProfile = &revive_profile;
     altar->s.player = old_client->ps.number;
-    if (!altar->construction) altar->construction = G_AllocConstruction();
-    assert(altar->construction);
+    G_AddComponent(altar, COMPONENT_CONSTRUCTION);
     altar->build = altar;
 
     G_SetUnitPlayer(altar, new_client->ps.number);
 
     T_EQ(altar->s.player, new_client->ps.number);
-    T_ASSERT(altar->construction);
+    T_ASSERT(G_GetConstruction(altar));
     T_ASSERT(altar->build == altar);
 }
 
@@ -1589,7 +1587,7 @@ TEST(wc3_unit, ownership_change_does_not_walk_legacy_constructing_revive_altar) 
     G_SetUnitPlayer(altar, new_client->ps.number);
 
     T_EQ(altar->s.player, new_client->ps.number);
-    T_ASSERT(!altar->construction);
+    T_ASSERT(!G_GetConstruction(altar));
     T_ASSERT(altar->build == altar);
 }
 

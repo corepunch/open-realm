@@ -1686,7 +1686,9 @@ typedef enum {
     COMPONENT_RESEARCH = 22,
     COMPONENT_FOOD = 23,
     COMPONENT_STOCK = 24,
-    COMPONENT_CHANNEL = 25
+    COMPONENT_CHANNEL = 25,
+    COMPONENT_DESTRUCTABLE = 26,
+    COMPONENT_CONSTRUCTION = 27
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -1756,6 +1758,7 @@ typedef enum {
 
 /* Optional active building-construction record; completion/cancellation releases its ownership. */
 typedef struct {
+    component_t component;
     bool paused;
     constructionType_t type;
     edict_t *primary_builder; /* Human Repair owner; only meaningful for Human construction */
@@ -1980,6 +1983,7 @@ typedef struct {
 
 /* Destructable-owned pathing, health, animation and authored object metadata. */
 typedef struct {
+    component_t component;
     /* Set only for destructables originating from war3map.doo. */
     bool map_placed;
 
@@ -2275,7 +2279,6 @@ struct edict_s {
     uint32_t summon_ability; /* creating ability identity for summoned units and owned visual effects */
     uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
     auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
-    construction_t *construction; /* pool slot; null if this unit is not under construction */
     uint32_t spawn_time;
     wander_t *wander;
     routeCache_t *route;
@@ -2288,7 +2291,6 @@ struct edict_s {
     uint32_t freetime;
     inventory_t *inventory; /* physical slots attach on first item ownership */
     item_t *item;
-    destructable_t *destructable;
     edict_t *ground_next;
     float velocity;
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
@@ -4370,6 +4372,8 @@ static inline research_t *G_GetResearch(edict_t const *ent) { return G_GetCompon
 static inline food_t *G_GetFood(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_FOOD); }
 static inline stock_t *G_GetStock(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_STOCK); }
 static inline channel_t *G_GetChannel(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CHANNEL); }
+static inline destructable_t *G_GetDestructable(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_DESTRUCTABLE); }
+static inline construction_t *G_GetConstruction(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CONSTRUCTION); }
 /* A queue item or building researches while its record names an upgrade; completed research frees the record. */
 static inline bool G_UnitIsResearching(edict_t const *ent) { research_t const *r = G_GetResearch(ent); return r && r->upgrade; }
 /* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */

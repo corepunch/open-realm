@@ -4205,14 +4205,14 @@ TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
     if (!mine || !worker || !building) goto cleanup;
     mine->birth(mine);
     T_ASSERT(G_StartUndeadConstruction(worker, mine));
-    T_ASSERT(mine->construction);
+    T_ASSERT(G_GetConstruction(mine));
     T_STREQ(mine->currentmove->animation, "birth");
 
     jass_callbyname(level.vm, "cancelIntro", false);
     jass_runevents(level.vm);
     T_ASSERT(mine->svflags & SVF_DEADMONSTER);
     T_STREQ(mine->currentmove->animation, "death");
-    T_ASSERT(!mine->construction);
+    T_ASSERT(!G_GetConstruction(mine));
     T_ASSERT(worker->inuse);
     T_ASSERT(G_IsDeferredFree(worker));
     T_ASSERT(G_IsDeferredFree(building));
@@ -4732,8 +4732,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
     building->stand = unit_stand;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
@@ -9753,8 +9752,9 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('D','T','g','1'),
         .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
-        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .data = { .DestructableData = &row },
         .health = { .value = 500, .max_value = 500 } };
+    G_AttachComponent(&ent, &destructable_state.component, COMPONENT_DESTRUCTABLE);
     entityState_t state = { .number = 7, .model = 11 };
     globals.CustomizeEntity(0, &ent, &state);
     T_NE(state.name, 0);
@@ -9764,10 +9764,10 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
                                     "Ancient Elven Gate"));
     T_ASSERT(state.flags & EF_NEUTRAL);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
-    ent.destructable->dead = true; ent.health.value = 0;
+    destructable_state.dead = true; ent.health.value = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0); T_ASSERT(!(state.flags & EF_NEUTRAL));
-    ent.destructable->dead = false; ent.health.value = 500;
+    destructable_state.dead = false; ent.health.value = 500;
     state.flags |= EF_NOT_SELECTABLE;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0);
@@ -9798,8 +9798,9 @@ TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
     destructable_t destructable_state = { 0 };
     cstring_t (*old_cvar_string)(cstring_t, cstring_t) = gi.CvarString;
     edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
-        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .data = { .DestructableData = &row },
         .health = { .value = 500, .max_value = 500 } };
+    G_AttachComponent(&ent, &destructable_state.component, COMPONENT_DESTRUCTABLE);
 
     gi.CvarString = hover_test_expansion;
 
@@ -9838,7 +9839,8 @@ TEST(wc3_api, customize_entity_non_debris_destructables_have_no_hover_label) {
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('T','e','s','t'),
         .svflags = SVF_STATIC_SCENERY, .data = { .DestructableData = &row },
-        .destructable = &destructable_state, .health = { .value = 500, .max_value = 500 } };
+        .health = { .value = 500, .max_value = 500 } };
+    G_AttachComponent(&ent, &destructable_state.component, COMPONENT_DESTRUCTABLE);
 
     FOR_LOOP(i, TARGET_TYPE_COUNT) {
         entityState_t state = { .number = 7, .model = 11 };

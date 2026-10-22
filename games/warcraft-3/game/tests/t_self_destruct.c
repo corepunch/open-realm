@@ -157,14 +157,14 @@ TEST(wc3_spell, self_destruct_asds_destroys_support_column_not_decoration) {
     column->s.origin2 = MAKE(vec2_t, 45, 0);
     column->targtype = TARG_WALL;
     column->health.value = column->health.max_value = 50;
-    column->destructable = G_AllocDestructable();
+    G_AddComponent(column, COMPONENT_DESTRUCTABLE);
     decoration->class_id = MAKEFOURCC('B', '0', '0', '5');
     decoration->s.origin2 = MAKE(vec2_t, 50, 0);
     decoration->targtype = TARG_DECORATION;
     decoration->health.value = decoration->health.max_value = 500;
-    decoration->destructable = G_AllocDestructable();
+    G_AddComponent(decoration, COMPONENT_DESTRUCTABLE);
     T_ASSERT(S_CastPointTargetSpell(fix.goblin, BZ_ASDS, &point));
-    T_ASSERT(column->destructable->dead);
+    T_ASSERT(G_GetDestructable(column)->dead);
     T_FEQ(column->health.value, 0, 0.001f);
     T_FEQ(decoration->health.value, 500, 0.001f);
     sd_done(fix);
@@ -178,10 +178,10 @@ TEST(wc3_spell, self_destruct_asds_nonstock_debris_uses_authored_damage) {
     debris->s.origin2 = MAKE(vec2_t, 45, 0);
     debris->targtype = TARG_DEBRIS;
     debris->health.value = debris->health.max_value = 500;
-    debris->destructable = G_AllocDestructable();
+    G_AddComponent(debris, COMPONENT_DESTRUCTABLE);
     T_ASSERT(S_CastPointTargetSpell(fix.goblin, BZ_ASDS, &point));
     T_FEQ(debris->health.value, 325, 0.001f);
-    T_ASSERT(!debris->destructable->dead);
+    T_ASSERT(!G_GetDestructable(debris)->dead);
     sd_done(fix);
 }
 
@@ -213,7 +213,7 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     column->s.origin.x = 200;
     column->targtype = TARG_WALL;
     column->health.value = column->health.max_value = 50;
-    column->destructable = G_AllocDestructable();
+    G_AddComponent(column, COMPONENT_DESTRUCTABLE);
 
     G_ClientCommand(clent, 2, button);
     T_ASSERT(S_SpellEntityTargetMode(clent));
@@ -223,7 +223,7 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     G_ClientCommand(clent, 2, select);
 
     T_ASSERT(fix.goblin->health.value > 0);
-    T_ASSERT(!column->destructable->dead);
+    T_ASSERT(!G_GetDestructable(column)->dead);
     FILTER_EDICTS(ent, ent->inuse && ent->owner == fix.goblin && ent->think == S_SpellTargetApproachThink) {
         approach = ent;
         break;
@@ -236,7 +236,7 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     self_destruct_run_frames(100);
     T_ASSERT(M_IsDead(fix.goblin));
-    T_ASSERT(column->destructable->dead);
+    T_ASSERT(G_GetDestructable(column)->dead);
     T_FEQ(column->health.value, 0, 0.001f);
     sd_done(fix);
 }
