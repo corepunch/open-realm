@@ -142,7 +142,7 @@ def main():
          "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
          # SDK 4.0.21 treats GROWABLE_ARRAYBUFFERS as an experimental boolean;
          # the old value 2 aborts linking. Use the default memory-growth path.
-         "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
+         "-sINITIAL_MEMORY=268435456", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=2" if args.debug else "-sASSERTIONS=1",
          "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",

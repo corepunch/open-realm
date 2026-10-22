@@ -69,6 +69,13 @@ path. It warns about JavaScript performance, not a failed link; the engine
 still needs pthreads and memory growth. Do not enable an experimental memory
 feature merely to suppress that diagnostic.
 
+The same SDK's static link currently needs about 183 MiB before runtime
+allocations (`wasm-ld: initial memory too small, 191116464 bytes needed`). Keep
+`INITIAL_MEMORY` at 256 MiB so the linked data, stack and static allocations fit;
+`ALLOW_MEMORY_GROWTH` still lets the engine expand for map and asset data. If
+static data grows again, use the byte count from `wasm-ld` to raise the initial
+memory to the next suitable page-aligned budget.
+
 To verify the full artifact locally with Emscripten 4.0.21 active:
 
 ```sh
