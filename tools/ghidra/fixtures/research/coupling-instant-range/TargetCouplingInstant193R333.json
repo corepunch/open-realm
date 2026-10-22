@@ -1,0 +1,18 @@
+{
+  "setting": "authored",
+  "ability_overrides": {
+    "Aco2.Rng1": 333.0,
+    "Aco3.Rng1": 333.0
+  },
+  "base_sha256": "9870fb6e56618f09343982a3eabd2b51265373834a27085cf8fb8f8552dca41d",
+  "map_sha256": "763cbd04e27901a0f44b1c7432cbbdd763540f945136a8b65e1ad6995d79ad5f",
+  "sources": {
+    "itemdrop_make_map.py": "535550e16d4483a191c4682be9f2c99ab68a47979cb75974e006afec13967811",
+    "itemdrop_probe.j": "3fa5b23157dbc04729107d7c27dbf4766fdfb570563f82f07b6d6e0b124b26c8"
+  },
+  "overrides": {
+    "war3map.j": "51c03bfca8fc07c4ea1fdeccbe1bc3359238e38eba40f84bcab831140e1bccb8",
+    "war3map.w3a": "c4cea570023b6c2ad439c7b96db933448f45028f03d187fc84df7bc9e7f22836",
+    "war3mapMisc.txt": "9228e80214645e550ae836c1305f694e65795186a85b606c43d5aa48236ce794"
+  }
+}

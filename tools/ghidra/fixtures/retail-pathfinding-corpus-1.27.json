@@ -60611,7 +60611,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "c3da58e4ab3ea8d34106d84b97ee9605bdeec42f9b8ef2dae634424501614f85"
+      "sha256": "15f60fc3c255133f2285338f9743f9bb1bf13fc877ed6c742682ea71159c63a6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
@@ -70883,7 +70883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/hippogryph-couple.md",
-      "sha256": "683760a4d653eca313ad85df3f8cea7dacf0401404e11f59568fbf5499802c09"
+      "sha256": "9eec75ab62920c8b41aa28e0e862331fc266aecbd229b931090e77e1a08b1ec9"
     },
     {
       "path": "games/warcraft-3/game/skills/s_couple.c",
@@ -70908,6 +70908,126 @@
     {
       "path": "tools/ghidra/fixtures/research/coupling-readmission/static.json",
       "sha256": "16dd042ad1b4836e3259fa0f9b429b956d48b3fc40a72160c05d0d8637a64c91"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_instant_stock_evidence.py",
+      "sha256": "1ec4279f57d5e17130dee8583ec26ea6493f51db3db44b853c7b701f90e55b3a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-stock-1.27.json",
+      "sha256": "e1eb1d80d331a4b9c47f9fd2884c7396394c24754af24f2ad84ceb3d9b75c659"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-stock-1.27.json.gz",
+      "sha256": "25ee6ecfcb93fff87c17ff21e232eddf77544d662fbe9f02df019b1314938f1c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/TargetCouplingInstant193V3.json",
+      "sha256": "7efd109261a6ba2d84dddc69cb55bda9cec16f608bb2e7f6938bd3da17e6092c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/audit_stock.py",
+      "sha256": "22227b538d2904b23164a9a47d38f5137f228c8d82444ae4f68d2a98a08fd321"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/capture-design.json",
+      "sha256": "783bf56b29ecac0f5706b4db42e79d7223f96999c7cbd1a2576254730c44e684"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/capture-launch.py",
+      "sha256": "889539e498a8ca280b587bdda7c7a6681705ff9fcedcbc962a54e4d7af79eac1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/frozen-sources.json",
+      "sha256": "b786382bac3080349b745ad39d1b3143afadfdf274ea6d9aca61d7a55ceb9431"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/itemdrop_capture.py",
+      "sha256": "1e1f4c64f0a5765eb22c0d4185d4777f007a0dc46dc0b96f8209ba1f9ebe2b37"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/itemdrop_make_map.py",
+      "sha256": "053b94ef2d8d212612dadb9cc29f2ee2dde4425bd6967e4f1f27fae515a771c9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/itemdrop_observer.js",
+      "sha256": "7ffd6b6060efccc9874329cd0cdcf2906c6cd323fe19f5b24f90e6544df07554"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/itemdrop_probe.j",
+      "sha256": "9bab0aaaae973223416452786606682453ef41aee144da813f26c977e094b521"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-stock/source-before-map.json",
+      "sha256": "ef480ec26bf8786b75fb374a2d9b3d54f217075a360813853c059b6cd4b0bb85"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_instant_stock.py",
+      "sha256": "c6c28e1157d4206152acbc52b7c2565a9b043b7a23201226f19749d276d033c3"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_instant_range_evidence.py",
+      "sha256": "053ea409d1c3e169d319b0e316d1312297585e98e743eaed5688776ca6510703"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-range-1.27.json",
+      "sha256": "05a62de52750b362794d36d67db99ac2b3ff8bd9745f19cc046cf5c72ad3a8d4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-range-1.27.json.gz",
+      "sha256": "5d0c4cdf32d90b47ea7c2b9aed7a3145259b41330a8d5c5f72fc5ea67ca46840"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/TargetCouplingInstant193R333.json",
+      "sha256": "742f702350d30388cd4a4f11e66143020b2daf9e04ee612d90376c39c1b4cadb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/audit_range.py",
+      "sha256": "3869887d7d38958bd3620e088f637fb54d0a355c23303d4de30e99a5b88e28e7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/capture-design.json",
+      "sha256": "cc500fa78b91a970a1b72d26c3a977dae7c7049eaf0d2516a2ceebea49437280"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/capture-launch.py",
+      "sha256": "7f0661033184c3ccbed4eb4fa4729f50fab744fdf25dfe8e0ed8a744d4500801"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/frozen-sources.json",
+      "sha256": "37339446d5c170adbba1af95e887d9a430c0822ba21f8b0c19969cb7e38d2987"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/itemdrop_capture.py",
+      "sha256": "6a59c1f99c8a394b8a8a5e2a8e35d98634cfef293994c56949b5648df6168732"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/itemdrop_make_map.py",
+      "sha256": "535550e16d4483a191c4682be9f2c99ab68a47979cb75974e006afec13967811"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/itemdrop_observer.js",
+      "sha256": "f810c49af9119a999063332dbc22489562f9ee27f46403c057ab10f1b6cb2cdf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/itemdrop_probe.j",
+      "sha256": "3fa5b23157dbc04729107d7c27dbf4766fdfb570563f82f07b6d6e0b124b26c8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/source-before-map.json",
+      "sha256": "93992336d6754d608f59fe0e68a06df703aca314dac31782c7527974d8115b82"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-range/static-boundary.json",
+      "sha256": "eb9d38e287a907e8f117e86010ad2e958c2654fc80fa1deb8e66e299e8fb369f"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_instant_range.py",
+      "sha256": "83bac5685a27d756ac1feee5f2326598faba74ec90e7c5d8cbd200efeab48a95"
+    },
+    {
+      "path": "docs/diagnostic-tools.md",
+      "sha256": "80d424065e2dc5c3692b6772ffc36ff3cdf2d63e6a6fc22a45b4eb9fe999a9b3"
     }
   ]
 }

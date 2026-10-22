@@ -194,3 +194,58 @@ Hook ticks are the last public marker, not exact event times. These corpora
 remain `engine_parity:false`: no complete trajectory, HP transfer, selection
 replacement, dismount or simultaneous configured-alias policy is certified.
 See [producer inventory](retail-pathfinding-engine.md#coupling-target-command-producer).
+
+## Couple Instant native producer
+
+The `Acoi` family remains a command stub in the engine. Accepted native producer
+witnesses now establish the stock aliases and their distinct public entries:
+
+| Alias | Actor | DataA partner | DataB | Rng | Area | UnitID |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| Aco2 | Archer | ehip | 0 | 99999 | 900 | ehpr |
+| Aco3 | Hippogryph | earc | 1 | 0 | 900 | ehpr |
+
+Natural patched actors expose these abilities after Reht level 1. The stock
+witness has no relevant unit or ability-list overrides. Base RoC AbilityData
+has no Acoi/Aco2/Aco3 rows; preserve effective patched archive provenance when
+creating test fixtures, including RoC's Data11/Data21 versus TFT's DataA1/DataB1.
+
+`coupleinstant` (852508) is immediate: it selects a matching same-owner movable
+partner with an Acoi-family ability inside authored Area. It publishes the
+issued-immediate event, constructs its own common spell approach, then publishes
+an issued-target event with the selected partner and the same 852508 order ID.
+For Archer DataB0, coordination then issues peer `coupletarget` (852507); that
+peer target event precedes its own approach construction. Hippo DataB1 creates
+no reciprocal order.
+
+Explicit `coupletarget` (852507) enters the ordinary target-spell path. The direct
+Archer command does not coordinate the peer: after approach/facing it retains
+852507 through bounded age 398 without a rider. Hippo's immediate and explicit
+commands merge. Terminal `4ca180` uses the current caster's position/facing and
+current-rank UnitID when DataB is nonzero; DataB0 waits. Do not reuse legacy
+Couple's two-ready handshake or infer permanent waiting from the bounded trace.
+
+The common producer `40a7a0` creates `d0174` with authored Rng for a far approach
+or FLT_MAX for facing-only work. A separate map changes only both aliases'
+rank-one Rng to 333, retaining opposite DataB values and Area900. Far requests
+from both roles then publish raw 333; near-away requests publish FLT_MAX and
+turn without translation. With Hippo/Archer radii 8/32, actual center distances
+373,373.25,372.75 classify inside/outside/inside and publish
+FLT_MAX/333/FLT_MAX. The equality and inside Hippo cases stay at 1536,1024 and
+merge there. Thus Area selection, cast Rng, collision geometry and DataB have
+separate ownership.
+
+Portable specs and bundles are
+`tools/ghidra/fixtures/retail-coupling-instant-{stock,range}-1.27.json[.gz]`;
+auditors are `tools/ghidra/research/coupling_instant_{stock,range}_evidence.py`.
+Stock preserves 4,617 public records and range preserves 6,900, each comprising
+two observations and an unhooked control. Fifty-four focused evidence tests
+verify full streams, task callers/identities, raw cache values, actual spawn
+poses, source/map pins and semantic rejection controls. A rejected truncated
+stock-v1, unrun stock-v2 and failed range observation remain excluded.
+
+Runtime alias attribution combines stock rows, public ability levels and cache
+fields; no direct runtime alias field was exported. These producer corpora keep
+`engine_parity:false`; lifecycle, pause/resume, callback interleavings and saved
+continuation need their own acceptance before porting those behaviors. See
+[the ongoing producer inventory](retail-pathfinding-engine.md#couple-instant-area-range-and-order-production).

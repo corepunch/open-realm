@@ -291,3 +291,35 @@ This differs from `ability_map.c`, whose rawcode relationships are manually tran
 `python3 tools/galaxy_audit.py <MapScript.galaxy> <NativeLib.galaxy> <LibertyLib.galaxy> <CampaignLib.galaxy>` inventories reachable missing bindings and obvious placeholder candidates without executing scripts. See [Galaxy native coverage](games/starcraft-2/galaxy-native-coverage.md) for exact MPQ extraction commands, audit limits, and the complete Markdown snapshot. Use [bounded runtime traces](games/starcraft-2/galaxy-scripting.md#reproducing-detailed-traces) to distinguish static coverage from executed callbacks.
 
 EOS paired gameplay diagnostics (`game-relay`, `game-crash`, `game-guest-crash`) and the no-login loopback check use the generated Transport map; see [paired gameplay acceptance](architecture/epic-online-services.md#paired-gameplay-acceptance).
+
+## REA shipped-binary inspection
+
+[REA](https://github.com/morluto/rea) is cloned at
+`/run/media/lofcz/ssd_external/GitHub/rea` (reviewed commit
+`3d472bde23b70f9aa7bcf0d28a0cd10e469545e9`). Its authored skill is
+`.agents/skills/reverse-engineer-anything/SKILL.md`. Repository skill version 44
+and released CLI 6.7.0's version 42 instructions differ; use the installed CLI's
+actual help and capabilities.
+
+Portable artifact inspection works through the CLI without MCP registration:
+
+```sh
+npx -y rea-agents@6.7.0 inspect-pe-resources /absolute/path/game.dll --json
+```
+
+A real resource query on the WC3 DLL with SHA256
+`d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`
+completed in 4.20s and retained Evidence
+`ev_de7fc49dae3cac5e150f2812017acad896f781262309d3dccf5409d7dc527dc1`.
+This establishes static PE resource inspection, not native decompilation or
+runtime behavior. The target hash remained unchanged.
+
+For current WC3 native work, reuse the existing Ghidra MCP project
+`/GitHub/wc3-analysis/projects/WC3Audio.gpr`: its `game.dll` has 103,483 analyzed
+functions and retained annotations. REA's Ghidra provider creates an ephemeral
+project and imports a private target copy; it cannot attach that warm project.
+No cold REA import or equivalent-task speed comparison was performed, so no
+native speed improvement is claimed. Existing Ghidra/JDK prerequisites pass;
+no Codex registration or engine installation was needed for the portable query.
+The scoped assessment, commands and limits are preserved at
+`/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/rea-assessment.json`.

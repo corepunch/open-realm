@@ -1,0 +1,712 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "remaining_owner": "TARGET-01.2",
+  "compressed_sha256": "25ee6ecfcb93fff87c17ff21e232eddf77544d662fbe9f02df019b1314938f1c",
+  "files_sha256": {
+    "itemdrop_capture.py": "1e1f4c64f0a5765eb22c0d4185d4777f007a0dc46dc0b96f8209ba1f9ebe2b37",
+    "itemdrop_make_map.py": "053b94ef2d8d212612dadb9cc29f2ee2dde4425bd6967e4f1f27fae515a771c9",
+    "itemdrop_probe.j": "9bab0aaaae973223416452786606682453ef41aee144da813f26c977e094b521",
+    "itemdrop_observer.js": "7ffd6b6060efccc9874329cd0cdcf2906c6cd323fe19f5b24f90e6544df07554",
+    "capture-launch.py": "889539e498a8ca280b587bdda7c7a6681705ff9fcedcbc962a54e4d7af79eac1",
+    "capture-design.json": "783bf56b29ecac0f5706b4db42e79d7223f96999c7cbd1a2576254730c44e684",
+    "source-before-map.json": "ef480ec26bf8786b75fb374a2d9b3d54f217075a360813853c059b6cd4b0bb85",
+    "TargetCouplingInstant193V3.w3m": "3a229f1c103dc69597444bdbac63fd664591ba17da205765ea1d66a9ba96774d",
+    "TargetCouplingInstant193V3.json": "7efd109261a6ba2d84dddc69cb55bda9cec16f608bb2e7f6938bd3da17e6092c",
+    "frozen-sources.json": "b786382bac3080349b745ad39d1b3143afadfdf274ea6d9aca61d7a55ceb9431",
+    "audit_stock.py": "22227b538d2904b23164a9a47d38f5137f228c8d82444ae4f68d2a98a08fd321",
+    "observe1.jsonl": "2b9f5ef641537f36c577e6a2f8df2f555fc48fdc691311ba4bf70a4862c5ed2b",
+    "observe1-preload.txt": "1c0011a155f2ff14a4ad0775dc6bd21c2b41ae1b8195f9d1f8c23381a178498f",
+    "observe2.jsonl": "f7868390b84abe6a38ebe1238eb094adbde5e98d2f5fd3a7ee4cfc62a31c0d7f",
+    "observe2-preload.txt": "c4750ed07c311b9a78931db3017254e953c936a7bf2d2040877fa6bb159c86df",
+    "control1.jsonl": "690b3a4fc5dd7b5dd83623b1cda5eb9519f056cc5e1434e52373ddfa9c16b155",
+    "control1-preload.txt": "d2cb1cb4640b4609b84bc7cd8061081395a3e1dc97a18f0d39da619cc7ed727f",
+    "war3map.w3a": "b76875c50ef704dbbf7f02c982445971d1bbd61aebe2e4b28ddc58a1d66317d5",
+    "war3map.w3u": "7dc6eac32f95125c131fd2dadf8b6cd536e37674d1a4d2efc00db221de71b92c",
+    "(listfile)": "d5293aa7a75a093b18bbafdb45aaba3662d3a99991369fa416e0cb9b895e6e99"
+  },
+  "readable_sources": [
+    "itemdrop_capture.py",
+    "itemdrop_make_map.py",
+    "itemdrop_probe.j",
+    "itemdrop_observer.js",
+    "capture-launch.py",
+    "capture-design.json",
+    "source-before-map.json",
+    "TargetCouplingInstant193V3.json",
+    "frozen-sources.json",
+    "audit_stock.py"
+  ],
+  "public_stream_sha256": "c72fbdff86ff2d2a2d90d49c9c2cac3812f83e2fc2c5c80658531e45e076948e",
+  "public_records": 4617,
+  "archive_selected_rows": {
+    "war3.mpq-AbilityData.slk": {
+      "sha256": "c11d7d92a68324b93f36e7c8a52be3707577b7b02af7cd855171911cbfbf5f75",
+      "rows": []
+    },
+    "War3x.mpq-AbilityData.slk": {
+      "sha256": "6b319a076990e55cbb2e6fc8a19b7a17fba6bde56773dc81b81b7e93886b5a87",
+      "rows": [
+        {
+          "alias": "Aco2",
+          "code": "Acoi",
+          "comments": "Couple Instant (Archer)",
+          "version": "0",
+          "useInEditor": "1",
+          "hero": "0",
+          "item": "0",
+          "sort": "unit",
+          "race": "nightelf",
+          "checkDep": "1",
+          "levels": "1",
+          "reqLevel": "0",
+          "levelSkip": "0",
+          "priority": "0",
+          "targs": "vuln,invu",
+          "Cast1": "0",
+          "Dur1": "0",
+          "HeroDur1": "0",
+          "Cool1": "30",
+          "Cost1": "0",
+          "Area1": "900",
+          "Rng1": "99999",
+          "DataA1": "ehip",
+          "DataB1": "0",
+          "DataC1": "-",
+          "DataD1": "-",
+          "DataE1": "-",
+          "UnitID1": "ehpr",
+          "Cast2": "-",
+          "Dur2": "-",
+          "HeroDur2": "-",
+          "Cool2": "-",
+          "Cost2": "-",
+          "Area2": "-",
+          "Rng2": "-",
+          "DataA2": "-",
+          "DataB2": "-",
+          "DataC2": "-",
+          "DataD2": "-",
+          "DataE2": "-",
+          "Cast3": "-",
+          "Dur3": "-",
+          "HeroDur3": "-",
+          "Cool3": "-",
+          "Cost3": "-",
+          "Area3": "-",
+          "Rng3": "-",
+          "DataA3": "-",
+          "DataB3": "-",
+          "DataC3": "-",
+          "DataD3": "-",
+          "DataE3": "-",
+          "Cast4": "-",
+          "Dur4": "-",
+          "HeroDur4": "-",
+          "Cool4": "-",
+          "Cost4": "-",
+          "Area4": "-",
+          "Rng4": "-",
+          "DataA4": "-",
+          "DataB4": "-",
+          "DataC4": "-",
+          "DataD4": "-",
+          "DataE4": "-",
+          "InBeta": "1"
+        },
+        {
+          "alias": "Aco3",
+          "code": "Acoi",
+          "comments": "Couple Instant (Hippogryph)",
+          "version": "0",
+          "useInEditor": "1",
+          "hero": "0",
+          "item": "0",
+          "sort": "unit",
+          "race": "nightelf",
+          "checkDep": "1",
+          "levels": "1",
+          "reqLevel": "0",
+          "levelSkip": "0",
+          "priority": "0",
+          "targs": "vuln,invu",
+          "Cast1": "0",
+          "Dur1": "0",
+          "HeroDur1": "0",
+          "Cool1": "30",
+          "Cost1": "0",
+          "Area1": "900",
+          "Rng1": "0",
+          "DataA1": "earc",
+          "DataB1": "1",
+          "DataC1": "-",
+          "DataD1": "-",
+          "DataE1": "-",
+          "UnitID1": "ehpr",
+          "Cast2": "-",
+          "Dur2": "-",
+          "HeroDur2": "-",
+          "Cool2": "-",
+          "Cost2": "-",
+          "Area2": "-",
+          "Rng2": "-",
+          "DataA2": "-",
+          "DataB2": "-",
+          "DataC2": "-",
+          "DataD2": "-",
+          "DataE2": "-",
+          "Cast3": "-",
+          "Dur3": "-",
+          "HeroDur3": "-",
+          "Cool3": "-",
+          "Cost3": "-",
+          "Area3": "-",
+          "Rng3": "-",
+          "DataA3": "-",
+          "DataB3": "-",
+          "DataC3": "-",
+          "DataD3": "-",
+          "DataE3": "-",
+          "Cast4": "-",
+          "Dur4": "-",
+          "HeroDur4": "-",
+          "Cool4": "-",
+          "Cost4": "-",
+          "Area4": "-",
+          "Rng4": "-",
+          "DataA4": "-",
+          "DataB4": "-",
+          "DataC4": "-",
+          "DataD4": "-",
+          "DataE4": "-",
+          "InBeta": "1"
+        }
+      ]
+    },
+    "War3Patch.mpq-AbilityData.slk": {
+      "sha256": "ddc360800784f808219bbc2518b16b0f12413082aada2755cc00944adcc31cec",
+      "rows": [
+        {
+          "alias": "Aco2",
+          "code": "Acoi",
+          "comments": "Couple Instant (Archer)",
+          "version": "0",
+          "useInEditor": "1",
+          "hero": "0",
+          "item": "0",
+          "sort": "unit",
+          "race": "nightelf",
+          "checkDep": "1",
+          "levels": "1",
+          "reqLevel": "0",
+          "levelSkip": "0",
+          "priority": "0",
+          "targs1": "vuln,invu",
+          "Cast1": "0",
+          "Dur1": "0",
+          "HeroDur1": "0",
+          "Cool1": "30",
+          "Cost1": "0",
+          "Area1": "900",
+          "Rng1": "99999",
+          "DataA1": "ehip",
+          "DataB1": "0",
+          "DataC1": "-",
+          "DataD1": "-",
+          "DataE1": "-",
+          "DataF1": "-",
+          "DataG1": "-",
+          "DataH1": "-",
+          "DataI1": "-",
+          "UnitID1": "ehpr",
+          "targs2": "_",
+          "Cast2": "-",
+          "Dur2": "-",
+          "HeroDur2": "-",
+          "Cool2": "-",
+          "Cost2": "-",
+          "Area2": "-",
+          "Rng2": "-",
+          "DataA2": "-",
+          "DataB2": "-",
+          "DataC2": "-",
+          "DataD2": "-",
+          "DataE2": "-",
+          "DataF2": "-",
+          "DataG2": "-",
+          "DataH2": "-",
+          "DataI2": "-",
+          "targs3": "_",
+          "Cast3": "-",
+          "Dur3": "-",
+          "HeroDur3": "-",
+          "Cool3": "-",
+          "Cost3": "-",
+          "Area3": "-",
+          "Rng3": "-",
+          "DataA3": "-",
+          "DataB3": "-",
+          "DataC3": "-",
+          "DataD3": "-",
+          "DataE3": "-",
+          "DataF3": "-",
+          "DataG3": "-",
+          "DataH3": "-",
+          "DataI3": "-",
+          "targs4": "_",
+          "Cast4": "-",
+          "Dur4": "-",
+          "HeroDur4": "-",
+          "Cool4": "-",
+          "Cost4": "-",
+          "Area4": "-",
+          "Rng4": "-",
+          "DataA4": "-",
+          "DataB4": "-",
+          "DataC4": "-",
+          "DataD4": "-",
+          "DataE4": "-",
+          "DataF4": "-",
+          "DataG4": "-",
+          "DataH4": "-",
+          "DataI4": "-",
+          "InBeta": "1"
+        },
+        {
+          "alias": "Aco3",
+          "code": "Acoi",
+          "comments": "Couple Instant (Hippogryph)",
+          "version": "0",
+          "useInEditor": "1",
+          "hero": "0",
+          "item": "0",
+          "sort": "unit",
+          "race": "nightelf",
+          "checkDep": "1",
+          "levels": "1",
+          "reqLevel": "0",
+          "levelSkip": "0",
+          "priority": "0",
+          "targs1": "vuln,invu",
+          "Cast1": "0",
+          "Dur1": "0",
+          "HeroDur1": "0",
+          "Cool1": "30",
+          "Cost1": "0",
+          "Area1": "900",
+          "Rng1": "0",
+          "DataA1": "earc",
+          "DataB1": "1",
+          "DataC1": "-",
+          "DataD1": "-",
+          "DataE1": "-",
+          "DataF1": "-",
+          "DataG1": "-",
+          "DataH1": "-",
+          "DataI1": "-",
+          "UnitID1": "ehpr",
+          "targs2": "_",
+          "Cast2": "-",
+          "Dur2": "-",
+          "HeroDur2": "-",
+          "Cool2": "-",
+          "Cost2": "-",
+          "Area2": "-",
+          "Rng2": "-",
+          "DataA2": "-",
+          "DataB2": "-",
+          "DataC2": "-",
+          "DataD2": "-",
+          "DataE2": "-",
+          "DataF2": "-",
+          "DataG2": "-",
+          "DataH2": "-",
+          "DataI2": "-",
+          "targs3": "_",
+          "Cast3": "-",
+          "Dur3": "-",
+          "HeroDur3": "-",
+          "Cool3": "-",
+          "Cost3": "-",
+          "Area3": "-",
+          "Rng3": "-",
+          "DataA3": "-",
+          "DataB3": "-",
+          "DataC3": "-",
+          "DataD3": "-",
+          "DataE3": "-",
+          "DataF3": "-",
+          "DataG3": "-",
+          "DataH3": "-",
+          "DataI3": "-",
+          "targs4": "_",
+          "Cast4": "-",
+          "Dur4": "-",
+          "HeroDur4": "-",
+          "Cool4": "-",
+          "Cost4": "-",
+          "Area4": "-",
+          "Rng4": "-",
+          "DataA4": "-",
+          "DataB4": "-",
+          "DataC4": "-",
+          "DataD4": "-",
+          "DataE4": "-",
+          "DataF4": "-",
+          "DataG4": "-",
+          "DataH4": "-",
+          "DataI4": "-",
+          "InBeta": "1"
+        }
+      ]
+    }
+  },
+  "map_provenance": {
+    "map_sha256": "3a229f1c103dc69597444bdbac63fd664591ba17da205765ea1d66a9ba96774d",
+    "w3u_sha256": "7dc6eac32f95125c131fd2dadf8b6cd536e37674d1a4d2efc00db221de71b92c",
+    "w3u_bytes": 732,
+    "parsed_exact_end": true,
+    "relevant_unit_overrides": false,
+    "uabi_overrides": false,
+    "objects": [
+      {
+        "group": 0,
+        "old": "hfoo",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "Hpal",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "edoc",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "edcm",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "edot",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "edtm",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "ewsp",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 0,
+        "old": "egol",
+        "new": "\u0000\u0000\u0000\u0000",
+        "mods": [
+          {
+            "field": "urpo",
+            "type": 0,
+            "value": 2,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpp",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpg",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          },
+          {
+            "field": "urpr",
+            "type": 0,
+            "value": 17,
+            "suffix": "\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      {
+        "group": 1,
+        "old": "hfoo",
+        "new": "hF00",
+        "mods": [
+          {
+            "field": "ufor",
+            "type": 0,
+            "value": 0,
+            "suffix": "hF00"
+          }
+        ]
+      },
+      {
+        "group": 1,
+        "old": "hfoo",
+        "new": "hF01",
+        "mods": [
+          {
+            "field": "ufor",
+            "type": 0,
+            "value": 1,
+            "suffix": "hF01"
+          }
+        ]
+      },
+      {
+        "group": 1,
+        "old": "hfoo",
+        "new": "hF02",
+        "mods": [
+          {
+            "field": "ufor",
+            "type": 0,
+            "value": 2,
+            "suffix": "hF02"
+          }
+        ]
+      },
+      {
+        "group": 1,
+        "old": "hfoo",
+        "new": "hF03",
+        "mods": [
+          {
+            "field": "ufor",
+            "type": 0,
+            "value": 3,
+            "suffix": "hF03"
+          }
+        ]
+      }
+    ],
+    "independent_schema_checks": [
+      {
+        "capture": "observe1",
+        "records": 1539,
+        "complete_four_record_states": 378,
+        "setup_data_records": 6,
+        "spawn_speed_records": 6,
+        "max_length": 112
+      },
+      {
+        "capture": "observe2",
+        "records": 1539,
+        "complete_four_record_states": 378,
+        "setup_data_records": 6,
+        "spawn_speed_records": 6,
+        "max_length": 112
+      },
+      {
+        "capture": "control1",
+        "records": 1539,
+        "complete_four_record_states": 378,
+        "setup_data_records": 6,
+        "spawn_speed_records": 6,
+        "max_length": 112
+      }
+    ]
+  },
+  "exclusions": [
+    "stock-v1: rejected hook/preload truncation",
+    "stock-v2: frozen but never launched"
+  ],
+  "limits": [
+    "Runtime alias attributed from stock rows/public levels/cache, not direct runtime alias field.",
+    "Stock DataB and Rng correlated; no independent branch-parameter mutation.",
+    "Direct Archer wait bounded through age398; no permanent claim.",
+    "No lifecycle interruptions, callback mutation or complete engine trajectory parity.",
+    "Role0 means neither watched actor, not proven null.",
+    "Hook tick is last public marker; native clock separate."
+  ]
+}

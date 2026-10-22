@@ -1,0 +1,28 @@
+{
+  "scenes": [
+    "Archer immediate near256",
+    "Archer immediate far832",
+    "Hippo immediate near256",
+    "Hippo immediate far832",
+    "Archer explicit target far832",
+    "Hippo explicit target far832"
+  ],
+  "natural_stock": true,
+  "ability_overrides": false,
+  "facing": [
+    180,
+    0
+  ],
+  "coordinates": {
+    "archer_x_near": 1280,
+    "archer_x_far": 704,
+    "hippo_x": 1536,
+    "y": 1024
+  },
+  "seconds_per_scene": 8,
+  "issue_at_seconds": 2,
+  "prefix": "CPI ",
+  "static_predictions": "See ../contract-and-capture-design.json; lifecycle and branch effects remain predictions until repeated native captures.",
+  "setup": "Reht1; public levels Aco2 and Aco3 printed. Literal data labels are checked against observer cache raw rank data, not treated as independent evidence.",
+  "public_marker_guard": "CpEmit rejects all runtime strings over160 chars with length-error; state/setup/result split; every field retained."
+}

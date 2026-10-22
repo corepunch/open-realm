@@ -22399,3 +22399,20 @@ Records are `target192-full/full-checkpoint.json`,
 `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/`.
 Save224 and the network contract are unchanged. TARGET-01.2 stays active with
 25 open leaves.
+
+### Couple Instant area, range and order production
+
+Stock `Aco2`/`Aco3` (`code=Acoi`) use common spell `d0174` approaches. Immediate
+`coupleinstant` (852508) selects by Area, constructs its own approach before its
+selected-target 852508 event, then Archer DataB0 coordinates peer 852507. Explicit
+`coupletarget` (852507) skips that coordination: Archer can approach and wait alone,
+whereas Hippo DataB1 merges at its own pose. Preserve that entry-point distinction
+when implementing public, UI and queued dispatch.
+
+Accepted two-observation/control corpora preserve 4,617 stock and 6,900 authored range 333
+public records. Actual 8/32 radii and center distances 373,373.25,372.75 verify
+inside/outside/inside and FLT_MAX/333/FLT_MAX publication at the cast boundary.
+The 54 focused evidence checks keep native observations separate from engine
+parity. The current engine Acoi handler remains a stub; lifecycle and callback
+acceptance are pending. See [Couple Instant details](hippogryph-couple.md#couple-instant-native-producer).
+No whole leaf closes; TARGET-01.2 remains active with 25 open leaves.
