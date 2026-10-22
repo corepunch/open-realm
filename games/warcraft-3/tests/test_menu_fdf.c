@@ -51,6 +51,9 @@ static vec2_t fake_text_size;
 static handle_t test_mpq_archive;
 static bool hide_expansion_campaign_file;
 static bool test_fs_expansion;
+static char test_saved_game_deleted[256];
+static char test_saved_game_loaded[256];
+static uint32_t test_saved_game_load_count;
 static bool test_skip_menu_transitions;
 static bool test_background_birth_available = true;
 static int test_vid_native = -1;
@@ -60,6 +63,9 @@ static vec2_t test_mouse_pos;
 static cstring_t test_map = "";
 static uint32_t map_reads, texture_releases;
 static char forwarded_command[1024];
+
+static void test_glue_setup(void);
+static void test_glue_tick(uint32_t msec);
 
 static void test_play_music(cstring_t playlist) { (void)playlist; }
 static void test_stop_music(void) {}
@@ -423,6 +429,42 @@ static void test_cvar_set(cstring_t name, cstring_t value) {
     if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
 }
 
+static uint32_t test_list_saved_games(string_t out, uint32_t out_size) {
+    static cstring_t const names[] = { "quick", "chapter-01", "unsafe/name", "stale" };
+    uint32_t used = 0, count = 0;
+    if (!out || !out_size) return 0;
+    out[0] = '\0';
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        size_t const len = strlen(names[i]) + 1;
+        if (!strcmp(names[i], test_saved_game_deleted)) continue;
+        if (len + used + 1 > out_size) break;
+        memcpy(out + used, names[i], len);
+        used += (uint32_t)len;
+        count++;
+    }
+    if (used < out_size) out[used] = '\0';
+    return count;
+}
+
+static bool test_get_saved_game_map(cstring_t name, string_t map, uint32_t map_size) {
+    cstring_t path = NULL;
+    if (!strcmp(name, "quick")) path = "Maps\\FrozenThrone\\Campaign\\Human01.w3m";
+    else if (!strcmp(name, "chapter-01")) path = "Maps\\Campaign\\Human02.w3m";
+    if (!path || !map || !map_size || strlen(path) >= map_size) return false;
+    memcpy(map, path, strlen(path) + 1);
+    return true;
+}
+
+static bool test_delete_saved_game(cstring_t name) {
+    snprintf(test_saved_game_deleted, sizeof(test_saved_game_deleted), "%s", name);
+    return true;
+}
+
+static void test_load_saved_game(cstring_t name) {
+    snprintf(test_saved_game_loaded, sizeof(test_saved_game_loaded), "%s", name);
+    test_saved_game_load_count++;
+}
+
 TEST(menu_fdf, saved_game_map_selects_tft_archives_from_campaign_path) {
     menuImport_t saved = mi;
     bool saved_expansion = test_fs_expansion;
@@ -447,6 +489,86 @@ TEST(menu_fdf, saved_game_map_selects_tft_archives_from_campaign_path) {
     T_STREQ(captured_cvar_name, "");
 
     test_fs_expansion = saved_expansion;
+    mi = saved;
+}
+
+TEST(menu_fdf, saved_game_browser_filters_loads_and_deletes_through_menu_callbacks) {
+    menuImport_t saved = mi;
+    bool saved_expansion = test_fs_expansion;
+    bool saved_skip_transitions = test_skip_menu_transitions;
+    frameDef_t *panel, *list, *load_button;
+    uiMapListState_t *state;
+
+    test_glue_setup();
+    test_saved_game_deleted[0] = test_saved_game_loaded[0] = '\0';
+    test_saved_game_load_count = 0;
+    test_fs_expansion = false;
+    mi.ListSaves = test_list_saved_games;
+    mi.GetSaveMap = test_get_saved_game_map;
+    mi.DeleteSave = test_delete_saved_game;
+    mi.LoadSavedGame = test_load_saved_game;
+    mi.Cvar_Set = test_cvar_set;
+    T_ASSERT(UI_EnsureFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf"));
+
+    test_skip_menu_transitions = true;
+    M_ShowSinglePlayerMenu();
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &singlePlayerMenuScreen);
+    SinglePlayerMenu_ShowSavedGames();
+
+    panel = UI_FindFrame("SavedGamesPanel");
+    list = UI_FindFrame("SavedGamesList");
+    T_NOT_NULL(panel);
+    T_NOT_NULL(list);
+    if (!panel || !list) {
+        mi = saved;
+        return;
+    }
+    T_ASSERT(!panel->hidden);
+    T_ASSERT(UI_FindFrame("MainPanel") && UI_FindFrame("MainPanel")->hidden);
+    load_button = UI_FindChildFrame(UI_FindFrame("SavedGamesLoad"), "LoadSavedButton");
+    T_NOT_NULL(load_button);
+    if (!load_button) {
+        mi = saved;
+        return;
+    }
+    T_STREQ(load_button->OnClick, "menu_single_player_save_load");
+    state = list->MapListControl.State;
+    T_NOT_NULL(state);
+    if (!state) {
+        mi = saved;
+        return;
+    }
+    T_EQ(state->count, 2);
+    T_STREQ(state->items[0].name, "Quick Save");
+    T_STREQ(state->items[0].path, "quick");
+    T_STREQ(state->items[1].path, "chapter-01");
+
+    SinglePlayerMenu_SelectSavedGame(1);
+    SinglePlayerMenu_LoadSelectedSave();
+    T_STREQ(test_saved_game_loaded, "chapter-01");
+    T_ASSERT(!test_fs_expansion);
+    SinglePlayerMenu_SelectSavedGame(0);
+    SinglePlayerMenu_LoadSelectedSave();
+    T_STREQ(test_saved_game_loaded, "quick");
+    T_ASSERT(test_fs_expansion);
+    T_EQ(test_saved_game_load_count, 2);
+
+    SinglePlayerMenu_SelectSavedGame(1);
+    SinglePlayerMenu_ConfirmDeleteSave();
+    T_ASSERT(UI_FindFrame("SavedGameDeleteModal") != NULL);
+    SinglePlayerMenu_DeleteSelectedSave();
+    T_STREQ(test_saved_game_deleted, "chapter-01");
+    T_EQ(state->count, 1);
+    T_STREQ(state->items[0].path, "quick");
+
+    Cmd_ExecuteString("menu_ingame");
+    test_fs_expansion = saved_expansion;
+    test_skip_menu_transitions = saved_skip_transitions;
+    UI_ResetGlueSceneModels();
+    UI_ClearTemplates();
+    UI_ClearTextures();
     mi = saved;
 }
 
