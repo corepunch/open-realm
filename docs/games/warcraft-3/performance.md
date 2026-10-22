@@ -2,6 +2,28 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## October 22 ARM64 Moon Well class-lookup caching
+
+`perf` after the Moon Well dispatch guard found two `S_MoonWellMayUpdate`
+addresses with about 1.19% combined exclusive CPU-cycle share. Although the
+negative guard avoids costly ownership resolution, it still called
+`G_AbilityCode` for every authored or added ability on each update tick.
+
+Moon Well classification now uses a small, direct-mapped table keyed by the
+four-character ability rawcode and `G_AbilityDataGeneration()`. Both positive
+(custom aliases inheriting `Ambt`) and negative classifications are cached;
+collisions are checked against the complete key. The generation changes on
+ability SLK replacement, map ability override replacement, unit-data startup
+and shutdown, so cached classifications cannot outlive those definitions.
+
+Unit ownership is *not* cached: the current native ability list and runtime
+additions are still inspected each tick, and `moon_well_alias` retains its
+removed-skill check. Thus runtime additions/removals, morphs and save/load need
+no new invalidation, persistent edict state or serialization. `t_spell.c`
+covers reuse across units, metadata replacement in both directions, and hash
+collisions; prior dispatch and effect-lifecycle tests remain in place. Measure
+actual frame times separately; this optimisation does not promise an FPS gain.
+
 ## October 22 ARM64 Moon Well update filtering
 
 The latest ARM64 profile, after the ability-update dispatch patch, still

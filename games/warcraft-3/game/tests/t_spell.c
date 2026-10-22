@@ -13,6 +13,8 @@ uint32_t S_TestMoonWellMissingDataWarningCalls(void);
 uint32_t S_TestMoonWellAlias(edict_t const *);
 void S_TestResetMoonWellUpdateCalls(void);
 uint32_t S_TestMoonWellUpdateCalls(void);
+void S_TestResetMoonWellClassResolves(void);
+uint32_t S_TestMoonWellClassResolves(void);
 
 static pfWriteType_t terrain_deform_capture_types[32];
 static int32_t terrain_deform_capture_values[32];
@@ -2749,6 +2751,97 @@ TEST(wc3_spell, moon_well_dispatch_preserves_custom_alias_and_runtime_changes) {
     T_ASSERT(G_ActorRemoveSkill(runtime, custom));
     T_ASSERT(!S_MoonWellMayUpdate(runtime));
     T_EQ(S_TestMoonWellAlias(runtime), 0);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* The expensive G_AbilityCode lookup is shared between different units
+ * with the same custom or unrelated ability. The unit-list scan remains live. */
+TEST(wc3_spell, moon_well_class_cache_reuses_positive_and_negative_rawcodes) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"Ambt\"\n"
+        "C;Y3;X1;K\"Afoo\"\nC;Y3;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t native = { .abilList = "Afoo,AqW1" };
+    UnitAbilities_t unrelated = { .abilList = "Afoo" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *first = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+    edict_t *second = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+
+    first->data.UnitAbilities = &native;
+    second->data.UnitAbilities = &unrelated;
+    S_TestResetMoonWellClassResolves();
+    T_ASSERT(S_MoonWellMayUpdate(first));
+    T_EQ(S_TestMoonWellClassResolves(), 2); /* Afoo and AqW1 */
+    T_ASSERT(!S_MoonWellMayUpdate(second));
+    T_ASSERT(S_MoonWellMayUpdate(first));
+    T_EQ(S_TestMoonWellAlias(first), MAKEFOURCC('A','q','W','1'));
+    T_EQ(S_TestMoonWellClassResolves(), 2); /* no repeat metadata lookups */
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Changing a custom ability's parent requires a fresh classification even
+ * for rawcodes cached earlier; the generation also invalidates negatives. */
+TEST(wc3_spell, moon_well_class_cache_invalidates_on_ability_data_replacement) {
+    const char moon_slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"Ambt\"\nE\n";
+    const char other_slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"Afoo\"\nE\n";
+    uint32_t const custom = MAKEFOURCC('A','q','W','1');
+    UnitAbilities_t abilities = { .abilList = "AqW1" };
+    slkTestData_t *moon = parse_slk_string(moon_slk);
+    slkTestData_t *other = parse_slk_string(other_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", moon);
+    slkTestData_t *replaced, *discarded_other, *discarded_moon;
+    edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+
+    unit->data.UnitAbilities = &abilities;
+    S_TestResetMoonWellClassResolves();
+    T_ASSERT(S_MoonWellMayUpdate(unit));
+    T_EQ(S_TestMoonWellClassResolves(), 1);
+    replaced = G_SetSLKRows("AbilityData", other);
+    T_ASSERT(!S_MoonWellMayUpdate(unit));
+    T_EQ(S_TestMoonWellClassResolves(), 2);
+    T_EQ(G_AbilityCode(custom), MAKEFOURCC('A','f','o','o'));
+    discarded_other = G_SetSLKRows("AbilityData", replaced);
+    T_ASSERT(S_MoonWellMayUpdate(unit));
+    T_EQ(S_TestMoonWellClassResolves(), 3);
+    discarded_moon = G_SetSLKRows("AbilityData", old);
+    free_slk_rows(discarded_other);
+    free_slk_rows(discarded_moon);
+    free_slk_rows(replaced);
+    free_slk_rows(old);
+    free_slk_rows(moon);
+    free_slk_rows(other);
+}
+
+/* These distinct rawcodes collide in the direct-mapped hash. The key check
+ * must prevent a cached non-Moon-Well alias from hiding the Moon Well. */
+TEST(wc3_spell, moon_well_class_cache_handles_hash_collisions) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"Ambt\"\n"
+        "C;Y3;X1;K\"AqWa\"\nC;Y3;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t moon_list = { .abilList = "AqW1" };
+    UnitAbilities_t other_list = { .abilList = "AqWa" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+
+    S_TestResetMoonWellClassResolves();
+    unit->data.UnitAbilities = &moon_list;
+    T_ASSERT(S_MoonWellMayUpdate(unit));
+    unit->data.UnitAbilities = &other_list;
+    T_ASSERT(!S_MoonWellMayUpdate(unit));
+    unit->data.UnitAbilities = &moon_list;
+    T_ASSERT(S_MoonWellMayUpdate(unit));
+    T_EQ(S_TestMoonWellClassResolves(), 3); /* same hash, different keys */
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
