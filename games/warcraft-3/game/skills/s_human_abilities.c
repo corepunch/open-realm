@@ -93,11 +93,12 @@ bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
 
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
 static void avatar_expire_internal(edict_t *unit, bool remove_buff) {
-    if (!unit || !unit->avatar || !unit->avatar->level) return;
-    G_ApplyTemporaryArmorBonus(unit, -unit->avatar->armor);
-    G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar->damage);
-    unit->unit_state->temporary_health_bonus -= unit->avatar->health;
-    unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
+    avatar_t *avatar = G_GetAvatar(unit);
+    if (!avatar || !avatar->level) return;
+    G_ApplyTemporaryArmorBonus(unit, -avatar->armor);
+    G_ApplyTemporaryAttackDamageBonus(unit, -(float)avatar->damage);
+    unit->unit_state->temporary_health_bonus -= avatar->health;
+    unit->health.max_value = MAX(1.0f, unit->health.max_value - avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
     G_FreeAvatar(unit);
     if (remove_buff) human_remove_status(unit, BZ_AVATAR_BUFF);
@@ -113,7 +114,8 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
     wc3_status_apply_check_t check;
     (void)spell;
     (void)target; unit_updatestatuses(caster);
-    if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
+    avatar_t *avatar = G_GetAvatar(caster);
+    if (!S_SpellIsAliveTarget(caster) || (avatar && avatar->level)) return false;
     check = unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 });
     if (check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
@@ -123,19 +125,19 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
 static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     (void)target;
-    if ((caster->avatar && caster->avatar->level)) return;
+    avatar_t *avatar = G_GetAvatar(caster);
+    if (avatar && avatar->level) return;
     if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
-    if (!caster->avatar) caster->avatar = G_AllocAvatar();
-    assert(caster->avatar);
-    caster->avatar->level = rank; caster->avatar->armor = S_SpellData(spell->code, rank, 1);
-    caster->avatar->health = S_SpellData(spell->code, rank, 2); caster->avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
-    G_ApplyTemporaryArmorBonus(caster, caster->avatar->armor);
-    G_ApplyTemporaryAttackDamageBonus(caster, (float)caster->avatar->damage);
-    caster->unit_state->temporary_health_bonus += caster->avatar->health;
-    caster->health.max_value = MAX(1.0f, caster->health.max_value + caster->avatar->health);
-    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar->health)));
+    avatar = G_AddComponent(caster, COMPONENT_AVATAR);
+    avatar->level = rank; avatar->armor = S_SpellData(spell->code, rank, 1);
+    avatar->health = S_SpellData(spell->code, rank, 2); avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
+    G_ApplyTemporaryArmorBonus(caster, avatar->armor);
+    G_ApplyTemporaryAttackDamageBonus(caster, (float)avatar->damage);
+    caster->unit_state->temporary_health_bonus += avatar->health;
+    caster->health.max_value = MAX(1.0f, caster->health.max_value + avatar->health);
+    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, avatar->health)));
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 
@@ -256,9 +258,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
 }
 
 /* Record presence is the authoritative Polymorph state for orders and JASS. */
-bool S_UnitPolymorphed(edict_t const *unit) {
-    return unit && unit->polymorph;
-}
+bool S_UnitPolymorphed(edict_t const *unit) { return G_GetPolymorph(unit) != NULL; }
 
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
 static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint32_t code) {
@@ -312,11 +312,12 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
 /* Restore the target's saved presentation and movement state when Polymorph ends. */
 void S_PolymorphRemove(edict_t *unit) {
     gameClient_t *client;
+    polymorph_t const *morph = G_GetPolymorph(unit);
 
-    if (!unit || !unit->polymorph) return;
-    unit->s.model = unit->polymorph->original_model;
-    unit->s.scale = unit->polymorph->original_scale;
-    unit->unitinfo.MoveSpeed = unit->polymorph->original_move_speed;
+    if (!morph) return;
+    unit->s.model = morph->original_model;
+    unit->s.scale = morph->original_scale;
+    unit->unitinfo.MoveSpeed = morph->original_move_speed;
     G_FreePolymorph(unit);
     unit->animation = NULL;
     if (!M_IsDead(unit)) {
@@ -339,6 +340,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     UnitUI_t const *ui;
     UnitBalance_t const *balance;
     PATHSTR model_filename;
+    polymorph_t *morph;
     int model;
     float duration;
 
@@ -376,17 +378,16 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
         return;
     }
 
-    if (!st.entity->polymorph) {
-        st.entity->polymorph = G_AllocPolymorph();
-        assert(st.entity->polymorph);
-        st.entity->polymorph->original_model = st.entity->s.model;
-        st.entity->polymorph->original_scale = st.entity->s.scale;
-        st.entity->polymorph->original_move_speed = st.entity->unitinfo.MoveSpeed;
+    morph = G_GetPolymorph(st.entity);
+    if (!morph) { /* The first application owns the inverse; refreshes keep that snapshot. */
+        morph = G_AddComponent(st.entity, COMPONENT_POLYMORPH);
+        morph->original_model = st.entity->s.model;
+        morph->original_scale = st.entity->s.scale;
+        morph->original_move_speed = st.entity->unitinfo.MoveSpeed;
     }
-    assert(st.entity->polymorph);
-    st.entity->polymorph->ability = spell->code;
-    st.entity->polymorph->buff = buff_code;
-    st.entity->polymorph->form_type = form_type;
+    morph->ability = spell->code;
+    morph->buff = buff_code;
+    morph->form_type = form_type;
     st.entity->s.model = model;
     st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
     if (balance->speed > 0.0f) st.entity->unitinfo.MoveSpeed = balance->speed;
@@ -607,9 +608,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = human_ability_think; human_ability_think(thinker);
 }
@@ -852,5 +852,6 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) avatar_expire_internal(unit, false);
-    if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
+    polymorph_t const *morph = G_GetPolymorph(unit);
+    if (morph && code == morph->buff) S_PolymorphRemove(unit);
 }

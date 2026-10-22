@@ -46,14 +46,15 @@ static void raven_play_morph(edict_t *unit, bool raven_form) {
 
 /* Takeoff is independent of the active order once the destination form has been installed. */
 static void raven_begin_rise(edict_t *unit) {
-    assert(unit && unit->raven);
-    if (unit->raven->rise_state != RAVEN_RISE_AFTER_MORPH) return;
-    if (unit->raven->rise_duration > 0.0f) {
-        unit->raven->rise_start = (float)G_Time();
-        unit->raven->rise_state = RAVEN_RISE_ACTIVE;
+    raven_t *raven = G_GetRaven(unit);
+    assert(unit && raven);
+    if (raven->rise_state != RAVEN_RISE_AFTER_MORPH) return;
+    if (raven->rise_duration > 0.0f) {
+        raven->rise_start = (float)G_Time();
+        raven->rise_state = RAVEN_RISE_ACTIVE;
     } else {
-        unit->unitinfo.FlyHeight = unit->raven->fly_height;
-        unit->raven->rise_state = RAVEN_RISE_NONE;
+        unit->unitinfo.FlyHeight = raven->fly_height;
+        raven->rise_state = RAVEN_RISE_NONE;
         M_CheckGround(unit);
         gi.LinkEntity(unit);
     }
@@ -69,18 +70,19 @@ static void raven_forward_end(edict_t *unit) {
 /* Advance Raven Form's authored takeoff height independently from animation. */
 static void raven_update(edict_t *unit) {
     float fraction;
-    if (!unit || !unit->raven) return;
+    raven_t *raven = G_GetRaven(unit);
+    if (!raven) return;
     /* Prologue01 replaces Morph with Move after 0.5s. Its endfunc then never runs;
      * finish the pending takeoff transition without replacing the new order. */
-    if (unit->raven->rise_state == RAVEN_RISE_AFTER_MORPH && unit->currentmove != &raven_morph)
+    if (raven->rise_state == RAVEN_RISE_AFTER_MORPH && unit->currentmove != &raven_morph)
         raven_begin_rise(unit);
-    if (unit->raven->rise_state != RAVEN_RISE_ACTIVE) return;
-    fraction = ((float)G_Time() - unit->raven->rise_start) / (unit->raven->rise_duration * 1000.0f);
+    if (raven->rise_state != RAVEN_RISE_ACTIVE) return;
+    fraction = ((float)G_Time() - raven->rise_start) / (raven->rise_duration * 1000.0f);
     if (fraction >= 1.0f) {
-        unit->unitinfo.FlyHeight = unit->raven->fly_height;
-        unit->raven->rise_state = RAVEN_RISE_NONE;
+        unit->unitinfo.FlyHeight = raven->fly_height;
+        raven->rise_state = RAVEN_RISE_NONE;
     } else {
-        unit->unitinfo.FlyHeight = unit->raven->fly_height * MAX(0.0f, fraction);
+        unit->unitinfo.FlyHeight = raven->fly_height * MAX(0.0f, fraction);
     }
     M_CheckGround(unit);
     gi.LinkEntity(unit);
@@ -141,13 +143,12 @@ static bool raven_form_order(edict_t *unit, bool raven_form) {
         return false;
     }
 
-    if (!unit->raven) unit->raven = G_AllocRaven();
-    assert(unit->raven);
-    unit->raven->rise_state = RAVEN_RISE_NONE;
+    raven_t *raven = G_AddComponent(unit, COMPONENT_RAVEN);
+    raven->rise_state = RAVEN_RISE_NONE;
     if (raven_form) {
-        unit->raven->fly_height = unit->unitinfo.FlyHeight;
-        unit->raven->rise_duration = form.ability->level[0].data[2].number;
-        unit->raven->rise_state = RAVEN_RISE_AFTER_MORPH;
+        raven->fly_height = unit->unitinfo.FlyHeight;
+        raven->rise_duration = form.ability->level[0].data[2].number;
+        raven->rise_state = RAVEN_RISE_AFTER_MORPH;
         unit->unitinfo.FlyHeight = 0.0f;
         M_CheckGround(unit);
         gi.LinkEntity(unit);

@@ -249,9 +249,8 @@ static edict_t *mine_destructable(float life, float x, float y, TARGTYPE type) {
 	ent->s.origin2 = MAKE(vec2_t, x, y);
 	ent->targtype = type;
 	ent->health.value = ent->health.max_value = life;
-	if (!ent->destructable) ent->destructable = G_AllocDestructable();
-	assert(ent->destructable);
-	ent->destructable->item_table = (uint32_t)-1;
+	G_AddComponent(ent, COMPONENT_DESTRUCTABLE);
+	G_GetDestructable(ent)->item_table = (uint32_t)-1;
 	return ent;
 }
 

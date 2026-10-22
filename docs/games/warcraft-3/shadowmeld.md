@@ -10,7 +10,7 @@ OpenRealm models Night Elf Shadow Meld as conditional gameplay invisibility, sep
 
 ## State and lifecycle
 
-`edict_t.shadowmeld` stores the uninterrupted fade start, fade/active state, and whether the explicit Hide order is active. Scalar state rides in the raw edict save record; load rejects incompatible edict layouts using the saved `sizeof(edict_t)` header field.
+The `shadowMeld_t` component (`G_GetShadowMeld`, attached by the passive update or the Hide order) stores the uninterrupted fade start, fade/active state, and whether the explicit Hide order is active. Scalar state persists as a component payload in the typed pool section (see [pooled entity state](pooled-entity-state.md#optional-components)); load rejects older format versions.
 
 Both `Ashm` and `Ahid` participate in passive Shadow Meld eligibility: effective night plus an idle/stationary unit. The passive fade duration comes from each effect's authored `Shm1` (`DataA`) value in seconds, including variant and custom rows; an absent or invalid value prevents activation and emits a bounded diagnostic. Losing eligibility resets the fade; daylight removes active Shadow Meld. Effective night comes from `G_IsNight()`, so normal and scripted/false time share the same authoritative clock.
 

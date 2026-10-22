@@ -137,7 +137,16 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 104 replaces independent unit booleans with flags and removes the derived stun mirror. */
 /* Version 105 extracts unit feature records from the base edict. */
 /* Version 106 guards Wander private destination ownership across entity-slot reuse. */
-static uint32_t const save_version = 106;
+/* Version 107 replaces Way Gate and Avatar edict pointers with typed component attachments. */
+/* Version 108 moves Polymorph, Raven Form, Ensnare and artillery profiles onto the component list. */
+/* Version 109 moves Sleep, Rally, Sacrifice, Unsummon and Blight Growth onto the component list. */
+/* Version 110 moves Shadow Meld, Militia, Hero revival and worker build/repair state onto the component list. */
+/* Version 111 moves AncientRoot, GoldMine, MineOverlay, AcolyteMine, Cargo, SoulTrap onto the component list. */
+/* Version 112 moves Research, Food, Stock onto the component list. */
+/* Version 113 moves Channel onto the component list. */
+/* Version 114 moves Destructable, Construction onto the component list. */
+/* Version 115 moves Item onto the component list. */
+static uint32_t const save_version = 115;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -989,40 +998,13 @@ static field_t const sound_fields[] = {
 
 field_t edict_fields[] = {
     F(edict_s, summon_ability, F_INT),
-    F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, rally, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, food, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, buildwork, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, revival, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, sacrifice, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, unsummon, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, shadowmeld, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, polymorph, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, raven, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, blight_growth, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, ensnare, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, goldmine, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, mineoverlay, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, acolyte_mine, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, item, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, destructable, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, cargo, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, waygate, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, artillery, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, avatar, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, sleep, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, soultrap, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, missile, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, inventory, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, harvest, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, vision, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, channel, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, movement, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, route, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, wander, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2182,6 +2164,7 @@ typedef struct {
     field_t const *fields;
     void *(*alloc)(void);
     uint32_t capacity;
+    componentId_t component; /* zero for direct attachments; otherwise exact saved component type */
 } savePool_t;
 
 static field_t const scalar_pool_fields[] = { { NULL, 0, 0, 0, 0, 0 } };
@@ -2230,46 +2213,53 @@ static savePool_t const save_pools[] = {
     { "movement", offsetof(edict_t, movement), sizeof(movement_t), movement_fields, SaveAllocMovement, MAX_ENTITIES },
     { "route", offsetof(edict_t, route), sizeof(routeCache_t), route_fields, SaveAllocRoute, MAX_ENTITIES },
     { "wander", offsetof(edict_t, wander), sizeof(wander_t), wander_fields, SaveAllocWander, MAX_ENTITIES },
-    { "construction", offsetof(edict_t, construction), sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP },
-    { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP },
-    { "rally", offsetof(edict_t, rally), sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP },
-    { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP },
-    { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP },
-    { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP },
-    { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP },
-    { "unsummon", offsetof(edict_t, unsummon), sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP },
-    { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP },
-    { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP },
-    { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP },
-    { "raven", offsetof(edict_t, raven), sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP },
-    { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP },
-    { "ensnare", offsetof(edict_t, ensnare), sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP },
-    { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP },
-    { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP },
-    { "mineoverlay", offsetof(edict_t, mineoverlay), sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP },
-    { "acolyte_mine", offsetof(edict_t, acolyte_mine), sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP },
-    { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP },
-    { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP },
-    { "cargo", offsetof(edict_t, cargo), sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP },
-    { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP },
-    { "waygate", offsetof(edict_t, waygate), sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP },
-    { "artillery", offsetof(edict_t, artillery), sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP },
-    { "avatar", offsetof(edict_t, avatar), sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP },
-    { "sleep", offsetof(edict_t, sleep), sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP },
-    { "soultrap", offsetof(edict_t, soultrap), sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP },
+    { "construction", 0, sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP, COMPONENT_CONSTRUCTION },
+    { "research", 0, sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP, COMPONENT_RESEARCH },
+    { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
+    { "food", 0, sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP, COMPONENT_FOOD },
+    { "buildwork", 0, sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP, COMPONENT_BUILDWORK },
+    { "revival", 0, sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP, COMPONENT_REVIVAL },
+    { "sacrifice", 0, sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP, COMPONENT_SACRIFICE },
+    { "unsummon", 0, sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP, COMPONENT_UNSUMMON },
+    { "shadowmeld", 0, sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP, COMPONENT_SHADOWMELD },
+    { "militia", 0, sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP, COMPONENT_MILITIA },
+    { "polymorph", 0, sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP, COMPONENT_POLYMORPH },
+    { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
+    { "blight_growth", 0, sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
+    { "ensnare", 0, sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP, COMPONENT_ENSNARE },
+    { "ancient_root", 0, sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP, COMPONENT_ANCIENT_ROOT },
+    { "goldmine", 0, sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP, COMPONENT_GOLDMINE },
+    { "mineoverlay", 0, sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP, COMPONENT_MINE_OVERLAY },
+    { "acolyte_mine", 0, sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP, COMPONENT_ACOLYTE_MINE },
+    { "item", 0, sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP, COMPONENT_ITEM },
+    { "destructable", 0, sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP, COMPONENT_DESTRUCTABLE },
+    { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
+    { "stock", 0, sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP, COMPONENT_STOCK },
+    { "waygate", 0, sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
+    { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
+    { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
+    { "sleep", 0, sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP, COMPONENT_SLEEP },
+    { "soultrap", 0, sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP, COMPONENT_SOULTRAP },
     { "unit_state", offsetof(edict_t, unit_state), sizeof(unitState_t), unit_state_fields, SaveAllocUnitState, MAX_ENTITIES },
     { "sound", offsetof(edict_t, sound), sizeof(unitSounds_t), sound_fields, SaveAllocSounds, MAX_ENTITIES },
     { "missile", offsetof(edict_t, missile), sizeof(attackMissile_t), missile_fields, SaveAllocMissile, MAX_ENTITIES },
     { "inventory", offsetof(edict_t, inventory), sizeof(inventory_t), inventory_fields, SaveAllocInventory, MAX_ENTITIES },
     { "harvest", offsetof(edict_t, harvest), sizeof(harvest_t), harvest_fields, SaveAllocHarvest, MAX_ENTITIES },
     { "vision", offsetof(edict_t, vision), sizeof(visibility_t), vision_fields, SaveAllocVisibility, MAX_ENTITIES },
-    { "channel", offsetof(edict_t, channel), sizeof(channel_t), channel_fields, SaveAllocChannel, LIFECYCLE_POOL_CAP },
+    { "channel", 0, sizeof(channel_t), channel_fields, SaveAllocChannel, LIFECYCLE_POOL_CAP, COMPONENT_CHANNEL },
 };
 
 static void *SavePoolSlot(edict_t const *ent, savePool_t const *pool) {
+    if (pool->component) return G_GetComponent(ent, pool->component);
     void *slot;
     memcpy(&slot, (uint8_t const *)ent + pool->offset, sizeof(slot));
     return slot;
+}
+
+/* Both restore and fixtures attach through the same owner contract. */
+static void AttachPoolSlot(edict_t *ent, savePool_t const *pool, void *slot) {
+    if (pool->component) G_AttachComponent(ent, slot, pool->component);
+    else memcpy((uint8_t *)ent + pool->offset, &slot, sizeof(slot));
 }
 
 static bool WritePool(FILE *f, savePool_t const *pool) {
@@ -2284,6 +2274,9 @@ static bool WritePool(FILE *f, savePool_t const *pool) {
         uint32_t index = i;
         if (!ok || !g_edicts[i].inuse || !slot) continue;
         memcpy(temp, slot, pool->size);
+        /* The owner list link is process state for every component pool; the
+         * payload tables only describe fixups and type-specific exclusions. */
+        if (pool->component) ((component_t *)temp)->next = NULL;
         ClearRuntimeFields(temp, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; ok && field->name; field++)
             ok = WriteField1(field, temp);
@@ -2301,11 +2294,13 @@ static bool ReadPool(FILE *f, savePool_t const *pool) {
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.num_edicts ||
             !g_edicts[index].inuse || SavePoolSlot(g_edicts + index, pool)) return false;
         void *slot = pool->alloc();
-        memcpy((uint8_t *)(g_edicts + index) + pool->offset, &slot, sizeof(slot));
         if (!LoadBytes(f, slot, pool->size)) return false;
+        if (pool->component) ((component_t *)slot)->next = NULL;
         ClearRuntimeFields(slot, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; field->name; field++)
             if (!ReadField(field, slot)) return false;
+        if (pool->component && ((component_t *)slot)->id != pool->component) return false;
+        AttachPoolSlot(g_edicts + index, pool, slot);
     }
     return true;
 }
@@ -2439,9 +2434,10 @@ static void RebindEntityModels(edict_t *ent) {
     }
     if (ent->data.UnitUI->modelFile) {
         G_NormalizeModelFilename(ent->data.UnitUI->modelFile, model_filename, sizeof(model_filename));
-        if (ent->polymorph) {
-            ent->polymorph->original_model = G_RegisterModel(model_filename);
-            G_NormalizeModelFilename(G_UnitUI(ent->polymorph->form_type)->modelFile, model_filename, sizeof(model_filename));
+        polymorph_t *morph = G_GetPolymorph(ent);
+        if (morph) {
+            morph->original_model = G_RegisterModel(model_filename);
+            G_NormalizeModelFilename(G_UnitUI(morph->form_type)->modelFile, model_filename, sizeof(model_filename));
         }
         ent->s.model = G_RegisterModel(model_filename);
     }
@@ -2590,7 +2586,7 @@ bool ReadGame(cstring_t filename) {
         edict_t *ent = g_edicts + i;
         if (!ent->inuse) continue;
         if (ent->class_id) RebindEntityModels(ent);
-        if (ent->destructable) G_RestoreDestructableData(ent);
+        if (G_GetDestructable(ent)) G_RestoreDestructableData(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
     /* SV_Map baked obstacles from the map's initial placements. Restored
@@ -2832,9 +2828,9 @@ TEST(wc3_save, polymorphed_unit_rebinds_form_and_original_models_after_load) {
     old = G_SetSLKRows("UnitUI", rows);
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
     unit->s.flags |= EF_UNIT;
-    unit->polymorph = G_AllocPolymorph();
-    unit->polymorph->form_type = MAKEFOURCC('o', 'p', 'e', 'o');
-    unit->polymorph->original_model = 4;
+    polymorph_t *morph = G_AddComponent(unit, COMPONENT_POLYMORPH);
+    morph->form_type = MAKEFOURCC('o', 'p', 'e', 'o');
+    morph->original_model = 4;
     unit->s.model = 5;
     T_ASSERT(WriteGame(filename));
     T_ASSERT(save_test_read_with_model_stub(filename));
@@ -2842,8 +2838,9 @@ TEST(wc3_save, polymorphed_unit_rebinds_form_and_original_models_after_load) {
     G_NormalizeModelFilename(G_UnitUI(MAKEFOURCC('o', 'p', 'e', 'o'))->modelFile, form, sizeof(form));
     T_ASSERT(original[0] && form[0] && strcmp(original, form));
     T_ASSERT(save_test_model_index(original, false) > 0 && save_test_model_index(form, false) > 0);
-    T_NOT_NULL(unit->polymorph);
-    if (unit->polymorph) T_EQ(unit->polymorph->original_model, save_test_model_index(original, false));
+    morph = G_GetPolymorph(unit);
+    T_NOT_NULL(morph);
+    if (morph) T_EQ(morph->original_model, save_test_model_index(original, false));
     T_EQ(unit->s.model, save_test_model_index(form, false));
     G_SetSLKRows("UnitUI", old); free_slk_rows(rows);
     remove(filename);
@@ -3079,16 +3076,16 @@ TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
     deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
     deck->s.class_id = deck->class_id;
     G_BindEntityData(deck);
-    deck->destructable = G_AllocDestructable();
-    deck->destructable->occluder_height = 256.0f;
+    G_AddComponent(deck, COMPONENT_DESTRUCTABLE);
+    G_GetDestructable(deck)->occluder_height = 256.0f;
     deck->queued_animation = G_InternAnimationName("stand third");
     T_ASSERT(WriteGame(filename));
-    deck->destructable->occluder_height = 0.0f;
+    G_GetDestructable(deck)->occluder_height = 0.0f;
     deck->queued_animation = "";
     T_ASSERT(ReadGame(filename));
     deck = &g_edicts[index];
-    T_NOT_NULL(deck->destructable);
-    if (deck->destructable) T_FEQ(deck->destructable->occluder_height, 256.0f, 0.001f);
+    T_NOT_NULL(G_GetDestructable(deck));
+    if (G_GetDestructable(deck)) T_FEQ(G_GetDestructable(deck)->occluder_height, 256.0f, 0.001f);
     T_STREQ(deck->queued_animation, "stand third");
     remove(filename);
     G_SetSLKRows("DestructableData", saved);
@@ -3198,7 +3195,46 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
 #endif
 
 #ifdef BZ_TESTS
-/* A failed restoration must not expose earlier pools or a half-read final record. */
+/* Saved payloads retain exact type identity but never process-owned list links. */
+TEST(wc3_save, component_links_are_transient_and_wrong_type_is_rejected) {
+    reset_entities();
+    edict_t *unit = G_Spawn();
+    G_AddComponent(unit, COMPONENT_AVATAR);
+    waygate_t *gate = G_AddComponent(unit, COMPONENT_WAYGATE);
+    gate->destination = (vec2_t){128, 256};
+    T_NOT_NULL(gate->component.next);
+    savePool_t const *pool = NULL;
+    FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0]))
+        if (save_pools[i].component == COMPONENT_WAYGATE) pool = save_pools + i;
+    T_NOT_NULL(pool);
+    FILE *f = tmpfile();
+    T_NOT_NULL(f);
+    if (!f || !pool) { if (f) fclose(f); return; }
+    T_ASSERT(WritePool(f, pool));
+    rewind(f);
+    uint32_t count, index;
+    waygate_t saved;
+    T_ASSERT(LoadBytes(f, &count, sizeof(count)));
+    T_ASSERT(LoadBytes(f, &index, sizeof(index)));
+    T_ASSERT(LoadBytes(f, &saved, sizeof(saved)));
+    T_EQ(count, 1); T_EQ(index, unit - g_edicts);
+    T_EQ(saved.component.id, COMPONENT_WAYGATE);
+    T_NULL(saved.component.next);
+    T_NOT_NULL(gate->component.next); /* Saving must leave the live owner list intact. */
+    saved.component.id = COMPONENT_AVATAR;
+    rewind(f);
+    T_ASSERT(SaveBytes(f, &count, sizeof(count)));
+    T_ASSERT(SaveBytes(f, &index, sizeof(index)));
+    T_ASSERT(SaveBytes(f, &saved, sizeof(saved)));
+    rewind(f);
+    G_PoolsReset();
+    T_ASSERT(!ReadPool(f, pool));
+    T_NULL(unit->components);
+    G_PoolsReset(); /* Failed raw reads are reclaimed without gameplay callbacks. */
+    fclose(f);
+}
+
+/* A truncated late pool also detaches components decoded earlier in the stream. */
 TEST(wc3_save, failed_pool_restore_detaches_all_partial_records) {
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -3209,7 +3245,7 @@ TEST(wc3_save, failed_pool_restore_detaches_all_partial_records) {
         savePool_t const *pool = save_pools + i;
         if (!SavePoolSlot(unit, pool)) {
             void *slot = pool->alloc();
-            memcpy((uint8_t *)unit + pool->offset, &slot, sizeof(slot));
+            AttachPoolSlot(unit, pool, slot);
         }
         if (!strcmp(pool->name, "channel")) {
             uint32_t count = 1, index = (uint32_t)(unit - g_edicts);
@@ -3275,7 +3311,7 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
         if (SavePoolSlot(unit, save_pools + i)) continue;
         void *slot = save_pools[i].alloc();
-        memcpy((uint8_t *)unit + save_pools[i].offset, &slot, sizeof(slot));
+        AttachPoolSlot(unit, save_pools + i, slot);
     }
 
     unit->unit_state->next_status_id = 57;
@@ -3290,24 +3326,40 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->missile->attack_type = ATK_PIERCE;
     unit->missile->reflected = true;
     unit->sound->owner_pending = 17;
-    unit->construction->progress = 13.5f;
-    unit->construction->worker = target;
-    unit->research->upgrade = MAKEFOURCC('R','h','m','e');
-    unit->research->progress = 9.25f;
-    unit->food->used = 3;
-    unit->food->made = 10;
-    unit->buildwork->ability = MAKEFOURCC('A','r','e','p');
-    unit->buildwork->gold_accum = 2.5f;
-    unit->shadowmeld->fade_start = 1750;
-    unit->shadowmeld->hide_order_active = true;
-    unit->blight_growth->ability = MAKEFOURCC('A','b','l','i');
-    unit->blight_growth->radius = 192.0f;
-    unit->waygate->destination = (vec2_t){128, 256};
-    unit->waygate->active = true;
-    unit->cargo->count = 1;
-    unit->cargo->units[0] = target;
-    unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approach_goal = target;
+    G_GetConstruction(unit)->progress = 13.5f;
+    G_GetConstruction(unit)->worker = target;
+    G_GetResearch(unit)->upgrade = MAKEFOURCC('R','h','m','e');
+    G_GetResearch(unit)->progress = 9.25f;
+    G_GetFood(unit)->used = 3;
+    G_GetFood(unit)->made = 10;
+    G_GetBuildwork(unit)->ability = MAKEFOURCC('A','r','e','p');
+    G_GetBuildwork(unit)->gold_accum = 2.5f;
+    G_GetShadowMeld(unit)->fade_start = 1750;
+    G_GetShadowMeld(unit)->hide_order_active = true;
+    G_GetMilitia(unit)->normal_type = MAKEFOURCC('h','p','e','a');
+    G_GetRevival(unit)->awaiting = true;
+    G_GetRevival(unit)->producer = target;
+    G_GetBlightGrowth(unit)->ability = MAKEFOURCC('A','b','l','i');
+    G_GetBlightGrowth(unit)->radius = 192.0f;
+    G_GetSleep(unit)->sleeping = true;
+    G_GetRally(unit)->entity = target;
+    G_GetSacrifice(unit)->worker = target;
+    G_GetUnsummon(unit)->target = target;
+    G_GetWaygate(unit)->destination = (vec2_t){128, 256};
+    G_GetWaygate(unit)->active = true;
+    G_GetAvatar(unit)->health = 275;
+    G_GetPolymorph(unit)->form_type = MAKEFOURCC('o','p','e','o');
+    G_GetRaven(unit)->rise_state = RAVEN_RISE_ACTIVE;
+    G_GetEnsnare(unit)->phase = ENSNARE_HEIGHT_RISE;
+    G_GetArtillery(unit)->area_full = 40.0f;
+    G_GetCargo(unit)->count = 1;
+    G_GetCargo(unit)->units[0] = target;
+    G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
+    G_GetAncientRoot(unit)->approach_goal = target;
+    G_GetItem(unit)->charges = 4;
+    G_GetItem(unit)->drop_id = MAKEFOURCC('h','f','o','o');
+    G_GetItem(unit)->carrier = target;
+    G_GetItem(unit)->pending_use_slot = 5;
     FILE *raw = tmpfile();
     T_NOT_NULL(raw);
     if (raw) {
@@ -3341,25 +3393,44 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_EQ(unit->missile->attack_type, ATK_PIERCE);
     T_ASSERT(unit->missile->reflected);
     T_EQ(unit->sound->owner_pending, 17);
-    T_ASSERT(unit->construction);
-    T_FEQ(unit->construction->progress, 13.5f, 0.001f);
-    T_ASSERT(unit->construction->worker == target);
-    T_EQ(unit->research->upgrade, MAKEFOURCC('R','h','m','e'));
-    T_FEQ(unit->research->progress, 9.25f, 0.001f);
-    T_EQ(unit->food->used, 3); T_EQ(unit->food->made, 10);
-    T_EQ(unit->buildwork->ability, MAKEFOURCC('A','r','e','p'));
-    T_FEQ(unit->buildwork->gold_accum, 2.5f, 0.001f);
-    T_EQ(unit->shadowmeld->fade_start, 1750);
-    T_ASSERT(unit->shadowmeld->hide_order_active);
-    T_EQ(unit->blight_growth->ability, MAKEFOURCC('A','b','l','i'));
-    T_FEQ(unit->blight_growth->radius, 192.0f, 0.001f);
-    T_ASSERT(unit->waygate->active);
-    T_FEQ(unit->waygate->destination.x, 128, 0.001f);
-    T_FEQ(unit->waygate->destination.y, 256, 0.001f);
-    T_EQ(unit->cargo->count, 1);
-    T_ASSERT(unit->cargo->units[0] == target);
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
-    T_ASSERT(unit->ancient_root->approach_goal == target);
+    T_ASSERT(G_GetConstruction(unit));
+    T_FEQ(G_GetConstruction(unit)->progress, 13.5f, 0.001f);
+    T_ASSERT(G_GetConstruction(unit)->worker == target);
+    T_EQ(G_GetResearch(unit)->upgrade, MAKEFOURCC('R','h','m','e'));
+    T_FEQ(G_GetResearch(unit)->progress, 9.25f, 0.001f);
+    T_EQ(G_GetFood(unit)->used, 3); T_EQ(G_GetFood(unit)->made, 10);
+    T_EQ(G_GetBuildwork(unit)->ability, MAKEFOURCC('A','r','e','p'));
+    T_FEQ(G_GetBuildwork(unit)->gold_accum, 2.5f, 0.001f);
+    T_EQ(G_GetShadowMeld(unit)->fade_start, 1750);
+    T_ASSERT(G_GetShadowMeld(unit)->hide_order_active);
+    T_EQ(G_GetMilitia(unit)->normal_type, MAKEFOURCC('h','p','e','a'));
+    T_ASSERT(G_HeroAwaitsRevival(unit) && !G_HeroIsReviving(unit));
+    T_ASSERT(G_GetRevival(unit)->producer == target);
+    T_EQ(G_GetBlightGrowth(unit)->ability, MAKEFOURCC('A','b','l','i'));
+    T_FEQ(G_GetBlightGrowth(unit)->radius, 192.0f, 0.001f);
+    T_ASSERT(G_GetSleep(unit)->sleeping);
+    T_ASSERT(G_GetRally(unit)->entity == target);
+    T_ASSERT(G_GetSacrifice(unit)->worker == target);
+    T_ASSERT(G_GetUnsummon(unit)->target == target);
+    T_ASSERT(G_GetWaygate(unit)->active);
+    T_FEQ(G_GetAvatar(unit)->health, 275, 0.001f);
+    T_EQ(G_GetAvatar(unit)->component.id, COMPONENT_AVATAR);
+    T_EQ(G_GetWaygate(unit)->component.id, COMPONENT_WAYGATE);
+    T_EQ(G_GetPolymorph(unit)->form_type, MAKEFOURCC('o','p','e','o'));
+    T_EQ(G_GetRaven(unit)->rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(G_GetEnsnare(unit)->phase, ENSNARE_HEIGHT_RISE);
+    T_FEQ(G_GetArtillery(unit)->area_full, 40.0f, 0.001f);
+    T_FEQ(G_GetWaygate(unit)->destination.x, 128, 0.001f);
+    T_FEQ(G_GetWaygate(unit)->destination.y, 256, 0.001f);
+    T_EQ(G_GetCargo(unit)->count, 1);
+    T_ASSERT(G_GetCargo(unit)->units[0] == target);
+    T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
+    T_ASSERT(G_GetAncientRoot(unit)->approach_goal == target);
+    T_EQ(G_GetItem(unit)->component.id, COMPONENT_ITEM);
+    T_EQ(G_GetItem(unit)->charges, 4);
+    T_EQ(G_GetItem(unit)->drop_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(G_GetItem(unit)->carrier == target);
+    T_EQ(G_GetItem(unit)->pending_use_slot, 5);
     remove(filename);
 }
 #endif

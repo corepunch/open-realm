@@ -643,7 +643,7 @@ void G_QueueSelectionSound(edict_t *ent, bool reset_sequence) {
     int sound = 0;
 
     if (!ent || !(state = G_SelectionSoundState(ent, reset_sequence))) return;
-    if (ent->construction) {
+    if (G_GetConstruction(ent)) {
         gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
         cstring_t alias = client ? Theme_PlayerString(client, "ConstructingBuilding", NULL) : NULL;
         int sound_index = G_UISoundIndex(alias);
@@ -762,7 +762,7 @@ void CMD_CancelCommand(edict_t *ent) {
             }
             return;
         }
-        if (producer->construction && G_CancelStructureConstruction(producer)) {
+        if (G_GetConstruction(producer) && G_CancelStructureConstruction(producer)) {
             if (ent->client->connected) {
                 G_RefreshResourceBar(ent);
                 Get_Portrait_f(ent);
@@ -770,7 +770,7 @@ void CMD_CancelCommand(edict_t *ent) {
             }
             return;
         }
-        if (producer->build && producer->build->revival && producer->build->revival->reviving &&
+        if (producer->build && G_HeroIsReviving(producer->build) &&
             G_CancelHeroRevive(producer, producer->build)) {
             Get_Commands_f(ent);
             return;
@@ -1971,9 +1971,10 @@ CLIENTCOMMAND(CargoUnload) {
 
     if (!clent || !(client = clent->client) || argc < 2) return;
     transport = G_GetMainSelectedUnit(client);
+    cargo_t *hold = G_GetCargo(transport);
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, transport) || slot < 0) return;
-    if (!transport->cargo || (uint32_t)slot >= transport->cargo->count) return;
+    if (!hold || (uint32_t)slot >= hold->count) return;
     S_CargoUnloadAt(transport, (uint32_t)slot);
 }
 
@@ -1999,7 +2000,8 @@ CLIENTCOMMAND(CancelTrain) {
 static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
     gameClient_t *client = clent ? clent->client : NULL;
     edict_t *item = G_GetDraggedItem(client);
-    edict_t *carrier = G_IsItem(item) ? item->item->carrier : NULL;
+    item_t const *rec = G_ItemState(item);
+    edict_t *carrier = rec ? rec->carrier : NULL;
 
     if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
         G_InventoryCanDropItems(carrier) && G_ShopPawnItem(&(shopPawnItemParams_t){
@@ -2022,9 +2024,10 @@ static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
 
     if (!client || !location) return false;
     item = G_GetDraggedItem(client);
-    unit = G_IsItem(item) ? item->item->carrier : NULL;
+    item_t *rec = G_ItemState(item);
+    unit = rec ? rec->carrier : NULL;
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
-        !G_IsItem(item) || item->item->carrier != unit)
+        !rec || rec->carrier != unit)
         return false;
     if (!G_OrderDropItemAt(unit, item, location)) return false;
     G_SendPointConfirmation(clent, location, false);
@@ -2043,7 +2046,8 @@ CLIENTCOMMAND(ItemDrag) {
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
         slot < 0 || (uint32_t)slot >= G_InventoryCapacity(unit)) return;
     item = G_InventoryItem(unit, slot);
-    if (!G_IsItem(item) || item->item->carrier != unit || item->item->in_world) return;
+    item_t *rec = G_ItemState(item);
+    if (!rec || rec->carrier != unit || rec->in_world) return;
 
     /* Right-clicking an occupied inventory button enters the same server-owned
      * target-mode lifecycle used by WC3 point abilities. A following left-click

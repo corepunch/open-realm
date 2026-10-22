@@ -68,8 +68,11 @@ BZ_ABILITY_PROC(CAbilityItemSpiritLink) {
     edict_t *picker;
     spellTarget_t target;
     if (msg != A_ITEM_USE || !call || !call->item) return false;
-    picker = ent && ent->inuse && ent->targtype != TARG_ITEM ? ent :
-        call->source_item && G_IsItem(call->source_item) ? call->source_item->item->carrier : NULL;
+    picker = ent && ent->inuse && ent->targtype != TARG_ITEM ? ent : NULL;
+    if (!picker) {
+        item_t const *rec = G_ItemState(call->source_item);
+        picker = rec ? rec->carrier : NULL;
+    }
     if (!picker || !S_SpellIsAliveTarget(picker) ||
         !G_AbilityLevel(call->item->code, 1)) return false;
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = picker);

@@ -127,8 +127,7 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     other->s.player = 1;
     done->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER; training->svflags |= SVF_MONSTER;
     dead->svflags |= SVF_MONSTER | SVF_DEADMONSTER; other->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     G_SetUnitFlag(training, UNIT_FLAG_TRAINING, true);
     builder->s.player = 2; builder->health.value = 100; builder->orders->build_project = MAKEFOURCC('h','b','a','r');
     mine->resources = 1000;
@@ -151,8 +150,7 @@ TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town)
     hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
     done = alloc_test_unit(footman, 64, 0); done->s.player = 2; done->svflags |= SVF_MONSTER;
     building = alloc_test_unit(footman, 96, 0); building->s.player = 2; building->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     training = alloc_test_unit(footman, 1024, 0); training->s.player = 2; training->svflags |= SVF_MONSTER;
     G_SetUnitFlag(training, UNIT_FLAG_TRAINING, true);
     pending_builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
@@ -445,8 +443,8 @@ TEST(wc3_bot, set_upgrade_uses_normal_research_queue_and_rejects_duplicate_reque
     if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
     T_NOT_NULL(producer->build);
     if (producer->build) {
-        T_EQ(producer->build->research->upgrade, MAKEFOURCC('R','h','m','e'));
-        T_EQ(producer->build->research->level, 1);
+        T_EQ(G_GetResearch(producer->build)->upgrade, MAKEFOURCC('R','h','m','e'));
+        T_EQ(G_GetResearch(producer->build)->level, 1);
     }
     T_EQ(G_GetPlayerTechInProgress(client, MAKEFOURCC('R','h','m','e')), 1);
     T_EQ(player->stats[PLAYERSTATE_RESOURCE_GOLD], 900);
@@ -674,9 +672,9 @@ TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    T_NOT_NULL(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(shop));
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     T_STREQ(shop->data.UnitProfile->makeItems, "moon,plcl,phea");
 
@@ -691,8 +689,8 @@ TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
     T_ASSERT(G_CanUseItemShop(clent->client, shop));
     T_EQ(G_FindShopPatron(clent->client, shop), hero);
     T_ASSERT(G_ShopSellsItem(shop, MAKEFOURCC('m','o','o','n')));
-    T_EQ(shop->stock->items[0].id, MAKEFOURCC('m','o','o','n'));
-    T_ASSERT(shop->stock->items[0].current > 0);
+    T_EQ(G_GetStock(shop)->items[0].id, MAKEFOURCC('m','o','o','n'));
+    T_ASSERT(G_GetStock(shop)->items[0].current > 0);
     G_BotUpdateHeroItems(player);
     T_EQ(bot->item_policy_last_scan, G_Time());
     T_EQ(bot->hero_buy_last_scan, G_Time());
@@ -732,9 +730,9 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    T_NOT_NULL(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(shop));
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     T_ASSERT(!G_IsItemShop(shop)); /* No authored Sellitems/Makeitems. */
     T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('p','l','c','l'), 1, 1));
@@ -749,7 +747,7 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     G_BotUpdateHeroItems(player);
     T_NOT_NULL(G_InventoryItem(hero, 0));
     if (G_InventoryItem(hero, 0)) T_EQ(G_InventoryItem(hero, 0)->class_id, MAKEFOURCC('p','l','c','l'));
-    T_EQ(shop->stock->items[0].current, 0);
+    T_EQ(G_GetStock(shop)->items[0].current, 0);
 }
 
 TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
@@ -766,10 +764,9 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
     lumber->currentmove = &lumber_move; gold->currentmove = &gold_move;
     other->currentmove = &lumber_move; fighter->currentmove = &attack_move;
-    if (!gold->goldmine) gold->goldmine = G_AllocGoldMine();
-    assert(gold->goldmine);
-    gold->goldmine->mine = mine; gold->goldmine->mine_spawn_time = mine->spawn_time;
-    G_SetUnitFlag(gold, UNIT_FLAG_INVULNERABLE, true); gold->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); mine->goldmine->occupants = 1;
+    G_AddComponent(gold, COMPONENT_GOLDMINE);
+    G_GetGoldMine(gold)->mine = mine; G_GetGoldMine(gold)->mine_spawn_time = mine->spawn_time;
+    G_SetUnitFlag(gold, UNIT_FLAG_INVULNERABLE, true); gold->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); G_GetGoldMine(mine)->occupants = 1;
     S_SetCarriedResource(lumber, RETURN_RESOURCE_LUMBER, 7); S_SetCarriedResource(gold, RETURN_RESOURCE_GOLD, 5);
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_stop_gathering.ai", BOT_CAMPAIGN));
@@ -778,8 +775,8 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     T_NULL(gold->currentmove->proc);
     T_EQ((lumber->harvest ? lumber->harvest->lumber : 0), 7);
     T_EQ((gold->harvest ? gold->harvest->gold : 0), 5);
-    T_NULL(gold->goldmine->mine);
-    T_EQ((mine->goldmine ? mine->goldmine->occupants : 0), 0);
+    T_NULL(G_GetGoldMine(gold)->mine);
+    T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 0);
     T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
     T_ASSERT(!G_UnitHasFlag(gold, UNIT_FLAG_INVULNERABLE));
     T_EQ(other->currentmove->proc, CAbilityHarvest);
@@ -1147,8 +1144,7 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     edict_t *building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
     edict_t *enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
@@ -1743,15 +1739,14 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     lab->s.player = PLAYER_NEUTRAL_PASSIVE;
     lab->data.UnitProfile = &lab_profile;
     lab->data.UnitAbilities = &lab_abilities;
-    if (!lab->stock) lab->stock = G_AllocStock();
-    assert(lab->stock);
-    lab->stock->unit_slots = 11;
+    G_AddComponent(lab, COMPONENT_STOCK);
+    G_GetStock(lab)->unit_slots = 11;
     lab->spawn_time = G_Time();
     lab->collision = 32.0f;
     gi.LinkEntity(lab);
-    lab->stock->units_initialized = true;
-    lab->stock->unit_count = 1;
-    lab->stock->units[0] = (shopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
+    G_GetStock(lab)->units_initialized = true;
+    G_GetStock(lab)->unit_count = 1;
+    G_GetStock(lab)->units[0] = (shopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
     lab->movetype = MOVETYPE_NONE;
 
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 1000, 0);
@@ -1780,7 +1775,7 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     T_EQ(zeppelins, 1);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 760);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 440);
-    T_EQ(lab->stock->units[0].current, 0);
+    T_EQ(G_GetStock(lab)->units[0].current, 0);
 }
 
 TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
@@ -1831,9 +1826,8 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 1, &bot_hall_abilities);
     target = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 128, 0, 1, NULL);
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 256, 0, 1, NULL);
-    if (!tower->ancient_root) tower->ancient_root = G_AllocAncientRoot();
-    assert(tower->ancient_root);
-    tower->ancient_root->ability = 0;
+    G_AddComponent(tower, COMPONENT_ANCIENT_ROOT);
+    G_GetAncientRoot(tower)->ability = 0;
     hall->data.UnitAbilities = &bot_hall_abilities;
     tower->data.UnitWeapons = &enabled_attack; tower->unit_state->attack1.type = ATK_PIERCE; tower->unit_state->attack1.range = 0;
 

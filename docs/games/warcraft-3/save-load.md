@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 100, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 115, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -364,7 +364,7 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 
 The saved quest graph occupies fixed `MAX_QUESTS` slots. `header.quests` is diagnostic metadata only: load restores the saved quest slots, so the number of active quests created during map startup may differ from the snapshot. This avoids rejecting valid same-map saves when startup has already recreated a different active quest set. `wc3_save.active_quest_count_may_differ_before_restore` covers this case.
 
-Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while `polymorph` is live, in which case `polymorph->original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
+Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while the Polymorph component is attached, in which case its `original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
 
 `wc3_save.fog_exploration_round_trips_and_visibility_restarts_clear` checks that exploration survives, transient visibility clears, dirty rows request resynchronization, and (when compiled) packed masks match the byte grids.
 
@@ -1031,3 +1031,101 @@ world alone; later rejection does not promise level or VM rollback.
 Regressions cover a truncated final pool after every earlier pool loaded, and a
 checksummed extra payload byte after a valid VM snapshot. Both rejection paths
 must leave no typed records attached.
+
+## Optional component attachments (version 107)
+
+Way Gate and Avatar records now attach through `edict_t.components`; their edict
+pointer fields are removed. Each concrete payload begins with an exact type ID
+and a runtime-only next link. `savePool_t.component` selects list lookup and
+attachment instead of an edict member offset. Save writes the type ID, excludes
+links, and restores only after decoding and validating the complete record.
+Truncated/rejected loads reset all pools and list heads. Earlier versions are
+rejected, and the network wire contract is unchanged.
+See [pooled state and components](pooled-entity-state.md#optional-components).
+
+## Second component slice (version 108)
+
+Polymorph, Raven Form, Ensnare and the artillery splash profile move onto the
+component list with `COMPONENT_POLYMORPH`, `COMPONENT_RAVEN`, `COMPONENT_ENSNARE`
+and `COMPONENT_ARTILLERY`. Their `edict_t` members and `F_IGNORE` schema rows are
+removed; each payload's field table starts with the runtime `component.next`
+exclusion and the pool descriptor carries the exact component ID. The model rebind
+after load reaches the Polymorph snapshot through `G_GetPolymorph`, and projectile
+impact in `g_phys.c` reads the saved splash profile through `G_GetArtillery`.
+Version 107 saves are rejected; the wire format is unchanged.
+
+## Third component slice (version 109)
+
+Sleep, Rally, Sacrifice, Unsummon and Blight Growth move onto the component list
+(`COMPONENT_SLEEP`, `COMPONENT_RALLY`, `COMPONENT_SACRIFICE`, `COMPONENT_UNSUMMON`,
+`COMPONENT_BLIGHT_GROWTH`). Their edict members and `F_IGNORE` schema rows are
+removed. `rally->entity`, `sacrifice->worker` and `unsummon->target` keep their
+`F_EDICT` fixups behind the runtime `component.next` exclusion; Blight Growth and
+Sleep payloads are scalar. The SC2API observation reads rally state through
+`G_GetRally`, and Train checks queued Sacrifice results through `G_GetSacrifice`.
+Version 108 saves are rejected; the wire format is unchanged.
+
+## Fourth component slice (version 110)
+
+Shadow Meld, Militia, Hero revival and worker build/repair state move onto the
+component list (`COMPONENT_SHADOWMELD`, `COMPONENT_MILITIA`, `COMPONENT_REVIVAL`,
+`COMPONENT_BUILDWORK`). `revival->producer` and `revival->queue_next` keep their
+`F_EDICT` fixups; Militia's `partner`, `partner_spawn_time` and `returning` remain
+runtime exclusions; Shadow Meld and Buildwork payloads are scalar. The production
+queue walkers (`ProductionNext`, HUD queue, `Get_Commands_f`) read revival state
+through `G_HeroIsReviving` and `G_GetRevival`. Version 109 saves are rejected; the
+wire format is unchanged.
+
+## Fifth component slice (version 111)
+
+Ancient Root, the Gold Mine admission record, Haunted/Entangled mine overlays, the
+Acolyte slot record, Cargo and Soul Trap move onto the component list
+(`COMPONENT_ANCIENT_ROOT`, `COMPONENT_GOLDMINE`, `COMPONENT_MINE_OVERLAY`,
+`COMPONENT_ACOLYTE_MINE`, `COMPONENT_CARGO`, `COMPONENT_SOULTRAP`). Every entity
+reference inside those payloads keeps its `F_EDICT` fixup (including the
+`cargo->units[]` array and the four Soul Trap links) behind the runtime
+`component.next` exclusion. `G_InitGoldMine` now attaches through `G_AddComponent`.
+Version 110 saves are rejected; the wire format is unchanged.
+
+## Sixth component slice (version 112)
+
+Research, the Food ledger and shop Stock move onto the component list
+(`COMPONENT_RESEARCH`, `COMPONENT_FOOD`, `COMPONENT_STOCK`). Research and Food
+payloads are scalar; Stock keeps its counted `items`/`units` struct arrays behind the
+runtime `component.next` exclusion. The edict schema no longer carries a `stock`
+member, which the shop stock round-trip test now asserts. Version 111 saves are
+rejected; the wire format is unchanged.
+
+## Seventh component slice (version 113)
+
+The spell Channel record moves onto the component list (`COMPONENT_CHANNEL`).
+`channel->source_item` keeps its `F_EDICT` fixup behind the runtime
+`component.next` exclusion; the cast serial, owner/target spawn times and origin
+stay scalar. Channel is also the last typed pool in the stream, so the truncated
+pool test still uses it. Version 112 saves are rejected; the wire format is unchanged.
+
+## Eighth component slice (version 114)
+
+Destructable and Construction move onto the component list
+(`COMPONENT_DESTRUCTABLE`, `COMPONENT_CONSTRUCTION`). The construction
+`primary_builder` and `worker` references keep their `F_EDICT` fixups; the
+destructable pathing textures and drop-set views stay process-owned exclusions and
+are rebuilt from object data after load, as before. The destructable section keeps
+`DESTRUCTABLE_POOL_CAP`. Version 113 saves are rejected; the wire format is unchanged.
+
+## Ninth component slice (version 115)
+
+Item moves onto the component list (`COMPONENT_ITEM`). The item `carrier`,
+`pending_use_carrier` and `soul_target` references keep their `F_EDICT` fixups;
+charges, drop ID, user data, the pawnable/droppable/death-drop overrides and the
+world/inventory placement remain plain values of the payload. The section keeps
+`LIFECYCLE_POOL_CAP`. Version 114 saves are rejected; the wire format is unchanged.
+
+### Runtime link handling
+
+`WritePool` and `ReadPool` clear the `component.next` link of every component
+pool record themselves, using the descriptor's component ID, so the per-type
+field tables no longer carry a `component.next` exclusion row. The written bytes
+are identical to the row-based exclusion (the link was already zero in the file),
+so the format version does not change; the earlier slice sections describe the
+rows as they were introduced.

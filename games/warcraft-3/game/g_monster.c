@@ -94,7 +94,7 @@ void M_MoveFrame(edict_t *self) {
      * independently of authoritative construction progress. Human progress is
      * Repair-driven; Orc/Undead/Night Elf progress is advanced by
      * G_RunConstructionFrame(). */
-    if ((self->aiflags & AI_HOLD_FRAME) && self->construction) {
+    if ((self->aiflags & AI_HOLD_FRAME) && G_GetConstruction(self)) {
         G_UpdateConstructionAnimation(self);
         return;
     }
@@ -614,11 +614,12 @@ void SP_SpawnUnit(edict_t *self) {
 
 /* Walkable destructables are sparse, so keep a level list instead of scanning every map edict per unit tick. */
 void G_RegisterGroundSurface(edict_t *ent) {
+    destructable_t *dstr = G_GetDestructable(ent);
     if (!G_IsDestructable(ent) || !ent->data.DestructableData->walkable) return;
     G_UnregisterGroundSurface(ent);
     ent->ground_next = level.ground_surfaces;
     level.ground_surfaces = ent;
-    if (!ent->destructable->dead && ent->destructable->placement_solid)
+    if (!dstr->dead && dstr->placement_solid)
         ent->s.flags |= EF_GROUND_SURFACE;
 }
 

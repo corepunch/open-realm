@@ -45,30 +45,30 @@ bool S_WaygateIsGate(edict_t const *gate) {
 }
 
 bool S_WaygateIsActive(edict_t const *gate) {
-    return S_WaygateIsGate(gate) && gate->waygate && gate->waygate->active;
+    waygate_t *state = G_GetWaygate(gate);
+    return S_WaygateIsGate(gate) && state && state->active;
 }
 
 bool S_WaygateGetDestination(edict_t const *gate, vec2_t *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return false;
-    if (!gate->waygate) { *destination = (vec2_t){0}; return false; }
-    *destination = gate->waygate->destination;
-    return gate->waygate->destination_set;
+    waygate_t *state = G_GetWaygate(gate);
+    if (!state) { *destination = (vec2_t){0}; return false; }
+    *destination = state->destination;
+    return state->destination_set;
 }
 
 void S_WaygateSetDestination(edict_t *gate, vec2_t const *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return;
-    if (!gate->waygate) gate->waygate = G_AllocWaygate();
-    assert(gate->waygate);
-    gate->waygate->destination = *destination;
-    gate->waygate->destination_set = true;
+    waygate_t *state = G_AddComponent(gate, COMPONENT_WAYGATE);
+    state->destination = *destination;
+    state->destination_set = true;
 }
 
 void S_WaygateSetActive(edict_t *gate, bool active) {
     if (!S_WaygateIsGate(gate)) return;
-    if (!gate->waygate) gate->waygate = G_AllocWaygate();
-    assert(gate->waygate);
-    gate->waygate->active = active != false;
-    G_AddUnitAnimationProperties(gate, "alternate", gate->waygate->active);
+    waygate_t *state = G_AddComponent(gate, COMPONENT_WAYGATE);
+    state->active = active != false;
+    G_AddUnitAnimationProperties(gate, "alternate", state->active);
 }
 
 static bool waygate_point_inside(edict_t const *gate, vec2_t const *point) {
@@ -86,7 +86,7 @@ static bool waygate_target_inside(edict_t const *gate, edict_t const *unit) {
 static bool waygate_target_valid(edict_t const *unit, edict_t const *gate, uint32_t spawn_time) {
     if (!unit || !gate || unit == gate || !gate->inuse || gate->spawn_time != spawn_time) return false;
     if (M_IsDead(unit) || M_IsDead(gate) || !S_UnitCanTranslate(unit)) return false;
-    return S_WaygateIsActive(gate) && gate->waygate->destination_set;
+    return S_WaygateIsActive(gate) && G_GetWaygate(gate)->destination_set;
 }
 
 static bool waygate_behavior_active(edict_t const *unit) {
@@ -112,9 +112,11 @@ static bool waygate_complete(edict_t *unit, edict_t *gate) {
     vec2_t position;
 
     if (!unit || !gate) return false;
-    if (!G_FindUnitUnstuckPosition(unit, &gate->waygate->destination, &position)) {
+    waygate_t *state = G_GetWaygate(gate);
+    assert(state);
+    if (!G_FindUnitUnstuckPosition(unit, &state->destination, &position)) {
         fprintf(stderr, "WC3 Waygate: no legal destination for unit %u gate %u at (%.1f, %.1f); traversal cancelled\n",
-                unit->s.number, gate->s.number, gate->waygate->destination.x, gate->waygate->destination.y);
+                unit->s.number, gate->s.number, state->destination.x, state->destination.y);
         waygate_cancel(unit);
         return false;
     }

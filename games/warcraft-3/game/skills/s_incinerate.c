@@ -52,9 +52,8 @@ BZ_ABILITY_PROC(CAbilityIncinerate) {
         return true;
     }
     blast = G_Spawn(); blast->owner = source;
-    if (!blast->channel) blast->channel = G_AllocChannel();
-    assert(blast->channel);
-    blast->channel->owner_spawn_time = slot->source_spawn_time;
+    G_AddComponent(blast, COMPONENT_CHANNEL);
+    G_GetChannel(blast)->owner_spawn_time = slot->source_spawn_time;
     blast->class_id = slot->data; blast->resources = slot->rank; blast->s.origin2 = ent->s.origin2;
     blast->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(slot->data, slot->rank, 6)) * 1000.0f);
     blast->think = incinerate_explode_think;

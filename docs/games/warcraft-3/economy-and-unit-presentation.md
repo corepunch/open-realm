@@ -35,7 +35,7 @@ finite resource reservoir and `Agl2` records only the overlay/parent relationshi
 The familiar "five workers on gold" is economic saturation, not mine occupancy. Stock `Agld` data resolves to mining capacity 1, so
 only one worker may be hidden inside a normal Human/Orc mine at a time. Additional workers retain their Harvest state outside the
 mine and are reconsidered when a miner exits. The authoritative occupancy counter remains `mine->peonsinside`; each admitted worker
-also stores the exact mine pointer and spawn generation in `worker->goldmine` so duplicate admission cannot increment the counter
+also stores the exact mine pointer and spawn generation in the worker's `goldMine_t` component (`G_GetGoldMine`) so duplicate admission cannot increment the counter
 twice and an edict recycled while a worker is hidden cannot be decremented accidentally.
 
 Entry sets `RF_HIDDEN` and temporary invulnerability. The generic `paused` flag is intentionally not used because
@@ -56,7 +56,7 @@ Human and Orc workers use the conventional carry/return state machine above. Ent
 temporarily protects the worker, and now adds the mine's `work` animation property while at least one worker is inside. The last exit
 removes that property.
 
-Undead and Night Elf gold mining deliberately do **not** reuse that state machine. `edict.mineoverlay` points from a Haunted or
+Undead and Night Elf gold mining deliberately do **not** reuse that state machine. the `mineOverlay_t` component (`G_GetMineOverlay`) points from a Haunted or
 Entangled Mine to the original live `Agld` entity and stores the parent's spawn generation. Binding an overlay hides and pauses the
 parent; destroying/removing the overlay restores and relinks it. The parent `resources` value remains authoritative for JASS resource
 amounts and for both racial income paths. Build-on-mine Undead structures acquire this parent from the same placement lookup that

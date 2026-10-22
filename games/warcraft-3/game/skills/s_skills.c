@@ -836,8 +836,8 @@ static intptr_t unit_dispatch_authored_abilities(edict_t *ent, abilityMsg_t msg,
     bool handled = false;
 
     if (!ent) return ABILITY_ORDER_UNHANDLED;
-    if (include_channel && msg == A_MOVE_LEAVE && ent->channel && ent->channel->code) {
-        intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, ent->channel->code,
+    if (include_channel && msg == A_MOVE_LEAVE && G_GetChannel(ent) && G_GetChannel(ent)->code) {
+        intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, G_GetChannel(ent)->code,
                                                             seen, &count, capacity, false);
         if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result;
         handled |= result != 0;

@@ -654,10 +654,11 @@ bool G_ProducerCanUpgrade(edict_t *producer, uint32_t unit_id) {
 }
 
 bool G_BuildingUpgradeActive(edict_t const *building) {
-    return building && building->inuse && building->research && !G_UnitHasFlag(building, UNIT_FLAG_TRAINING) &&
-        building->research->upgrade != 0 &&
+    research_t *study = G_GetResearch(building);
+    return building && building->inuse && study && !G_UnitHasFlag(building, UNIT_FLAG_TRAINING) &&
+        study->upgrade != 0 &&
         G_UnitIsStructure(building) &&
-        G_UnitIsBuilding(building->research->upgrade);
+        G_UnitIsBuilding(study->upgrade);
 }
 
 bool G_BuildingIsUnsummoning(edict_t const *building) {
@@ -763,7 +764,7 @@ int32_t G_PlayerRequirementCount(gameClient_t *client, uint32_t techid) {
     count = G_GetPlayerTechResearchedLevel(client, techid);
     player = client->ps.number;
     FILTER_EDICTS(ent, ent->inuse && ent->s.player == player &&
-                         !(ent->svflags & SVF_DEADMONSTER) && !ent->construction && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) &&
+                         !(ent->svflags & SVF_DEADMONSTER) && !G_GetConstruction(ent) && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) &&
                          G_UnitTypeSatisfiesRequirement(ent->class_id, techid)) {
         count++;
     }
@@ -987,7 +988,7 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
     target = G_UnitBalance(unit_id);
     if (!target || target->id != unit_id || !G_UnitUI(unit_id) || !G_UnitUI(unit_id)->modelFile)
         return BUILD_COMMAND_ABSENT;
-    if (G_BuildingUpgradeActive(producer) || producer->construction || G_UnitHasFlag(producer, UNIT_FLAG_TRAINING) || producer->build) {
+    if (G_BuildingUpgradeActive(producer) || G_GetConstruction(producer) || G_UnitHasFlag(producer, UNIT_FLAG_TRAINING) || producer->build) {
         return BUILD_COMMAND_DISABLED;
     }
 
@@ -1055,17 +1056,18 @@ static void G_RefreshBuildingUpgradeUI(edict_t *building) {
 }
 
 void G_UpdateBuildingUpgradeAnimation(edict_t *building) {
+    research_t *study = G_GetResearch(building);
     animation_t const *anim;
     float fraction;
     uint32_t first, last, span, frame;
 
-    if (!G_BuildingUpgradeActive(building) || building->research->duration <= 0.0f) return;
+    if (!G_BuildingUpgradeActive(building) || study->duration <= 0.0f) return;
     anim = building->animation;
     if (!G_AnimationHasPrimary(anim, "birth")) anim = G_GetUnitAnimation(building, "birth");
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    fraction = MAX(0.0f, MIN(1.0f, building->research->progress / building->research->duration));
+    fraction = MAX(0.0f, MIN(1.0f, study->progress / study->duration));
     first = anim->interval[0];
     last = anim->interval[1];
     span = last - first;
@@ -1113,13 +1115,9 @@ bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
     G_ClearUnitOrderQueue(building);
     if (building->stand) building->stand(building);
     G_FreeResearch(building);
-    building->research = G_AllocResearch();
-    assert(building->research);
-    building->research->upgrade = unit_id;
-    building->research->gold = gold;
-    building->research->lumber = lumber;
-    building->research->duration = (float)MAX(0, target->buildTime);
-    building->research->progress = 0.0f;
+    research_t *study = G_AddComponent(building, COMPONENT_RESEARCH);
+    *study = (research_t){ .component = study->component, .upgrade = unit_id, .gold = gold, .lumber = lumber,
+                           .duration = (float)MAX(0, target->buildTime) };
     G_SetUnitFoodUsed(building, MAX(0, target->foodUsed));
     G_AddPlayerTechInProgress(client, unit_id, 1);
     building->aiflags |= AI_HOLD_FRAME;
@@ -1131,18 +1129,19 @@ bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
 }
 
 void G_StopBuildingUpgrade(edict_t *building, bool refund) {
+    research_t *study = G_GetResearch(building);
     gameClient_t *client;
     uint32_t unit_id;
 
     if (!G_BuildingUpgradeActive(building)) return;
-    unit_id = building->research->upgrade;
+    unit_id = study->upgrade;
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player) {
         if (refund) {
             int32_t gold = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] +
-                        MAX(0, building->research->gold);
+                        MAX(0, study->gold);
             int32_t lumber = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] +
-                          MAX(0, building->research->lumber);
+                          MAX(0, study->lumber);
             client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
             client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
         }
@@ -1150,7 +1149,7 @@ void G_StopBuildingUpgrade(edict_t *building, bool refund) {
     }
     G_SetUnitFoodUsed(building, building->data.UnitBalance ? MAX(0, building->data.UnitBalance->foodUsed) : 0);
     G_FreeResearch(building);
-    if (!building->construction && !(building->svflags & SVF_DEADMONSTER) && !M_IsDead(building)) {
+    if (!G_GetConstruction(building) && !(building->svflags & SVF_DEADMONSTER) && !M_IsDead(building)) {
         building->aiflags &= ~AI_HOLD_FRAME;
         if (building->stand) building->stand(building);
     }
@@ -1166,14 +1165,15 @@ bool G_CancelBuildingUpgrade(edict_t *building) {
 }
 
 static bool G_CompleteBuildingUpgrade(edict_t *building) {
+    research_t *study = G_GetResearch(building);
     gameClient_t *client;
     uint32_t unit_id;
     int32_t charged_gold, charged_lumber;
 
     if (!G_BuildingUpgradeActive(building)) return false;
-    unit_id = building->research->upgrade;
-    charged_gold = MAX(0, building->research->gold);
-    charged_lumber = MAX(0, building->research->lumber);
+    unit_id = study->upgrade;
+    charged_gold = MAX(0, study->gold);
+    charged_lumber = MAX(0, study->lumber);
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player)
         G_AddPlayerTechInProgress(client, unit_id, -1);
@@ -1206,6 +1206,7 @@ static bool G_CompleteBuildingUpgrade(edict_t *building) {
 }
 
 void G_RunBuildingUpgradeFrame(edict_t *building) {
+    research_t *study = G_GetResearch(building);
     if (!G_BuildingUpgradeActive(building)) return;
     if (G_BuildingIsUnsummoning(building)) return;
     if (M_IsDead(building) || (building->svflags & SVF_DEADMONSTER)) {
@@ -1213,13 +1214,13 @@ void G_RunBuildingUpgradeFrame(edict_t *building) {
         return;
     }
     if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED)) return;
-    if (building->research->duration <= 0.0f || G_PlayerInstantBuild(building->s.player)) {
+    if (study->duration <= 0.0f || G_PlayerInstantBuild(building->s.player)) {
         G_CompleteBuildingUpgrade(building);
         return;
     }
-    building->research->progress += (float)FRAMETIME / 1000.0f;
+    study->progress += (float)FRAMETIME / 1000.0f;
     G_UpdateBuildingUpgradeAnimation(building);
-    if (building->research->progress >= building->research->duration)
+    if (study->progress >= study->duration)
         G_CompleteBuildingUpgrade(building);
 }
 
@@ -1560,12 +1561,13 @@ float G_BuildApproachDistance(uint32_t building_id) {
 }
 
 void G_UpdateConstructionAnimation(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     animation_t const *anim;
     float duration, fraction;
     uint32_t first, last, span, frame;
 
-    if (!building || !building->construction || !building->data.UnitBalance) return;
-    if (building->data.UnitBalance->buildTime <= 0 && building->construction->duration_ms <= 0) return;
+    if (!building || !site || !building->data.UnitBalance) return;
+    if (building->data.UnitBalance->buildTime <= 0 && site->duration_ms <= 0) return;
 
     /* Construction owns the birth sequence. Re-resolve it instead of relying
      * on whatever animation happened to be left on the entity by a previous
@@ -1576,9 +1578,9 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    duration = building->construction->duration_ms > 0 ? building->construction->duration_ms :
+    duration = site->duration_ms > 0 ? site->duration_ms :
                (float)building->data.UnitBalance->buildTime * 1000.0f;
-    fraction = MAX(0.0f, MIN(1.0f, building->construction->progress / duration));
+    fraction = MAX(0.0f, MIN(1.0f, site->progress / duration));
     first = anim->interval[0];
     last = anim->interval[1];
     span = last - first;
@@ -1588,8 +1590,8 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     if (building->s.frame != frame) {
         fprintf(stderr, "WC3_BUILD animation building=%ld id=%.4s type=%d paused=%u progress=%.1f/%.1f health=%.1f/%.1f frame=%u->%u range=%u-%u\n",
                 (long)(building - g_edicts), (cstring_t)&building->class_id,
-                building->construction->type, building->construction->paused,
-                building->construction->progress, duration, building->health.value,
+                site->type, site->paused,
+                site->progress, duration, building->health.value,
                 building->health.max_value, building->s.frame, frame, first, last);
     }
 #endif
@@ -1619,26 +1621,25 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
     edictStat_s *hp;
 
     if (!building || !G_UnitIsStructure(building)) return false;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     hp = &building->health;
-    building->construction->paused = paused;
-    building->construction->type = type;
-    building->construction->primary_builder = NULL;
-    building->construction->worker = NULL;
-    building->construction->worker_spawn_time = 0;
-    building->construction->worker_inside = false;
-    building->construction->consumes_worker = false;
-    building->construction->restore_invulnerable = false;
-    building->construction->restore_paused = false;
-    building->construction->restore_hidden = false;
-    building->construction->worker_release_time = 0;
-    building->construction->progress = 0.0f;
-    building->construction->duration_ms = 0.0f;
-    building->construction->paid = false;
-    building->construction->payer = 0;
-    building->construction->gold = 0;
-    building->construction->lumber = 0;
+    G_GetConstruction(building)->paused = paused;
+    G_GetConstruction(building)->type = type;
+    G_GetConstruction(building)->primary_builder = NULL;
+    G_GetConstruction(building)->worker = NULL;
+    G_GetConstruction(building)->worker_spawn_time = 0;
+    G_GetConstruction(building)->worker_inside = false;
+    G_GetConstruction(building)->consumes_worker = false;
+    G_GetConstruction(building)->restore_invulnerable = false;
+    G_GetConstruction(building)->restore_paused = false;
+    G_GetConstruction(building)->restore_hidden = false;
+    G_GetConstruction(building)->worker_release_time = 0;
+    G_GetConstruction(building)->progress = 0.0f;
+    G_GetConstruction(building)->duration_ms = 0.0f;
+    G_GetConstruction(building)->paid = false;
+    G_GetConstruction(building)->payer = 0;
+    G_GetConstruction(building)->gold = 0;
+    G_GetConstruction(building)->lumber = 0;
     building->aiflags |= AI_HOLD_FRAME;
     /* Human Birth emission starts only when a Peasant begins actually working.
      * Orc/Undead/Night Elf buildings still use their autonomous clocks. */
@@ -1661,14 +1662,15 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
 }
 
 static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool inside) {
+    construction_t *site = G_GetConstruction(building);
     if (!building || !worker) return;
-    assert(building->construction);
-    building->construction->worker = worker;
-    building->construction->worker_spawn_time = worker->spawn_time;
-    building->construction->worker_inside = inside;
-    building->construction->restore_invulnerable = G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE);
-    building->construction->restore_paused = G_UnitHasFlag(worker, UNIT_FLAG_PAUSED);
-    building->construction->restore_hidden = worker->s.renderfx & RF_HIDDEN;
+    assert(site);
+    site->worker = worker;
+    site->worker_spawn_time = worker->spawn_time;
+    site->worker_inside = inside;
+    site->restore_invulnerable = G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE);
+    site->restore_paused = G_UnitHasFlag(worker, UNIT_FLAG_PAUSED);
+    site->restore_hidden = worker->s.renderfx & RF_HIDDEN;
     worker->build = building;
     worker->goalentity = building;
     if (!inside) return;
@@ -1681,7 +1683,7 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
 
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building) {
     if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true, false)) return false;
-    building->construction->primary_builder = builder;
+    G_GetConstruction(building)->primary_builder = builder;
     return true;
 }
 
@@ -1694,7 +1696,7 @@ bool G_StartOrcConstruction(edict_t *builder, edict_t *building) {
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building) {
     if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
-    building->construction->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
+    G_GetConstruction(building)->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
@@ -1708,7 +1710,7 @@ bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
     if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, true)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
-        building->construction->consumes_worker = true;
+        G_GetConstruction(building)->consumes_worker = true;
         /* Warsmash removes the Wisp's food contribution as soon as it becomes
          * part of an Ancient. Cancellation restores the worker and its food. */
         G_SetUnitFoodUsed(builder, 0);
@@ -1726,7 +1728,7 @@ bool G_StartNightElfOverlayConstruction(edict_t *builder, edict_t *building) {
  * construction state belong to the spawned building itself. */
 bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration_seconds) {
     if (!G_StartConstruction(builder, building, CONSTRUCTION_TINY, false, false)) return false;
-    building->construction->duration_ms = MAX(0.0f, duration_seconds) * 1000.0f;
+    G_GetConstruction(building)->duration_ms = MAX(0.0f, duration_seconds) * 1000.0f;
     building->build = building;
     /* G_StartConstruction initially uses normal UnitBalance buildTime.
      * Refresh the first presentation frame after applying this ability's
@@ -1736,31 +1738,33 @@ bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration
 }
 
 static edict_t *G_ConstructionWorker(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     edict_t *worker;
 
-    if (!building || !(worker = building->construction->worker)) return NULL;
-    if (!worker->inuse || worker->spawn_time != building->construction->worker_spawn_time) {
-        building->construction->worker = NULL;
-        building->construction->worker_spawn_time = 0;
-        building->construction->worker_inside = false;
-        building->construction->worker_release_time = 0;
+    if (!building || !(worker = site->worker)) return NULL;
+    if (!worker->inuse || worker->spawn_time != site->worker_spawn_time) {
+        site->worker = NULL;
+        site->worker_spawn_time = 0;
+        site->worker_inside = false;
+        site->worker_release_time = 0;
         return NULL;
     }
     return worker;
 }
 
 static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
+    construction_t *site = G_GetConstruction(building);
     edict_t *worker;
     bool consumes, inside;
 
     if (!building) return;
     worker = G_ConstructionWorker(building);
-    consumes = building->construction->consumes_worker;
-    inside = building->construction->worker_inside;
-    building->construction->worker = NULL;
-    building->construction->worker_spawn_time = 0;
-    building->construction->worker_inside = false;
-    building->construction->worker_release_time = 0;
+    consumes = site->consumes_worker;
+    inside = site->worker_inside;
+    site->worker = NULL;
+    site->worker_spawn_time = 0;
+    site->worker_inside = false;
+    site->worker_release_time = 0;
     if (!worker) return;
 
     if (completed && consumes) {
@@ -1769,9 +1773,9 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
         return;
     }
 
-    G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, building->construction->restore_paused);
-    G_SetUnitFlag(worker, UNIT_FLAG_INVULNERABLE, building->construction->restore_invulnerable);
-    if (building->construction->restore_hidden) worker->s.renderfx |= RF_HIDDEN;
+    G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, site->restore_paused);
+    G_SetUnitFlag(worker, UNIT_FLAG_INVULNERABLE, site->restore_invulnerable);
+    if (site->restore_hidden) worker->s.renderfx |= RF_HIDDEN;
     else worker->s.renderfx &= ~RF_HIDDEN;
     G_InvalidateUnitShortcutsForUnit(worker);
     if (consumes && worker->data.UnitBalance)
@@ -1795,6 +1799,7 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
  * Publish whether any worker is *actually working* so render particles cannot
  * continue on a held Birth frame after the final Peasant moves away. */
 static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     bool working = false;
     bool const was_paused = (building->s.flags & EF_MDX_EMISSION_PAUSED) != 0;
 #ifdef WC3_DEBUG_BUILD
@@ -1802,7 +1807,7 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
     edict_t const *working_worker = NULL;
 #endif
 
-    if (building->construction->type != CONSTRUCTION_HUMAN) return;
+    if (site->type != CONSTRUCTION_HUMAN) return;
     if (!G_UnitHasFlag(building, UNIT_FLAG_PAUSED)) {
         FOR_LOOP(i, globals.num_edicts) {
             edict_t const *worker = &g_edicts[i];
@@ -1823,7 +1828,7 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
                 (long)(building - g_edicts), (cstring_t)&building->class_id,
                 was_paused, !working,
                 working_worker ? (long)(working_worker - g_edicts) : -1L,
-                building->construction->progress, building->health.value,
+                site->progress, building->health.value,
                 building->health.max_value, building->s.frame,
                 building->build ? (long)(building->build - g_edicts) : -1L);
     }
@@ -1837,12 +1842,12 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
             last_status_log[number] = now;
             fprintf(stderr, "WC3_BUILD paused-status building=%u id=%.4s time=%u progress=%.1f duration=%.1f health=%.1f/%.1f frame=%u anim=%s range=%u-%u flags=0x%08x worker=%ld build=%ld\n",
                     number, (cstring_t)&building->class_id, now,
-                    building->construction->progress, building->construction->duration_ms,
+                    site->progress, site->duration_ms,
                     building->health.value, building->health.max_value, building->s.frame,
                     anim && anim->name[0] ? anim->name : "<none>",
                     anim ? anim->interval[0] : 0, anim ? anim->interval[1] : 0,
                     building->s.flags,
-                    building->construction->worker ? (long)(building->construction->worker - g_edicts) : -1L,
+                    site->worker ? (long)(site->worker - g_edicts) : -1L,
                     building->build ? (long)(building->build - g_edicts) : -1L);
         }
     }
@@ -1851,62 +1856,65 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
 }
 
 void G_RunConstructionFrame(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     float duration, hp_gain;
     edictStat_s *hp;
 
-    if (!building || !building->construction) return;
+    if (!building || !site) return;
     G_UpdateHumanConstructionEmitterState(building);
     if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED) || !building->data.UnitBalance) return;
 
-    duration = MAX(1.0f, building->construction->duration_ms > 0 ?
-                   building->construction->duration_ms : (float)building->data.UnitBalance->buildTime * 1000.0f);
+    duration = MAX(1.0f, site->duration_ms > 0 ?
+                   site->duration_ms : (float)building->data.UnitBalance->buildTime * 1000.0f);
     hp = &building->health;
     /* Check the cheat before the Human paused-strategy gate: construction
      * state, not a worker behavior, owns instant completion. */
     if (G_PlayerInstantBuild(building->s.player)) {
-        building->construction->progress = duration;
+        site->progress = duration;
         G_SetHealth(building, hp->max_value);
         G_UpdateConstructionAnimation(building);
         G_CompleteConstruction(building);
         return;
     }
 
-    if (building->construction->paused) return;
-    if (building->construction->type != CONSTRUCTION_ORC &&
-        building->construction->type != CONSTRUCTION_UNDEAD &&
-        building->construction->type != CONSTRUCTION_NIGHTELF &&
-        building->construction->type != CONSTRUCTION_NAGA &&
-        building->construction->type != CONSTRUCTION_TINY) return;
+    if (site->paused) return;
+    if (site->type != CONSTRUCTION_ORC &&
+        site->type != CONSTRUCTION_UNDEAD &&
+        site->type != CONSTRUCTION_NIGHTELF &&
+        site->type != CONSTRUCTION_NAGA &&
+        site->type != CONSTRUCTION_TINY) return;
 
-    if (building->construction->type == CONSTRUCTION_UNDEAD &&
-        building->construction->worker_release_time &&
-        G_Time() >= building->construction->worker_release_time) {
+    if (site->type == CONSTRUCTION_UNDEAD &&
+        site->worker_release_time &&
+        G_Time() >= site->worker_release_time) {
         G_ReleaseConstructionWorker(building, false);
     }
 
-    building->construction->progress += (float)FRAMETIME;
+    site->progress += (float)FRAMETIME;
     hp_gain = (hp->max_value - MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE)) *
               ((float)FRAMETIME / duration);
     hp->value = MIN(hp->max_value, hp->value + MAX(0.0f, hp_gain));
     G_UpdateConstructionAnimation(building);
-    if (building->construction->progress >= duration) G_CompleteConstruction(building);
+    if (site->progress >= duration) G_CompleteConstruction(building);
 }
 
 /* Construction teardown releases Human Repair participants and any race-owned
  * worker before the target enters death/completion cleanup; otherwise workers
  * retain pointers to an entity whose construction state no longer exists. */
 void G_StopConstruction(edict_t *building) {
-    if (!building || !building->construction) return;
+    construction_t *site = G_GetConstruction(building);
+    if (!building || !site) return;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-stop building=%ld id=%.4s type=%d health=%.1f/%.1f progress=%.1f primary=%ld build=%ld\n",
-            (long)(building - g_edicts), (cstring_t)&building->class_id, building->construction->type,
-            building->health.value, building->health.max_value, building->construction->progress,
-            building->construction->primary_builder ? (long)(building->construction->primary_builder - g_edicts) : -1L,
+            (long)(building - g_edicts), (cstring_t)&building->class_id, site->type,
+            building->health.value, building->health.max_value, site->progress,
+            site->primary_builder ? (long)(site->primary_builder - g_edicts) : -1L,
             building->build ? (long)(building->build - g_edicts) : -1L);
 #endif
 
-    FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building &&
-                           worker->buildwork && worker->buildwork->ability) {
+    FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building) {
+        buildwork_t const *work = G_GetBuildwork(worker);
+        if (!work || !work->ability) continue;
         S_CancelRepair(worker);
         if (worker->stand) worker->stand(worker);
     }
@@ -1931,33 +1939,34 @@ static int32_t G_ConstructionCancelRefund(int32_t paid) {
  * construct-cancel events and refund only the recorded base construction
  * payment, then use ordinary unit death for selection/food/death semantics. */
 bool G_CancelStructureConstruction(edict_t *building) {
+    construction_t *site = G_GetConstruction(building);
     gameClient_t *payer;
     int32_t gold, lumber;
 
-    if (!building || !building->inuse || !building->construction ||
+    if (!building || !building->inuse || !site ||
         (building->svflags & SVF_DEADMONSTER) || !G_UnitIsStructure(building)) {
         return false;
     }
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-cancel building=%ld id=%.4s health=%.1f/%.1f progress=%.1f payer=%d\n",
             (long)(building - g_edicts), (cstring_t)&building->class_id, building->health.value,
-            building->health.max_value, building->construction->progress, building->construction->payer);
+            building->health.max_value, site->progress, site->payer);
 #endif
 
-    gold = building->construction->paid
-        ? G_ConstructionCancelRefund(building->construction->gold) : 0;
-    lumber = building->construction->paid
-        ? G_ConstructionCancelRefund(building->construction->lumber) : 0;
-    payer = G_GetPlayerClientByNumber(building->construction->payer);
+    gold = site->paid
+        ? G_ConstructionCancelRefund(site->gold) : 0;
+    lumber = site->paid
+        ? G_ConstructionCancelRefund(site->lumber) : 0;
+    payer = G_GetPlayerClientByNumber(site->payer);
 
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
     G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_CANCEL);
 
-    if (building->construction->paid && payer &&
-        payer->ps.number == building->construction->payer) {
+    if (site->paid && payer &&
+        payer->ps.number == site->payer) {
         payer->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += gold;
         payer->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += lumber;
-        building->construction->paid = false;
+        site->paid = false;
         G_InvalidateCommands(payer);
         G_MarkMultiboardPlayerDirty(payer->ps.number);
         if (payer->connected)
@@ -1969,6 +1978,7 @@ bool G_CancelStructureConstruction(edict_t *building) {
 }
 
 void G_CompleteConstruction(edict_t *building) {
+    construction_t *building_site = G_GetConstruction(building);
     gameClient_t *client;
     edict_t *hidden_construction_worker = NULL;
     bool legacy;
@@ -1979,22 +1989,22 @@ void G_CompleteConstruction(edict_t *building) {
      * self-linking building->build.  Both lifecycles must converge here so
      * completion grants supply and publishes CONSTRUCT_FINISH exactly once. */
     legacy = building->build == building;
-    if (!building->construction && !legacy) return;
+    if (!building_site && !legacy) return;
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-enter building=%ld id=%.4s player=%u legacy=%d active=%d primary_builder=%ld build_link=%ld health=%.1f/%.1f\n",
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
-                (unsigned)building->s.player, legacy, (building->construction != NULL),
-                building->construction && building->construction->primary_builder
-                    ? (long)(building->construction->primary_builder - globals.edicts) : -1L,
+                (unsigned)building->s.player, legacy, (building_site != NULL),
+                building_site && building_site->primary_builder
+                    ? (long)(building_site->primary_builder - globals.edicts) : -1L,
                 building->build ? (long)(building->build - globals.edicts) : -1L,
                 building->health.value, building->health.max_value);
     }
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
-    if (building->construction && building->construction->worker_inside)
+    if (building_site && building_site->worker_inside)
         hidden_construction_worker = G_ConstructionWorker(building);
-    if (building->construction) G_ReleaseConstructionWorker(building, true);
+    if (building_site) G_ReleaseConstructionWorker(building, true);
     G_SetConstructionLoopSound(building, false);
     G_FreeConstruction(building);
     building->aiflags &= ~AI_HOLD_FRAME;
@@ -2027,7 +2037,7 @@ void G_CompleteConstruction(edict_t *building) {
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 (unsigned)building->s.player, (unsigned)EVENT_PLAYER_UNIT_CONSTRUCT_FINISH,
                 building->build ? (long)(building->build - globals.edicts) : -1L,
-                building->food->made);
+                G_GetFood(building)->made);
     }
     if (client) {
         edict_t *clent = G_GetPlayerEntityByNumber(client->ps.number);

@@ -48,7 +48,7 @@ static bool wander_owns_move(edict_t const *unit);
 
 static bool wander_eligible(edict_t *unit) {
     return wander_present(unit) && !M_IsDead(unit) && !G_UnitHasFlag(unit, UNIT_FLAG_PAUSED) &&
-           !unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED) && !G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) && !unit->construction &&
+           !unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED) && !G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) && !G_GetConstruction(unit) &&
            !(unit->aiflags & AI_IMMOBILE) && !unit->orders->holding_position &&
            (!G_UnitHasActiveOrder(unit) || wander_owns_move(unit)) &&
            !S_UnitIsCycloned(unit) && !S_UnitIsEntanglingRooted(unit) &&

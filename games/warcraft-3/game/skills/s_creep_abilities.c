@@ -102,7 +102,7 @@ static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability
     abilityLevel_t const *row;
     cstring_t targets;
 
-    if (!target || !G_IsDestructable(target) || target->destructable->dead || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) return false;
+    if (!target || !G_IsDestructable(target) || G_GetDestructable(target)->dead || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) return false;
     row = G_AbilityLevel(code, ability_level);
     targets = row ? row->targs : NULL;
     if (!targets || !*targets) return false;
@@ -175,9 +175,8 @@ static void death_damage_aoe(edict_t *ent, uint32_t code) {
         return;
     }
     thinker->owner = ent;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = ent->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = ent->spawn_time;
     thinker->class_id = code;
     thinker->wait = (float)level;
     thinker->s.origin2 = ent->s.origin2;

@@ -511,6 +511,7 @@ static void SP_DestructableModelFilename(DestructableData_t const *row,
 }
 
 static void SP_SpawnDestructable(edict_t *edict) {
+    destructable_t *dstr;
     DestructableData_t const *row = edict->data.DestructableData;
     cstring_t path_tex = row->pathingTexture;
     float radius = row->radius;
@@ -521,12 +522,11 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     SP_DestructableModelFilename(row, edict->variation, buffer, sizeof(buffer));
     edict->s.model = G_RegisterModel(buffer);
-    if (!edict->destructable) edict->destructable = G_AllocDestructable();
-    assert(edict->destructable);
-    edict->destructable->occluder_height = row->occluderHeight;
-    edict->destructable->alive_pathtex = M_LoadPathTex(path_tex);
-    edict->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
-    edict->pathtex = edict->destructable->alive_pathtex;
+    dstr = G_AddComponent(edict, COMPONENT_DESTRUCTABLE);
+    dstr->occluder_height = row->occluderHeight;
+    dstr->alive_pathtex = M_LoadPathTex(path_tex);
+    dstr->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
+    edict->pathtex = dstr->alive_pathtex;
     /* selcircsize is an authored diameter for the selection circle. The
      * destructable radius remains the gameplay collision footprint below. */
     edict->s.radius = selection_radius > 0.0f ? selection_radius : 50.0f;
@@ -535,11 +535,11 @@ static void SP_SpawnDestructable(edict_t *edict) {
      * collision circle.  Fabricating a 50-unit circle on every tree was a prime
      * cause of units sticking on trunks. */
     edict->collision = radius > 0.0f ? radius : 0.0f;
-    edict->destructable->alive_collision = edict->collision;
-    edict->destructable->dead = false;
-    edict->destructable->item_table = (uint32_t)-1;
-    edict->destructable->placement_solid = true;
-    edict->destructable->pathing_active = edict->pathtex || edict->collision > 0.0f;
+    dstr->alive_collision = edict->collision;
+    dstr->dead = false;
+    dstr->item_table = (uint32_t)-1;
+    dstr->placement_solid = true;
+    dstr->pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS
     edict->s.shadow = G_LoadShadowTexture(row->shadow, false);
     edict->s.shadow_rect = 0;
@@ -1081,13 +1081,14 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
 
         FOR_LOOP(i, globals.num_edicts) {
             edict_t *existing = &g_edicts[i];
+            destructable_t *dstr = G_GetDestructable(existing);
             float distance;
 
             if (!existing->inuse ||
                 existing->class_id != class_id ||
                 !G_IsDestructable(existing) ||
-                !existing->destructable->map_placed ||
-                existing->destructable->script_bound) {
+                !dstr->map_placed ||
+                dstr->script_bound) {
                 continue;
             }
 
@@ -1104,7 +1105,7 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
         }
 
         if (best) {
-            best->destructable->script_bound = true;
+            G_GetDestructable(best)->script_bound = true;
 
             G_ActivateScriptedDestructable(best,
                                            x,
@@ -1202,7 +1203,9 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
 static bool G_RepositionBlocker(edict_t const *other) {
     float dx, dy, reach;
     edict_t *unit = reposition_unit;
-    if (other == unit || (G_IsItem(unit) && other == unit->item->carrier) ||
+    if (other == unit) return false;
+    item_t const *rec = G_ItemState(unit);
+    if ((rec && other == rec->carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
         !M_UnitsShareCollisionDomain(other, unit)) return false;
     dx = other->s.origin2.x - reposition_point->x;

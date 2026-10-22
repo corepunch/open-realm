@@ -43,24 +43,28 @@ static uint32_t ancient_root_ability(edict_t const *unit) {
 
 /* An Ancient walking to its root site is still in its uprooted form. */
 bool S_AncientIsMorphing(edict_t const *unit) {
-    return unit && unit->ancient_root && (unit->ancient_root->mode == ANCIENT_UPROOTING ||
-        (unit->ancient_root->mode == ANCIENT_ROOTING && !unit->ancient_root->approaching));
+    ancientRoot_t *root = G_GetAncientRoot(unit);
+    return unit && root && (root->mode == ANCIENT_UPROOTING ||
+        (root->mode == ANCIENT_ROOTING && !root->approaching));
 }
 
 bool S_AncientIsRooted(edict_t const *unit) {
+    ancientRoot_t *root = G_GetAncientRoot(unit);
     if (!unit || !root_code(ancient_root_ability(unit))) return false;
-    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED || S_AncientIsMorphing(unit))
+    if (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED || S_AncientIsMorphing(unit))
         return G_UnitIsStructure(unit) && (unit->aiflags & AI_IMMOBILE);
-    return unit->ancient_root->mode == ANCIENT_ROOTED;
+    return root->mode == ANCIENT_ROOTED;
 }
 
 bool S_AncientHasRootAbility(edict_t const *unit) {
-	return unit && unit->ancient_root && root_code(unit->ancient_root->ability) ? true : ancient_root_ability(unit) != 0;
+    ancientRoot_t const *root = G_GetAncientRoot(unit);
+    return root && root_code(root->ability) ? true : ancient_root_ability(unit) != 0;
 }
 
 bool S_AncientCanShowRootedAttackCommand(edict_t const *unit) {
-    uint32_t ability = unit && unit->ancient_root && root_code(unit->ancient_root->ability)
-        ? unit->ancient_root->ability : ancient_root_ability(unit);
+    ancientRoot_t *root = G_GetAncientRoot(unit);
+    uint32_t ability = unit && root && root_code(root->ability)
+        ? root->ability : ancient_root_ability(unit);
     return !S_AncientIsRooted(unit) || ability == ID_ROOT_PROTECTOR;
 }
 
@@ -85,7 +89,8 @@ bool S_AncientAbilityAvailable(edict_t const *unit, ability_t const *ability) {
 uint32_t S_AncientAttackMask(edict_t const *unit) {
     abilityLevel_t const *level;
     AbilityData_t const *data;
-    uint32_t ability = unit && unit->ancient_root ? unit->ancient_root->ability : 0;
+    ancientRoot_t const *root = G_GetAncientRoot(unit);
+    uint32_t ability = root ? root->ability : 0;
     if (!ability) ability = ancient_root_ability(unit);
     if (!unit || !ability) return 3;
     data = G_AbilityData(ability);
@@ -137,7 +142,8 @@ static bool eat_tree_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
     (void)spell;
     edict_t *target = st.entity;
     if (S_AncientIsRooted(caster)) return false;
-    if (S_AncientHasRootAbility(caster) && (!caster->ancient_root || caster->ancient_root->mode != ANCIENT_UPROOTED)) return false;
+    ancientRoot_t const *root = G_GetAncientRoot(caster);
+    if (S_AncientHasRootAbility(caster) && (!root || root->mode != ANCIENT_UPROOTED)) return false;
     if (!target || target->targtype != TARG_TREE) return false;
     return true;
 }
@@ -233,7 +239,7 @@ static void moon_well_update_effect(edict_t * well) {
     if (!well || !(alias = moon_well_alias(well)) || M_IsDead(well)) return;
     /* An authored Moon Well can enter an in-place upgrade construction state.
      * Keep its presentation suppressed while that state is active. */
-    if (well->construction) {
+    if (G_GetConstruction(well)) {
         S_MoonWellEffectsRelease(well);
         return;
     }
@@ -367,7 +373,7 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
                 moon_well_warn_missing_data(code);
                 return true;
             }
-            return ent->construction ||
+            return G_GetConstruction(ent) ||
                    (data->level[0].data[4].number != 0.0f && !G_IsNight()); /* DataE */
         }
     case A_DEATH:
@@ -380,13 +386,14 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
 /* ---- Ancient Root/Uproot ------------------------------------------------- */
 
 static float ancient_root_duration(edict_t const *unit, bool rooted) {
+    ancientRoot_t *root = G_GetAncientRoot(unit);
     AbilityData_t const *data;
-    assert(unit && unit->ancient_root);
-    if (!unit->ancient_root->ability) return 0.0f;
-    data = G_AbilityData(unit->ancient_root->ability);
-    if (data->id != unit->ancient_root->ability) {
+    assert(unit && root);
+    if (!root->ability) return 0.0f;
+    data = G_AbilityData(root->ability);
+    if (data->id != root->ability) {
         fprintf(stderr, "WC3 Ancient Root: missing AbilityData %08x (morph duration)\n",
-                unit->ancient_root->ability);
+                root->ability);
         return -1.0f;
     }
     return MAX(0.0f, rooted ? data->level[0].dur : data->level[0].heroDur);
@@ -410,49 +417,51 @@ static bool ancient_root_restore_pathing(edict_t *unit) {
 }
 
 void S_AncientBeginMorph(edict_t *unit, bool rooted) {
+    ancientRoot_t *root = G_GetAncientRoot(unit);
     float duration;
     if (!unit) return;
-    assert(unit->ancient_root);
+    assert(root);
     duration = ancient_root_duration(unit, rooted);
     if (duration < 0.0f) return;
-    unit->ancient_root->approaching = false;
-    unit->ancient_root->transition_end_time = G_Time() + (uint32_t)(duration * 1000.0f);
-    unit->ancient_root->mode = rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING;
+    root->approaching = false;
+    root->transition_end_time = G_Time() + (uint32_t)(duration * 1000.0f);
+    root->mode = rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING;
     unit->wait = duration;
     unit_setmove(unit, rooted ? &ancient_root_morph : &ancient_uproot_morph);
     if (unit->animation) unit->s.frame = unit->animation->interval[0];
 }
 
 static void ancient_root_commit(edict_t *unit, bool rooted) {
+    ancientRoot_t *root = G_GetAncientRoot(unit);
     abilityLevel_t const *level;
     if (!unit || !unit->inuse || M_IsDead(unit)) return;
-    assert(unit->ancient_root);
-    level = G_AbilityLevel(unit->ancient_root->ability, 1);
+    assert(root);
+    level = G_AbilityLevel(root->ability, 1);
     if (rooted) {
         ancient_root_restore_pathing(unit);
-        if (unit->ancient_root->has_rooted_collision) unit->collision = unit->ancient_root->rooted_collision;
+        if (root->has_rooted_collision) unit->collision = root->rooted_collision;
         unit->aiflags |= AI_IMMOBILE;
         unit->runtime.flags |= UNIT_BALANCE_BUILDING;
         unit->s.flags |= EF_BUILDING;
         unit->movetype = MOVETYPE_NONE;
-        unit->unit_state->defense_type = unit->ancient_root->rooted_defense_type;
+        unit->unit_state->defense_type = root->rooted_defense_type;
         unit->s.angle = game.constants.rootAngle * (float)M_PI / 180.0f;
         G_AddUnitAnimationProperties(unit, "alternate", true);
-        unit->ancient_root->mode = ANCIENT_ROOTED;
+        root->mode = ANCIENT_ROOTED;
     } else {
         S_ReleaseEntangledMineForTree(unit);
         unit->aiflags &= ~AI_IMMOBILE;
         unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
         unit->s.flags &= ~EF_BUILDING;
         unit->movetype = MOVETYPE_STEP;
-        if (unit->ancient_root->has_mobile_collision) unit->collision = unit->ancient_root->mobile_collision;
+        if (root->has_mobile_collision) unit->collision = root->mobile_collision;
         if (level) unit->unit_state->defense_type = (uint32_t)level->data[3].number;
         G_AddUnitAnimationProperties(unit, "alternate", false);
-        unit->ancient_root->mode = ANCIENT_UPROOTED;
+        root->mode = ANCIENT_UPROOTED;
     }
     unit->s.collision = unit->collision;
-    unit->ancient_root->transition_end_time = 0;
-    unit->ancient_root->approaching = false;
+    root->transition_end_time = 0;
+    root->approaching = false;
     CM_BakeStaticObstacles();
     gi.LinkEntity(unit);
     unit_stand(unit);
@@ -472,10 +481,11 @@ static bool ancient_root_validate(edict_t *unit, vec2_t const *point, vec2_t *sn
 
 static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     edict_t *unit;
+    ancientRoot_t *root;
     vec2_t snapped;
     if (!clent || !clent->client || !point || !(unit = G_GetMainSelectedUnit(clent->client)) ||
         !G_UnitCanControl(clent->client, unit) || !ancient_root_ability(unit) ||
-        unit->ancient_root->mode != ANCIENT_UPROOTED) {
+        !(root = G_GetAncientRoot(unit)) || root->mode != ANCIENT_UPROOTED) {
         G_ShowCommandErrorKey(clent, "Cantrootunit", "Target is no longer rootable.");
         G_ClearRootPlacementCursor(clent);
         return false;
@@ -487,16 +497,16 @@ static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     G_ClearRootPlacementCursor(clent);
     clent->client->menu.on_location_selected = NULL;
     clent->client->menu.supports_order_queue = false;
-    unit->ancient_root->destination = snapped;
-    unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approaching = true;
+    root->destination = snapped;
+    root->mode = ANCIENT_ROOTING;
+    root->approaching = true;
     order_move(unit, Waypoint_add(&snapped));
-    unit->ancient_root->approach_goal = unit->goalentity;
-    unit->ancient_root->approach_goal_spawn_time = unit->goalentity ? unit->goalentity->spawn_time : 0;
+    root->approach_goal = unit->goalentity;
+    root->approach_goal_spawn_time = unit->goalentity ? unit->goalentity->spawn_time : 0;
     if (!unit->currentmove || unit->currentmove->proc != CAbilityMove || !unit->goalentity) {
-        unit->ancient_root->mode = ANCIENT_UPROOTED;
-        unit->ancient_root->approaching = false;
-        unit->ancient_root->approach_goal = NULL;
+        root->mode = ANCIENT_UPROOTED;
+        root->approaching = false;
+        root->approach_goal = NULL;
         return false;
     }
     return true;
@@ -506,66 +516,65 @@ static void ancient_root_command(edict_t *clent) {
     edict_t *unit;
     if (!clent || !clent->client || !(unit = G_GetMainSelectedUnit(clent->client)) ||
         !G_UnitCanControl(clent->client, unit) || !ancient_root_ability(unit)) return;
-    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED) {
-        if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-        assert(unit->ancient_root);
-        unit->ancient_root->ability = ancient_root_ability(unit);
-        unit->ancient_root->unit_type = unit->class_id;
-        unit->ancient_root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
-        unit->ancient_root->mobile_collision = G_UnitCollision(unit->class_id);
-        unit->ancient_root->has_mobile_collision = unit->ancient_root->mobile_collision > 0.0f;
-        unit->ancient_root->rooted_collision = unit->collision;
-        unit->ancient_root->has_rooted_collision = true;
-        unit->ancient_root->mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
+    ancientRoot_t *root = G_GetAncientRoot(unit);
+    if (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED) {
+        root = G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+        root->ability = ancient_root_ability(unit);
+        root->unit_type = unit->class_id;
+        root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
+        root->mobile_collision = G_UnitCollision(unit->class_id);
+        root->has_mobile_collision = root->mobile_collision > 0.0f;
+        root->rooted_collision = unit->collision;
+        root->has_rooted_collision = true;
+        root->mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
     }
-    if (unit->ancient_root->mode == ANCIENT_ROOTED) {
-        if (G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || unit->construction || unit->build || G_BuildingUpgradeActive(unit)) {
+    if (root->mode == ANCIENT_ROOTED) {
+        if (G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || G_GetConstruction(unit) || unit->build || G_BuildingUpgradeActive(unit)) {
             G_ShowCommandErrorKey(clent, "Cantrootunit", "Unable to uproot while this Ancient is busy.");
             return;
         }
-        unit->ancient_root->destination = unit->s.origin2;
+        root->destination = unit->s.origin2;
         S_ReleaseEntangledMineForTree(unit);
         S_AncientBeginMorph(unit, false);
         return;
     }
-    if (unit->ancient_root->mode != ANCIENT_UPROOTED) return;
+    if (root->mode != ANCIENT_UPROOTED) return;
     clent->client->menu.on_location_selected = ancient_root_select_location;
     G_ShowRootPlacementCursor(clent, unit);
 }
 
 static void ancient_root_update(edict_t *unit) {
+    ancientRoot_t *root = G_GetAncientRoot(unit);
     abilityLevel_t const *level;
     bool pathing_changed = false;
     if (!unit || !unit->inuse || M_IsDead(unit)) return;
-    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED) {
+    if (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED) {
         uint32_t alias = ancient_root_ability(unit);
         if (!alias) return;
-        if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-        assert(unit->ancient_root);
-        unit->ancient_root->ability = alias;
-        unit->ancient_root->unit_type = unit->class_id;
-        unit->ancient_root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
-        unit->ancient_root->mobile_collision = G_UnitCollision(unit->class_id);
-        unit->ancient_root->has_mobile_collision = unit->ancient_root->mobile_collision > 0.0f;
-        unit->ancient_root->rooted_collision = unit->collision;
-        unit->ancient_root->has_rooted_collision = true;
-        unit->ancient_root->mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
+        root = G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+        root->ability = alias;
+        root->unit_type = unit->class_id;
+        root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
+        root->mobile_collision = G_UnitCollision(unit->class_id);
+        root->has_mobile_collision = root->mobile_collision > 0.0f;
+        root->rooted_collision = unit->collision;
+        root->has_rooted_collision = true;
+        root->mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
         pathing_changed = true;
     }
-    if (unit->ancient_root->unit_type != unit->class_id) {
-        unit->ancient_root->unit_type = unit->class_id;
-        unit->ancient_root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
-        unit->ancient_root->mobile_collision = G_UnitCollision(unit->class_id);
-        unit->ancient_root->has_mobile_collision = unit->ancient_root->mobile_collision > 0.0f;
-        unit->ancient_root->rooted_collision = unit->collision;
-        unit->ancient_root->has_rooted_collision = true;
+    if (root->unit_type != unit->class_id) {
+        root->unit_type = unit->class_id;
+        root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
+        root->mobile_collision = G_UnitCollision(unit->class_id);
+        root->has_mobile_collision = root->mobile_collision > 0.0f;
+        root->rooted_collision = unit->collision;
+        root->has_rooted_collision = true;
         pathing_changed = true;
     }
-    assert(unit->ancient_root);
-    level = G_AbilityLevel(unit->ancient_root->ability, 1);
-    if (level) unit->ancient_root->rooted_turning = level->data[2].number != 0.0f;
-    if (unit->ancient_root->mode == ANCIENT_ROOTED || unit->ancient_root->mode == ANCIENT_UPROOTED) {
-        bool rooted = unit->ancient_root->mode == ANCIENT_ROOTED;
+    level = G_AbilityLevel(root->ability, 1);
+    if (level) root->rooted_turning = level->data[2].number != 0.0f;
+    if (root->mode == ANCIENT_ROOTED || root->mode == ANCIENT_UPROOTED) {
+        bool rooted = root->mode == ANCIENT_ROOTED;
         if (G_UnitIsStructure(unit) != rooted) pathing_changed = true;
         if (rooted) {
             if (ancient_root_restore_pathing(unit)) pathing_changed = true;
@@ -573,14 +582,14 @@ static void ancient_root_update(edict_t *unit) {
             unit->runtime.flags |= UNIT_BALANCE_BUILDING;
             unit->s.flags |= EF_BUILDING;
             unit->movetype = MOVETYPE_NONE;
-            unit->unit_state->defense_type = unit->ancient_root->rooted_defense_type;
-            if (unit->ancient_root->has_rooted_collision) unit->collision = unit->ancient_root->rooted_collision;
+            unit->unit_state->defense_type = root->rooted_defense_type;
+            if (root->has_rooted_collision) unit->collision = root->rooted_collision;
         } else {
             unit->aiflags &= ~AI_IMMOBILE;
             unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
             unit->s.flags &= ~EF_BUILDING;
             unit->movetype = MOVETYPE_STEP;
-            if (unit->ancient_root->has_mobile_collision) unit->collision = unit->ancient_root->mobile_collision;
+            if (root->has_mobile_collision) unit->collision = root->mobile_collision;
             if (level) unit->unit_state->defense_type = (uint32_t)level->data[3].number;
         }
         unit->s.collision = unit->collision;
@@ -589,36 +598,39 @@ static void ancient_root_update(edict_t *unit) {
             CM_BakeStaticObstacles();
         }
     }
-    if (unit->ancient_root->mode == ANCIENT_ROOTING && unit->ancient_root->approaching) {
+    if (root->mode == ANCIENT_ROOTING && root->approaching) {
         if (!unit->currentmove || unit->currentmove->proc != CAbilityMove ||
-            unit->goalentity != unit->ancient_root->approach_goal || !unit->goalentity ||
-            unit->goalentity->spawn_time != unit->ancient_root->approach_goal_spawn_time) {
-            unit->ancient_root->mode = ANCIENT_UPROOTED;
-            unit->ancient_root->approaching = false;
-            unit->ancient_root->approach_goal = NULL;
+            unit->goalentity != root->approach_goal || !unit->goalentity ||
+            unit->goalentity->spawn_time != root->approach_goal_spawn_time) {
+            root->mode = ANCIENT_UPROOTED;
+            root->approaching = false;
+            root->approach_goal = NULL;
         }
         return;
     }
-    if (unit->ancient_root->mode == ANCIENT_ROOTING || unit->ancient_root->mode == ANCIENT_UPROOTING) {
-        bool const rooted = unit->ancient_root->mode == ANCIENT_ROOTING;
+    if (root->mode == ANCIENT_ROOTING || root->mode == ANCIENT_UPROOTING) {
+        bool const rooted = root->mode == ANCIENT_ROOTING;
         umove_t const *expected = rooted ? &ancient_root_morph : &ancient_uproot_morph;
-        if (G_Time() >= unit->ancient_root->transition_end_time && unit->currentmove == expected) {
+        if (G_Time() >= root->transition_end_time && unit->currentmove == expected) {
             ancient_root_commit(unit, rooted);
         }
     }
 }
 
 BZ_ABILITY_PROC(CAbilityRoot) {
+    ancientRoot_t *root = G_GetAncientRoot(ent);
     /* Root is a single command whose alternate presentation is Uproot while
      * the Ancient occupies rooted building mode. The HUD uses this response
      * to resolve the authored Unart/Untip fields for the command button. */
     if (msg == A_TOGGLE_ON) return S_AncientIsRooted(ent);
     if (msg == A_ORDER && call && call->order) {
-        if (ent && (!ent->ancient_root || ent->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED))
+        if (ent && (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED)) {
             ancient_root_update(ent);
-        if (!strcmp(call->order, "unroot") && ent && ent->ancient_root && ent->ancient_root->mode == ANCIENT_ROOTED &&
-            !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) && !ent->construction && !ent->build && !G_BuildingUpgradeActive(ent)) {
-            ent->ancient_root->destination = ent->s.origin2;
+            root = G_GetAncientRoot(ent); /* The update may have attached the record. */
+        }
+        if (!strcmp(call->order, "unroot") && ent && root && root->mode == ANCIENT_ROOTED &&
+            !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) && !G_GetConstruction(ent) && !ent->build && !G_BuildingUpgradeActive(ent)) {
+            root->destination = ent->s.origin2;
             S_ReleaseEntangledMineForTree(ent);
             S_AncientBeginMorph(ent, false);
             return true;
@@ -629,47 +641,47 @@ BZ_ABILITY_PROC(CAbilityRoot) {
     case A_COMMAND: ancient_root_command(call && call->entity ? call->entity : ent); return true;
     case A_UPDATE: ancient_root_update(ent); return true;
     case A_MOVE_LEAVE:
-        if (ent && ent->ancient_root && !ent->ancient_root->approaching &&
-            (ent->ancient_root->mode == ANCIENT_ROOTING || ent->ancient_root->mode == ANCIENT_UPROOTING) &&
+        if (ent && root && !root->approaching &&
+            (root->mode == ANCIENT_ROOTING || root->mode == ANCIENT_UPROOTING) &&
             call && call->next_move_proc != CAbilityRoot) {
-            ent->ancient_root->mode = ent->ancient_root->mode == ANCIENT_ROOTING ?
+            root->mode = root->mode == ANCIENT_ROOTING ?
                 ANCIENT_UPROOTED : ANCIENT_ROOTED;
-            ent->ancient_root->transition_end_time = 0;
+            root->transition_end_time = 0;
         }
-        if (ent && ent->ancient_root && ent->ancient_root->mode == ANCIENT_ROOTING && ent->ancient_root->approaching &&
+        if (ent && root && root->mode == ANCIENT_ROOTING && root->approaching &&
             call && call->next_move_proc != CAbilityMove) {
-            ent->ancient_root->mode = ANCIENT_UPROOTED;
-            ent->ancient_root->approaching = false;
-            ent->ancient_root->approach_goal = NULL;
+            root->mode = ANCIENT_UPROOTED;
+            root->approaching = false;
+            root->approach_goal = NULL;
         }
         return false;
     case A_MOVE_ARRIVE:
-        if (ent && ent->ancient_root && ent->ancient_root->mode == ANCIENT_ROOTING && ent->ancient_root->approaching &&
-            ent->goalentity == ent->ancient_root->approach_goal && ent->goalentity &&
-            ent->goalentity->spawn_time == ent->ancient_root->approach_goal_spawn_time) {
-            if (Vector2_distance(&ent->s.origin2, &ent->ancient_root->destination) > 1.0f ||
-                !ancient_root_validate(ent, &ent->ancient_root->destination, &ent->ancient_root->destination)) {
-                ent->ancient_root->mode = ANCIENT_UPROOTED;
-                ent->ancient_root->approaching = false;
-                ent->ancient_root->approach_goal = NULL;
+        if (ent && root && root->mode == ANCIENT_ROOTING && root->approaching &&
+            ent->goalentity == root->approach_goal && ent->goalentity &&
+            ent->goalentity->spawn_time == root->approach_goal_spawn_time) {
+            if (Vector2_distance(&ent->s.origin2, &root->destination) > 1.0f ||
+                !ancient_root_validate(ent, &root->destination, &root->destination)) {
+                root->mode = ANCIENT_UPROOTED;
+                root->approaching = false;
+                root->approach_goal = NULL;
                 {
                     edict_t *player = G_GetPlayerEntityByNumber(ent->s.player);
                     if (player) G_ShowCommandErrorKey(player, "Cantroot", "Unable to root there.");
                 }
                 return false;
             }
-            ent->ancient_root->approach_goal = NULL;
+            root->approach_goal = NULL;
             S_AncientBeginMorph(ent, true);
             return true;
         }
         return false;
     case A_DEATH:
     case A_UNIT_REMOVE:
-        if (ent && ent->ancient_root) {
-            ent->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
-            ent->ancient_root->transition_end_time = 0;
-            ent->ancient_root->approaching = false;
-            ent->ancient_root->approach_goal = NULL;
+        if (ent && root) {
+            root->mode = ANCIENT_ROOT_UNINITIALIZED;
+            root->transition_end_time = 0;
+            root->approaching = false;
+            root->approach_goal = NULL;
         }
         return false;
     default: return false;

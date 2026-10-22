@@ -389,9 +389,9 @@ TEST(wc3_sc2api, raw_friendly_transport_exports_passenger_details) {
     transport->svflags |= SVF_MONSTER;
     passenger->svflags |= SVF_MONSTER;
     transport->data.UnitAbilities = &abilities;
-    transport->cargo = G_AllocCargo();
-    transport->cargo->units[0] = passenger;
-    transport->cargo->count = 1;
+    G_AddComponent(transport, COMPONENT_CARGO);
+    G_GetCargo(transport)->units[0] = passenger;
+    G_GetCargo(transport)->count = 1;
     passenger->health.value = 37.0f;
     passenger->health.max_value = 100.0f;
     passenger->mana.value = 11.0f;
@@ -772,7 +772,7 @@ TEST(wc3_sc2api, raw_destructable_uses_neutral_namespaced_unit_type) {
     ent->class_id = ent->s.class_id = data.id;
     ent->spawn_time = 1234;
     ent->data.DestructableData = &data;
-    ent->destructable = G_AllocDestructable();
+    G_AddComponent(ent, COMPONENT_DESTRUCTABLE);
     ent->health.max_value = ent->health.value = 100.0f;
     ent->s.player = PLAYER_NEUTRAL_PASSIVE;
     gi.LinkEntity(ent);

@@ -68,7 +68,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
     uint32_t retaliation = S_AncientIsRooted(attacker) ? S_AncientRetaliationAttackMask(attacker) : 0;
-    if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
+    if (attacker && target && G_GetDestructable(target) && target->targtype == TARG_TREE) {
         if (attacker->unit_state->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->unit_state->attack1;
         if (attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->unit_state->attack2;
     }
@@ -118,25 +118,23 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     rocket->missile->attack_type = desc->attack_type;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        if (!rocket->channel) rocket->channel = G_AllocChannel();
-        assert(rocket->channel);
-        rocket->channel->origin = *desc->fixed_target;
+        channel_t *cast = G_AddComponent(rocket, COMPONENT_CHANNEL);
+        cast->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
         rocket->goalentity = desc->target;
-        rocket->channel->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+        cast->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            rocket->artillery = G_AllocArtillery();
-            assert(rocket->artillery);
-            rocket->artillery->attack_type = desc->attack->type;
-            rocket->artillery->area_targets = desc->area_targets;
-            rocket->artillery->targets_allowed = desc->attack->targetsAllowed;
-            rocket->artillery->area_full = desc->attack->areaFull;
-            rocket->artillery->area_medium = desc->attack->areaMedium;
-            rocket->artillery->area_small = desc->attack->areaSmall;
-            rocket->artillery->factor_medium = desc->attack->factorMedium;
-            rocket->artillery->factor_small = desc->attack->factorSmall;
+            artillery_t *splash = G_AddComponent(rocket, COMPONENT_ARTILLERY);
+            splash->attack_type = desc->attack->type;
+            splash->area_targets = desc->area_targets;
+            splash->targets_allowed = desc->attack->targetsAllowed;
+            splash->area_full = desc->attack->areaFull;
+            splash->area_medium = desc->attack->areaMedium;
+            splash->area_small = desc->attack->areaSmall;
+            splash->factor_medium = desc->attack->factorMedium;
+            splash->factor_small = desc->attack->factorSmall;
         }
     } else {
         rocket->goalentity = desc->target;
@@ -223,7 +221,7 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
            ((mask & 2u) && attacker->unit_state->attack2.type == ATK_MAGIC &&
              (attacker->unit_state->attack2.targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target))))))) return false;
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
-    if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
+    if (G_GetDestructable(target)) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && (((mask & 1u) && attacker->unit_state->attack1.type != ATK_NONE && (attacker->unit_state->attack1.targetsAllowed & flag)) ||
@@ -982,7 +980,7 @@ static bool attack_ground_valid(edict_t const *ent) {
 }
 
 static float attack_ground_distance(edict_t const *ent) {
-    return ent ? Vector2_distance(&ent->s.origin2, &ent->channel->origin) : FLT_MAX;
+    return ent ? Vector2_distance(&ent->s.origin2, &G_GetChannel(ent)->origin) : FLT_MAX;
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
@@ -1013,7 +1011,7 @@ static void throw_artillery_ground(edict_t *ent) {
     vec2_t impact;
 
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    impact = ent->channel->origin;
+    impact = G_GetChannel(ent)->origin;
     damage = (int)ai_rolldamage1(ent, 1);
     M_GetEntityMatrix(&ent->s, &matrix);
     origin = Matrix4_multiply_vector3(&matrix, &ent->unit_state->attack1.origin);
@@ -1101,9 +1099,8 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     unit->goalentity = waypoint;
     unit->unit_state->attack_target_spawn_time = 0;
     attack_ground_walk(unit);
-    if (!unit->channel) unit->channel = G_AllocChannel();
-    assert(unit->channel);
-    unit->channel->origin = *point;
+    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_GetChannel(unit)->origin = *point;
     return true;
 }
 

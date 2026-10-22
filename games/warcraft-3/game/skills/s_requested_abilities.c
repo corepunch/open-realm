@@ -84,7 +84,7 @@ static bool earthquake_allows_unit(uint32_t code, cstring_t targets, edict_t *ca
 
 static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
-    if (!G_IsDestructable(target) || target->destructable->dead) return false;
+    if (!G_IsDestructable(target) || G_GetDestructable(target)->dead) return false;
     if (targets && *targets) {
         if (target->targtype == TARG_TREE && !S_SpellTargetHasToken(targets, "tree", NULL)) return false;
         if (target->targtype == TARG_DEBRIS && !S_SpellTargetHasToken(targets, "debris", NULL)) return false;
@@ -301,9 +301,8 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
     marker->class_id = ID_CHAIN_LIGHTNING_VISIT;
     marker->svflags |= SVF_NOCLIENT;
     marker->owner = thinker;
-    if (!marker->channel) marker->channel = G_AllocChannel();
-    assert(marker->channel);
-    marker->channel->owner_spawn_time = thinker->spawn_time;
+    G_AddComponent(marker, COMPONENT_CHANNEL);
+    G_GetChannel(marker)->owner_spawn_time = thinker->spawn_time;
     marker->goalentity = target;
     marker->resources = target->spawn_time;
 }
@@ -400,9 +399,8 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     thinker->class_id = spell->code;
     thinker->svflags |= SVF_NOCLIENT;
     thinker->owner = caster;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->s.origin2 = st.entity->s.origin2;
     thinker->goalentity = st.entity;
     thinker->damage = st.entity->spawn_time;
@@ -430,9 +428,8 @@ void S_ReincarnationOnDeath(edict_t *unit) {
     FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
     thinker = G_Spawn(); thinker->owner = unit; thinker->class_id = code; thinker->s.origin2 = unit->s.origin2;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = unit->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = unit->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellData(code, level, 1) * 1000.0f);
     thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
 }
@@ -461,12 +458,15 @@ static void mass_teleport_cleanup(edict_t *thinker) {
      * channel identity without invoking S_SpellChannelActive() (which can
      * itself cancel channels while iterating thinkers). */
     if (target && thinker->wait < 0.5f) {
-        FILTER_EDICTS(other, other != thinker && other->think == mass_teleport_think &&
-                      other->goalentity == target && other->channel &&
-                      other->channel->target_spawn_time == target->spawn_time) {
-            edict_t *owner = S_SpellChannelOwner(other);
-            if (owner && owner->channel && owner->channel->code == other->class_id &&
-                owner->channel->serial == other->channel->serial && !M_IsDead(owner)) {
+        FILTER_EDICTS(other, other != thinker && other->think == mass_teleport_think && other->goalentity == target) {
+            channel_t const *other_cast = G_GetChannel(other);
+            edict_t *owner;
+            channel_t const *owner_cast;
+            if (!other_cast || other_cast->target_spawn_time != target->spawn_time) continue;
+            owner = S_SpellChannelOwner(other);
+            owner_cast = G_GetChannel(owner);
+            if (owner && owner_cast && owner_cast->code == other->class_id &&
+                owner_cast->serial == other_cast->serial && !M_IsDead(owner)) {
                 newer_pause_owner = true;
                 break;
             }
@@ -828,9 +828,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
     if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->resources = original;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
+    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f); thinker->think = morph_end;
 }
 /* Name=Sleep
@@ -1003,10 +1002,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
     thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
-    thinker->channel->target_spawn_time = st.entity->spawn_time;
+    channel_t *cast = G_AddComponent(thinker, COMPONENT_CHANNEL);
+    cast->owner_spawn_time = caster->spawn_time;
+    cast->target_spawn_time = st.entity->spawn_time;
     thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
 }

@@ -681,7 +681,7 @@ static int G_FowBlockerDilation(edict_t const *ent) {
         return FOW_TREE_DILATION_CELLS;
     }
     if (!(ent->svflags & SVF_MONSTER) && G_IsDestructable(ent) &&
-        ent->destructable->occluder_height > 0.0f)
+        G_GetDestructable(ent)->occluder_height > 0.0f)
     {
         return FOW_TREE_DILATION_CELLS;
     }

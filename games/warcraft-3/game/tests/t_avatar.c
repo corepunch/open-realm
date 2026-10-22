@@ -110,7 +110,7 @@ TEST(wc3_avatar, direct_status_removal_does_not_reenter_avatar_cleanup) {
     T_NULL(unit_findstatus(unit, BZ_AVATAR_BUFF));
     T_FEQ(unit->health.max_value, 650.0f, 0.001f);
     T_FEQ(unit->unit_state->attack1.temporaryDamageBonus, 3.0f, 0.001f);
-    T_ASSERT(!unit->avatar);
+    T_ASSERT(!G_GetAvatar(unit));
     avatar_done(fix);
 }
 
@@ -158,7 +158,7 @@ TEST(wc3_avatar, level_change_death_and_removal_reverse_stored_values) {
     T_FEQ(unit->health.max_value, 675, 0.001f);
     T_FEQ(unit->unit_state->armor_value, 5, 0.001f);
     T_FEQ(unit->unit_state->attack1.temporaryDamageBonus, 3, 0.001f);
-    T_NULL(unit->avatar);
+    T_NULL(G_GetAvatar(unit));
     T_ASSERT(!S_UnitSpellImmune(unit));
     avatar_done(fix);
 }
@@ -169,7 +169,7 @@ TEST(wc3_avatar, ability_removal_expires_active_avatar) {
     T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
     T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));
-    T_NULL(unit->avatar); T_ASSERT(!S_UnitSpellImmune(unit));
+    T_NULL(G_GetAvatar(unit)); T_ASSERT(!S_UnitSpellImmune(unit));
     T_FEQ(unit->health.max_value, 650, 0.001f); T_FEQ(unit->unit_state->attack1.temporaryDamageBonus, 3, 0.001f);
     avatar_done(fix);
 }
@@ -195,7 +195,7 @@ TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
     edict_t *unit = fix.unit;
     unit->mana.value = 24;
     T_ASSERT(!S_CastNoTargetSpell(unit, BZ_AVATAR));
-    T_NULL(unit->avatar);
+    T_NULL(G_GetAvatar(unit));
     unit->mana.value = 100;
     FOR_LOOP(i, MAX_UNIT_STATUSES) unit->unit_state->statuses[i] = (heroabilitystatus_t){ .code = i + 1, .level = 1 };
     T_ASSERT(!S_CastNoTargetSpell(unit, BZ_AVATAR));

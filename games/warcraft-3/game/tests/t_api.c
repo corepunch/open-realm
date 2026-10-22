@@ -4056,14 +4056,14 @@ TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
     if (!mine || !worker || !building) goto cleanup;
     mine->birth(mine);
     T_ASSERT(G_StartUndeadConstruction(worker, mine));
-    T_ASSERT(mine->construction);
+    T_ASSERT(G_GetConstruction(mine));
     T_STREQ(mine->currentmove->animation, "birth");
 
     jass_callbyname(level.vm, "cancelIntro", false);
     jass_runevents(level.vm);
     T_ASSERT(mine->svflags & SVF_DEADMONSTER);
     T_STREQ(mine->currentmove->animation, "death");
-    T_ASSERT(!mine->construction);
+    T_ASSERT(!G_GetConstruction(mine));
     T_ASSERT(worker->inuse);
     T_ASSERT(G_IsDeferredFree(worker));
     T_ASSERT(G_IsDeferredFree(building));
@@ -4583,8 +4583,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
     building->stand = unit_stand;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    G_AddComponent(building, COMPONENT_CONSTRUCTION);
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
@@ -5242,8 +5241,8 @@ TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     edict_t overlay = {
         .svflags = SVF_MONSTER,
         .s = { .player = 3 },
-        .mineoverlay = &overlay_state,
     };
+    G_AttachComponent(&overlay, &overlay_state.component, COMPONENT_MINE_OVERLAY);
     parent.health.value = 100.0f;
     overlay.health.value = 100.0f;
 
@@ -5285,7 +5284,7 @@ TEST(wc3_api, customize_entity_packs_hover_cargo_count_and_capacity) {
 
     ent.health.value = 100.0f;
     cargo_t cargo_state = { .count = 3 };
-    ent.cargo = &cargo_state;
+    G_AttachComponent(&ent, &cargo_state.component, COMPONENT_CARGO);
     globals.CustomizeEntity(3, &ent, &state);
     T_EQ(EntityCargoCount(state.stats[ENT_CARGO]), 3);
     T_EQ(EntityCargoCapacity(state.stats[ENT_CARGO]), 4);
@@ -7057,10 +7056,9 @@ static edict_t *alloc_world_test_item(uint32_t class_id) {
     edict_t *item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->in_world = true;
-    item->item->inventory_slot = -1;
+    G_AddComponent(item, COMPONENT_ITEM);
+    G_GetItem(item)->in_world = true;
+    G_GetItem(item)->inventory_slot = -1;
     return item;
 }
 
@@ -8457,16 +8455,16 @@ TEST(wc3_api, stock_slots_propagate_override_clamp_and_inherit) {
     G_SetStockSlots(second, true, level.stock.item_slots);
     G_SetAllStockSlots(true, 11); G_SetAllStockSlots(false, 9);
     T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 9);
-    T_EQ(first->stock->item_slots, 11); T_EQ(second->stock->item_slots, 11);
-    T_EQ(first->stock->unit_slots, 9); T_EQ(second->stock->unit_slots, 9);
+    T_EQ(G_GetStock(first)->item_slots, 11); T_EQ(G_GetStock(second)->item_slots, 11);
+    T_EQ(G_GetStock(first)->unit_slots, 9); T_EQ(G_GetStock(second)->unit_slots, 9);
 
     G_SetStockSlots(first, true, 3); G_SetStockSlots(first, false, -1);
-    T_EQ(first->stock->item_slots, 3); T_ASSERT(!first->stock || first->stock->unit_slots == 0);
-    T_EQ(second->stock->item_slots, 11); T_EQ(second->stock->unit_slots, 9);
+    T_EQ(G_GetStock(first)->item_slots, 3); T_ASSERT(!G_GetStock(first) || G_GetStock(first)->unit_slots == 0);
+    T_EQ(G_GetStock(second)->item_slots, 11); T_EQ(G_GetStock(second)->unit_slots, 9);
 
     future = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 64, 0);
     G_SetStockSlots(future, true, level.stock.item_slots);
-    T_EQ(future->stock->item_slots, 11); T_EQ(future->stock->unit_slots, 9);
+    T_EQ(G_GetStock(future)->item_slots, 11); T_EQ(G_GetStock(future)->unit_slots, 9);
 }
 
 TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
@@ -8483,10 +8481,10 @@ TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
         "call SetUnitTypeSlots(shop,4)\n"
         "endfunction"));
     T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 10);
-    T_EQ(shop->stock->item_slots, 11); T_EQ(shop->stock->unit_slots, 10);
+    T_EQ(G_GetStock(shop)->item_slots, 11); T_EQ(G_GetStock(shop)->unit_slots, 10);
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) created = g_edicts + i;
     T_NOT_NULL(created);
-    T_EQ(created->stock->item_slots, 3); T_EQ(created->stock->unit_slots, 4);
+    T_EQ(G_GetStock(created)->item_slots, 3); T_EQ(G_GetStock(created)->unit_slots, 4);
 }
 
 TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
@@ -8501,16 +8499,40 @@ TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
         "call AddItemToStock(null,'spro',1,2)\n"
         "call RemoveItemFromStock(null,'spro')\n"
         "endfunction"));
-    T_EQ(shop->stock->item_count, 1);
-    T_EQ(shop->stock->items[0].id, MAKEFOURCC('s','p','r','o'));
-    T_EQ(shop->stock->items[0].current, 1);
-    T_EQ(shop->stock->items[0].maximum, 2);
+    T_EQ(G_GetStock(shop)->item_count, 1);
+    T_EQ(G_GetStock(shop)->items[0].id, MAKEFOURCC('s','p','r','o'));
+    T_EQ(G_GetStock(shop)->items[0].current, 1);
+    T_EQ(G_GetStock(shop)->items[0].maximum, 2);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "call RemoveItemFromAllStock('spro')\n"
         "endfunction"));
-    T_ASSERT(!shop->stock || shop->stock->item_count == 0);
+    T_ASSERT(!G_GetStock(shop) || G_GetStock(shop)->item_count == 0);
+}
+
+/* The stock natives must attach the shop's record themselves: a fresh shop has none until initialization. */
+TEST(wc3_api, stock_natives_attach_the_record_on_a_shop_without_stock) {
+    static UnitAbilities_t sell_both = { .abilList = "Asid,Asud", .heroAbilList = "" };
+    edict_t *shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+
+    shop->data.UnitAbilities = &sell_both;
+    T_NULL(G_GetStock(shop));
+    G_RemoveItemStock(shop, MAKEFOURCC('s','p','r','o'));
+    T_NOT_NULL(G_GetStock(shop));
+    T_EQ(G_GetStock(shop)->item_count, 0);
+    G_FreeStock(shop);
+    G_RemoveUnitStock(shop, MAKEFOURCC('n','m','e','r'));
+    T_NOT_NULL(G_GetStock(shop));
+    T_EQ(G_GetStock(shop)->unit_count, 0);
+    G_FreeStock(shop);
+    uint32_t const old_items = level.stock.item_slots, old_units = level.stock.unit_slots;
+    level.stock.item_slots = level.stock.unit_slots = 11; /* Zero map-wide slots would reject the add before attaching. */
+    T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('s','p','r','o'), 1, 2));
+    T_EQ(G_GetStock(shop)->item_count, 1);
+    T_ASSERT(G_AddUnitStock(shop, MAKEFOURCC('n','m','e','r'), 1, 2));
+    T_EQ(G_GetStock(shop)->unit_count, 1);
+    level.stock.item_slots = old_items; level.stock.unit_slots = old_units;
 }
 
 TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
@@ -8525,16 +8547,16 @@ TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
         "call AddUnitToStock(null,'nmer',1,2)\n"
         "call RemoveUnitFromStock(null,'nmer')\n"
         "endfunction"));
-    T_EQ(shop->stock->unit_count, 1);
-    T_EQ(shop->stock->units[0].id, MAKEFOURCC('n','m','e','r'));
-    T_EQ(shop->stock->units[0].current, 1);
-    T_EQ(shop->stock->units[0].maximum, 2);
+    T_EQ(G_GetStock(shop)->unit_count, 1);
+    T_EQ(G_GetStock(shop)->units[0].id, MAKEFOURCC('n','m','e','r'));
+    T_EQ(G_GetStock(shop)->units[0].current, 1);
+    T_EQ(G_GetStock(shop)->units[0].maximum, 2);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "call RemoveUnitFromAllStock('nmer')\n"
         "endfunction"));
-    T_ASSERT(!shop->stock || shop->stock->unit_count == 0);
+    T_ASSERT(!G_GetStock(shop) || G_GetStock(shop)->unit_count == 0);
 }
 
 TEST(wc3_api, weather_effect_native_preserves_bounds_id_and_enable_state) {
@@ -9424,8 +9446,9 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('D','T','g','1'),
         .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
-        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .data = { .DestructableData = &row },
         .health = { .value = 500, .max_value = 500 } };
+    G_AttachComponent(&ent, &destructable_state.component, COMPONENT_DESTRUCTABLE);
     entityState_t state = { .number = 7, .model = 11 };
     globals.CustomizeEntity(0, &ent, &state);
     T_NE(state.name, 0);
@@ -9435,10 +9458,10 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
                                     "Ancient Elven Gate"));
     T_ASSERT(state.flags & EF_NEUTRAL);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
-    ent.destructable->dead = true; ent.health.value = 0;
+    destructable_state.dead = true; ent.health.value = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0); T_ASSERT(!(state.flags & EF_NEUTRAL));
-    ent.destructable->dead = false; ent.health.value = 500;
+    destructable_state.dead = false; ent.health.value = 500;
     state.flags |= EF_NOT_SELECTABLE;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0);
@@ -9469,8 +9492,9 @@ TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
     destructable_t destructable_state = { 0 };
     cstring_t (*old_cvar_string)(cstring_t, cstring_t) = gi.CvarString;
     edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
-        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .data = { .DestructableData = &row },
         .health = { .value = 500, .max_value = 500 } };
+    G_AttachComponent(&ent, &destructable_state.component, COMPONENT_DESTRUCTABLE);
 
     gi.CvarString = hover_test_expansion;
 
@@ -9509,7 +9533,8 @@ TEST(wc3_api, customize_entity_non_debris_destructables_have_no_hover_label) {
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('T','e','s','t'),
         .svflags = SVF_STATIC_SCENERY, .data = { .DestructableData = &row },
-        .destructable = &destructable_state, .health = { .value = 500, .max_value = 500 } };
+        .health = { .value = 500, .max_value = 500 } };
+    G_AttachComponent(&ent, &destructable_state.component, COMPONENT_DESTRUCTABLE);
 
     FOR_LOOP(i, TARGET_TYPE_COUNT) {
         entityState_t state = { .number = 7, .model = 11 };

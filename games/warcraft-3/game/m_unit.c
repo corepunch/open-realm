@@ -48,10 +48,9 @@ static void hero_become_revivable(edict_t *self) {
 
     if (!self || !self->inuse || !G_UnitIsHero(self) ||
         (self->aiflags & AI_ILLUSION) || !(self->svflags & SVF_DEADMONSTER)) return;
-    if (!self->revival) self->revival = G_AllocRevival();
-    assert(self->revival);
-    self->revival->awaiting = true;
-    self->revival->reviving = false;
+    revival_t *revival = G_AddComponent(self, COMPONENT_REVIVAL);
+    revival->awaiting = true;
+    revival->reviving = false;
     self->s.renderfx |= RF_HIDDEN;
     G_PublishEvent(self, EVENT_PLAYER_HERO_REVIVABLE);
     G_PublishEvent(self, EVENT_UNIT_HERO_REVIVABLE);
@@ -158,7 +157,7 @@ void unit_begin_decay(edict_t *self) {
 void unit_decay_think(edict_t *self) {
     if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
-        if (!(self->revival && self->revival->awaiting)) unit_runwait(self, hero_become_revivable);
+        if (!G_HeroAwaitsRevival(self)) unit_runwait(self, hero_become_revivable);
         return;
     }
     unit_runwait(self, G_FreeEdict);
@@ -465,6 +464,8 @@ static void unit_spawn_script_explosion(edict_t *self) {
 }
 
 void unit_die(edict_t *self, edict_t *attacker) {
+    cargo_t *hold = G_GetCargo(self);
+    mineOverlay_t *ovl = G_GetMineOverlay(self);
     gameClient_t *owner;
     uint32_t selected_mask;
     bool summon_explodes, script_explodes;
@@ -493,29 +494,22 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * A structure upgrade is the same edict rather than a queued child; death
      * abandons it without the player-cancel refund. */
     if (G_BuildingUpgradeActive(self)) G_StopBuildingUpgrade(self, false);
-    if (self->construction) G_StopConstruction(self);
+    if (G_GetConstruction(self)) G_StopConstruction(self);
     else if (self->build == self) {
         G_SetConstructionLoopSound(self, false);
         /* Legacy construction uses a self-link as a marker, not a production
          * queue. Clear it before generic death cleanup walks build links. */
         self->build = NULL;
     }
-    if ((self->mineoverlay && self->mineoverlay->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
+    if ((ovl && ovl->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);
     if (G_UnitHasFlag(self, UNIT_FLAG_TRAINING)) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
-    if (G_UnitIsHero(self)) {
-        if (!self->revival) self->revival = G_AllocRevival();
-        assert(self->revival);
-        self->revival->awaiting = false;
-        self->revival->reviving = false;
-        self->revival->producer = NULL;
-        self->revival->queue_next = NULL;
-        self->revival->player = 0;
-        self->revival->gold = self->revival->lumber = 0;
-        self->revival->progress = 0.0f;
+    if (G_UnitIsHero(self)) { /* Death starts a fresh revival lifecycle on the persistent Hero record. */
+        revival_t *revival = G_AddComponent(self, COMPONENT_REVIVAL);
+        *revival = (revival_t){ .component = revival->component };
     }
     unit_leavecombat(self);
     self->selected = 0;
@@ -532,7 +526,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
         self->sound->world_pending_event = EV_DEATH;
     }
     /* Destroying a transport ejects its passengers at the wreck. */
-    if (self->cargo && self->cargo->count > 0) {
+    if (hold && hold->count > 0) {
         cargo_drop_all(self);
     }
     /* Inventory abilities own their death policy. Non-Hero Backpack carriers
@@ -3225,7 +3219,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
 
     if (!ent || !ent->inuse || !G_UnitIsHero(ent) || !M_IsDead(ent) ||
         (ent->aiflags & AI_SOUL_TRAPPED)) return false;
-    if ((ent->revival && ent->revival->reviving)) G_CancelHeroRevive(ent->revival->producer, ent);
+    if (G_HeroIsReviving(ent)) G_CancelHeroRevive(G_GetRevival(ent)->producer, ent);
     float const lifeFactor = G_MiscNum("HeroReviveLifeFactor", 1.0f);
     float const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
     float const manaStart = G_MiscNum("HeroReviveManaStart", 0.0f);
@@ -3233,15 +3227,8 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME;
     ent->combatentity = NULL;
-    if (!ent->revival) ent->revival = G_AllocRevival();
-    assert(ent->revival);
-    ent->revival->awaiting = false;
-    ent->revival->reviving = false;
-    ent->revival->producer = NULL;
-    ent->revival->queue_next = NULL;
-    ent->revival->player = 0;
-    ent->revival->gold = ent->revival->lumber = 0;
-    ent->revival->progress = 0.0f;
+    revival_t *revival = G_AddComponent(ent, COMPONENT_REVIVAL);
+    *revival = (revival_t){ .component = revival->component };
     ent->s.renderfx &= ~RF_HIDDEN;
     G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
     mana = ent->mana.max_value * manaFactor;

@@ -58,6 +58,8 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 }
 
 void G_FreeEdict(edict_t *ent) {
+    cargo_t *hold = G_GetCargo(ent);
+    mineOverlay_t *ovl = G_GetMineOverlay(ent);
     if (!ent) return;
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
@@ -74,12 +76,12 @@ void G_FreeEdict(edict_t *ent) {
      * before the edict is cleared. Forced removal does not grant a player
      * cancellation refund. */
     if (G_BuildingUpgradeActive(ent)) G_StopBuildingUpgrade(ent, false);
-    if (ent->construction) G_StopConstruction(ent);
-    if ((ent->mineoverlay && ent->mineoverlay->parent) || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
+    if (G_GetConstruction(ent)) G_StopConstruction(ent);
+    if ((ovl && ovl->parent) || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);
-    if (ent->cargo && ent->cargo->count > 0) cargo_drop_all(ent);
-    if (ent->buildwork && ent->buildwork->ability) S_CancelRepair(ent);
+    if (hold && hold->count > 0) cargo_drop_all(ent);
+    S_CancelRepair(ent); /* No-op without an active Repair rawcode. */
     /* Remove both the active accepted-build indicator and any owner-only
      * indicators attached to delayed Shift-build queue entries. Direct
      * RemoveUnit must not leave construction placeholders behind. */
@@ -98,7 +100,7 @@ void G_FreeEdict(edict_t *ent) {
     G_UnregisterGroundSurface(ent);
     G_InvalidateUnitShortcutsForUnit(ent);
     G_InvalidateRallyTarget(ent);
-    if ((ent->revival && ent->revival->reviving)) G_CancelHeroRevive(ent->revival->producer, ent);
+    if (G_HeroIsReviving(ent)) G_CancelHeroRevive(G_GetRevival(ent)->producer, ent);
     if (G_UnitHasFlag(ent, UNIT_FLAG_TRAINING)) G_ClearTrainingQueueFood(ent);
     else { G_CancelHeroRevives(ent); G_CancelTrainingQueue(ent, true); }
     G_ClearUnitFood(ent);

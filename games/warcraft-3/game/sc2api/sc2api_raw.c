@@ -134,14 +134,15 @@ static uint32_t sc2api_ability_code_for_order(uint32_t order_id) {
 }
 
 static float sc2api_build_progress(edict_t const *ent) {
+    construction_t *site = G_GetConstruction(ent);
     float duration;
 
-    if (!ent || !ent->construction || !ent->data.UnitBalance ||
+    if (!ent || !site || !ent->data.UnitBalance ||
         ent->data.UnitBalance->buildTime <= 0) {
         return 1.0f;
     }
-    duration = ent->construction->duration_ms > 0.0f ? ent->construction->duration_ms : (float)ent->data.UnitBalance->buildTime * 1000.0f;
-    return MAX(0.0f, MIN(1.0f, ent->construction->progress / duration));
+    duration = site->duration_ms > 0.0f ? site->duration_ms : (float)ent->data.UnitBalance->buildTime * 1000.0f;
+    return MAX(0.0f, MIN(1.0f, site->progress / duration));
 }
 
 static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) {
@@ -169,6 +170,7 @@ static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) 
 }
 
 bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t *out) {
+    cargo_t *hold = G_GetCargo(ent);
     entityState_t state;
     bool visible;
     uint32_t cargo_capacity;
@@ -272,11 +274,12 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
          * therefore cannot change the observation from a hidden entity rally
          * to a newly exposed default. Never invoke the mutating resolver for
          * an entity whose current state this player cannot observe. */
-        if (ent->rally && ent->rally->type == RALLY_TARGET_POINT)
+        rally_t const *rec = G_GetRally(ent);
+        if (rec && rec->type == RALLY_TARGET_POINT)
             rally_type = G_ResolveRallyTarget((edict_t *)ent, &rally_point, &rally_entity);
-        else if (ent->rally && ent->rally->type == RALLY_TARGET_ENTITY) {
-            edict_t *target = ent->rally->entity;
-            if (target && target->inuse && target->spawn_time == ent->rally->entity_spawn_time &&
+        else if (rec && rec->type == RALLY_TARGET_ENTITY) {
+            edict_t *target = rec->entity;
+            if (target && target->inuse && target->spawn_time == rec->entity_spawn_time &&
                 G_FowPlayerCanHoverEntity(player, target))
                 rally_type = G_ResolveRallyTarget((edict_t *)ent, &rally_point, &rally_entity);
         }
@@ -292,10 +295,10 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
 
         cargo_capacity = S_CargoCapacity((edict_t *)ent);
         if (cargo_capacity) {
-            out->cargo_space_taken = (int32_t)(ent->cargo ? ent->cargo->count : 0);
+            out->cargo_space_taken = (int32_t)(hold ? hold->count : 0);
             out->cargo_space_max = (int32_t)cargo_capacity;
-            FOR_LOOP(i, MIN((ent->cargo ? ent->cargo->count : 0), (uint32_t)MAX_CARGO)) {
-                edict_t *passenger = ent->cargo->units[i];
+            FOR_LOOP(i, MIN((hold ? hold->count : 0), (uint32_t)MAX_CARGO)) {
+                edict_t *passenger = hold->units[i];
                 wc3Sc2PassengerUnit_t *p;
                 if (!passenger || !passenger->inuse) continue;
                 p = &out->passengers[out->passenger_count++];

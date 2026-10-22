@@ -98,6 +98,7 @@ static void G_AdvanceProjectilePresentation(edict_t *ent) {
  * If the distance remaining is less than the per-frame travel distance the
  * projectile hits, deals damage via T_Damage(), and is freed. */
 void SV_Physics_Toss(edict_t *ent) {
+    channel_t *cast = G_GetChannel(ent);
     float distance;
     vec3_t target, dir;
     bool const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
@@ -105,9 +106,9 @@ void SV_Physics_Toss(edict_t *ent) {
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     distance = ent->velocity * FRAMETIME;
     if (fixed_target) {
-        assert(ent->channel);
-        target = MAKE(vec3_t, ent->channel->origin.x, ent->channel->origin.y,
-                      CM_GetHeightAtPoint(ent->channel->origin.x, ent->channel->origin.y));
+        assert(cast);
+        target = MAKE(vec3_t, cast->origin.x, cast->origin.y,
+                      CM_GetHeightAtPoint(cast->origin.x, cast->origin.y));
     } else {
         target = ent->goalentity->s.origin;
         /* s.origin already contains support surface + current FlyHeight.  ImpactZ
@@ -126,11 +127,11 @@ void SV_Physics_Toss(edict_t *ent) {
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
             if (fixed_target) {
-                vec2_t impact = fixed_target ? ent->channel->origin : ent->goalentity->s.origin2;
+                vec2_t impact = fixed_target ? cast->origin : ent->goalentity->s.origin2;
                 edict_t *primary = ent->goalentity;
                 if (fixed_target && primary &&
-                    (!primary->inuse || primary->spawn_time != ent->channel->target_spawn_time)) primary = NULL;
-                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, ent->artillery);
+                    (!primary->inuse || primary->spawn_time != cast->target_spawn_time)) primary = NULL;
+                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, G_GetArtillery(ent));
             } else {
                 int const damage = G_AttackDamageWithType(ent->owner, ent->goalentity, ent->damage,
                                                           ent->missile ? ent->missile->attack_type : ATK_NORMAL);

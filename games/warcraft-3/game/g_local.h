@@ -1660,8 +1660,47 @@ typedef struct shopStockItem_s {
     uint32_t delay_end;
 } shopStockItem_t;
 
+/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
+typedef enum {
+    COMPONENT_WAYGATE = 1,
+    COMPONENT_AVATAR = 2,
+    COMPONENT_POLYMORPH = 3,
+    COMPONENT_RAVEN = 4,
+    COMPONENT_ENSNARE = 5,
+    COMPONENT_ARTILLERY = 6,
+    COMPONENT_SLEEP = 7,
+    COMPONENT_RALLY = 8,
+    COMPONENT_SACRIFICE = 9,
+    COMPONENT_UNSUMMON = 10,
+    COMPONENT_BLIGHT_GROWTH = 11,
+    COMPONENT_SHADOWMELD = 12,
+    COMPONENT_MILITIA = 13,
+    COMPONENT_REVIVAL = 14,
+    COMPONENT_BUILDWORK = 15,
+    COMPONENT_ANCIENT_ROOT = 16,
+    COMPONENT_GOLDMINE = 17,
+    COMPONENT_MINE_OVERLAY = 18,
+    COMPONENT_ACOLYTE_MINE = 19,
+    COMPONENT_CARGO = 20,
+    COMPONENT_SOULTRAP = 21,
+    COMPONENT_RESEARCH = 22,
+    COMPONENT_FOOD = 23,
+    COMPONENT_STOCK = 24,
+    COMPONENT_CHANNEL = 25,
+    COMPONENT_DESTRUCTABLE = 26,
+    COMPONENT_CONSTRUCTION = 27,
+    COMPONENT_ITEM = 28
+} componentId_t;
+
+/* Intrusive owner list; links are process-owned and rebuilt after loading. */
+typedef struct component_s {
+    uint32_t id;
+    struct component_s *next;
+} component_t;
+
 /* Shop-owned stock list retained across patron selection and purchases. */
 typedef struct stock_s {
+    component_t component;
     uint32_t item_slots, unit_slots;
     bool items_initialized;
     uint32_t item_count;
@@ -1704,6 +1743,7 @@ typedef enum {
 
 /* Projectile-owned fixed-point splash/impact profile captured when artillery launches. */
 typedef struct artillery_s {
+    component_t component;
     uint32_t attack_type, area_targets, targets_allowed;
     float area_full, area_medium, area_small, factor_medium, factor_small;
 } artillery_t;
@@ -1719,6 +1759,7 @@ typedef enum {
 
 /* Optional active building-construction record; completion/cancellation releases its ownership. */
 typedef struct {
+    component_t component;
     bool paused;
     constructionType_t type;
     edict_t *primary_builder; /* Human Repair owner; only meaningful for Human construction */
@@ -1739,6 +1780,7 @@ typedef struct {
 
 /* Producer-owned queued research progress and authored upgrade identity. */
 typedef struct {
+    component_t component;
     uint32_t upgrade;     /* research rawcode on queue edicts; target unit type on in-place upgrades */
     int32_t level;        /* 1-based level being researched */
     int32_t gold, lumber; /* exact charged cost, retained for cancellation */
@@ -1748,6 +1790,7 @@ typedef struct {
 
 /* Producer-owned rally point/entity identity retained for newly completed units. */
 typedef struct {
+    component_t component;
     rallyTargetType_t type;
     vec2_t point;
     edict_t *entity;
@@ -1756,20 +1799,25 @@ typedef struct {
 
 /* Unit-owned food contribution/reservation ledger applied once across production/death transitions. */
 typedef struct {
+    component_t component;
     int32_t used; /* food currently accounted to s.player; queue-head reservations live here */
     int32_t made; /* food capacity currently accounted to s.player */
 } food_t;
 
 /* Worker-owned construction/repair relationship and concrete initiating ability. */
 typedef struct {
+    component_t component;
     uint32_t ability;
     bool primary;
     float gold_accum;
     float lumber_accum;
 } buildwork_t;
 
-/* Persistent Hero death/revival queue state; awaiting revival differs from queued revival. */
+/* Persistent Hero death/revival queue state; awaiting revival differs from queued revival.
+ * It lives on the Hero edict; queue_next links the Hero into a producer's production chain
+ * without borrowing hero->build, which may have independent gameplay use. */
 typedef struct {
+    component_t component;
     bool awaiting;
     bool reviving;
     edict_t *producer;
@@ -1781,6 +1829,7 @@ typedef struct {
 
 /* Hidden sacrifice-result queue record retaining the consumed worker for cancellation. */
 typedef struct {
+    component_t component;
     edict_t *worker;
     uint32_t worker_spawn_time;
     bool restore_paused;
@@ -1789,6 +1838,7 @@ typedef struct {
 
 /* Timed demolition/refund state owned by the active Unsummon ability. */
 typedef struct {
+    component_t component;
     edict_t *target;
     uint32_t target_spawn_time;
     uint32_t ability, level;
@@ -1799,6 +1849,7 @@ typedef struct {
 
 /* Hide/fade/reveal state owned by Shadow Meld; record presence alone is not invisibility. */
 typedef struct {
+    component_t component;
     uint32_t fade_start; /* server time when the current uninterrupted stationary fade began */
     bool fading;
     bool active;
@@ -1807,6 +1858,7 @@ typedef struct {
 
 /* Call-to-Arms pairing, transformation and return state retained by the owning worker. */
 typedef struct {
+    component_t component;
     uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
     uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
     uint32_t militia_type;     /* Data B: alternate combat form */
@@ -1819,6 +1871,7 @@ typedef struct {
 
 /* Reversible Polymorph snapshot preserving the first pre-morph unit appearance/stats. */
 typedef struct {
+    component_t component;
     uint32_t ability;          /* Aply-derived ability that owns the active morph */
     uint32_t buff;             /* configured timed buff; stock Sorceress uses Bply */
     uint32_t form_type;        /* first authored Ply2/Ply3/Ply4/Ply5 unit rawcode */
@@ -1829,6 +1882,7 @@ typedef struct {
 
 /* Raven-form type/altitude transition ownership independent of replacement orders. */
 typedef struct {
+    component_t component;
     float fly_height; /* authored Raven Form height applied after the forward morph clip */
     float rise_start;
     float rise_duration;
@@ -1837,6 +1891,7 @@ typedef struct {
 
 /* Ability-owned blight expansion schedule and source footprint state. */
 typedef struct {
+    component_t component;
     uint32_t ability;      /* concrete Abli-derived alias owning this state */
     float radius;       /* current expanded radius */
     uint32_t next_update;  /* next authored expansion deadline */
@@ -1844,6 +1899,7 @@ typedef struct {
 
 /* Ensnare-owned flyer landing/restoration snapshot and bound-status identity. */
 typedef struct {
+    component_t component;
     float adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
     float height; /* DataB land start, or authored moveHeight while rising */
     uint32_t start;  /* G_Time() when current land/rise phase began */
@@ -1852,6 +1908,7 @@ typedef struct {
 
 /* Ancient root/unroot collision, placement and transition state retained by its ability. */
 typedef struct {
+    component_t component;
     ancientRootMode_t mode;
     uint32_t ability;
     uint32_t unit_type;
@@ -1870,6 +1927,7 @@ typedef struct {
 
 /* Finite gold reservoir and worker admission ownership for a mine entity. */
 typedef struct {
+    component_t component;
     edict_t *mine;
     uint32_t mine_spawn_time;
     uint32_t occupants; /* mine-owned admission count; worker-owned records use mine instead */
@@ -1878,6 +1936,7 @@ typedef struct {
 
 /* Haunted/Entangled mine overlay state; the original mine remains the gold reservoir. */
 typedef struct {
+    component_t component;
     edict_t *parent;
     uint32_t parent_spawn_time;
     uint32_t income_time;
@@ -1895,6 +1954,7 @@ typedef struct {
 
 /* Acolyte visible-slot harvesting relationship separate from hidden mine cargo. */
 typedef struct {
+    component_t component;
     edict_t *mine;
     uint32_t mine_spawn_time;
     int32_t slot;
@@ -1902,6 +1962,7 @@ typedef struct {
 
 /* Item-edict ownership, charges and inventory/world lifecycle state. */
 typedef struct {
+    component_t component;
     edict_t *carrier;
     int32_t inventory_slot;
     bool in_world;
@@ -1924,6 +1985,7 @@ typedef struct {
 
 /* Destructable-owned pathing, health, animation and authored object metadata. */
 typedef struct {
+    component_t component;
     /* Set only for destructables originating from war3map.doo. */
     bool map_placed;
 
@@ -1953,12 +2015,14 @@ typedef struct {
 
 /* Transport-owned occupant identity and capacity bookkeeping. */
 typedef struct {
+    component_t component;
     edict_t *units[MAX_CARGO];
     uint32_t count;
 } cargo_t;
 
 /* Way Gate-owned destination and activation state retained independently of traveler routes. */
 typedef struct {
+    component_t component;
     vec2_t destination;
     bool destination_set;
     bool active;
@@ -1966,6 +2030,7 @@ typedef struct {
 
 /* Avatar-owned reversible unit-stat and presentation snapshot. */
 typedef struct {
+    component_t component;
     uint32_t level;
     float armor, health;
     int32_t damage;
@@ -1973,12 +2038,14 @@ typedef struct {
 
 /* Sleep eligibility, wake timing and status ownership retained by the unit. */
 typedef struct {
+    component_t component;
     bool can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
     bool sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
 } sleep_t;
 
 /* Soul Trap-owned carrier list and trapped-target identity; absent outside active captures. */
 typedef struct {
+    component_t component;
     edict_t *head; /* carrier-owned list of trapped unit edicts */
     uint32_t head_spawn_time;
     edict_t *carrier; /* target-side back reference */
@@ -1994,6 +2061,7 @@ typedef struct {
 
 /* Spell channel identity and cast serial; stale callbacks cannot match a replacement cast. */
 typedef struct {
+    component_t component;
     uint32_t code;     // ability code being channeled (0 = none)
     uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
     uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
@@ -2210,63 +2278,26 @@ struct edict_s {
     uint32_t summon_ability; /* creating ability identity for summoned units and owned visual effects */
     uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
     auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
-    construction_t *construction; /* pool slot; null if this unit is not under construction */
-    research_t *research;
-    rally_t *rally;
-    food_t *food;
-    buildwork_t *buildwork;
-    /* Hero revival state lives on the persistent Hero edict. While reviving,
-     * queue_next links the Hero into a producer's ordinary production chain
-     * without borrowing hero->build, which may have independent gameplay use. */
-    revival_t *revival;
-    /* A sacrifice queue item is the hidden result unit.  Keep the consumed
-     * worker relationship on that item so cancellation/save-load do not need
-     * Sacrificial-Pit-specific state in generic unit AI. */
-    sacrifice_t *sacrifice;
-    unsummon_t *unsummon;
     uint32_t spawn_time;
     wander_t *wander;
     routeCache_t *route;
-    shadowMeld_t *shadowmeld;
     visibility_t *vision; /* optional forced/shared sight and invisibility reveal deadline */
     harvest_t *harvest; /* carried resources; absent while empty */
-    militia_t *militia;
-    polymorph_t *polymorph;
-    raven_t *raven;
-    blightGrowth_t *blight_growth;
-    ensnare_t *ensnare;
-    ancientRoot_t *ancient_root;
     uint32_t aiflags;
     uint32_t damage;
     attackMissile_t *missile; /* basic-attack launch profile; absent on spell missiles */
-    /* Impact behavior captured by fixed-point artillery shots. */
-    artillery_t *artillery; /* projectile splash profile; null on units */
     uint32_t resources;
     uint32_t freetime;
-    goldMine_t *goldmine;
-    /* Racial mine overlays keep the original Agld unit as the sole finite
-     * gold reservoir. Haunted/Entangled mines own presentation/income only. */
-    mineOverlay_t *mineoverlay;
-    /* Acolyte harvesting is a visible fixed-slot relationship rather than the
-     * conventional hidden-inside/carry/return Gold Mine state above. */
-    acolyteMine_t *acolyte_mine;
     inventory_t *inventory; /* physical slots attach on first item ownership */
-    item_t *item;
-    destructable_t *destructable;
-    cargo_t *cargo;
     edict_t *ground_next;
-    stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     unitState_t *unit_state; /* unit-owned combat, progression, skills, statuses and cooldowns */
-    avatar_t *avatar;
     uint32_t unit_flags; /* independent entity gameplay switches; unitFlags_t */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
-    sleep_t *sleep;
-    channel_t *channel;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     vec2_t old_origin; /* prior event sample: region/proximity events also track teleports, independent of travel */
-    waygate_t *waygate;
+    component_t *components; /* optional records owned by this edict */
     movement_t *movement; /* non-null while a travel operation owns routing scratch */
     unitOrders_t *orders; /* retained command intent, independent of active travel */
     edictStat_t health;
@@ -2274,7 +2305,6 @@ struct edict_s {
     MOVETYPE movetype;
     TARGTYPE targtype;
     edict_t *goalentity; /* current behavior target: attacks, spells, missiles and travel share this lifecycle slot */
-    soulTrap_t *soultrap; /* optional carrier/target relationship, owned by Soul Trap */
     edict_t *combatentity;
     edict_t *owner;
     edict_t *build;
@@ -4141,6 +4171,7 @@ void G_DrainPausedResultEvents(void);
 
 // g_items.c
 void SP_SpawnItem(edict_t *);
+item_t *G_ItemState(edict_t const *item); /* validated item identity; reads never allocate */
 bool G_IsItem(edict_t const *item);
 uint32_t G_InventoryCapacity(edict_t const *unit);
 void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid);
@@ -4251,9 +4282,8 @@ extern struct game_export globals;
 extern struct game_import gi;
 extern struct level_locals level;
 
-/* Sparse lifecycles live in pools (Quake's gclient_t pattern). The edict holds
- * a null pointer until the behavior starts. Movement, attacks, and health stay
- * inline because almost every unit touches them. */
+/* Sparse lifecycles use typed pools, attached by direct pointers or the component list.
+ * Reads never allocate; owning transitions establish records explicitly. */
 /* Most pools peak in the hundreds across the retail campaigns (measured with
  * G_PoolsReportPeaks). Map-placed destructables each own a persistent record
  * and peak near 5,000 (NightElf04, UndeadX01), so that pool is sized separately. */
@@ -4308,6 +4338,44 @@ cargo_t *G_AllocCargo(void);
 void G_FreeStock(edict_t *ent);
 stock_t *G_AllocStock(void);
 void G_FreeWaygate(edict_t *ent);
+void *G_GetComponent(edict_t const *ent, componentId_t id);
+void *G_AddComponent(edict_t *ent, componentId_t id);
+void G_AttachComponent(edict_t *ent, component_t *record, componentId_t id);
+void G_FreeComponent(edict_t *ent, componentId_t id);
+static inline waygate_t *G_GetWaygate(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_WAYGATE); }
+static inline avatar_t *G_GetAvatar(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_AVATAR); }
+static inline polymorph_t *G_GetPolymorph(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_POLYMORPH); }
+static inline raven_t *G_GetRaven(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RAVEN); }
+static inline ensnare_t *G_GetEnsnare(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ENSNARE); }
+static inline artillery_t *G_GetArtillery(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ARTILLERY); }
+static inline sleep_t *G_GetSleep(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SLEEP); }
+static inline rally_t *G_GetRally(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RALLY); }
+/* A sacrifice queue item is the hidden result unit; it keeps the consumed worker so generic unit AI stays Pit-free. */
+static inline sacrifice_t *G_GetSacrifice(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SACRIFICE); }
+static inline unsummon_t *G_GetUnsummon(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_UNSUMMON); }
+static inline blightGrowth_t *G_GetBlightGrowth(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BLIGHT_GROWTH); }
+static inline shadowMeld_t *G_GetShadowMeld(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SHADOWMELD); }
+static inline militia_t *G_GetMilitia(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MILITIA); }
+static inline revival_t *G_GetRevival(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_REVIVAL); }
+static inline buildwork_t *G_GetBuildwork(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BUILDWORK); }
+static inline ancientRoot_t *G_GetAncientRoot(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ANCIENT_ROOT); }
+static inline goldMine_t *G_GetGoldMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_GOLDMINE); }
+static inline mineOverlay_t *G_GetMineOverlay(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MINE_OVERLAY); }
+static inline acolyteMine_t *G_GetAcolyteMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ACOLYTE_MINE); }
+static inline cargo_t *G_GetCargo(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CARGO); }
+static inline soulTrap_t *G_GetSoulTrap(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SOULTRAP); }
+static inline research_t *G_GetResearch(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RESEARCH); }
+static inline food_t *G_GetFood(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_FOOD); }
+static inline stock_t *G_GetStock(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_STOCK); }
+static inline channel_t *G_GetChannel(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CHANNEL); }
+static inline destructable_t *G_GetDestructable(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_DESTRUCTABLE); }
+static inline construction_t *G_GetConstruction(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CONSTRUCTION); }
+static inline item_t *G_GetItem(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ITEM); }
+/* A queue item or building researches while its record names an upgrade; completed research frees the record. */
+static inline bool G_UnitIsResearching(edict_t const *ent) { research_t const *r = G_GetResearch(ent); return r && r->upgrade; }
+/* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */
+static inline bool G_HeroIsReviving(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->reviving; }
+static inline bool G_HeroAwaitsRevival(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->awaiting; }
 waygate_t *G_AllocWaygate(void);
 void G_FreeArtillery(edict_t *ent);
 artillery_t *G_AllocArtillery(void);

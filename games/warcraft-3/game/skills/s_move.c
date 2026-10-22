@@ -190,7 +190,7 @@ static bool move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            G_UnitIsStructure(ent) && ent->construction)
+            G_UnitIsStructure(ent) && G_GetConstruction(ent))
             return true;
     }
     return false;
@@ -347,12 +347,15 @@ bool M_UnitMoveDisabled(edict_t const *ent) {
  * effects, missiles), and the opposite air/ground layer (flyers and ground
  * units pass through each other). */
 static bool filter_blockers(edict_t const *ent) {
+    destructable_t const *dstr;
     if (ent == trymove_self || IS_HOLLOW(ent) || ent->collision <= 0.0f)
         return false;
     /* An alive walkable destructable is a ground surface, not a circle-shaped
-     * obstacle. Its authored path texture remains responsible for deck edges. */
-    if (G_IsDestructable(ent) && !ent->destructable->dead &&
-        ent->destructable->placement_solid && ent->pathtex &&
+     * obstacle. Its authored path texture remains responsible for deck edges.
+     * Every spawned destructable carries its record, so one lookup classifies it. */
+    dstr = G_GetDestructable(ent);
+    if (dstr && !dstr->dead &&
+        dstr->placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable) return false;
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
@@ -695,7 +698,7 @@ static void unit_turn_toward(edict_t *self, float target) {
 /* Stationary attacks/work can face their target without owning route scratch. */
 void unit_facegoal(edict_t *self) {
     if (!self || !self->goalentity || ((self->aiflags & AI_IMMOBILE) &&
-        !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))) return;
+        !(S_AncientIsRooted(self) && G_GetAncientRoot(self)->rooted_turning))) return;
     vec2_t delta = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     if (Vector2_len(&delta) > 0.001f) unit_turn_toward(self, atan2f(delta.y, delta.x));
 }
@@ -1273,8 +1276,9 @@ void M_CheckGround(edict_t *self) {
         for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
             pathTex_t const *pathtex = surface->pathtex;
             pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
-            if (!surface->inuse || surface->destructable->dead ||
-                !surface->destructable->placement_solid || !pathtex) continue;
+            destructable_t const *dstr = G_GetDestructable(surface);
+            if (!surface->inuse || dstr->dead ||
+                !dstr->placement_solid || !pathtex) continue;
             bool const elevator = surface->class_id == MAKEFOURCC('D','T','r','x') ||
                 surface->class_id == MAKEFOURCC('D','T','r','f');
             /* Only animated elevators extend support to the unit collision
@@ -1285,7 +1289,7 @@ void M_CheckGround(edict_t *self) {
             /* Blizzard.j synchronously changes the logical elevator level.
              * Other walkable bridges retain their authored world-space Z. */
             height = MAX(height, surface->s.origin.z +
-                (elevator ? surface->destructable->occluder_height : 0.0f));
+                (elevator ? dstr->occluder_height : 0.0f));
         }
     }
     self->s.ground_offset = self->unitinfo.FlyHeight;

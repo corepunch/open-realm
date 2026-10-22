@@ -285,7 +285,7 @@ Build-on-target structures (`UnitData.isBuildOn`) are intentionally excluded fro
 
 ### Spawned construction cancellation
 
-Once a race-specific structure has spawned, cancellation is owned by the unfinished structure rather than by the worker's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while `ent->construction` is non-null, and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
+Once a race-specific structure has spawned, cancellation is owned by the unfinished structure rather than by the worker's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while the unit carries a construction component (`G_GetConstruction(ent)`), and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
 
 The authoritative lifecycle is:
 
@@ -348,7 +348,7 @@ progress += frame_time * DataD
 
 and accumulates incremental gold/lumber cost from the building's `goldRep` / `lumberRep`, build time, and `DataC`. An additional repairer stops when that incremental payment cannot be made. `+set wc3_build_all 1` suppresses those debug-time costs.
 
-Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically. Human power building additionally requires `ent->construction && ent->construction->paused` and a positive `DataD`; standard `Aren` / `Arst` Repair rejects an unfinished structure.
+Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically. Human power building additionally requires a paused construction component (`G_GetConstruction(ent)->paused`) and a positive `DataD`; standard `Aren` / `Arst` Repair rejects an unfinished structure.
 
 Construction HP is additive. Each builder contributes the same fraction of `(max_life - 10% start_life)` as its construction-time contribution, rather than snapping HP back to the value implied by total progress. Damage dealt while a structure is incomplete therefore remains damage until separately repaired or construction completes.
 

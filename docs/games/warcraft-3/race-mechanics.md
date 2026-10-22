@@ -102,7 +102,7 @@ The ordinary `Agld` mine remains the finite resource owner for every race. Human
 carry, return, and deposit state machine. A mine with one or more conventional workers inside also carries the `work` animation
 property, removed when occupancy returns to zero.
 
-Haunted and Entangled mines instead use `edict.mineoverlay.parent` plus the parent's spawn generation. The overlay hides/pauses the
+Haunted and Entangled mines instead use the `mineOverlay_t` component's `parent` (`G_GetMineOverlay`) plus the parent's spawn generation. The overlay hides/pauses the
 ordinary mine while it exists, but never copies its `resources`; death or `RemoveUnit` restores the parent. Normal `isBuildOn`
 construction binds an Undead overlay to the exact mine found by authoritative placement. `Aent` creates the authored Night Elf
 resulting UnitID at the target mine and starts the autonomous Night Elf construction clock without attaching a Wisp.
@@ -153,7 +153,7 @@ large buildings. After an uprooted Ancient finishes Root, the Root lifecycle per
 starts ordinary non-instant Entangle through the same target validation/execution owner. Initial melee creation does not use this
 auto-root path because Blizzard's melee script explicitly issues `entangleinstant`.
 
-`mineoverlay.parent` and `acolyte_mine.mine` are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
+The mine overlay `parent` and Acolyte `mine` component fields are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
 and the associated scalar timing/index/slot state.
 
 Haunted Mine ring `EffectArt` follows the same deterministic slot positions/facing as Warsmash and is removed with the overlay; Acolyte wrong-target, wrong-owner, and full-ring failures use Warcraft `CommandStrings` error keys. Entangle uses `Targetgoldmine`, retains the casting Tree's persistent caster art, and hides/marks Aent permanent only for the live overlay lifetime. Wisp lumber remains separate from Entangled gold cargo and now uses persistent direct DataA income, one-Wisp-per-tree reservation, TargetArt at DataC height, and authored looped harvest audio.
