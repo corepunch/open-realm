@@ -443,23 +443,59 @@ bool G_UnitCanSpendResources(gameClient_t *client, edict_t const *ent) {
             (1u << ALLIANCE_SHARED_ADVANCED_CONTROL)) != 0;
 }
 
+/* A scripted SelectUnit can set raw selection bits without going through
+ * G_SelectEntity. Gather those bits once per frame, not once per client.
+ * The fixed bound covers the normal maximum for every player. An overfull
+ * scripted selection falls back to the original full scan, rather than
+ * silently dropping members. Entries retain edict order and are rechecked
+ * for live bit changes when each client is processed. */
+#define WC3_RAW_SELECTION_SCAN_MAX (MAX_CLIENTS * WC3_SELECTION_MAX)
+static uint32_t G_GatherRawSelectedEntities(edict_t **out) {
+    uint32_t count = 0;
+
+    FILTER_EDICTS(ent, ent->selected) {
+        if (count == WC3_RAW_SELECTION_SCAN_MAX) return count + 1;
+        out[count++] = ent;
+    }
+    return count;
+}
+
+static void G_ValidateRawSelectedEntity(gameClient_t *client, edict_t *ent,
+                                        uint32_t *count, bool *changed) {
+    if (!G_UnitCanBeSelected(client, ent)) {
+        G_DeselectEntity(client, ent);
+        *changed = true;
+    } else {
+        (*count)++;
+    }
+}
+
 void G_UpdateClientSelections(void) {
+    edict_t *raw_selected[WC3_RAW_SELECTION_SCAN_MAX];
+    uint32_t raw_count;
+
+    if (!game.max_clients) return;
+    raw_count = G_GatherRawSelectedEntities(raw_selected);
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         bool changed = false;
-        uint32_t bit = 1 << client->ps.number;
+        uint32_t const bit = 1u << client->ps.number;
 
-        /* Inspect the raw bit here rather than FOR_SELECTED_UNITS.  The latter
-         * deliberately hides dead/unselectable entities, while this pass must
-         * clear stale selection bits after visibility/selectability changes. */
+        /* Inspect raw bits: FOR_SELECTED_UNITS would hide dead, hidden or
+         * otherwise invalid members before we could clear their selection. */
         uint32_t count = 0;
         uint32_t const limit = G_SelectionLimit();
-        FILTER_EDICTS(ent, ent->selected & bit) {
-            if (!G_UnitCanBeSelected(client, ent)) {
-                G_DeselectEntity(client, ent);
-                changed = true;
-            } else {
-                count++;
+        if (raw_count > WC3_RAW_SELECTION_SCAN_MAX) {
+            /* JASS can select an arbitrary number of units, including more
+             * than every player's normal UI limit combined. Keep that case
+             * correct with the unbounded per-client scan. */
+            FILTER_EDICTS(ent, ent->selected & bit)
+                G_ValidateRawSelectedEntity(client, ent, &count, &changed);
+        } else {
+            FOR_LOOP(k, raw_count) {
+                edict_t *ent = raw_selected[k];
+                if (ent->selected & bit)
+                    G_ValidateRawSelectedEntity(client, ent, &count, &changed);
             }
         }
         /* A lowered cap trims by Warcraft selection priority, not by edict
@@ -477,10 +513,15 @@ void G_UpdateClientSelections(void) {
                 changed = true;
             }
         }
-        if (!changed && !client->selection_dirty) {
-            continue;
+        if (changed || client->selection_dirty) {
+            G_SyncClientSelection(client);
+            /* Cap trimming publishes JASS deselection events; scripts can
+             * select a previously unmarked unit for another player there.
+             * Refresh before validating the next client so it sees those new
+             * bits too. This scan is only repeated on selection changes. */
+            if (i + 1 < game.max_clients)
+                raw_count = G_GatherRawSelectedEntities(raw_selected);
         }
-        G_SyncClientSelection(client);
     }
 }
 
