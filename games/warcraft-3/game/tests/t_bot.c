@@ -445,8 +445,8 @@ TEST(wc3_bot, set_upgrade_uses_normal_research_queue_and_rejects_duplicate_reque
     if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
     T_NOT_NULL(producer->build);
     if (producer->build) {
-        T_EQ(producer->build->research->upgrade, MAKEFOURCC('R','h','m','e'));
-        T_EQ(producer->build->research->level, 1);
+        T_EQ(G_GetResearch(producer->build)->upgrade, MAKEFOURCC('R','h','m','e'));
+        T_EQ(G_GetResearch(producer->build)->level, 1);
     }
     T_EQ(G_GetPlayerTechInProgress(client, MAKEFOURCC('R','h','m','e')), 1);
     T_EQ(player->stats[PLAYERSTATE_RESOURCE_GOLD], 900);
@@ -674,9 +674,9 @@ TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    T_NOT_NULL(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(shop));
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     T_STREQ(shop->data.UnitProfile->makeItems, "moon,plcl,phea");
 
@@ -691,8 +691,8 @@ TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
     T_ASSERT(G_CanUseItemShop(clent->client, shop));
     T_EQ(G_FindShopPatron(clent->client, shop), hero);
     T_ASSERT(G_ShopSellsItem(shop, MAKEFOURCC('m','o','o','n')));
-    T_EQ(shop->stock->items[0].id, MAKEFOURCC('m','o','o','n'));
-    T_ASSERT(shop->stock->items[0].current > 0);
+    T_EQ(G_GetStock(shop)->items[0].id, MAKEFOURCC('m','o','o','n'));
+    T_ASSERT(G_GetStock(shop)->items[0].current > 0);
     G_BotUpdateHeroItems(player);
     T_EQ(bot->item_policy_last_scan, G_Time());
     T_EQ(bot->hero_buy_last_scan, G_Time());
@@ -732,9 +732,9 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    T_NOT_NULL(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(shop));
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     T_ASSERT(!G_IsItemShop(shop)); /* No authored Sellitems/Makeitems. */
     T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('p','l','c','l'), 1, 1));
@@ -749,7 +749,7 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     G_BotUpdateHeroItems(player);
     T_NOT_NULL(G_InventoryItem(hero, 0));
     if (G_InventoryItem(hero, 0)) T_EQ(G_InventoryItem(hero, 0)->class_id, MAKEFOURCC('p','l','c','l'));
-    T_EQ(shop->stock->items[0].current, 0);
+    T_EQ(G_GetStock(shop)->items[0].current, 0);
 }
 
 TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
@@ -1811,15 +1811,14 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     lab->s.player = PLAYER_NEUTRAL_PASSIVE;
     lab->data.UnitProfile = &lab_profile;
     lab->data.UnitAbilities = &lab_abilities;
-    if (!lab->stock) lab->stock = G_AllocStock();
-    assert(lab->stock);
-    lab->stock->unit_slots = 11;
+    G_AddComponent(lab, COMPONENT_STOCK);
+    G_GetStock(lab)->unit_slots = 11;
     lab->spawn_time = G_Time();
     lab->collision = 32.0f;
     gi.LinkEntity(lab);
-    lab->stock->units_initialized = true;
-    lab->stock->unit_count = 1;
-    lab->stock->units[0] = (shopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
+    G_GetStock(lab)->units_initialized = true;
+    G_GetStock(lab)->unit_count = 1;
+    G_GetStock(lab)->units[0] = (shopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
     lab->movetype = MOVETYPE_NONE;
 
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 1000, 0);
@@ -1848,7 +1847,7 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     T_EQ(zeppelins, 1);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 760);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 440);
-    T_EQ(lab->stock->units[0].current, 0);
+    T_EQ(G_GetStock(lab)->units[0].current, 0);
 }
 
 TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {

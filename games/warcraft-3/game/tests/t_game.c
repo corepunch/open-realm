@@ -5118,7 +5118,6 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
     FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
         PATHSTR filename;
         edict_t *shop;
-        field_t const *stock_desc;
         field_t const *items_desc;
         field_t const *units_desc;
 
@@ -5131,22 +5130,21 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
         level.stock.item_slots = 11;
         level.stock.unit_slots = 9;
-        if (!shop->stock) shop->stock = G_AllocStock();
-        assert(shop->stock);
-        shop->stock->item_slots = 11;
-        shop->stock->unit_slots = 9;
-        shop->stock->items_initialized = true;
-        shop->stock->item_count = 1;
-        shop->stock->items[0] = (shopStockItem_t){
+        G_AddComponent(shop, COMPONENT_STOCK);
+        G_GetStock(shop)->item_slots = 11;
+        G_GetStock(shop)->unit_slots = 9;
+        G_GetStock(shop)->items_initialized = true;
+        G_GetStock(shop)->item_count = 1;
+        G_GetStock(shop)->items[0] = (shopStockItem_t){
             .id = MAKEFOURCC('s','p','r','o'),
             .current = 1,
             .maximum = 3,
             .delay_start = 5000,
             .delay_end = 65000,
         };
-        shop->stock->units_initialized = true;
-        shop->stock->unit_count = 1;
-        shop->stock->units[0] = (shopStockItem_t){
+        G_GetStock(shop)->units_initialized = true;
+        G_GetStock(shop)->unit_count = 1;
+        G_GetStock(shop)->units[0] = (shopStockItem_t){
             .id = MAKEFOURCC('n','m','e','r'),
             .current = 0,
             .maximum = 2,
@@ -5154,13 +5152,11 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
             .delay_end = 14000,
         };
 
-        stock_desc = find_save_field("stock");
         items_desc = find_save_field("stock->items");
         units_desc = find_save_field("stock->units");
-        T_NOT_NULL(stock_desc);
+        T_NULL(find_save_field("stock")); /* Stock is a component payload; the edict schema has no member for it. */
         T_NOT_NULL(items_desc);
         T_NOT_NULL(units_desc);
-        if (stock_desc) T_EQ(stock_desc->type, F_IGNORE);
         if (items_desc) {
             T_EQ(items_desc->type, F_STRUCT);
             T_EQ(items_desc->array_size, MAX_SHOP_STOCK);
@@ -5177,22 +5173,22 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         T_ASSERT(ReadGame(filename));
         T_EQ(level.stock.item_slots, 11);
         T_EQ(level.stock.unit_slots, 9);
-        T_EQ(shop->stock->item_slots, 11);
-        T_EQ(shop->stock->unit_slots, 9);
-        T_ASSERT(shop->stock->items_initialized);
-        T_EQ(shop->stock->item_count, 1);
-        T_EQ(shop->stock->items[0].id, MAKEFOURCC('s','p','r','o'));
-        T_EQ(shop->stock->items[0].current, 1);
-        T_EQ(shop->stock->items[0].maximum, 3);
-        T_EQ(shop->stock->items[0].delay_start, 5000);
-        T_EQ(shop->stock->items[0].delay_end, 65000);
-        T_ASSERT(shop->stock->units_initialized);
-        T_EQ(shop->stock->unit_count, 1);
-        T_EQ(shop->stock->units[0].id, MAKEFOURCC('n','m','e','r'));
-        T_EQ(shop->stock->units[0].current, 0);
-        T_EQ(shop->stock->units[0].maximum, 2);
-        T_EQ(shop->stock->units[0].delay_start, 9000);
-        T_EQ(shop->stock->units[0].delay_end, 14000);
+        T_EQ(G_GetStock(shop)->item_slots, 11);
+        T_EQ(G_GetStock(shop)->unit_slots, 9);
+        T_ASSERT(G_GetStock(shop)->items_initialized);
+        T_EQ(G_GetStock(shop)->item_count, 1);
+        T_EQ(G_GetStock(shop)->items[0].id, MAKEFOURCC('s','p','r','o'));
+        T_EQ(G_GetStock(shop)->items[0].current, 1);
+        T_EQ(G_GetStock(shop)->items[0].maximum, 3);
+        T_EQ(G_GetStock(shop)->items[0].delay_start, 5000);
+        T_EQ(G_GetStock(shop)->items[0].delay_end, 65000);
+        T_ASSERT(G_GetStock(shop)->units_initialized);
+        T_EQ(G_GetStock(shop)->unit_count, 1);
+        T_EQ(G_GetStock(shop)->units[0].id, MAKEFOURCC('n','m','e','r'));
+        T_EQ(G_GetStock(shop)->units[0].current, 0);
+        T_EQ(G_GetStock(shop)->units[0].maximum, 2);
+        T_EQ(G_GetStock(shop)->units[0].delay_start, 9000);
+        T_EQ(G_GetStock(shop)->units[0].delay_end, 14000);
         remove(filename);
     }
 }

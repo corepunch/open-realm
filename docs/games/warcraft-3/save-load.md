@@ -1138,3 +1138,12 @@ reference inside those payloads keeps its `F_EDICT` fixup (including the
 `cargo->units[]` array and the four Soul Trap links) behind the runtime
 `component.next` exclusion. `G_InitGoldMine` now attaches through `G_AddComponent`.
 Version 110 saves are rejected; the wire format is unchanged.
+
+## Sixth component slice (version 112)
+
+Research, the Food ledger and shop Stock move onto the component list
+(`COMPONENT_RESEARCH`, `COMPONENT_FOOD`, `COMPONENT_STOCK`). Research and Food
+payloads are scalar; Stock keeps its counted `items`/`units` struct arrays behind the
+runtime `component.next` exclusion. The edict schema no longer carries a `stock`
+member, which the shop stock round-trip test now asserts. Version 111 saves are
+rejected; the wire format is unchanged.

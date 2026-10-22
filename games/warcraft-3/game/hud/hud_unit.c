@@ -813,6 +813,7 @@ uint8_t G_GetInventory(edict_t *ent, gameInventoryItem_t *items, uint8_t max_ite
 }
 
 uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue) {
+    research_t *study = G_GetResearch(ent);
     uint8_t count = 0;
     uint32_t cursor = G_Time();
     bool food_blocked = false;
@@ -827,16 +828,16 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
      * that state through the same queue payload used by training/research. */
     if (G_BuildingUpgradeActive(ent)) {
         gameCommandButton_t button;
-        uint32_t const duration = (uint32_t)(MAX(0.0f, ent->research->duration) * 1000.0f);
-        float progress = ent->research->duration > 0.0f
-            ? ent->research->progress / ent->research->duration : 1.0f;
+        uint32_t const duration = (uint32_t)(MAX(0.0f, study->duration) * 1000.0f);
+        float progress = study->duration > 0.0f
+            ? study->progress / study->duration : 1.0f;
         uint32_t const elapsed = (uint32_t)((float)duration * MAX(0.0f, MIN(1.0f, progress)));
 
-        if (G_BuildCommandButton(ent, GetClassName(ent->research->upgrade), false, 0, &button)) {
+        if (G_BuildCommandButton(ent, GetClassName(study->upgrade), false, 0, &button)) {
             UI_CopyString(queue[0].art, sizeof(queue[0].art), button.art);
         } else {
             UI_CopyString(queue[0].art, sizeof(queue[0].art),
-                          FindConfigValue(GetClassName(ent->research->upgrade), STR_ART));
+                          FindConfigValue(GetClassName(study->upgrade), STR_ART));
         }
         queue[0].starttime = elapsed <= cursor ? cursor - elapsed : cursor;
         queue[0].endtime = queue[0].starttime + duration;
@@ -848,15 +849,15 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
         uint32_t duration;
         float progress = 0;
 
-        if (build->research && build->research->upgrade != 0) {
+        if (G_UnitIsResearching(build)) {
             gameCommandButton_t button;
-            duration = (uint32_t)(MAX(0.0f, build->research->duration) * 1000.0f);
-            if (G_BuildCommandButton(ent, GetClassName(build->research->upgrade), true,
-                                     (uint32_t)build->research->level, &button)) {
+            duration = (uint32_t)(MAX(0.0f, G_GetResearch(build)->duration) * 1000.0f);
+            if (G_BuildCommandButton(ent, GetClassName(G_GetResearch(build)->upgrade), true,
+                                     (uint32_t)G_GetResearch(build)->level, &button)) {
                 UI_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
             }
-            if (count == 0 && build->research->duration > 0.0f) {
-                progress = build->research->progress / build->research->duration;
+            if (count == 0 && G_GetResearch(build)->duration > 0.0f) {
+                progress = G_GetResearch(build)->progress / G_GetResearch(build)->duration;
                 progress = MAX(0, MIN(progress, 1));
             }
         } else {
@@ -888,7 +889,7 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
                     progress = build->health.value / build->health.max_value;
                     progress = MAX(0, MIN(progress, 1));
                 }
-                food_blocked = G_UnitHasFlag(build, UNIT_FLAG_TRAINING) && cost > 0 && (!build->food || build->food->used == 0) && G_FoodLimitsEnabled();
+                food_blocked = G_UnitHasFlag(build, UNIT_FLAG_TRAINING) && cost > 0 && (!G_GetFood(build) || G_GetFood(build)->used == 0) && G_FoodLimitsEnabled();
             }
             UI_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
         }

@@ -654,10 +654,11 @@ bool G_ProducerCanUpgrade(edict_t *producer, uint32_t unit_id) {
 }
 
 bool G_BuildingUpgradeActive(edict_t const *building) {
-    return building && building->inuse && building->research && !G_UnitHasFlag(building, UNIT_FLAG_TRAINING) &&
-        building->research->upgrade != 0 &&
+    research_t *study = G_GetResearch(building);
+    return building && building->inuse && study && !G_UnitHasFlag(building, UNIT_FLAG_TRAINING) &&
+        study->upgrade != 0 &&
         G_UnitIsStructure(building) &&
-        G_UnitIsBuilding(building->research->upgrade);
+        G_UnitIsBuilding(study->upgrade);
 }
 
 bool G_BuildingIsUnsummoning(edict_t const *building) {
@@ -1055,17 +1056,18 @@ static void G_RefreshBuildingUpgradeUI(edict_t *building) {
 }
 
 void G_UpdateBuildingUpgradeAnimation(edict_t *building) {
+    research_t *study = G_GetResearch(building);
     animation_t const *anim;
     float fraction;
     uint32_t first, last, span, frame;
 
-    if (!G_BuildingUpgradeActive(building) || building->research->duration <= 0.0f) return;
+    if (!G_BuildingUpgradeActive(building) || study->duration <= 0.0f) return;
     anim = building->animation;
     if (!G_AnimationHasPrimary(anim, "birth")) anim = G_GetUnitAnimation(building, "birth");
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    fraction = MAX(0.0f, MIN(1.0f, building->research->progress / building->research->duration));
+    fraction = MAX(0.0f, MIN(1.0f, study->progress / study->duration));
     first = anim->interval[0];
     last = anim->interval[1];
     span = last - first;
@@ -1113,13 +1115,9 @@ bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
     G_ClearUnitOrderQueue(building);
     if (building->stand) building->stand(building);
     G_FreeResearch(building);
-    building->research = G_AllocResearch();
-    assert(building->research);
-    building->research->upgrade = unit_id;
-    building->research->gold = gold;
-    building->research->lumber = lumber;
-    building->research->duration = (float)MAX(0, target->buildTime);
-    building->research->progress = 0.0f;
+    research_t *study = G_AddComponent(building, COMPONENT_RESEARCH);
+    *study = (research_t){ .component = study->component, .upgrade = unit_id, .gold = gold, .lumber = lumber,
+                           .duration = (float)MAX(0, target->buildTime) };
     G_SetUnitFoodUsed(building, MAX(0, target->foodUsed));
     G_AddPlayerTechInProgress(client, unit_id, 1);
     building->aiflags |= AI_HOLD_FRAME;
@@ -1131,18 +1129,19 @@ bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
 }
 
 void G_StopBuildingUpgrade(edict_t *building, bool refund) {
+    research_t *study = G_GetResearch(building);
     gameClient_t *client;
     uint32_t unit_id;
 
     if (!G_BuildingUpgradeActive(building)) return;
-    unit_id = building->research->upgrade;
+    unit_id = study->upgrade;
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player) {
         if (refund) {
             int32_t gold = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] +
-                        MAX(0, building->research->gold);
+                        MAX(0, study->gold);
             int32_t lumber = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] +
-                          MAX(0, building->research->lumber);
+                          MAX(0, study->lumber);
             client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
             client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
         }
@@ -1166,14 +1165,15 @@ bool G_CancelBuildingUpgrade(edict_t *building) {
 }
 
 static bool G_CompleteBuildingUpgrade(edict_t *building) {
+    research_t *study = G_GetResearch(building);
     gameClient_t *client;
     uint32_t unit_id;
     int32_t charged_gold, charged_lumber;
 
     if (!G_BuildingUpgradeActive(building)) return false;
-    unit_id = building->research->upgrade;
-    charged_gold = MAX(0, building->research->gold);
-    charged_lumber = MAX(0, building->research->lumber);
+    unit_id = study->upgrade;
+    charged_gold = MAX(0, study->gold);
+    charged_lumber = MAX(0, study->lumber);
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player)
         G_AddPlayerTechInProgress(client, unit_id, -1);
@@ -1206,6 +1206,7 @@ static bool G_CompleteBuildingUpgrade(edict_t *building) {
 }
 
 void G_RunBuildingUpgradeFrame(edict_t *building) {
+    research_t *study = G_GetResearch(building);
     if (!G_BuildingUpgradeActive(building)) return;
     if (G_BuildingIsUnsummoning(building)) return;
     if (M_IsDead(building) || (building->svflags & SVF_DEADMONSTER)) {
@@ -1213,13 +1214,13 @@ void G_RunBuildingUpgradeFrame(edict_t *building) {
         return;
     }
     if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED)) return;
-    if (building->research->duration <= 0.0f || G_PlayerInstantBuild(building->s.player)) {
+    if (study->duration <= 0.0f || G_PlayerInstantBuild(building->s.player)) {
         G_CompleteBuildingUpgrade(building);
         return;
     }
-    building->research->progress += (float)FRAMETIME / 1000.0f;
+    study->progress += (float)FRAMETIME / 1000.0f;
     G_UpdateBuildingUpgradeAnimation(building);
-    if (building->research->progress >= building->research->duration)
+    if (study->progress >= study->duration)
         G_CompleteBuildingUpgrade(building);
 }
 
@@ -2027,7 +2028,7 @@ void G_CompleteConstruction(edict_t *building) {
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 (unsigned)building->s.player, (unsigned)EVENT_PLAYER_UNIT_CONSTRUCT_FINISH,
                 building->build ? (long)(building->build - globals.edicts) : -1L,
-                building->food->made);
+                G_GetFood(building)->made);
     }
     if (client) {
         edict_t *clent = G_GetPlayerEntityByNumber(client->ps.number);

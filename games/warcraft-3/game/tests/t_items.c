@@ -191,9 +191,8 @@ static edict_t *make_item_test_shop(float x, float y) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    assert(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     return shop;
 }
@@ -210,9 +209,8 @@ static edict_t *make_unit_test_shop(float x, float y) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    assert(shop->stock);
-    shop->stock->unit_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    G_GetStock(shop)->unit_slots = 11;
     gi.LinkEntity(shop);
     return shop;
 }
@@ -2026,9 +2024,9 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     shop->s.player = 0;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    T_NOT_NULL(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(shop));
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 4 };
 
@@ -2051,9 +2049,9 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     gate_shop->s.player = 0;
     gate_shop->collision = 32.0f;
     gate_shop->spawn_time = G_Time();
-    if (!gate_shop->stock) gate_shop->stock = G_AllocStock();
-    T_NOT_NULL(gate_shop->stock);
-    gate_shop->stock->item_slots = 11;
+    G_AddComponent(gate_shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(gate_shop));
+    G_GetStock(gate_shop)->item_slots = 11;
     gi.LinkEntity(gate_shop);
     gate_params = (shopItemButtonsParams_t){
         .client = client, .shop = gate_shop, .buttons = gate_buttons, .max_buttons = 4
@@ -2069,9 +2067,9 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     custom_shop->s.player = 0;
     custom_shop->collision = 32.0f;
     custom_shop->spawn_time = G_Time();
-    if (!custom_shop->stock) custom_shop->stock = G_AllocStock();
-    T_NOT_NULL(custom_shop->stock);
-    custom_shop->stock->item_slots = 11;
+    G_AddComponent(custom_shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(custom_shop));
+    G_GetStock(custom_shop)->item_slots = 11;
     gi.LinkEntity(custom_shop);
     custom_params = (shopItemButtonsParams_t){
         .client = client, .shop = custom_shop, .buttons = custom_buttons, .max_buttons = 2
@@ -2109,9 +2107,9 @@ TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
-    T_NOT_NULL(shop->stock);
-    shop->stock->item_slots = 11;
+    G_AddComponent(shop, COMPONENT_STOCK);
+    T_NOT_NULL(G_GetStock(shop));
+    G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     params = (shopItemButtonsParams_t){
         .client = player->client, .shop = shop, .buttons = button, .max_buttons = 2
@@ -2121,7 +2119,7 @@ TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
     T_ASSERT(button[0].disabled);
     T_ASSERT(strstr(button[0].ubertip, "Invalid item requirement data") != NULL);
     T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('b','a','d','1')));
-    T_EQ(shop->stock->items[0].current, 1);
+    T_EQ(G_GetStock(shop)->items[0].current, 1);
     T_NULL(G_InventoryItem(hero, 0));
 }
 
@@ -2235,15 +2233,15 @@ TEST(wc3_items, neutral_item_shop_runtime_stock_override_is_immediate_and_replen
 
     T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('s','p','r','o'), 1, 1));
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->items[0].current, 1);
-    T_EQ(shop->stock->items[0].maximum, 1);
+    T_EQ(G_GetStock(shop)->items[0].current, 1);
+    T_EQ(G_GetStock(shop)->items[0].maximum, 1);
     T_ASSERT(!buttons[0].disabled);
 
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
-    T_EQ(shop->stock->items[0].current, 0);
+    T_EQ(G_GetStock(shop)->items[0].current, 0);
     level.time += 60000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->items[0].current, 1);
+    T_EQ(G_GetStock(shop)->items[0].current, 1);
     T_ASSERT(!buttons[0].disabled);
 
     G_RemoveItemStock(shop, MAKEFOURCC('s','p','r','o'));
@@ -2289,8 +2287,8 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 350);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 75);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
-    T_EQ(shop->stock->unit_count, 1);
-    T_EQ(shop->stock->units[0].current, 0);
+    T_EQ(G_GetStock(shop)->unit_count, 1);
+    T_EQ(G_GetStock(shop)->units[0].current, 0);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 1);
 }
 
@@ -2475,7 +2473,7 @@ TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
 
-    T_EQ(armory->stock->item_count, 0);
+    T_EQ(G_GetStock(armory)->item_count, 0);
     T_ASSERT(player->client->commands_dirty);
     FOR_LOOP(i, MAX_INVENTORY) {
         if (G_InventoryItem(buyer, i) && G_InventoryItem(buyer, i)->class_id == base_ids[selected]) got_reward = true;
@@ -2507,15 +2505,15 @@ TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replen
     /* Campaign stock natives override the authored initial delay immediately. */
     T_ASSERT(G_AddUnitStock(shop, MAKEFOURCC('n','m','e','r'), 1, 1));
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->units[0].current, 1);
-    T_EQ(shop->stock->units[0].maximum, 1);
+    T_EQ(G_GetStock(shop)->units[0].current, 1);
+    T_EQ(G_GetStock(shop)->units[0].maximum, 1);
     T_ASSERT(!buttons[0].disabled);
 
     T_ASSERT(G_ShopPurchaseUnit(player, shop, MAKEFOURCC('n','m','e','r')));
-    T_EQ(shop->stock->units[0].current, 0);
+    T_EQ(G_GetStock(shop)->units[0].current, 0);
     level.time += 5000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->units[0].current, 1);
+    T_EQ(G_GetStock(shop)->units[0].current, 1);
     T_ASSERT(!buttons[0].disabled);
 
     G_RemoveUnitStock(shop, MAKEFOURCC('n','m','e','r'));
@@ -2541,18 +2539,18 @@ TEST(wc3_items, neutral_unit_shop_stock_delay_and_replenishment_are_shared) {
     params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 12 };
 
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->units[0].current, 0);
+    T_EQ(G_GetStock(shop)->units[0].current, 0);
     T_ASSERT(buttons[0].disabled);
     level.time += 3000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->units[0].current, 1);
+    T_EQ(G_GetStock(shop)->units[0].current, 1);
     T_ASSERT(!buttons[0].disabled);
     level.time += 5000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->units[0].current, 2);
+    T_EQ(G_GetStock(shop)->units[0].current, 2);
     level.time += 5000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(shop->stock->units[0].current, 2);
+    T_EQ(G_GetStock(shop)->units[0].current, 2);
 }
 
 TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
@@ -2576,8 +2574,8 @@ TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 100);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
-    T_EQ(shop->stock->unit_count, 1);
-    T_EQ(shop->stock->units[0].current, 1);
+    T_EQ(G_GetStock(shop)->unit_count, 1);
+    T_EQ(G_GetStock(shop)->units[0].current, 1);
 }
 
 TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {

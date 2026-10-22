@@ -85,14 +85,15 @@ static void RefundTrainingCost(edict_t *item) {
 
 
 static void RefundResearchCost(edict_t *item) {
+    research_t *study = G_GetResearch(item);
     player_t *player;
     int32_t gold, lumber;
 
-    if (!item || !(item->research && item->research->upgrade)) return;
+    if (!item || !(study && study->upgrade)) return;
     player = G_GetPlayerByNumber(item->s.player);
     if (!player) return;
-    gold = (int32_t)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, item->research->gold);
-    lumber = (int32_t)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, item->research->lumber);
+    gold = (int32_t)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, study->gold);
+    lumber = (int32_t)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, study->lumber);
     player->stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
     player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
 }
@@ -149,8 +150,8 @@ static bool CancelTrainingQueueItem(edict_t *producer, uint32_t index, bool refu
         SacrificeQueueMessage(producer, item, A_QUEUE_CANCEL);
         if (refund) RefundTrainingCost(item);
         G_ClearUnitFood(item);
-    } else if ((item->research && item->research->upgrade)) {
-        uint32_t const upgrade_id = item->research->upgrade;
+    } else if (G_UnitIsResearching(item)) {
+        uint32_t const upgrade_id = G_GetResearch(item)->upgrade;
         if (refund) RefundResearchCost(item);
         G_AddPlayerTechInProgress(G_GetPlayerClientByNumber(item->s.player),
                                   upgrade_id, -1);
@@ -174,7 +175,7 @@ static bool CancelTrainingQueueItem(edict_t *producer, uint32_t index, bool refu
     if (!producer->build) {
         if (activate_next && producer->stand) producer->stand(producer);
     } else if (!prev && activate_next && G_UnitHasFlag(producer->build, UNIT_FLAG_TRAINING) &&
-               !(producer->build->research && producer->build->research->upgrade) && !G_HeroIsReviving(producer->build)) {
+               !G_UnitIsResearching(producer->build) && !G_HeroIsReviving(producer->build)) {
         /* A new ordinary-training head becomes active immediately. Research
          * and revival do not reserve Food Used. */
         ReserveTrainingFood(producer, producer->build);
@@ -292,11 +293,12 @@ bool G_GetProductionQueueOrder(edict_t *producer, uint32_t index, uint32_t *abil
     if (index >= MAX_BUILD_QUEUE || !ability_id || !progress) return false;
     for (uint32_t i = 0; item && i < index; i++) item = ProductionNext(item);
     if (!item || !G_UnitHasFlag(item, UNIT_FLAG_TRAINING) || G_HeroIsReviving(item)) return false;
-    *ability_id = item->research ? item->research->upgrade : item->class_id;
+    research_t const *study = G_GetResearch(item);
+    *ability_id = study ? study->upgrade : item->class_id;
     *progress = 0.0f;
     if (!index) {
-        if (item->research && item->research->duration > 0)
-            *progress = item->research->progress / item->research->duration;
+        if (study && study->duration > 0)
+            *progress = study->progress / study->duration;
         else if (item->health.max_value > 0) *progress = item->health.value / item->health.max_value;
     }
     *progress = MAX(0.0f, MIN(1.0f, *progress));
@@ -374,17 +376,18 @@ static bool CompleteHeroRevive(edict_t *altar, edict_t *hero) {
 }
 
 static bool CompleteResearch(edict_t *producer, edict_t *item) {
+    research_t *study = G_GetResearch(item);
     gameClient_t *client;
     edict_t *next;
     uint32_t upgrade_id;
     int32_t level_value;
 
-    if (!producer || !item || !(item->research && item->research->upgrade)) return false;
+    if (!producer || !item || !(study && study->upgrade)) return false;
     client = G_GetPlayerClientByNumber(item->s.player);
     if (!client || client->ps.number != item->s.player) return false;
 
-    upgrade_id = item->research->upgrade;
-    level_value = item->research->level;
+    upgrade_id = study->upgrade;
+    level_value = study->level;
     next = item->build;
     producer->build = next;
     item->build = NULL;
@@ -399,7 +402,7 @@ static bool CompleteResearch(edict_t *producer, edict_t *item) {
     G_FreeEdict(item);
 
     if (producer->build && G_UnitHasFlag(producer->build, UNIT_FLAG_TRAINING) &&
-        !(producer->build->research && producer->build->research->upgrade) && !G_HeroIsReviving(producer->build)) {
+        !G_UnitIsResearching(producer->build) && !G_HeroIsReviving(producer->build)) {
         ReserveTrainingFood(producer, producer->build);
     }
     if (!producer->build && producer->stand) producer->stand(producer);
@@ -429,15 +432,16 @@ void ai_train_build(edict_t *ent) {
         return;
     }
 
-    if ((ent->build->research && ent->build->research->upgrade)) {
+    if (G_UnitIsResearching(ent->build)) {
         edict_t *research = ent->build;
 
-        if (research->research->duration <= 0.0f || G_PlayerInstantBuild(ent->s.player)) {
+        research_t *study = G_GetResearch(research);
+        if (study->duration <= 0.0f || G_PlayerInstantBuild(ent->s.player)) {
             CompleteResearch(ent, research);
             return;
         }
-        research->research->progress += (float)FRAMETIME / 1000.0f;
-        if (research->research->progress >= research->research->duration) {
+        study->progress += (float)FRAMETIME / 1000.0f;
+        if (study->progress >= study->duration) {
             CompleteResearch(ent, research);
         }
         return;
@@ -471,7 +475,7 @@ void ai_train_build(edict_t *ent) {
              * clears build for the completed unit. Preserve the producer's queue
              * link before revealing/standing the completed unit. */
             ent->build = next;
-            if (ent->build && G_UnitHasFlag(ent->build, UNIT_FLAG_TRAINING) && !(ent->build->research && ent->build->research->upgrade))
+            if (ent->build && G_UnitHasFlag(ent->build, UNIT_FLAG_TRAINING) && !G_UnitIsResearching(ent->build))
                 ReserveTrainingFood(ent, ent->build);
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
             G_QueueReadySound(completed);
@@ -664,14 +668,9 @@ bool G_QueueResearch(edict_t *producer, uint32_t upgrade_id) {
     item->s.player = producer->s.player;
     G_SetUnitFlag(item, UNIT_FLAG_TRAINING, true);
     item->s.renderfx |= RF_HIDDEN;
-    item->research = G_AllocResearch();
-    assert(item->research);
-    item->research->upgrade = upgrade_id;
-    item->research->level = level_value;
-    item->research->gold = gold;
-    item->research->lumber = lumber;
-    item->research->duration = duration;
-    item->research->progress = 0.0f;
+    research_t *study = G_AddComponent(item, COMPONENT_RESEARCH);
+    *study = (research_t){ .component = study->component, .upgrade = upgrade_id, .level = level_value,
+                           .gold = gold, .lumber = lumber, .duration = duration };
     unit_add_build_queue(producer, item);
 
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
