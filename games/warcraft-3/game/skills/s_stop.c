@@ -93,8 +93,9 @@ bool S_IssueStopOrder(edict_t *ent) {
     if (!ent->inuse || ent->spawn_time != spawn_time || M_IsDead(ent)) return true;
     bool const removing = G_IsDeferredFree(ent);
     /* Retire the old logical owner before publishing Stop. Its inverse may
-     * synchronously issue orders; the pending outer Stop still owns admission. */
-    S_UnitAbilityMoveLeave(ent, CAbilityStop);
+     * synchronously issue orders; the pending outer Stop still owns admission.
+     * Stand has no procedure: report the actual next move, not a command owner. */
+    S_UnitAbilityMoveLeave(ent, NULL);
     if (!ent->inuse || ent->spawn_time != spawn_time ||
         (G_IsDeferredFree(ent) && !removing) || M_IsDead(ent)) return true;
     uint32_t const revision = G_UnitMoveRevision(ent);

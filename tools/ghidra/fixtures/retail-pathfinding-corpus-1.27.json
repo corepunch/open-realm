@@ -60611,7 +60611,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "79cb6a6b7877b793710aaaa98c56daf573a8f63451037e441acf5673634d6eca"
+      "sha256": "c3da58e4ab3ea8d34106d84b97ee9605bdeec42f9b8ef2dae634424501614f85"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
@@ -61827,7 +61827,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
-      "sha256": "96090cbbfe535b22998c588459b8a38d3592bffde0f603f34c49275cc14cb2cf"
+      "sha256": "e97e15da6d042926ec1c49cbebf31b8cb3921a2a5e3bdb66190a503a077a530b"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_reentry.c",
@@ -70883,7 +70883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/hippogryph-couple.md",
-      "sha256": "17359ac909dcce7ce1b5f0f659e3422a1a31fe81814085851cb906496daa9ad9"
+      "sha256": "683760a4d653eca313ad85df3f8cea7dacf0401404e11f59568fbf5499802c09"
     },
     {
       "path": "games/warcraft-3/game/skills/s_couple.c",

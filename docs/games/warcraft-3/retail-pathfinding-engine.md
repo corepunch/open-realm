@@ -22362,3 +22362,40 @@ Focused checkpoint190 passes 13 coupling tests / 4,826 assertions per edition,
 6 terminal-effect tests / 33 assertions, and prior-version rejection.
 No whole leaf closes: TARGET-01.2 stays active with 25 remaining. Full
 checkpoint175 predates this coupling implementation.
+
+### Stop reports the actual Stand procedure
+
+Explicit Stop retires the old logical owner before publishing its new order.
+The `A_MOVE_LEAVE` field `next_move_proc` describes the replacing movement
+procedure. Both Stand moves have a null procedure; `CAbilityStop` is the public
+command handler and is not a replacement move. Pass `NULL` at this early edge,
+then retain the existing lifetime check and capture the new Stop revision.
+
+Full checkpoint192 exposed the distinction in both editions:
+`wc3_building.build297_haunted_mine_completion_respects_worker_ownership`
+lost the worker's retained Haunted Mine completion reference. Build deliberately
+retains that reference on Stand so construction completion can issue Harvest;
+a nonnull replacement procedure cancels it. The correction preserves that
+handoff and Inventory's Stand cleanup while still cancelling Couple before
+notification. A Build-specific Stop exception would duplicate the transition
+contract at the consumer.
+
+Checkpoint194 changes only the Stop descriptor and its explanatory comment.
+All 576 private game source hashes remain unchanged through its corrected
+eight-shard WC3 native run: 8,828 tests / 43,162,562 assertions, no failures or
+errors. Its 18 focused processes also pass 260 test executions / 47,972
+assertions, covering Build296/297, Couple, Stop, Inventory, Entangle, Militia
+and Root. Main checkpoint195 rebuilds the same correction and repeats Build297,
+Couple and the power-lifetime target.
+
+Validation accounting stays explicit: full192 at `32ced4c84` exits with Make
+error2 after 10,186 reported tests and two failing WC3 tests; all 3,211
+pathfinding Python tests pass. Corrected194 plus unaffected192 targets and fresh
+main195 checks provide composite validation, not a successful second full
+`make test` invocation. The latest successful single full invocation remains175.
+Records are `target192-full/full-checkpoint.json`,
+`couple194-native-corrected/checkpoint.json` and
+`stop195-integrated-checkpoint.json` under
+`/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/`.
+Save224 and the network contract are unchanged. TARGET-01.2 stays active with
+25 open leaves.

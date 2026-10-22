@@ -38,6 +38,10 @@ Explicit Stop retires authored logical owners through `S_UnitAbilityMoveLeave`
 after old physical cleanup and before publishing its new order. Lifetime is
 rechecked after that callback; only then is the new Stop revision captured.
 This makes peer Stop notification precede the original Stop notification.
+The early leave reports `NULL`, the actual Stand procedure. Reporting the
+command handler `CAbilityStop` instead makes Build discard its retained Haunted
+Mine completion handoff. The descriptor correction preserves that handoff and
+coupling event order; see the [Stop regression and validation accounting](retail-pathfinding-engine.md#stop-reports-the-actual-stand-procedure).
 The measured peer nested-Move case survives. A nested Move on the original actor
 inside peer Stop is superseded by the outer Stop in native185; this does not
 establish precedence for arbitrary replacement orders or prove successful removal.
