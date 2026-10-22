@@ -955,6 +955,7 @@ static field_t const unit_state_fields[] = {
     TF(unitState_t, statuses, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
     /* Derived from the authoritative status records after loading. */
     TF(unitState_t, timed_status_update_mask, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(unitState_t, status_occupied_mask, F_IGNORE, 0, FIELD_RUNTIME),
     TF(unitState_t, overrides, F_STRUCT, 1, abilities_fields),
     TF(unitState_t, next_status_id, F_INT),
     TF(unitState_t, autocast, F_INT),
@@ -2654,10 +2655,12 @@ TEST(wc3_save, timed_status_index_rebuilds_from_saved_unit_state) {
     T_ASSERT(unit_addstatus(unit, "Beng", 1));
     unit_updatestatuses(unit);
     T_ASSERT(unit->unit_state->timed_status_update_mask != 0);
+    T_ASSERT(unit->unit_state->status_occupied_mask != 0);
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + index;
     T_EQ(unit->unit_state->timed_status_update_mask, 0u);
+    T_EQ(unit->unit_state->status_occupied_mask, 0u);
     T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
     T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','e','n','g')), 1u);
     level.time = 11001;

@@ -1,16 +1,20 @@
 # Warcraft III Save/Load
 
-## Timed status update index
+## Status slot indexes
 
-`unitState_t.timed_status_update_mask` is a transient, derived index of
-`statuses[]` slots where `level && timestamp`. Bit `MAX_UNIT_STATUSES`
-marks the index valid; a zero value requests a lazy rebuild from the
-serialized status records. The field is excluded from the save stream with
-`FIELD_RUNTIME`; status contents and simulation-clock deadlines remain
-authoritative. Since `unitState_t` uses field-based serialization, adding this
-runtime-only field does not change the save format version. After load the
-first `unit_updatestatuses()` call rebuilds the index before checking
-expirations and dispatching timed ticks.
+`unitState_t.timed_status_update_mask` indexes `statuses[]` slots with
+`level && timestamp`; `unitState_t.status_occupied_mask` indexes all occupied
+slots, including permanent statuses. Bit `MAX_UNIT_STATUSES` in the timed mask
+validates both indexes. An invalid index makes `G_UnitStatusLevel()` scan all
+slots, preserving correctness before the first update and immediately after
+load. `unit_updatestatuses()` rebuilds both masks from authoritative status
+records; status add/remove/refresh paths maintain them together. Raw/direct
+status edits must call `unit_status_invalidate_update_mask()`.
+
+Both fields are `F_IGNORE` / `FIELD_RUNTIME` in the unit-state serializer, so
+they are not saved. Status records and simulation-clock deadlines remain
+authoritative. Since `unitState_t` uses field-based serialization, adding these
+runtime-only fields does not change the save format version.
 
 ## Contract
 

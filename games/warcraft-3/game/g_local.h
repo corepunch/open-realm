@@ -2150,6 +2150,7 @@ typedef struct {
     heroabilitystatus_t statuses[MAX_UNIT_STATUSES];
     /* Derived index of occupied timed statuses; rebuilt after spawn/load. */
     uint32_t timed_status_update_mask;
+    uint32_t status_occupied_mask;
     uint32_t next_status_id;
     abilityCooldown_t cooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s overrides;

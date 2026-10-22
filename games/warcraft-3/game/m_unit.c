@@ -2043,9 +2043,9 @@ bool unit_status_take_due_tick(heroabilitystatus_t *slot, uint32_t interval_ms, 
     return true;
 }
 
-/* Status records are sparse and 152 bytes each. Index only timed slots so
- * entities without timed statuses avoid scanning every record each frame.
- * The high bit validates the mask; zeroed/restored state builds lazily. */
+/* Status records are sparse and 152 bytes each. Keep timed slots for frame
+ * updates and occupied slots for status-level queries. A shared valid bit
+ * lets zeroed/restored unit state rebuild both masks lazily. */
 #define TIMED_STATUS_UPDATE_VALID (1u << MAX_UNIT_STATUSES)
 #define TIMED_STATUS_UPDATE_BITS (TIMED_STATUS_UPDATE_VALID - 1u)
 
@@ -2053,12 +2053,16 @@ static void unit_status_track_timed_slot(edict_t *ent, heroabilitystatus_t const
     uint32_t bit;
     if (!ent || !ent->unit_state || !(ent->unit_state->timed_status_update_mask & TIMED_STATUS_UPDATE_VALID)) return;
     bit = 1u << (slot - ent->unit_state->statuses);
+    if (slot->level) ent->unit_state->status_occupied_mask |= bit;
+    else ent->unit_state->status_occupied_mask &= ~bit;
     if (slot->level && slot->timestamp) ent->unit_state->timed_status_update_mask |= bit;
     else ent->unit_state->timed_status_update_mask &= ~bit;
 }
 
 void unit_status_invalidate_update_mask(edict_t *ent) {
-    if (ent && ent->unit_state) ent->unit_state->timed_status_update_mask = 0;
+    if (!ent || !ent->unit_state) return;
+    ent->unit_state->timed_status_update_mask = 0;
+    ent->unit_state->status_occupied_mask = 0;
 }
 
 void unit_updatestatuses(edict_t *ent) {
@@ -2071,11 +2075,15 @@ void unit_updatestatuses(edict_t *ent) {
     if (!ent || !ent->unit_state) return;
     mask = ent->unit_state->timed_status_update_mask;
     if (!(mask & TIMED_STATUS_UPDATE_VALID)) {
+        uint32_t occupied = 0;
         mask = TIMED_STATUS_UPDATE_VALID;
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             heroabilitystatus_t const *status = ent->unit_state->statuses + i;
-            if (status->level && status->timestamp) mask |= 1u << i;
+            if (!status->level) continue;
+            occupied |= 1u << i;
+            if (status->timestamp) mask |= 1u << i;
         }
+        ent->unit_state->status_occupied_mask = occupied;
         ent->unit_state->timed_status_update_mask = mask;
     }
     if (!(mask & TIMED_STATUS_UPDATE_BITS)) return;
@@ -2305,11 +2313,18 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
 }
 
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
-    if (!ent || !code) return 0;
-    FOR_LOOP(i, ent->unit_state ? MAX_UNIT_STATUSES : 0)
-        if (ent->unit_state->statuses[i].level && ent->unit_state->statuses[i].code == code &&
-            (!ent->unit_state->statuses[i].timestamp || ent->unit_state->statuses[i].timestamp > G_Time()))
-            return ent->unit_state->statuses[i].level;
+    uint32_t occupied;
+    if (!ent || !code || !ent->unit_state) return 0;
+    occupied = (ent->unit_state->timed_status_update_mask & TIMED_STATUS_UPDATE_VALID) ?
+        ent->unit_state->status_occupied_mask : TIMED_STATUS_UPDATE_BITS;
+    while (occupied) {
+        uint32_t const i = (uint32_t)__builtin_ctz(occupied);
+        heroabilitystatus_t const *status;
+        occupied &= occupied - 1;
+        status = ent->unit_state->statuses + i;
+        if (status->level && status->code == code &&
+            (!status->timestamp || status->timestamp > G_Time())) return status->level;
+    }
     return 0;
 }
 

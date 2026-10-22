@@ -3668,6 +3668,76 @@ TEST(wc3_combat, timed_status_index_rebuilds_after_direct_edit) {
     T_EQ(ent->unit_state->statuses[8].level, 0);
 }
 
+/* The hot status-level query must use an empty occupied mask instead of
+ * reading all 16 status records, but still see newly applied permanent buffs. */
+TEST(wc3_combat, occupied_status_index_empty_and_persistent) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    uint32_t const stun = MAKEFOURCC('B','s','t','u');
+    heroabilitystatus_t *status;
+    level.time = 1000;
+    T_EQ(G_UnitStatusLevel(ent, stun), 0u); /* Invalid-index fallback. */
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u); /* Cached empty case. */
+    T_EQ(G_UnitStatusLevel(ent, stun), 0u);
+
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    status = unit_findstatus(ent, stun);
+    T_NOT_NULL(status);
+    T_EQ(ent->unit_state->status_occupied_mask, 1u << (status - ent->unit_state->statuses));
+    T_EQ(G_UnitStatusLevel(ent, stun), 1u);
+    unit_updatestatuses(ent); /* Permanent status survives the timed update. */
+    T_EQ(G_UnitStatusLevel(ent, stun), 1u);
+    unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u);
+    T_EQ(G_UnitStatusLevel(ent, stun), 0u);
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    T_EQ(G_UnitStatusLevel(ent, stun), 1u); /* Reused free slot. */
+}
+
+/* Expired slots are excluded by the existing timestamp predicate even before
+ * their deferred removal, while other occupied slots remain discoverable. */
+TEST(wc3_combat, occupied_status_index_handles_sparse_timed_expiration) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    uint32_t const short_buff = MAKEFOURCC('B','s','t','u');
+    uint32_t const long_buff = MAKEFOURCC('B','e','n','g');
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_addtimedstatus(ent, "Beng", 2, 0.15f));
+    T_EQ(G_UnitStatusLevel(ent, short_buff), 1u);
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 2u);
+    level.time = 1051;
+    T_EQ(G_UnitStatusLevel(ent, short_buff), 0u); /* Not yet swept. */
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 2u);
+    unit_updatestatuses(ent);
+    T_EQ(G_UnitStatusLevel(ent, short_buff), 0u);
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 2u);
+    level.time = 1151;
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u);
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 0u);
+}
+
+/* Raw fixture modifications require one shared invalidation. Queries remain
+ * correct before rebuilding, even if an earlier matching slot has expired. */
+TEST(wc3_combat, occupied_status_index_falls_back_and_rebuilds) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    uint32_t const code = MAKEFOURCC('B','s','t','u');
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    ent->unit_state->statuses[4] = (heroabilitystatus_t){ .code = code, .level = 1, .timestamp = 1050 };
+    ent->unit_state->statuses[9] = (heroabilitystatus_t){ .code = code, .level = 2 };
+    unit_status_invalidate_update_mask(ent);
+    T_EQ(G_UnitStatusLevel(ent, code), 1u); /* Pre-rebuild fallback. */
+    level.time = 1051;
+    T_EQ(G_UnitStatusLevel(ent, code), 2u); /* Expired first match. */
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->status_occupied_mask, 1u << 9);
+    T_EQ(G_UnitStatusLevel(ent, code), 2u);
+    unit_removestatus(ent, ent->unit_state->statuses + 9, STATUS_REMOVE_SCRIPT);
+    T_EQ(G_UnitStatusLevel(ent, code), 0u);
+}
+
 TEST(wc3_combat, timed_life_status_kills_unit) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     _die_call_count = 0;
