@@ -4,6 +4,8 @@
 
 #include "../menu_local.h"
 #include "../menu_screen.h"
+#include "../menu_dialog.h"
+#include "../generated/map_list_box.h"
 #include "../generated/single_player_menu.h"
 #include "common/campaign_progress.h"
 #include "common/stb_slk.h"
@@ -29,11 +31,14 @@
 #define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
 #define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u // bit; marks cinematic list items; separates them from mission indices
 #define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu // bitmask; retains the 31-bit item index; strips the cinematic marker
+#define SINGLE_PLAYER_SAVE_ENUM_BYTES 16384 // bytes; bounded engine save-basename enumeration
+#define SINGLE_PLAYER_SAVE_ROWS 12 // rows; list height 0.24 / 0.019 with FDF insets
 
 typedef enum {
     SINGLE_PLAYER_VIEW_MAIN,
     SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT,
     SINGLE_PLAYER_VIEW_MISSION_SELECT,
+    SINGLE_PLAYER_VIEW_SAVED_GAMES,
 } singlePlayerView_t;
 
 typedef struct {
@@ -153,6 +158,15 @@ static wc3CampaignProgress_t campaign_progress;
 /* Stable text storage for completion suffixes; visible rows bind to these
  * rather than altering the authored CampaignStrings mission names. */
 static char mission_completion_names[UI_MAX_MAP_LIST_ITEMS][256];
+
+/* A frontend-only save chooser using the same engine-owned basenames as the F10 chooser.
+ * A map is restored later by the client, never from a menu render/input callback. */
+static uiMapListState_t saved_games;
+static MapListBox_t saved_game_list_art;
+static frameDef_t *saved_game_panel, *saved_game_list, *saved_game_title;
+static frameDef_t *saved_game_empty, *saved_game_load, *saved_game_delete, *saved_game_back;
+static uiDialogWar3_t saved_game_delete_dialog;
+
 
 static void SinglePlayer_ReleaseCampaignBackdropState(void) {
     refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
@@ -646,7 +660,12 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
     current_view = view;
 
     SinglePlayer_SetHidden(single_player.SinglePlayerMenu, view != SINGLE_PLAYER_VIEW_MAIN);
-    SinglePlayer_SetHidden(single_player.MainPanel, false);
+    SinglePlayer_SetHidden(single_player.MainPanel, view != SINGLE_PLAYER_VIEW_MAIN);
+    SinglePlayer_SetHidden(saved_game_panel, view != SINGLE_PLAYER_VIEW_SAVED_GAMES);
+    if (view != SINGLE_PLAYER_VIEW_SAVED_GAMES)
+        UI_DialogWar3Hide(&saved_game_delete_dialog);
+    UI_SetOnClick(single_player.CancelButton, view == SINGLE_PLAYER_VIEW_SAVED_GAMES
+        ? "menu_game" : "menu_main");
     SinglePlayer_SetHidden(single_player.ProfilePanel, true);
 
     SinglePlayer_SetHidden(single_player.CampaignMenu, !show_campaign);
@@ -1114,13 +1133,214 @@ static void SinglePlayer_PopulateCampaignList(void) {
     }
 }
 
+/* Reuse the authored MapListBox and main-menu button skins. The list owns only
+ * rendered rows/selection; filesystem enumeration and save-header validation
+ * stay in the client/server imports. */
+static frameDef_t *SinglePlayer_SaveButton(cstring_t name, cstring_t title,
+                                          float x, cstring_t command) {
+    frameDef_t *outer, *button, *label;
+
+    if (!single_player.LoadSavedBackdrop || !saved_game_panel) return NULL;
+    outer = UI_CloneFrameTree(single_player.LoadSavedBackdrop, saved_game_panel);
+    if (!outer) return NULL;
+    snprintf(outer->Name, sizeof(outer->Name), "%s", name);
+    UI_SetSize(outer, 0.123f, 0.034f);
+    UI_SetPoint(outer, FRAMEPOINT_TOPLEFT, saved_game_panel, FRAMEPOINT_TOPLEFT, x, -0.345f);
+    button = UI_FindChildFrame(outer, "LoadSavedButton");
+    label = button ? UI_FindChildFrame(button, "LoadSavedButtonText") : NULL;
+    if (!button || !label) return NULL;
+    UI_SetPoint(button, FRAMEPOINT_TOPLEFT, outer, FRAMEPOINT_TOPLEFT, 0, 0);
+    UI_SetPoint(button, FRAMEPOINT_BOTTOMRIGHT, outer, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
+    UI_SetText(label, "%s", title);
+    UI_SetOnClick(button, "%s", command);
+    return button;
+}
+
+static bool SinglePlayer_SaveNameSafe(cstring_t name) {
+    size_t len;
+
+    if (!name || !(len = strlen(name)) || len >= CMDARG_LEN ||
+        !strcmp(name, ".") || !strcmp(name, "..") || name[len - 1] == '.') return false;
+    for (cstring_t p = name; *p; p++) {
+        unsigned char ch = (unsigned char)*p;
+        if (ch < 0x20 || strchr("\\/:*?\"<>|", ch)) return false;
+    }
+    return true;
+}
+
+static void SinglePlayer_UpdateSaveButtons(void) {
+    bool selected = current_view == SINGLE_PLAYER_VIEW_SAVED_GAMES &&
+                    saved_games.count && saved_games.selected < saved_games.count &&
+                    mi.GetSaveMap && mi.LoadSavedGame;
+    if (saved_game_load) UI_SetEnabled(saved_game_load, selected);
+    if (saved_game_delete) UI_SetEnabled(saved_game_delete,
+                                         selected && mi.DeleteSave && saved_game_delete_dialog.frame);
+    if (saved_game_empty) UI_SetHidden(saved_game_empty, saved_games.count != 0);
+}
+
+static void SinglePlayer_RefreshSaves(void) {
+    char names[SINGLE_PLAYER_SAVE_ENUM_BYTES] = { 0 };
+    uint32_t old_count = saved_games.count;
+    char selected_name[sizeof(saved_games.items[0].path)] = { 0 };
+
+    if (old_count && saved_games.selected < old_count)
+        snprintf(selected_name, sizeof(selected_name), "%s", saved_games.items[saved_games.selected].path);
+    memset(&saved_games, 0, sizeof(saved_games));
+    if (mi.ListSaves && mi.GetSaveMap) {
+        mi.ListSaves(names, sizeof(names));
+        for (cstring_t name = names; *name; name += strlen(name) + 1) {
+            PATHSTR map;
+            uiMapListItem_t *item;
+            if (saved_games.count >= UI_MAX_MAP_LIST_ITEMS) break;
+            if (!SinglePlayer_SaveNameSafe(name) ||
+                strlen(name) >= sizeof(saved_games.items[0].path) ||
+                !mi.GetSaveMap(name, map, sizeof(map))) continue;
+            item = &saved_games.items[saved_games.count++];
+            snprintf(item->path, sizeof(item->path), "%s", name);
+            snprintf(item->name, sizeof(item->name), "%s", !strcasecmp(name, "quick") ? "Quick Save" : name);
+        }
+    }
+    for (uint32_t i = 0; i < saved_games.count; i++) {
+        if (!strcmp(saved_games.items[i].path, selected_name)) {
+            saved_games.selected = i;
+            break;
+        }
+    }
+    SinglePlayer_UpdateSaveButtons();
+}
+
+/* FDF clones survive panel navigation. Rebind, rather than allocating more
+ * controls when SinglePlayerMenu_Init is called again on an existing tree. */
+static void SinglePlayer_CreateSavedGamePanel(void) {
+    MapListBox_t template_box = { 0 };
+
+    saved_game_panel = single_player.SinglePlayerMenu
+        ? UI_FindChildFrame(single_player.SinglePlayerMenu, "SavedGamesPanel") : NULL;
+    if (!saved_game_panel) {
+        saved_game_panel = UI_Spawn(FT_FRAME, single_player.SinglePlayerMenu);
+        if (!saved_game_panel) return;
+        snprintf(saved_game_panel->Name, sizeof(saved_game_panel->Name), "SavedGamesPanel");
+        UI_SetSize(saved_game_panel, 0.42f, 0.39f);
+        UI_SetPoint(saved_game_panel, FRAMEPOINT_CENTER, single_player.SinglePlayerMenu,
+                    FRAMEPOINT_CENTER, 0.10f, 0.0f);
+        saved_game_title = UI_CloneFrameTree(UI_FindFrame("StandardTitleTextTemplate"), saved_game_panel);
+        if (saved_game_title) {
+            snprintf(saved_game_title->Name, sizeof(saved_game_title->Name), "SavedGamesTitle");
+            UI_SetSize(saved_game_title, 0.37f, 0.035f);
+            UI_SetPoint(saved_game_title, FRAMEPOINT_TOPLEFT, saved_game_panel, FRAMEPOINT_TOPLEFT, 0.02f, -0.005f);
+            UI_SetText(saved_game_title, "Load Saved Game");
+        }
+        saved_game_empty = UI_CloneFrameTree(UI_FindFrame("StandardSmallTextTemplate"), saved_game_panel);
+        if (saved_game_empty) {
+            snprintf(saved_game_empty->Name, sizeof(saved_game_empty->Name), "SavedGamesEmpty");
+            UI_SetSize(saved_game_empty, 0.37f, 0.028f);
+            UI_SetPoint(saved_game_empty, FRAMEPOINT_TOPLEFT, saved_game_panel, FRAMEPOINT_TOPLEFT, 0.03f, -0.08f);
+            UI_SetText(saved_game_empty, "No saved games available.");
+        }
+        if (MapListBox_Load(&template_box)) {
+            saved_game_list = UI_CloneFrameTree(template_box.MapListBox, saved_game_panel);
+            if (saved_game_list) {
+                MapListBox_Bind(&saved_game_list_art, saved_game_list);
+                snprintf(saved_game_list->Name, sizeof(saved_game_list->Name), "SavedGamesList");
+                UI_SetSize(saved_game_list, 0.41f, 0.275f);
+                UI_SetPoint(saved_game_list, FRAMEPOINT_TOPLEFT, saved_game_panel, FRAMEPOINT_TOPLEFT,
+                            0.0f, -0.05f);
+                /* Cloning changes the root name, so re-anchor the scrollbar to the clone. */
+                if (saved_game_list_art.MapListScrollBar)
+                    UI_SetPoint(saved_game_list_art.MapListScrollBar, FRAMEPOINT_TOPRIGHT,
+                                saved_game_list, FRAMEPOINT_TOPRIGHT, 0, 0);
+            }
+        }
+        saved_game_load = SinglePlayer_SaveButton("SavedGamesLoad", "Load Game", 0.008f,
+                                                 "menu_single_player_save_load");
+        saved_game_delete = SinglePlayer_SaveButton("SavedGamesDelete", "Delete", 0.146f,
+                                                   "menu_single_player_save_delete_confirm");
+        saved_game_back = SinglePlayer_SaveButton("SavedGamesBack", "Back", 0.284f, "menu_game");
+    } else {
+        saved_game_list = UI_FindChildFrame(saved_game_panel, "SavedGamesList");
+        saved_game_title = UI_FindChildFrame(saved_game_panel, "SavedGamesTitle");
+        saved_game_empty = UI_FindChildFrame(saved_game_panel, "SavedGamesEmpty");
+        saved_game_load = UI_FindChildFrame(saved_game_panel, "SavedGamesLoad");
+        saved_game_delete = UI_FindChildFrame(saved_game_panel, "SavedGamesDelete");
+        saved_game_back = UI_FindChildFrame(saved_game_panel, "SavedGamesBack");
+        if (saved_game_load) saved_game_load = UI_FindChildFrame(saved_game_load, "LoadSavedButton");
+        if (saved_game_delete) saved_game_delete = UI_FindChildFrame(saved_game_delete, "LoadSavedButton");
+        if (saved_game_back) saved_game_back = UI_FindChildFrame(saved_game_back, "LoadSavedButton");
+    }
+    if (saved_game_list) UI_BindMapList(saved_game_list, &saved_games, saved_game_title,
+                                      SINGLE_PLAYER_SAVE_ROWS, "menu_single_player_save_select %u");
+    UI_DialogWar3Init(&saved_game_delete_dialog, single_player.SinglePlayerMenu,
+        &(uiDialogWar3Init_t){ .modal_name = "SavedGameDeleteModal", .template_name = "DialogWar3" });
+    UI_DialogWar3Hide(&saved_game_delete_dialog);
+    SinglePlayer_UpdateSaveButtons();
+}
+
+void SinglePlayerMenu_ShowSavedGames(void) {
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen || !saved_game_panel) return;
+    UI_DialogWar3Hide(&saved_game_delete_dialog);
+    SinglePlayer_RefreshSaves();
+    SinglePlayer_SetView(SINGLE_PLAYER_VIEW_SAVED_GAMES);
+    SinglePlayer_UpdateSaveButtons();
+}
+
+void SinglePlayerMenu_SelectSavedGame(uint32_t index) {
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen ||
+        current_view != SINGLE_PLAYER_VIEW_SAVED_GAMES || index >= saved_games.count ||
+        UI_DialogWar3Visible(&saved_game_delete_dialog)) return;
+    saved_games.selected = index;
+    SinglePlayer_UpdateSaveButtons();
+}
+
+void SinglePlayerMenu_LoadSelectedSave(void) {
+    PATHSTR map;
+    cstring_t name;
+
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen ||
+        current_view != SINGLE_PLAYER_VIEW_SAVED_GAMES ||
+        saved_games.selected >= saved_games.count || !mi.GetSaveMap || !mi.LoadSavedGame ||
+        UI_DialogWar3Visible(&saved_game_delete_dialog)) return;
+    name = saved_games.items[saved_games.selected].path;
+    /* A slot may have been removed or replaced while the chooser is open. */
+    if (!SinglePlayer_SaveNameSafe(name) || !mi.GetSaveMap(name, map, sizeof(map))) {
+        SinglePlayer_RefreshSaves();
+        return;
+    }
+    mi.LoadSavedGame(name);
+}
+
+void SinglePlayerMenu_ConfirmDeleteSave(void) {
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen ||
+        current_view != SINGLE_PLAYER_VIEW_SAVED_GAMES ||
+        saved_games.selected >= saved_games.count) return;
+    UI_DialogWar3Show(&saved_game_delete_dialog, &(uiDialogWar3Config_t){
+        .message = "Delete this saved game?",
+        .icon = UI_DIALOG_WAR3_ICON_QUESTION,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_YES_NO,
+        .yes_command = "menu_single_player_save_delete",
+        .no_command = "menu_single_player_saved_games",
+    });
+}
+
+void SinglePlayerMenu_DeleteSelectedSave(void) {
+    char name[sizeof(saved_games.items[0].path)];
+
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen ||
+        current_view != SINGLE_PLAYER_VIEW_SAVED_GAMES ||
+        saved_games.selected >= saved_games.count || !mi.DeleteSave ||
+        !UI_DialogWar3Visible(&saved_game_delete_dialog)) return;
+    snprintf(name, sizeof(name), "%s", saved_games.items[saved_games.selected].path);
+    UI_DialogWar3Hide(&saved_game_delete_dialog);
+    if (SinglePlayer_SaveNameSafe(name) && mi.DeleteSave(name)) SinglePlayer_RefreshSaves();
+}
+
 static void SinglePlayer_BindMainMenu(void) {
     if (!single_player.SinglePlayerMenu) {
         return;
     }
 
     UI_SetOnClick(single_player.CampaignButton, "menu_single_player_campaign");
-    UI_SetOnClick(single_player.LoadSavedButton, "");
+    UI_SetOnClick(single_player.LoadSavedButton, "menu_single_player_saved_games");
+    UI_SetEnabled(single_player.LoadSavedButton, true);
     UI_SetOnClick(single_player.ViewReplayButton, "");
     UI_SetOnClick(single_player.SkirmishButton, "menu_single_player_skirmish");
     UI_SetOnClick(single_player.ProfileButton, "");
@@ -1204,6 +1424,7 @@ static void SinglePlayerMenu_Init(void) {
     SinglePlayer_BindCampaignMenu();
     SinglePlayer_CreateList(&campaign_rows, single_player.CampaignSelectFrame, "CampaignListBox");
     SinglePlayer_CreateList(&mission_rows, single_player.MissionSelectFrame, "MissionListBox");
+    SinglePlayer_CreateSavedGamePanel();
     SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
@@ -1211,6 +1432,7 @@ static void SinglePlayerMenu_Init(void) {
 
 static void SinglePlayerMenu_Shutdown(void) {
     SinglePlayer_ReleaseCampaignBackdropState();
+    UI_DialogWar3Hide(&saved_game_delete_dialog);
 }
 
 /* The wheel scrolls whichever selector column is under the pointer, including over its buttons. */
@@ -1218,6 +1440,12 @@ static bool SinglePlayerMenu_Scroll(float fdf_x, float fdf_y, int delta) {
     singlePlayerList_t *list = current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ? &campaign_rows
         : current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT ? &mission_rows : NULL;
 
+    if (current_view == SINGLE_PLAYER_VIEW_SAVED_GAMES && saved_game_list && delta &&
+        UI_FrameContainsPoint(saved_game_list, fdf_x, fdf_y)) {
+        UI_MapListScroll(saved_game_list, delta > 0);
+        saved_games.visualScroll = (float)saved_games.scroll;
+        return true;
+    }
     if (!list || !list->box || !delta || !UI_FrameContainsPoint(list->box, fdf_x, fdf_y)) return false;
     if (delta > 0 && list->scroll > 0) list->scroll--;
     else if (delta < 0) list->scroll++;
@@ -1238,6 +1466,9 @@ static void SinglePlayerMenu_Draw(void) {
     if (single_player.SinglePlayerMenu) {
         UI_DrawFrame(single_player.SinglePlayerMenu);
     }
+    if (current_view == SINGLE_PLAYER_VIEW_SAVED_GAMES &&
+        UI_DialogWar3Visible(&saved_game_delete_dialog))
+        UI_DrawFrame(saved_game_delete_dialog.modal);
 }
 
 static void SinglePlayerMenu_KeyEvent(int key, bool down) {

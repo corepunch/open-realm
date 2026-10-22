@@ -66,6 +66,7 @@ static void UI_MenuCampaignNightElf_f(void);
 static void UI_MenuCampaignTutorial_f(void);
 static void UI_MenuVideoMode_f(void);
 static void UI_MenuCampaignSelect_f(void);
+static void UI_MenuSaveSelect_f(void);
 static void UI_MenuMissionSelect_f(void);
 static void UI_MenuDifficulty_f(void);
 static void UI_MenuLANSelect_f(void);
@@ -98,6 +99,11 @@ static const menucommand_t menu_commands[] = {
     { "menu_options_sound", UI_MenuOptionsSound_f },
     { "menu_options_apply", UI_MenuOptionsApply_f },
     { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
+    { "menu_single_player_saved_games", SinglePlayerMenu_ShowSavedGames },
+    { "menu_single_player_save_select", UI_MenuSaveSelect_f },
+    { "menu_single_player_save_load", SinglePlayerMenu_LoadSelectedSave },
+    { "menu_single_player_save_delete_confirm", SinglePlayerMenu_ConfirmDeleteSave },
+    { "menu_single_player_save_delete", SinglePlayerMenu_DeleteSelectedSave },
     { "menu_single_player_skirmish", M_ShowSinglePlayerSkirmishMenu },
     { "menu_lan_refresh", LAN_RefreshMaps },
     { "menu_lan_start", LAN_StartSelectedMap },
@@ -635,6 +641,7 @@ static void UI_MenuRenderScale(uint32_t value) {
 }
 static void UI_MenuRenderScale_f(void) { UI_MenuIndex(UI_MenuRenderScale); }
 static void UI_MenuCampaignSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_LaunchCampaignIndex); }
+static void UI_MenuSaveSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_SelectSavedGame); }
 static void UI_MenuMissionSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_LaunchMissionIndex); }
 static void UI_MenuDifficulty_f(void) { UI_MenuIndex(SinglePlayerMenu_SetDifficulty); }
 static void UI_MenuLANSelect_f(void) { UI_MenuIndex(LAN_SelectMapIndex); }

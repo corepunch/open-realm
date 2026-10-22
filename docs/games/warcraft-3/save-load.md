@@ -1031,3 +1031,35 @@ world alone; later rejection does not promise level or VM rollback.
 Regressions cover a truncated final pool after every earlier pool loaded, and a
 checksummed extra payload byte after a valid VM snapshot. Both rejection paths
 must leave no typed records attached.
+
+
+## Frontend Load Saved Game (RoC and TFT)
+
+`Single Player -> Load Saved Game` opens a frontend save chooser in both editions.
+The button opens the browser even when the save directory is empty, so an empty
+list can explain its state instead of appearing unresponsive. The chooser uses
+the same `FS_ListSaves()` ordering and names as the in-game ESC Load Game list,
+and the authored `MapListBox` control/skin. It does not enumerate files from
+inside the menu module: `menuImport_t` receives bounded engine callbacks for
+listing basenames, checking a save's map identity, deletion, and starting the
+load. Invalid names and saves with unreadable/incompatible headers are not
+listed. `quick` is displayed as `Quick Save` without changing its slot identity.
+
+Selecting a row highlights it; Load Game and Delete are disabled until a row
+is selected/available. Load revalidates the chosen slot before queuing
+`MenuAction("load", name)` on the client, which resolves the saved map and
+restores it through `SV_LoadGame()` at the next frame boundary. No serializer,
+map transition, or console command constructed from a filename runs within the
+menu callback. Delete first shows a confirmation dialog, then calls
+`FS_DeleteSave()`, which removes the main `.sav`, its local control-group
+companion, and the bound script-save scope; the list is refreshed afterwards.
+Back returns to Single Player without loading anything. Save files are shared
+across the two frontend editions; they are not copied into separate RoC/TFT
+stores. The save/map validation and runtime still determine compatibility.
+
+Manual check in both editions: open Load Saved Game with no saves, create a
+named save and a quick save from gameplay, return to the main menu, select each
+slot and load, scroll a list longer than 12 rows, cancel deletion, delete a
+slot and verify that it disappears. A stale/invalid save must not crash or
+start a new map. These UI and runtime checks were not performed by the patch
+author; run the project's normal build/tests and visually inspect the layout.

@@ -53,6 +53,11 @@ typedef struct {
     int (*FS_GetFileList)(cstring_t path, cstring_t extension, char *listbuf, int bufsize);
     void (*FS_WriteFile)(cstring_t path, void const *data, int size); /* Write to local disk */
     void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size); /* Resolve writable per-user game data */
+    /* Manual save slots belong to the engine; the menu never traverses the host filesystem or parses save headers. */
+    uint32_t (*ListSaves)(string_t out, uint32_t out_size); /* NUL-delimited basenames, newest first */
+    bool (*GetSaveMap)(cstring_t name, string_t map, uint32_t map_size); /* Reject unreadable/mismatched headers */
+    bool (*DeleteSave)(cstring_t name);
+    void (*LoadSavedGame)(cstring_t name); /* Queue the client session-boundary load */
     
     /* Memory allocation */
     handle_t (*MemAlloc)(long size);
