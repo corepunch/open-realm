@@ -145,7 +145,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 112 moves Research, Food, Stock onto the component list. */
 /* Version 113 moves Channel onto the component list. */
 /* Version 114 moves Destructable, Construction onto the component list. */
-static uint32_t const save_version = 114;
+/* Version 115 moves Item onto the component list. */
+static uint32_t const save_version = 115;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -700,6 +701,7 @@ static field_t const acolyte_mine_fields[] = {
 };
 
 static field_t const item_fields[] = {
+    TF(item_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(item_t, carrier, F_EDICT, 0, FIELD_NONE),
     TF(item_t, pending_use_carrier, F_EDICT, 0, FIELD_NONE),
     TF(item_t, soul_target, F_EDICT, 0, FIELD_NONE),
@@ -1021,7 +1023,6 @@ static field_t const sound_fields[] = {
 
 field_t edict_fields[] = {
     F(edict_s, summon_ability, F_INT),
-    F(edict_s, item, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2259,7 +2260,7 @@ static savePool_t const save_pools[] = {
     { "goldmine", 0, sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP, COMPONENT_GOLDMINE },
     { "mineoverlay", 0, sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP, COMPONENT_MINE_OVERLAY },
     { "acolyte_mine", 0, sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP, COMPONENT_ACOLYTE_MINE },
-    { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP },
+    { "item", 0, sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP, COMPONENT_ITEM },
     { "destructable", 0, sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP, COMPONENT_DESTRUCTABLE },
     { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
     { "stock", 0, sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP, COMPONENT_STOCK },
@@ -3409,6 +3410,10 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     G_GetCargo(unit)->units[0] = target;
     G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
     G_GetAncientRoot(unit)->approach_goal = target;
+    G_GetItem(unit)->charges = 4;
+    G_GetItem(unit)->drop_id = MAKEFOURCC('h','f','o','o');
+    G_GetItem(unit)->carrier = target;
+    G_GetItem(unit)->pending_use_slot = 5;
     FILE *raw = tmpfile();
     T_NOT_NULL(raw);
     if (raw) {
@@ -3475,6 +3480,11 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_ASSERT(G_GetCargo(unit)->units[0] == target);
     T_EQ(G_GetAncientRoot(unit)->mode, ANCIENT_ROOTING);
     T_ASSERT(G_GetAncientRoot(unit)->approach_goal == target);
+    T_EQ(G_GetItem(unit)->component.id, COMPONENT_ITEM);
+    T_EQ(G_GetItem(unit)->charges, 4);
+    T_EQ(G_GetItem(unit)->drop_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(G_GetItem(unit)->carrier == target);
+    T_EQ(G_GetItem(unit)->pending_use_slot, 5);
     remove(filename);
 }
 #endif

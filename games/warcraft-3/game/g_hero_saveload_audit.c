@@ -62,9 +62,10 @@ static void hsa_capture(edict_t const *hero, hsaSnap_t *snap) {
     if (snap->added_count > MAX_ABILITIES) snap->added_count = MAX_ABILITIES;
     FOR_LOOP(i, snap->added_count) snap->added[i] = hero->unit_state->overrides.added[i];
     FOR_LOOP(i, MAX_INVENTORY) {
-        if (!G_InventoryItem(hero, i)) continue;
-        snap->inventory[i] = G_InventoryItem(hero, i)->class_id;
-        snap->charges[i] = G_InventoryItem(hero, i)->item->charges;
+        edict_t const *carried = G_InventoryItem(hero, i);
+        if (!carried) continue;
+        snap->inventory[i] = carried->class_id;
+        snap->charges[i] = G_GetItem(carried)->charges;
     }
     if (hero->currentmove && hero->currentmove->animation)
         strlcpy(snap->move, hero->currentmove->animation, sizeof(snap->move));

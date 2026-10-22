@@ -1122,10 +1122,10 @@ bool G_ShopPawnItem(shopPawnItemParams_t *params) {
 
     if (!G_CanUseItemShop(client, shop) || !G_ActorHasSkill(shop, "Apit") ||
         !carrier || carrier->s.player != client->ps.number || !G_IsItem(item) ||
-        item->item->carrier != carrier || item->item->in_world) return false;
+        G_GetItem(item)->carrier != carrier || G_GetItem(item)->in_world) return false;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     if (!data) return false;
-    if (item->item->pawnable_set) { if (!item->item->pawnable) return false; }
+    if (G_GetItem(item)->pawnable_set) { if (!G_GetItem(item)->pawnable) return false; }
     else if (!data->pawnable) return false;
 
     distance = Vector2_distance(&carrier->s.origin2, &shop->s.origin2);

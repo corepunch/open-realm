@@ -796,7 +796,7 @@ static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t t
 static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, uint32_t spawn_time) {
     if (!item) return true;
     return item->inuse && item->spawn_time == spawn_time && G_IsItem(item) &&
-        !item->item->pending_use_removal && item->item->carrier == caster;
+        !G_GetItem(item)->pending_use_removal && G_GetItem(item)->carrier == caster;
 }
 
 static edict_t const *spell_approach_move_goal(edict_t const *thinker) {

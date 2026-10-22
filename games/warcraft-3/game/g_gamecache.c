@@ -635,7 +635,7 @@ bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, 
         edict_t const *item = G_InventoryItem(unit, i);
         if (!item) continue;
         saved->inventory[i].item_id = item->class_id;
-        saved->inventory[i].charges = item->item->charges;
+        saved->inventory[i].charges = G_GetItem(item)->charges;
     }
     cache->dirty = true;
     return true;

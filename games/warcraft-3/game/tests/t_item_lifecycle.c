@@ -73,10 +73,9 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     FOR_LOOP(i, 3) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
-        if (!item->item) item->item = G_AllocItem();
-        assert(item->item);
-        item->item->in_world = true;
-        item->item->inventory_slot = -1;
+        G_AddComponent(item, COMPONENT_ITEM);
+        G_GetItem(item)->in_world = true;
+        G_GetItem(item)->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
     }
     T_FEQ(unit->unit_state->attack1.temporaryDamageBonus, 7, 0.001f);
@@ -129,10 +128,9 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
     unit->unit_state->attack1.temporaryDamageBonus = unit->unit_state->attack2.temporaryDamageBonus = 0;
     item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 0);
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->in_world = true;
-    item->item->inventory_slot = -1;
+    G_AddComponent(item, COMPONENT_ITEM);
+    G_GetItem(item)->in_world = true;
+    G_GetItem(item)->inventory_slot = -1;
 
     T_ASSERT(G_InventoryCanUseItems(unit));
     T_ASSERT(G_AddItemToSlot(unit, item, 0));
@@ -270,10 +268,9 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
     FOR_LOOP(i, 2) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
-        if (!item->item) item->item = G_AllocItem();
-        assert(item->item);
-        item->item->in_world = true;
-        item->item->inventory_slot = -1;
+        G_AddComponent(item, COMPONENT_ITEM);
+        G_GetItem(item)->in_world = true;
+        G_GetItem(item)->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
     }
     T_FEQ(unit->unit_state->attack1.temporaryDamageBonus, 24, 0.001f);
@@ -328,10 +325,9 @@ TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->in_world = true;
-    item->item->inventory_slot = -1;
+    G_AddComponent(item, COMPONENT_ITEM);
+    G_GetItem(item)->in_world = true;
+    G_GetItem(item)->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(attacker, item, 0));
     T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
     S_OrbOnHit(attacker, target);

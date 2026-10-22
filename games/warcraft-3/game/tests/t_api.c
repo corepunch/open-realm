@@ -7213,10 +7213,9 @@ static edict_t *alloc_world_test_item(uint32_t class_id) {
     edict_t *item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
-    item->item->in_world = true;
-    item->item->inventory_slot = -1;
+    G_AddComponent(item, COMPONENT_ITEM);
+    G_GetItem(item)->in_world = true;
+    G_GetItem(item)->inventory_slot = -1;
     return item;
 }
 

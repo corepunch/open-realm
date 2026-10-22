@@ -1164,3 +1164,11 @@ Destructable and Construction move onto the component list
 destructable pathing textures and drop-set views stay process-owned exclusions and
 are rebuilt from object data after load, as before. The destructable section keeps
 `DESTRUCTABLE_POOL_CAP`. Version 113 saves are rejected; the wire format is unchanged.
+
+## Ninth component slice (version 115)
+
+Item moves onto the component list (`COMPONENT_ITEM`). The item `carrier`,
+`pending_use_carrier` and `soul_target` references keep their `F_EDICT` fixups;
+charges, drop ID, user data, the pawnable/droppable/death-drop overrides and the
+world/inventory placement remain plain values of the payload. The section keeps
+`LIFECYCLE_POOL_CAP`. Version 114 saves are rejected; the wire format is unchanged.

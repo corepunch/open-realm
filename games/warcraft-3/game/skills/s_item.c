@@ -95,11 +95,13 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
     item_spawn = souls->item_spawn_time;
     souls->item = NULL;
     souls->item_spawn_time = 0;
-    if (item && item->inuse && item->spawn_time == item_spawn &&
-        item->item->soul_target == target && item->item->soul_target_spawn_time == target->spawn_time) {
-        item->item->soul_target = NULL;
-        item->item->soul_target_spawn_time = 0;
-        G_RemoveItem(item);
+    if (item && item->inuse && item->spawn_time == item_spawn) {
+        item_t *rec = G_GetItem(item);
+        if (rec->soul_target == target && rec->soul_target_spawn_time == target->spawn_time) {
+            rec->soul_target = NULL;
+            rec->soul_target_spawn_time = 0;
+            G_RemoveItem(item);
+        }
     }
     remove_asou = souls->trapped_ability_added;
     souls->trapped_ability_added = false;
@@ -212,10 +214,12 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
         if (!call->target || call->target->type != SPELL_TARGET_UNIT ||
             !soul_trap_capture(ent, call->target->entity)) return false;
         if (call->source_item && call->source_item->inuse &&
-            call->source_item->spawn_time == call->source_item_spawn_time &&
-            call->source_item->item->carrier == ent) {
-            call->source_item->item->soul_target = call->target->entity;
-            call->source_item->item->soul_target_spawn_time = call->target->entity->spawn_time;
+            call->source_item->spawn_time == call->source_item_spawn_time) {
+            item_t *rec = G_GetItem(call->source_item);
+            if (rec->carrier == ent) {
+                rec->soul_target = call->target->entity;
+                rec->soul_target_spawn_time = call->target->entity->spawn_time;
+            }
         }
         return true;
     default:
@@ -224,36 +228,39 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
 }
 
 static bool soul_trap_item_linked(edict_t const *carrier, edict_t const *item) {
+    item_t *rec = G_GetItem(item);
     edict_t const *target;
-    if (!carrier || !G_IsItem(item) || !item->item->soul_target) return false;
-    target = item->item->soul_target;
-    return target->inuse && G_GetSoulTrap(target) && target->spawn_time == item->item->soul_target_spawn_time &&
+    if (!carrier || !G_IsItem(item) || !rec->soul_target) return false;
+    target = rec->soul_target;
+    return target->inuse && G_GetSoulTrap(target) && target->spawn_time == rec->soul_target_spawn_time &&
         G_GetSoulTrap(target)->item == item && G_GetSoulTrap(target)->item_spawn_time == item->spawn_time &&
         soul_trap_valid_link(carrier, target);
 }
 
 static void soul_trap_finalize_consumed_item(edict_t *item) {
     edict_t *carrier, *target, *filled;
+    item_t *rec = G_GetItem(item), *filled_rec;
     uint32_t carrier_spawn, target_spawn;
     int32_t slot;
-    if (!item || !item->item->soul_target) return;
-    target = item->item->soul_target;
-    target_spawn = item->item->soul_target_spawn_time;
-    carrier = item->item->pending_use_carrier;
-    carrier_spawn = item->item->pending_use_carrier_spawn_time;
-    item->item->soul_target = NULL;
-    item->item->soul_target_spawn_time = 0;
+    if (!item || !rec->soul_target) return;
+    target = rec->soul_target;
+    target_spawn = rec->soul_target_spawn_time;
+    carrier = rec->pending_use_carrier;
+    carrier_spawn = rec->pending_use_carrier_spawn_time;
+    rec->soul_target = NULL;
+    rec->soul_target_spawn_time = 0;
     if (!target->inuse || !G_GetSoulTrap(target) || target->spawn_time != target_spawn || !(target->aiflags & AI_SOUL_TRAPPED) ||
         !carrier || !carrier->inuse || carrier->spawn_time != carrier_spawn || M_IsDead(carrier)) return;
-    slot = item->item->pending_use_slot;
+    slot = rec->pending_use_slot;
     filled = slot >= 0 && slot < (int32_t)G_InventoryCapacity(carrier) ? G_InventoryItem(carrier, slot) : NULL;
-    if (filled && filled->class_id == ID_FILLED_SOUL && !filled->item->soul_target) {
-        filled->item->soul_target = target;
-        filled->item->soul_target_spawn_time = target_spawn;
+    filled_rec = filled && filled->class_id == ID_FILLED_SOUL ? G_GetItem(filled) : NULL;
+    if (filled_rec && !filled_rec->soul_target) {
+        filled_rec->soul_target = target;
+        filled_rec->soul_target_spawn_time = target_spawn;
         G_GetSoulTrap(target)->item = filled;
         G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
-        filled->item->droppable_set = true;
-        filled->item->droppable = false;
+        filled_rec->droppable_set = true;
+        filled_rec->droppable = false;
         return;
     }
     if (!G_ItemData(ID_FILLED_SOUL)->file) {
@@ -262,14 +269,15 @@ static void soul_trap_finalize_consumed_item(edict_t *item) {
     }
     filled = SP_SpawnAtLocationNoBirth(ID_FILLED_SOUL, carrier->s.player, &carrier->s.origin2);
     if (!filled) return;
-    filled->item->droppable_set = true;
-    filled->item->droppable = false;
-    slot = item->item->pending_use_slot;
+    filled_rec = G_GetItem(filled); /* The spawn attached the new item's record. */
+    filled_rec->droppable_set = true;
+    filled_rec->droppable = false;
+    slot = rec->pending_use_slot;
     if (slot < 0 || slot >= (int32_t)G_InventoryCapacity(carrier) || G_InventoryItem(carrier, slot))
         slot = G_FindFreeInventorySlot(carrier);
     if (slot >= 0 && G_AddItemToSlotInternal(carrier, filled, (uint32_t)slot, false)) {
-        filled->item->soul_target = target;
-        filled->item->soul_target_spawn_time = target_spawn;
+        filled_rec->soul_target = target;
+        filled_rec->soul_target_spawn_time = target_spawn;
         G_GetSoulTrap(target)->item = filled;
         G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
     } else {
@@ -286,21 +294,23 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     case A_ITEM_FINALIZE:
         if (call && call->source_item && call->source_item->inuse &&
             call->source_item->spawn_time == call->source_item_spawn_time &&
-            call->source_item->item->pending_use_carrier == ent)
+            G_GetItem(call->source_item)->pending_use_carrier == ent)
             soul_trap_finalize_consumed_item(call->source_item);
         return true;
     case A_ITEM_SCRIPT_REMOVE: {
         edict_t *item = call ? call->source_item : NULL;
-        if (!soul_trap_item_linked(ent, item) || item->item->carrier != ent ||
-            item->item->inventory_slot < 0 || item->item->inventory_slot >= MAX_INVENTORY ||
-            G_InventoryItem(ent, item->item->inventory_slot) != item) return false;
-        return G_DetachItemAtScripted(ent, (uint32_t)item->item->inventory_slot);
+        item_t *rec = G_GetItem(item);
+        if (!soul_trap_item_linked(ent, item) || rec->carrier != ent ||
+            rec->inventory_slot < 0 || rec->inventory_slot >= MAX_INVENTORY ||
+            G_InventoryItem(ent, rec->inventory_slot) != item) return false;
+        return G_DetachItemAtScripted(ent, (uint32_t)rec->inventory_slot);
     }
     case A_ITEM_SCRIPT_REATTACH: {
         edict_t *item = call ? call->source_item : NULL;
+        item_t *rec = G_GetItem(item);
         int32_t slot;
-        if (!soul_trap_item_linked(ent, item) || item->item->carrier != ent ||
-            item->item->inventory_slot != -1 || item->item->in_world) return false;
+        if (!soul_trap_item_linked(ent, item) || rec->carrier != ent ||
+            rec->inventory_slot != -1 || rec->in_world) return false;
         slot = G_FindFreeInventorySlot(ent);
         return slot >= 0 && G_ReattachItemAtScripted(ent, item, (uint32_t)slot);
     }
@@ -510,7 +520,7 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
 static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
-    if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
+    if (call && call->source_item && G_IsItem(call->source_item)) return G_GetItem(call->source_item)->carrier;
     return NULL;
 }
 
@@ -871,9 +881,9 @@ BZ_ABILITY_PROC(CAbilityItemRebirth) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     picker = item_use_caster(ent, call);
     rune = call->source_item;
-    if (!picker || !rune || !G_IsItem(rune) || !rune->item->in_world ||
+    if (!picker || !rune || !G_IsItem(rune) || !G_GetItem(rune)->in_world ||
         rune->spawn_time != call->source_item_spawn_time) return false;
-    unit_id = rune->item->drop_id;
+    unit_id = G_GetItem(rune)->drop_id;
     if (!unit_id || G_UnitData(unit_id)->id != unit_id) return false;
     reborn = SP_SpawnAtLocation(unit_id, picker->s.player, &rune->s.origin2);
     if (!reborn) return false;
