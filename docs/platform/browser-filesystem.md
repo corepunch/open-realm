@@ -177,8 +177,8 @@ does not claim complete TFT assets or gameplay compatibility.
 
 ## Browser game control visibility
 
-The browser Escape and fullscreen controls belong to `#game-container`, not
-inside the canvas. The container creates a stacking context and keeps the
+The browser Escape, shortcut popup, and fullscreen controls belong to
+`#game-container`, not inside the canvas. The container creates a stacking context and keeps the
 control bar above the canvas even if Emscripten adjusts canvas dimensions.
 Fullscreen is requested on the container rather than the canvas, so the
 controls remain visible in the browser fullscreen top layer. The page also

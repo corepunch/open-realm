@@ -78,6 +78,17 @@ and fullscreen overlay controls retain `touch-action: manipulation` so their
 normal button interactions work. This is canvas-only: scrolling other page
 controls is unaffected.
 
+The Game and 1–9 HTML popup controls are likewise kept outside the canvas.
+Their launchers use `touch-action: none` so a single pointer can drag from
+launcher to popup button, with `document.elementFromPoint()` resolving the
+release target despite touch pointer capture. An outside release or cancel
+closes the popup without sending gameplay input. Selected items send normal
+canvas `KeyboardEvent` down/up pairs; Ctrl/Shift are pressed before their
+number and released afterward. F12 uses the single-player log binding, not
+multiplayer chat yet. The browser-only controller lives at
+`port/web/site/game-shortcut-menus.js` with synthetic event tests at
+`port/web/tests/game-shortcut-menus.test.cjs`.
+
 The canvas's SDL logical size and CSS display size can differ; use the
 renderer-provided SDL window size and SDL's normalized finger positions, not
 browser `pageX/pageY` or backing WebGL pixel dimensions. Physical hybrid

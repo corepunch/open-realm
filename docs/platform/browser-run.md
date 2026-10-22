@@ -92,7 +92,18 @@ page, but cannot delete a generation that an open game tab is using.
 
 The canvas uses the Warcraft III defaults bundled with the browser build:
 left-click selection, right-click smart orders and middle mouse button pan.
-The **Esc** overlay sends Escape to the game. The fullscreen control expands
+The **Esc** overlay sends Escape to the game. The **Game** and **1–9**
+overlays open their shortcut lists on finger/pointer down: drag to an option and
+release to activate it, or release elsewhere to cancel. **Game** offers Quests
+(F9), Menu (F10), Allies (F11) and Chat (F12). The current single-player F12
+binding opens the message log; multiplayer chat-mode selection is not yet
+implemented. The **1–9** list has three targets per row: the wide number
+recalls the group, **ctrl** assigns it and **shft** adds to it. Each action
+synthesizes a complete keyboard press/release (including any modifier) through
+the normal SDL canvas input route; it does not implement new game commands.
+The popups remain within the existing browser controls layer and cancel on
+pointer cancellation or lost page focus. They are also operable from a keyboard.
+The fullscreen control expands
 the game container, keeping both overlay controls visible; canvas resizing does
 not cover the controls. Interact with the page once to unlock browser audio.
 

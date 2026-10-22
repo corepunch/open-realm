@@ -152,7 +152,7 @@ def main():
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
          "--embed-file", str(wc3_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
-    for name in ("browser-keyboard.js", "fullscreen-controls.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
+    for name in ("browser-keyboard.js", "game-shortcut-menus.js", "fullscreen-controls.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
     shutil.copy2(ROOT / "port/web/site/ios-home-screen.js", out / "ios-home-screen.js")

@@ -1,8 +1,8 @@
 # Browser fullscreen canvas size synchronization
 
 The Warcraft III browser launcher enters DOM fullscreen on `#game-container`,
-not on `#canvas`: fullscreen must keep the canvas, Escape button and fullscreen
-button in the same browser top-layer element. The engine owns a WebGL 2 context
+not on `#canvas`: fullscreen must keep the canvas, Escape button, shortcut
+popups, and fullscreen button in the same browser top-layer element. The engine owns a WebGL 2 context
 on a worker-transferred `OffscreenCanvas` (`PROXY_TO_PTHREAD`), so the DOM main
 thread **must not write canvas.width / canvas.height** after transfer.
 

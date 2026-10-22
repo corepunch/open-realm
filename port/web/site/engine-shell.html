@@ -42,7 +42,7 @@ canvas { display: block; max-width: 100%; background: #000; }
   aspect-ratio: auto !important;
 }
 /* Touches on the game must reach SDL, not browser scroll/zoom gestures.
- * Keep the HTML overlay buttons touchable through their own manipulation rule. */
+ * Browser overlay controls own their gestures separately from the canvas. */
 #game-container > canvas { position: relative; z-index: 0; touch-action: none; }
 #game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
   visibility: visible; opacity: 1; pointer-events: auto;
@@ -52,6 +52,32 @@ canvas { display: block; max-width: 100%; background: #000; }
   background: rgba(11, 18, 32, .85); color: #fff; font: 600 14px system-ui, sans-serif;
   cursor: pointer; touch-action: manipulation; }
 #game-controls button:hover, #game-controls button:focus-visible { background: #304969; }
+/* The press/drag/release shortcut menus are ordinary DOM overlays, like Esc.
+ * Never send their pointer events to the SDL canvas. */
+#game-controls .game-popup-control { position: relative; }
+#game-controls .game-popup-control > button { touch-action: none; }
+#game-controls .game-popup {
+  position: absolute; top: calc(100% + .4rem); right: 0;
+  width: 12rem; box-sizing: border-box; padding: .25rem;
+  display: flex; flex-direction: column; gap: .12rem;
+  border: 1px solid #9baec7; border-radius: .4rem;
+  background: rgba(11, 18, 32, .96); box-shadow: 0 .35rem .9rem #0009;
+  max-height: calc(100dvh - 4.5rem); overflow: auto;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#game-controls .game-popup[hidden] { display: none; }
+#game-controls .game-popup button {
+  min-width: 0; min-height: clamp(1.5rem, 5.2dvh, 2.25rem);
+  padding: .2rem .4rem; border-radius: .2rem;
+  font-size: .85rem; white-space: nowrap; touch-action: none;
+}
+#game-controls .game-menu-item { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+#game-controls .game-menu-item span { color: #bccce0; }
+#game-controls .game-group-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0; }
+#game-controls .game-group-row button { border-radius: 0; }
+#game-controls .game-group-row button:first-child { border-radius: .2rem 0 0 .2rem; }
+#game-controls .game-group-row button:last-child { border-radius: 0 .2rem .2rem 0; }
+#game-controls .game-popup button.is-target { background: #42638c; border-color: #e0eaf7; }
 #game-container.is-fullscreen { width: 100%; height: 100%; background: #000; outline: none; }
 #game-container:fullscreen::backdrop { background: #000; }
 #game-container:-webkit-full-screen::backdrop { background: #000; }
@@ -169,6 +195,65 @@ body.ios-web-app #game-fullscreen { display: none; }
   </div>
   <div id="game-controls" aria-label="Game controls">
     <button id="game-escape" type="button" aria-label="Send Escape to game" title="Escape / skip cinematic">Esc</button>
+    <div class="game-popup-control">
+      <button id="game-shortcut-menu" type="button" aria-label="Game menus" aria-haspopup="true" aria-controls="game-shortcut-menu-popup" aria-expanded="false" title="Hold and release on Quests, Menu, Allies or Chat">Game</button>
+      <div id="game-shortcut-menu-popup" class="game-popup" role="group" aria-label="Game menu shortcuts" hidden>
+        <button type="button" class="game-menu-item" data-game-key="F9">Quests <span>F9</span></button>
+        <button type="button" class="game-menu-item" data-game-key="F10">Menu <span>F10</span></button>
+        <button type="button" class="game-menu-item" data-game-key="F11">Allies <span>F11</span></button>
+        <button type="button" class="game-menu-item" data-game-key="F12">Chat <span>F12</span></button>
+      </div>
+    </div>
+    <div class="game-popup-control">
+      <button id="game-shortcut-groups" type="button" aria-label="Control groups" aria-haspopup="true" aria-controls="game-shortcut-groups-popup" aria-expanded="false" title="Hold and release to recall, assign or add a control group">1–9</button>
+      <div id="game-shortcut-groups-popup" class="game-popup" role="group" aria-label="Control group shortcuts" hidden>
+        <div class="game-group-row">
+          <button type="button" data-game-key="1" aria-label="Recall group 1">1</button>
+          <button type="button" data-game-key="1" data-game-modifier="Control" aria-label="Assign group 1, Control plus 1">ctrl</button>
+          <button type="button" data-game-key="1" data-game-modifier="Shift" aria-label="Add to group 1, Shift plus 1">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="2" aria-label="Recall group 2">2</button>
+          <button type="button" data-game-key="2" data-game-modifier="Control" aria-label="Assign group 2, Control plus 2">ctrl</button>
+          <button type="button" data-game-key="2" data-game-modifier="Shift" aria-label="Add to group 2, Shift plus 2">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="3" aria-label="Recall group 3">3</button>
+          <button type="button" data-game-key="3" data-game-modifier="Control" aria-label="Assign group 3, Control plus 3">ctrl</button>
+          <button type="button" data-game-key="3" data-game-modifier="Shift" aria-label="Add to group 3, Shift plus 3">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="4" aria-label="Recall group 4">4</button>
+          <button type="button" data-game-key="4" data-game-modifier="Control" aria-label="Assign group 4, Control plus 4">ctrl</button>
+          <button type="button" data-game-key="4" data-game-modifier="Shift" aria-label="Add to group 4, Shift plus 4">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="5" aria-label="Recall group 5">5</button>
+          <button type="button" data-game-key="5" data-game-modifier="Control" aria-label="Assign group 5, Control plus 5">ctrl</button>
+          <button type="button" data-game-key="5" data-game-modifier="Shift" aria-label="Add to group 5, Shift plus 5">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="6" aria-label="Recall group 6">6</button>
+          <button type="button" data-game-key="6" data-game-modifier="Control" aria-label="Assign group 6, Control plus 6">ctrl</button>
+          <button type="button" data-game-key="6" data-game-modifier="Shift" aria-label="Add to group 6, Shift plus 6">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="7" aria-label="Recall group 7">7</button>
+          <button type="button" data-game-key="7" data-game-modifier="Control" aria-label="Assign group 7, Control plus 7">ctrl</button>
+          <button type="button" data-game-key="7" data-game-modifier="Shift" aria-label="Add to group 7, Shift plus 7">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="8" aria-label="Recall group 8">8</button>
+          <button type="button" data-game-key="8" data-game-modifier="Control" aria-label="Assign group 8, Control plus 8">ctrl</button>
+          <button type="button" data-game-key="8" data-game-modifier="Shift" aria-label="Add to group 8, Shift plus 8">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="9" aria-label="Recall group 9">9</button>
+          <button type="button" data-game-key="9" data-game-modifier="Control" aria-label="Assign group 9, Control plus 9">ctrl</button>
+          <button type="button" data-game-key="9" data-game-modifier="Shift" aria-label="Add to group 9, Shift plus 9">shft</button>
+        </div>
+      </div>
+    </div>
     <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
   </div>
 </div>
@@ -319,6 +404,13 @@ function openrealmStartIsolatedEngine(arguments_) {
   document.body.appendChild(script);
   return true;
 };
+</script>
+<script src="game-shortcut-menus.js"></script>
+<script>
+openrealmInstallGameShortcutMenus(window, document, gameCanvas, [
+  [document.getElementById('game-shortcut-menu'), document.getElementById('game-shortcut-menu-popup')],
+  [document.getElementById('game-shortcut-groups'), document.getElementById('game-shortcut-groups-popup')]
+]);
 </script>
 <script src="browser-keyboard.js"></script>
 <script>
