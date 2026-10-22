@@ -4171,6 +4171,7 @@ void G_DrainPausedResultEvents(void);
 
 // g_items.c
 void SP_SpawnItem(edict_t *);
+item_t *G_ItemState(edict_t const *item); /* validated item identity; reads never allocate */
 bool G_IsItem(edict_t const *item);
 uint32_t G_InventoryCapacity(edict_t const *unit);
 void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid);

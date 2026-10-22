@@ -147,18 +147,15 @@ void SP_SpawnItem(edict_t *self) {
     rec->charges = (uint32_t)MAX(0, (int32_t)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
 }
 
-bool G_IsItem(edict_t const *item) {
+/* Reject other entity kinds before traversing optional state; callers can reuse the validated record. */
+item_t *G_ItemState(edict_t const *item) {
+    if (!item || !item->inuse || !item->class_id || item->targtype != TARG_ITEM) return NULL;
     item_t *rec = G_GetItem(item);
-    if (!item || !item->inuse || !item->class_id) {
-        return false;
-    }
-    /* The item state shares storage with other entity kinds; classify by the
-     * target type before reading it so destructables cannot be mistaken for
-     * items and dereference the wrong data union member. */
-    return item->targtype == TARG_ITEM && rec &&
-        (rec->in_world || rec->carrier || rec->pending_use_removal ||
-         (item->data.ItemData && item->data.ItemData->file));
+    return rec && (rec->in_world || rec->carrier || rec->pending_use_removal ||
+        (item->data.ItemData && item->data.ItemData->file)) ? rec : NULL;
 }
+
+bool G_IsItem(edict_t const *item) { return G_ItemState(item) != NULL; }
 
 /* The item currently being visited by EnumItemsInRect, read back by the
  * GetEnumItem native inside the enum action (mirrors currentdestructable). */
@@ -287,10 +284,10 @@ bool G_InventoryCanDropItems(edict_t const *unit) {
 }
 
 bool G_ItemDroppable(edict_t const *item) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     ItemData_t const *data;
 
-    if (!G_IsItem(item)) return false;
+    if (!rec) return false;
     if (rec->droppable_set) return rec->droppable;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     if (!data || !data->id) {
@@ -350,19 +347,20 @@ bool G_UnitHasInventory(edict_t *unit) {
 }
 
 uint32_t G_ItemCharges(edict_t const *item) {
-    return G_IsItem(item) ? G_GetItem(item)->charges : 0;
+    item_t const *rec = G_ItemState(item);
+    return rec ? rec->charges : 0;
 }
 
 void G_SetItemCharges(edict_t *item, uint32_t charges) {
-    item_t *rec = G_GetItem(item);
-    if (!G_IsItem(item) || rec->charges == charges) return;
+    item_t *rec = G_ItemState(item);
+    if (!rec || rec->charges == charges) return;
     rec->charges = charges;
     if (rec->carrier) G_RefreshInventoryUI(rec->carrier);
 }
 
 void G_ConsumeItemCharge(edict_t *item) {
-    item_t *rec = G_GetItem(item);
-    if (!G_IsItem(item) || !item->data.ItemData || rec->charges == 0) return;
+    item_t *rec = G_ItemState(item);
+    if (!rec || !item->data.ItemData || rec->charges == 0) return;
 
     /* All charged item uses decrement charges. Perishable only controls the
      * zero-charge lifetime: Warsmash removes perishables, while reusable
@@ -377,11 +375,11 @@ void G_ConsumeItemCharge(edict_t *item) {
 }
 
 static void G_RetainConsumedItemForUseEvent(edict_t *item) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     edict_t *carrier;
     int32_t slot;
 
-    if (!G_IsItem(item) || rec->pending_use_removal) return;
+    if (!rec || rec->pending_use_removal) return;
     carrier = rec->carrier;
     slot = rec->inventory_slot;
     rec->pending_use_carrier = carrier;
@@ -412,8 +410,8 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
 }
 
 void G_CompleteItemUse(edict_t *unit, edict_t *item) {
-    item_t *rec = G_GetItem(item);
-    if (!unit || !unit->inuse || !G_IsItem(item) || rec->pending_use_removal) return;
+    item_t *rec = G_ItemState(item);
+    if (!unit || !unit->inuse || !rec || rec->pending_use_removal) return;
 
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
@@ -480,9 +478,9 @@ static bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
 }
 
 bool G_CanPickupItem(edict_t *unit, edict_t *item) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     if (!G_UnitIsWorldActive(unit) || G_IsDeferredFree(unit) || M_IsDead(unit) ||
-        !G_IsItem(item) || G_IsDeferredFree(item) ||
+        !rec || G_IsDeferredFree(item) ||
         (!G_UnitHasInventory(unit) && !G_CanConsumePickupPowerup(unit, item))) {
         return false;
     }
@@ -523,11 +521,11 @@ bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
  * validate those permissions before beginning an approach. The source and
  * recipient inventories change together only after every check succeeds. */
 static bool G_TransferCarriedItemInternal(edict_t *recipient, edict_t *item, bool publish_drop) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     edict_t *source;
     int32_t source_slot, target_slot;
 
-    if (!G_IsItem(item) || rec->in_world || rec->pending_use_removal ||
+    if (!rec || rec->in_world || rec->pending_use_removal ||
         !recipient || !recipient->inuse || recipient->targtype == TARG_ITEM ||
         G_GetDestructable(recipient) || recipient->client || M_IsDead(recipient) ||
         !G_UnitHasInventory(recipient))
@@ -757,8 +755,8 @@ void G_DropInventoryOnDeath(edict_t *unit) {
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
         edict_t *item = G_InventoryItem(unit, slot);
-        item_t *rec = G_GetItem(item);
-        if (!G_IsItem(item) || G_ItemAbilitiesPreventDrop(unit, item)) continue;
+        item_t *rec = G_ItemState(item);
+        if (!rec || G_ItemAbilitiesPreventDrop(unit, item)) continue;
         if (rec->drop_on_death_set ? rec->drop_on_death : default_drop)
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
@@ -770,8 +768,8 @@ bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot) {
 
     if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit)) return false;
     item = G_InventoryItem(unit, slot);
-    rec = G_GetItem(item);
-    if (!G_IsItem(item) || rec->carrier != unit || rec->inventory_slot != (int32_t)slot ||
+    rec = G_ItemState(item);
+    if (!rec || rec->carrier != unit || rec->inventory_slot != (int32_t)slot ||
         rec->in_world) return false;
     G_ApplyItemStats(unit, item, false);
     unit->inventory->slots[slot] = NULL;
@@ -781,9 +779,9 @@ bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot) {
 }
 
 bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit) || G_InventoryItem(unit, slot) ||
-        !G_IsItem(item) || rec->carrier != unit || rec->inventory_slot != -1 ||
+        !rec || rec->carrier != unit || rec->inventory_slot != -1 ||
         rec->in_world || rec->pending_use_removal) return false;
     rec->inventory_slot = (int32_t)slot;
     G_InitInventory(unit);
@@ -806,12 +804,12 @@ static void G_StopDropItemOrder(edict_t *unit) {
 static void G_DropItemThink(edict_t *unit) {
     edict_t *item = unit && unit->orders ? unit->orders->item_drop : NULL;
     edict_t *destination = unit ? unit->goalentity : NULL;
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     float distance;
     float move_distance;
     int32_t slot;
 
-    if (!unit || !destination || !G_IsItem(item) || rec->carrier != unit || rec->in_world) {
+    if (!unit || !destination || !rec || rec->carrier != unit || rec->in_world) {
         G_StopDropItemOrder(unit);
         return;
     }
@@ -851,7 +849,7 @@ static float G_GiveItemReach(edict_t const *source, edict_t const *recipient) {
 }
 
 static bool G_CanGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     int32_t slot;
     if (!source || !G_UnitIsWorldActive(source) || M_IsDead(source) ||
         !G_UnitIsWorldActive(recipient) || M_IsDead(recipient) ||
@@ -859,7 +857,7 @@ static bool G_CanGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipie
         G_IsDeferredFree(recipient) || recipient->targtype == TARG_ITEM ||
         G_GetDestructable(recipient) || recipient->client || !G_UnitHasInventory(recipient) ||
         !G_PlayerTreatsPlayerAsAlly(source->s.player, recipient->s.player) ||
-        !G_InventoryCanDropItems(source) || !G_IsItem(item) || rec->in_world ||
+        !G_InventoryCanDropItems(source) || !rec || rec->in_world ||
         rec->carrier != source || !G_ItemDroppable(item) ||
         G_ItemAbilitiesPreventDrop(source, item)) return false;
     slot = rec->inventory_slot;
@@ -996,7 +994,8 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
         edict_t *item = G_InventoryItem(unit, slot);
         if (!item) continue;
         inventory_owner = true;
-        if (G_IsItem(item) && G_GetItem(item)->carrier == unit)
+        item_t const *rec = G_ItemState(item);
+        if (rec && rec->carrier == unit)
             G_RemoveItem(item);
         else
             unit->inventory->slots[slot] = NULL;
@@ -1068,7 +1067,7 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
 /* A held-item command refers to an inventory instance, never a recycled edict. */
 edict_t *G_GetDraggedItem(gameClient_t *client) {
     edict_t *item = client ? client->menu.dragged_item : NULL;
-    item_t *rec = G_IsItem(item) ? G_GetItem(item) : NULL;
+    item_t *rec = G_ItemState(item);
     edict_t *carrier = rec ? rec->carrier : NULL;
     if (!item || !carrier || item->spawn_time != client->menu.dragged_item_spawn_time ||
         !G_UnitCanControl(client, carrier) || !G_InventoryCanDropItems(carrier) || rec->in_world ||

@@ -108,6 +108,20 @@ transition asserts the record it requires (`assert(site)`), while classification
 queries test the pointer. The registry indexes the dense IDs directly and
 verifies the row identity.
 
+Item classification uses `G_ItemState`: it checks null/in-use/rawcode/target-type
+first, then performs one component lookup and the existing world/carrier/pending-use
+or authored-model identity check. `G_IsItem` delegates to that same classifier.
+Callers needing the record use `G_ItemState` once and retain its result, including
+snapshot hover metadata, item charges, inventory presentation, shop pawn checks
+and spell-item validation. `G_GetItem` remains the raw optional-state accessor
+for initialization, teardown, and transitions that can temporarily lack a complete
+item identity. Preserve fresh validation after ability callbacks that may change
+or retire an item; do not extend a cached classification across such callbacks.
+`wc3_items.validated_state_preserves_identity_and_never_allocates` covers absent
+state, non-item target types, invalid entity identity, and world/carried/consumed/
+authored-model item states. This changes neither network nor save format.
+
+
 A class/superclass mask is not a concrete-layout identity. If family queries
 become necessary, represent them separately; family matches must never authorize
 casts to an arbitrary derived payload. Retail binary evidence establishes ability

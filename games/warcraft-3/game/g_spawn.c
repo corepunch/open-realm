@@ -1203,7 +1203,9 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
 static bool G_RepositionBlocker(edict_t const *other) {
     float dx, dy, reach;
     edict_t *unit = reposition_unit;
-    if (other == unit || (G_IsItem(unit) && other == G_GetItem(unit)->carrier) ||
+    if (other == unit) return false;
+    item_t const *rec = G_ItemState(unit);
+    if ((rec && other == rec->carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
         !M_UnitsShareCollisionDomain(other, unit)) return false;
     dx = other->s.origin2.x - reposition_point->x;

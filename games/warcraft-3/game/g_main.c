@@ -2277,9 +2277,9 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     state->stats[ENT_CARGO] = 0;
     /* World items have no health/mana hover bars, but their authored display
      * name should still appear when the pointer rests on a visible pickup. */
-    if (G_IsItem((edict_t *)ent)) {
-        item_t const *rec = G_GetItem(ent);
-        if (rec && rec->in_world && !(state->renderfx & RF_HIDDEN) &&
+    item_t const *rec = G_ItemState(ent);
+    if (rec) {
+        if (rec->in_world && !(state->renderfx & RF_HIDDEN) &&
             !(state->flags & EF_NOT_SELECTABLE) && G_FowPlayerCanHoverEntity(player, ent)) {
             state->name = G_UnitNameConfigstring(G_ObjectName(ent->class_id));
             /* The client's shared world-hover gate requires a positive health

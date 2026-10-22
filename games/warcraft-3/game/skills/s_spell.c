@@ -799,9 +799,9 @@ static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t t
 /* ---- Per-target-type unified callbacks ---- */
 
 static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, uint32_t spawn_time) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     if (!item) return true;
-    return item->inuse && item->spawn_time == spawn_time && G_IsItem(item) &&
+    return item->inuse && item->spawn_time == spawn_time && rec &&
         !rec->pending_use_removal && rec->carrier == caster;
 }
 

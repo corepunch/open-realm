@@ -231,9 +231,9 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
 }
 
 static bool soul_trap_item_linked(edict_t const *carrier, edict_t const *item) {
-    item_t *rec = G_GetItem(item);
+    item_t *rec = G_ItemState(item);
     edict_t const *target;
-    if (!carrier || !G_IsItem(item) || !rec->soul_target) return false;
+    if (!carrier || !rec || !rec->soul_target) return false;
     target = rec->soul_target;
     soulTrap_t *souls = G_GetSoulTrap(target);
     return target->inuse && souls && target->spawn_time == rec->soul_target_spawn_time &&
@@ -525,8 +525,8 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
 static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
-    if (call && call->source_item && G_IsItem(call->source_item)) return G_GetItem(call->source_item)->carrier;
-    return NULL;
+    item_t const *rec = G_ItemState(call ? call->source_item : NULL);
+    return rec ? rec->carrier : NULL;
 }
 
 /* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
@@ -886,8 +886,8 @@ BZ_ABILITY_PROC(CAbilityItemRebirth) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     picker = item_use_caster(ent, call);
     rune = call->source_item;
-    item_t *rec = G_GetItem(rune);
-    if (!picker || !rune || !G_IsItem(rune) || !rec->in_world ||
+    item_t *rec = G_ItemState(rune);
+    if (!picker || !rune || !rec || !rec->in_world ||
         rune->spawn_time != call->source_item_spawn_time) return false;
     unit_id = rec->drop_id;
     if (!unit_id || G_UnitData(unit_id)->id != unit_id) return false;

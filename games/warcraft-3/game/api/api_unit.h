@@ -620,11 +620,11 @@ uint32_t UnitInventorySize(jass_t *j) {
 uint32_t UnitDropItemPoint(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
-    item_t *rec = G_GetItem(whichItem);
+    item_t *rec = G_ItemState(whichItem);
     float x = jass_checknumber(j, 3);
     float y = jass_checknumber(j, 4);
     int32_t slot;
-    if (!whichUnit || !G_IsItem(whichItem) || rec->carrier != whichUnit)
+    if (!whichUnit || !rec || rec->carrier != whichUnit)
         return jass_pushboolean(j, 0);
     slot = rec->inventory_slot;
     if (slot < 0) return jass_pushboolean(j, 0);
@@ -788,7 +788,8 @@ uint32_t UnitAddItem(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, false);
     if (G_ItemAbilityScriptedReattach(whichUnit, whichItem)) return jass_pushboolean(j, true);
-    if (G_IsItem(whichItem) && !G_GetItem(whichItem)->in_world)
+    item_t const *rec = G_ItemState(whichItem);
+    if (rec && !rec->in_world)
         return jass_pushboolean(j, G_TransferCarriedItem(whichUnit, whichItem));
     return jass_pushboolean(j, G_PickupItem(whichUnit, whichItem));
 }
