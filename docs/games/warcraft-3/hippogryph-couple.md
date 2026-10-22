@@ -208,7 +208,7 @@ witnesses now establish the stock aliases and their distinct public entries:
 Natural patched actors expose these abilities after Reht level 1. The stock
 witness has no relevant unit or ability-list overrides. Base RoC AbilityData
 has no Acoi/Aco2/Aco3 rows; preserve effective patched archive provenance when
-creating test fixtures, including RoC's Data11/Data21 versus TFT's DataA1/DataB1.
+creating test fixtures, including RoC's Data11/Data12 versus TFT's DataA1/DataB1.
 
 `coupleinstant` (852508) is immediate: it selects a matching same-owner movable
 partner with an Acoi-family ability inside authored Area. It publishes the
@@ -246,6 +246,35 @@ stock-v1, unrun stock-v2 and failed range observation remain excluded.
 
 Runtime alias attribution combines stock rows, public ability levels and cache
 fields; no direct runtime alias field was exported. These producer corpora keep
-`engine_parity:false`; lifecycle, pause/resume, callback interleavings and saved
-continuation need their own acceptance before porting those behaviors. See
+`engine_parity:false`; callback interleavings and saved continuation remain
+open. The separate lifecycle witness below covers interruptions. See
 [the ongoing producer inventory](retail-pathfinding-engine.md#couple-instant-area-range-and-order-production).
+
+
+### Couple Instant interruptions
+
+The portable `retail-coupling-instant-lifecycle-1.27.json[.gz]` preserves
+8,706 public records from two observations and an unhooked control. Its 31
+focused tests validate the complete streams, native identities, map and source
+pins, and mutations of role-specific outcomes. Eleven fresh far stock pairs
+cover uninterrupted merging and Stop, Move, removal, pause/resume and ability
+removal on either actor. Intervention occurs after both command heads are live.
+
+Stopping Archer publishes Archer–Hippo–Archer Stop events; stopping Hippo
+publishes Archer–Hippo. Pausing Archer cancels both commands and resuming does
+not reconstruct them. Pausing Hippo cancels Archer, but Hippo resumes its own
+852507 and merges. Removing Aco2 clears both; removing Aco3 stops Archer while
+Hippo retains its physical 852507 approach, finishing without a rider. Actor
+removal produces no rider. These asymmetric inverses are distinct from legacy
+Couple's paired-ready state.
+
+Merged originals retain their rawcodes with zero life before later handle
+retirement. Immediate `G_FreeEdict` would contradict these public observations.
+The retained types in the late paused-Hippo sample do not establish a different
+retirement policy: that scene has a shorter post-merge observation window.
+This evidence remains native-only; it does not certify the engine stub or saved
+continuation. Run the portable checks with:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_coupling_instant_lifecycle.py'
+```

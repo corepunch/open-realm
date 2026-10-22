@@ -22413,6 +22413,8 @@ Accepted two-observation/control corpora preserve 4,617 stock and 6,900 authored
 public records. Actual 8/32 radii and center distances 373,373.25,372.75 verify
 inside/outside/inside and FLT_MAX/333/FLT_MAX publication at the cast boundary.
 The 54 focused evidence checks keep native observations separate from engine
-parity. The current engine Acoi handler remains a stub; lifecycle and callback
-acceptance are pending. See [Couple Instant details](hippogryph-couple.md#couple-instant-native-producer).
+parity. A separate lifecycle corpus adds 8,706 public records and 31 focused
+checks for role-specific interruption, pause/resume and ability removal. The
+current engine Acoi handler remains a stub; callback interleavings and saved
+continuation remain open. See [Couple Instant details](hippogryph-couple.md#couple-instant-native-producer).
 No whole leaf closes; TARGET-01.2 remains active with 25 open leaves.

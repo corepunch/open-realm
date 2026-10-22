@@ -60611,7 +60611,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "15f60fc3c255133f2285338f9743f9bb1bf13fc877ed6c742682ea71159c63a6"
+      "sha256": "80c2348ea31669bc20897f345d687485852230d63f3c74e0908ce1454d419606"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
@@ -70883,7 +70883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/hippogryph-couple.md",
-      "sha256": "9eec75ab62920c8b41aa28e0e862331fc266aecbd229b931090e77e1a08b1ec9"
+      "sha256": "b5e7ace506f1f4a49026c6c9f93fc37ab17d37e7de50fc8777184034d8f0a23d"
     },
     {
       "path": "games/warcraft-3/game/skills/s_couple.c",
@@ -71028,6 +71028,62 @@
     {
       "path": "docs/diagnostic-tools.md",
       "sha256": "80d424065e2dc5c3692b6772ffc36ff3cdf2d63e6a6fc22a45b4eb9fe999a9b3"
+    },
+    {
+      "path": "tools/ghidra/research/coupling_instant_lifecycle_evidence.py",
+      "sha256": "4154cac4b3e65137bf7fe9a2df970f529fc6fd33f952ee0cd1f915052266e93c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-lifecycle-1.27.json",
+      "sha256": "4212dd490858c05c8b7091ff7c8e07dd368d95d5c076ab944f671fc931f29525"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-coupling-instant-lifecycle-1.27.json.gz",
+      "sha256": "d44e77f73e7f2ec217e47f2c299788e2152a691c05d58e76954b1d0289a6f245"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/TargetCouplingInstant193Life.json",
+      "sha256": "6f8559f2078d0f59d98e4d790d6afaebf05ae71a0de92ca627941bca3a83632e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/audit_lifecycle.py",
+      "sha256": "f2c7bc08cc2a22ab70a5efde9100f69653f582392e3adabb444e906427e987cf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/capture-design.json",
+      "sha256": "3dda110384501c96f8ae70ab550ded3071aa01b9e3a1d245845b806664fc992f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/capture-launch.py",
+      "sha256": "1e09c52ebc3298ffff960aa4d226599676b77223050715b243728d36711c12e0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/frozen-sources.json",
+      "sha256": "8a635459f969f0d080e9ebe4aa9e1e84691bb4a33be9c392acaabf9565e9e8bd"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/itemdrop_capture.py",
+      "sha256": "94404ac2109720ace0580e71ed51c62fbca131de514b336a11340768d25dddac"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/itemdrop_make_map.py",
+      "sha256": "2aa4313bcafdf904457a8bafdda8ad19d21f84f033c2b64fefdda153677df30e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/itemdrop_observer.js",
+      "sha256": "7ffd6b6060efccc9874329cd0cdcf2906c6cd323fe19f5b24f90e6544df07554"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/itemdrop_probe.j",
+      "sha256": "bd40e6ffacc6d6a09d24355803e65a5bdf839f8d0b635c853585bab734644f31"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/coupling-instant-lifecycle/source-before-map.json",
+      "sha256": "d431f629aac5e5ef97369aa05801d8d58471b9c6b237e320c6634da2b596397e"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_coupling_instant_lifecycle.py",
+      "sha256": "fef0dda4b823357661f9b0b6a585c5b326f22ae47b4c71792e713f2bd1ef9aa4"
     }
   ]
 }
