@@ -5076,9 +5076,8 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     T_ASSERT(!test_ability_message(caster, A_VALIDATE, &ability_item, &st));
 
     target->aiflags &= ~AI_ILLUSION;
-    if (!target->polymorph) target->polymorph = G_AllocPolymorph();
-    assert(target->polymorph);
-    *target->polymorph = MAKE(polymorph_t,
+    polymorph_t *morph = G_AddComponent(target, COMPONENT_POLYMORPH);
+    *morph = MAKE(polymorph_t, .component = morph->component,
         .ability = MAKEFOURCC('A','p','l','y'), .buff = MAKEFOURCC('B','p','l','y'),
         .form_type = MAKEFOURCC('o','p','e','o'), .original_model = 17,
         .original_scale = 1.25f, .original_move_speed = 234.0f);

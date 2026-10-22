@@ -1702,8 +1702,25 @@ typedef enum {
     MOVE_DIAG_ROUTE_WAIT,
 } moveDiagState_t;
 
+/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
+typedef enum {
+    COMPONENT_WAYGATE = 1,
+    COMPONENT_AVATAR = 2,
+    COMPONENT_POLYMORPH = 3,
+    COMPONENT_RAVEN = 4,
+    COMPONENT_ENSNARE = 5,
+    COMPONENT_ARTILLERY = 6
+} componentId_t;
+
+/* Intrusive owner list; links are process-owned and rebuilt after loading. */
+typedef struct component_s {
+    uint32_t id;
+    struct component_s *next;
+} component_t;
+
 /* Projectile-owned fixed-point splash/impact profile captured when artillery launches. */
 typedef struct artillery_s {
+    component_t component;
     uint32_t attack_type, area_targets, targets_allowed;
     float area_full, area_medium, area_small, factor_medium, factor_small;
 } artillery_t;
@@ -1819,6 +1836,7 @@ typedef struct {
 
 /* Reversible Polymorph snapshot preserving the first pre-morph unit appearance/stats. */
 typedef struct {
+    component_t component;
     uint32_t ability;          /* Aply-derived ability that owns the active morph */
     uint32_t buff;             /* configured timed buff; stock Sorceress uses Bply */
     uint32_t form_type;        /* first authored Ply2/Ply3/Ply4/Ply5 unit rawcode */
@@ -1829,6 +1847,7 @@ typedef struct {
 
 /* Raven-form type/altitude transition ownership independent of replacement orders. */
 typedef struct {
+    component_t component;
     float fly_height; /* authored Raven Form height applied after the forward morph clip */
     float rise_start;
     float rise_duration;
@@ -1844,6 +1863,7 @@ typedef struct {
 
 /* Ensnare-owned flyer landing/restoration snapshot and bound-status identity. */
 typedef struct {
+    component_t component;
     float adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
     float height; /* DataB land start, or authored moveHeight while rising */
     uint32_t start;  /* G_Time() when current land/rise phase began */
@@ -1956,18 +1976,6 @@ typedef struct {
     edict_t *units[MAX_CARGO];
     uint32_t count;
 } cargo_t;
-
-/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
-typedef enum {
-    COMPONENT_WAYGATE = 1,
-    COMPONENT_AVATAR = 2
-} componentId_t;
-
-/* Intrusive owner list; links are process-owned and rebuilt after loading. */
-typedef struct component_s {
-    uint32_t id;
-    struct component_s *next;
-} component_t;
 
 /* Way Gate-owned destination and activation state retained independently of traveler routes. */
 typedef struct {
@@ -2248,16 +2256,11 @@ struct edict_s {
     visibility_t *vision; /* optional forced/shared sight and invisibility reveal deadline */
     harvest_t *harvest; /* carried resources; absent while empty */
     militia_t *militia;
-    polymorph_t *polymorph;
-    raven_t *raven;
     blightGrowth_t *blight_growth;
-    ensnare_t *ensnare;
     ancientRoot_t *ancient_root;
     uint32_t aiflags;
     uint32_t damage;
     attackMissile_t *missile; /* basic-attack launch profile; absent on spell missiles */
-    /* Impact behavior captured by fixed-point artillery shots. */
-    artillery_t *artillery; /* projectile splash profile; null on units */
     uint32_t resources;
     uint32_t freetime;
     goldMine_t *goldmine;
@@ -4332,6 +4335,10 @@ void G_AttachComponent(edict_t *ent, component_t *record, componentId_t id);
 void G_FreeComponent(edict_t *ent, componentId_t id);
 static inline waygate_t *G_GetWaygate(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_WAYGATE); }
 static inline avatar_t *G_GetAvatar(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_AVATAR); }
+static inline polymorph_t *G_GetPolymorph(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_POLYMORPH); }
+static inline raven_t *G_GetRaven(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RAVEN); }
+static inline ensnare_t *G_GetEnsnare(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ENSNARE); }
+static inline artillery_t *G_GetArtillery(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ARTILLERY); }
 waygate_t *G_AllocWaygate(void);
 void G_FreeArtillery(edict_t *ent);
 artillery_t *G_AllocArtillery(void);

@@ -195,7 +195,8 @@ real stun statuses rather than writing the removed mirror. The native flag test 
 
 ## Save and network contracts
 
-Save version 107 rejects prior layouts. Way Gate and Avatar now use the
+Save version 108 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
+Ensnare and artillery profiles now use the
 [component list](pooled-entity-state.md#optional-components); the remaining roles
 retain direct attachments. Movement, orders, route and wander records
 use the existing entity-owned typed-pool serialization. Entity references have

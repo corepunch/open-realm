@@ -4807,19 +4807,29 @@ TEST(wc3_save, pool_capacity_is_checked_before_allocating_records) {
     }
 }
 
-/* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
-#define SAVE_INT_FIELD_TEST(name, field, saved) \
+/* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save.
+ * `lvalue` is re-evaluated after ReadGame because component records are re-attached from freshly restored pool slots. */
+#define SAVE_SCALAR_FIELD_TEST(name, schema, lvalue, saved, ftype, CHECK) \
 TEST(wc3_save, name) { \
     cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
-    field_t const *desc = find_save_field(#field); \
+    field_t const *desc = find_save_field(schema); \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
-    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_INT); T_EQ(desc->array_size, 0); } \
-    prepare_save_field(unit, #field); \
-    unit->field = saved; \
-    T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_EQ(unit->field, saved); \
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, ftype); T_EQ(desc->array_size, 0); } \
+    prepare_save_field(unit, schema); \
+    lvalue = saved; \
+    T_ASSERT(WriteGame(filename)); lvalue = 0; T_ASSERT(ReadGame(filename)); CHECK(lvalue, saved); \
     remove(filename); \
 }
+#define SAVE_CHECK_INT(actual, saved) T_EQ(actual, saved)
+#define SAVE_CHECK_FLOAT(actual, saved) T_FEQ(actual, saved, 0.001f)
+#define SAVE_INT_FIELD_TEST(name, field, saved) SAVE_SCALAR_FIELD_TEST(name, #field, unit->field, saved, F_INT, SAVE_CHECK_INT)
+#define SAVE_FLOAT_FIELD_TEST(name, field, saved) SAVE_SCALAR_FIELD_TEST(name, #field, unit->field, saved, F_FLOAT, SAVE_CHECK_FLOAT)
+/* Component payloads are reached through their typed getter instead of an edict member. */
+#define SAVE_COMPONENT_INT_FIELD_TEST(name, pool, Getter, member, saved) \
+    SAVE_SCALAR_FIELD_TEST(name, #pool "->" #member, Getter(unit)->member, saved, F_INT, SAVE_CHECK_INT)
+#define SAVE_COMPONENT_FLOAT_FIELD_TEST(name, pool, Getter, member, saved) \
+    SAVE_SCALAR_FIELD_TEST(name, #pool "->" #member, Getter(unit)->member, saved, F_FLOAT, SAVE_CHECK_FLOAT)
 
 #define SAVE_PTR_FIELD_TEST(name, schema, field, count) \
 TEST(wc3_save, name) { \
@@ -4833,19 +4843,6 @@ TEST(wc3_save, name) { \
     unit->field = target; \
     T_ASSERT(WriteGame(filename)); unit->field = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(unit->field == target); \
     unit->field = (edict_t *)((uint8_t *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
-    remove(filename); \
-}
-
-#define SAVE_FLOAT_FIELD_TEST(name, field, saved) \
-TEST(wc3_save, name) { \
-    cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
-    field_t const *desc = find_save_field(#field); \
-    reset_entities(); \
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
-    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); } \
-    prepare_save_field(unit, #field); \
-    unit->field = saved; \
-    T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_FEQ(unit->field, saved, 0.001f); \
     remove(filename); \
 }
 
@@ -5085,25 +5082,30 @@ SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, missile->attack_type, ATK_PIERCE)
 SAVE_INT_FIELD_TEST(field_attack_cooldown_end_time_round_trip, unit_state->attack_cooldown_end_time, 12345)
 SAVE_INT_FIELD_TEST(field_attack_backswing_end_time_round_trip, unit_state->attack_backswing_end_time, 12346)
+/* The splash profile is a component payload: the edict schema no longer carries an artillery member. */
 TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     cstring_t filename = Test_TempPath("wc3-save-artillery-profile.bin");
-    field_t const *desc = find_save_field("artillery");
     reset_entities();
     edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    if (!projectile->artillery) projectile->artillery = G_AllocArtillery();
-    assert(projectile->artillery);
-    *projectile->artillery = (artillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
-                                                  40.0f, 80.0f, 120.0f, 0.5f, 0.25f };
-    T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_IGNORE);
+    artillery_t *splash = G_AddComponent(projectile, COMPONENT_ARTILLERY);
+    *splash = (artillery_t) { .component = splash->component, .attack_type = ATK_SIEGE,
+        .area_targets = WC3_TARGET_FLAG_GROUND, .targets_allowed = WC3_TARGET_FLAG_GROUND,
+        .area_full = 40.0f, .area_medium = 80.0f, .area_small = 120.0f, .factor_medium = 0.5f, .factor_small = 0.25f };
+    T_NULL(find_save_field("artillery"));
+    T_EQ(find_save_field("artillery->area_full")->type, F_FLOAT);
     T_ASSERT(WriteGame(filename)); G_FreeArtillery(projectile);
     T_ASSERT(ReadGame(filename));
-    T_EQ(projectile->artillery->attack_type, ATK_SIEGE);
-    T_EQ(projectile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
-    T_FEQ(projectile->artillery->area_full, 40.0f, 0.001f);
-    T_FEQ(projectile->artillery->area_medium, 80.0f, 0.001f);
-    T_FEQ(projectile->artillery->area_small, 120.0f, 0.001f);
-    T_FEQ(projectile->artillery->factor_medium, 0.5f, 0.001f);
-    T_FEQ(projectile->artillery->factor_small, 0.25f, 0.001f);
+    splash = G_GetArtillery(projectile);
+    T_NOT_NULL(splash);
+    if (!splash) { remove(filename); return; }
+    T_EQ(splash->component.id, COMPONENT_ARTILLERY);
+    T_EQ(splash->attack_type, ATK_SIEGE);
+    T_EQ(splash->area_targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(splash->area_full, 40.0f, 0.001f);
+    T_FEQ(splash->area_medium, 80.0f, 0.001f);
+    T_FEQ(splash->area_small, 120.0f, 0.001f);
+    T_FEQ(splash->factor_medium, 0.5f, 0.001f);
+    T_FEQ(splash->factor_small, 0.25f, 0.001f);
     remove(filename);
 }
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, unit_state->autocast, MAKEFOURCC('A', 'h', 'e', 'a'))
@@ -5218,21 +5220,21 @@ TEST(wc3_save, avatar_component_fields_round_trip) {
     }
     remove(filename);
 }
-SAVE_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven->fly_height, 125.0f)
+SAVE_COMPONENT_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven, G_GetRaven, fly_height, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_unitinfo_prop_window_round_trip, unitinfo.PropWindow, 37.5f)
 SAVE_FLOAT_FIELD_TEST(field_attack1_backswing_round_trip, unit_state->attack1.backswingPoint, 0.35f)
 SAVE_FLOAT_FIELD_TEST(field_attack1_range_buffer_round_trip, unit_state->attack1.rangeBuffer, 42.0f)
 SAVE_FLOAT_FIELD_TEST(field_attack2_backswing_round_trip, unit_state->attack2.backswingPoint, 0.45f)
 SAVE_FLOAT_FIELD_TEST(field_attack2_range_buffer_round_trip, unit_state->attack2.rangeBuffer, 84.0f)
-SAVE_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven->rise_start, 1000.0f)
-SAVE_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven->rise_duration, 2.0f)
-SAVE_INT_FIELD_TEST(field_raven_state_round_trip, raven->rise_state, RAVEN_RISE_ACTIVE)
-SAVE_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph->ability, MAKEFOURCC('A', 'p', 'l', 'y'))
-SAVE_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph->buff, MAKEFOURCC('B', 'p', 'l', 'y'))
-SAVE_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph->form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
-SAVE_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph->original_model, 37)
-SAVE_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph->original_scale, 1.35f)
-SAVE_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph->original_move_speed, 270.0f)
+SAVE_COMPONENT_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven, G_GetRaven, rise_start, 1000.0f)
+SAVE_COMPONENT_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven, G_GetRaven, rise_duration, 2.0f)
+SAVE_COMPONENT_INT_FIELD_TEST(field_raven_state_round_trip, raven, G_GetRaven, rise_state, RAVEN_RISE_ACTIVE)
+SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph, G_GetPolymorph, ability, MAKEFOURCC('A', 'p', 'l', 'y'))
+SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph, G_GetPolymorph, buff, MAKEFOURCC('B', 'p', 'l', 'y'))
+SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph, G_GetPolymorph, form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
+SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph, G_GetPolymorph, original_model, 37)
+SAVE_COMPONENT_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph, G_GetPolymorph, original_scale, 1.35f)
+SAVE_COMPONENT_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph, G_GetPolymorph, original_move_speed, 270.0f)
 SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, unit_state->temporary_health_bonus, 600.0f)
 SAVE_FLOAT_FIELD_TEST(field_temporary_mana_bonus_round_trip, unit_state->temporary_mana_bonus, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_animation_speed_round_trip, animation_speed, 0.5f)

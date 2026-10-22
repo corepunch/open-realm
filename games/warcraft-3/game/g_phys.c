@@ -130,7 +130,7 @@ void SV_Physics_Toss(edict_t *ent) {
                 edict_t *primary = ent->goalentity;
                 if (fixed_target && primary &&
                     (!primary->inuse || primary->spawn_time != ent->channel->target_spawn_time)) primary = NULL;
-                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, ent->artillery);
+                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, G_GetArtillery(ent));
             } else {
                 int const damage = G_AttackDamageWithType(ent->owner, ent->goalentity, ent->damage,
                                                           ent->missile ? ent->missile->attack_type : ATK_NORMAL);

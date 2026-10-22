@@ -2886,8 +2886,9 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
         T_EQ(missile->channel->target_spawn_time, target->spawn_time);
         T_FEQ(missile->channel->origin.x, 200.0f, 0.001f);
         T_FEQ(missile->channel->origin.y, 0.0f, 0.001f);
-        T_EQ(missile->artillery->attack_type, ATK_NORMAL);
-        T_EQ(missile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
+        T_NOT_NULL(G_GetArtillery(missile));
+        T_EQ(G_GetArtillery(missile)->attack_type, ATK_NORMAL);
+        T_EQ(G_GetArtillery(missile)->area_targets, WC3_TARGET_FLAG_GROUND);
 
         attacker->goalentity = retarget; /* impact must retain the launch profile */
         target->s.origin2.x = target->s.origin.x = 400.0f;
