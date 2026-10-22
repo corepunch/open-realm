@@ -1287,18 +1287,11 @@ static void SinglePlayer_CreateSavedGamePanel(void) {
 }
 
 void SinglePlayerMenu_ShowSavedGames(void) {
-    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen || !saved_game_panel) {
-        fprintf(stderr, "WC3 saved-game browser: open rejected screen=%d panel=%d\n",
-                UI_GetCurrentScreen() == &singlePlayerMenuScreen, saved_game_panel != NULL);
-        return;
-    }
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen || !saved_game_panel) return;
     UI_DialogWar3Hide(&saved_game_delete_dialog);
     SinglePlayer_RefreshSaves();
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_SAVED_GAMES);
     SinglePlayer_UpdateSaveButtons();
-    fprintf(stderr, "WC3 saved-game browser: opened panel=%s list=%s title=%s saves=%u\n",
-            saved_game_panel->Name, saved_game_list ? saved_game_list->Name : "<missing>",
-            saved_game_title ? saved_game_title->Name : "<missing>", (unsigned)saved_games.count);
 }
 
 void SinglePlayerMenu_SelectSavedGame(uint32_t index) {
@@ -1320,11 +1313,9 @@ void SinglePlayerMenu_LoadSelectedSave(void) {
     name = saved_games.items[saved_games.selected].path;
     /* A slot may have been removed or replaced while the chooser is open. */
     if (!SinglePlayer_SaveNameSafe(name) || !mi.GetSaveMap(name, map, sizeof(map))) {
-        fprintf(stderr, "WC3 saved-game browser: load rejected save=%s reason=unreadable-map\n", name);
         SinglePlayer_RefreshSaves();
         return;
     }
-    fprintf(stderr, "WC3 saved-game browser: load requested save=%s map=%s\n", name, map);
     mi.LoadSavedGame(name);
 }
 

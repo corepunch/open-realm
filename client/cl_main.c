@@ -901,10 +901,7 @@ execute:
         if (!SV_GetSaveMap(pending.arg, map, sizeof(map))) break;
         if (CL_IsFrozenThroneCampaignMap(map) && !Cvar_Integer("fs_expansion", 0)) {
             Cvar_Set("fs_expansion", "1");
-            fprintf(stderr, "CL_LoadGame: enabled Frozen Throne archives for saved map %s\n", map);
         }
-        fprintf(stderr, "CL_LoadGame: save=%s map=%s expansion=%d map_available=%d\n",
-                pending.arg, map, Cvar_Integer("fs_expansion", 0), FS_FileExists(map));
         /* Only a player-selected manual save may reauthorize its original
          * private campaign storage. Missing/stale bindings leave a new scope. */
         FS_RestoreScriptSaveScope(pending.arg);
