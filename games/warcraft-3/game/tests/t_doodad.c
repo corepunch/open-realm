@@ -22,6 +22,26 @@ static edict_t *make_test_doodad(float x, float y) {
     return ent;
 }
 
+TEST(wc3_doodad, map_placement_initializes_hero_state_but_not_scenery_state) {
+    doodad_t hero_placement = {
+        .doodID = MAKEFOURCC('H', 'p', 'a', 'l'),
+        .hero = { .level = 4, .xp = 900 }
+    };
+    doodad_t scenery_placement = { .doodID = MAKEFOURCC('L', 'O', 'o', '2') };
+    edict_t *hero = G_Spawn();
+    edict_t *scenery = G_Spawn();
+
+    T_NULL(hero->unit_state);
+    G_InitMapPlacementUnitState(hero, &hero_placement);
+    T_NOT_NULL(hero->unit_state);
+    T_EQ(hero->unit_state->hero.level, 4);
+    T_EQ(hero->unit_state->hero.xp, 900);
+
+    T_NULL(scenery->unit_state);
+    G_InitMapPlacementUnitState(scenery, &scenery_placement);
+    T_NULL(scenery->unit_state);
+}
+
 TEST(wc3_doodad, rect_special_hide_only_changes_matching_doodads) {
     box2_t rect = { .min = { 0, 0 }, .max = { 128, 128 } };
     edict_t *inside = make_test_doodad(64, 64);

@@ -3311,6 +3311,7 @@ void G_InheritUnitTeamColor(edict_t *entity, edict_t const *source);
 void G_InitializeUnitTeamColor(edict_t *unit);
 void G_InitializeUnitVertexColor(edict_t *unit);
 void G_ApplyMapUnitTeamColor(edict_t *unit, doodad_t const *placement);
+void G_InitMapPlacementUnitState(edict_t *ent, doodad_t const *placement);
 void G_ChangePlayerTeamColor(player_t *player, uint32_t previous_color, uint32_t new_color);
 bool G_GetUnitColorOverride(edict_t const *unit, uint32_t *color);
 void G_SetUnitColorOverride(edict_t *unit, uint32_t color);

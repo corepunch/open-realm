@@ -597,6 +597,14 @@ void G_FillMapPlacedUnitMana(edict_t *ent) {
     ent->mana.value = ent->mana.max_value;
 }
 
+/* Preserve map-authored Hero progression before SP_SpawnUnit initializes it,
+ * while keeping scenery and other non-unit placements free of unit state. */
+void G_InitMapPlacementUnitState(edict_t *ent, doodad_t const *placement) {
+    if (!ent || !placement || !G_UnitBalance(placement->doodID)->id) return;
+    G_InitUnitState(ent);
+    ent->unit_state->hero = placement->hero;
+}
+
 void SP_CallSpawn(edict_t *edict) {
     if (!edict->class_id)
         return;
@@ -977,12 +985,9 @@ void G_SpawnEntities(cstring_t map_path) {
         if (!ent) {
             break;
         }
-        /* Map placements restore authored Hero fields before SP_CallSpawn()
-         * can initialize the unit's extracted progression state. */
-        G_InitUnitState(ent);
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
-        ent->unit_state->hero = doodad->hero;
+        G_InitMapPlacementUnitState(ent, doodad);
         ent->s.player = G_NormalizeMapObjectPlayer(doodad->player);
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;

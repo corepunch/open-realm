@@ -78,7 +78,10 @@ four entity links with explicit fixups and retains role/visibility metadata.
 ## Unit and feature records
 
 `unit_state` holds unit-owned combat profiles, progression, statuses, skills and
-cooldowns; unit spawn attaches it. Pure effect/waypoint queries leave it absent.
+cooldowns. Unit spawn attaches it. Map placements attach it before `SP_CallSpawn`
+only when the placement has a `UnitBalance` row, so `war3map.doo` Hero progression
+is available to unit initialization without allocating unit records for scenery.
+Pure effect/waypoint queries leave it absent.
 Status slots and incarnation counters survive empty intervals until entity teardown.
 `inventory` attaches on the first successful item ownership; `G_InventoryItem`
 reads physical slots without allocating or applying current inventory capacity.

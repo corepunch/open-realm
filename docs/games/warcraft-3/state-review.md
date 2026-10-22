@@ -50,7 +50,7 @@ fixed unit status, ability, cooldown, weapon, progression, inventory or sound ar
 
 | State | Owner and lifetime |
 |---|---|
-| `unitState_t *unit_state` | Unit combat profiles, armor/stat modifiers, attack clocks and target incarnation; Hero progression/ranks/XP/shortcut pulse; status slots and incarnation counter; cooldowns, ability overrides and autocast. Unit spawn initializes it, and explicit skill/status mutations can attach it. Stable slots and counters remain until entity teardown. Ordinary effects and waypoints do not acquire it through queries. |
+| `unitState_t *unit_state` | Unit combat profiles, armor/stat modifiers, attack clocks and target incarnation; Hero progression/ranks/XP/shortcut pulse; status slots and incarnation counter; cooldowns, ability overrides and autocast. Unit spawn initializes it, and explicit skill/status mutations can attach it. Map placements with a `UnitBalance` row copy authored Hero progression into it before `SP_CallSpawn`; scenery does not allocate it. Stable slots and counters remain until entity teardown. Ordinary effects and waypoints do not acquire it through queries. |
 | `visibility_t *vision` | Forced-visibility reference counts, explicit shared-sight recipients and permanent-invisibility reveal deadline. First explicit vision/reveal mutation attaches it; FOW reads absence as no override. |
 | `harvest_t *harvest` | Carried gold/lumber. `S_SetCarriedResource` attaches on positive cargo and releases on empty cargo, updating carry art and command UI in the same transaction. Mine occupancy belongs to `goldMine_t`, alongside its existing worker/mine relationship. |
 | `inventory_t *inventory` | Physical item slots, attached on first successful item ownership. Retained until entity teardown. `G_InventoryItem` is a non-allocating physical-slot query; current ability capacity remains a separate eligibility rule. |
@@ -208,6 +208,7 @@ into WC3 state/orders and does not belong to the StarCraft II game module.
 
 ## Verification
 
+- `wc3_doodad.map_placement_initializes_hero_state_but_not_scenery_state`: extracted Hero state is initialized before map-unit spawn while non-unit placements remain sparse.
 - `wc3_unit.unrelated_entities_have_no_unit_state`: pure effect queries leave unit and optional feature records absent.
 - `wc3_save.pool_capacity_is_checked_before_allocating_records`: per-pool admission and no partial allocation on rejection.
 - `wc3_unit.movement_storage_is_optional`: optional pointer storage contract.
