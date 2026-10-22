@@ -1050,7 +1050,9 @@ is selected/available. Load revalidates the chosen slot before queuing
 `MenuAction("load", name)` on the client, which resolves the saved map and
 restores it through `SV_LoadGame()` at the next frame boundary. No serializer,
 map transition, or console command constructed from a filename runs within the
-menu callback. Delete first shows a confirmation dialog, then calls
+menu callback. A save targeting a built-in `Maps\\FrozenThrone\\Campaign` map
+enables the expansion archives before the map transition, even if the frontend
+was opened in RoC mode. Delete first shows a confirmation dialog, then calls
 `FS_DeleteSave()`, which removes the main `.sav`, its local control-group
 companion, and the bound script-save scope; the list is refreshed afterwards.
 Back returns to Single Player without loading anything. Save files are shared

@@ -67,6 +67,15 @@ typedef struct {
 
 static clPendingMenuAction_t cl_pending_menu_action;
 static clPendingMenuAction_t cl_movie_deferred_action;
+
+/* Frozen Throne campaign maps live in expansion archives hidden by RoC mode.
+ * The save's canonical campaign path provides the edition hint before SV_Map. */
+static bool CL_IsFrozenThroneCampaignMap(cstring_t map) {
+    static cstring_t const backslash_prefix = "Maps\\FrozenThrone\\Campaign\\";
+    static cstring_t const slash_prefix = "Maps/FrozenThrone/Campaign/";
+    return map && (!strncasecmp(map, backslash_prefix, sizeof("Maps\\FrozenThrone\\Campaign\\") - 1) ||
+                   !strncasecmp(map, slash_prefix, sizeof("Maps/FrozenThrone/Campaign/") - 1));
+}
 /* Queued in authored order: scripts can request a movie followed by a model
  * scene (or vice versa) before the same deferred map transition. */
 #define CL_MAX_QUEUED_CINEMATICS 8 // scenes; bounds deferred model and movie presentation until transition completion
@@ -890,6 +899,12 @@ execute:
          * is missing or has an unreadable map identity. Restoration itself
          * starts a fresh scope after this validation succeeds. */
         if (!SV_GetSaveMap(pending.arg, map, sizeof(map))) break;
+        if (CL_IsFrozenThroneCampaignMap(map) && !Cvar_Integer("fs_expansion", 0)) {
+            Cvar_Set("fs_expansion", "1");
+            fprintf(stderr, "CL_LoadGame: enabled Frozen Throne archives for saved map %s\n", map);
+        }
+        fprintf(stderr, "CL_LoadGame: save=%s map=%s expansion=%d map_available=%d\n",
+                pending.arg, map, Cvar_Integer("fs_expansion", 0), FS_FileExists(map));
         /* Only a player-selected manual save may reauthorize its original
          * private campaign storage. Missing/stale bindings leave a new scope. */
         FS_RestoreScriptSaveScope(pending.arg);

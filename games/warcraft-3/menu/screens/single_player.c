@@ -659,7 +659,10 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
 
     current_view = view;
 
-    SinglePlayer_SetHidden(single_player.SinglePlayerMenu, view != SINGLE_PLAYER_VIEW_MAIN);
+    /* SavedGamesPanel is parented beneath SinglePlayerMenu, so keep the root
+     * visible while its normal main panel is hidden for the save chooser. */
+    SinglePlayer_SetHidden(single_player.SinglePlayerMenu,
+                           view != SINGLE_PLAYER_VIEW_MAIN && view != SINGLE_PLAYER_VIEW_SAVED_GAMES);
     SinglePlayer_SetHidden(single_player.MainPanel, view != SINGLE_PLAYER_VIEW_MAIN);
     SinglePlayer_SetHidden(saved_game_panel, view != SINGLE_PLAYER_VIEW_SAVED_GAMES);
     if (view != SINGLE_PLAYER_VIEW_SAVED_GAMES)
@@ -1144,7 +1147,7 @@ static frameDef_t *SinglePlayer_SaveButton(cstring_t name, cstring_t title,
     outer = UI_CloneFrameTree(single_player.LoadSavedBackdrop, saved_game_panel);
     if (!outer) return NULL;
     snprintf(outer->Name, sizeof(outer->Name), "%s", name);
-    UI_SetSize(outer, 0.123f, 0.034f);
+    UI_SetSize(outer, 0.09f, 0.034f);
     UI_SetPoint(outer, FRAMEPOINT_TOPLEFT, saved_game_panel, FRAMEPOINT_TOPLEFT, x, -0.345f);
     button = UI_FindChildFrame(outer, "LoadSavedButton");
     label = button ? UI_FindChildFrame(button, "LoadSavedButtonText") : NULL;
@@ -1251,11 +1254,11 @@ static void SinglePlayer_CreateSavedGamePanel(void) {
                                 saved_game_list, FRAMEPOINT_TOPRIGHT, 0, 0);
             }
         }
-        saved_game_load = SinglePlayer_SaveButton("SavedGamesLoad", "Load Game", 0.008f,
+        saved_game_load = SinglePlayer_SaveButton("SavedGamesLoad", "Load", 0.03f,
                                                  "menu_single_player_save_load");
-        saved_game_delete = SinglePlayer_SaveButton("SavedGamesDelete", "Delete", 0.146f,
+        saved_game_delete = SinglePlayer_SaveButton("SavedGamesDelete", "Delete", 0.165f,
                                                    "menu_single_player_save_delete_confirm");
-        saved_game_back = SinglePlayer_SaveButton("SavedGamesBack", "Back", 0.284f, "menu_game");
+        saved_game_back = SinglePlayer_SaveButton("SavedGamesBack", "Back", 0.30f, "menu_game");
     } else {
         saved_game_list = UI_FindChildFrame(saved_game_panel, "SavedGamesList");
         saved_game_title = UI_FindChildFrame(saved_game_panel, "SavedGamesTitle");
@@ -1276,11 +1279,18 @@ static void SinglePlayer_CreateSavedGamePanel(void) {
 }
 
 void SinglePlayerMenu_ShowSavedGames(void) {
-    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen || !saved_game_panel) return;
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen || !saved_game_panel) {
+        fprintf(stderr, "WC3 saved-game browser: open rejected screen=%d panel=%d\n",
+                UI_GetCurrentScreen() == &singlePlayerMenuScreen, saved_game_panel != NULL);
+        return;
+    }
     UI_DialogWar3Hide(&saved_game_delete_dialog);
     SinglePlayer_RefreshSaves();
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_SAVED_GAMES);
     SinglePlayer_UpdateSaveButtons();
+    fprintf(stderr, "WC3 saved-game browser: opened panel=%s list=%s title=%s saves=%u\n",
+            saved_game_panel->Name, saved_game_list ? saved_game_list->Name : "<missing>",
+            saved_game_title ? saved_game_title->Name : "<missing>", (unsigned)saved_games.count);
 }
 
 void SinglePlayerMenu_SelectSavedGame(uint32_t index) {
@@ -1302,9 +1312,11 @@ void SinglePlayerMenu_LoadSelectedSave(void) {
     name = saved_games.items[saved_games.selected].path;
     /* A slot may have been removed or replaced while the chooser is open. */
     if (!SinglePlayer_SaveNameSafe(name) || !mi.GetSaveMap(name, map, sizeof(map))) {
+        fprintf(stderr, "WC3 saved-game browser: load rejected save=%s reason=unreadable-map\n", name);
         SinglePlayer_RefreshSaves();
         return;
     }
+    fprintf(stderr, "WC3 saved-game browser: load requested save=%s map=%s\n", name, map);
     mi.LoadSavedGame(name);
 }
 
