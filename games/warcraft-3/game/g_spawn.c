@@ -977,6 +977,9 @@ void G_SpawnEntities(cstring_t map_path) {
         if (!ent) {
             break;
         }
+        /* Map placements restore authored Hero fields before SP_CallSpawn()
+         * can initialize the unit's extracted progression state. */
+        G_InitUnitState(ent);
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
         ent->unit_state->hero = doodad->hero;
