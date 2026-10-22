@@ -140,7 +140,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 107 replaces Way Gate and Avatar edict pointers with typed component attachments. */
 /* Version 108 moves Polymorph, Raven Form, Ensnare and artillery profiles onto the component list. */
 /* Version 109 moves Sleep, Rally, Sacrifice, Unsummon and Blight Growth onto the component list. */
-static uint32_t const save_version = 109;
+/* Version 110 moves Shadow Meld, Militia, Hero revival and worker build/repair state onto the component list. */
+static uint32_t const save_version = 110;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -646,6 +647,7 @@ static field_t const rally_fields[] = {
 };
 
 static field_t const revival_fields[] = {
+    TF(revival_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(revival_t, producer, F_EDICT, 0, FIELD_NONE),
     TF(revival_t, queue_next, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
@@ -664,6 +666,7 @@ static field_t const unsummon_fields[] = {
 };
 
 static field_t const militia_fields[] = {
+    TF(militia_t, component.next, F_IGNORE, 0, FIELD_RUNTIME),
     TF(militia_t, partner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(militia_t, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
     TF(militia_t, returning, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1004,10 +1007,6 @@ field_t edict_fields[] = {
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, food, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, buildwork, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, revival, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, shadowmeld, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, mineoverlay, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2241,12 +2240,12 @@ static savePool_t const save_pools[] = {
     { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP },
     { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
     { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP },
-    { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP },
-    { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP },
+    { "buildwork", 0, sizeof(buildwork_t), component_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP, COMPONENT_BUILDWORK },
+    { "revival", 0, sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP, COMPONENT_REVIVAL },
     { "sacrifice", 0, sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP, COMPONENT_SACRIFICE },
     { "unsummon", 0, sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP, COMPONENT_UNSUMMON },
-    { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP },
-    { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP },
+    { "shadowmeld", 0, sizeof(shadowMeld_t), component_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP, COMPONENT_SHADOWMELD },
+    { "militia", 0, sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP, COMPONENT_MILITIA },
     { "polymorph", 0, sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP, COMPONENT_POLYMORPH },
     { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
     { "blight_growth", 0, sizeof(blightGrowth_t), component_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
@@ -3352,10 +3351,13 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->research->progress = 9.25f;
     unit->food->used = 3;
     unit->food->made = 10;
-    unit->buildwork->ability = MAKEFOURCC('A','r','e','p');
-    unit->buildwork->gold_accum = 2.5f;
-    unit->shadowmeld->fade_start = 1750;
-    unit->shadowmeld->hide_order_active = true;
+    G_GetBuildwork(unit)->ability = MAKEFOURCC('A','r','e','p');
+    G_GetBuildwork(unit)->gold_accum = 2.5f;
+    G_GetShadowMeld(unit)->fade_start = 1750;
+    G_GetShadowMeld(unit)->hide_order_active = true;
+    G_GetMilitia(unit)->normal_type = MAKEFOURCC('h','p','e','a');
+    G_GetRevival(unit)->awaiting = true;
+    G_GetRevival(unit)->producer = target;
     G_GetBlightGrowth(unit)->ability = MAKEFOURCC('A','b','l','i');
     G_GetBlightGrowth(unit)->radius = 192.0f;
     G_GetSleep(unit)->sleeping = true;
@@ -3412,10 +3414,13 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_EQ(unit->research->upgrade, MAKEFOURCC('R','h','m','e'));
     T_FEQ(unit->research->progress, 9.25f, 0.001f);
     T_EQ(unit->food->used, 3); T_EQ(unit->food->made, 10);
-    T_EQ(unit->buildwork->ability, MAKEFOURCC('A','r','e','p'));
-    T_FEQ(unit->buildwork->gold_accum, 2.5f, 0.001f);
-    T_EQ(unit->shadowmeld->fade_start, 1750);
-    T_ASSERT(unit->shadowmeld->hide_order_active);
+    T_EQ(G_GetBuildwork(unit)->ability, MAKEFOURCC('A','r','e','p'));
+    T_FEQ(G_GetBuildwork(unit)->gold_accum, 2.5f, 0.001f);
+    T_EQ(G_GetShadowMeld(unit)->fade_start, 1750);
+    T_ASSERT(G_GetShadowMeld(unit)->hide_order_active);
+    T_EQ(G_GetMilitia(unit)->normal_type, MAKEFOURCC('h','p','e','a'));
+    T_ASSERT(G_HeroAwaitsRevival(unit) && !G_HeroIsReviving(unit));
+    T_ASSERT(G_GetRevival(unit)->producer == target);
     T_EQ(G_GetBlightGrowth(unit)->ability, MAKEFOURCC('A','b','l','i'));
     T_FEQ(G_GetBlightGrowth(unit)->radius, 192.0f, 0.001f);
     T_ASSERT(G_GetSleep(unit)->sleeping);

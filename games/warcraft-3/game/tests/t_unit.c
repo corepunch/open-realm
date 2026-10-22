@@ -1405,7 +1405,7 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
     T_EQ(color.a, 0);
     T_EQ(hero->vertex_color.a, 200);
-    T_ASSERT(hero->revival->awaiting);
+    T_ASSERT(G_GetRevival(hero)->awaiting);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
@@ -1416,7 +1416,7 @@ TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
 
     unit_die(hero, NULL);
     T_ASSERT(hero->svflags & SVF_DEADMONSTER);
-    T_ASSERT(!hero->revival || !hero->revival->awaiting);
+    T_ASSERT(!G_GetRevival(hero) || !G_GetRevival(hero)->awaiting);
 
     unit_begin_decay(hero);
     /* Drive exactly one elapsed simulation step without depending on the
@@ -1425,7 +1425,7 @@ TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     unit_decay_think(hero);
 
     T_ASSERT(hero->inuse);
-    T_ASSERT(hero->revival->awaiting);
+    T_ASSERT(G_GetRevival(hero)->awaiting);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
@@ -1442,14 +1442,13 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     hero->svflags |= SVF_DEADMONSTER;
     hero->s.flags |= EF_NOT_SELECTABLE;
     hero->s.renderfx |= RF_HIDDEN;
-    if (!hero->revival) hero->revival = G_AllocRevival();
-    assert(hero->revival);
-    hero->revival->awaiting = true;
-    hero->revival->reviving = true;
-    hero->revival->producer = altar;
-    hero->revival->player = client->ps.number;
-    hero->revival->gold = 100;
-    hero->revival->lumber = 50;
+    revival_t *revival = G_AddComponent(hero, COMPONENT_REVIVAL);
+    revival->awaiting = true;
+    revival->reviving = true;
+    revival->producer = altar;
+    revival->player = client->ps.number;
+    revival->gold = 100;
+    revival->lumber = 50;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
@@ -1460,9 +1459,9 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     T_ASSERT(!(hero->svflags & SVF_DEADMONSTER));
     T_ASSERT(!(hero->s.flags & EF_NOT_SELECTABLE));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!hero->revival || !hero->revival->awaiting);
-    T_ASSERT(!hero->revival || !hero->revival->reviving);
-    T_NULL(hero->revival->producer);
+    T_ASSERT(!G_GetRevival(hero) || !G_GetRevival(hero)->awaiting);
+    T_ASSERT(!G_GetRevival(hero) || !G_GetRevival(hero)->reviving);
+    T_NULL(G_GetRevival(hero)->producer);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50);
     T_EQ((int)hero->s.origin2.x, 64);
@@ -1487,15 +1486,14 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
     altar->data.UnitProfile = &revive_profile;
     altar->build = hero;
-    if (!hero->revival) hero->revival = G_AllocRevival();
-    assert(hero->revival);
-    hero->revival->awaiting = true;
-    hero->revival->reviving = true;
-    hero->revival->producer = altar;
-    hero->revival->queue_next = trainee;
-    hero->revival->player = client->ps.number;
-    hero->revival->gold = 100;
-    hero->revival->lumber = 50;
+    revival_t *revival = G_AddComponent(hero, COMPONENT_REVIVAL);
+    revival->awaiting = true;
+    revival->reviving = true;
+    revival->producer = altar;
+    revival->queue_next = trainee;
+    revival->player = client->ps.number;
+    revival->gold = 100;
+    revival->lumber = 50;
     G_SetUnitFlag(trainee, UNIT_FLAG_TRAINING, true);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
@@ -1504,8 +1502,8 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
 
     T_ASSERT(!altar->inuse);
     T_ASSERT(hero->inuse);
-    T_ASSERT(!hero->revival || !hero->revival->reviving);
-    T_NULL(hero->revival->producer);
+    T_ASSERT(!G_GetRevival(hero) || !G_GetRevival(hero)->reviving);
+    T_NULL(G_GetRevival(hero)->producer);
     T_ASSERT(!trainee->inuse);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100 + gold);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50 + lumber);
@@ -1664,7 +1662,7 @@ TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
     hall->pathtex = NULL;
 
     T_ASSERT(G_IssueUnitTargetOrder(worker, "militia", hall, false, worker->s.player));
-    T_ASSERT(worker->militia->partner == hall);
+    T_ASSERT(G_GetMilitia(worker)->partner == hall);
     T_NOT_NULL(worker->currentmove);
     T_ASSERT(worker->currentmove->proc == CAbilityMilitia);
     T_STREQ(worker->currentmove->animation, "walk");

@@ -195,8 +195,9 @@ real stun statuses rather than writing the removed mirror. The native flag test 
 
 ## Save and network contracts
 
-Save version 109 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
-Ensnare, artillery profiles, Sleep, Rally, Sacrifice, Unsummon and Blight Growth now use the
+Save version 110 rejects prior layouts. Way Gate, Avatar, Polymorph, Raven Form,
+Ensnare, artillery profiles, Sleep, Rally, Sacrifice, Unsummon, Blight Growth,
+Shadow Meld, Militia, Hero revival and worker build/repair state now use the
 [component list](pooled-entity-state.md#optional-components); the remaining roles
 retain direct attachments. Movement, orders, route and wander records
 use the existing entity-owned typed-pool serialization. Entity references have

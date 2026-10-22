@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 109, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 110, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -1064,3 +1064,14 @@ removed. `rally->entity`, `sacrifice->worker` and `unsummon->target` keep their
 Sleep payloads are scalar. The SC2API observation reads rally state through
 `G_GetRally`, and Train checks queued Sacrifice results through `G_GetSacrifice`.
 Version 108 saves are rejected; the wire format is unchanged.
+
+## Fourth component slice (version 110)
+
+Shadow Meld, Militia, Hero revival and worker build/repair state move onto the
+component list (`COMPONENT_SHADOWMELD`, `COMPONENT_MILITIA`, `COMPONENT_REVIVAL`,
+`COMPONENT_BUILDWORK`). `revival->producer` and `revival->queue_next` keep their
+`F_EDICT` fixups; Militia's `partner`, `partner_spawn_time` and `returning` remain
+runtime exclusions; Shadow Meld and Buildwork payloads are scalar. The production
+queue walkers (`ProductionNext`, HUD queue, `Get_Commands_f`) read revival state
+through `G_HeroIsReviving` and `G_GetRevival`. Version 109 saves are rejected; the
+wire format is unchanged.

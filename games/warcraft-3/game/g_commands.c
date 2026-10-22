@@ -770,7 +770,7 @@ void CMD_CancelCommand(edict_t *ent) {
             }
             return;
         }
-        if (producer->build && producer->build->revival && producer->build->revival->reviving &&
+        if (producer->build && G_HeroIsReviving(producer->build) &&
             G_CancelHeroRevive(producer, producer->build)) {
             Get_Commands_f(ent);
             return;

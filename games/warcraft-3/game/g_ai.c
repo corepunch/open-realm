@@ -13,8 +13,9 @@ static bool unit_is_active_repair_move(edict_t *self) {
     char rawcode[5];
     ability_t const *handler;
 
-    if (!self || !self->currentmove || !self->buildwork || !self->buildwork->ability) return false;
-    memcpy(rawcode, &self->buildwork->ability, 4);
+    buildwork_t const *work = G_GetBuildwork(self);
+    if (!self || !self->currentmove || !work || !work->ability) return false;
+    memcpy(rawcode, &work->ability, 4);
     rawcode[4] = '\0';
     handler = FindAbilityForCommand(rawcode);
     return handler && self->currentmove->proc == handler->proc;

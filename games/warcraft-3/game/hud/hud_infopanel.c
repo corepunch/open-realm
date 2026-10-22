@@ -1078,8 +1078,7 @@ void Get_Commands_f(edict_t *ent) {
                               !strcmp(buttons[i].command, STR_CmdCancelBuild) ||
                               !strcmp(buttons[i].command, STR_CmdBuild) ||
                               (!strcmp(buttons[i].command, STR_CmdCancel) &&
-                               selected->build && selected->build->revival &&
-                               selected->build->revival->reviving);
+                               selected->build && G_HeroIsReviving(selected->build));
             if (profile && strlen(buttons[i].command) == 4) {
                 cstring_t const lists[] = {profile->trains, profile->researches,
                                           profile->upgrade};

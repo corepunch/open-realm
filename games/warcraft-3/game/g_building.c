@@ -1906,7 +1906,7 @@ void G_StopConstruction(edict_t *building) {
 #endif
 
     FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building &&
-                           worker->buildwork && worker->buildwork->ability) {
+                           G_GetBuildwork(worker) && G_GetBuildwork(worker)->ability) {
         S_CancelRepair(worker);
         if (worker->stand) worker->stand(worker);
     }

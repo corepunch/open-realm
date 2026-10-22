@@ -3736,7 +3736,7 @@ TEST(wc3_building, moving_repair_worker_suspends_human_construction) {
      * work move before the worker can tick construction again. */
     T_ASSERT(G_IssueUnitPointOrder(worker, "move", &move_target, false, 0, 0.0f));
     T_ASSERT(!S_RepairWorkerAdvancingHumanConstruction(worker, building));
-    T_ASSERT(!worker->buildwork || !worker->buildwork->ability);
+    T_ASSERT(!G_GetBuildwork(worker) || !G_GetBuildwork(worker)->ability);
     worker->currentmove->think(worker);
     G_RunConstructionFrame(building);
 
@@ -3882,10 +3882,9 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
     T_ASSERT(G_StartHumanConstruction(builder, building));
     /* Keep this lifecycle test independent of the optional Repair SLK fixture. */
     builder->build = building;
-    if (!builder->buildwork) builder->buildwork = G_AllocBuildwork();
-    assert(builder->buildwork);
-    builder->buildwork->ability = MAKEFOURCC('A','r','e','p');
-    builder->buildwork->primary = true;
+    buildwork_t *work = G_AddComponent(builder, COMPONENT_BUILDWORK);
+    work->ability = MAKEFOURCC('A','r','e','p');
+    work->primary = true;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
     building->construction->primary_builder = builder;
@@ -3893,7 +3892,7 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
 
     G_FreeEdict(building);
     T_NULL(builder->build);
-    T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(builder) || G_GetBuildwork(builder)->ability == 0);
 }
 
 TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
@@ -4513,7 +4512,7 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     T_NULL(building->construction);
     T_NULL(building->build);
     T_NULL(builder->build);
-    T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(builder) || G_GetBuildwork(builder)->ability == 0);
     T_ASSERT(!building->food || building->food->used == 0);
     T_EQ(G_GetPlayerTechCountValue(client, barracks), 0);
     T_EQ(level.events.write, 4);
@@ -4913,7 +4912,7 @@ TEST(wc3_building, roc_peasant_aliased_repair_order_repairs_damaged_structure) {
     T_FEQ(G_AbilityData(MAKEFOURCC('A','h','r','p'))->level[0].data[0].number, 0.35f, 0.001f);
     T_FEQ(G_AbilityData(MAKEFOURCC('A','h','r','p'))->level[0].data[1].number, 1.5f, 0.001f);
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','h','r','p')));
-    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','h','r','p'));
+    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','h','r','p'));
     T_NOT_NULL(worker->currentmove);
     if (worker->currentmove) T_STREQ(worker->currentmove->animation, "stand work");
 
@@ -5216,7 +5215,7 @@ TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
     T_STREQ(worker->currentmove->animation, "walk");
 
     unit_stand(worker);
-    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 
@@ -5258,7 +5257,7 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
     G_ClientCommand(clent, 2, select_target);
 
     T_ASSERT(worker->build == building);
-    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','p'));
+    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','r','e','p'));
     T_NOT_NULL(worker->currentmove);
 
     building_restore_repair_data(old_abilities, rows);
@@ -5370,7 +5369,7 @@ TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
     T_NULL(worker->orders->follow_target);
     T_ASSERT(worker->build != producer);
     T_ASSERT(worker->goalentity != producer);
-    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
 
     game.clients[0].cheat_instant_build = old_instant_build;
     building_restore_repair_data(old_abilities, rows);
@@ -5695,7 +5694,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
     T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
     T_ASSERT(worker->build == building);
-    T_NE(worker->buildwork->ability, 0);
+    T_NE(G_GetBuildwork(worker)->ability, 0);
 
     waypoint = Waypoint_add(&destination);
     T_NOT_NULL(waypoint);
@@ -5703,7 +5702,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
 
     T_ASSERT(worker->goalentity == waypoint);
     T_NULL(worker->build);
-    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
     T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
     T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
 
@@ -5834,7 +5833,7 @@ TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
 
     T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", building, false, worker->s.player));
     T_ASSERT(worker->build == building);
-    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','n'));
+    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','r','e','n'));
 
     building_restore_repair_data(old_abilities, rows);
 }
@@ -5858,7 +5857,7 @@ TEST(wc3_building, smart_order_repairs_damaged_owned_building) {
     building->health.value = 500.0f;
 
     T_ASSERT(unit_issuetargetorder(worker, "smart", building));
-    T_NE(worker->buildwork->ability, 0);
+    T_NE(G_GetBuildwork(worker)->ability, 0);
     T_ASSERT(worker->build == building);
     T_STREQ(worker->currentmove->animation, "stand work");
 
@@ -5888,7 +5887,7 @@ TEST(wc3_building, repair_stops_and_releases_state_when_target_dies) {
     building->health.value = 0.0f;
     worker->currentmove->think(worker);
 
-    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 
@@ -6546,7 +6545,7 @@ TEST(wc3_building, repair_order_from_stand_keeps_staged_target_and_walks) {
     unit_stand(worker);
     T_NOT_NULL(worker->currentmove);
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
-    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','n'));
+    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','r','e','n'));
     T_ASSERT(worker->build == building);
     T_ASSERT(worker->goalentity == building);
     T_STREQ(worker->currentmove->animation, "walk");
@@ -6686,12 +6685,12 @@ TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_require
 
     T_ASSERT(G_StartHumanConstruction(primary, building));
     T_ASSERT(S_OrderRepair(primary, building, MAKEFOURCC('A','r','e','p')));
-    T_ASSERT(primary->buildwork->primary);
+    T_ASSERT(G_GetBuildwork(primary)->primary);
     T_ASSERT(primary->build == building);
     T_ASSERT(building->construction->primary_builder == primary);
 
     T_ASSERT(!S_OrderRepair(extra, building, MAKEFOURCC('A','r','e','p')));
-    T_ASSERT(!extra->buildwork || extra->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(extra) || G_GetBuildwork(extra)->ability == 0);
     T_NULL(extra->build);
 
     building_restore_repair_data(old_abilities, rows);

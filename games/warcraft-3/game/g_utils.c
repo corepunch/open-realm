@@ -79,7 +79,7 @@ void G_FreeEdict(edict_t *ent) {
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);
     if (ent->cargo && ent->cargo->count > 0) cargo_drop_all(ent);
-    if (ent->buildwork && ent->buildwork->ability) S_CancelRepair(ent);
+    S_CancelRepair(ent); /* No-op without an active Repair rawcode. */
     /* Remove both the active accepted-build indicator and any owner-only
      * indicators attached to delayed Shift-build queue entries. Direct
      * RemoveUnit must not leave construction placeholders behind. */
@@ -98,7 +98,7 @@ void G_FreeEdict(edict_t *ent) {
     G_UnregisterGroundSurface(ent);
     G_InvalidateUnitShortcutsForUnit(ent);
     G_InvalidateRallyTarget(ent);
-    if ((ent->revival && ent->revival->reviving)) G_CancelHeroRevive(ent->revival->producer, ent);
+    if (G_HeroIsReviving(ent)) G_CancelHeroRevive(G_GetRevival(ent)->producer, ent);
     if (G_UnitHasFlag(ent, UNIT_FLAG_TRAINING)) G_ClearTrainingQueueFood(ent);
     else { G_CancelHeroRevives(ent); G_CancelTrainingQueue(ent, true); }
     G_ClearUnitFood(ent);
