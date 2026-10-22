@@ -36,5 +36,7 @@ test('menus use the existing canvas keyboard path and ship in the web build', ()
   assert.match(html, /openrealmInstallGameShortcutMenus\(window, document, gameCanvas/);
   assert.match(html, /grid-template-columns:\s*2fr 1fr 1fr/);
   assert.match(build, /"game-shortcut-menus.js"/);
-  assert.match(config, /bind F12 "cmd log"/);
+  assert.match(config, /bind F12 "screenshot"/);
+  assert.match(build, /bind F12 "cmd log"/);
+  assert.match(html, />Message Log <span>F12<\/span>/);
 });

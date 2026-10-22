@@ -84,8 +84,10 @@ launcher to popup button, with `document.elementFromPoint()` resolving the
 release target despite touch pointer capture. An outside release or cancel
 closes the popup without sending gameplay input. Selected items send normal
 canvas `KeyboardEvent` down/up pairs; Ctrl/Shift are pressed before their
-number and released afterward. F12 uses the single-player log binding, not
-multiplayer chat yet. The browser-only controller lives at
+number and released afterward. The browser's F12 shortcut opens the Message
+Log; multiplayer chat-mode selection is not yet implemented. This binding is
+browser-specific and leaves native Screenshot behavior unchanged. The
+browser-only controller lives at
 `port/web/site/game-shortcut-menus.js` with synthetic event tests at
 `port/web/tests/game-shortcut-menus.test.cjs`.
 
