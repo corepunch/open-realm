@@ -404,7 +404,7 @@ TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
     T_NULL(trained->goalentity);
     T_NULL(trained->orders->follow_target);
     T_NULL(trained->build);
-    T_ASSERT(!trained->buildwork || trained->buildwork->ability == 0);
+    T_ASSERT(!G_GetBuildwork(trained) || G_GetBuildwork(trained)->ability == 0);
 }
 
 #endif

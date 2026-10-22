@@ -1116,3 +1116,14 @@ removed. `rally->entity`, `sacrifice->worker` and `unsummon->target` keep their
 Sleep payloads are scalar. The SC2API observation reads rally state through
 `G_GetRally`, and Train checks queued Sacrifice results through `G_GetSacrifice`.
 Version 108 saves are rejected; the wire format is unchanged.
+
+## Fourth component slice (version 110)
+
+Shadow Meld, Militia, Hero revival and worker build/repair state move onto the
+component list (`COMPONENT_SHADOWMELD`, `COMPONENT_MILITIA`, `COMPONENT_REVIVAL`,
+`COMPONENT_BUILDWORK`). `revival->producer` and `revival->queue_next` keep their
+`F_EDICT` fixups; Militia's `partner`, `partner_spawn_time` and `returning` remain
+runtime exclusions; Shadow Meld and Buildwork payloads are scalar. The production
+queue walkers (`ProductionNext`, HUD queue, `Get_Commands_f`) read revival state
+through `G_HeroIsReviving` and `G_GetRevival`. Version 109 saves are rejected; the
+wire format is unchanged.

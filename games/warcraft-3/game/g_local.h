@@ -1714,7 +1714,11 @@ typedef enum {
     COMPONENT_RALLY = 8,
     COMPONENT_SACRIFICE = 9,
     COMPONENT_UNSUMMON = 10,
-    COMPONENT_BLIGHT_GROWTH = 11
+    COMPONENT_BLIGHT_GROWTH = 11,
+    COMPONENT_SHADOWMELD = 12,
+    COMPONENT_MILITIA = 13,
+    COMPONENT_REVIVAL = 14,
+    COMPONENT_BUILDWORK = 15
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -1785,14 +1789,18 @@ typedef struct {
 
 /* Worker-owned construction/repair relationship and concrete initiating ability. */
 typedef struct {
+    component_t component;
     uint32_t ability;
     bool primary;
     float gold_accum;
     float lumber_accum;
 } buildwork_t;
 
-/* Persistent Hero death/revival queue state; awaiting revival differs from queued revival. */
+/* Persistent Hero death/revival queue state; awaiting revival differs from queued revival.
+ * It lives on the Hero edict; queue_next links the Hero into a producer's production chain
+ * without borrowing hero->build, which may have independent gameplay use. */
 typedef struct {
+    component_t component;
     bool awaiting;
     bool reviving;
     edict_t *producer;
@@ -1824,6 +1832,7 @@ typedef struct {
 
 /* Hide/fade/reveal state owned by Shadow Meld; record presence alone is not invisibility. */
 typedef struct {
+    component_t component;
     uint32_t fade_start; /* server time when the current uninterrupted stationary fade began */
     bool fading;
     bool active;
@@ -1832,6 +1841,7 @@ typedef struct {
 
 /* Call-to-Arms pairing, transformation and return state retained by the owning worker. */
 typedef struct {
+    component_t component;
     uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
     uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
     uint32_t militia_type;     /* Data B: alternate combat form */
@@ -2248,18 +2258,11 @@ struct edict_s {
     construction_t *construction; /* pool slot; null if this unit is not under construction */
     research_t *research;
     food_t *food;
-    buildwork_t *buildwork;
-    /* Hero revival state lives on the persistent Hero edict. While reviving,
-     * queue_next links the Hero into a producer's ordinary production chain
-     * without borrowing hero->build, which may have independent gameplay use. */
-    revival_t *revival;
     uint32_t spawn_time;
     wander_t *wander;
     routeCache_t *route;
-    shadowMeld_t *shadowmeld;
     visibility_t *vision; /* optional forced/shared sight and invisibility reveal deadline */
     harvest_t *harvest; /* carried resources; absent while empty */
-    militia_t *militia;
     ancientRoot_t *ancient_root;
     uint32_t aiflags;
     uint32_t damage;
@@ -4347,6 +4350,13 @@ static inline rally_t *G_GetRally(edict_t const *ent) { return G_GetComponent(en
 static inline sacrifice_t *G_GetSacrifice(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SACRIFICE); }
 static inline unsummon_t *G_GetUnsummon(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_UNSUMMON); }
 static inline blightGrowth_t *G_GetBlightGrowth(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BLIGHT_GROWTH); }
+static inline shadowMeld_t *G_GetShadowMeld(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SHADOWMELD); }
+static inline militia_t *G_GetMilitia(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MILITIA); }
+static inline revival_t *G_GetRevival(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_REVIVAL); }
+static inline buildwork_t *G_GetBuildwork(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BUILDWORK); }
+/* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */
+static inline bool G_HeroIsReviving(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->reviving; }
+static inline bool G_HeroAwaitsRevival(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->awaiting; }
 waygate_t *G_AllocWaygate(void);
 void G_FreeArtillery(edict_t *ent);
 artillery_t *G_AllocArtillery(void);

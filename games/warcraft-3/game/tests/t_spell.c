@@ -1300,20 +1300,18 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
 
     source->unit_state->overrides.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
     ARRAY_COUNT(source->unit_state->overrides.added) = 1;
-    if (!source->shadowmeld) source->shadowmeld = G_AllocShadowMeld();
-    assert(source->shadowmeld);
-    source->shadowmeld->active = true;
+    shadowMeld_t *meld = G_AddComponent(source, COMPONENT_SHADOWMELD);
+    meld->active = true;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
-    source->shadowmeld->active = false;
+    meld->active = false;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
     target->unit_state->overrides.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
     ARRAY_COUNT(target->unit_state->overrides.added) = 1;
-    if (!target->shadowmeld) target->shadowmeld = G_AllocShadowMeld();
-    assert(target->shadowmeld);
-    target->shadowmeld->active = true;
+    meld = G_AddComponent(target, COMPONENT_SHADOWMELD);
+    meld->active = true;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
 

@@ -765,7 +765,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     /* The existing Cancel command can safely cancel the active revival. Do
      * not expose it for ordinary unit training until that queue has matching
      * refund semantics. */
-    if (ent->build && (ent->build->revival && ent->build->revival->reviving)) {
+    if (ent->build && G_HeroIsReviving(ent->build)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
     }
 
@@ -844,7 +844,7 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
     }
 
     for (edict_t *build = ent->build; build && count < max_queue;
-         build = (build->revival && build->revival->reviving) ? build->revival->queue_next : build->build) {
+         build = G_HeroIsReviving(build) ? G_GetRevival(build)->queue_next : build->build) {
         uint32_t duration;
         float progress = 0;
 
@@ -863,15 +863,15 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
             cstring_t build_name = GetClassName(build->class_id);
             /* Tiny Structures author their own construction clock; the
              * progress bar used to run on the unit's buildTime instead. */
-            duration = (build->revival && build->revival->reviving)
+            duration = G_HeroIsReviving(build)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
                 : (build->construction && build->construction->duration_ms > 0.0f)
                 ? (uint32_t)build->construction->duration_ms
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
-                if ((build->revival && build->revival->reviving) && duration > 0) {
-                    progress = build->revival->progress / ((float)duration / 1000.0f);
+                if (G_HeroIsReviving(build) && duration > 0) {
+                    progress = G_GetRevival(build)->progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
                 } else if (build->construction && build->construction->type == CONSTRUCTION_HUMAN && duration > 0) {
                     progress = build->construction->progress / (float)duration;
@@ -920,8 +920,8 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
         }
 #endif
         count++;
-        if (((build->revival && build->revival->reviving) && build->revival->queue_next == build) ||
-            (!(build->revival && build->revival->reviving) && build->build == build)) {
+        if ((G_HeroIsReviving(build) && G_GetRevival(build)->queue_next == build) ||
+            (!G_HeroIsReviving(build) && build->build == build)) {
             break;
         }
     }

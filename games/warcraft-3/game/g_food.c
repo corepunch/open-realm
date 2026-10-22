@@ -163,7 +163,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before
      * ownership changes so neither reservations nor refunds cross the transfer. */
-    if ((unit->revival && unit->revival->reviving)) G_CancelHeroRevive(unit->revival->producer, unit);
+    if (G_HeroIsReviving(unit)) G_CancelHeroRevive(G_GetRevival(unit)->producer, unit);
     G_CancelHeroRevives(unit);
     G_CancelTrainingQueue(unit, true);
     if (G_BuildingUpgradeActive(unit)) G_CancelBuildingUpgrade(unit);

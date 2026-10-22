@@ -2,7 +2,7 @@
 
 ## Ownership and access
 
-Sparse lifecycle records live in `game/g_pool.c`. Most attach directly to `edict_t` pointers; Way Gate, Avatar, Polymorph, Raven Form, Ensnare, artillery splash profiles, Sleep, Rally, Sacrifice, Unsummon and Blight Growth use the component list described below. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Allocate explicitly at the owning lifecycle entry point with `G_AllocAncientRoot()` or the corresponding PascalCase allocator. Reads never allocate and never substitute a shared zero object.
+Sparse lifecycle records live in `game/g_pool.c`. Most attach directly to `edict_t` pointers; Way Gate, Avatar, Polymorph, Raven Form, Ensnare, artillery splash profiles, Sleep, Rally, Sacrifice, Unsummon, Blight Growth, Shadow Meld, Militia, Hero revival and worker build/repair state use the component list described below. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Allocate explicitly at the owning lifecycle entry point with `G_AllocAncientRoot()` or the corresponding PascalCase allocator. Reads never allocate and never substitute a shared zero object.
 
 ```c
 if (!ent->ancient_root)
@@ -20,10 +20,11 @@ The reference is id Software's [Quake II edict definition](https://github.com/id
 
 `edict_t.components` owns an intrusive singly linked list. `waygate_t`, `avatar_t`,
 `polymorph_t`, `raven_t`, `ensnare_t`, `artillery_t`, `sleep_t`, `rally_t`,
-`sacrifice_t`, `unsummon_t` and `blightGrowth_t` start with
+`sacrifice_t`, `unsummon_t`, `blightGrowth_t`, `shadowMeld_t`, `militia_t`,
+`revival_t` and `buildwork_t` start with
 `component_t { uint32_t id; component_t *next; }`; their former edict members are
 removed. The `COMPONENT_*` enumerators in `g_local.h` (`COMPONENT_WAYGATE` through
-`COMPONENT_BLIGHT_GROWTH`) are stable exact layout IDs, independent of authored
+`COMPONENT_BUILDWORK`) are stable exact layout IDs, independent of authored
 ability rawcodes. There is one instance of
 each type per entity. No runtime ability inheritance or component update loop is
 introduced; existing ability procedures and scheduling retain behavior ownership.
@@ -41,10 +42,16 @@ introduced; existing ability procedures and scheduling retain behavior ownership
 | Sacrifice | `s_sacrifice.c` | `G_QueueSacrifice` on the hidden result unit | queue completion; cancel keeps it until the result is freed |
 | Unsummon | `s_unsummon.c` | cast: thinker owns the demolition ledger, caster mirrors the approach | entity teardown; `unsummon_cancel_approach` zeroes the approach |
 | Blight Growth | `s_blight.c` | `A_UNIT_INIT`/`A_ENABLE` with a concrete `Abli` alias | `A_DISABLE`, `A_UNIT_REMOVE`, lost ability level |
+| Shadow Meld | `s_shadowmeld.c` | passive update for `Ashm`/`Ahid` owners, or the Hide order | entity teardown; `S_ShadowMeldBreak` zeroes fade/active/hide |
+| Militia | `s_militia.c` | `militia_sync_form`, pairing orders and the Convert command | entity teardown; `S_CancelMilitiaPairing` zeroes an inactive pairing |
+| Revival | `m_unit.c`, `s_train.c` | Hero death and `G_QueueHeroRevive`; the corpse's `awaiting` flag survives a cancelled queue | entity teardown; `G_ReviveHero` and death rewrite the whole record |
+| Buildwork | `s_repair.c` | Repair start and the legacy construction work move; the whole record is rewritten | entity teardown; `repair_release` zeroes it |
 
 - `G_GetComponent` and the typed getters (`G_GetWaygate`, `G_GetAvatar`,
   `G_GetPolymorph`, `G_GetRaven`, `G_GetEnsnare`, `G_GetArtillery`, `G_GetSleep`,
-  `G_GetRally`, `G_GetSacrifice`, `G_GetUnsummon`, `G_GetBlightGrowth`) only query;
+  `G_GetRally`, `G_GetSacrifice`, `G_GetUnsummon`, `G_GetBlightGrowth`,
+  `G_GetShadowMeld`, `G_GetMilitia`, `G_GetRevival`, `G_GetBuildwork`) only query;
+  `G_HeroIsReviving`/`G_HeroAwaitsRevival` fold the common null-and-flag check;
   null entities and absent records return null. Cache the typed result within an
   operation; the owning behaviours hold one local pointer per transition.
 - `G_AddComponent` explicitly allocates from the existing typed pool, prepends
@@ -75,11 +82,13 @@ casts to an arbitrary derived payload. Retail binary evidence establishes abilit
 objects, owner/reference plumbing and inheritance, but does not establish this
 per-edict linked-list layout: see [binary evidence](ability-inheritance-binary.md).
 
-Formats 107 to 109 persist exact component IDs and payloads in the existing typed
+Formats 107 to 110 persist exact component IDs and payloads in the existing typed
 pool sections (108 added Polymorph, Raven Form, Ensnare and artillery; 109 added
-Sleep, Rally, Sacrifice, Unsummon and Blight Growth). Entity references inside a
-payload (`rally->entity`, `sacrifice->worker`, `unsummon->target`) keep their
-`F_EDICT` fixups; `SAVE_COMPONENT_PTR_FIELD_TEST` covers each one. The edict head and record `next` links are runtime exclusions. Restore
+Sleep, Rally, Sacrifice, Unsummon and Blight Growth; 110 added Shadow Meld,
+Militia, Revival and Buildwork). Entity references inside a payload
+(`rally->entity`, `sacrifice->worker`, `unsummon->target`, `revival->producer`,
+`revival->queue_next`) keep their `F_EDICT` fixups; `SAVE_COMPONENT_PTR_FIELD_TEST`
+covers each one. Militia's partner pairing stays a runtime exclusion. The edict head and record `next` links are runtime exclusions. Restore
 validates the saved ID against the section type, clears links, and attaches only
 a completely decoded record. List order is not a gameplay contract and may change
 on restore. Counts, capacity checks and entity-reference fixups retain the pool
@@ -94,15 +103,16 @@ tests cover mixed direct/component restoration and cleanup; the per-field
 `SAVE_COMPONENT_*_FIELD_TEST` round trips in `t_game.c` and the artillery and
 Blight Growth save tests reach payloads through the typed getters. Avatar, Way
 Gate, Polymorph, Raven Form, Ensnare, artillery, creep sleep, rally, Sacrifice,
-Unsummon and Blight suites exercise the real ability, projectile and JASS
-lifecycle paths.
+Unsummon, Blight, Shadow Meld, militia, Hero revival and construction/repair
+suites exercise the real ability, projectile and JASS lifecycle paths.
 
 Migration order so far follows the smallest ability-owned records with one owning
 `skills/s_*.c` file each. Remaining direct attachments (construction, research,
-food, buildwork, revival, Shadow Meld, militia, Ancient Root, mines, item,
-destructable, cargo, stock, Soul Trap, channel and the `MAX_ENTITIES`
-unit/movement records) keep their pointers; the unit/combat/movement set stays
-direct until measurements justify list lookup. Sleep is queried from acquisition
+food, Ancient Root, mines, item, destructable, cargo, stock, Soul Trap, channel
+and the `MAX_ENTITIES` unit/movement records) keep their pointers; the
+unit/combat/movement set stays direct until measurements justify list lookup.
+Revival is read by the production-queue walkers in `s_train.c` and the HUD, so
+`G_HeroIsReviving` is the second component query on a per-frame path after Sleep. Sleep is queried from acquisition
 filters (`G_UnitIsSleeping`), so it is the first component on a per-frame path;
 its list is short because sleeping creeps rarely carry other components.
 
