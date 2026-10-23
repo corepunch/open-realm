@@ -1360,6 +1360,24 @@ void R_StopAllTerrainDeformations(void) { R_W3StopAllTerrainDeformations(); }
 bool R_CameraUsesTerrainHeight(void) { return true; }
 
 
+/* Most snapshots contain only a handful of bridges or elevators. Keep the
+ * candidate list on the stack rather than allocate every frame. If a scripted
+ * map exceeds this bound, use the original full scan so no surface is lost. */
+#define W3_GROUND_SURFACE_INDEX_CAPACITY 128
+
+#ifdef WC3_GROUND_CONFORM_TESTS
+/* Test-only counters measure candidate classification work and real mesh
+ * traces without adding per-frame instrumentation to release builds. */
+static uint32_t w3_ground_surface_visits;
+static uint32_t w3_ground_surface_traces;
+#define W3_GROUND_VISIT() (++w3_ground_surface_visits)
+#define W3_GROUND_TRACE() (++w3_ground_surface_traces)
+#else
+#define W3_GROUND_VISIT() ((void)0)
+#define W3_GROUND_TRACE() ((void)0)
+#endif
+
+
 static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float y, float *z) {
     line3_t line;
     vec3_t hit;
@@ -1373,6 +1391,7 @@ static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float
         .a = { x, y, surface->origin.z + 4096.0f },
         .b = { x, y, surface->origin.z - 4096.0f },
     };
+    W3_GROUND_TRACE();
     if (!MDLX_TraceWalkableSurface(surface, &line, &hit)) {
         return false;
     }
@@ -1385,8 +1404,26 @@ static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float
  * collision/geoset geometry supplies the exact visual support Z. Preserve the
  * explicit server-authored altitude offset (WC3 FlyHeight) and replace only the
  * coarse destructable-origin support height with the highest authored MDX hit. */
+
 void R_ConformGroundSurfaces(viewDef_t *viewdef) {
+    uint32_t surface_indices[W3_GROUND_SURFACE_INDEX_CAPACITY];
+    uint32_t surface_count = 0;
+    bool overflow = false;
+
     if (!viewdef || (viewdef->rdflags & RDF_NOWORLDMODEL)) return;
+
+    /* Build a per-call index, not a persistent cache: visibility, model and
+     * animation state may all change between consecutive render frames. Keep
+     * source entity order for equal-height ties. */
+    FOR_LOOP(i, viewdef->num_entities) {
+        W3_GROUND_VISIT();
+        if (!(viewdef->entities[i].flags & RF_GROUND_SURFACE)) continue;
+        if (surface_count == W3_GROUND_SURFACE_INDEX_CAPACITY) {
+            overflow = true;
+            break;
+        }
+        surface_indices[surface_count++] = i;
+    }
 
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
@@ -1400,10 +1437,15 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
             continue;
         }
 
-        FOR_LOOP(j, viewdef->num_entities) {
-            renderEntity_t const *surface = &viewdef->entities[j];
+        /* Overflow deliberately falls back to the original exhaustive
+         * iteration, including any surfaces beyond the bounded index. */
+        uint32_t const candidates = overflow ? viewdef->num_entities : surface_count;
+        FOR_LOOP(j, candidates) {
+            uint32_t const surface_index = overflow ? j : surface_indices[j];
+            renderEntity_t const *surface = &viewdef->entities[surface_index];
             float hit_z;
 
+            W3_GROUND_VISIT();
             if (!(surface->flags & RF_GROUND_SURFACE)) continue;
             if (!R_W3WalkableSurfaceHit(surface, ent->origin.x, ent->origin.y, &hit_z)) continue;
             if (!found_surface || hit_z > authored_support) {
@@ -1423,6 +1465,8 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
         }
     }
 }
+#undef W3_GROUND_VISIT
+#undef W3_GROUND_TRACE
 
 vec2_t R_WorldOrigin(void) {
     return tr.world ? tr.world->center : (vec2_t){0};

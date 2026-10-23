@@ -1,6 +1,7 @@
 /* Compile the WC3 game renderer into the headless renderer test. Function
  * sections let the linker retain R_RegisterMap and its dependencies without
  * requiring a GL context for unrelated draw paths. */
+#define WC3_GROUND_CONFORM_TESTS
 #define R_RegisterMap R_TestProductionRegisterMap
 #define R_BlightTexture R_TestProductionBlightTexture
 #define R_LoadModel R_TestProductionLoadModel
@@ -19,6 +20,7 @@
 #define R_AddRectSplatUV R_TestEventAddRectSplatUV
 #define R_EndSplatBatch R_TestEventEndSplatBatch
 #include "../games/warcraft-3/renderer/r_game.c"
+#undef WC3_GROUND_CONFORM_TESTS
 #undef MDLX_TraceWalkableSurface
 #undef MDLX_SetEntityAnimationFrame
 #undef _W3M_DrawAlphaSurfaces
@@ -58,6 +60,9 @@ static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
 static float test_walkable_hit_z;
+static bool test_walkable_hit_from_origin;
+static bool test_walkable_accept_hits = true;
+static uint32_t test_walkable_trace_calls;
 static uint32_t test_alpha_draw_order, test_water_alpha_order, test_unit_alpha_order;
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
@@ -329,8 +334,10 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
 
 bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *line, vec3_t *hit) {
     (void)line;
-    if (!surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
-    hit->z = test_walkable_hit_z;
+    test_walkable_trace_calls++;
+    if (!test_walkable_accept_hits || !surface || !(surface->flags & RF_GROUND_SURFACE) || !hit)
+        return false;
+    hit->z = test_walkable_hit_from_origin ? surface->origin.z : test_walkable_hit_z;
     return true;
 }
 
@@ -439,6 +446,154 @@ TEST(renderer_game, elevator_render_support_cannot_lower_authoritative_unit_heig
     entities[1].origin.z = 64.0f;
     R_ConformGroundSurfaces(&view);
     T_FEQ(entities[1].origin.z, 85.0f, 0.001f);
+}
+
+/* Classification is once per view, not once per conforming unit. Even
+ * model-less or hidden surfaces must be excluded from exact mesh traces. */
+TEST(renderer_game, ground_surface_index_preserves_no_hit_and_hidden_contracts) {
+    model_t model = { 0 };
+    renderEntity_t entities[] = {
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 1, 2, 17 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_HIDDEN | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 1, 2, 34 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE | RF_HIDDEN, .origin = { 1, 2, 80 } },
+        { .flags = RF_GROUND_SURFACE, .origin = { 1, 2, 90 } },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 4 };
+
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 6u); /* 4 classifications + 2 candidates */
+    T_EQ(w3_ground_surface_traces, 0u);
+    T_EQ(test_walkable_trace_calls, 0u); /* no hidden/model-less MDX calls */
+    T_ASSERT(!(entities[0].flags & RF_GROUND_SURFACE_SUPPORT));
+    T_ASSERT(!(entities[1].flags & RF_GROUND_SURFACE_SUPPORT));
+    T_FEQ(entities[0].origin.z, 17.0f, 0.001f);
+
+    entities[2].flags &= ~RF_HIDDEN;
+    entities[3].model = &model;
+    test_walkable_accept_hits = false;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 6u);
+    T_EQ(w3_ground_surface_traces, 2u);
+    T_EQ(test_walkable_trace_calls, 2u);
+    T_ASSERT(!(entities[0].flags & RF_GROUND_SURFACE_SUPPORT));
+    test_walkable_accept_hits = true;
+
+    entities[0].flags |= RF_GROUND_SURFACE_SUPPORT;
+    view.rdflags = RDF_NOWORLDMODEL;
+    w3_ground_surface_visits = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 0u);
+    T_ASSERT(entities[0].flags & RF_GROUND_SURFACE_SUPPORT); /* early exit unchanged */
+}
+
+TEST(renderer_game, ground_surface_index_empty_view_still_clears_support_flags) {
+    model_t model = { 0 };
+    renderEntity_t entities[] = {
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 8, 8, 42 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 8, 8, 66 } },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 2 };
+
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 2u);
+    T_EQ(w3_ground_surface_traces, 0u);
+    T_EQ(test_walkable_trace_calls, 0u);
+    FOR_LOOP(i, 2) {
+        T_ASSERT(!(entities[i].flags & RF_GROUND_SURFACE_SUPPORT));
+        T_FEQ(entities[i].origin.z, i ? 66.0f : 42.0f, 0.001f);
+    }
+}
+
+TEST(renderer_game, ground_surface_index_picks_highest_hit_and_preserves_altitude) {
+    model_t model = { 0 };
+    renderEntity_t entities[] = {
+        { .model = &model, .flags = RF_GROUND_SURFACE, .origin = { 0, 0, 90 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE, .origin = { 0, 0, 120 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE, .origin = { 0, 0, 85 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE | RF_HIDDEN, .origin = { 0, 0, 200 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM, .ground_offset = 7,
+          .ground_snapshot_valid = true, .ground_snapshot_z = 132, .origin = { 0, 0, 25 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM, .ground_offset = 7,
+          .origin = { 0, 0, 155 } },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 6 };
+
+    test_walkable_hit_from_origin = true;
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 14u); /* 6 + 2 * 4 */
+    T_EQ(w3_ground_surface_traces, 6u);
+    T_EQ(test_walkable_trace_calls, 6u); /* hidden surface never traced */
+    T_ASSERT(entities[4].flags & RF_GROUND_SURFACE_SUPPORT);
+    T_FEQ(entities[4].origin.z, 132.0f, 0.001f);
+    T_FEQ(entities[5].origin.z, 155.0f, 0.001f); /* never lower server position */
+
+    entities[4].ground_snapshot_valid = false;
+    entities[4].origin.z = 25;
+    entities[1].origin.z = 100;
+    R_ConformGroundSurfaces(&view);
+    T_FEQ(entities[4].origin.z, 107.0f, 0.001f); /* live surface animation */
+    test_walkable_hit_from_origin = false;
+}
+
+TEST(renderer_game, ground_surface_index_bounds_classification_in_sparse_view) {
+    model_t model = { 0 };
+    renderEntity_t entities[96] = { 0 };
+    viewDef_t view = { .entities = entities, .num_entities = 96 };
+
+    FOR_LOOP(i, 96) entities[i].model = &model;
+    entities[3].flags = entities[86].flags = RF_GROUND_SURFACE;
+    FOR_LOOP(i, 6) entities[20 + i].flags = RF_GROUND_CONFORM;
+    test_walkable_hit_z = 67;
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 108u); /* 96 + 6 * 2, not 96 * 6 */
+    T_EQ(w3_ground_surface_traces, 12u);
+    T_EQ(test_walkable_trace_calls, 12u);
+    FOR_LOOP(i, 6) {
+        T_ASSERT(entities[20 + i].flags & RF_GROUND_SURFACE_SUPPORT);
+        T_FEQ(entities[20 + i].origin.z, 67.0f, 0.001f);
+    }
+}
+
+TEST(renderer_game, ground_surface_index_overflow_still_traces_all_surfaces) {
+    static renderEntity_t entities[131];
+    model_t model = { 0 };
+    viewDef_t view = { .entities = entities, .num_entities = 131 };
+
+    memset(entities, 0, sizeof(entities));
+    FOR_LOOP(i, 129) {
+        entities[i].model = &model;
+        entities[i].flags = RF_GROUND_SURFACE;
+        entities[i].origin.z = i + 1;
+    }
+    FOR_LOOP(i, 2) {
+        entities[129 + i].model = &model;
+        entities[129 + i].flags = RF_GROUND_CONFORM;
+    }
+    test_walkable_hit_from_origin = true;
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 391u); /* scan through 129th + 2 * 131 */
+    T_EQ(w3_ground_surface_traces, 258u);
+    T_EQ(test_walkable_trace_calls, 258u);
+    FOR_LOOP(i, 2) {
+        T_ASSERT(entities[129 + i].flags & RF_GROUND_SURFACE_SUPPORT);
+        T_FEQ(entities[129 + i].origin.z, 129.0f, 0.001f);
+    }
+    test_walkable_hit_from_origin = false;
 }
 
 TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {

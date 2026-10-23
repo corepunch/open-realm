@@ -57,7 +57,9 @@ Walkable destructables normally use their authored entity Z over the rectangular
 elevators add their mutable `occluder_height` to that Z immediately, matching `ChangeElevatorHeight`; unit collision size
 extends the elevator support footprint so units can stand near the deck edge. Other bridges retain their authored Z.
 Renderer mesh conformance may raise a supported unit to the visible surface, but it cannot lower the server-authored
-altitude. See [Warcraft III elevators](elevators.md) for the elevator state and animation contract.
+altitude. Each rendering pass indexes the current view's `RF_GROUND_SURFACE` entities
+before tracing exact walkable MDX deck geometry for conforming units; this
+preserves moving bridge/elevator heights without stale frame-to-frame caching. See [Warcraft III elevators](elevators.md) for the elevator state and animation contract.
 
 ## Projectile Height
 

@@ -1,5 +1,35 @@
 # WC3 Performance Hot Spots
 
+## October 23 ARM64 ground-surface candidate index (patch sixteen)
+
+`R_ConformGroundSurfaces` previously rescanned every view entity for each
+`RF_GROUND_CONFORM` entity, even though only `RF_GROUND_SURFACE` entries can
+supply an MDX deck. It now gathers up to 128 surface indices from the **current
+view** in entity order and checks only those indices for each conformer. This
+is a per-call stack index, not a cross-frame cache; moving/hidden surfaces and
+changes to animated bridge/elevator geometry are re-evaluated every frame.
+With N view entities, C conformers and S surface candidates, the common-case
+classification work changes from O(C*N) to O(N+C*S). If more than 128
+surfaces are present, it falls back to the original full list scan rather
+than discard any. No heap allocation, persistent state, network fields or
+new per-frame logging are involved.
+
+`R_W3WalkableSurfaceHit` still performs exact `MDLX_TraceWalkableSurface` and
+rejects hidden or model-less surfaces; highest-hit selection, equal-height
+source order, `ground_offset`, `ground_snapshot_z`, and the never-lower rule
+remain unchanged. The support marker flag is still cleared on each normal
+call, including calls with zero surface candidates. `RDF_NOWORLDMODEL`
+retains the original early-exit behavior.
+
+Headless production-path regression tests under `renderer_game.ground_surface_index_*`
+cover no hit, hidden/model-less surfaces, highest of overlapping supports,
+animated elevation, altitude bounds, a 96-entity sparse view and the
+129-surface overflow fallback. Test-only visit and exact-trace counters
+check the work reduction; release builds have neither counter. **No local
+compilation or tests were performed**. Validate both the headless tests and
+bridge/elevator scenes (particularly Orc04) and compare median frame times
+and fresh `cycles:ppp` profiles on ARM64, keeping camera/scene fixed.
+
 ## October 23 ARM64 contiguous splat submission batching (patch fourteen)
 
 The post-patch-thirteen handheld profile puts the world splat geometry path at
@@ -478,24 +508,13 @@ Remaining implementation sequence:
    benchmark is a starting point; verify that its fixture actually enters `monster_think` and ability updates.
    Removing all current lookup self cost has an idealized fixed-work CPU speedup ceiling of about 4x,
    not a predicted FPS gain.
-3. `R_ConformGroundSurfaces` remains a renderer optimization candidate. An earlier capture measured 1.76%
-   self / 2.19% inclusive; `screenshots/2026-09-25/fixed4/perf-full-Orc04.txt` measures 11.01% self /
-   11.12% inclusive with about 3K CPU-cycle samples and no lost samples. Orc03 and Orc04 are different
-   campaign scenes, so this is not an A/B regression measurement. The current nested loops scan the full
-   view entity list for each ground-conforming entity. A possible fix is to gather eligible
-   `RF_GROUND_SURFACE` entity indices once into bounded renderer-owned scratch, then test only those
-   candidates for each eligible `RF_GROUND_CONFORM` entity. Preserve original candidate order and leave
-   `MDLX_TraceWalkableSurface`, highest-hit selection, and `ground_offset` behavior unchanged. This reduces
-   the list work from O(C*N) to O(N+C*S), where N is the view entity count, C the conforming entity count,
-   and S the walkable surface count; add spatial filtering only if a follow-up profile shows the exact MDX
-   traces still dominate.
-
-   Test first in the headless renderer suite using the production `R_ConformGroundSurfaces` path: cover no
-   surfaces/no hit, hidden or model-less entities, overlapping surfaces (highest hit wins), altitude offsets,
-   and `RDF_NOWORLDMODEL`. In the test build, count entity classification visits and exact trace calls; a scene
-   with many unrelated entities, several conformers, and few surfaces should fail the old repeated full-list
-   scan bound and pass with one collection pass plus C-by-S traces. Then repeat the same bounded Orc04 scene
-   and record N/C/S counts and repeated profile or frame-time measurements.
+3. `R_ConformGroundSurfaces` candidate gathering was implemented by patch sixteen (see above).
+   Historical captures measured 1.76% self / 2.19% inclusive in one scene and 11.01% self /
+   11.12% inclusive in `screenshots/2026-09-25/fixed4/perf-full-Orc04.txt` (about 3K
+   sampled CPU cycles, no lost samples). These were **different maps**, not an A/B test.
+   The new bounded per-view index removes repeated full entity scans in the common case.
+   Follow up with identical Orc04 scenes and repeated median frame times; consider spatial
+   filtering only if exact MDX trace tests still dominate after this change.
 4. `MDLX_BindBoneMatrices` is 2.01% inclusive, including geometry and attachment collection. Investigate
    sharing the already evaluated entity pose with `MDLX_CollectAttachmentPositions`; global scratch matrices
    can be overwritten by another model, so reuse requires explicit lifetime/identity. Preserve interpolation,
