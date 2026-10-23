@@ -124,6 +124,11 @@ static regenAuraSource_t regen_sources[MAX_ENTITIES];
 static uint32_t regen_source_count;
 static uint32_t regen_cache_frame = UINT_MAX;
 static uint32_t regen_cache_generation = UINT_MAX;
+#ifdef BZ_TESTS
+static uint32_t test_regen_cache_edicts;
+void S_TestResetRegenCacheEdictVisits(void) { test_regen_cache_edicts = 0; }
+uint32_t S_TestRegenCacheEdictVisits(void) { return test_regen_cache_edicts; }
+#endif
 static edict_t *regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
 static edict_t *devotion_overlays[MAX_ENTITIES];
 static edict_t *unholy_overlays[MAX_ENTITIES];
@@ -465,6 +470,9 @@ void G_ResetHeroPassiveCaches(void) {
     regen_source_count = 0;
     regen_cache_frame = UINT_MAX;
     regen_cache_generation = UINT_MAX;
+#ifdef BZ_TESTS
+    S_TestResetRegenCacheEdictVisits();
+#endif
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
@@ -521,70 +529,89 @@ static uint32_t aura_target_model(uint32_t code) {
     return art && *art ? (uint32_t)G_RegisterModel(art) : 0;
 }
 
-/* Discover aura providers once per simulation frame; target checks still run
- * per unit because range, alliances, and invulnerability are live. */
+/* Refresh provider and presentation-effect indexes in one edict traversal.
+ * Providers retain their original encounter order (important for equal-strength
+ * auras), and overlays are indexed independently of whether their owner has a
+ * currently active or learned aura.  The index is rebuilt on each simulation
+ * frame/AbilityData generation, never retained across entity lifetimes. */
 static void regen_aura_cache_update(void) {
     uint32_t const ability_generation = G_AbilityDataGeneration();
     if (regen_cache_frame == level.framenum && regen_cache_generation == ability_generation)
         return;
     regen_source_count = 0;
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *source = g_edicts + i;
-        regenAuraSource_t *entry = regen_sources + regen_source_count;
-        auraAbilityRef_t owned[AURA_OWNED_COUNT];
-        bool has_combat_aura = false;
-
-        /* Vacant slots cannot own or provide an aura. */
-        if (!source->inuse) continue;
-        aura_resolve_owned_abilities(source, owned);
-        entry->source = source;
-        entry->life_orc = owned[AURA_OWNED_LIFE_ORC];
-        entry->life_blight = owned[AURA_OWNED_LIFE_BLIGHT];
-        entry->mana = owned[AURA_OWNED_MANA];
-        entry->devotion = owned[AURA_OWNED_DEVOTION];
-        entry->unholy = owned[AURA_OWNED_UNHOLY];
-        FOR_LOOP(j, HERO_AURA_CACHE_KEYS) {
-            auraAbilityRef_t const ability = owned[aura_combat_owned_slots[j]];
-            entry->combat[j] = ability;
-            if (ability.alias) has_combat_aura = true;
-        }
-        if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
-            entry->devotion.alias || entry->unholy.alias || has_combat_aura) {
-            entry->active = S_AuraUnitActive(source);
-            regen_source_count++;
-        }
-    }
-    regen_cache_frame = level.framenum;
-    regen_cache_generation = ability_generation;
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
     memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t *effect = g_edicts + i;
-        regenFamily_t family;
-        if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
-            effect->goalentity != effect->owner) continue;
-        if (effect->summon_ability == ID_DEVOTION_AURA || effect->summon_ability == ID_UNHOLY_AURA) {
+        edict_t *ent = g_edicts + i;
+#ifdef BZ_TESTS
+        test_regen_cache_edicts++;
+#endif
+        if (!ent->inuse) continue;
+        /* Effects, waypoints and other non-unit edicts normally have neither
+         * authored abilities nor a unit state.  They cannot own an aura, but
+         * must still be considered as possible presentation effects below. */
+        if (ent->unit_state || (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList)) {
+            auraAbilityRef_t owned[AURA_OWNED_COUNT];
+            regenAuraSource_t *entry = regen_sources + regen_source_count;
+            bool has_combat_aura = false;
+            aura_resolve_owned_abilities(ent, owned);
+            entry->source = ent;
+            entry->life_orc = owned[AURA_OWNED_LIFE_ORC];
+            entry->life_blight = owned[AURA_OWNED_LIFE_BLIGHT];
+            entry->mana = owned[AURA_OWNED_MANA];
+            entry->devotion = owned[AURA_OWNED_DEVOTION];
+            entry->unholy = owned[AURA_OWNED_UNHOLY];
+            FOR_LOOP(j, HERO_AURA_CACHE_KEYS) {
+                auraAbilityRef_t const ability = owned[aura_combat_owned_slots[j]];
+                entry->combat[j] = ability;
+                if (ability.alias) has_combat_aura = true;
+            }
+            if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
+                entry->devotion.alias || entry->unholy.alias || has_combat_aura) {
+                entry->active = S_AuraUnitActive(ent);
+                regen_source_count++;
+            }
+        }
+        if (!ent->owner || ent->owner->s.number >= MAX_ENTITIES ||
+            ent->goalentity != ent->owner) continue;
+        if (ent->summon_ability == ID_DEVOTION_AURA || ent->summon_ability == ID_UNHOLY_AURA) {
             edict_t * *slots;
-            /* The current alias/art can change or disappear. Bind by the saved
-             * role so a custom caster rune cannot become an orphaned recipient. */
-            if (effect->aura_effect_role == AURA_EFFECT_SOURCE)
-                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
-            else if (effect->aura_effect_role == AURA_EFFECT_RECIPIENT)
-                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
+            /* Resolve by saved role: a custom caster effect must not become
+             * an orphaned recipient if its alias or artwork changes. */
+            if (ent->aura_effect_role == AURA_EFFECT_SOURCE)
+                slots = ent->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
+            else if (ent->aura_effect_role == AURA_EFFECT_RECIPIENT)
+                slots = ent->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
             else continue;
-            if (!slots[effect->owner->s.number]) slots[effect->owner->s.number] = effect;
+            if (!slots[ent->owner->s.number]) slots[ent->owner->s.number] = ent;
             continue;
         }
-        if (effect->summon_ability != ID_REGEN_LIFE_ORC &&
-            effect->summon_ability != ID_REGEN_LIFE_BLIGHT && effect->summon_ability != ID_REGEN_MANA) continue;
-        family = regen_family(effect->summon_ability);
-        if (!regen_overlays[effect->owner->s.number][family])
-            regen_overlays[effect->owner->s.number][family] = effect;
+        if (ent->summon_ability == ID_REGEN_LIFE_ORC ||
+            ent->summon_ability == ID_REGEN_LIFE_BLIGHT || ent->summon_ability == ID_REGEN_MANA) {
+            regenFamily_t const family = regen_family(ent->summon_ability);
+            if (!regen_overlays[ent->owner->s.number][family])
+                regen_overlays[ent->owner->s.number][family] = ent;
+        }
     }
+    regen_cache_frame = level.framenum;
+    regen_cache_generation = ability_generation;
 }
+
+#ifdef BZ_TESTS
+/* Observe the actual presentation registry after a live source-cache refresh. */
+edict_t *S_TestTrackedRegenAuraEffect(edict_t const *owner, uint32_t base_code) {
+    if (!owner || owner->s.number >= MAX_ENTITIES) return NULL;
+    regen_aura_cache_update();
+    if (base_code == ID_DEVOTION_AURA) return devotion_overlays[owner->s.number];
+    if (base_code == ID_UNHOLY_AURA) return unholy_overlays[owner->s.number];
+    if (base_code == ID_REGEN_LIFE_ORC || base_code == ID_REGEN_LIFE_BLIGHT || base_code == ID_REGEN_MANA)
+        return regen_overlays[owner->s.number][regen_family(base_code)];
+    return NULL;
+}
+#endif
 
 static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, uint32_t base_code) {
     if (base_code == ID_REGEN_LIFE_ORC) return entry->life_orc;

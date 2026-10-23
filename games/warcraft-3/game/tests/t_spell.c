@@ -9,6 +9,9 @@ bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent);
 void S_TestResetAuraClassificationCache(void);
 uint32_t S_TestAuraClassResolves(void);
 uint32_t S_TestAuraOwnershipChecks(void);
+void S_TestResetRegenCacheEdictVisits(void);
+uint32_t S_TestRegenCacheEdictVisits(void);
+edict_t *S_TestTrackedRegenAuraEffect(edict_t const *owner, uint32_t base_code);
 void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
 void S_TestResetMoonWellMissingDataWarningCalls(void);
@@ -1753,6 +1756,83 @@ TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
     T_EQ(S_UnholyAuraBuff(target), 0);
     T_NULL(overlay->goalentity);
 
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, regen_aura_cache_combines_provider_and_overlay_scans) {
+    /* An ordinary owner has ability storage. Presentation effects and vacant
+     * actors have none, but the former still participate in the effect index. */
+    edict_t *owner, *first, *second, *caster_art, *recipient_art, *empty;
+    uint32_t const mana = MAKEFOURCC('A','a','r','m');
+    uint32_t const devotion = MAKEFOURCC('A','H','a','d');
+    uint32_t visits;
+
+    reset_entities();
+    setup_test_world();
+    level.time = level.framenum = 0;
+    owner = alloc_test_unit(MAKEFOURCC('H','p','e','a'), 0, 0);
+    first = G_Spawn();
+    second = G_Spawn();
+    caster_art = G_Spawn();
+    recipient_art = G_Spawn();
+    empty = G_Spawn();
+    first->owner = second->owner = caster_art->owner = recipient_art->owner = owner;
+    first->goalentity = second->goalentity = caster_art->goalentity = recipient_art->goalentity = owner;
+    first->summon_ability = second->summon_ability = mana;
+    caster_art->summon_ability = recipient_art->summon_ability = devotion;
+    caster_art->aura_effect_role = AURA_EFFECT_SOURCE;
+    recipient_art->aura_effect_role = AURA_EFFECT_RECIPIENT;
+    T_NULL(empty->unit_state);
+    T_NULL(first->unit_state);
+
+    S_TestResetHeroAuraAliasResolves();
+    S_TestResetRegenCacheEdictVisits();
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), first);
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, devotion), recipient_art);
+    visits = S_TestRegenCacheEdictVisits();
+    /* Exactly one edict traversal; a second same-frame consumer reuses it. */
+    T_EQ(visits, globals.num_edicts);
+    T_EQ(S_TestHeroAuraAliasResolves(), 1u);
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), first);
+    T_EQ(S_TestRegenCacheEdictVisits(), visits);
+
+    /* The earliest matching overlay wins until the next frame's live rebuild. */
+    first->inuse = false;
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), first);
+    level.framenum++;
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), second);
+    T_EQ(S_TestRegenCacheEdictVisits(), visits + globals.num_edicts);
+    T_EQ(S_TestHeroAuraAliasResolves(), 2u);
+
+    /* If the current recipient art disappears, it must not be confused with
+     * the source pattern even though both belong to the same owner/family. */
+    recipient_art->inuse = false;
+    level.framenum++;
+    T_NULL(S_TestTrackedRegenAuraEffect(owner, devotion));
+    T_EQ(S_TestRegenCacheEdictVisits(), visits + 2u * globals.num_edicts);
+}
+
+TEST(wc3_spell, regen_aura_cache_rescans_on_ability_data_generation) {
+    edict_t *owner, *effect;
+    uint32_t const mana = MAKEFOURCC('A','a','r','m');
+    slkTestData_t *rows, *old;
+
+    reset_entities();
+    setup_test_world();
+    level.time = level.framenum = 0;
+    owner = alloc_test_unit(MAKEFOURCC('H','p','e','a'), 0, 0);
+    effect = G_Spawn();
+    effect->owner = effect->goalentity = owner;
+    effect->summon_ability = mana;
+    S_TestResetRegenCacheEdictVisits();
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), effect);
+    T_EQ(S_TestRegenCacheEdictVisits(), globals.num_edicts);
+    /* Metadata replacement changes the cache key without advancing time. */
+    rows = parse_slk_string("ID;PWXL;N;EBB;Y1;X2\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nE\n");
+    old = G_SetSLKRows("AbilityData", rows);
+    T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), effect);
+    T_EQ(S_TestRegenCacheEdictVisits(), 2u * globals.num_edicts);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
