@@ -3738,6 +3738,99 @@ TEST(wc3_combat, occupied_status_index_falls_back_and_rebuilds) {
     T_EQ(G_UnitStatusLevel(ent, code), 0u);
 }
 
+/* The common monster_think stun query must skip the 16 sparse status
+ * records after an empty mask is built, while seeing subsequent mutations. */
+TEST(wc3_combat, status_state_index_empty_apply_and_remove) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    T_ASSERT(!unit_hasstatusstate(NULL, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(!unit_hasstatusstate(ent, (wc3_status_state_t)0));
+    T_ASSERT(!unit_hasstatusstate(ent, (wc3_status_state_t)(WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_ROOTED)));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Invalid-mask fallback. */
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Cached empty. */
+
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    slot = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(slot);
+    T_EQ(ent->unit_state->status_occupied_mask, 1u << (slot - ent->unit_state->statuses));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1)); /* Reuse of the freed slot. */
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+}
+
+/* A custom state contribution has no built-in Bxxx classification. Persistent
+ * custom state and built-in buff mapping must both respect the same index. */
+TEST(wc3_combat, status_state_index_custom_state_mask) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    status_application_t const app = {
+        .buff = "Bzxy", .level = 1, .state_mask = WC3_STATUS_STATE_ETHEREAL
+    };
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    slot = unit_applystatus(ent, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL));
+}
+
+/* An expired early slot must not hide an independent later stun provider.
+ * The index still contains an expired-but-not-swept record until the tick. */
+TEST(wc3_combat, status_state_index_sparse_expiration_and_sources) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_addtimedstatus(ent, "Bsta", 1, 0.15f));
+    T_ASSERT(unit_addstatus(ent, "Beng", 1));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+    level.time = 1051;
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Bsta remains live. */
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    level.time = 1151;
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Bsta expired too. */
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+    unit_updatestatuses(ent);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+}
+
+/* Save/load and synthetic/direct slot edits invalidate the derived index.
+ * Fall back across all slots before rebuild; do not trust a cached zero. */
+TEST(wc3_combat, status_state_index_invalidated_fallback_and_rebuild) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u);
+    ent->unit_state->statuses[5] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','u'), .level = 1, .timestamp = 1050
+    };
+    ent->unit_state->statuses[13] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','a'), .level = 1
+    };
+    unit_status_invalidate_update_mask(ent);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    level.time = 1051;
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Slot 13. */
+    unit_updatestatuses(ent);
+    T_EQ(ent->unit_state->status_occupied_mask, 1u << 13);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    unit_removestatus(ent, ent->unit_state->statuses + 13, STATUS_REMOVE_SCRIPT);
+    T_EQ(ent->unit_state->status_occupied_mask, 0u);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+}
+
 TEST(wc3_combat, timed_life_status_kills_unit) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     _die_call_count = 0;

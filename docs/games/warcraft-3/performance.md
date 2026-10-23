@@ -1,5 +1,32 @@
 # WC3 Performance Hot Spots
 
+## October 23 ARM64 categorical status-state lookups
+
+The ARM64 `cycles:ppp` capture with the first ten performance patches reports
+`unit_hasstatusstate` at 7.54% exclusive sample share through
+`monster_think`'s stun check. Unlike `G_UnitStatusLevel`, the categorical
+state query still inspected all 16 status records, including unoccupied
+152-byte records, every time a unit with an active Move was considered.
+This is a sampled share for the recorded scene, **not** a projected FPS gain.
+
+`unit_hasstatusstate` now uses the same `status_occupied_mask` and
+`TIMED_STATUS_UPDATE_VALID` contract already maintained for status levels.
+A valid, empty mask answers immediately; otherwise the query uses
+`__builtin_ctz` to inspect only occupied slots. An invalid index (new,
+restored, or explicitly edited unit state) conservatively falls back to all
+16 slots until `unit_updatestatuses` rebuilds it. Managed additions,
+removals and refreshes already maintain both indexes. The helper preserves
+built-in buff/state mapping, explicit `state_mask` contributions, the
+single-state argument restriction, time-based expiry before cleanup,
+and independent simultaneous providers. No per-unit field, persistence
+format, network field or debug logging was added.
+
+`wc3_combat.status_state_index_*` tests cover cached empty, persistent,
+custom, sparse timed, independent-provider, removal/reuse and invalidated
+index cases. The existing saved-unit-state index rebuild test remains
+applicable. Build and run the tests, then compare the same gameplay scene's
+`unit_hasstatusstate` samples and median frame times on ARM64.
+
 ## October 22 ARM64 selection revalidation scan
 
 On the handheld, `G_UpdateClientSelections` accounted for about 1.6% of

@@ -1806,14 +1806,30 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
     }
 }
 
+/* Status records are sparse and 152 bytes each. The timed mask's high bit
+ * also validates the occupied-slot index. Restored or directly edited state
+ * has an invalid index and must be searched in full until the next rebuild. */
+#define TIMED_STATUS_UPDATE_VALID (1u << MAX_UNIT_STATUSES)
+#define TIMED_STATUS_UPDATE_BITS (TIMED_STATUS_UPDATE_VALID - 1u)
+
+static inline uint32_t unit_status_occupied_bits(unitState_t const *state) {
+    return (state->timed_status_update_mask & TIMED_STATUS_UPDATE_VALID) ?
+        state->status_occupied_mask : TIMED_STATUS_UPDATE_BITS;
+}
+
 /* Query only live contributions; expired slots must never grant a state
  * while waiting for their next authoritative cleanup update. Multiple slots
- * compose by OR, so removing one cannot remove another's contribution. */
+ * compose by OR, so removing one cannot remove another's contribution.
+ * Skip empty records using the same occupied-slot index as status levels. */
 bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
-    uint32_t mask = (uint32_t)state;
-    if (!ent || !mask || (mask & (mask - 1u))) return false;
-    FOR_LOOP(i, ent->unit_state ? MAX_UNIT_STATUSES : 0) {
+    uint32_t const mask = (uint32_t)state;
+    uint32_t occupied;
+    if (!ent || !ent->unit_state || !mask || (mask & (mask - 1u))) return false;
+    occupied = unit_status_occupied_bits(ent->unit_state);
+    while (occupied) {
+        uint32_t const i = (uint32_t)__builtin_ctz(occupied);
         heroabilitystatus_t const *status = ent->unit_state->statuses + i;
+        occupied &= occupied - 1;
         if (!status->level || !((status->state_mask | unit_builtin_status_states(status->code)) & mask)) continue;
         if (!status->timestamp || status->timestamp > G_Time()) return true;
     }
@@ -2042,12 +2058,6 @@ bool unit_status_take_due_tick(heroabilitystatus_t *slot, uint32_t interval_ms, 
     }
     return true;
 }
-
-/* Status records are sparse and 152 bytes each. Keep timed slots for frame
- * updates and occupied slots for status-level queries. A shared valid bit
- * lets zeroed/restored unit state rebuild both masks lazily. */
-#define TIMED_STATUS_UPDATE_VALID (1u << MAX_UNIT_STATUSES)
-#define TIMED_STATUS_UPDATE_BITS (TIMED_STATUS_UPDATE_VALID - 1u)
 
 static void unit_status_track_timed_slot(edict_t *ent, heroabilitystatus_t const *slot) {
     uint32_t bit;
@@ -2315,8 +2325,7 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
     uint32_t occupied;
     if (!ent || !code || !ent->unit_state) return 0;
-    occupied = (ent->unit_state->timed_status_update_mask & TIMED_STATUS_UPDATE_VALID) ?
-        ent->unit_state->status_occupied_mask : TIMED_STATUS_UPDATE_BITS;
+    occupied = unit_status_occupied_bits(ent->unit_state);
     while (occupied) {
         uint32_t const i = (uint32_t)__builtin_ctz(occupied);
         heroabilitystatus_t const *status;
