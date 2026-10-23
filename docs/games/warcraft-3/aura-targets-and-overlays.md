@@ -47,6 +47,25 @@ actual levels. Separate combat DataA/DataB consumers share the resolved ability.
 The snapshot does not persist across frames: changes to runtime skills, hero
 ranks and ability data are still observed on the next provider refresh.
 
+`aura_owned_family_mask` additionally caches the rawcode-to-family bitmask in a
+256-entry, generation-tagged direct-mapped lookup. It caches *classification*
+(including non-aura rawcodes), not whether a particular unit owns the ability.
+Native and runtime-added entries are checked with `G_ActorHasSkill` only if
+the classification can provide an aura, and hero ranks are still taken live.
+One rawcode can match both an explicit aura ID and a different inherited
+`AbilityData.code`; both family bits must be retained to match
+`S_ResolveAbilityAlias` independently for each family. A hash collision is a
+miss, not a false match. Ability-data replacement changes
+`G_AbilityDataGeneration()`, invalidating both positive and negative entries.
+No unit, save, network or effect-lifecycle state is added.
+
+`aura_combat_owned_slots` maps the 14 authored combat cache keys directly to
+the resolved family slots (including duplicate DataA/DataB uses). Keep it in
+sync with `aura_cache_keys`; the discovery regression oracle verifies that
+mapping before comparing every family's alias and rank with the standalone
+resolver. Tests also cover filtered ownership checks, metadata replacement,
+rawcode collisions and cross-family alias matches.
+
 `wc3_spell.aura_provider_discovery_preserves_alias_precedence_and_ranks`
 compares the bulk discovery results against the standalone resolver across
 native aliases, added abilities, hero ranks, removed aliases and direct

@@ -83,6 +83,19 @@ static uint32_t const aura_owned_codes[AURA_OWNED_COUNT] = {
     ID_WAR_DRUMS, ID_SLOW_AURA
 };
 
+/* Parallel to aura_cache_keys: an authored combat DataA/DataB entry always
+ * refers to exactly one resolved owned aura family. Avoid searching the
+ * 14-family table again for every combat key on every provider refresh. */
+static uint8_t const aura_combat_owned_slots[HERO_AURA_CACHE_KEYS] = {
+    AURA_OWNED_BRILLIANCE, AURA_OWNED_DEVOTION,
+    AURA_OWNED_UNHOLY, AURA_OWNED_UNHOLY,
+    AURA_OWNED_ENDURANCE, AURA_OWNED_ENDURANCE,
+    AURA_OWNED_VAMPIRIC, AURA_OWNED_TRUESHOT,
+    AURA_OWNED_THORNS, AURA_OWNED_COMMAND,
+    AURA_OWNED_COMMAND_NEUTRAL, AURA_OWNED_WAR_DRUMS,
+    AURA_OWNED_SLOW, AURA_OWNED_SLOW
+};
+
 typedef struct {
     edict_t *source;
     bool active;
@@ -198,47 +211,107 @@ static auraAbilityRef_t actor_aura_ability(edict_t *ent, uint32_t base_code) {
     return result;
 }
 
-/* The shared provider snapshot used to call S_ResolveAbilityAlias fourteen
- * times per edict per frame.  Walk each ownership source once instead, preserving
- * the resolver's native -> added -> ranked hero precedence, first match within
- * each source, and runtime removal checks.  Do not cache these results across
- * frames: scripts can alter ability ownership and hero ranks at runtime. */
-static void aura_record_owned_alias(auraAbilityRef_t resolved[AURA_OWNED_COUNT],
-                                    uint32_t alias, uint32_t level) {
-    uint32_t const base = G_AbilityCode(alias);
+/* AbilityData ancestry depends on the rawcode and data generation, not on
+ * the owning unit. Cache both positive and negative aura-family classifications
+ * across provider updates while keeping ownership/ranks live every frame.
+ * A code may match its rawcode family AND a different inherited base family;
+ * using a bitmask preserves S_ResolveAbilityAlias's per-family precedence. */
+#define AURA_FAMILY_CLASS_CACHE_SIZE 256u
+typedef struct {
+    uint32_t alias, generation, family_mask;
+    bool valid;
+} auraFamilyClassEntry_t;
+static auraFamilyClassEntry_t aura_family_class_cache[AURA_FAMILY_CLASS_CACHE_SIZE];
+
+#ifdef BZ_TESTS
+static uint32_t test_aura_class_resolves, test_aura_ownership_checks;
+void S_TestResetAuraClassificationCache(void) {
+    memset(aura_family_class_cache, 0, sizeof(aura_family_class_cache));
+    test_aura_class_resolves = test_aura_ownership_checks = 0;
+}
+uint32_t S_TestAuraClassResolves(void) { return test_aura_class_resolves; }
+uint32_t S_TestAuraOwnershipChecks(void) { return test_aura_ownership_checks; }
+#endif
+
+static uint32_t aura_owned_family_mask(uint32_t alias) {
+    uint32_t hash, base, mask = 0;
+    uint32_t const generation = G_AbilityDataGeneration();
+    auraFamilyClassEntry_t *entry;
+    if (!alias) return 0;
+    hash = alias * 0x9e3779b1u;
+    hash ^= hash >> 16;
+    entry = &aura_family_class_cache[hash & (AURA_FAMILY_CLASS_CACHE_SIZE - 1u)];
+    if (entry->valid && entry->alias == alias && entry->generation == generation)
+        return entry->family_mask;
+#ifdef BZ_TESTS
+    test_aura_class_resolves++;
+#endif
+    base = G_AbilityCode(alias);
     FOR_LOOP(i, AURA_OWNED_COUNT) {
-        if (!resolved[i].alias && (aura_owned_codes[i] == alias || aura_owned_codes[i] == base)) {
+        if (aura_owned_codes[i] == alias || aura_owned_codes[i] == base)
+            mask |= 1u << i;
+    }
+    *entry = (auraFamilyClassEntry_t){ alias, generation, mask, true };
+    return mask;
+}
+
+/* Record only the matched families, preserving the first matching alias in
+ * native -> runtime-added -> ranked hero order. */
+static void aura_record_owned_alias(auraAbilityRef_t resolved[AURA_OWNED_COUNT],
+                                    uint32_t alias, uint32_t level, uint32_t mask) {
+    while (mask) {
+        uint32_t const i = (uint32_t)__builtin_ctz(mask);
+        mask &= mask - 1;
+        if (!resolved[i].alias) {
             resolved[i].alias = alias;
             resolved[i].level = level;
         }
     }
 }
 
+/* Filter unrelated abilities before costly live ownership tests. The per-unit
+ * lists, removals, morph data and hero ranks are never cached; changes become
+ * visible on the next provider snapshot. */
 static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved[AURA_OWNED_COUNT]) {
     char alias_name[5] = {0};
     memset(resolved, 0, sizeof(*resolved) * AURA_OWNED_COUNT);
     if (!ent) return;
 #ifdef BZ_TESTS
-    /* Counts provider discovery passes, not individual family matches. */
     test_hero_aura_alias_resolves++;
 #endif
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            uint32_t alias = 0, mask;
+            if (strlen(token) != 4) continue;
             memcpy(&alias, token, sizeof(alias));
-            aura_record_owned_alias(resolved, alias, 1);
+            mask = aura_owned_family_mask(alias);
+            if (!mask) continue;
+#ifdef BZ_TESTS
+            test_aura_ownership_checks++;
+#endif
+            if (G_ActorHasSkill(ent, token))
+                aura_record_owned_alias(resolved, alias, 1, mask);
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         uint32_t const alias = ent->abilities.added[i];
+        uint32_t mask;
         if (!alias) continue;
+        mask = aura_owned_family_mask(alias);
+        if (!mask) continue;
         memcpy(alias_name, &alias, 4);
-        if (G_ActorHasSkill(ent, alias_name)) aura_record_owned_alias(resolved, alias, 1);
+#ifdef BZ_TESTS
+        test_aura_ownership_checks++;
+#endif
+        if (G_ActorHasSkill(ent, alias_name))
+            aura_record_owned_alias(resolved, alias, 1, mask);
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *hero = ent->heroabilities + i;
-        if (hero->level) aura_record_owned_alias(resolved, hero->code, hero->level);
+        if (hero->level) {
+            uint32_t const mask = aura_owned_family_mask(hero->code);
+            if (mask) aura_record_owned_alias(resolved, hero->code, hero->level, mask);
+        }
     }
 }
 
@@ -248,6 +321,9 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
 bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent) {
     auraAbilityRef_t resolved[AURA_OWNED_COUNT];
     aura_resolve_owned_abilities(ent, resolved);
+    FOR_LOOP(i, HERO_AURA_CACHE_KEYS) {
+        if (aura_cache_keys[i].code != aura_owned_codes[aura_combat_owned_slots[i]]) return false;
+    }
     FOR_LOOP(i, AURA_OWNED_COUNT) {
         abilityAliasRef_t const expected = S_ResolveAbilityAlias(ent, aura_owned_codes[i]);
         if (resolved[i].alias != expected.alias || resolved[i].level != expected.level)
@@ -468,14 +544,7 @@ static void regen_aura_cache_update(void) {
         entry->devotion = owned[AURA_OWNED_DEVOTION];
         entry->unholy = owned[AURA_OWNED_UNHOLY];
         FOR_LOOP(j, HERO_AURA_CACHE_KEYS) {
-            uint32_t const code = aura_cache_keys[j].code;
-            auraAbilityRef_t ability = {0};
-            FOR_LOOP(k, AURA_OWNED_COUNT) {
-                if (aura_owned_codes[k] == code) {
-                    ability = owned[k];
-                    break;
-                }
-            }
+            auraAbilityRef_t const ability = owned[aura_combat_owned_slots[j]];
             entry->combat[j] = ability;
             if (ability.alias) has_combat_aura = true;
         }

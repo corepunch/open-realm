@@ -6,6 +6,9 @@
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
 bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent);
+void S_TestResetAuraClassificationCache(void);
+uint32_t S_TestAuraClassResolves(void);
+uint32_t S_TestAuraOwnershipChecks(void);
 void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
 void S_TestResetMoonWellMissingDataWarningCalls(void);
@@ -1841,6 +1844,134 @@ TEST(wc3_spell, aura_provider_discovery_preserves_alias_precedence_and_ranks) {
     source->heroabilities[0].level = 0;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
 
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Unrelated native/added abilities must not trigger expensive live ownership
+ * checks. Positive and negative classifications are shared between passes,
+ * while removals and hero rank changes are evaluated afresh. */
+TEST(wc3_spell, aura_classification_cache_filters_unrelated_ownership_checks) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"XUau\"\nC;Y2;X2;K\"AUau\"\n"
+        "C;Y3;X1;K\"XHad\"\nC;Y3;X2;K\"AHad\"\n"
+        "C;Y4;X1;K\"Afoo\"\nC;Y4;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Afoo,XUau" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *source;
+    uint32_t class_resolves;
+
+    reset_entities(); setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    source->data.UnitAbilities = &abilities;
+    source->abilities.added[0] = MAKEFOURCC('X','H','a','d');
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 3);
+    S_TestResetAuraClassificationCache();
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestAuraOwnershipChecks(), 2u); /* Native XUau, added XHad only. */
+    class_resolves = S_TestAuraClassResolves();
+    T_ASSERT(class_resolves >= 3u);
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestAuraClassResolves(), class_resolves); /* Reused both sorts of cache hit. */
+    T_EQ(S_TestAuraOwnershipChecks(), 4u);
+
+    source->abilities.removed[0] = MAKEFOURCC('X','U','a','u');
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    source->data.UnitAbilities = NULL;
+    source->abilities.added[0] = 0;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    source->heroabilities[0].level = 0;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Classification for the same rawcode must flip in both directions after
+ * AbilityData replacement, including when an earlier result was negative. */
+TEST(wc3_spell, aura_classification_cache_invalidates_on_metadata_generation) {
+    const char aura_slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"AUau\"\nE\n";
+    const char other_slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AqW1" };
+    slkTestData_t *aura = parse_slk_string(aura_slk);
+    slkTestData_t *other = parse_slk_string(other_slk);
+    slkTestData_t *old;
+    edict_t *source;
+
+    reset_entities(); setup_test_world();
+    old = G_SetSLKRows("AbilityData", aura);
+    source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    source->data.UnitAbilities = &abilities;
+    S_TestResetAuraClassificationCache();
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestAuraClassResolves(), 1u);
+    G_SetSLKRows("AbilityData", other);
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestAuraClassResolves(), 2u);
+    G_SetSLKRows("AbilityData", aura);
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestAuraClassResolves(), 3u);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(aura);
+    free_slk_rows(other);
+}
+
+/* Hash collisions must compare full rawcodes, not just slot/generation.
+ * AqW1 and Agha collide under the production 256-entry hash. */
+TEST(wc3_spell, aura_classification_cache_checks_hash_collisions) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AqW1\"\nC;Y2;X2;K\"AUau\"\n"
+        "C;Y3;X1;K\"Agha\"\nC;Y3;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t aura = { .abilList = "AqW1" }, other = { .abilList = "Agha" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *source;
+
+    reset_entities(); setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    S_TestResetAuraClassificationCache();
+    source->data.UnitAbilities = &aura;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    source->data.UnitAbilities = &other;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    source->data.UnitAbilities = &aura;
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestAuraClassResolves(), 3u);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* An alias can itself be an aura rawcode while inheriting a different aura
+ * base. The old resolver matched both; classification must preserve both. */
+TEST(wc3_spell, aura_classification_cache_preserves_two_family_rawcode) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AUau\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHad" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *source;
+    reset_entities(); setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    source->data.UnitAbilities = &abilities;
+    S_TestResetAuraClassificationCache();
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','H','a','d')).alias,
+         MAKEFOURCC('A','H','a','d'));
+    T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','U','a','u')).alias,
+         MAKEFOURCC('A','H','a','d'));
+    T_EQ(S_TestAuraOwnershipChecks(), 1u);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

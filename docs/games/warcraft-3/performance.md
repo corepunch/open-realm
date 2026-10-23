@@ -432,6 +432,32 @@ Run the baseline `make test` before implementation, reproduce each regression be
 should be selected from the new profile, since the dominant scan currently suppresses their relative shares.
 See [corpse mechanics](corpse-mechanics.md) for the authored Graveyard contract.
 
+## October 22 ARM64 aura-family classification and ownership filtering
+
+The nine-patch ARM64 `perf` capture attributes about 5.68% inclusive sampled
+CPU cycles to `hero_aura_bonus` and the `regen_aura_cache_update` path. Four
+instructions inside provider discovery carry about 2.9% exclusive samples in
+total, though those samples do not establish how much time can be saved.
+
+The provider snapshot already scans each unit's ability sources only once per
+frame. Its next optimisation classifies each four-character rawcode against
+the 14 aura families through a shared 256-entry direct-mapped cache tagged
+with `G_AbilityDataGeneration()`. Both hits and misses (including non-aura
+abilities) avoid repeated `G_AbilityCode` resolution across units and frames.
+The family bitmask preserves an unusual but valid case where a rawcode matches
+one aura directly and a different aura through its authored parent. The
+native and runtime-added `G_ActorHasSkill` lookup is now performed only for
+rawcodes that could provide an aura; owner removal, hero rank, and morph data
+remain live. The 14 authored combat keys have a direct family-slot lookup
+instead of each key linearly searching all family codes on every provider.
+
+The existing per-frame provider cache and aura effect lifecycle remain
+unchanged. `wc3_spell.aura_classification_cache_*` regression tests cover
+positive/negative reuse, live ownership, SLK generation invalidation,
+collisions and multi-family aliases. Compare this path on the same ARM64 scene
+alongside measured frame times after compiling; CPU-cycle percentages are not
+expected FPS improvements. See [Aura targets and overlays](aura-targets-and-overlays.md).
+
 ## Hero aura presentation cache
 
 An earlier full profile assigned 41.62% of sampled CPU cycles to
