@@ -3,6 +3,31 @@
 #define ID_DISEASE_CLOUD MAKEFOURCC('A','a','p','l')
 #define DISEASE_TICK_MS 1000 // milliseconds; DataB is damage per second; infection pulse interval
 
+/* The map edict list is much larger than an individual cloud. Reject distant
+ * entries before spell targeting (immunity/status/ability lookups). Keep the
+ * existing exact sqrtf distance as the final range test: a square-only test
+ * would incorrectly infect units near its corners. This index-free check
+ * also follows moving sources/targets on every pulse. */
+static bool disease_cloud_in_range(vec2_t const *center, vec2_t const *point, float radius) {
+    float const dx = point->x - center->x;
+    float const dy = point->y - center->y;
+    if (!(dx >= -radius && dx <= radius && dy >= -radius && dy <= radius)) return false;
+    return Vector2_distance(center, point) <= radius;
+}
+
+#ifdef BZ_TESTS
+static uint32_t disease_cloud_target_validations;
+void S_TestResetDiseaseCloudTargetValidations(void) { disease_cloud_target_validations = 0; }
+uint32_t S_TestDiseaseCloudTargetValidations(void) { return disease_cloud_target_validations; }
+#endif
+
+static bool disease_cloud_allows_target(uint32_t ability, edict_t *source, edict_t *target) {
+#ifdef BZ_TESTS
+    disease_cloud_target_validations++;
+#endif
+    return S_SpellAllowsTarget(ability, source, target);
+}
+
 /* A recipient carries the infection after leaving the aura; rank and pulse deadline survive save/load. */
 static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
     edict_t *source = S_SpellStatusSource(slot);
@@ -33,8 +58,9 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
     if (row->area <= 0.0f || row->data[0].number <= 0.0f || row->data[1].number <= 0.0f) return true;
     /* ROC omits BuffID; the authored TFT infection token is Bapl (Bplg is cloud art). */
     buff = row->buffID && strlen(row->buffID) >= 4 ? row->buffID : "Bapl";
-    FILTER_EDICTS(target, target != ent && S_SpellAllowsTarget(ability.alias, ent, target) &&
-                  Vector2_distance(&ent->s.origin2, &target->s.origin2) <= row->area) {
+    FILTER_EDICTS(target, target != ent &&
+                  disease_cloud_in_range(&ent->s.origin2, &target->s.origin2, row->area) &&
+                  disease_cloud_allows_target(ability.alias, ent, target)) {
         /* Each infector owns its own infection: another source's Bapl must
          * neither suppress this application nor have its pulse phase reset. */
         heroabilitystatus_t *slot = unit_findstatussource(target, FS_SLKKey(buff), ent);

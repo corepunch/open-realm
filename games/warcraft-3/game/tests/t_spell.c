@@ -19,6 +19,8 @@ uint32_t S_TestMoonWellMissingDataWarningCalls(void);
 uint32_t S_TestMoonWellAlias(edict_t const *);
 void S_TestResetMoonWellUpdateCalls(void);
 uint32_t S_TestMoonWellUpdateCalls(void);
+void S_TestResetDiseaseCloudTargetValidations(void);
+uint32_t S_TestDiseaseCloudTargetValidations(void);
 void S_TestResetMoonWellClassResolves(void);
 uint32_t S_TestMoonWellClassResolves(void);
 
@@ -3481,6 +3483,65 @@ TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
     }
     level.time += 1000; unit_updatestatuses(target);
     T_FEQ(target->health.value, 87, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A distant unit must never pay for a full targeting/immunity check. Check
+ * both edges of the square prefilter and the exact circular distance, while
+ * retaining authored enemy targeting and an explicitly magic-immune unit. */
+TEST(wc3_spell, disease_cloud_rejects_distant_edicts_before_spell_eligibility) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"targs\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Aap1\"\nC;Y2;X2;K\"Aapl\"\nC;Y2;X3;K\"100\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"ground,enemy,organic\"\nC;Y2;X6;K\"13\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 4096, 4096);
+    edict_t *edge = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4196, 4096);
+    edict_t *diagonal_inside = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4156, 4176);
+    edict_t *diagonal_outside = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4167, 4167);
+    edict_t *axis_outside = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4197, 4096);
+    edict_t *far = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 9096, 9096);
+    edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4116, 4106);
+    edict_t *immune = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4136, 4146);
+    edict_t *targets[] = { edge, diagonal_inside, diagonal_outside, axis_outside, far, ally, immune };
+    UnitAbilities_t abilities = { .abilList = "Aap1" };
+    status_application_t immunity = {
+        .buff = "Biyy", .level = 1, .duration = 10.0f,
+        .state_mask = WC3_STATUS_STATE_MAGIC_IMMUNE
+    };
+    source->data.UnitAbilities = &abilities;
+    source->s.player = 0;
+    FOR_LOOP(i, sizeof(targets) / sizeof(targets[0])) {
+        targets[i]->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+        targets[i]->svflags |= SVF_MONSTER;
+        targets[i]->targtype = TARG_GROUND;
+        targets[i]->health.value = targets[i]->health.max_value = 100;
+    }
+    ally->s.player = 0;
+    T_NOT_NULL(unit_applystatus(immune, &immunity));
+    T_ASSERT(S_UnitSpellImmune(immune));
+    S_TestResetDiseaseCloudTargetValidations();
+    S_RunAbilityUpdates(source);
+    /* Only two valid enemies, an ally and an immune unit enter the costly
+     * eligibility routine. The other three lie outside the exact circle. */
+    T_EQ(S_TestDiseaseCloudTargetValidations(), 4);
+    T_NOT_NULL(unit_findstatus(edge, MAKEFOURCC('B','a','p','l')));
+    T_NOT_NULL(unit_findstatus(diagonal_inside, MAKEFOURCC('B','a','p','l')));
+    T_NULL(unit_findstatus(diagonal_outside, MAKEFOURCC('B','a','p','l')));
+    T_NULL(unit_findstatus(axis_outside, MAKEFOURCC('B','a','p','l')));
+    T_NULL(unit_findstatus(far, MAKEFOURCC('B','a','p','l')));
+    T_NULL(unit_findstatus(ally, MAKEFOURCC('B','a','p','l')));
+    T_NULL(unit_findstatus(immune, MAKEFOURCC('B','a','p','l')));
+    /* Target movement must take effect on the next update; there is no
+     * persistent range membership to invalidate. */
+    diagonal_outside->s.origin2.x = 4146;
+    diagonal_outside->s.origin2.y = 4146;
+    S_TestResetDiseaseCloudTargetValidations();
+    S_RunAbilityUpdates(source);
+    T_EQ(S_TestDiseaseCloudTargetValidations(), 5);
+    T_NOT_NULL(unit_findstatus(diagonal_outside, MAKEFOURCC('B','a','p','l')));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

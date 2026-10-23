@@ -1,5 +1,33 @@
 # WC3 Performance Hot Spots
 
+## October 23 ARM64 Disease Cloud range-first targeting (patch nineteen)
+
+Profiles collected on Human02, NightElf07 and Undead07 after the first
+18 patches show that the earlier Human02-only renderer bias does not capture
+all missions. On Undead07, a hot instruction in `S_PossessionSpellImmune`
+accounts for 7.30% exclusive sampled cycles and is reached from
+`CAbilityDiseaseCloud` through `S_SpellAllowsTarget` (19.78% inclusive along
+that call chain). These shares are *not* complete function costs or FPS estimates.
+
+`CAbilityDiseaseCloud` previously invoked `S_SpellAllowsTarget` on every
+non-source edict before checking the target's range. It now rejects entities
+outside an axis-aligned square first, then performs the **original exact
+Euclidean range check**, and only then resolves spell eligibility. This
+avoids immunity/status/ability scans for distant entities without expanding
+the circle, changing exact-edge behavior, altering authored target masks or
+changing infection timing, source identity, refresh rules or save data.
+
+A headless `wc3_spell.disease_cloud_rejects_distant_edicts_before_spell_eligibility`
+regression exercises exact-range edges, near/corner/out-of-range enemies,
+allies and magic-immune targets; a `BZ_TESTS`-only counter verifies that
+out-of-range edicts do not enter expensive target validation. Existing
+`creep_disease_cloud_alias_ticks_authored_area_damage` and
+`disease_cloud_independent_sources_and_refresh` tests cover damage and
+source-specific status phase. No debug logging, persistent cache or extra
+allocation was added. The native game-module build passed; automated tests
+and ARM64 timing remain for the maintainer. Compare fixed-scene Undead07 frame times and `perf`
+profiles and verify Human02/NightElf07 do not regress.
+
 ## October 23 ARM64 ground-surface candidate index (patch sixteen)
 
 `R_ConformGroundSurfaces` previously rescanned every view entity for each
