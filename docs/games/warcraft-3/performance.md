@@ -1,5 +1,47 @@
 # WC3 Performance Hot Spots
 
+## October 24 ARM64 status-update frame gate and periodic pulse deadline (patch twenty-two)
+
+The Human02, NightElf07 and Undead07 profiles after the first 21 performance
+patches identify a hot instruction inside `unit_updatestatuses` at 3.37%,
+5.20% and 4.21% *exclusive sampled CPU shares* respectively. Those values
+represent a hot instruction rather than total function cost; the profiles do
+not establish a frame-rate change on their own. A reported FPS regression
+across patches nineteen through twenty-one has not been causally isolated.
+
+`G_RunEntity` previously called `unit_updatestatuses` on every live edict,
+including entities without `unit_state` and units whose validated timed-status
+mask has no timed entries. The frame caller now bypasses the function if no
+unit state exists or the mask equals `TIMED_STATUS_UPDATE_VALID` (a validated
+index with no timed slots). It still calls the updater for an invalid index
+(e.g. spawn/load, direct fixture edits) and for any live timed slot. This
+preserves the full index rebuild, expiration/removal, timed-life death and
+other status lifecycle work, including statuses added during `spell_run_frame`.
+Managed add/remove operations already maintain the index. The function itself
+remains callable directly from combat, save/load and tests.
+
+Within the existing status update, statuses with a future nonzero `next_tick`
+now skip `A_STATUS_TICK` ability dispatch until their deadline **while the
+applying source is valid**, still running expiry checks first. The current
+scheduled owners (Disease Cloud, Poison and Entangling Roots) have no periodic
+work before the next pulse; Disease Cloud also retires an invalidated source,
+so invalid/missing sources must still enter their callback immediately.
+Slots with `next_tick == 0` retain the original per-frame tick-dispatch path.
+The loop still reads the live timed-status mask
+before each slot so callbacks can remove or apply later slots; no persistent
+fields, timer heap or new cache invalidation contract are introduced.
+
+Headless tests `wc3_combat.status_frame_*` use the actual `G_RunEntity` caller
+to verify no sweeps for valid empty/permanent-only indexes, dynamic add/remove
+and invalid-mask rebuild after direct edits. The
+`wc3_combat.status_update_skips_future_pulses_but_not_due_or_expired` test
+checks just-before, exact-deadline and expiry ordering via test-only counters;
+existing poison, roots, Disease Cloud and timed-life tests cover live spell
+behaviour. These test counters are excluded from release builds. No debug
+logging was added. The native game-module build passed; run the headless tests,
+then compare identical gameplay scenes and median frame times across missions
+on ARM64 before drawing performance conclusions. Tests were not run here.
+
 ## October 23 ARM64 Disease Cloud range-first targeting (patch nineteen)
 
 Profiles collected on Human02, NightElf07 and Undead07 after the first

@@ -57,6 +57,9 @@ void  attack_ranged_cooldown(edict_t *self);
 bool  attack_menu_selecttarget(edict_t *ent, edict_t *target);
 void  M_MoveFrame(edict_t *self);
 void  G_RunEntity(edict_t *ent);
+void  Unit_TestResetStatusUpdateCounts(void);
+uint32_t Unit_TestStatusTickDispatchAttempts(void);
+uint32_t Unit_TestStatusSweepCalls(void);
 void  unit_add_build_queue(edict_t *self, edict_t *item);
 void  order_move(edict_t *self, edict_t *target);
 
@@ -3666,6 +3669,96 @@ TEST(wc3_combat, timed_status_index_rebuilds_after_direct_edit) {
     level.time = 1051;
     unit_updatestatuses(ent);
     T_EQ(ent->unit_state->statuses[8].level, 0);
+}
+
+/* Exercise the production frame caller, not just the private status-mask
+ * predicate. Permanent-only and empty units must stop entering the updater;
+ * invalid or newly populated timed indexes must continue to enter it. */
+TEST(wc3_combat, status_frame_skips_valid_empty_and_permanent_indexes) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *status;
+    ent->movetype = MOVETYPE_NONE;
+    level.time = 1000;
+
+    Unit_TestResetStatusUpdateCounts();
+    G_RunEntity(ent); /* Newly allocated unit: build the initially invalid index. */
+    T_EQ(Unit_TestStatusSweepCalls(), 1u);
+    T_EQ(ent->unit_state->timed_status_update_mask, 1u << MAX_UNIT_STATUSES);
+    G_RunEntity(ent);
+    T_EQ(Unit_TestStatusSweepCalls(), 1u); /* Valid empty: no frame sweep. */
+
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    G_RunEntity(ent);
+    T_EQ(Unit_TestStatusSweepCalls(), 1u); /* Permanent-only status. */
+    status = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(status);
+    unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
+
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    G_RunEntity(ent);
+    T_EQ(Unit_TestStatusSweepCalls(), 2u); /* Newly timed slot. */
+    level.time = 1051;
+    G_RunEntity(ent);
+    T_EQ(Unit_TestStatusSweepCalls(), 3u);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    G_RunEntity(ent);
+    T_EQ(Unit_TestStatusSweepCalls(), 3u); /* Back to empty. */
+}
+
+TEST(wc3_combat, status_frame_rebuilds_invalid_mask_after_direct_edit) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    ent->movetype = MOVETYPE_NONE;
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    ent->unit_state->statuses[13] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','u'), .level = 1, .timestamp = 1050
+    };
+    unit_status_invalidate_update_mask(ent);
+    level.time = 1051;
+    Unit_TestResetStatusUpdateCounts();
+    G_RunEntity(ent);
+    T_EQ(Unit_TestStatusSweepCalls(), 1u);
+    T_EQ(ent->unit_state->statuses[13].level, 0u);
+    T_EQ(ent->unit_state->timed_status_update_mask, 1u << MAX_UNIT_STATUSES);
+}
+
+/* Pulse-owning statuses carry a next_tick deadline, unlike other statuses.
+ * Their owner callbacks do not need to run until the scheduled pulse, but
+ * expiration remains authoritative even if next_tick is beyond lifetime. */
+TEST(wc3_combat, status_update_skips_future_pulses_but_not_due_or_expired) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *status;
+    level.time = 1000;
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 3.0f));
+    status = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(status);
+    /* A nonzero origin counts dispatch attempts before ability lookup; the
+     * test does not depend on retail ability data or executing spell effects. */
+    status->source_ability = MAKEFOURCC('X','x','x','x');
+    status->source = ent;
+    status->source_spawn_time = ent->spawn_time;
+    status->next_tick = 2000;
+
+    Unit_TestResetStatusUpdateCounts();
+    level.time = 1999;
+    unit_updatestatuses(ent);
+    T_EQ(Unit_TestStatusTickDispatchAttempts(), 0u);
+    level.time = 2000;
+    unit_updatestatuses(ent);
+    T_EQ(Unit_TestStatusTickDispatchAttempts(), 1u);
+    /* Disease Cloud must be able to retire an orphaned source immediately,
+     * even when a future pulse is still scheduled. */
+    status->next_tick = 3500;
+    status->source = NULL;
+    level.time = 2500;
+    unit_updatestatuses(ent);
+    T_EQ(Unit_TestStatusTickDispatchAttempts(), 2u);
+    /* Expiry also takes precedence over a future pulse. */
+    status->next_tick = 5000;
+    level.time = 4001;
+    unit_updatestatuses(ent);
+    T_EQ(Unit_TestStatusTickDispatchAttempts(), 2u);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
 }
 
 /* The hot status-level query must use an empty occupied mask instead of

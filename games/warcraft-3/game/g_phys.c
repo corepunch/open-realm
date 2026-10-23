@@ -182,7 +182,12 @@ void G_RunEntity(edict_t *ent) {
     if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
     bool const world_active = G_UnitIsWorldActive(ent);
     spell_run_frame(ent);
-    unit_updatestatuses(ent);
+    /* A validated empty timed-status index cannot expire or tick anything.
+     * Keep the unindexed case: newly spawned/restored or explicitly edited
+     * status arrays must still be rebuilt by unit_updatestatuses(). */
+    if (ent->unit_state &&
+        ent->unit_state->timed_status_update_mask != (1u << MAX_UNIT_STATUSES))
+        unit_updatestatuses(ent);
     if (world_active) {
         SAFE_CALL(ent->prethink, ent);
         switch (ent->movetype) {

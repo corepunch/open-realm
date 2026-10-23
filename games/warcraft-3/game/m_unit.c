@@ -1734,9 +1734,23 @@ float G_UnitArmorValue(edict_t const *ent) {
  * status's origin ability rawcode, never from the victim's learned abilities
  * (the victim may not own the casting ability). REMOVE arrives while the slot
  * is still valid; the wipe happens after every owner has run. */
+#ifdef BZ_TESTS
+static uint32_t unit_status_tick_dispatch_attempts;
+static uint32_t unit_status_sweep_calls;
+void Unit_TestResetStatusUpdateCounts(void) {
+    unit_status_tick_dispatch_attempts = 0;
+    unit_status_sweep_calls = 0;
+}
+uint32_t Unit_TestStatusTickDispatchAttempts(void) { return unit_status_tick_dispatch_attempts; }
+uint32_t Unit_TestStatusSweepCalls(void) { return unit_status_sweep_calls; }
+#endif
+
 static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg, status_remove_reason_t reason) {
     abilityitem_t item;
     abilityCall_t call;
+#ifdef BZ_TESTS
+    if (msg == A_STATUS_TICK) unit_status_tick_dispatch_attempts++;
+#endif
     if (!ent || !slot || !slot->level || !ability) return;
     item = S_AbilityItem(ability);
     if (!item.ability || !item.ability->proc) return;
@@ -2082,6 +2096,9 @@ void unit_updatestatuses(edict_t *ent) {
     bool militia_expired = false;
     uint32_t mask;
 
+#ifdef BZ_TESTS
+    unit_status_sweep_calls++;
+#endif
     if (!ent || !ent->unit_state) return;
     mask = ent->unit_state->timed_status_update_mask;
     if (!(mask & TIMED_STATUS_UPDATE_VALID)) {
@@ -2123,7 +2140,19 @@ void unit_updatestatuses(edict_t *ent) {
             unit_timed_status_log("expire", ent, status);
             unit_removestatus_deferred(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
-        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
+        } else if ((!status->next_tick || now >= status->next_tick ||
+                    !status->source || !status->source->inuse ||
+                    status->source->spawn_time != status->source_spawn_time) &&
+                   !M_IsDead(ent)) {
+            /* Scheduled Poison, Disease Cloud and Roots pulses do no work
+             * before next_tick while their applying source remains valid.
+             * Do not defer a missing/recycled source: Disease Cloud's tick
+             * callback also retires orphaned infections immediately.
+             * Expiry above always takes precedence over either case. */
+            UnitDispatchStatus(ent, status,
+                               (status->source_ability ? status->source_ability : status->data),
+                               A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
+        }
         unit_status_track_timed_slot(ent, status);
     }
     if (changed) {
