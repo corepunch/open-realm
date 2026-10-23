@@ -1,5 +1,37 @@
 # WC3 Performance Hot Spots
 
+## October 23 ARM64 contiguous splat submission batching (patch fourteen)
+
+The post-patch-thirteen handheld profile puts the world splat geometry path at
+about 2.81% inclusive CPU sample share and the immediate-event splat draw path
+at about 3.21% within the sampled HUD/rendering call chain. These paths
+**overlap other renderer costs** and cannot be summed or translated directly
+into an FPS improvement. The prior small-rectangle geometry cache showed a 1.4% increase in sampled
+splat-generation cost and was removed; this pass targets redundant submissions.
+
+`R_AddRectSplatUV` reuses the existing vertex buffer, per-texture flush, and
+shader state setup for **contiguous compatible splats**. Different atlas frames,
+vertex tints, and UVs are written at submission time into the existing vertex
+order. Texture *or shader* changes flush first, as does buffer exhaustion;
+blended splats are never sorted, grouped across intervening draw passes, or
+moved across a model draw. An empty batch does not issue GL state changes.
+
+Only the uninterrupted `R_DrawDecals` pass and the retained SPL/FPT/UBR event
+splat pass in `R_W3DrawEventSplats` opt into batching. Per-entity splats remain
+immediate because `R_RenderModel` and supported/flat overlays can intervene;
+newly emitted event splats drawn outside the retained pass also remain
+immediate. Lazy event-texture loads finish the current batch *before* any GL
+resource registration, then restart a fresh batch. Terrain-conforming geometry clipping, depth bias, alpha blending, and atlas
+animation remain in effect.
+
+Regression tests `renderer_terrain.consecutive_splats_batch_without_changing_atlas_color_or_texture_order`
+and `renderer_terrain.splat_batch_empty_pass_does_not_change_gl_state`
+exercise submission count, texture/shader boundaries, UV/tint order and an
+empty pass with mock GL calls; renderer-game event tests also assert retained
+splat batching while preserving one-off event renders. **No local compilation
+or test execution was performed for this patch.** Compare the same gameplay
+scene on ARM64 using stable frame-time measurements and a fresh cycle profile.
+
 ## October 23 ARM64 client overlay paint-pass grouping
 
 After the occupied-index status-state patch, `SCR_DrawLayout` was 10.78%

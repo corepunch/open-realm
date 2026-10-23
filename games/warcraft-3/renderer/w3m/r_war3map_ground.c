@@ -358,6 +358,7 @@ static void R_FlushSplatBatch(void) {
  * vary, so re-issuing it per splat was pure overhead. */
 static texture_t const *g_splat_texture;
 static splat_shader_t *g_splat_shader;
+static bool g_splat_batch_active;
 
 static void R_SetSplatDepthBias(bool enabled) {
     if (enabled) {
@@ -430,25 +431,44 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
 void R_BeginSplatBatch(splat_shader_t *shader) {
     g_splat_shader = shader;
     g_splat_texture = NULL;
+    g_splat_batch_active = true;
     ground_current_vertex = ground_vertex_buffer;
 }
 
-void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color) {
-    if (!tr.world || !texture) {
+/* Preserve submission order, including alpha blending: only consecutive
+ * rectangles using the same texture and shader may share a draw. Atlas UVs
+ * and per-rectangle tint are baked per vertex, never used as batch keys. */
+void R_AddRectSplatUV(rectSplatParams_t const *params) {
+    if (!params || !tr.world || !params->mins || !params->maxs || !params->uv_mins ||
+        !params->uv_maxs || !params->texture || !params->shader) return;
+    if (!g_splat_batch_active) {
+        R_RenderRectSplatUV(params); /* Preserve unscoped immediate callers. */
         return;
     }
-    if (texture != g_splat_texture) {
+    if (params->texture != g_splat_texture || params->shader != g_splat_shader) {
         R_FlushSplatBatch();
-        R_SetupSplatState(texture, g_splat_shader);
+        R_SetupSplatState(params->texture, params->shader);
     }
-    R_GenerateSplatTiles(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
-        .uv_mins = &(vec2_t){ 0, 0 }, .uv_maxs = &(vec2_t){ 1, 1 }, .color = color));
+    R_GenerateSplatTiles(params);
+}
+
+void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color) {
+    vec2_t const uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    R_AddRectSplatUV(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .texture = texture,
+        .shader = g_splat_shader, .color = color));
 }
 
 void R_EndSplatBatch(void) {
-    R_FlushSplatBatch();
-    R_SetSplatDepthBias(false);
-    R_Call(glDepthMask, GL_TRUE);
+    if (!g_splat_batch_active) return;
+    if (g_splat_texture) {
+        R_FlushSplatBatch();
+        R_SetSplatDepthBias(false);
+        R_Call(glDepthMask, GL_TRUE);
+    }
+    g_splat_batch_active = false;
+    g_splat_texture = NULL;
+    g_splat_shader = NULL;
 }
 
 typedef struct {

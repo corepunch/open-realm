@@ -179,6 +179,8 @@ void R_DrawSplatRects(void) {
 }
 
 void R_DrawDecals(void) {
+    /* Consecutive decals preserve array order and share texture/shader state. */
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
     FOR_LOOP(i, tr.viewDef.num_decals) {
         renderDecal_t const *decal = tr.viewDef.decals + i;
         box3_t bounds;
@@ -195,8 +197,11 @@ void R_DrawDecals(void) {
                 continue;
             }
         }
-        R_RenderSplat(&decal->origin, decal->radius, decal->texture, R_SPLAT_SHADER(&tr.shader_splat), decal->color);
+        vec2_t const mins = { decal->origin.x - decal->radius, decal->origin.y - decal->radius };
+        vec2_t const maxs = { decal->origin.x + decal->radius, decal->origin.y + decal->radius };
+        R_AddRectSplat(&mins, &maxs, decal->texture, decal->color);
     }
+    R_EndSplatBatch();
 }
 
 uint32_t selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };

@@ -141,6 +141,16 @@ See [Land Mines](land-mines.md) for the gameplay chain.
 
 ## `SPL` / `FPT` data flow
 
+Retained SPL/FPT/UBR splats in the same world pass are submitted in original
+slot order through the renderer's contiguous splat batch. Only consecutive
+texture/shader-compatible triangles merge into one GPU upload/draw; atlas UV
+frames and per-effect tint remain independent, and any texture/shader change
+flushes first. A lazily loaded splat texture flushes the queued draw before GL
+resource registration. Immediate event emission is unchanged; splats cannot
+be batched across intervening model draws. See
+[WC3 performance](performance.md) for the ARM64 profiling rationale.
+
+
 `SPL` and `FPT` event objects resolve `Splats\SplatData.slk` in renderer asset scope.  The row supplies `Dir`, `file`, `Rows`, `Columns`, `Scale`, `Lifespan`, `Decay`, the lifespan/decay UV frame ranges, Start/Middle/End RGBA values, and retained `BlendMode`, `Water`, and `Sound` metadata.  The event snapshots the animated event-node world position into the same bounded renderer-only transient pool used by UBR.
 
 The terrain splat renderer accepts an explicit UV rectangle, so a SplatData atlas cell remains terrain-conforming even when the splat crosses tile boundaries and the generated polygons are clipped.  Atlas cells are numbered left-to-right, top-to-bottom from zero.  During `Lifespan`, the consumer advances once from `UVLifespanStart` to `UVLifespanEnd` while interpolating Start -> Middle colour; during `Decay`, it advances once from `UVDecayStart` to `UVDecayEnd` while interpolating Middle -> End colour.

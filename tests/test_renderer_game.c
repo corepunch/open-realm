@@ -14,6 +14,10 @@
 #define _W3M_DrawAlphaSurfaces R_TestWaterAlphaSurfacePass
 #define R_LightningDraw R_TestLightningDraw
 #define R_WeatherEmit R_TestWeatherEmit
+#define R_BeginSplatBatch R_TestEventBeginSplatBatch
+#define R_AddRectSplat R_TestEventAddRectSplat
+#define R_AddRectSplatUV R_TestEventAddRectSplatUV
+#define R_EndSplatBatch R_TestEventEndSplatBatch
 #include "../games/warcraft-3/renderer/r_game.c"
 #undef MDLX_TraceWalkableSurface
 #undef MDLX_SetEntityAnimationFrame
@@ -27,6 +31,10 @@
 #define R_GetEntityMatrix R_TestEntityMatrixFromEnts
 #include "../renderer/r_ents.c"
 #undef R_GetEntityMatrix
+#undef R_BeginSplatBatch
+#undef R_AddRectSplat
+#undef R_AddRectSplatUV
+#undef R_EndSplatBatch
 
 #include "test.h"
 
@@ -41,6 +49,7 @@ static char test_sound_path[512];
 static vec3_t test_sound_origin;
 static uint32_t test_sound_count;
 static uint32_t test_splat_count;
+static uint32_t test_splat_batch_begins, test_splat_batch_ends, test_splat_batch_adds;
 static vec2_t test_splat_origin;
 static float test_splat_radius;
 static uint32_t test_flat_splat_count;
@@ -102,6 +111,32 @@ TEST(renderer_game, zero_lifetime_event_splats_are_one_frame_and_marked_unverifi
     T_EQ(test_splat_count, 2);
     T_ASSERT(!R_W3RenderEventSplat(&uber));
     R_W3ClearEventWarnings(); tr.viewDef.time = saved_time;
+}
+
+TEST(renderer_game, retained_splat_pass_batches_in_slot_order_without_changing_immediate_emission) {
+    wc3SplatData_t row = { .name = "BatchSplat", .rows = 1, .columns = 1,
+        .scale = 12.0f, .lifespan = 2.0f, .texture = &test_splat_texture };
+    wc3EventSplat_t first = { .kind = WC3_EVENT_SPLAT_SPLAT, .splat_row = &row,
+        .origin = {12, 28}, .start_time = 100, .active = true };
+    wc3EventSplat_t second = first;
+    uint32_t saved_time = tr.viewDef.time;
+    render_phase_t saved_phase = tr.render_phase;
+    second.origin = MAKE(vec2_t, 30, 44);
+    R_W3ClearEventSplats();
+    test_splat_count = test_splat_batch_adds = test_splat_batch_begins = test_splat_batch_ends = 0;
+    tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 200;
+    /* Outside the retained pass an event still draws immediately. */
+    T_ASSERT(R_W3RenderEventSplat(&first));
+    T_EQ(test_splat_count, 1); T_EQ(test_splat_batch_adds, 0);
+    event_splats[0] = first; event_splats[1] = second;
+    R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 3);
+    T_EQ(test_splat_batch_adds, 2);
+    T_EQ(test_splat_batch_begins, 1); T_EQ(test_splat_batch_ends, 1);
+    T_FEQ(test_splat_origin.x, 30.0f, 0.001f);
+    T_FEQ(test_splat_origin.y, 44.0f, 0.001f);
+    R_W3ClearEventSplats();
+    tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
 }
 
 TEST(renderer_game, reused_entity_generation_seeds_mdx_event_clock) {
@@ -246,6 +281,26 @@ void R_TestWaterAlphaSurfacePass(void) {
 }
 void R_TestLightningDraw(void) {}
 void R_TestWeatherEmit(void) {}
+
+void R_TestEventBeginSplatBatch(splat_shader_t *shader) {
+    (void)shader;
+    test_splat_batch_begins++;
+}
+void R_TestEventEndSplatBatch(void) { test_splat_batch_ends++; }
+void R_TestEventAddRectSplatUV(rectSplatParams_t const *params) {
+    test_splat_batch_adds++;
+    R_RenderRectSplatUV(params);
+}
+void R_TestEventAddRectSplat(vec2_t const *mins, vec2_t const *maxs,
+                            texture_t const *texture, color32_t color) {
+    vec2_t center = { (mins->x + maxs->x) * 0.5f, (mins->y + maxs->y) * 0.5f };
+    (void)texture;
+    test_splat_batch_adds++;
+    test_splat_count++;
+    test_splat_origin = center;
+    test_splat_radius = (maxs->x - mins->x) * 0.5f;
+    test_splat_color = color;
+}
 
 void R_RenderRectSplatUV(rectSplatParams_t const *params) {
     test_splat_count++;
@@ -617,7 +672,11 @@ TEST(renderer_model, production_spl_dispatch_uses_splat_atlas_and_event_transfor
     T_FEQ(test_splat_uv_mins.x, 0.0f, 0.001f); T_FEQ(test_splat_uv_mins.y, 0.0f, 0.001f);
     T_FEQ(test_splat_uv_maxs.x, 0.5f, 0.001f); T_FEQ(test_splat_uv_maxs.y, 0.5f, 0.001f);
 
+    test_splat_batch_begins = test_splat_batch_ends = test_splat_batch_adds = 0;
     tr.viewDef.time = 1150; R_W3DrawEventSplats();
+    T_EQ(test_splat_batch_begins, 1);
+    T_EQ(test_splat_batch_ends, 1);
+    T_EQ(test_splat_batch_adds, 1);
     T_EQ(test_splat_count, 2);
     T_FEQ(test_splat_uv_mins.x, 0.0f, 0.001f); T_FEQ(test_splat_uv_mins.y, 0.5f, 0.001f);
     T_EQ(test_splat_color.r, 0); T_EQ(test_splat_color.g, 255); T_EQ(test_splat_color.b, 0);
@@ -678,7 +737,11 @@ TEST(renderer_model, production_ubr_dispatch_uses_data_lifetime_and_event_transf
     T_FEQ(test_splat_radius, 64.0f, 0.001f);
     T_EQ(test_splat_color.r, 255); T_EQ(test_splat_color.g, 0); T_EQ(test_splat_color.b, 0);
 
+    test_splat_batch_begins = test_splat_batch_ends = test_splat_batch_adds = 0;
     tr.viewDef.time = 1650; R_W3DrawEventSplats();
+    T_EQ(test_splat_batch_begins, 1);
+    T_EQ(test_splat_batch_ends, 1);
+    T_EQ(test_splat_batch_adds, 1);
     T_EQ(test_splat_count, 2);
     T_EQ(test_splat_color.r, 0); T_EQ(test_splat_color.g, 255); T_EQ(test_splat_color.b, 0);
     tr.viewDef.time = 3150; R_W3DrawEventSplats();

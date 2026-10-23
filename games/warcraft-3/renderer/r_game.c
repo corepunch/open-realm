@@ -357,6 +357,7 @@ typedef struct {
 static wc3EventSplat_t event_splats[WC3_EVENT_SPLAT_MAX];
 static uint32_t event_splat_serial;
 static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id);
+static bool event_splat_batch_active;
 static void R_W3DrawEventSplats(void);
 static bool R_W3RenderEventSplat(wc3EventSplat_t *splat);
 static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params);
@@ -651,14 +652,19 @@ static texture_t const *R_W3LoadSplatTexture(wc3SplatTextureParams_t const *para
 
     if (!params || !params->texture || !params->attempted) return NULL;
     if (*params->texture || *params->attempted) return *params->texture;
+    /* Lazy texture registration may touch GL bindings. Finish previously
+     * queued splats before loading, then resume an empty batch so its first
+     * actual rectangle always reinstalls the shader, texture and VAO. */
+    if (event_splat_batch_active) R_EndSplatBatch();
     *params->attempted = true;
     if (!params->dir || !params->file || !params->dir[0] || !params->file[0]) {
         fprintf(stderr, "WC3 renderer: %s row '%s' has no splat texture path\n",
                 params->family ? params->family : "splat", params->name ? params->name : "(unnamed)");
-        return NULL;
+    } else {
+        snprintf(path, sizeof(path), "%s\\%s.blp", params->dir, params->file);
+        *params->texture = R_LoadTexture(path);
     }
-    snprintf(path, sizeof(path), "%s\\%s.blp", params->dir, params->file);
-    *params->texture = R_LoadTexture(path);
+    if (event_splat_batch_active) R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_default));
     return *params->texture;
 }
 
@@ -1910,8 +1916,10 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
         uv = R_W3SplatAtlasUV(row, frame);
         mins = MAKE(vec2_t, splat->origin.x - row->scale, splat->origin.y - row->scale);
         maxs = MAKE(vec2_t, splat->origin.x + row->scale, splat->origin.y + row->scale);
-        R_RenderRectSplatUV(&MAKE(rectSplatParams_t, .mins = &mins, .maxs = &maxs, .uv_mins = &uv.mins,
-            .uv_maxs = &uv.maxs, .texture = texture, .shader = R_SPLAT_SHADER(&tr.shader_default), .color = color));
+        rectSplatParams_t params = { .mins = &mins, .maxs = &maxs, .uv_mins = &uv.mins,
+            .uv_maxs = &uv.maxs, .texture = texture, .shader = R_SPLAT_SHADER(&tr.shader_default), .color = color };
+        if (event_splat_batch_active) R_AddRectSplatUV(&params);
+        else R_RenderRectSplatUV(&params);
         if (total_ms <= 0.0f) splat->active = false;
         return true;
     } else {
@@ -1939,7 +1947,13 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
             color = middle_color;
         else
             color = R_W3LerpSplatColor(middle_color, end_color, ((float)elapsed - birth_ms - pause_ms) / decay_ms);
-        R_RenderSplat(&splat->origin, row->scale, texture, R_SPLAT_SHADER(&tr.shader_default), color);
+        if (event_splat_batch_active) {
+            vec2_t mins = { splat->origin.x - row->scale, splat->origin.y - row->scale };
+            vec2_t maxs = { splat->origin.x + row->scale, splat->origin.y + row->scale };
+            R_AddRectSplat(&mins, &maxs, texture, color);
+        } else {
+            R_RenderSplat(&splat->origin, row->scale, texture, R_SPLAT_SHADER(&tr.shader_default), color);
+        }
         if (total_ms <= 0.0f) splat->active = false;
         return true;
     }
@@ -1947,7 +1961,13 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
 
 static void R_W3DrawEventSplats(void) {
     if (tr.render_phase != RENDER_PHASE_SOLID) return;
+    /* This pass contains only splats: preserve slot order but merge adjacent
+     * matching textures. Event emissions outside this pass stay immediate. */
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_default));
+    event_splat_batch_active = true;
     FOR_LOOP(i, WC3_EVENT_SPLAT_MAX) R_W3RenderEventSplat(event_splats + i);
+    event_splat_batch_active = false;
+    R_EndSplatBatch();
 }
 
 static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id) {

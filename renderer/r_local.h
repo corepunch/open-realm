@@ -384,6 +384,7 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z, text
  * instead of one upload + draw per splat. */
 void R_BeginSplatBatch(splat_shader_t *shader);
 void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color);
+void R_AddRectSplatUV(rectSplatParams_t const *params);
 void R_EndSplatBatch(void);
 
 // r_shader.c

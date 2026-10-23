@@ -2407,9 +2407,70 @@ static void test_splat_disable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) 
 static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
     splat_bias.offsets++; splat_bias.factor = factor; splat_bias.units = units;
 }
+/* Capture real splat batching and draw order without a GL context. The
+ * ground renderer is included as production C below; only GPU calls are
+ * intercepted, including shader/texture binding. */
+#define SPLAT_TEST_DRAW_MAX 12
+#define SPLAT_TEST_VERTEX_CAPTURE 128
+typedef struct {
+    texture_t const *texture;
+    uint32_t count;
+    vertex_t vertices[SPLAT_TEST_VERTEX_CAPTURE];
+} splatTestDraw_t;
+static struct {
+    uint32_t uploads, draws, binds, shader_sets, depth_restores;
+    texture_t const *texture;
+    splatTestDraw_t results[SPLAT_TEST_DRAW_MAX];
+} splat_submit;
+static void test_splat_bind_texture(texture_t const *texture, uint32_t unit) {
+    (void)unit;
+    splat_submit.texture = texture;
+    splat_submit.binds++;
+}
+static void test_splat_wrap_texture(texture_t const *texture, bool s, bool t) {
+    (void)texture; (void)s; (void)t;
+}
+static void test_splat_apply_shader(void *shader) {
+    (void)shader;
+    splat_submit.shader_sets++;
+}
+static void test_splat_bind_buffer(GLenum target, GLuint handle) { (void)target; (void)handle; }
+static void test_splat_bind_vao(GLuint handle) { (void)handle; }
+static void test_splat_blend_func(GLenum src, GLenum dst) { (void)src; (void)dst; }
+static void test_splat_depth_mask(GLboolean enabled) {
+    if (enabled) splat_submit.depth_restores++;
+}
+static void test_splat_buffer_data(GLenum target, GLsizeiptr size, void const *data, GLenum usage) {
+    uint32_t count;
+    (void)target; (void)usage;
+    T_ASSERT(size >= 0 && size % sizeof(vertex_t) == 0);
+    count = (uint32_t)(size / sizeof(vertex_t));
+    T_ASSERT(splat_submit.draws < SPLAT_TEST_DRAW_MAX);
+    splatTestDraw_t *draw = &splat_submit.results[splat_submit.draws];
+    draw->count = count;
+    draw->texture = splat_submit.texture;
+    if (count <= SPLAT_TEST_VERTEX_CAPTURE)
+        memcpy(draw->vertices, data, size);
+    splat_submit.uploads++;
+}
+static void test_splat_draw_arrays(GLenum mode, GLint first, GLsizei count) {
+    T_EQ(mode, GL_TRIANGLES); T_EQ(first, 0);
+    T_ASSERT(splat_submit.draws < SPLAT_TEST_DRAW_MAX);
+    T_EQ(splat_submit.results[splat_submit.draws].count, (uint32_t)count);
+    splat_submit.draws++;
+}
 #define glEnable test_splat_enable
 #define glDisable test_splat_disable
 #define glPolygonOffset test_splat_polygon_offset
+#define glBufferData test_splat_buffer_data
+#define glDrawArrays test_splat_draw_arrays
+#define glBindVertexArray test_splat_bind_vao
+#define glBindBuffer test_splat_bind_buffer
+#define glDepthMask test_splat_depth_mask
+#define glBlendFunc test_splat_blend_func
+#define R_BindTexture test_splat_bind_texture
+#define R_SetTextureWrap test_splat_wrap_texture
+#define R_ApplyShader test_splat_apply_shader
 static struct { uint32_t calls, first, count; float z; } ground_update;
 static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
     (void)buffer;
@@ -2427,6 +2488,15 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
+#undef glBufferData
+#undef glDrawArrays
+#undef glBindVertexArray
+#undef glBindBuffer
+#undef glDepthMask
+#undef glBlendFunc
+#undef R_BindTexture
+#undef R_SetTextureWrap
+#undef R_ApplyShader
 #undef R_RenderRectSplatUV
 #undef R_RenderFlatRectSplat
 #undef R_RenderSplat
@@ -2634,6 +2704,79 @@ TEST(renderer_terrain, deformation_rebuild_rebakes_blight_layer) {
     R_FreeMapSegments();
     R_W3ClearTerrainDeformations();
     tr.world = saved_world;
+}
+
+TEST(renderer_terrain, consecutive_splats_batch_without_changing_atlas_color_or_texture_order) {
+    war3mapVertex_t corners[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = corners };
+    war3map_t const *old_world = tr.world;
+    buffer_t temp_buffer = { .vao = 11, .vbo = 12 };
+    buffer_t *old_buffer = tr.buffer[RBUF_TEMP1];
+    splat_shader_t shader1 = {0}, shader2 = {0};
+    texture_t texture1 = { .width = 32, .height = 32 };
+    texture_t texture2 = { .width = 32, .height = 32 };
+    vec2_t const mins = { 10, 12 }, maxs = { 92, 104 };
+    vec2_t const uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    vec2_t const atlas0 = { 0.25f, 0.125f }, atlas1 = { 0.75f, 0.625f };
+    color32_t const blue = { 20, 40, 220, 160 };
+    rectSplatParams_t rect = { .mins = &mins, .maxs = &maxs, .uv_mins = &uv0,
+        .uv_maxs = &uv1, .texture = &texture1, .shader = &shader1, .color = COLOR32_WHITE };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    uint32_t vertices_per_splat;
+    FOR_LOOP(i, 4) corners[i].accurate_height = 8192;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map; tr.buffer[RBUF_TEMP1] = &temp_buffer;
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect);
+    vertices_per_splat = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_ASSERT(vertices_per_splat > 0 && 3 * vertices_per_splat <= SPLAT_TEST_VERTEX_CAPTURE);
+    memcpy(reference, ground_vertex_buffer, vertices_per_splat * sizeof(vertex_t));
+    R_InvalidateSplatGeometryCache();
+    memset(&splat_submit, 0, sizeof(splat_submit));
+    R_BeginSplatBatch(&shader1);
+    R_AddRectSplatUV(&rect);
+    rect.uv_mins = &atlas0; rect.uv_maxs = &atlas1; rect.color = blue;
+    R_AddRectSplatUV(&rect); /* same shader + texture despite different atlas frame and tint */
+    rect.texture = &texture2;
+    R_AddRectSplatUV(&rect); /* texture change must flush prior draw */
+    rect.texture = &texture1; rect.shader = &shader2;
+    R_AddRectSplatUV(&rect); /* shader change must flush prior draw */
+    R_EndSplatBatch();
+
+    T_EQ(splat_submit.draws, 3);
+    T_EQ(splat_submit.uploads, 3);
+    T_EQ(splat_submit.shader_sets, 3);
+    T_EQ(splat_submit.binds, 3);
+    T_EQ(splat_submit.depth_restores, 1);
+    T_EQ(splat_submit.results[0].count, vertices_per_splat * 2);
+    T_EQ(splat_submit.results[1].count, vertices_per_splat);
+    T_EQ(splat_submit.results[2].count, vertices_per_splat);
+    T_ASSERT(splat_submit.results[0].texture == &texture1);
+    T_ASSERT(splat_submit.results[1].texture == &texture2);
+    T_ASSERT(splat_submit.results[2].texture == &texture1);
+    FOR_LOOP(i, vertices_per_splat) {
+        vertex_t const *plain = &splat_submit.results[0].vertices[i];
+        vertex_t const *animated = &splat_submit.results[0].vertices[vertices_per_splat + i];
+        T_FEQ(plain->position.z, reference[i].position.z, 0.0001f);
+        T_FEQ(plain->texcoord.x, reference[i].texcoord.x, 0.0001f);
+        T_FEQ(animated->texcoord.x, LerpNumber(atlas0.x, atlas1.x, reference[i].texcoord.x), 0.0001f);
+        T_FEQ(animated->texcoord.y, LerpNumber(atlas0.y, atlas1.y, reference[i].texcoord.y), 0.0001f);
+        T_EQ(animated->color.a, blue.a); T_EQ(animated->color.b, blue.b);
+    }
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world; tr.buffer[RBUF_TEMP1] = old_buffer;
+}
+
+TEST(renderer_terrain, splat_batch_empty_pass_does_not_change_gl_state) {
+    splat_shader_t shader = {0};
+    memset(&splat_submit, 0, sizeof(splat_submit));
+    R_BeginSplatBatch(&shader);
+    R_EndSplatBatch();
+    T_EQ(splat_submit.draws, 0);
+    T_EQ(splat_submit.uploads, 0);
+    T_EQ(splat_submit.depth_restores, 0);
 }
 
 TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
