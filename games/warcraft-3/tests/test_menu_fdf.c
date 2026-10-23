@@ -4161,6 +4161,35 @@ static int test_menu_map_list(cstring_t path, cstring_t ext, string_t out, int s
     return 1;
 }
 
+static int test_menu_map_list_with_sidecar(cstring_t path, cstring_t ext, string_t out, int size) {
+    size_t used;
+
+    (void)path;
+    if (strcmp(ext, ".w3m")) {
+        return 0;
+    }
+    snprintf(out, size, "%s", "Maps\\Melee\\._TwinRivers.w3m");
+    used = strlen(out) + 1;
+    snprintf(out + used, size - used, "%s", "Maps\\Melee\\TwinRivers.w3m");
+    return 2;
+}
+
+/* AppleDouble sidecars have no W3I, so they sort first and used to be the
+ * first clickable row; the real map must become index zero instead. */
+TEST(menu_fdf, sidecar_map_files_are_not_listed) {
+    menuImport_t saved = mi;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_with_sidecar;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_startserver");
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_lan_refresh");
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Melee\\TwinRivers.w3m");
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
 /* Native preview placement must fit the entire authored border above the compact metadata rows. */
 TEST(menu_fdf, map_preview_fits_compact_and_full_panes) {
     menuImport_t saved = mi;
