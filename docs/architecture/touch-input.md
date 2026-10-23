@@ -91,6 +91,18 @@ native Screenshot behavior unchanged. The browser-only controller lives at
 `port/web/site/game-shortcut-menus.js` with synthetic event tests at
 `port/web/tests/game-shortcut-menus.test.cjs`.
 
+Safari on iOS can initiate text selection or its touch callout while a finger
+moves from a launcher into the popup, even with `touch-action: none` and
+`pointerdown.preventDefault()`. Controls and child labels have
+`-webkit-user-select: none` and `-webkit-touch-callout: none` permanently.
+While a shortcut popup owns a pointer, `game-shortcut-dragging` temporarily
+applies these restrictions to the whole page, so dragging across adjacent page
+text cannot select it. Cancelable touch/selection/context-menu events are
+prevented for that gesture. The page-wide selection lock is released 250 ms
+after pointer release or cancellation (immediately on blur/visibility loss);
+starting another drag cancels the delayed unlock. Outside a popup gesture,
+normal page text selection remains enabled.
+
 Keyboard-open popups start without an owning pointer. A press inside transfers
 ownership to that pointer and uses the same captured drag/release path. An
 outside press or keyboard focus moving outside dismisses the popup; otherwise

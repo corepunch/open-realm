@@ -40,3 +40,10 @@ test('menus use the existing canvas keyboard path and ship in the web build', ()
   assert.match(build, /bind F12 "cmd log"/);
   assert.match(html, />Chat <span>F12<\/span>/);
 });
+
+
+test('touch shortcut selection lock includes nearby page text and iOS callouts', () => {
+  assert.match(html, /html\.game-shortcut-dragging/);
+  assert.match(html, /-webkit-touch-callout:\s*none/);
+  assert.match(html, /#game-controls,\s*#game-controls \*/);
+});

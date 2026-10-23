@@ -9,6 +9,38 @@
     if (!win || !doc || !canvas || !menus) return;
     let active = null;
     let target = null;
+    let selectionUnlockTimer = null;
+
+    function lockSelection() {
+      if (selectionUnlockTimer !== null) {
+        win.clearTimeout(selectionUnlockTimer);
+        selectionUnlockTimer = null;
+      }
+      doc.documentElement.classList.add('game-shortcut-dragging');
+    }
+
+    function unlockSelection(immediately) {
+      if (selectionUnlockTimer !== null) {
+        win.clearTimeout(selectionUnlockTimer);
+        selectionUnlockTimer = null;
+      }
+      if (immediately) {
+        doc.documentElement.classList.remove('game-shortcut-dragging');
+        return;
+      }
+      // iOS may begin native selection just after pointerup. Keep the page
+      // protected briefly; a new drag cancels this pending unlock.
+      selectionUnlockTimer = win.setTimeout(() => {
+        selectionUnlockTimer = null;
+        if (!active || active.pointerId === null)
+          doc.documentElement.classList.remove('game-shortcut-dragging');
+      }, 250);
+    }
+
+    function preventNativeGesture(event) {
+      if (active && active.pointerId !== null && event.cancelable)
+        event.preventDefault();
+    }
 
     function keyboard(type, key, code, legacy, ctrl, shift) {
       const event = new win.KeyboardEvent(type, {
@@ -53,12 +85,17 @@
       if (target) target.classList.add('is-target');
     }
 
-    function close() {
+    function close(immediateUnlock = false) {
       highlight(null);
-      if (!active) return;
+      if (!active) {
+        if (immediateUnlock) unlockSelection(true);
+        return;
+      }
+      const ownedPointer = active.pointerId !== null;
       active.button.setAttribute('aria-expanded', 'false');
       active.popup.hidden = true;
       active = null;
+      if (ownedPointer || immediateUnlock) unlockSelection(immediateUnlock);
     }
 
     function open(button, popup, pointerId) {
@@ -93,6 +130,7 @@
     }
 
     function capturePointer(button, event) {
+      lockSelection();
       // Capture applies to mouse/pen as well as touch, including a pointer
       // taking over a popup that was opened from the keyboard.
       if (typeof button.setPointerCapture === 'function') {
@@ -155,11 +193,19 @@
       if (active && active.pointerId === null && event.target !== active.button &&
           !active.popup.contains(event.target)) close();
     });
+    // WebKit can still select nearby page text despite canceled pointer events.
+    // These cancelable Touch Events and selection/callout guards apply only
+    // while one of our popups owns a pointer, not to ordinary page controls.
+    doc.addEventListener('touchstart', preventNativeGesture, {capture:true, passive:false});
+    doc.addEventListener('touchmove', preventNativeGesture, {capture:true, passive:false});
+    doc.addEventListener('selectstart', preventNativeGesture, true);
+    doc.addEventListener('dragstart', preventNativeGesture, true);
+    doc.addEventListener('contextmenu', preventNativeGesture, true);
     doc.addEventListener('pointermove', pointerMove, true);
     doc.addEventListener('pointerup', pointerEnd, true);
     doc.addEventListener('pointercancel', pointerEnd, true);
-    win.addEventListener('blur', close);
-    doc.addEventListener('visibilitychange', () => { if (doc.hidden) close(); });
+    win.addEventListener('blur', () => close(true));
+    doc.addEventListener('visibilitychange', () => { if (doc.hidden) close(true); });
     return {close};
   }
 
