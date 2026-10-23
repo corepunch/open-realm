@@ -172,8 +172,8 @@ static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uin
                                 bool upper, uint32_t lo, uint32_t hi) {
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
-        uint32_t keytime = R_KeyFrameAt(track, stride, mid)->time;
-        if (keytime < time || (upper && keytime == time)) lo = mid + 1;
+        int32_t keytime = R_KeyFrameAt(track, stride, mid)->time;
+        if (keytime < (int32_t)time || (upper && keytime == (int32_t)time)) lo = mid + 1;
         else hi = mid;
     }
     return lo;
@@ -225,21 +225,21 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
      * interval or skip the global-sequence validation above. */
     if (keytrack->keyframeCount == 1) {
         mdxKeyFrame_t const *key = R_KeyFrameAt(keytrack, stride, 0);
-        uint32_t const key_time = (uint32_t)key->time;
-        if (key_time >= interval[0] && key_time <= interval[1])
+        int32_t const key_time = key->time;
+        if (key_time >= (int32_t)interval[0] && key_time <= (int32_t)interval[1])
             memcpy(output, key->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
         return;
     }
 
     /* The first/last authored keys frequently bracket an entire animation
-     * interval. In that case no sequence-bound search is needed at all.
-     * Compare as unsigned, matching R_KeyFrameBound's existing semantics. */
+     * interval. In that case no sequence-bound search is needed at all. MDX
+     * key times are signed; some assets use negative lead-in keys. */
     uint32_t const count = keytrack->keyframeCount;
     mdxKeyFrame_t const *track_first = R_KeyFrameAt(keytrack, stride, 0);
     mdxKeyFrame_t const *track_last = R_KeyFrameAt(keytrack, stride, count - 1);
-    uint32_t const first_index = (uint32_t)track_first->time >= interval[0] ? 0 :
+    uint32_t const first_index = track_first->time >= (int32_t)interval[0] ? 0 :
         R_KeyFrameBound(keytrack, stride, interval[0], false, 0, count);
-    uint32_t const end_index = (uint32_t)track_last->time <= interval[1] ? count :
+    uint32_t const end_index = track_last->time <= (int32_t)interval[1] ? count :
         R_KeyFrameBound(keytrack, stride, interval[1], true, first_index, count);
     if (first_index >= end_index)
         return;
@@ -259,7 +259,7 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
     /* A time before the first in-sequence key clamps to that key. With two
      * keys the right bracket is known without searching. Larger tracks search
      * only the sequence's occupied subrange. */
-    if (time <= (uint32_t)first->time) {
+    if ((int32_t)time <= first->time) {
         memcpy(output, first->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
         return;
     }
