@@ -5,7 +5,11 @@
 > compatibility is still under development. A long loading pause can look like
 > a freeze; allow a minute or more before concluding that startup failed.
 > Warcraft III save/load is unsupported in this browser build. Audio uses an
-> AudioWorklet after a user gesture and can underrun during loading stalls.
+> AudioWorklet after a user gesture and can underrun during loading stalls. On iPhone/iPad,
+> the launcher selects Safari's `playback` audio session so sound works with
+> the device's silent switch enabled (older Safari uses a silent looping media
+> element). This can pause music playing in other apps. If Safari interrupts
+> audio, return to the page and tap the game once to resume it.
 
 This guide builds the playable browser engine. `make web-warcraft3-foundation`
 builds a separate WebGL smoke test and does not run Warcraft III.

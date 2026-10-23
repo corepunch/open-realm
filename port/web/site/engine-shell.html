@@ -261,6 +261,7 @@ body.ios-web-app #game-fullscreen { display: none; }
 </div>
 </main>
 <script src="pages-isolation.js"></script>
+<script src="ios-audio-session.js"></script>
 <script>
 var webglProbe = document.createElement('canvas');
 var browserCapable = !!(webglProbe.getContext('webgl2') &&
@@ -330,36 +331,60 @@ document.getElementById('game-escape').addEventListener('click', function (event
   event.stopPropagation();
   sendGameEscape();
 });
-/* AudioContext is created from the first user gesture for browser autoplay policy.
- * The engine worker supplies shared WASM pointers once S_Init has run. */
-var openrealmAudio = { context: null, node: null, pending: null };
+/* Start Web Audio on a direct user gesture, never in the engine worker.
+ * An iOS playback audio session permits sound with the ringer on silent. */
+var openrealmAudio = { context: null, node: null, pending: null,
+                       connecting: false, workletLoaded: false };
+var openrealmIOSAudio = openrealmCreateIOSAudioSession(window, document);
 function openrealmAudioUnlock() {
+  openrealmIOSAudio.unlock();
   if (!openrealmAudio.context) {
     try {
       openrealmAudio.context = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) { return; }
   }
-  if (openrealmAudio.context.state === 'suspended')
+  if (openrealmAudio.context.state !== 'running')
     openrealmAudio.context.resume().catch(function () {});
   if (openrealmAudio.pending) openrealmAudioConnect();
 }
 document.addEventListener('pointerdown', openrealmAudioUnlock, { capture: true });
+document.addEventListener('touchstart', openrealmAudioUnlock, { capture: true, passive: true });
 document.addEventListener('keydown', openrealmAudioUnlock, { capture: true });
+document.addEventListener('visibilitychange', function () {
+  openrealmIOSAudio.visibilityChanged();
+  if (!openrealmAudio.context) return;
+  if (document.hidden)
+    openrealmAudio.context.suspend().catch(function () {});
+  else
+    openrealmAudio.context.resume().catch(function () {});
+});
 async function openrealmAudioConnect() {
-  if (!openrealmAudio.pending || !openrealmAudio.context || openrealmAudio.node) return;
+  if (!openrealmAudio.pending || !openrealmAudio.context ||
+      openrealmAudio.node || openrealmAudio.connecting) return;
   var descriptor = openrealmAudio.pending;
-  openrealmAudio.pending = null;
+  openrealmAudio.connecting = true;
   try {
-    await openrealmAudio.context.audioWorklet.addModule('audio-worklet.js');
+    if (!openrealmAudio.workletLoaded) {
+      await openrealmAudio.context.audioWorklet.addModule('audio-worklet.js');
+      openrealmAudio.workletLoaded = true;
+    }
+    // S_Shutdown may detach the ring while addModule is in flight.
+    if (openrealmAudio.pending !== descriptor) return;
     var node = new AudioWorkletNode(openrealmAudio.context, 'openrealm-audio', {
-      outputChannelCount: [2],
+      numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
       processorOptions: descriptor
     });
     node.connect(openrealmAudio.context.destination);
     openrealmAudio.node = node;
+    openrealmAudio.pending = null;
     await openrealmAudio.context.resume();
   } catch (error) {
+    // Preserve pending for retry on the next user gesture.
     console.warn('OpenRealm browser sound unavailable:', error);
+  } finally {
+    openrealmAudio.connecting = false;
+    if (openrealmAudio.pending && openrealmAudio.pending !== descriptor)
+      openrealmAudioConnect();
   }
 }
 window.openrealmAudioAttach = function (memory, ring, frames, write, read, rate) {
