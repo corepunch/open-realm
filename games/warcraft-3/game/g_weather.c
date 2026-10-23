@@ -53,6 +53,19 @@ void G_WeatherInitMap(void) {
     }
 }
 
+/* Most map scenery and ordinary untinted units have no per-recipient
+ * presentation state. Reject them before the more expensive hero fade,
+ * shared-vision and detector checks. This must be conservative: `currentmove`
+ * can be hero dissipation, `shadowmeld` may be in transition, and invisibility
+ * can be represented by either runtime flags or RF_HIDDEN. A false positive
+ * costs a full evaluation; a false negative would drop presentation state. */
+static bool G_ClientVertexColorCandidate(edict_t const *unit) {
+    return unit && unit->inuse &&
+        (G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) || unit->currentmove ||
+         unit->shadowmeld || (unit->s.renderfx & RF_HIDDEN) ||
+         (unit->runtime.flags & (UNIT_BALANCE_PERMANENT_INVISIBLE | UNIT_BALANCE_GHOST_INVISIBLE)));
+}
+
 /* Build the presentation tint for this recipient. Authoritative vertex colour
  * remains unit state. Hero dissipation fades for every viewer; Shadow Meld and
  * invisibility additionally multiply only owner/shared-vision presentation so
@@ -62,9 +75,11 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
     color32_t color;
     float presentation_alpha = 1.0f;
 
-    if (!unit || !unit->inuse || !out) return false;
+    if (!G_ClientVertexColorCandidate(unit) || !out) return false;
     color = G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) ? unit->vertex_color : COLOR32_WHITE;
-    presentation_alpha = G_UnitDissipatePresentationAlpha(unit);
+    /* Dissipation only occurs while a move is active. This avoids calling
+     * the hero fade helper for static scenery and standing units. */
+    if (unit->currentmove) presentation_alpha = G_UnitDissipatePresentationAlpha(unit);
 
     /* Most entities have no authored tint or presentation fade. An ordinary
      * entity cannot acquire viewer-relative alpha without Shadow Meld,

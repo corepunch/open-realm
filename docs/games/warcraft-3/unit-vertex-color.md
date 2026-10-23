@@ -21,7 +21,7 @@ Current scope is intentionally narrow:
 ```text
 JASS SetUnitVertexColor
     -> games/warcraft-3/game/api/api_unit.h
-    -> edict->vertex_color + vertex_color_set
+    -> edict->vertex_color + UNIT_FLAG_VERTEX_COLOR_SET
     -> WC3 per-frame game datagram (entity number + COLOR32)
     -> client centity_t tint cache
     -> client/cl_view.c V_AddClientEntity
@@ -53,7 +53,7 @@ The Warcraft III MDX renderer already supports fading models whose authored laye
 
 ## Persistence
 
-`vertex_color` and `vertex_color_set` live in the Warcraft III `edict_t`, so save/load preserves both the RGBA value and the distinction between unset and explicit alpha zero. Save format version 17 accompanies the changed WC3 edict layout and rejects older incompatible records rather than interpreting shifted bytes.
+`vertex_color` and the `UNIT_FLAG_VERTEX_COLOR_SET` bit in `unit_flags` live in the Warcraft III `edict_t`, so save/load preserves both the RGBA value and the distinction between unset and explicit alpha zero. Save format version 17 accompanies the changed WC3 edict layout and rejects older incompatible records rather than interpreting shifted bytes.
 
 ## Verification
 

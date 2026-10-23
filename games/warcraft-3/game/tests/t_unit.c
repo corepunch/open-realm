@@ -1413,6 +1413,38 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
+/* Untinted heroes also need fade entries while dissipating. A candidate
+ * filter that looks only at the authored colour flag would make them pop. */
+TEST(wc3_unit, untinted_hero_dissipation_publishes_white_fade) {
+    edict_t *hero, *clent;
+    color32_t color;
+
+    reset_test_entities();
+    setup_test_world();
+    game.constants.dissipateTime = 1.0f;
+    hero = make_inventory_unit(0, 0);
+    hero->s.player = 0;
+    hero->health.value = 0.0f;
+    hero->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    hero->think = monster_think;
+    G_SetUnitFlag(hero, UNIT_FLAG_VERTEX_COLOR_SET, false);
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+
+    level.time = 1000;
+    unit_begin_decay(hero);
+    FOR_LOOP(i, 5) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.5f, 0.001f);
+    T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_EQ(color.a, 128); /* round(255 * 0.5) */
+    T_ASSERT(!G_UnitHasFlag(hero, UNIT_FLAG_VERTEX_COLOR_SET));
+}
+
 TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     reset_test_entities();
     edict_t *hero = make_inventory_unit(0, 0);

@@ -935,3 +935,23 @@ relevant load scenario on the same build mode, hardware, and data set. Compare
 and track peak RAM. Keep initial load, same-map restart, and return-to-menu
 reload separate. If diagnostics are enabled, use a matching diagnostic build for
 both baselines; do not claim a gain solely from the prior unoptimized log.
+
+### Per-client tint scan rejection (patch fifteen, ARM64)
+
+`G_WriteClientDatagram` still visits edicts in entity-number order so its tint
+section remains complete and deterministic, including otherwise unselected
+units and tints which are not part of the bounded entity snapshot. Most map
+scenery, however, is neither explicitly tinted nor a source of viewer-relative
+alpha. A conservative, constant-time candidate predicate now rejects such
+edicts before evaluating hero dissipation or FoW/detector visibility. A live
+`currentmove`, Shadow Meld state, `RF_HIDDEN`, permanent/ghost invisibility,
+or the authored tint bit always falls back to the full original evaluation.
+
+This does **not** cache FoW across server snapshots or replace the tint set
+with `SV_BuildClientFrame`'s bounded entity candidates: those sets have
+different eligibility and saturation semantics. Tint count, ordering, overflow
+(all-or-nothing), weather/lightning placement and blight reservations retain
+their existing wire contract. This is a CPU fast-path candidate only; compare
+matched scenes and FPS/cycle rates before claiming a speedup. In-engine
+regressions cover sparse untinted scenes, toggle-on/off, owner ghost alpha,
+untinted hero dissipation, and full-buffer decisions.
