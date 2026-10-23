@@ -72,7 +72,7 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
      * Reject those before the potentially expensive FoW/detector queries.
      * This is only a candidate check: the original visibility and fade logic
      * below remains authoritative for all possible tinted entities. */
-    if (!unit->vertex_color_set && presentation_alpha >= 1.0f) {
+    if (!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) && presentation_alpha >= 1.0f) {
         if (!client_ent || !client_ent->client) return false;
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayersShareVision(player, unit->s.player)) return false;

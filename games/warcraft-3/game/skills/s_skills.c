@@ -782,10 +782,10 @@ static bool update_may_have_ability(edict_t const *ent, uint32_t code) {
     char name[5] = {0};
     cstring_t native;
     if (!ent || !code) return false;
-    FOR_LOOP(i, MAX_HERO_ABILITIES)
-        if (ent->heroabilities[i].level) return true;
-    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))
-        if (ent->abilities.added[i] == code) return true;
+    FOR_LOOP(i, (ent->unit_state ? MAX_HERO_ABILITIES : 0))
+        if (ent->unit_state->ranks[i].level) return true;
+    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0))
+        if (ent->unit_state->overrides.added[i] == code) return true;
     native = ent->data.UnitAbilities ? ent->data.UnitAbilities->abilList : NULL;
     if (!native) return false;
     memcpy(name, &code, 4);

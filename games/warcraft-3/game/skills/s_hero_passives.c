@@ -293,8 +293,8 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
                 aura_record_owned_alias(resolved, alias, 1, mask);
         }
     }
-    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
-        uint32_t const alias = ent->abilities.added[i];
+    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
+        uint32_t const alias = ent->unit_state->overrides.added[i];
         uint32_t mask;
         if (!alias) continue;
         mask = aura_owned_family_mask(alias);
@@ -306,8 +306,8 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
         if (G_ActorHasSkill(ent, alias_name))
             aura_record_owned_alias(resolved, alias, 1, mask);
     }
-    FOR_LOOP(i, MAX_HERO_ABILITIES) {
-        heroability_t const *hero = ent->heroabilities + i;
+    FOR_LOOP(i, (ent->unit_state ? MAX_HERO_ABILITIES : 0)) {
+        heroability_t const *hero = ent->unit_state->ranks + i;
         if (hero->level) {
             uint32_t const mask = aura_owned_family_mask(hero->code);
             if (mask) aura_record_owned_alias(resolved, hero->code, hero->level, mask);
