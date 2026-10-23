@@ -3618,19 +3618,19 @@ TEST(wc3_combat, timed_status_index_handles_empty_apply_and_remove) {
     unit_updatestatuses(ent); /* Populate the empty index. */
     unit_addstatus(ent, "Bstu", 1); /* Persistent status is not ticked. */
     unit_updatestatuses(ent);
-    T_ASSERT(ent->stunned);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
     slot = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
     T_NOT_NULL(slot);
     T_EQ(slot->timestamp, 0);
     unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
-    T_ASSERT(!ent->stunned);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
 
     T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
-    T_ASSERT(ent->stunned);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
     level.time = 1051;
     unit_updatestatuses(ent);
     T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
-    T_ASSERT(!ent->stunned);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
     unit_updatestatuses(ent); /* Expired last slot: empty fast path again. */
 
     T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));

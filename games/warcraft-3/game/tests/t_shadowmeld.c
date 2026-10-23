@@ -206,8 +206,8 @@ TEST(wc3_shadowmeld, update_dispatch_rechecks_dynamic_and_authored_ownership) {
 
     shadowmeld_setup(&fix);
     fix.unit->data.UnitAbilities = &empty_abilities;
-    ARRAY_COUNT(fix.unit->abilities.added) = 0;
-    memset(fix.unit->heroabilities, 0, sizeof(fix.unit->heroabilities));
+    fix.unit->unit_state->overrides.added_count = 0;
+    memset(fix.unit->unit_state->ranks, 0, sizeof(fix.unit->unit_state->ranks));
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
@@ -236,7 +236,7 @@ TEST(wc3_shadowmeld, update_dispatch_rechecks_dynamic_and_authored_ownership) {
     shadowmeld_tick(fix.unit, 1);
     T_ASSERT(!fix.unit->shadowmeld->fading);
 
-    fix.unit->heroabilities[0] = MAKE(heroability_t, .code = ID_AHID, .level = 1);
+    fix.unit->unit_state->ranks[0] = MAKE(heroability_t, .code = ID_AHID, .level = 1);
     shadowmeld_tick(fix.unit, 1);
     T_ASSERT(fix.unit->shadowmeld->fading);
     shadowmeld_done(&fix);

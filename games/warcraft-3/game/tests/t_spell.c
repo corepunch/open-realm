@@ -1822,9 +1822,10 @@ TEST(wc3_spell, aura_provider_discovery_preserves_alias_precedence_and_ranks) {
     old = G_SetSLKRows("AbilityData", rows);
     source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
     source->data.UnitAbilities = &abilities;
-    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 3);
-    source->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','a','s','l'), .level = 2);
-    source->abilities.added[0] = MAKEFOURCC('A','C','a','c');
+    source->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 3);
+    source->unit_state->ranks[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','a','s','l'), .level = 2);
+    source->unit_state->overrides.added[0] = MAKEFOURCC('A','C','a','c');
+    source->unit_state->overrides.added_count = 1;
 
     T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','U','a','u')).alias,
          MAKEFOURCC('X','U','a','u'));
@@ -1832,16 +1833,18 @@ TEST(wc3_spell, aura_provider_discovery_preserves_alias_precedence_and_ranks) {
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
 
     /* A removed native alias falls back to a ranked hero ability. */
-    source->abilities.removed[0] = MAKEFOURCC('X','U','a','u');
+    source->unit_state->overrides.removed[0] = MAKEFOURCC('X','U','a','u');
+    source->unit_state->overrides.removed_count = 1;
     T_EQ(S_ResolveAbilityAlias(source, MAKEFOURCC('A','U','a','u')).level, 3);
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
 
     /* Removing the added ability exposes the still-learned hero and native
      * entries; an unrelated direct list edit must not leave a stale snapshot. */
-    source->abilities.added[0] = 0;
+    source->unit_state->overrides.added[0] = 0;
+    source->unit_state->overrides.added_count = 0;
     source->data.UnitAbilities = NULL;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
-    source->heroabilities[0].level = 0;
+    source->unit_state->ranks[0].level = 0;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
 
     G_SetSLKRows("AbilityData", old);
@@ -1867,8 +1870,9 @@ TEST(wc3_spell, aura_classification_cache_filters_unrelated_ownership_checks) {
     old = G_SetSLKRows("AbilityData", rows);
     source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
     source->data.UnitAbilities = &abilities;
-    source->abilities.added[0] = MAKEFOURCC('X','H','a','d');
-    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 3);
+    source->unit_state->overrides.added[0] = MAKEFOURCC('X','H','a','d');
+    source->unit_state->overrides.added_count = 1;
+    source->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 3);
     S_TestResetAuraClassificationCache();
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
     T_EQ(S_TestAuraOwnershipChecks(), 2u); /* Native XUau, added XHad only. */
@@ -1878,12 +1882,14 @@ TEST(wc3_spell, aura_classification_cache_filters_unrelated_ownership_checks) {
     T_EQ(S_TestAuraClassResolves(), class_resolves); /* Reused both sorts of cache hit. */
     T_EQ(S_TestAuraOwnershipChecks(), 4u);
 
-    source->abilities.removed[0] = MAKEFOURCC('X','U','a','u');
+    source->unit_state->overrides.removed[0] = MAKEFOURCC('X','U','a','u');
+    source->unit_state->overrides.removed_count = 1;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
     source->data.UnitAbilities = NULL;
-    source->abilities.added[0] = 0;
+    source->unit_state->overrides.added[0] = 0;
+    source->unit_state->overrides.added_count = 0;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
-    source->heroabilities[0].level = 0;
+    source->unit_state->ranks[0].level = 0;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -2897,8 +2903,11 @@ TEST(wc3_spell, moon_well_class_cache_reuses_positive_and_negative_rawcodes) {
     UnitAbilities_t native = { .abilList = "Afoo,AqW1" };
     UnitAbilities_t unrelated = { .abilList = "Afoo" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    edict_t *first = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
-    edict_t *second = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+    edict_t *first, *second;
+
+    reset_entities(); setup_test_world();
+    first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
 
     first->data.UnitAbilities = &native;
     second->data.UnitAbilities = &unrelated;

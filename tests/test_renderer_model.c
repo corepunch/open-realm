@@ -2573,6 +2573,7 @@ static void test_splat_draw_arrays(GLenum mode, GLint first, GLsizei count) {
 #define R_BindTexture test_splat_bind_texture
 #define R_SetTextureWrap test_splat_wrap_texture
 #define R_ApplyShader test_splat_apply_shader
+void R_TestProductionRenderRectSplatUV(rectSplatParams_t const *params);
 static struct { uint32_t calls, first, count; float z; } ground_update;
 static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
     (void)buffer;
@@ -2584,7 +2585,9 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
 #define WC3_TERRAIN_NORMAL_TESTS
+#define WC3_SPLAT_GEOMETRY_CACHE_TESTS
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef WC3_SPLAT_GEOMETRY_CACHE_TESTS
 #undef WC3_TERRAIN_NORMAL_TESTS
 #undef R_UpdateVertexArrayObject
 #undef glEnable
@@ -2599,6 +2602,7 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #undef R_BindTexture
 #undef R_SetTextureWrap
 #undef R_ApplyShader
+#define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 #undef R_RenderRectSplatUV
 #undef R_RenderFlatRectSplat
 #undef R_RenderSplat
