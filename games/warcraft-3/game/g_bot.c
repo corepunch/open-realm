@@ -2,6 +2,7 @@
 #include "jass/jass.h"
 #include "skills/s_skills.h"
 #include <stdarg.h>
+#include <math.h>
 
 #define BOT_GUARD_RETURN_RANGE 82.006f // world units; avoid resetting movement for guards already standing near their post
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
@@ -372,48 +373,61 @@ static edict_t *G_BotCreepSearchOrigin(player_t *player) {
     return NULL;
 }
 
+/* Only creeps can join a camp. Compact the eligible edicts once per query so the
+ * breadth-first search does not recheck every unrelated unit/effect for every
+ * member of a camp. Candidate order remains increasing edict number. */
+typedef struct botCreepCandidate_s {
+    uint32_t edict_index;
+    bool visited;
+} botCreepCandidate_t;
+
 edict_t *G_BotGetCreepCamp(player_t *player, int32_t min_power, int32_t max_power, bool flyers_ok) {
     edict_t *origin, *best = NULL;
     float best_dist = 0.0f;
-    uint32_t count, *queue;
-    uint8_t *visited;
+    uint32_t count, candidate_count = 0, *queue;
+    botCreepCandidate_t *candidates;
 
     if (!player || min_power > max_power) return NULL;
     origin = G_BotCreepSearchOrigin(player);
     if (!origin) return NULL;
 
     count = globals.num_edicts;
-    visited = gi.MemAlloc(count ? count : 1);
+    candidates = gi.MemAlloc((count ? count : 1) * sizeof(*candidates));
     queue = gi.MemAlloc((count ? count : 1) * sizeof(*queue));
-    memset(visited, 0, count ? count : 1);
+    for (uint32_t i = 0; i < count; i++) {
+        if (!G_BotCreepCandidate(globals.edicts + i)) continue;
+        candidates[candidate_count++] = (botCreepCandidate_t){ .edict_index = i };
+    }
 
-    for (uint32_t seed_index = 0; seed_index < count; seed_index++) {
-        edict_t *seed = globals.edicts + seed_index;
+    for (uint32_t seed_index = 0; seed_index < candidate_count; seed_index++) {
         uint32_t head = 0, tail = 0;
         int32_t power = 0;
         bool has_flyer = false;
         edict_t *representative = NULL;
         float representative_dist = 0.0f;
 
-        if (visited[seed_index] || !G_BotCreepCandidate(seed)) continue;
-        visited[seed_index] = 1;
+        if (candidates[seed_index].visited) continue;
+        candidates[seed_index].visited = true;
         queue[tail++] = seed_index;
 
         while (head < tail) {
-            edict_t *creep = globals.edicts + queue[head++];
+            edict_t *creep = globals.edicts + candidates[queue[head++]].edict_index;
             int32_t level = creep->data.UnitBalance ? creep->data.UnitBalance->level : 0;
             float dist = Vector2_distance(&origin->s.origin2, &creep->s.origin2);
             power += level;
             has_flyer |= G_BotCreepFlyer(creep);
             if (!representative || dist < representative_dist) { representative = creep; representative_dist = dist; }
 
-            for (uint32_t other_index = 0; other_index < count; other_index++) {
+            for (uint32_t other_index = 0; other_index < candidate_count; other_index++) {
                 edict_t *other;
-                if (visited[other_index]) continue;
-                other = globals.edicts + other_index;
-                if (!G_BotCreepCandidate(other)) continue;
+                if (candidates[other_index].visited) continue;
+                other = globals.edicts + candidates[other_index].edict_index;
+                /* Most camps are spatially separate: reject them without a square root,
+                 * but keep the original exact distance comparison at the boundary. */
+                if (fabsf(creep->s.origin2.x - other->s.origin2.x) > BOT_CREEP_CAMP_RADIUS ||
+                    fabsf(creep->s.origin2.y - other->s.origin2.y) > BOT_CREEP_CAMP_RADIUS) continue;
                 if (Vector2_distance(&creep->s.origin2, &other->s.origin2) > BOT_CREEP_CAMP_RADIUS) continue;
-                visited[other_index] = 1;
+                candidates[other_index].visited = true;
                 queue[tail++] = other_index;
             }
         }
@@ -423,7 +437,7 @@ edict_t *G_BotGetCreepCamp(player_t *player, int32_t min_power, int32_t max_powe
     }
 
     gi.MemFree(queue);
-    gi.MemFree(visited);
+    gi.MemFree(candidates);
     return best;
 }
 

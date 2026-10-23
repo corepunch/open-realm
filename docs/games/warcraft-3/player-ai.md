@@ -480,6 +480,16 @@ the search origin. The returned representative is the camp member nearest that o
 `G_BotGetCreepCamp` so direct retail/native capture can replace it without changing creep ownership, unit level data, or
 assault behavior.
 
+For performance, each query first collects currently live, non-building Neutral Hostile creeps in
+ascending edict-number order. Its connected-component search then visits only that compact
+candidate set rather than rescanning all unrelated entities after each discovered creep.
+An axis-aligned precheck skips exact radial distances for clearly separate creeps.
+The list is local to each query: deaths, removals, flight type and unit positions are
+observed afresh without a persistent AI cache. Membership radius, transitive grouping,
+representative choice, power, flyer filtering and tie/order behavior remain unchanged.
+The `wc3_bot.creep_camp_compaction_preserves_transitive_groups_and_live_eligibility`
+regression covers live filtering, transitive membership and changing camp state.
+
 ### Enemy Base Discovery
 
 `StartGetEnemyBase()` / `WaitGetEnemyBase()` / `GetEnemyBase()` implement the stock asynchronous enemy-base query

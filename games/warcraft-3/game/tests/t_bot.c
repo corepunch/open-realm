@@ -1704,6 +1704,75 @@ TEST(wc3_bot, get_creep_camp_filters_total_level_flyers_and_nearest_camp) {
     (void)hall;
 }
 
+TEST(wc3_bot, creep_camp_compaction_preserves_transitive_groups_and_live_eligibility) {
+    static UnitBalance_t const level2 = { .maxHealth = 100, .level = 2 };
+    static UnitBalance_t const level3 = { .maxHealth = 100, .level = 3 };
+    static UnitBalance_t const level4 = { .maxHealth = 100, .level = 4 };
+    static UnitBalance_t const level6 = { .maxHealth = 100, .level = 6 };
+    static UnitData_t const ground = { .moveTypeName = "foot" };
+    static UnitData_t const flying = { .moveTypeName = "fly" };
+    player_t *player = &game.clients[2].ps;
+    edict_t *creeps[3], *isolated, *dead, *removed, *passive, *nonunit;
+
+    reset_entities();
+    InitUnitData();
+    make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    creeps[0] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1000, 0);
+    creeps[1] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1550, 0);
+    creeps[2] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 2150, 0);
+    isolated = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4000, 0);
+    dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1300, 0);
+    removed = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1400, 0);
+    passive = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1650, 0);
+    nonunit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1750, 0);
+
+    FOR_LOOP(i, 3) {
+        creeps[i]->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+        creeps[i]->svflags |= SVF_MONSTER;
+        creeps[i]->health.value = 100;
+        creeps[i]->data.UnitData = &ground;
+    }
+    creeps[0]->data.UnitBalance = &level2;
+    creeps[1]->data.UnitBalance = &level3;
+    creeps[2]->data.UnitBalance = &level4;
+    isolated->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    isolated->svflags |= SVF_MONSTER;
+    isolated->health.value = 100;
+    isolated->data.UnitBalance = &level6;
+    isolated->data.UnitData = &ground;
+    dead->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    dead->svflags |= SVF_MONSTER;
+    dead->health.value = 0;
+    removed->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    removed->svflags |= SVF_MONSTER;
+    removed->health.value = 100;
+    removed->inuse = false;
+    passive->s.player = PLAYER_NEUTRAL_PASSIVE;
+    passive->svflags |= SVF_MONSTER;
+    passive->health.value = 100;
+    nonunit->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    nonunit->svflags &= ~SVF_MONSTER;
+    nonunit->health.value = 100;
+
+    /* Third creep is exactly 600 from the middle, but not near the first. */
+    T_ASSERT(G_BotGetCreepCamp(player, 9, 9, false) == creeps[0]);
+    T_ASSERT(G_BotGetCreepCamp(player, 6, 6, false) == isolated);
+    T_NULL(G_BotGetCreepCamp(player, 10, 20, true));
+
+    /* Membership is recomputed per query; neither dead nor removed units bridge a camp. */
+    creeps[1]->health.value = 0;
+    T_NULL(G_BotGetCreepCamp(player, 9, 9, true));
+    creeps[1]->health.value = 100;
+    creeps[1]->data.UnitData = &flying;
+    T_NULL(G_BotGetCreepCamp(player, 9, 9, false));
+    T_ASSERT(G_BotGetCreepCamp(player, 9, 9, true) == creeps[0]);
+    creeps[1]->data.UnitData = &ground;
+    creeps[2]->s.origin2.x = 2201; /* 651 units from middle, so no longer connected. */
+    T_NULL(G_BotGetCreepCamp(player, 9, 9, true));
+    creeps[2]->s.origin2.x = 2150;
+    T_ASSERT(G_BotGetCreepCamp(player, 9, 9, false) == creeps[0]);
+}
+
 TEST(wc3_bot, purchase_zeppelin_native_is_registered_for_player_bound_ai) {
     bot_t *bot = level.bots + 2;
 

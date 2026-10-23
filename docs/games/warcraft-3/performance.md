@@ -1027,6 +1027,26 @@ and track peak RAM. Keep initial load, same-map restart, and return-to-menu
 reload separate. If diagnostics are enabled, use a matching diagnostic build for
 both baselines; do not claim a gain solely from the prior unoptimized log.
 
+### AI creep camp candidate compaction (patch twenty-one, ARM64)
+
+NightElf07 sampling identified `G_BotUnitAlive` among AI hotspots. The `GetCreepCamp`
+query had a known repeated-work pattern: each breadth-first-search step scanned
+`globals.num_edicts` and re-evaluated liveness, ownership, and unit eligibility on
+unrelated entities. `G_BotGetCreepCamp` now filters eligible Neutral Hostile
+creeps once at query entry, then searches the compact, edict-ordered candidate
+list, with a rectangular distance precheck before the original exact radial
+comparison. For N map edicts and K eligible creeps, the grouping search changes from
+O(K*N) to O(N + K*K), with no persistent cache or simulation-frame
+invalidation. The query allocates two transient buffers and releases them on
+completion. The candidate order, inclusive 600-unit membership rule, transitive
+camps, flyer filter and nearest representative are unchanged. Tests cover
+non-creep decoys, the exact radius boundary, death/removal, flight type and
+membership changes.
+
+This addresses a source-level repeated scan, not a confirmed 1.94% reduction:
+`G_BotUnitAlive` is also used by other AI queries. Compare matched NightElf07
+scenes and symbolised inclusive call paths before claiming an FPS gain.
+
 ### Blight destructable update on changed cells only (patch twenty, ARM64)
 
 `G_SetBlightPoint`, `G_SetBlightRadius`, and `G_SetBlightRect` now use the
