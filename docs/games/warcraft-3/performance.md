@@ -629,6 +629,27 @@ cover the CPU entry points only; they do not predict full-frame FPS. Use
 `make test-renderer-model` for keytrack sequence and partial-tile geometry
 coverage, then profile an uncapped run before pursuing another change.
 
+### MDX interval-bound fast paths (patch seventeen, ARM64)
+
+`MDLX_GetModelKeytrackValue` still honours the selected MDX sequence and
+uses the entity-scoped render clock for global sequences. Constant
+(single-key) tracks can now return directly **after** their sequence interval
+has been validated. Multi-key tracks whose authored first and last keys are
+already within the active interval skip both binary searches for interval
+bounds. Other tracks retain binary bounds but restrict the interpolation-key
+search to the in-sequence slice; two-key slices avoid that search as well.
+The old interpolation routines (linear, step, Hermite, Bezier and quaternion)
+remain unchanged; so do tail wrapping, the special DNC global-sequence key
+and old/current pose blending. There is no cross-instance or cross-frame
+cache to invalidate during reloads or animation transitions.
+
+Headless `renderer_model.mdx_*` regressions exercise constant-key sequence
+ownership, first-key clamping, exact keys, interpolation, interval-tail wrap,
+step tracks, cross-sequence exclusion and global pause state. The patch only
+reduces key lookup work: the 0.93% exclusive hotspot in a 7K-sample handheld
+profile is motivation, **not** evidence of a measured improvement. Benchmark
+matched scenes after building and running the tests.
+
 ## MDX bone setup (was ~16%)
 
 `MDLX_BindBoneMatrices` (`games/warcraft-3/renderer/mdx/r_mdx_anim.c`) is called once per rendered model per frame. The old path:

@@ -166,9 +166,10 @@ void MDLX_PopEntityAnimationTime(mdxAnimationTimeScope_t const *scope) {
     entity_global_time_valid = scope->previous_valid;
 }
 
-/* MDX key times are authored in ascending order; binary bounds avoid rescanning every track for every model instance. */
-static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uint32_t time, bool upper) {
-    uint32_t lo = 0, hi = track->keyframeCount;
+/* MDX key times are authored in ascending order. Restrict binary searches
+ * to the current sequence's key span instead of searching the whole track. */
+static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uint32_t time,
+                                bool upper, uint32_t lo, uint32_t hi) {
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
         uint32_t keytime = R_KeyFrameAt(track, stride, mid)->time;
@@ -219,8 +220,27 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         interval[0] = seq->interval[0];
         interval[1] = seq->interval[1];
     }
-    uint32_t first_index = R_KeyFrameBound(keytrack, stride, interval[0], false);
-    uint32_t end_index = R_KeyFrameBound(keytrack, stride, interval[1], true);
+    /* Constant tracks are common (bind poses and visibility). Their sole key
+     * still belongs to a specific sequence; do not return it in a different
+     * interval or skip the global-sequence validation above. */
+    if (keytrack->keyframeCount == 1) {
+        mdxKeyFrame_t const *key = R_KeyFrameAt(keytrack, stride, 0);
+        uint32_t const key_time = (uint32_t)key->time;
+        if (key_time >= interval[0] && key_time <= interval[1])
+            memcpy(output, key->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+        return;
+    }
+
+    /* The first/last authored keys frequently bracket an entire animation
+     * interval. In that case no sequence-bound search is needed at all.
+     * Compare as unsigned, matching R_KeyFrameBound's existing semantics. */
+    uint32_t const count = keytrack->keyframeCount;
+    mdxKeyFrame_t const *track_first = R_KeyFrameAt(keytrack, stride, 0);
+    mdxKeyFrame_t const *track_last = R_KeyFrameAt(keytrack, stride, count - 1);
+    uint32_t const first_index = (uint32_t)track_first->time >= interval[0] ? 0 :
+        R_KeyFrameBound(keytrack, stride, interval[0], false, 0, count);
+    uint32_t const end_index = (uint32_t)track_last->time <= interval[1] ? count :
+        R_KeyFrameBound(keytrack, stride, interval[1], true, first_index, count);
     if (first_index >= end_index)
         return;
     mdxKeyFrame_t *first = R_KeyFrameAt(keytrack, stride, first_index);
@@ -236,9 +256,17 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         }
         return;
     }
-    uint32_t right_index = R_KeyFrameBound(keytrack, stride, time, false);
+    /* A time before the first in-sequence key clamps to that key. With two
+     * keys the right bracket is known without searching. Larger tracks search
+     * only the sequence's occupied subrange. */
+    if (time <= (uint32_t)first->time) {
+        memcpy(output, first->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+        return;
+    }
+    uint32_t const right_index = end_index - first_index == 2 ? first_index + 1 :
+        R_KeyFrameBound(keytrack, stride, time, false, first_index + 1, end_index);
     mdxKeyFrame_t *right = R_KeyFrameAt(keytrack, stride, right_index);
-    if (right_index == first_index || right->time == time)
+    if (right->time == time)
         memcpy(output, right->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
     else
         R_GetKeyframeValue(R_KeyFrameAt(keytrack, stride, right_index - 1), right, keytrack, time, output);

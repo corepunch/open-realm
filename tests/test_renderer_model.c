@@ -412,6 +412,108 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
 }
 
+TEST(renderer_model, mdx_single_key_track_respects_sequence_ownership) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
+    mdxSequence_t seqs[2] = { { .interval = { 100, 200 } }, { .interval = { 200, 300 } } };
+    mdxModel_t model = { .sequences = seqs, .num_sequences = 2 };
+    float authored = 7.25f, value = -99.0f;
+
+    track->keyframeCount = 1;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    key->time = 125;
+    memcpy(key->data, &authored, sizeof(authored));
+    MDLX_GetModelKeytrackValue(&model, track, 100, &value);
+    T_FEQ(value, authored, 0.001f);
+    value = -99.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 199, &value);
+    T_FEQ(value, authored, 0.001f);
+    value = -99.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value);
+    T_FEQ(value, -99.0f, 0.001f); /* Other sequence must not reuse the constant. */
+    MDLX_GetModelKeytrackValue(&model, track, 300, &value);
+    T_FEQ(value, -99.0f, 0.001f); /* No sequence owns the endpoint. */
+    key->time = 200;
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value);
+    T_FEQ(value, authored, 0.001f); /* Authored key now belongs to sequence 2. */
+}
+
+TEST(renderer_model, mdx_full_interval_track_preserves_clamp_pair_and_tail) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 3 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 400 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    int const times[3] = { 120, 200, 300 };
+    float const authored[3] = { 1.0f, 3.0f, 5.0f };
+    float value = -1.0f;
+
+    track->keyframeCount = 3;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 3) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 8);
+        key->time = times[i]; memcpy(key->data, &authored[i], sizeof(float));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 120, &value); T_FEQ(value, 1.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 160, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 3.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 4.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 350, &value); T_FEQ(value, 10.0f / 3.0f, 0.001f);
+    value = -1.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 400, &value); T_FEQ(value, -1.0f, 0.001f);
+}
+
+TEST(renderer_model, mdx_partial_interval_search_excludes_neighbouring_keys) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 6 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 250 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    int const times[6] = { 50, 125, 175, 225, 300, 375 };
+    float const authored[6] = { 100.0f, 2.0f, 3.0f, 4.0f, 200.0f, 300.0f };
+    float value = 0;
+
+    track->keyframeCount = 6;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 6) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 8);
+        key->time = times[i]; memcpy(key->data, &authored[i], sizeof(float));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 105, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 150, &value); T_FEQ(value, 2.5f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 3.5f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 240, &value); T_FEQ(value, 3.4f, 0.001f);
+    value = -1.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, -1.0f, 0.001f);
+    /* A one-key sequence subsection still clamps exactly to that key. */
+    seq.interval[0] = 170; seq.interval[1] = 200;
+    MDLX_GetModelKeytrackValue(&model, track, 190, &value); T_FEQ(value, 3.0f, 0.001f);
+}
+
+TEST(renderer_model, mdx_two_key_no_interp_retains_step_semantics) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 300 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    float const values[2] = { 2.0f, 9.0f };
+    float value = 0.0f;
+    track->keyframeCount = 2; track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_NO_INTERP; track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 8);
+        key->time = 100 + i * 100; memcpy(key->data, &values[i], sizeof(float));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 199, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 9.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 9.0f, 0.001f);
+}
+
 TEST(renderer_model, mdx_keytrack_lookup_uses_hermite_stride) {
     uint8_t storage[sizeof(mdxKeyTrack_t) + 3 * (sizeof(int) + 3 * sizeof(float))] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
