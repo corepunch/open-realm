@@ -18,6 +18,18 @@ Blight is global terrain state. The JASS setter natives validate their `player` 
 
 WC3/Warsmash Blight is authored on 128-world-unit terrain corners, with each changed corner projecting to the surrounding 4x4 32-unit pathing cells. OpenRealm follows that shape for point/radius/rect operations. `G_BlightInit()` samples the initial shared pathing flags into `level.blight.cells`. Runtime add/remove operations then mutate only that WC3-owned field, so scripts can both create Blight and clear authored map Blight.
 
+`G_SetBlightPoint`, `G_SetBlightRadius`, and `G_SetBlightRect` aggregate the
+number of actually changed 32-unit cells returned by `G_SetBlightCorner`.
+Add operations update existing destructables only when at least one cell
+changes; repeated growth ticks over already-blighted terrain skip the
+otherwise global `G_BlightUpdateDestructables` edict traversal. Remove
+operations still clear the gameplay Blight plane without reversing a
+previously blighted destructable tint. Newly spawned destructables get their
+initial Blight appearance through `G_BlightInitializeDestructable` in the
+normal spawn path, so a no-op add does not need to rescan them. The
+`wc3_destructable.blight_{point,radius,rect}_noop_skips_destructable_rescan`
+regressions cover unchanged additions and clear/re-add transitions.
+
 The shared `pathmap.terrain`, `pathmap.original`, and `pathmap.data` stay untouched by runtime Blight. WC3 building placement samples shared pathing, then replaces only the Blight predicate with `G_IsPointBlighted()` before applying `preventPlace` / `requirePlace`. Blight does not block movement, so changing it cannot invalidate shared movement heatmaps.
 
 ## Blight Growth (`Abli`)

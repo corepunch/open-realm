@@ -191,6 +191,81 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     return ent;
 }
 
+/* Blight rasterization must only sweep existing destructables when cells
+ * change. A new destructable is initialized separately by SP_CallSpawn. */
+static edict_t *make_blight_test_probe(float x, float y) {
+    edict_t *ent = make_test_destructable(100.0f, x, y);
+    ent->s.origin2 = (vec2_t){ x, y };
+    return ent;
+}
+
+TEST(wc3_destructable, blight_point_noop_skips_destructable_rescan) {
+    vec2_t const point = { 32.0f, 32.0f };
+    edict_t *late, *after_clear;
+
+    reset_entities();
+    setup_test_world();
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    late = make_blight_test_probe(point.x, point.y);
+    T_ASSERT(!late->destructable->blighted);
+
+    /* No new cells: the existing-world scan must not visit this uninitialized
+     * probe. Real spawns call G_BlightInitializeDestructable instead. */
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(!late->destructable->blighted);
+    G_BlightInitializeDestructable(late);
+    T_ASSERT(late->destructable->blighted);
+
+    G_SetBlightPoint(&point, false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    T_ASSERT(late->destructable->blighted); /* one-way tint */
+    after_clear = make_blight_test_probe(point.x, point.y);
+    G_SetBlightPoint(&point, false);
+    T_ASSERT(!after_clear->destructable->blighted);
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(after_clear->destructable->blighted);
+}
+
+TEST(wc3_destructable, blight_radius_noop_skips_destructable_rescan) {
+    vec2_t const point = { 32.0f, 32.0f };
+    edict_t *probe;
+
+    reset_entities();
+    setup_test_world();
+    G_SetBlightRadius(&point, 96.0f, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    probe = make_blight_test_probe(point.x, point.y);
+    G_SetBlightRadius(&point, 96.0f, true);
+    T_ASSERT(!probe->destructable->blighted);
+
+    G_SetBlightRadius(&point, 96.0f, false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    G_SetBlightRadius(&point, 96.0f, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    T_ASSERT(probe->destructable->blighted);
+}
+
+TEST(wc3_destructable, blight_rect_noop_skips_destructable_rescan) {
+    box2_t const rect = { { 0.0f, 0.0f }, { 128.0f, 128.0f } };
+    vec2_t const point = { 32.0f, 32.0f };
+    edict_t *probe;
+
+    reset_entities();
+    setup_test_world();
+    G_SetBlightRect(&rect, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    probe = make_blight_test_probe(point.x, point.y);
+    G_SetBlightRect(&rect, true);
+    T_ASSERT(!probe->destructable->blighted);
+
+    G_SetBlightRect(&rect, false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    G_SetBlightRect(&rect, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    T_ASSERT(probe->destructable->blighted);
+}
+
 static uint32_t blight_image_index_calls;
 
 static int blight_test_image_index(cstring_t path) {

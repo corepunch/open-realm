@@ -157,8 +157,8 @@ void G_SetBlightPoint(vec2_t const *point, bool add) {
     mask = G_BlightConnectedMask();
     x = G_SnapBlightCorner(point->x, level.blight.bounds.min.x);
     y = G_SnapBlightCorner(point->y, level.blight.bounds.min.y);
-    G_SetBlightCorner(x, y, add, mask);
-    if (add) {
+    uint32_t const changed = G_SetBlightCorner(x, y, add, mask);
+    if (add && changed) {
         box2_t region = { { x - WC3_BLIGHT_TERRAIN_CELL, y - WC3_BLIGHT_TERRAIN_CELL },
                         { x + WC3_BLIGHT_TERRAIN_CELL, y + WC3_BLIGHT_TERRAIN_CELL } };
         G_BlightUpdateDestructables(&region);
@@ -167,7 +167,7 @@ void G_SetBlightPoint(vec2_t const *point, bool add) {
 
 void G_SetBlightRadius(vec2_t const *point, float radius, bool add) {
     float min_x, min_y, max_x, max_y;
-    uint32_t mask;
+    uint32_t mask, changed = 0;
     if (!point || !level.blight.cells || radius < 0.0f) return;
     mask = G_BlightConnectedMask();
     min_x = G_SnapBlightCorner(point->x - radius, level.blight.bounds.min.x);
@@ -176,9 +176,10 @@ void G_SetBlightRadius(vec2_t const *point, float radius, bool add) {
     for (float y = min_y; y <= max_y; y += WC3_BLIGHT_TERRAIN_CELL)
         for (float x = min_x; x <= max_x; x += WC3_BLIGHT_TERRAIN_CELL) {
             float const dx = x - point->x, dy = y - point->y;
-            if (dx * dx + dy * dy <= radius * radius) G_SetBlightCorner(x, y, add, mask);
+            if (dx * dx + dy * dy <= radius * radius)
+                changed += G_SetBlightCorner(x, y, add, mask);
         }
-    if (add) {
+    if (add && changed) {
         box2_t region = { { point->x - radius, point->y - radius },
                         { point->x + radius, point->y + radius } };
         G_BlightUpdateDestructables(&region);
@@ -187,15 +188,16 @@ void G_SetBlightRadius(vec2_t const *point, float radius, bool add) {
 
 void G_SetBlightRect(box2_t const *rect, bool add) {
     float min_x, min_y;
-    uint32_t mask;
+    uint32_t mask, changed = 0;
     if (!rect || !level.blight.cells) return;
     mask = G_BlightConnectedMask();
     min_x = G_SnapBlightCorner(rect->min.x, level.blight.bounds.min.x);
     min_y = G_SnapBlightCorner(rect->min.y, level.blight.bounds.min.y);
     for (float y = min_y; y <= rect->max.y; y += WC3_BLIGHT_TERRAIN_CELL)
         for (float x = min_x; x <= rect->max.x; x += WC3_BLIGHT_TERRAIN_CELL)
-            if (x >= rect->min.x && y >= rect->min.y) G_SetBlightCorner(x, y, add, mask);
-    if (add) G_BlightUpdateDestructables(rect);
+            if (x >= rect->min.x && y >= rect->min.y)
+                changed += G_SetBlightCorner(x, y, add, mask);
+    if (add && changed) G_BlightUpdateDestructables(rect);
 }
 
 uint32_t G_GetBlightStateSize(void) { return level.blight.cells ? G_BlightCellCount() : 0; }

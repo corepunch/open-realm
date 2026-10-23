@@ -1027,6 +1027,21 @@ and track peak RAM. Keep initial load, same-map restart, and return-to-menu
 reload separate. If diagnostics are enabled, use a matching diagnostic build for
 both baselines; do not claim a gain solely from the prior unoptimized log.
 
+### Blight destructable update on changed cells only (patch twenty, ARM64)
+
+`G_SetBlightPoint`, `G_SetBlightRadius`, and `G_SetBlightRect` now use the
+changed-cell count already produced by `G_SetBlightCorner`. On additive
+Blight calls that paint no new cells, skip the expensive full-edict
+`G_BlightUpdateDestructables` scan while preserving authored rasterization,
+network dirty-row accounting, explicit removal, and one-way destructable tint.
+Freshly spawned destructables retain their separate spawn-time Blight
+initialization. Tests `wc3_destructable.blight_{point,radius,rect}_noop_skips_destructable_rescan`
+check repeat additions and clear/re-add behavior. This addresses the
+NightElf07 `CAbilityBlightGrowth` → `G_SetBlightRadius` path, where
+`G_IsDestructable` and `Box2_containsPoint` sampled heavily. These were
+profile hotspots, not a measured post-patch improvement; compare matched
+NightElf07 scenes and frame times on the target ARM64 device.
+
 ### Per-client tint scan rejection (patch fifteen, ARM64)
 
 `G_WriteClientDatagram` still visits edicts in entity-number order so its tint
