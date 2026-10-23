@@ -34,6 +34,12 @@ function button(attributes = {}) {
 }
 function fixture() {
   const doc = eventTarget(), win = eventTarget(), canvas = eventTarget();
+  const html = button();
+  doc.documentElement = html;
+  const timers = new Map();
+  let nextTimer = 1;
+  win.setTimeout = callback => {const id = nextTimer++; timers.set(id, callback); return id;};
+  win.clearTimeout = id => timers.delete(id);
   const emitted = [];
   let focusCount = 0, hit = null;
   win.KeyboardEvent = class {
@@ -77,7 +83,8 @@ function fixture() {
   }
   return {win,doc,canvas,emitted,drag,pointer,launchGame,launchGroups,game,groups,
     quests,chat,plain,ctrl,shift,
-    setHit(value) {hit = value;}, get focusCount() {return focusCount;}};
+    setHit(value) {hit = value;}, get focusCount() {return focusCount;},
+    flushTimers() {const pending = [...timers.values()]; timers.clear(); pending.forEach(fn => fn());}};
 }
 function sequence(events) {
   return events.map(e => [e.type, e.key, e.code, e.keyCode, e.which, e.ctrlKey, e.shiftKey]);
@@ -203,4 +210,64 @@ test('tabbing out closes a keyboard popup without blocking another launcher', ()
   assert.deepEqual(f.emitted, []);
   f.drag(f.launchGroups, f.ctrl);
   assert.deepEqual(f.emitted.map(e => e.code), ['ControlLeft', 'Digit1', 'Digit1', 'ControlLeft']);
+});
+
+
+test('touch drag prevents Safari selection and callouts across the page only while dragging', () => {
+  const f = fixture();
+  const selecting = () => ({cancelable:true, prevented:false,
+    preventDefault() {this.prevented = true;}});
+  let selection = selecting();
+  f.doc.fire('selectstart', selection);
+  assert.equal(selection.prevented, false);
+
+  f.launchGame.fire('pointerdown', f.pointer('pointerdown'));
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), true);
+  for (const name of ['touchstart', 'touchmove', 'selectstart', 'contextmenu', 'dragstart']) {
+    const event = selecting();
+    f.doc.fire(name, event);
+    assert.equal(event.prevented, true, name);
+  }
+  f.setHit(null);
+  f.doc.fire('pointerup', f.pointer('pointerup'));
+  assert.equal(f.game.hidden, true);
+  assert.equal(f.emitted.length, 0);
+  // Safari may start selecting shortly after touchup; retain protection briefly.
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), true);
+  f.flushTimers();
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), false);
+  selection = selecting();
+  f.doc.fire('selectstart', selection);
+  assert.equal(selection.prevented, false);
+});
+
+test('an immediate second drag keeps the selection lock until the second release', () => {
+  const f = fixture();
+  f.launchGroups.fire('pointerdown', f.pointer('pointerdown'));
+  f.doc.fire('pointercancel', f.pointer('pointercancel'));
+  f.launchGame.fire('pointerdown', f.pointer('pointerdown'));
+  f.flushTimers();
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), true);
+  f.doc.fire('pointerup', f.pointer('pointerup'));
+  f.flushTimers();
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), false);
+});
+
+test('keyboard-only popup allows selection; losing window focus immediately unlocks a drag', () => {
+  const f = fixture();
+  f.launchGame.fire('keydown', {key:'Enter', preventDefault() {}});
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), false);
+  const select = {cancelable:true, prevented:false,
+    preventDefault() {this.prevented = true;}};
+  f.doc.fire('selectstart', select);
+  assert.equal(select.prevented, false);
+  f.win.fire('blur');
+  f.launchGroups.fire('pointerdown', f.pointer('pointerdown'));
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), true);
+  f.win.fire('blur');
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), false);
+  assert.equal(f.groups.hidden, true);
+  f.flushTimers();
+  assert.equal(f.doc.documentElement.classList.contains('game-shortcut-dragging'), false);
+  assert.equal(f.emitted.length, 0);
 });

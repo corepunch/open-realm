@@ -47,6 +47,17 @@ canvas { display: block; max-width: 100%; background: #000; }
 #game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
   visibility: visible; opacity: 1; pointer-events: auto;
   display: flex; gap: .5rem; }
+/* iOS Safari can select text/call up its loupe during a long press even with
+ * touch-action:none. Always protect the controls; protect the rest of the page
+ * only while a shortcut popup owns the pointer (and briefly after release). */
+#game-controls, #game-controls * {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+html.game-shortcut-dragging, html.game-shortcut-dragging * {
+  -webkit-user-select: none !important; user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
 #game-controls button { margin: 0; min-width: 2.8rem; min-height: 2.8rem;
   padding: .45rem .7rem; border: 1px solid #9baec7; border-radius: .4rem;
   background: rgba(11, 18, 32, .85); color: #fff; font: 600 14px system-ui, sans-serif;
