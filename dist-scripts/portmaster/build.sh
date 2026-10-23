@@ -11,6 +11,7 @@ BUILD_DIR="${REPO_ROOT}/build"
 IMAGE_NAME="openrealm-portmaster"
 CONTAINER_NAME="openrealm-portmaster-extract"
 ZIP_NAME="open-realm-wc3.zip"
+BUNDLE_FFMPEG_LIBS="${BUNDLE_FFMPEG_LIBS:-0}"
 
 mkdir -p "${BUILD_DIR}"
 
@@ -40,6 +41,7 @@ echo "Building ARM64 PortMaster image..."
 docker buildx build \
     --platform linux/arm64 \
     --load \
+    --build-arg "BUNDLE_FFMPEG_LIBS=${BUNDLE_FFMPEG_LIBS}" \
     -f "${SCRIPT_DIR}/Dockerfile" \
     -t "${IMAGE_NAME}" \
     "${REPO_ROOT}"

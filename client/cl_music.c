@@ -253,7 +253,11 @@ static bool CL_MusicResolveDiskPath(cstring_t path) {
 
 static bool CL_MusicOpenCodec(void) {
     AVStream *stream;
+#if LIBAVFORMAT_VERSION_MAJOR >= 59
     AVCodec const *decoder;
+#else
+    AVCodec *decoder;
+#endif
     AVCodecContext *codec;
     int audio_stream;
 
@@ -272,10 +276,15 @@ static bool CL_MusicOpenCodec(void) {
 }
 
 static bool CL_MusicEnsureConversion(AVFrame const *frame) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     AVChannelLayout output_layout = AV_CHANNEL_LAYOUT_STEREO;
     int result;
+#else
+    int64_t input_layout;
+#endif
 
     if (cl_music.swr) return true;
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (frame->sample_rate <= 0 || frame->ch_layout.nb_channels <= 0) return false;
     result = swr_alloc_set_opts2(&cl_music.swr,
                                  &output_layout,
@@ -286,7 +295,26 @@ static bool CL_MusicEnsureConversion(AVFrame const *frame) {
                                  frame->sample_rate,
                                  0,
                                  NULL);
+#else
+    if (frame->sample_rate <= 0 || frame->channels <= 0) return false;
+    input_layout = frame->channel_layout;
+    if (!input_layout) input_layout = av_get_default_channel_layout(frame->channels);
+    if (!input_layout) return false;
+    cl_music.swr = swr_alloc_set_opts(NULL,
+                                      AV_CH_LAYOUT_STEREO,
+                                      AV_SAMPLE_FMT_S16,
+                                      44100,
+                                      input_layout,
+                                      (enum AVSampleFormat)frame->format,
+                                      frame->sample_rate,
+                                      0,
+                                      NULL);
+#endif
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (result < 0 || !cl_music.swr || swr_init(cl_music.swr) < 0) {
+#else
+    if (!cl_music.swr || swr_init(cl_music.swr) < 0) {
+#endif
         swr_free(&cl_music.swr);
         return false;
     }

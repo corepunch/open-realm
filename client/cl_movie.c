@@ -338,10 +338,15 @@ static bool CL_MovieDrainVideo(void) {
 }
 
 static bool CL_MovieEnsureAudioConversion(AVFrame const *frame) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     AVChannelLayout output_layout = AV_CHANNEL_LAYOUT_STEREO;
     int result;
+#else
+    int64_t input_layout;
+#endif
 
     if (cl_movie.swr) return true;
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (frame->sample_rate <= 0 || frame->ch_layout.nb_channels <= 0) return false;
     result = swr_alloc_set_opts2(&cl_movie.swr,
                                  &output_layout,
@@ -352,7 +357,26 @@ static bool CL_MovieEnsureAudioConversion(AVFrame const *frame) {
                                  frame->sample_rate,
                                  0,
                                  NULL);
+#else
+    if (frame->sample_rate <= 0 || frame->channels <= 0) return false;
+    input_layout = frame->channel_layout;
+    if (!input_layout) input_layout = av_get_default_channel_layout(frame->channels);
+    if (!input_layout) return false;
+    cl_movie.swr = swr_alloc_set_opts(NULL,
+                                      AV_CH_LAYOUT_STEREO,
+                                      AV_SAMPLE_FMT_S16,
+                                      44100,
+                                      input_layout,
+                                      (enum AVSampleFormat)frame->format,
+                                      frame->sample_rate,
+                                      0,
+                                      NULL);
+#endif
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (result < 0 || !cl_movie.swr || swr_init(cl_movie.swr) < 0) {
+#else
+    if (!cl_movie.swr || swr_init(cl_movie.swr) < 0) {
+#endif
         swr_free(&cl_movie.swr);
         return false;
     }
@@ -484,7 +508,11 @@ bool CL_PlayMovie(cstring_t path) {
     CON_printf("Skipping movie %s: playback is disabled in this build (rebuild with FFMPEG=1).", path ? path : "");
     return false;
 #else
+#if LIBAVFORMAT_VERSION_MAJOR >= 59
     AVCodec const *video_decoder;
+#else
+    AVCodec *video_decoder;
+#endif
     int video_stream;
     int audio_stream;
 
