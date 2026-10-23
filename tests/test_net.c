@@ -4957,6 +4957,85 @@ TEST(client_layout, sprite_overlay_draws_after_button_artwork) {
     re.DrawSprite = old_sprite; re.DrawImage = old_image;
 }
 
+/* Exercise the complete server-authored paint order with deliberately
+ * shuffled frame numbers.  All callbacks capture the actual draw dispatch,
+ * not an independent copy of the grouping algorithm. */
+static int overlay_paint_order[32], overlay_paint_count;
+static void capture_overlay_paint_image(texture_t const *tex, rect_t const *screen,
+                                        rect_t const *uv, color32_t color) {
+    (void)screen; (void)uv; (void)color;
+    if (overlay_paint_count < 32) overlay_paint_order[overlay_paint_count++] = (int)(uintptr_t)tex;
+}
+static void capture_overlay_paint_sprite(drawSprite_t const *sprite) {
+    if (overlay_paint_count < 32) overlay_paint_order[overlay_paint_count++] = atoi(sprite->anim + 1);
+}
+static void capture_overlay_paint_text(drawText_t const *draw) {
+    if (overlay_paint_count < 32) overlay_paint_order[overlay_paint_count++] = atoi(draw->text + 1);
+}
+
+TEST(client_layout, overlay_paint_groups_stay_stable_with_mixed_frames) {
+    uint8_t data[8192];
+    sizeBuf_t msg = make_msg_buf(data, sizeof(data));
+    uiFrame_t const empty = {0};
+    uiLabel_t label = {0};
+    uiFrame_t frames[] = {
+        { .number =  1, .flags.type = FT_TEXT, .text = "#90" },
+        { .number =  2, .flags.type = FT_SPRITE, .text = "#70" },
+        { .number =  3, .flags.type = FT_TEXT, .text = "#80" },
+        { .number =  4, .flags.type = FT_TEXTURE, .tex.index = 6 },
+        { .number =  5, .flags.type = FT_TEXT, .text = "#40" },
+        { .number =  6, .flags.type = FT_SIMPLESTATUSBAR, .tex.index = 3, .value = 1.0f },
+        { .number =  7, .flags.type = FT_TEXTURE, .tex.index = 2 },
+        { .number =  8, .flags.type = FT_SPRITE, .text = "#10" },
+        { .number =  9, .flags.type = FT_TEXT, .text = "#86" },
+        { .number = 10, .flags.type = FT_TEXT, .text = "#83" },
+        { .number = 11, .flags.type = FT_SPRITE, .text = "#11" },
+        { .number = 12, .flags.type = FT_TEXTURE, .tex.index = 1 },
+        { .number = 13, .flags.type = FT_TEXT, .text = "#81" },
+        { .number = 14, .flags.type = FT_SPRITE, .text = "#71" },
+        { .number = 15, .flags.type = FT_SIMPLESTATUSBAR, .tex.index = 5, .value = 1.0f },
+        { .number = 16, .flags.type = FT_TEXT, .text = "#91" },
+        { .number = 17, .flags.type = FT_TEXT, .text = "#41" },
+    };
+    int const expected[] = { 10, 11, 20, 21, 30, 31, 40, 41, 60, 70, 71, 80, 81, 83, 86, 90, 91 };
+
+    /* flagsvalue overlaps flags.type in the wire union: set type first. */
+    frames[0].flagsvalue |= UIFLAG_TEXT_OVERLAY;
+    frames[1].flagsvalue |= UIFLAG_SPRITE_OVERLAY;
+    frames[2].flagsvalue |= UIFLAG_TEXT_OVERLAY | (3u << UIFLAG_TEXT_RANK_SHIFT);
+    frames[3].flagsvalue |= UIFLAG_TEXTURE_OVERLAY;
+    frames[8].flagsvalue |= UIFLAG_TEXT_OVERLAY | (1u << UIFLAG_TEXT_RANK_SHIFT);
+    frames[9].flagsvalue |= UIFLAG_TEXT_OVERLAY | (2u << UIFLAG_TEXT_RANK_SHIFT);
+    frames[12].flagsvalue |= UIFLAG_TEXT_OVERLAY | (3u << UIFLAG_TEXT_RANK_SHIFT);
+    frames[13].flagsvalue |= UIFLAG_SPRITE_OVERLAY;
+    frames[15].flagsvalue |= UIFLAG_TEXT_OVERLAY;
+
+    test_client_stubs_init();
+    cl.pics[1] = (texture_t *)(uintptr_t)21;
+    cl.pics[2] = (texture_t *)(uintptr_t)20;
+    cl.pics[3] = (texture_t *)(uintptr_t)30;
+    cl.pics[5] = (texture_t *)(uintptr_t)31;
+    cl.pics[6] = (texture_t *)(uintptr_t)60;
+    MSG_WriteByte(&msg, LAYER_CONSOLE);
+    FOR_LOOP(i, sizeof(frames) / sizeof(frames[0])) {
+        MSG_WriteDeltaUIFrame(&msg, &empty, &frames[i], true);
+        if (frames[i].flags.type == FT_TEXT) {
+            MSG_WriteByte(&msg, sizeof(label));
+            MSG_Write(&msg, &label, sizeof(label));
+        } else MSG_WriteByte(&msg, 0);
+    }
+    MSG_WriteLong(&msg, 0); MSG_WriteShort(&msg, 0); msg.readcount = 0;
+    CL_ParseLayout(&msg);
+    SCR_Clear(cl.layout[LAYER_CONSOLE]);
+    re.DrawSprite = capture_overlay_paint_sprite;
+    re.DrawImage = capture_overlay_paint_image;
+    re.DrawText = capture_overlay_paint_text;
+    overlay_paint_count = 0;
+    SCR_LayoutDrawOverlay(cl.layout[LAYER_CONSOLE]);
+    T_EQ(overlay_paint_count, (int)(sizeof(expected) / sizeof(expected[0])));
+    FOR_LOOP(i, sizeof(expected) / sizeof(expected[0])) T_EQ(overlay_paint_order[i], expected[i]);
+}
+
 TEST(net, sprite_overlay_survives_layout_delta) {
     uint8_t data[256];
     sizeBuf_t msg = make_msg_buf(data, sizeof(data));
