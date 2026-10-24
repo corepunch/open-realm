@@ -1305,8 +1305,114 @@ void R_SetupEnvironmentLighting(void) {
         tr.viewDef.entityLight = R_EnvironLightFromModel(&light);
 }
 
+/* Matrix reuse is independent of MDX pose reuse: opaque-only entities and
+ * MDX pose-cache-budget misses can avoid rebuilding a transform three times in
+ * the cull, solid and alpha passes. Only real view-array entries qualify.
+ * Warcraft III's R_EntityPose basis is fixed; origin, yaw and scale are the
+ * complete inputs to R_GetEntityMatrix. Selection of terrain-fitted models
+ * is intentionally NOT cached, and must still run for every draw. */
+#define WC3_VIEW_MATRIX_ENTRIES 1024
+
+typedef struct {
+    vec3_t origin;
+    float angle, scale;
+} wc3MatrixPoseKey_t;
+
+typedef struct {
+    wc3MatrixPoseKey_t key;
+    mat4_t matrix;
+} wc3ViewMatrixEntry_t;
+
+static struct {
+    bool active;
+    uint16_t epoch;
+    uint16_t scene_epoch[MAX_GAME_ENTITIES];
+    uint16_t scene_entry[MAX_GAME_ENTITIES];
+    renderEntity_t const *scene_entities;
+    uint32_t num_entities, count;
+    wc3ViewMatrixEntry_t entries[WC3_VIEW_MATRIX_ENTRIES];
+} wc3_view_matrices;
+
+static void R_W3ViewMatricesBegin(void) {
+    if (++wc3_view_matrices.epoch == 0) {
+        memset(wc3_view_matrices.scene_epoch, 0, sizeof(wc3_view_matrices.scene_epoch));
+        wc3_view_matrices.epoch = 1;
+    }
+    wc3_view_matrices.active = true;
+    wc3_view_matrices.scene_entities = tr.viewDef.entities;
+    wc3_view_matrices.num_entities = tr.viewDef.num_entities;
+    wc3_view_matrices.count = 0;
+}
+
+static void R_W3ViewMatricesEnd(void) {
+    wc3_view_matrices.active = false;
+    wc3_view_matrices.scene_entities = NULL;
+    wc3_view_matrices.num_entities = wc3_view_matrices.count = 0;
+}
+
+/* A local fire/attachment entity can share an entity number with a real
+ * scene entity; its pointer must never alias a cache entry. Avoid relational
+ * pointer comparisons between unrelated C objects. */
+static uint32_t R_W3ViewMatrixSceneIndex(renderEntity_t const *entity) {
+    uintptr_t base, address, offset, index;
+    if (!wc3_view_matrices.active || !entity || !wc3_view_matrices.scene_entities ||
+        wc3_view_matrices.scene_entities != tr.viewDef.entities ||
+        wc3_view_matrices.num_entities != tr.viewDef.num_entities)
+        return UINT32_MAX;
+    base = (uintptr_t)wc3_view_matrices.scene_entities;
+    address = (uintptr_t)entity;
+    if (address < base) return UINT32_MAX;
+    offset = address - base;
+    if (offset % sizeof(*entity)) return UINT32_MAX;
+    index = offset / sizeof(*entity);
+    if (index >= wc3_view_matrices.num_entities || index >= MAX_GAME_ENTITIES)
+        return UINT32_MAX;
+    return (uint32_t)index;
+}
+
+#ifdef BZ_TESTS
+static uint32_t test_wc3_view_matrix_builds;
+static void R_W3ViewMatricesResetBuildCount(void) { test_wc3_view_matrix_builds = 0; }
+static uint32_t R_W3ViewMatricesBuildCount(void) { return test_wc3_view_matrix_builds; }
+#endif
+
+static void R_W3GetViewEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
+    uint32_t index = R_W3ViewMatrixSceneIndex(entity);
+    wc3MatrixPoseKey_t key = { .origin = entity->origin,
+                               .angle = entity->angle, .scale = entity->scale };
+    wc3ViewMatrixEntry_t *entry = NULL;
+
+    if (index != UINT32_MAX) {
+        if (wc3_view_matrices.scene_epoch[index] == wc3_view_matrices.epoch) {
+            uint32_t slot = wc3_view_matrices.scene_entry[index];
+            if (slot && slot <= wc3_view_matrices.count)
+                entry = &wc3_view_matrices.entries[slot - 1];
+        }
+        if (entry && !memcmp(&entry->key, &key, sizeof(key))) {
+            *matrix = entry->matrix;
+            return;
+        }
+    }
+    R_GetEntityMatrix(entity, matrix);
+#ifdef BZ_TESTS
+    test_wc3_view_matrix_builds++;
+#endif
+    if (index == UINT32_MAX) return;
+    if (!entry) {
+        if (wc3_view_matrices.count >= WC3_VIEW_MATRIX_ENTRIES) return;
+        entry = &wc3_view_matrices.entries[wc3_view_matrices.count++];
+        wc3_view_matrices.scene_entry[index] = (uint16_t)wc3_view_matrices.count;
+        wc3_view_matrices.scene_epoch[index] = wc3_view_matrices.epoch;
+    }
+    entry->key = key;
+    entry->matrix = *matrix;
+}
+
 void R_DrawWorld(void) {
-    if (tr.render_phase == RENDER_PHASE_SOLID) MDLX_ViewPoseBegin();
+    if (tr.render_phase == RENDER_PHASE_SOLID) {
+        MDLX_ViewPoseBegin();
+        R_W3ViewMatricesBegin();
+    }
     _W3M_DrawWorld();
     R_W3DrawEventSplats();
     R_W3DrawEventSpawns(false, NULL, 0);
@@ -1343,6 +1449,7 @@ void R_DrawAlphaSurfaces(void) {
         R_W3DrawEventSpawns(false, NULL, 0);
     }
     MDLX_ViewPoseEnd(); /* no entries can outlive this view or a model reload */
+    R_W3ViewMatricesEnd();
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {
@@ -2121,7 +2228,7 @@ static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
         !entity->model->mdx || (!instanced && entity->number >= MAX_GAME_ENTITIES)) return;
     model = entity->model->mdx;
     if (!model->events) return;
-    R_GetEntityMatrix(entity, &transform);
+    R_W3GetViewEntityMatrix(entity, &transform);
     if (!instanced) state = event_state + entity->number;
     R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = entity, .model = model,
         .state = state, .transform = &transform, .depth = 0, .entity_camera = entity_camera,
@@ -2147,7 +2254,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     mdxModel_t const *model = NULL;
     if (tr.render_phase != RENDER_PHASE_ALPHA ||
         !MDLX_ViewPoseCachedDraw(entity, &model, &transform)) {
-        R_GetEntityMatrix(entity, &transform);
+        R_W3GetViewEntityMatrix(entity, &transform);
         model = R_W3SpecialModel(entity, &transform);
     }
     uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
@@ -2228,7 +2335,7 @@ bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, ma
     if (!entity || !bounds || !matrix || !entity->model ||
         entity->model->modeltype != ID_MDLX || !entity->model->mdx)
         return false;
-    R_GetEntityMatrix(entity, matrix);
+    R_W3GetViewEntityMatrix(entity, matrix);
     *bounds = R_W3SpecialModel(entity, matrix)->bounds.box;
     return true;
 }
@@ -2278,7 +2385,7 @@ bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, 
         !entity->model->mdx || !prefix || !prefix[0] || !out) {
         return false;
     }
-    R_GetEntityMatrix(entity, &transform);
+    R_W3GetViewEntityMatrix(entity, &transform);
     if (!MDLX_CollectAttachmentPositions(entity->model->mdx, &transform,
                                          entity->frame, entity->oldframe,
                                          prefix, &attachment, 1)) {

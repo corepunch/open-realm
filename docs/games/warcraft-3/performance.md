@@ -1,3 +1,38 @@
+## October 24 low-core x86 per-view Warcraft III entity-matrix reuse (patch thirty-four)
+
+NightElf07 profiling after patch thirty-three still attributes about 3.56%
+*inclusive* CPU-cycle samples in the alpha branch to `R_GetEntityMatrix`,
+while the culling branch spends another 3.49%. These paths overlap with
+`Matrix4_multiply` (3.78% exclusive), and are sample shares, not measured FPS.
+
+A separate Warcraft III view-local matrix cache now shares model placement
+between event presentation, model-bounds culling, opaque rendering and alpha
+rendering. Unlike the MDX pose cache (96 entries, qualifying blended models
+only), it can serve ordinary opaque and unanimated scene models too. Direct
+scene-array indexes and generation stamps avoid scans and per-view clearing
+of the full index; the cache holds at most 1,024 transforms and recomputes
+normally beyond the budget. Lookups verify unchanged origin, yaw and scale,
+which are the complete inputs to Warcraft III's fixed-basis model placement.
+Both the view scene-array identity and view lifecycle are checked.
+
+Selection of terrain-fitted special doodad models still runs normally against
+the reused transform. Child effects, temporary attachment entities, sprites
+and other entities not in the current view's scene array never enter the cache.
+The cache is ended at the same boundary as the MDX pose cache: after alpha
+rendering. Changes to entity placement within a view recompute and replace
+that entity's matrix, while changes to model, animation time and camera do not
+invalidate its fixed-basis placement matrix (their downstream model/pose
+processing is unchanged). This is static optimisation, not persistent state;
+no new production diagnostics, save fields or wire fields are introduced.
+
+`renderer_game.wc3_view_matrices_reuse_cull_solid_alpha_and_invalidate_mutations`
+and `renderer_game.wc3_view_matrix_cache_bounds_and_scene_identity` cover
+shared placement across passes, distinct entity identities, movement/rotation/
+scale invalidation, temporary entities, isolated view expiration, sparse scene
+indices and cache exhaustion. The native build passed; tests were not run. Compare
+matched NightElf07 frame times/FPS and `R_GetEntityMatrix`/`Matrix4_multiply`
+profiles, and inspect attached models, special doodads and cinematics.
+
 ## October 24 low-core x86 direct-indexed MDX view poses (patch thirty-two)
 
 NightElf07 profiling after patch thirty-one assigns about 1.21% exclusive

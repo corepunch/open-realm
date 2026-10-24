@@ -1274,6 +1274,122 @@ TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
     FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
 }
 
+TEST(renderer_game, wc3_view_matrices_reuse_cull_solid_alpha_and_invalidate_mutations) {
+    renderEntity_t scene[3] = {
+        { .origin = { 10.0f, 20.0f, 30.0f }, .angle = 40.0f, .scale = 1.0f },
+        { .origin = { -20.0f, 4.0f, 60.0f }, .angle = 5.0f, .scale = 2.0f },
+    };
+    mdxModel_t mdx = { .bounds.box = {
+        .min = { -1.0f, -1.0f, -1.0f }, .max = { 1.0f, 1.0f, 1.0f },
+    } };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t *saved_scene = tr.viewDef.entities;
+    uint32_t saved_count = tr.viewDef.num_entities;
+    render_phase_t saved_phase = tr.render_phase;
+    box3_t bounds;
+    mat4_t first, cached, expected;
+    renderEntity_t copy;
+
+    scene[0].model = scene[1].model = &model;
+    scene[0].number = scene[1].number = 7; /* numbers aren't cache identities */
+    tr.viewDef.entities = scene; tr.viewDef.num_entities = 3;
+    R_W3ViewMatricesResetBuildCount();
+    R_W3ViewMatricesBegin();
+    T_ASSERT(R_GetEntityBoundsAndMatrix(&scene[0], &bounds, &first));
+    T_EQ(R_W3ViewMatricesBuildCount(), 1);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_RenderModel(&scene[0]);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_RenderModel(&scene[0]);
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 1);
+    T_ASSERT(!memcmp(&first, &cached, sizeof(first)));
+
+    R_W3GetViewEntityMatrix(&scene[1], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 2);
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 2);
+
+    /* The underlying W3 placement basis doesn't depend on animation time or
+     * model pointer; those are re-evaluated by the normal MDX render path. */
+    scene[0].frame = 17;
+    scene[0].model = &model;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 2);
+
+    scene[0].origin.x += 2.0f;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 3);
+    R_GetEntityMatrix(&scene[0], &expected);
+    T_ASSERT(!memcmp(&cached, &expected, sizeof(expected)));
+    scene[0].angle = -100.0f;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 4);
+    scene[0].scale = 0.5f;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 5);
+    R_GetEntityMatrix(&scene[0], &expected);
+    T_ASSERT(!memcmp(&cached, &expected, sizeof(expected)));
+
+    copy = scene[0]; /* temporary children must never share a cached slot */
+    R_W3GetViewEntityMatrix(&copy, &cached);
+    R_W3GetViewEntityMatrix(&copy, &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 7);
+    R_W3ViewMatricesEnd();
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 8);
+    R_W3ViewMatricesBegin();
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 9);
+    R_W3ViewMatricesEnd();
+    tr.viewDef.entities = saved_scene; tr.viewDef.num_entities = saved_count;
+    tr.render_phase = saved_phase;
+}
+
+TEST(renderer_game, wc3_view_matrix_cache_bounds_and_scene_identity) {
+    static renderEntity_t scene[WC3_VIEW_MATRIX_ENTRIES + 2];
+    renderEntity_t *saved_scene = tr.viewDef.entities;
+    uint32_t saved_count = tr.viewDef.num_entities;
+    mat4_t matrix;
+    renderEntity_t copied;
+
+    memset(scene, 0, sizeof(scene));
+    FOR_LOOP(i, WC3_VIEW_MATRIX_ENTRIES + 2) {
+        scene[i].origin.x = (float)i;
+        scene[i].scale = 1.0f;
+        scene[i].number = 5;
+    }
+    tr.viewDef.entities = scene;
+    tr.viewDef.num_entities = WC3_VIEW_MATRIX_ENTRIES + 2;
+    R_W3ViewMatricesResetBuildCount();
+    R_W3ViewMatricesBegin();
+    /* Indexing is by scene position: deliberately skip indices at the start. */
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES], &matrix);
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), 1);
+    FOR_LOOP(i, WC3_VIEW_MATRIX_ENTRIES - 1)
+        R_W3GetViewEntityMatrix(&scene[i], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES);
+    /* Capacity reached: existing entries remain valid, overflow recomputes. */
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES + 1], &matrix);
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES + 1], &matrix);
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 2);
+
+    copied = scene[0];
+    R_W3GetViewEntityMatrix(&copied, &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 3);
+    tr.viewDef.num_entities--; /* view mutation rejects all cached entries */
+    R_W3GetViewEntityMatrix(&scene[0], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 4);
+    tr.viewDef.num_entities++;
+    tr.viewDef.entities = scene + 1; /* different scene base is also a miss */
+    R_W3GetViewEntityMatrix(&scene[1], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 5);
+    R_W3ViewMatricesEnd();
+    tr.viewDef.entities = saved_scene; tr.viewDef.num_entities = saved_count;
+}
+
 TEST(renderer_game, wc3_entity_bounds_share_the_exact_culling_matrix) {
     mdxModel_t mdx = { .bounds.box = {
         .min = { -24.0f, -8.0f, -12.0f }, .max = { 32.0f, 18.0f, 120.0f },
