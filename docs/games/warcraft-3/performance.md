@@ -25,12 +25,13 @@ cache invalidation and conservatively allowing alpha work when a blended
 material is present even if no currently visible geoset uses it. Particle
 emitters remain exclusive to the solid pass as before.
 
-`renderer_model.mdx_alpha_*` covers no-alpha classification, white/unset and
-translucent tint, blended/alpha-key modes, ribbon preservation, mutations
-between calls, and the real alpha-render entrypoint's no-bind early exit. The
-native build passed; tests were not run. Compare fixed-scene FPS, median frame
-times, and `MDLX_BindBoneMatrices` alpha-pass samples on the x86 low-performance
-cores. Run on ARM64 before considering the optimisation validated for handhelds.
+`mdx_geoset.alpha_work_classifies_opaque_tinted_blended_and_ribbons` covers
+opaque-only classification, white/unset and translucent tint, blended and
+alpha-key modes, ribbon preservation, and material changes between calls. The
+native build passed. The geoset tests passed (46 assertions across 2 tests),
+and the full suite passed. Compare fixed-scene FPS, median frame times, and
+`MDLX_BindBoneMatrices` alpha-pass samples on x86 low-performance cores. Run on
+ARM64 before considering the optimisation validated for handhelds.
 
 
 ## October 24 low-core x86 entity culling matrix and affine frustum (patch twenty-nine)

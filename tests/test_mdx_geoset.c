@@ -30,6 +30,47 @@ void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t cons
 }
 void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *anim, vec3_t *out) { *out = anim->staticColor; }
 
+TEST(mdx_geoset, alpha_work_classifies_opaque_tinted_blended_and_ribbons) {
+    mdxMaterialLayer_t layers[2] = { { .blendMode = BLEND_MODE_NONE },
+                                    { .blendMode = BLEND_MODE_ALPHAKEY } };
+    mdxMaterial_t first = { .num_layers = 2, .layers = layers }, second = { 0 };
+    mdxGeoset_t geoset = { 0 };
+    mdxRibbonEmitter_t ribbon = { 0 };
+    mdxModel_t model = { .materials = &first, .geosets = &geoset };
+    renderEntity_t entity = { 0 };
+
+    T_ASSERT(!MDLX_ModelHasAlphaWork(NULL, &model));
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, NULL));
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint = (color32_t){ .a = 0 }; /* An unset zero tint defaults white. */
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint_valid = true;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint = (color32_t){ .r = 255, .g = 255, .b = 255, .a = 255 };
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint.a = 254; /* Nearly opaque still moves layers to alpha. */
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint_valid = false;
+    entity.tint.a = 0;
+
+    first.next = &second;
+    second.layers = (mdxMaterialLayer_t[]){ { .blendMode = BLEND_MODE_ADD } };
+    second.num_layers = 1;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    second.layers[0].blendMode = BLEND_MODE_MODULATE;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    second.layers[0].blendMode = BLEND_MODE_NONE;
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    first.layers[1].blendMode = BLEND_MODE_BLEND;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    first.layers[1].blendMode = BLEND_MODE_ALPHAKEY;
+
+    model.ribbons = &ribbon;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    model.ribbons = NULL;
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+}
+
 TEST(mdx_geoset, portal_base_blends_before_additive_texture_at_same_priority) {
     /* ShimmeringPortal has filters 4, 3, 2 in this file order; the final filter-2
      * white disk must be drawn first or it hides the textured planes and cylinder. */
