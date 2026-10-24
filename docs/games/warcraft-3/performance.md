@@ -1,3 +1,39 @@
+## October 24 NightElf07 stable-global-clock MDX pose sampling (patch forty)
+
+After patch thirty-nine removed WC3's redundant entity identity-basis matrix
+multiplication, the next NightElf07 profile attributes 9.34% inclusive sampled
+cycles to opaque `MDLX_BindBoneMatrices`, including 6.79% to node-matrix
+calculation. Bone hierarchies already memoise parent matrices per bind and use
+affine multiplication; replacing that recursion is not a safe assumption about
+remaining cost.
+
+`R_CalculateNodeMatrix` now returns a local identity matrix immediately for
+nodes without translation, rotation or scale tracks, without unnecessary pivot
+lookup. More importantly, **global-sequence tracks ignore the entity's old and
+new local animation frames**: both samples use the entity's scoped global clock
+or the fixed render-view timestamp. For such a stable clock, blended poses now
+evaluate each global translation/rotation/scale track **once**, avoiding a
+second keytrack evaluation and its searches. The existing vector lerp and
+quaternion slerp remain in place using the same evaluated value at both
+endpoints, retaining floating-point rounding for non-unit quaternions and
+vectors. Regular sequence tracks still evaluate both frames normally; when no explicit clock
+exists and the renderer would fall back to `SDL_GetTicks`, both global reads
+are retained because live time can advance between them.
+
+No evaluated poses or global values are persistently cached. Model-local parent
+transforms, billboard evaluation, pivots, child attachments, frame blending,
+paused animation clocks, sequence wrapping and the existing per-view caches
+continue on their existing paths. The `renderer_model` regression
+`mdx_blended_global_tracks_sample_once_and_preserve_hierarchy` compares
+synthetic parent/child matrices to stateless track evaluation across global
+clock wrap, verifies one global sample vs two regular samples, and covers an
+explicit clock scope and unscoped SDL fallback. The sample counter is test-only.
+No production debug logging has been added. `make test-renderer-model` passes
+with 11,312 assertions across 224 tests. In-game visual checks remain.
+Reprofile `MDLX_GetModelKeytrackValueResolved`, `R_CalculateNodeMatrix`,
+`MDLX_BindBoneMatrices` and matched FPS/frame time rather than treating
+CPU sample-share shifts as measured speedups.
+
 ## October 24 NightElf07 identity-basis entity transforms (patch thirty-nine)
 
 Patch thirty-eight's NightElf07 capture attributes 8.22% inclusive sampled CPU

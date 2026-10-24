@@ -44,6 +44,8 @@ void MDLX_TestResetKeyframeSearchStats(void);
 uint32_t MDLX_TestKeyframeBoundSearches(void);
 uint32_t MDLX_TestKeyframeSpanHits(void);
 uint32_t MDLX_TestKeyframeBracketHits(void);
+void MDLX_TestResetPoseTrackSamples(void);
+uint32_t MDLX_TestPoseTrackSamples(void);
 
 /* The pre-optimisation eight-corner implementation is intentionally kept
  * independent of the production support-point test. */
@@ -567,6 +569,122 @@ TEST(renderer_model, mdx_bone_pose_global_tracks_skip_sequence_searches) {
     T_EQ(MDLX_TestSequenceSearches(), 0u);
     T_FEQ(node_matrices[0].v[12], 7.0f, 0.001f);
     tr.viewDef.time = old_time;
+}
+
+/* Global sequences ignore the local frame numbers. During a stable render
+ * clock, querying them for oldframe and frame must give the same sample.
+ * Check against the stateless evaluator and the real parent/child matrices,
+ * not merely against a test-only query counter. */
+TEST(renderer_model, mdx_blended_global_tracks_sample_once_and_preserve_hierarchy) {
+    uint8_t positions[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    uint8_t rotations[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(quaternion_t))] = {0};
+    uint8_t scales[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    uint8_t children[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    mdxKeyTrack_t *pos = (mdxKeyTrack_t *)positions;
+    mdxKeyTrack_t *rot = (mdxKeyTrack_t *)rotations;
+    mdxKeyTrack_t *scl = (mdxKeyTrack_t *)scales;
+    mdxKeyTrack_t *child_pos = (mdxKeyTrack_t *)children;
+    mdxSequence_t seq = {.interval = {100, 400}};
+    mdxGlobalSequence_t global = {.value = 500};
+    mdxNode_t parent = {.node_id = 0, .parent_id = UINT32_MAX,
+                        .translation = pos, .rotation = rot, .scale = scl};
+    mdxNode_t child = {.node_id = 1, .parent_id = 0, .translation = child_pos};
+    mdxNode_t helper = {.node_id = 2, .parent_id = 1};
+    vec3_t pivots[3] = {{0}, {0}, {15, -5, 3}};
+    mdxModel_t model = {.num_nodes = 3, .sequences = &seq, .num_sequences = 1,
+                        .globalSequences = &global, .num_globalSequences = 1,
+                        .pivots = pivots, .num_pivots = 3};
+    mat4_t identity, expected_parent, child_matrix, expected_child;
+    viewDef_t const old_view = tr.viewDef;
+    uint32_t const clocks[] = {125, 625}; /* Second clock wraps the 501-tick global interval. */
+
+    model.nodes[0] = model.node_list[0] = &parent;
+    model.nodes[1] = model.node_list[1] = &child;
+    model.nodes[2] = model.node_list[2] = &helper;
+    pos->keyframeCount = rot->keyframeCount = scl->keyframeCount = child_pos->keyframeCount = 2;
+    pos->datatype = scl->datatype = child_pos->datatype = TDATA_FLOAT3;
+    rot->datatype = TDATA_FLOAT4;
+    pos->linetype = rot->linetype = scl->linetype = child_pos->linetype = TRACK_LINEAR;
+    pos->globalSeqId = rot->globalSeqId = scl->globalSeqId = 0;
+    child_pos->globalSeqId = UINT32_MAX;
+    {
+        int const global_times[] = {0, 500};
+        int const local_times[] = {100, 400};
+        vec3_t const parent_values[] = {{3, 1, 0}, {23, -4, 6}};
+        vec3_t const scale_values[] = {{1, 1, 1}, {1.3f, 0.9f, 1.2f}};
+        vec3_t const child_values[] = {{-2, 0, 0}, {4, 2, 0}};
+        quaternion_t rotation_values[] = {
+            {0, 0, 0, 1},
+            Quaternion_fromEuler(&(vec3_t){0, 0, 80}, ROTATE_XYZ),
+        };
+        /* Non-unit authored quaternion: slerp(q,q,t) must not be removed. */
+        rotation_values[1].x *= 0.9f; rotation_values[1].y *= 0.9f;
+        rotation_values[1].z *= 0.9f; rotation_values[1].w *= 0.9f;
+        FOR_LOOP(i, 2) {
+            mdxKeyFrame_t *kpos = (mdxKeyFrame_t *)((uint8_t *)pos->values + i * (4 + sizeof(vec3_t)));
+            mdxKeyFrame_t *krot = (mdxKeyFrame_t *)((uint8_t *)rot->values + i * (4 + sizeof(quaternion_t)));
+            mdxKeyFrame_t *kscl = (mdxKeyFrame_t *)((uint8_t *)scl->values + i * (4 + sizeof(vec3_t)));
+            mdxKeyFrame_t *kchild = (mdxKeyFrame_t *)((uint8_t *)child_pos->values + i * (4 + sizeof(vec3_t)));
+            kpos->time = krot->time = kscl->time = global_times[i];
+            kchild->time = local_times[i];
+            memcpy(kpos->data, &parent_values[i], sizeof(vec3_t));
+            memcpy(krot->data, &rotation_values[i], sizeof(quaternion_t));
+            memcpy(kscl->data, &scale_values[i], sizeof(vec3_t));
+            memcpy(kchild->data, &child_values[i], sizeof(vec3_t));
+        }
+    }
+    Matrix4_identity(&identity);
+    tr.viewDef.lerpfrac = 0.35f;
+    FOR_LOOP(i, 2) {
+        vec3_t global_position = {0}, global_scale = {1, 1, 1};
+        vec3_t local_old = {0}, local_new = {0}, local = {0};
+        quaternion_t global_rotation = {0, 0, 0, 1};
+        tr.viewDef.time = clocks[i];
+        MDLX_GetModelKeytrackValue(&model, pos, 150, &global_position);
+        MDLX_GetModelKeytrackValue(&model, rot, 250, &global_rotation);
+        MDLX_GetModelKeytrackValue(&model, scl, 250, &global_scale);
+        MDLX_GetModelKeytrackValue(&model, child_pos, 150, &local_old);
+        MDLX_GetModelKeytrackValue(&model, child_pos, 250, &local_new);
+        local = Vector3_lerp(&local_old, &local_new, tr.viewDef.lerpfrac);
+        /* Reference the old two-sample blending arithmetic as well, not
+         * merely the track value: repeated values can round differently. */
+        global_position = Vector3_lerp(&global_position, &global_position, tr.viewDef.lerpfrac);
+        global_rotation = Quaternion_slerp(&global_rotation, &global_rotation, tr.viewDef.lerpfrac);
+        global_scale = Vector3_lerp(&global_scale, &global_scale, tr.viewDef.lerpfrac);
+        Matrix4_from_rotation_translation_scale_origin(&expected_parent,
+            &global_rotation, &global_position, &global_scale, &MAKE(vec3_t, 0, 0, 0));
+        Matrix4_from_translation(&child_matrix, &local);
+        Matrix4_multiply_affine(&expected_parent, &child_matrix, &expected_child);
+        MDLX_TestResetPoseTrackSamples();
+        MDLX_BindBoneMatrices(&model, &identity, 250, 150);
+        T_EQ(MDLX_TestPoseTrackSamples(), 5u); /* 3 global once; local twice. */
+        FOR_LOOP(j, 16) {
+            T_FEQ(node_matrices[0].v[j], expected_parent.v[j], .0002f);
+            T_FEQ(node_matrices[1].v[j], expected_child.v[j], .0002f);
+            T_FEQ(node_matrices[2].v[j], expected_child.v[j], .0002f);
+        }
+    }
+    /* An explicit entity clock stays stable even if a subview has time=0. */
+    {
+        mdxAnimationTimeScope_t scope;
+        tr.viewDef.time = 750;
+        MDLX_PushEntityAnimationTime(NULL, &scope);
+        tr.viewDef.time = 0;
+        MDLX_TestResetPoseTrackSamples();
+        MDLX_BindBoneMatrices(&model, &identity, 250, 150);
+        T_EQ(MDLX_TestPoseTrackSamples(), 5u);
+        MDLX_PopEntityAnimationTime(&scope);
+    }
+    /* Outside that scope and with no fixed render timestamp, the fallback
+     * SDL clock could advance between evaluations: retain both samples. */
+    MDLX_TestResetPoseTrackSamples();
+    MDLX_BindBoneMatrices(&model, &identity, 250, 150);
+    T_EQ(MDLX_TestPoseTrackSamples(), 8u);
+    /* No interpolation with identical old/current frames, regardless of clock. */
+    MDLX_TestResetPoseTrackSamples();
+    MDLX_BindBoneMatrices(&model, &identity, 250, 250);
+    T_EQ(MDLX_TestPoseTrackSamples(), 4u);
+    tr.viewDef = old_view;
 }
 
 TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {

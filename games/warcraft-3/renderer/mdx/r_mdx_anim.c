@@ -582,11 +582,30 @@ typedef struct {
     bool resolved[2];
 } mdxPoseSequencePair_t;
 
+#ifdef BZ_TESTS
+static uint32_t test_mdx_pose_track_samples;
+void MDLX_TestResetPoseTrackSamples(void) { test_mdx_pose_track_samples = 0; }
+uint32_t MDLX_TestPoseTrackSamples(void) { return test_mdx_pose_track_samples; }
+#endif
+
+/* Global tracks ignore frame0/frame1 entirely and sample the global clock.
+ * When that clock is a fixed render timestamp or an entity pause-scope
+ * timestamp, the two ends of a blended pose necessarily have the same value.
+ * Preserve two independent reads when MDLX falls back to live SDL ticks:
+ * that clock can advance between the two calls. */
+static bool MDLX_PoseTrackUsesStableGlobalClock(mdxKeyTrack_t const *track) {
+    return track && track->globalSeqId != UINT32_MAX &&
+           (entity_global_time_valid || tr.viewDef.time != 0);
+}
+
 static void MDLX_GetPoseKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *track,
                                       uint32_t time, uint32_t sample, mdxPoseSequencePair_t *pair,
                                       handle_t output) {
     mdxSequence_t const *sequence = NULL;
     if (!track || !track->keyframeCount) return;
+#ifdef BZ_TESTS
+    test_mdx_pose_track_samples++;
+#endif
     if (track->globalSeqId == UINT32_MAX) {
         if (!pair->resolved[sample]) {
             pair->sequence[sample] = R_FindSequenceAtTime(model, time);
@@ -629,27 +648,53 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint
     vec3_t vScale = { 1, 1, 1 };
     vec3_t zero_pivot = { 0, 0, 0 };
     vec3_t const *pivot = &zero_pivot;
+    /* Helpers, attachments and some bone nodes have no animated TRS. Their
+     * local transform is identity regardless of pivot, time or blend factor;
+     * parent inheritance and billboarding remain in R_GetNodeGlobalMatrix. */
+    if (!node->translation && !node->rotation && !node->scale) {
+        Matrix4_identity(matrix);
+        return;
+    }
     if (node->node_id < (uint32_t)model->num_pivots) {
         pivot = (vec3_t const *)&model->pivots[node->node_id];
     }
     if (frame0 != frame1) {
         if (node->translation) {
             vec3_t t0 = vTranslation, t1 = vTranslation;
-            MDLX_GetPoseKeytrackValue(model, node->translation, frame0, 0, sequences, &t0);
-            MDLX_GetPoseKeytrackValue(model, node->translation, frame1, 1, sequences, &t1);
-            vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
+            if (MDLX_PoseTrackUsesStableGlobalClock(node->translation)) {
+                MDLX_GetPoseKeytrackValue(model, node->translation, frame1, 1, sequences, &t1);
+                /* Preserve the original arithmetic, including floating-point
+                 * rounding, while eliding the duplicate track evaluation. */
+                vTranslation = Vector3_lerp(&t1, &t1, tr.viewDef.lerpfrac);
+            } else {
+                MDLX_GetPoseKeytrackValue(model, node->translation, frame0, 0, sequences, &t0);
+                MDLX_GetPoseKeytrackValue(model, node->translation, frame1, 1, sequences, &t1);
+                vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
+            }
         }
         if (node->rotation) {
             quaternion_t r0 = vRotation, r1 = vRotation;
-            MDLX_GetPoseKeytrackValue(model, node->rotation, frame0, 0, sequences, &r0);
-            MDLX_GetPoseKeytrackValue(model, node->rotation, frame1, 1, sequences, &r1);
-            vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
+            if (MDLX_PoseTrackUsesStableGlobalClock(node->rotation)) {
+                MDLX_GetPoseKeytrackValue(model, node->rotation, frame1, 1, sequences, &r1);
+                /* Authored quaternions need not be perfectly unit-length:
+                 * slerp(q,q,t) is not always bitwise equal to q. */
+                vRotation = Quaternion_slerp(&r1, &r1, tr.viewDef.lerpfrac);
+            } else {
+                MDLX_GetPoseKeytrackValue(model, node->rotation, frame0, 0, sequences, &r0);
+                MDLX_GetPoseKeytrackValue(model, node->rotation, frame1, 1, sequences, &r1);
+                vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
+            }
         }
         if (node->scale) {
             vec3_t s0 = vScale, s1 = vScale;
-            MDLX_GetPoseKeytrackValue(model, node->scale, frame0, 0, sequences, &s0);
-            MDLX_GetPoseKeytrackValue(model, node->scale, frame1, 1, sequences, &s1);
-            vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);
+            if (MDLX_PoseTrackUsesStableGlobalClock(node->scale)) {
+                MDLX_GetPoseKeytrackValue(model, node->scale, frame1, 1, sequences, &s1);
+                vScale = Vector3_lerp(&s1, &s1, tr.viewDef.lerpfrac);
+            } else {
+                MDLX_GetPoseKeytrackValue(model, node->scale, frame0, 0, sequences, &s0);
+                MDLX_GetPoseKeytrackValue(model, node->scale, frame1, 1, sequences, &s1);
+                vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);
+            }
         }
     } else {
         if (node->translation) {
@@ -662,9 +707,7 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint
             MDLX_GetPoseKeytrackValue(model, node->scale, frame1, 1, sequences, &vScale);
         }
     }
-    if (!node->translation && !node->rotation && !node->scale) {
-        Matrix4_identity(matrix);
-    } else if (node->translation && !node->rotation && !node->scale) {
+    if (node->translation && !node->rotation && !node->scale) {
         Matrix4_from_translation(matrix, &vTranslation);
     } else if (!node->translation && node->rotation && !node->scale) {
         Matrix4_from_rotation_origin(matrix,  &vRotation, pivot);
