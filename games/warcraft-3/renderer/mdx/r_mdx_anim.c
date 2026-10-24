@@ -148,14 +148,25 @@ typedef struct {
     mat4_t matrix;
 } mdxViewPoseNode_t;
 
+/* Index by scene-array position, NOT by entity->number (which can be shared
+ * by synthetic/instanced draw entities). A stamp avoids clearing 16,000 map
+ * slots on every view; a wrapped stamp is the only full index reset. The
+ * uint8_t slot stores entry index + 1 (96 maximum, zero means missing). */
 static struct {
     bool active;
+    uint16_t epoch;
+    uint16_t scene_epoch[MAX_GAME_ENTITIES];
+    uint8_t scene_entry[MAX_GAME_ENTITIES];
     uint32_t count, nodes;
     mdxViewPoseEntry_t entries[MDLX_VIEW_POSE_ENTRIES];
     mdxViewPoseNode_t snapshots[MDLX_VIEW_POSE_NODES];
 } view_pose_cache;
 
 void MDLX_ViewPoseBegin(void) {
+    if (++view_pose_cache.epoch == 0) {
+        memset(view_pose_cache.scene_epoch, 0, sizeof(view_pose_cache.scene_epoch));
+        view_pose_cache.epoch = 1;
+    }
     view_pose_cache.count = view_pose_cache.nodes = 0;
     view_pose_cache.active = true;
 }
@@ -165,28 +176,48 @@ void MDLX_ViewPoseEnd(void) {
     view_pose_cache.count = view_pose_cache.nodes = 0;
 }
 
-/* Never admit temporary child/sprite entities. The view's entity array owns
- * the stable identities shared by the two passes. */
-static bool MDLX_ViewPoseIsSceneEntity(renderEntity_t const *entity) {
-    uintptr_t base, addr, size;
-    if (!entity || !tr.viewDef.entities || !tr.viewDef.num_entities) return false;
+/* Never admit temporary child/sprite entities. Use pointer subtraction only
+ * after checking the scene-array range: a draw-local copy is not a cache key.
+ * The explicit cap keeps out-of-range views on the uncached render path. */
+static uint32_t MDLX_ViewPoseSceneIndex(renderEntity_t const *entity) {
+    uintptr_t base, addr, distance;
+    uintptr_t index;
+    if (!entity || !tr.viewDef.entities || !tr.viewDef.num_entities) return UINT32_MAX;
     base = (uintptr_t)tr.viewDef.entities;
     addr = (uintptr_t)entity;
-    size = (size_t)tr.viewDef.num_entities * sizeof(*entity);
-    return addr >= base && addr - base < size && (addr - base) % sizeof(*entity) == 0;
+    if (addr < base) return UINT32_MAX;
+    distance = addr - base;
+    if (distance % sizeof(*entity)) return UINT32_MAX;
+    index = distance / sizeof(*entity);
+    if (index >= tr.viewDef.num_entities || index >= MAX_GAME_ENTITIES) return UINT32_MAX;
+    return (uint32_t)index;
 }
 
+#ifdef BZ_TESTS
+static uint32_t test_mdx_pose_lookup_candidates;
+void MDLX_TestResetPoseLookupCandidates(void) { test_mdx_pose_lookup_candidates = 0; }
+uint32_t MDLX_TestPoseLookupCandidates(void) { return test_mdx_pose_lookup_candidates; }
+#endif
+
 static mdxViewPoseEntry_t const *MDLX_ViewPoseFind(renderEntity_t const *entity) {
-    if (!view_pose_cache.active || !MDLX_ViewPoseIsSceneEntity(entity)) return NULL;
-    for (uint32_t i = view_pose_cache.count; i-- > 0;) {
-        mdxViewPoseEntry_t const *entry = &view_pose_cache.entries[i];
-        if (entry->entity_ptr == entity && entry->view_time == tr.viewDef.time &&
-            entry->lerpfrac == tr.viewDef.lerpfrac &&
-            !memcmp(&entry->entity_snapshot, entity, sizeof(*entity)) &&
-            !memcmp(&entry->view_projection, &tr.viewDef.viewProjectionMatrix,
-                    sizeof(entry->view_projection)))
-            return entry;
-    }
+    uint32_t index, slot;
+    mdxViewPoseEntry_t const *entry;
+    if (!view_pose_cache.active) return NULL;
+    index = MDLX_ViewPoseSceneIndex(entity);
+    if (index == UINT32_MAX || view_pose_cache.scene_epoch[index] != view_pose_cache.epoch)
+        return NULL;
+    slot = view_pose_cache.scene_entry[index];
+    if (!slot || slot > view_pose_cache.count) return NULL;
+    entry = &view_pose_cache.entries[slot - 1];
+#ifdef BZ_TESTS
+    test_mdx_pose_lookup_candidates++;
+#endif
+    if (entry->entity_ptr == entity && entry->view_time == tr.viewDef.time &&
+        entry->lerpfrac == tr.viewDef.lerpfrac &&
+        !memcmp(&entry->entity_snapshot, entity, sizeof(*entity)) &&
+        !memcmp(&entry->view_projection, &tr.viewDef.viewProjectionMatrix,
+                sizeof(entry->view_projection)))
+        return entry;
     return NULL;
 }
 
@@ -206,16 +237,22 @@ bool MDLX_ViewPoseCachedDraw(renderEntity_t const *entity, mdxModel_t const **mo
 void MDLX_ViewPoseStore(renderEntity_t const *entity, mdxModel_t const *model,
                         mat4_t const *transform, uint32_t frame, uint32_t oldframe) {
     mdxViewPoseEntry_t *entry;
+    uint32_t scene_index;
     if (tr.render_phase == RENDER_PHASE_SOLID && !view_pose_cache.active)
         MDLX_ViewPoseBegin(); /* isolated portrait/entity-camera view */
+    scene_index = MDLX_ViewPoseSceneIndex(entity);
     if (!view_pose_cache.active || tr.render_phase != RENDER_PHASE_SOLID ||
-        !MDLX_ViewPoseIsSceneEntity(entity) || !entity->model || !model || !transform ||
+        scene_index == UINT32_MAX || !entity->model || !model || !transform ||
         model != entity->model->mdx || model->num_nodes < 0 ||
         model->num_nodes > MDX_MAX_NODES ||
         view_pose_cache.count >= MDLX_VIEW_POSE_ENTRIES ||
         view_pose_cache.nodes + (uint32_t)model->num_nodes > MDLX_VIEW_POSE_NODES)
         return;
     entry = &view_pose_cache.entries[view_pose_cache.count++];
+    /* Latest store wins, matching the former reverse scan if the same scene
+     * entity is drawn more than once during the solid pass. */
+    view_pose_cache.scene_epoch[scene_index] = view_pose_cache.epoch;
+    view_pose_cache.scene_entry[scene_index] = (uint8_t)view_pose_cache.count;
     *entry = (mdxViewPoseEntry_t){
         .entity_ptr = entity, .entity_snapshot = *entity,
         .model = model, .transform = *transform,

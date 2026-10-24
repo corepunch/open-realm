@@ -1800,6 +1800,106 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
 
 /* Cross-pass snapshots must restore a parent's exact matrices after another
  * model overwrites the shared scratch, without calling the keytrack evaluator. */
+void MDLX_TestResetPoseLookupCandidates(void);
+uint32_t MDLX_TestPoseLookupCandidates(void);
+
+/* Scene-array slots, not entity numbers, identify poses. Sparse lookups must
+ * examine only their exact indexed candidate, never the 96 cached entries. */
+TEST(renderer_model, mdx_view_pose_direct_index_sparse_entities_and_repeated_stores) {
+    static renderEntity_t entities[256];
+    renderEntity_t copied;
+    mdxNode_t node = { .node_id = 3, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    mat4_t transform, result;
+    mdxModel_t const *cached = NULL;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    uint32_t const slots[] = { 1, 127, 255 };
+    memset(entities, 0, sizeof(entities));
+    model.nodes[3] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 256;
+    tr.viewDef.time = 400;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    FOR_LOOP(i, 3) {
+        renderEntity_t *ent = &entities[slots[i]];
+        ent->number = 99; /* Distinct slots may share a presentation number. */
+        ent->model = &wrapper;
+        MDLX_BindBoneMatrices(&model, &transform, 20, 10);
+        MDLX_ViewPoseStore(ent, &model, &transform, 20, 10);
+    }
+    /* The newest store for an existing slot overrides the original entry. */
+    transform.v[12] = 7;
+    MDLX_BindBoneMatrices(&model, &transform, 20, 10);
+    MDLX_ViewPoseStore(&entities[127], &model, &transform, 20, 10);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    MDLX_TestResetPoseLookupCandidates();
+    FOR_LOOP(i, 3) {
+        renderEntity_t *ent = &entities[slots[i]];
+        T_ASSERT(MDLX_ViewPoseCachedDraw(ent, &cached, &result));
+        T_EQ(cached, &model);
+        T_FEQ(result.v[12], i == 1 ? 7 : 0, 0.001f);
+    }
+    T_EQ(MDLX_TestPoseLookupCandidates(), 3u);
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[64], &cached, &result));
+    T_EQ(MDLX_TestPoseLookupCandidates(), 3u); /* Missing slot: zero probes. */
+    copied = entities[1];
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&copied, &cached, &result));
+    T_EQ(MDLX_TestPoseLookupCandidates(), 3u); /* Child/copy: never cached. */
+    T_ASSERT(MDLX_ViewPoseRestore(&entities[127], &model, &transform, 20, 10));
+    T_EQ(MDLX_TestPoseLookupCandidates(), 4u);
+    MDLX_ViewPoseEnd();
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
+/* An index must not carry a pose into another view, and the fixed 96-entry
+ * admission limit must still use the original recalculation fallback. */
+TEST(renderer_model, mdx_view_pose_direct_index_resets_and_preserves_budgets) {
+    static renderEntity_t entities[128];
+    mdxNode_t node = { .node_id = 1, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    mat4_t transform, result;
+    mdxModel_t const *cached = NULL;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    memset(entities, 0, sizeof(entities));
+    model.nodes[1] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 128;
+    tr.viewDef.time = 800;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    FOR_LOOP(i, 97) {
+        entities[i].model = &wrapper;
+        MDLX_BindBoneMatrices(&model, &transform, 30, 20);
+        MDLX_ViewPoseStore(&entities[i], &model, &transform, 30, 20);
+    }
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[96], &cached, &result));
+    MDLX_ViewPoseEnd();
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    MDLX_ViewPoseBegin();
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_BindBoneMatrices(&model, &transform, 30, 20);
+    MDLX_ViewPoseStore(&entities[96], &model, &transform, 30, 20);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entities[96], &cached, &result));
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    MDLX_ViewPoseEnd();
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
 TEST(renderer_model, mdx_view_pose_reuses_bones_after_intervening_model) {
     mdxNode_t node = { .node_id = 7, .parent_id = UINT32_MAX };
     mdxNode_t other_node = { .node_id = 7, .parent_id = UINT32_MAX };

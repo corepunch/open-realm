@@ -1,3 +1,28 @@
+## October 24 low-core x86 direct-indexed MDX view poses (patch thirty-two)
+
+NightElf07 profiling after patch thirty-one assigns about 1.21% exclusive
+CPU samples to `MDLX_ViewPoseFind`. The previous lookup compared up to 96
+pose records in reverse order for every cached-draw and restore query.
+`MDLX_ViewPoseFind` now indexes the current view's scene-array position in
+constant time, without searching those entries. The map uses a 16-bit
+per-view generation stamp and one-byte cache-entry indexes; a full stamp
+clear is needed only when the generation wraps. It is **not** keyed by the
+entity's wire number, which may be shared among presentation instances.
+
+The original limits of 96 poses and 4,096 stored node matrices remain. The
+normal fallback handles any uncached entity, out-of-range scene-array slot,
+child/sprite copy, or exhausted budget. The existing snapshot, view time,
+lerp factor, camera, effective global animation time, selected model,
+remapped frame, matrix and node-ID checks still gate reuse; this patch does
+not widen cross-pass eligibility or retain anything across views.
+
+`renderer_model.mdx_view_pose_direct_index_*` tests cover sparse/nonsequential
+scene slots, duplicate scene-number values, out-of-array copies, repeat
+stores, budget exhaustion and new-view invalidation. Test-only counters
+verify that a cache hit examines exactly one candidate. The native build
+passed; tests were not run. Run renderer tests and re-profile NightElf07 before
+claiming an FPS improvement.
+
 ## October 24 low-core x86 cross-pass MDX pose reuse (patch thirty-one)
 
 NightElf07 profiling after patch thirty still shows about 7.03% inclusive CPU
