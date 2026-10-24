@@ -1,3 +1,41 @@
+## October 24 NightElf07 hashed GL texture-ID lookup (patch forty-four)
+
+The post-forty-three NightElf07 profile still samples `R_FindTextureByID`
+near 1.52% exclusive CPU cycles, reached from `MDLX_GetTexture` during
+geoset rendering. The model material references are numeric OpenGL texture
+IDs, not case-insensitive archive paths. The renderer therefore maintains a
+separate numeric-ID index from the existing 2,048-bucket texture-path cache.
+
+`R_RegisterTextureFile` inserts a texture into one of 2,048 hashed ID buckets
+when no texture with the same ID is registered. Each bucket uses the existing
+`texture_t::next` pointer; it previously chained *all* registered textures
+into one list. Lookups now traverse only a single bucket. No persistent
+allocations, new public fields, renderer protocol changes, or production debug
+logs are needed. Numeric IDs remain authoritative, including ID zero and
+collisions, and repeated registrations keep the original first registered
+pointer for a given ID.
+
+The path cache (`R_CacheLoadedTexture`, `R_FindLoadedTexture`) remains the
+owner of texture allocations and handles aliases, pinning, generations and
+streaming reclaim. `R_ReclaimStreamedTextures` unlinks a reclaimed texture
+from its **numeric** bucket before `glDeleteTextures` and memory free, so a
+subsequent GL ID reuse cannot resolve a freed allocation. Explicitly released
+non-cached textures also unlink before deletion. `R_ShutdownTextureCache`
+clears all ID buckets after deleting owned textures, including registrations
+that were not themselves path-cache entries. Non-cached textures are still
+owned by their original caller and are not freed by cache shutdown.
+
+`renderer_texture.hashed_id_lookup_handles_collisions_missing_ids_and_duplicates`
+covers bucket collisions, duplicate IDs, missing IDs, and cleanup;
+`renderer_texture.streamed_reclaim_unindexes_ids_before_reuse` checks
+streaming eviction, numeric ID reuse and standalone release; and
+`renderer_texture.shutdown_clears_registered_cached_texture_ids` checks
+shutdown/re-registration. The earlier registry regression now clears its
+stack fixture before leaving scope. Run `+test 'renderer_texture.*'` after
+building; no compilation or tests were run during patch preparation.
+Compare matched NightElf07 runs and actual frame times as well as
+`R_FindTextureByID` self CPU-cycle share before crediting an FPS gain.
+
 ## October 24 NightElf07 per-frame entity-indicator lookup (patch forty-two)
 
 After patch forty-one, `CL_ApplyIndicator` accounts for 2.99% exclusive CPU

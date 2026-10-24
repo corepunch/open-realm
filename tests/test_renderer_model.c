@@ -2564,12 +2564,102 @@ TEST(renderer_model, unknown_model_release_is_immediate) {
 
 TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {
     texture_t first = { .texid = 100 }, second = { .texid = 101 };
+    texture_t *saved = texture_load_result;
 
+    R_ShutdownTextureCache();
     texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
     texture_load_result = &second; T_EQ(R_RegisterTextureFile("second"), 101);
     T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
     texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
     T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
+    R_ShutdownTextureCache();
+    texture_load_result = saved;
+}
+
+TEST(renderer_texture, hashed_id_lookup_handles_collisions_missing_ids_and_duplicates) {
+    texture_t first = { .texid = 15 }, second = { .texid = 15 + R_TEXTURE_ID_BUCKETS };
+    texture_t third = { .texid = 15 + R_TEXTURE_ID_BUCKETS * 2 };
+    texture_t duplicate = { .texid = 15 };
+    texture_t *saved = texture_load_result;
+
+    R_ShutdownTextureCache();
+    T_EQ(R_TextureIdBucket(first.texid), R_TextureIdBucket(second.texid));
+    T_EQ(R_TextureIdBucket(second.texid), R_TextureIdBucket(third.texid));
+    texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), (int)first.texid);
+    texture_load_result = &second; T_EQ(R_RegisterTextureFile("second"), (int)second.texid);
+    texture_load_result = &third; T_EQ(R_RegisterTextureFile("third"), (int)third.texid);
+    texture_load_result = &duplicate; T_EQ(R_RegisterTextureFile("duplicate"), (int)first.texid);
+    T_ASSERT(R_FindTextureByID(first.texid) == &first);
+    T_ASSERT(R_FindTextureByID(second.texid) == &second);
+    T_ASSERT(R_FindTextureByID(third.texid) == &third);
+    T_NULL(R_FindTextureByID(15 + R_TEXTURE_ID_BUCKETS * 3));
+    T_NULL(R_FindTextureByID(0));
+    R_ShutdownTextureCache();
+    T_NULL(R_FindTextureByID(first.texid));
+    T_NULL(R_FindTextureByID(second.texid));
+    texture_load_result = saved;
+}
+
+TEST(renderer_texture, streamed_reclaim_unindexes_ids_before_reuse) {
+    texture_t *old = reset_texture_registry();
+    texture_t peer = { .texid = 15 };
+    texture_t *fresh;
+    texture_t *saved = texture_load_result;
+    bool saved_minimap = cache_minimap_textures;
+    cache_minimap_textures = false;
+    /* Reclaim from a collision chain, retaining the other live entry. */
+    texture_load_result = &peer;
+    T_EQ(R_RegisterTextureFile("peer"), 15);
+    old->texid = 15 + R_TEXTURE_ID_BUCKETS;
+    r_load_streamed = true;
+    R_CacheLoadedTexture("textures/old-streamed.blp", old);
+    r_load_streamed = false;
+    texture_load_result = old;
+    T_EQ(R_RegisterTextureFile("old-streamed"), (int)old->texid);
+    T_ASSERT(R_FindTextureByID(old->texid) == old);
+
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_NULL(R_FindTextureByID(15 + R_TEXTURE_ID_BUCKETS));
+    T_ASSERT(R_FindTextureByID(peer.texid) == &peer);
+    T_NULL(R_FindLoadedTexture("textures/old-streamed.blp"));
+    T_EQ(texture_delete_count, 1);
+
+    /* GL may hand the freed numeric ID back to a different allocation. */
+    fresh = test_alloc(sizeof(*fresh)); fresh->texid = 15 + R_TEXTURE_ID_BUCKETS;
+    texture_load_result = fresh;
+    T_EQ(R_RegisterTextureFile("replacement"), (int)fresh->texid);
+    T_ASSERT(R_FindTextureByID(fresh->texid) == fresh);
+    R_ReleaseTexture(fresh);
+    T_NULL(R_FindTextureByID(15 + R_TEXTURE_ID_BUCKETS));
+    T_ASSERT(R_FindTextureByID(peer.texid) == &peer);
+    T_EQ(texture_delete_count, 2);
+    R_ShutdownTextureCache();
+    cache_minimap_textures = saved_minimap;
+    texture_load_result = saved;
+}
+
+TEST(renderer_texture, shutdown_clears_registered_cached_texture_ids) {
+    texture_t *cached = reset_texture_registry();
+    texture_t replacement = { .texid = 73 };
+    texture_t *saved = texture_load_result;
+    bool saved_minimap = cache_minimap_textures;
+    cache_minimap_textures = false;
+    cached->texid = 73;
+    R_CacheLoadedTexture("textures/resident.blp", cached);
+    texture_load_result = cached;
+    T_EQ(R_RegisterTextureFile("resident"), 73);
+    T_ASSERT(R_FindTextureByID(73) == cached);
+    R_ShutdownTextureCache();
+    T_NULL(R_FindTextureByID(73));
+    T_EQ(texture_delete_count, 1);
+
+    texture_load_result = &replacement;
+    T_EQ(R_RegisterTextureFile("replacement"), 73);
+    T_ASSERT(R_FindTextureByID(73) == &replacement);
+    R_ShutdownTextureCache();
+    T_NULL(R_FindTextureByID(73));
+    cache_minimap_textures = saved_minimap;
+    texture_load_result = saved;
 }
 
 TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit) {
