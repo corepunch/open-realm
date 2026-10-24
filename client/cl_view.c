@@ -23,6 +23,23 @@ static struct {
  * from renderer animation that advances with fixed entity frames. */
 static int debug_paused_building_time[MAX_CLIENT_ENTITIES];
 
+#ifdef BZ_TESTS
+static uint32_t test_entity_debug_cvar_samples;
+static bool test_last_entity_debug_enabled;
+#endif
+
+/* Snapshot the diagnostic switch once for an entire scene entity batch.
+ * Query by name again on the next build so runtime console changes remain
+ * effective without keeping a cvar pointer across config/alias changes. */
+static bool V_EntityDebugEnabled(void) {
+    bool const enabled = Cvar_Integer("cl_debug_entities", 0) != 0;
+#ifdef BZ_TESTS
+    test_entity_debug_cvar_samples++;
+    test_last_entity_debug_enabled = enabled;
+#endif
+    return enabled;
+}
+
 static bool world_loaded = false;
 static bool begin_sent = false;
 static double client_map_load_debug_start;
@@ -290,7 +307,7 @@ float LerpRotation(float a, float b, float t) {
     }
 }
 
-static void V_AddClientEntity(centity_t const *ent) {
+static void V_AddClientEntity(centity_t const *ent, bool debug_entities) {
     renderEntity_t re = { 0 };
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
         return;
@@ -353,7 +370,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_SELECTION_CIRCLE_ON_WATER) re.flags |= RF_SELECTION_CIRCLE_ON_WATER;
     if (ent->current.flags & EF_MDX_EMISSION_PAUSED) re.flags |= RF_MDX_EMISSION_PAUSED;
     if (ent->current.flags & EF_MDX_ANIMATION_PAUSED) re.flags |= RF_MDX_ANIMATION_PAUSED;
-    if (Cvar_Integer("cl_debug_entities", 0) &&
+    if (debug_entities &&
         (ent->current.flags & EF_MDX_EMISSION_PAUSED) &&
         ent->current.number < MAX_CLIENT_ENTITIES) {
         int *last = &debug_paused_building_time[ent->current.number];
@@ -587,6 +604,7 @@ static void CL_AddCursorSplat(void) {
 }
 
 static void CL_AddEntities(void) {
+    bool const debug_entities = V_EntityDebugEnabled();
     S_BeginLoopingSounds();
     FOR_LOOP(i, cl.num_active) {
         centity_t *cent = &cl.ents[cl.active_entities[i]];
@@ -595,7 +613,7 @@ static void CL_AddEntities(void) {
             cl.configstrings[CS_SOUNDS + state->sound][0])
             S_UpdateLoopingSound(state->number, cl.configstrings[CS_SOUNDS + state->sound],
                                  &state->origin2, 1.0f, DEFAULT_SOUND_PACKET_ATTENUATION);
-        V_AddClientEntity(cent);
+        V_AddClientEntity(cent, debug_entities);
     }
     S_EndLoopingSounds();
     
@@ -913,19 +931,19 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     cl.models[1] = &model;
     cl.viewDef.lerpfrac = 0.5f;
     view_state.num_entities = 0;
-    V_AddClientEntity(&cent);
+    V_AddClientEntity(&cent, false);
     T_EQ(view_state.num_entities, 1);
     T_FEQ(view_state.entities[0].scale, 1.0f, 0.0001f);
 
     cent.prev.scale = cent.current.scale = -1.0f;
     view_state.num_entities = 0;
-    V_AddClientEntity(&cent);
+    V_AddClientEntity(&cent, false);
     T_EQ(view_state.num_entities, 1);
     T_FEQ(view_state.entities[0].scale, 1.0f, 0.0001f);
 
     cent.prev.scale = cent.current.scale = 1.25f;
     view_state.num_entities = 0;
-    V_AddClientEntity(&cent);
+    V_AddClientEntity(&cent, false);
     T_EQ(view_state.num_entities, 1);
     T_FEQ(view_state.entities[0].scale, 1.25f, 0.0001f);
 
@@ -933,6 +951,66 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     view_state.num_entities = saved_count;
     cl.models[1] = saved_model;
     cl.viewDef = saved_view;
+}
+
+/* The debug mode is refreshed for each scene build but never queried while
+ * converting individual entities. This retains console toggling and keeps a
+ * linear cvar-name lookup out of the per-entity hot path. */
+TEST(client_entities, debug_mode_samples_once_per_batch_and_tracks_runtime_toggle) {
+    cstring_t const previous = Cvar_String("cl_debug_entities", "0");
+    size_t const previous_len = strlen(previous) + 1;
+    char *saved = malloc(previous_len);
+    centity_t cent = { .prev = { .number = 7 }, .current = { .number = 7 } };
+    int const previous_count = view_state.num_entities;
+    uint32_t const previous_active = cl.num_active;
+    uint32_t const previous_image = cl.cursor_splat.image;
+    int const previous_decals = view_state.num_decals;
+    int const previous_splats = view_state.num_splat_rects;
+    entityState_t *const previous_cursor = cl.cursorEntity;
+    viewDef_t const previous_view = cl.viewDef;
+    renderEntity_t previous_entities[8];
+
+    memcpy(previous_entities, view_state.entities, sizeof(previous_entities));
+    T_NOT_NULL(saved);
+    if (!saved) return;
+    memcpy(saved, previous, previous_len);
+    /* The batch test uses no active entities or placement cursor. */
+    cl.num_active = 0;
+    cl.cursorEntity = NULL;
+    cl.cursor_splat.image = 0;
+    test_entity_debug_cvar_samples = 0;
+    Cvar_Set("cl_debug_entities", "0");
+    CL_AddEntities();
+    T_EQ(test_entity_debug_cvar_samples, 1u);
+    T_ASSERT(!test_last_entity_debug_enabled);
+
+    Cvar_Set("cl_debug_entities", "1");
+    CL_AddEntities();
+    T_EQ(test_entity_debug_cvar_samples, 2u);
+    T_ASSERT(test_last_entity_debug_enabled);
+
+    /* One render converter may process many entities without re-reading the
+     * CVar. The switch is passed in, not looked up from within the loop. */
+    view_state.num_entities = 0;
+    FOR_LOOP(i, 8) V_AddClientEntity(&cent, false);
+    T_EQ(view_state.num_entities, 8);
+    T_EQ(test_entity_debug_cvar_samples, 2u);
+
+    Cvar_Set("cl_debug_entities", "0");
+    CL_AddEntities();
+    T_EQ(test_entity_debug_cvar_samples, 3u);
+    T_ASSERT(!test_last_entity_debug_enabled);
+
+    cl.num_active = previous_active;
+    cl.cursorEntity = previous_cursor;
+    cl.cursor_splat.image = previous_image;
+    view_state.num_entities = previous_count;
+    memcpy(view_state.entities, previous_entities, sizeof(previous_entities));
+    view_state.num_decals = previous_decals;
+    view_state.num_splat_rects = previous_splats;
+    cl.viewDef = previous_view;
+    Cvar_Set("cl_debug_entities", saved);
+    free(saved);
 }
 
 /* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */

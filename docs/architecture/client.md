@@ -80,6 +80,16 @@ Builds the render scene:
 - Calls `CL_AddEntities` which iterates `cl.entities` and calls `V_AddEntity` for each visible entity. Entities with the `EF_NODRAW` flag are skipped.
 - Client-side temporary effects (`client/cl_tent.c`) add short-lived visual-only entities such as blood splats and hit sparks.
 
+`CL_AddEntities` samples the runtime `cl_debug_entities` diagnostic CVar once
+at the beginning of each scene entity batch and passes the resulting Boolean
+to `V_AddClientEntity`. This avoids repeated named CVar searches for every
+entity when diagnostics are normally disabled. A subsequent scene rebuild
+resamples the flag, so console toggles still take effect without storing a
+long-lived CVar pointer. Model conversion, interpolation, scene order, and the
+existing once-per-second paused-construction diagnostic are unchanged. The
+`client_entities.debug_mode_samples_once_per_batch_and_tracks_runtime_toggle`
+regression covers repeated entity conversion and toggling between batches.
+
 ### 5. SCR_UpdateScreen
 
 Calls into the renderer API:
