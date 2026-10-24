@@ -1,3 +1,31 @@
+## October 24 NightElf07 identity-basis entity transforms (patch thirty-nine)
+
+Patch thirty-eight's NightElf07 capture attributes 8.22% inclusive sampled CPU
+cycles to `R_EntityInView`, including 4.42% through `R_GetEntityMatrix`.
+Warcraft III's `R_EntityPose` returns a fixed identity native-model basis,
+but the shared matrix builder still multiplied the calculated placement by
+that identity on every initial per-view transform. The calculation occurs
+before the per-view matrix cache can serve subsequent solid/alpha draws.
+
+`R_GetEntityMatrix` now recognizes an **exact identity basis** and copies its
+placement matrix instead of running a full generic 4×4 multiplication. This
+removes redundant arithmetic for Warcraft III and any other model that
+supplies the same basis, without changing game-specific code or the existing
+culling path. Other bases still use the original matrix multiplication;
+quaternion evaluation, origin, yaw, scale, MDX bounds, frustum testing,
+terrain-fitted model selection, event attachments and pose-cache invalidation
+are unchanged. Only the native-basis composition is elided: no approximate
+bounding volume or broader cross-frame matrix cache is introduced.
+
+`renderer_game.wc3_identity_basis_matrix_matches_legacy_culling_composition`
+compares the optimised builder against the prior placement-times-identity
+composition and checks identical frustum decisions for varied entity
+positions, angles, scales and bounds. This focused regression uses synthetic
+models and no external Warcraft data. `make test-renderer-model` passes with
+11,211 assertions across 223 tests. Compare matched `Matrix4_multiply`,
+`R_GetEntityMatrix`, `R_EntityInView` and overall frame-time/FPS measurements;
+CPU-cycle percentages alone are not proof of an overall speedup.
+
 ## October 24 NightElf07 per-view MDX keyframe interval reuse (patch thirty-eight)
 
 Patch thirty-seven's NightElf07 profile attributes 8.89% inclusive sampled CPU

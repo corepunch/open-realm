@@ -7,6 +7,15 @@
 #include <float.h>
 #include <stdlib.h>
 
+/* The Warcraft III native model basis is identity. Skip the full 4x4
+ * multiplication when a game supplies that basis, while leaving rotated,
+ * translated or axis-converted native bases on the original composition path.
+ * Checking all 16 coefficients avoids assuming anything about the current
+ * game module or model/attachment type. */
+static mat4_t const r_identity_entity_basis = { .v = {
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+} };
+
 void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
     modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
     mat4_t const *basis = R_EntityPose(entity, &pose);
@@ -14,8 +23,14 @@ void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
     mat4_t placement;
     Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
         &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
-    /* Native skinning precedes this basis. All world-space consumers use this same composition. */
-    Matrix4_multiply(&placement, basis, matrix);
+    /* Native skinning precedes this basis. All world-space consumers use this
+     * same composition. An identity basis leaves the placement unchanged;
+     * don't run 16 four-term dot products during every entity cull. */
+    if (!memcmp(basis, &r_identity_entity_basis, sizeof(r_identity_entity_basis))) {
+        *matrix = placement;
+    } else {
+        Matrix4_multiply(&placement, basis, matrix);
+    }
 }
 
 /* A socket already includes the parent's model basis. Apply only the child's local pose. */

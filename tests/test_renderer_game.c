@@ -1552,6 +1552,44 @@ TEST(renderer_game, wc3_view_matrix_cache_bounds_and_scene_identity) {
     tr.viewDef.entities = saved_scene; tr.viewDef.num_entities = saved_count;
 }
 
+/* Warcraft III's fixed identity basis previously went through the generic
+ * 4x4 matrix multiply for every uncached cull. Compare the fast path with
+ * that exact legacy composition and its frustum decision, rather than testing
+ * only visually familiar angles or only the model translation. */
+TEST(renderer_game, wc3_identity_basis_matrix_matches_legacy_culling_composition) {
+    renderEntity_t const entities[] = {
+        { .origin = { 0, 0, 0 }, .scale = 1.0f, .angle = 0.0f },
+        { .origin = { 23, -14, 8 }, .scale = 1.35f, .angle = 0.73f },
+        { .origin = { -42, 38, -20 }, .scale = 0.5f, .angle = -1.75f },
+        { .origin = { 12, 23, 0 }, .scale = 0.0f, .angle = 3.14159f },
+        { .origin = { 90, -12, 5 }, .scale = -1.25f, .angle = -3.25f },
+        { .origin = { 0.01f, -0.02f, 100 }, .scale = 10.0f, .angle = 1.5707963f },
+    };
+    box3_t const bounds = {
+        .min = { -4, -8, -11 }, .max = { 7, 17, 30 },
+    };
+    mat4_t camera;
+    frustum3_t frustum;
+    mat4_t basis;
+    Matrix4_identity(&basis);
+    Matrix4_ortho(&camera, -50.0f, 50.0f, -50.0f, 50.0f, -200.0f, 200.0f);
+    Frustum_Calculate(&camera, &frustum);
+    FOR_LOOP(i, sizeof(entities) / sizeof(*entities)) {
+        renderEntity_t const *entity = &entities[i];
+        modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle,
+                             .scale = entity->scale };
+        mat4_t placement, legacy, actual;
+        quaternion_t const rotation = Quaternion_fromOrientation(&pose.angles);
+        Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
+            &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
+        Matrix4_multiply(&placement, &basis, &legacy);
+        R_TestEntityMatrixFromEnts(entity, &actual);
+        FOR_LOOP(j, 16) T_FEQ(actual.v[j], legacy.v[j], 0.0001f);
+        T_EQ(Frustum_ContainsBox(&frustum, &bounds, &actual),
+             Frustum_ContainsBox(&frustum, &bounds, &legacy));
+    }
+}
+
 TEST(renderer_game, wc3_entity_bounds_share_the_exact_culling_matrix) {
     mdxModel_t mdx = { .bounds.box = {
         .min = { -24.0f, -8.0f, -12.0f }, .max = { 32.0f, 18.0f, 120.0f },
