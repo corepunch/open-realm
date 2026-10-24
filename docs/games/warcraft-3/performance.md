@@ -791,6 +791,28 @@ instrumentation is under `BZ_TESTS` only. The native build passed; tests were
 not run. Compare matched-scene x86 frame times and ARM64 validation before
 attributing a concrete FPS improvement.
 
+## Terrain splat clipped-vertex UV generation (patch twenty-seven, low-core x86)
+
+The Human02 x86 profile identifies `R_MakeSplatTile` as a 3.08% exclusive
+sampling hotspot. The previous clipping path built six full-tile vertices and
+remapped their atlas UVs before determining whether those UVs would survive
+clipping. Partially clipped tiles then recomputed UVs from final world-space
+positions. The updated path samples four terrain positions once, checks
+whether the tile is fully inside the splat rectangle, and builds/remaps its
+quad only in that case. Partial tiles go directly through the original
+Sutherland-Hodgman world-XY clipping path, preserving left/right/bottom/top
+clip order and terrain triangle order; emitted positions keep the original
+interpolation, and UVs come from final world coordinates.
+
+Whole tiles transform four unique UV corners and share them between the two
+triangles. Blight tile generation still uses the original full-quad helper.
+Batching, caching, tint, terrain deformation and GL upload behavior are
+unchanged. `renderer_terrain.splat_tile_deferred_uv_matches_original_across_clipping`
+compares vertices to the previous algorithm across edge clips, a four-edge
+clip, exact boundaries, varied terrain heights, tint and atlas UV ranges.
+The native build passed; tests were not run. Measure matched Human02 x86 scenes
+and validate ARM64 separately before attributing a frame-time improvement.
+
 ## MDX keytrack and ground splat hot paths
 
 An Instruments capture after the 64 FPS cap was added sampled `R_KeyFrameBound`

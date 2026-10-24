@@ -3074,6 +3074,130 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     T_FEQ(splat_bias.factor, 0.0f, 0.0f); T_FEQ(splat_bias.units, 0.0f, 0.0f);
 }
 
+/* Keep the original tile generator as a regression oracle. The optimized
+ * path must produce the same vertex count, triangle order, Z, UV, tint and
+ * skinning defaults for fully contained and partially clipped tiles. */
+static void R_ReferenceMakeSplatTile(splatTileParams_t const *params) {
+    vertex_t geom[6];
+    struct splClip clips[4];
+    uint32_t num_clips = 0;
+    war3map_t const *map = params->map;
+    vec2_t const *mins = params->mins;
+    vec2_t const *uv_mins = params->uv_mins;
+    vec2_t const *uv_maxs = params->uv_maxs;
+    float const width = params->width, height = params->height;
+
+    R_BuildSplatQuad(map, params->x, params->y, mins, width, height, params->color, geom);
+    FOR_LOOP(i, 6) {
+        geom[i].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[i].texcoord.x);
+        geom[i].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[i].texcoord.y);
+    }
+    if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
+        geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
+        memcpy(ground_current_vertex, geom, sizeof(geom));
+        ground_current_vertex += 6;
+        return;
+    }
+    /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
+    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
+    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
+    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
+    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
+    FOR_LOOP(tri, 2) {
+        vec3_t a[8], b[8];
+        vec3_t *poly = a, *scratch = b;
+        uint32_t n = 3;
+        FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
+        FOR_LOOP(edge, num_clips) {
+            struct splClip clip = clips[edge];
+            vec3_t *swap;
+            clip.count = n;
+            n = R_ClipSplatPoly(poly, scratch, clip);
+            if (!n) break;
+            swap = poly; poly = scratch; scratch = swap;
+        }
+        for (uint32_t i = 1; i + 1 < n; i++) {
+            vec3_t p[] = { poly[0], poly[i], poly[i + 1] };
+            FOR_LOOP(j, 3) {
+                vertex_t v = geom[0];
+                v.position = p[j];
+                {
+                    float const u = (p[j].x - mins->x) / width;
+                    float const vcoord = 1.0f - (p[j].y - mins->y) / height;
+                    v.texcoord = (vec2_t){
+                        LerpNumber(uv_mins->x, uv_maxs->x, u),
+                        LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
+                    };
+                }
+                *ground_current_vertex++ = v;
+            }
+        }
+    }
+}
+
+
+TEST(renderer_terrain, splat_tile_deferred_uv_matches_original_across_clipping) {
+    war3mapVertex_t corners[9] = {0};
+    war3map_t map = { .width = 3, .height = 3, .vertices = corners,
+                      .center = {-64.0f, 80.0f} };
+    war3map_t const *old_world = tr.world;
+    vertex_t *old_ground_vertex = ground_current_vertex;
+    vec2_t const uv_min = {0.125f, 0.375f}, uv_max = {0.75f, 0.9375f};
+    color32_t const tint = {43, 120, 202, 175};
+    /* Tile 1,1 is x=[64,192], y=[208,336]. Each rectangle intersects it. */
+    struct { vec2_t mins, maxs; } const cases[] = {
+        { {-160,-120}, {480,520} },  /* complete tile */
+        { {80,188}, {380,520} },    /* left edge */
+        { {-160,188}, {156,520} },  /* right edge */
+        { {-160,240}, {480,520} },  /* bottom edge */
+        { {-160,188}, {480,303} },  /* top edge */
+        { {81,239}, {160,300} },    /* four-edge clip */
+        { {64,208}, {192,336} },    /* exact tile boundaries */
+        { {64,208}, {131,336} },    /* exact left/bottom boundaries */
+    };
+    vertex_t original[SPLAT_TILE_MAX_VERTICES];
+    FOR_LOOP(i, 9) {
+        corners[i].accurate_height = 8192 + i * 133;
+        corners[i].level = i % 3;
+    }
+    tr.world = NULL; /* Synthetic fixture: no global terrain deformation. */
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        vec2_t const *mins = &cases[i].mins, *maxs = &cases[i].maxs;
+        splatTileParams_t const params = {
+            .map = &map, .x = 1, .y = 1, .mins = mins,
+            .uv_mins = &uv_min, .uv_maxs = &uv_max,
+            .width = maxs->x - mins->x, .height = maxs->y - mins->y, .color = tint
+        };
+        uint32_t expected, actual;
+        ground_current_vertex = ground_vertex_buffer;
+        R_ReferenceMakeSplatTile(&params);
+        expected = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+        T_ASSERT(expected > 0 && expected <= SPLAT_TILE_MAX_VERTICES);
+        memcpy(original, ground_vertex_buffer, expected * sizeof(vertex_t));
+        ground_current_vertex = ground_vertex_buffer;
+        R_MakeSplatTile(&params);
+        actual = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+        T_EQ(actual, expected);
+        FOR_LOOP(j, MIN(expected, actual)) {
+            vertex_t const *a = original + j, *b = ground_vertex_buffer + j;
+            T_FEQ(a->position.x, b->position.x, 0.0001f);
+            T_FEQ(a->position.y, b->position.y, 0.0001f);
+            T_FEQ(a->position.z, b->position.z, 0.0001f);
+            T_FEQ(a->texcoord.x, b->texcoord.x, 0.0001f);
+            T_FEQ(a->texcoord.y, b->texcoord.y, 0.0001f);
+            T_FEQ(a->normal.z, b->normal.z, 0.0f);
+            T_EQ(a->color.r, b->color.r);
+            T_EQ(a->color.g, b->color.g);
+            T_EQ(a->color.b, b->color.b);
+            T_EQ(a->color.a, b->color.a);
+            T_ASSERT(!memcmp(a->skin, b->skin, sizeof(a->skin)));
+            T_ASSERT(!memcmp(a->boneWeight, b->boneWeight, sizeof(a->boneWeight)));
+        }
+    }
+    ground_current_vertex = old_ground_vertex;
+    tr.world = old_world;
+}
+
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     war3mapVertex_t verts[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = verts };

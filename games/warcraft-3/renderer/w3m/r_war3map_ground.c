@@ -213,13 +213,11 @@ static bool R_TileAcceptsSplat(war3map_t const *map, uint32_t x, uint32_t y) {
     return R_TileHasGround(map, x, y);
 }
 
-static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, color32_t color, vertex_t *geom) {
-    vec3_t const p[] = {
-        R_GetVertexPosition(map, x, y, true),
-        R_GetVertexPosition(map, x + 1, y, true),
-        R_GetVertexPosition(map, x + 1, y + 1, true),
-        R_GetVertexPosition(map, x, y + 1, true),
-    };
+/* Share the original UV/triangle layout with Blight and the unclipped splat
+ * path. A partially covered splat only needs the positions, not these UVs. */
+static void R_BuildSplatQuadFromCorners(vec3_t const p[4], vec2_t const *mins,
+                                        float width, float height, color32_t color,
+                                        vertex_t *geom) {
     vec2_t const uv[] = {
         { (p[0].x - mins->x) / width, 1 - (p[0].y - mins->y) / height },
         { (p[1].x - mins->x) / width, 1 - (p[1].y - mins->y) / height },
@@ -238,6 +236,18 @@ static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y, vec2_
     memcpy(geom, quad, sizeof(quad));
 }
 
+
+static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y,
+                             vec2_t const *mins, float width, float height,
+                             color32_t color, vertex_t *geom) {
+    vec3_t const p[4] = {
+        R_GetVertexPosition(map, x, y, true),
+        R_GetVertexPosition(map, x + 1, y, true),
+        R_GetVertexPosition(map, x + 1, y + 1, true),
+        R_GetVertexPosition(map, x, y + 1, true),
+    };
+    R_BuildSplatQuadFromCorners(p, mins, width, height, color, geom);
+}
 /* Clip in world XY while interpolating Z on each original terrain triangle. */
 struct splClip { uint32_t count, axis; float edge; bool above; };
 static uint32_t R_ClipSplatPoly(vec3_t const *src, vec3_t *dst, struct splClip clip) {
@@ -270,9 +280,10 @@ typedef struct {
     color32_t color;
 } splatTileParams_t;
 
-/* Emit one terrain tile of a splat while remapping both whole and clipped polygons into its atlas UV rectangle. */
+/* Emit one terrain tile of a splat while remapping both whole and clipped
+ * polygons into atlas UVs. The clipped path used to compute and remap the
+ * original six quad UVs, then discard every one during triangulation. */
 static void R_MakeSplatTile(splatTileParams_t const *params) {
-    vertex_t geom[6];
     struct splClip clips[4];
     uint32_t num_clips = 0;
     war3map_t const *map = params->map;
@@ -280,28 +291,48 @@ static void R_MakeSplatTile(splatTileParams_t const *params) {
     vec2_t const *uv_mins = params->uv_mins;
     vec2_t const *uv_maxs = params->uv_maxs;
     float const width = params->width, height = params->height;
+    /* Sample terrain Z once for each corner. Retain the exact original
+     * positions and triangle order for both the whole and clipped tile. */
+    vec3_t const p[4] = {
+        R_GetVertexPosition(map, params->x, params->y, true),
+        R_GetVertexPosition(map, params->x + 1, params->y, true),
+        R_GetVertexPosition(map, params->x + 1, params->y + 1, true),
+        R_GetVertexPosition(map, params->x, params->y + 1, true),
+    };
 
-    R_BuildSplatQuad(map, params->x, params->y, mins, width, height, params->color, geom);
-    FOR_LOOP(i, 6) {
-        geom[i].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[i].texcoord.x);
-        geom[i].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[i].texcoord.y);
-    }
-    if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
-        geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
+    if (p[0].x >= mins->x && p[1].x <= mins->x + width &&
+        p[0].y >= mins->y && p[2].y <= mins->y + height) {
+        vertex_t geom[6];
+        R_BuildSplatQuadFromCorners(p, mins, width, height, params->color, geom);
+        /* Four distinct corners, not six independent UV transforms: the
+         * two shared triangle corners must use identical atlas coordinates. */
+        geom[0].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[0].texcoord.x);
+        geom[0].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[0].texcoord.y);
+        geom[1].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[1].texcoord.x);
+        geom[1].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[1].texcoord.y);
+        geom[2].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[2].texcoord.x);
+        geom[2].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[2].texcoord.y);
+        geom[5].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[5].texcoord.x);
+        geom[5].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[5].texcoord.y);
+        geom[3].texcoord = geom[0].texcoord;
+        geom[4].texcoord = geom[2].texcoord;
         memcpy(ground_current_vertex, geom, sizeof(geom));
         ground_current_vertex += 6;
         return;
     }
-    /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
-    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
-    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
-    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
-    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
+
+    /* Clip world-space triangles, as before, but do not build UVs for any
+     * original corner: clipped output reconstructs UVs from final XY. */
+    if (p[0].x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
+    if (p[1].x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
+    if (p[0].y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
+    if (p[2].y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
     FOR_LOOP(tri, 2) {
         vec3_t a[8], b[8];
         vec3_t *poly = a, *scratch = b;
         uint32_t n = 3;
-        FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
+        if (tri == 0) { a[0] = p[0]; a[1] = p[1]; a[2] = p[2]; }
+        else { a[0] = p[0]; a[1] = p[2]; a[2] = p[3]; }
         FOR_LOOP(edge, num_clips) {
             struct splClip clip = clips[edge];
             vec3_t *swap;
@@ -311,18 +342,16 @@ static void R_MakeSplatTile(splatTileParams_t const *params) {
             swap = poly; poly = scratch; scratch = swap;
         }
         for (uint32_t i = 1; i + 1 < n; i++) {
-            vec3_t p[] = { poly[0], poly[i], poly[i + 1] };
+            vec3_t triangle[] = { poly[0], poly[i], poly[i + 1] };
             FOR_LOOP(j, 3) {
-                vertex_t v = geom[0];
-                v.position = p[j];
-                {
-                    float const u = (p[j].x - mins->x) / width;
-                    float const vcoord = 1.0f - (p[j].y - mins->y) / height;
-                    v.texcoord = (vec2_t){
-                        LerpNumber(uv_mins->x, uv_maxs->x, u),
-                        LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
-                    };
-                }
+                vec3_t const point = triangle[j];
+                float const u = (point.x - mins->x) / width;
+                float const vcoord = 1.0f - (point.y - mins->y) / height;
+                vertex_t v = { .position = point, .normal = { 0, 0, 1 }, .color = params->color };
+                v.texcoord = (vec2_t){
+                    LerpNumber(uv_mins->x, uv_maxs->x, u),
+                    LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
+                };
                 *ground_current_vertex++ = v;
             }
         }
