@@ -1,3 +1,40 @@
+## October 24 NightElf07 bounded blight datagram packing (patch forty-one)
+
+The post-patch-forty NightElf07 profile attributes 3.32% inclusive sampled
+CPU cycles to `G_BlightWriteDatagram` and 2.14% exclusive cycles to the shared
+`MSG_EncodeRLE` function, mostly during blight updates. These are sampled
+shares from one workload, not a measured frame-time slowdown caused by patch
+forty. The old blight sender optimistically encoded all contiguous dirty rows
+(or the whole pending sweep segment) and, if that failed the byte budget,
+retried with one fewer row until compression or bitpacking fit. Fragmented
+blight could therefore make the sender repeatedly visit the same cells.
+
+The sender now **incrementally writes RLE once** while tracking the final-run
+byte and the largest fully encoded row boundary fitting the payload budget.
+In parallel, a constant-time capacity calculation finds the largest row
+prefix fitting the existing LSB-first bitpack escape. It chooses whichever
+prefix contains more rows, preferring RLE when equal, exactly as the prior
+shrink-and-retry loop did. RLE is finalized at the recorded boundary; when
+bitpacking wins it overwrites the temporary RLE output in place. The
+`terrainMaskChunk_t` header, both wire codecs, row ordering, gap handling,
+per-player dirty-bit clearing, incremental full synchronization, and periodic
+sweep cursor remain unchanged. The payload length is additionally clamped to
+the header's `uint16_t` capacity for oversized caller buffers. No persistent
+compression cache or production debugging instrumentation was introduced.
+
+`wc3_api.blight_packet_fit_preserves_previous_wire_for_full_and_fragmented_masks`
+compares byte-for-byte payloads and dirty-row advancement with a test-only
+copy of the old loop for multiple contents and tight capacities, including
+run-length 255 boundaries and non-fitting packets.
+`wc3_api.blight_packet_fit_preserves_large_map_sweeps_and_sparse_dirty_rows`
+covers a larger synthetic mask, fragmented dirty runs, full-sync progress and
+512-byte sweep bands. Existing bitpack/checkerboard, dropped-packet resync and
+save-state tests remain relevant. The user will compile and run all tests;
+this patch has received static review and Git applicability checks only.
+Reprofile `G_BlightWriteDatagram`, `MSG_EncodeRLE`, `G_BlightPackBit`,
+`SV_SendClientMessages`, and matched FPS/frame-time distributions rather than
+interpreting relative sample shares as speedups.
+
 ## October 24 NightElf07 stable-global-clock MDX pose sampling (patch forty)
 
 After patch thirty-nine removed WC3's redundant entity identity-basis matrix

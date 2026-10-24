@@ -250,16 +250,73 @@ static uint8_t G_BlightPackBit(uint32_t index, void *ctx) {
     return level.blight.cells[c->first_row * c->width + index] ? 1 : 0;
 }
 
-static uint32_t G_BlightPackRows(uint8_t *out, uint32_t capacity, uint32_t first_row, uint32_t row_count) {
-    blightPackCtx_t c = { first_row, level.blight.width };
-    uint32_t const bits = level.blight.width * row_count;
-    uint32_t n;
-    if (!out || !bits) return 0;
-    n = MSG_EncodeRLE(out, capacity, bits, G_BlightPackBit, &c);
-    if (n) return n;
-    /* RLE has no worst-case bound (an alternating row costs ~1 byte per bit); the bitpack escape
-     * always fits one row inside the datagram reservation, so dirty/sweep progress never stalls. */
-    return MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
+/* Select the longest row-aligned payload without retrying compression for each
+ * row removed from an oversized dirty/sweep band. We incrementally produce the
+ * same RLE bytes as MSG_EncodeRLE and remember the last complete row that
+ * leaves room for the pending final run byte. If bitpacking fits more rows,
+ * overwrite that tentative RLE with the existing bitpack escape instead.
+ * Thus row count and wire bytes match the former shrink-and-retry loop. */
+static uint32_t G_BlightPackRows(uint8_t *out, uint32_t capacity, uint32_t first_row,
+    uint32_t max_rows, uint32_t *packed_rows) {
+    uint32_t used = 0, best_used = 0, best_rows = 0, bitpack_rows;
+    uint8_t value = 0, run = 0, best_run = 0;
+    bool started = false;
+
+    *packed_rows = 0;
+    if (!out || !level.blight.cells || !level.blight.width || !max_rows || capacity < 2) return 0;
+    /* Bitpack uses one marker byte followed by LSB-first bits. Calculate in
+     * 64 bits so large synthetic maps cannot overflow the row fit limit. */
+    bitpack_rows = (uint32_t)MIN((uint64_t)max_rows,
+        ((uint64_t)(capacity - 1) * 8) / level.blight.width);
+
+    for (uint32_t row = 0; row < max_rows; row++) {
+        uint32_t const row_base = (first_row + row) * level.blight.width;
+        FOR_LOOP(x, level.blight.width) {
+            uint8_t const bit = level.blight.cells[row_base + x] ? 1 : 0;
+            if (!started) {
+                out[used++] = bit;
+                value = bit;
+                run = 1;
+                started = true;
+            } else if (bit == value) {
+                if (run == 255) {
+                    if (used >= capacity) goto select;
+                    out[used++] = 255;
+                    run = 0;
+                }
+                run++;
+            } else {
+                if (used >= capacity) goto select;
+                out[used++] = run;
+                if (run == 255) {
+                    if (used >= capacity) goto select;
+                    out[used++] = 0;
+                }
+                value = bit;
+                run = 1;
+            }
+            /* One more byte is required to terminate the current run. Once
+             * that cannot fit, no longer prefix can fit RLE either. */
+            if (used >= capacity) goto select;
+        }
+        best_rows = row + 1;
+        best_used = used;
+        best_run = run;
+    }
+select:
+    if (best_rows && best_rows >= bitpack_rows) {
+        out[best_used] = best_run;
+        *packed_rows = best_rows;
+        return best_used + 1;
+    }
+    if (bitpack_rows) {
+        blightPackCtx_t c = { first_row, level.blight.width };
+        uint32_t const bits = bitpack_rows * level.blight.width;
+        uint32_t const n = MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
+        if (n) *packed_rows = bitpack_rows;
+        return n;
+    }
+    return 0;
 }
 
 uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
@@ -274,8 +331,7 @@ uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
     while (first < level.blight.height && !(level.blight.dirty_rows[first] & (1u << player))) first++;
     if (first < level.blight.height) {
         available = size - sizeof(chunk);
-        /* Start from the whole contiguous dirty run; RLE usually compresses coherent Blight far below
-         * bitpack density, and the shrink loop below absorbs overflow one row at a time. */
+        /* Choose the largest contiguous dirty prefix that fits this packet. */
         max_rows = level.blight.height - first;
         if (!max_rows) return 0;
         rows = 1;
@@ -284,15 +340,18 @@ uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
         if (!G_BlightSweepDue(player)) return 0;
         first = level.blight.sweep_row[player] % level.blight.height;
         available = MIN(size - sizeof(chunk), BLIGHT_SWEEP_BYTES);
-        /* Same optimistic start: one coherent sweep band can now cover far more rows per BLIGHT_SWEEP_BYTES. */
+        /* Sweep bands have their own smaller payload reservation. */
         max_rows = level.blight.height - first;
         if (!max_rows) { level.blight.sweep_row[player] = 0; return 0; }
         rows = max_rows;
         sweep = true;
     }
     payload = data + sizeof(chunk);
-    while (rows && !(payload_bytes = G_BlightPackRows(payload, available, first, rows))) rows--;
-    if (!rows) return 0;
+    /* The chunk encodes a uint16_t payload length. Cap even oversized caller
+     * reservations without changing the terrain-mask wire format. */
+    available = MIN(available, (uint32_t)UINT16_MAX);
+    payload_bytes = G_BlightPackRows(payload, available, first, rows, &rows);
+    if (!payload_bytes) return 0;
     chunk = (terrainMaskChunk_t){
         .width = (uint16_t)level.blight.width, .height = (uint16_t)level.blight.height,
         .first_row = (uint16_t)first, .row_count = (uint16_t)rows,

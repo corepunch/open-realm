@@ -9507,6 +9507,154 @@ static uint32_t blight_test_decode(uint8_t const *payload, terrainMaskChunk_t co
     return MSG_DecodeRLE(payload, chunk->payload_bytes, bits, blight_test_write, &(blightBitDst_t){ out, count });
 }
 
+/* The pre-patch encoder tried the complete run and retried with one fewer
+ * row until either RLE or bitpack fit. Use that intentionally slow reference
+ * only in tests to assert byte-for-byte wire and row-delivery compatibility. */
+typedef struct { uint32_t first_row; } blightReferenceCtx_t;
+
+static uint8_t blight_reference_read(uint32_t index, void *ctx) {
+    blightReferenceCtx_t const *c = ctx;
+    return level.blight.cells[c->first_row * level.blight.width + index] != 0;
+}
+
+static uint32_t blight_reference_pack(uint8_t *out, uint32_t available, uint32_t first,
+    uint32_t max_rows, uint32_t *selected_rows) {
+    blightReferenceCtx_t ctx = { first };
+    *selected_rows = 0;
+    while (max_rows) {
+        uint32_t const bits = max_rows * level.blight.width;
+        uint32_t n = MSG_EncodeRLE(out, available, bits, blight_reference_read, &ctx);
+        if (!n) n = MSG_EncodeBitpack(out, available, bits, blight_reference_read, &ctx);
+        if (n) { *selected_rows = max_rows; return n; }
+        max_rows--;
+    }
+    return 0;
+}
+
+TEST(wc3_api, blight_packet_fit_preserves_previous_wire_for_full_and_fragmented_masks) {
+    static uint32_t const capacities[] = { 2, 9, 16, 32, 64, 128, 256, 512, 1024, 8192 };
+    uint8_t data[sizeof(terrainMaskChunk_t) + 8192], expected[8192];
+    terrainMaskChunk_t header;
+    edict_t *ent;
+
+    setup_test_world();
+    ent = &g_edicts[0];
+    ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.framenum = 0;
+    T_EQ(level.blight.width, 64u); T_EQ(level.blight.height, 64u);
+
+    /* Include long runs (and 255-boundary runs), fully alternating masks,
+     * sparse changes and mixed row-to-row transitions. */
+    FOR_LOOP(pattern, 6) {
+        FOR_LOOP(i, 64u * 64u) {
+            uint8_t bit = 0;
+            switch (pattern) {
+            case 1: bit = 1; break;
+            case 2: bit = (uint8_t)(i & 1); break;
+            case 3: bit = (uint8_t)((i % 255) == 0); break;
+            case 4: bit = (uint8_t)((i / 255) & 1); break;
+            case 5: bit = (uint8_t)(((i * 17 + i / 64) % 37) < 13); break;
+            default: break;
+            }
+            level.blight.cells[i] = bit;
+        }
+        FOR_LOOP(c, sizeof(capacities) / sizeof(capacities[0])) {
+            uint32_t const capacity = capacities[c];
+            uint32_t expected_rows = 0;
+            uint32_t const expected_bytes = blight_reference_pack(expected, capacity, 0, 64, &expected_rows);
+            G_BlightMarkClientFull(ent);
+            uint32_t const actual = G_BlightWriteDatagram(ent, data, sizeof(header) + capacity);
+            if (!expected_bytes) {
+                T_EQ(actual, 0u);
+                T_ASSERT(level.blight.dirty_rows[0] & 1u);
+                continue;
+            }
+            T_EQ(actual, sizeof(header) + expected_bytes);
+            memcpy(&header, data, sizeof(header));
+            T_EQ(header.first_row, 0u);
+            T_EQ(header.row_count, expected_rows);
+            T_EQ(header.payload_bytes, expected_bytes);
+            T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+            FOR_LOOP(y, 64) {
+                if (y < expected_rows) T_ASSERT(!(level.blight.dirty_rows[y] & 1u));
+                else T_ASSERT(level.blight.dirty_rows[y] & 1u);
+            }
+        }
+    }
+    ent->client = NULL;
+    game.clients[0].connected = false;
+}
+
+TEST(wc3_api, blight_packet_fit_preserves_large_map_sweeps_and_sparse_dirty_rows) {
+    uint8_t data[sizeof(terrainMaskChunk_t) + 512], expected[512];
+    terrainMaskChunk_t header;
+    edict_t *ent;
+    uint32_t selected, expected_bytes, actual;
+
+    setup_test_world();
+    /* A larger synthetic grid exercises runs far longer than the datagram
+     * budget, with enough rows to expose quadratic shrink-and-retry work. */
+    G_BlightShutdown();
+    level.blight.width = 256;
+    level.blight.height = 192;
+    level.blight.cells = gi.MemAlloc(level.blight.width * level.blight.height);
+    level.blight.dirty_rows = gi.MemAlloc(level.blight.height * sizeof(*level.blight.dirty_rows));
+    T_ASSERT(level.blight.cells && level.blight.dirty_rows);
+    memset(level.blight.dirty_rows, 0, level.blight.height * sizeof(*level.blight.dirty_rows));
+    FOR_LOOP(i, level.blight.width * level.blight.height)
+        level.blight.cells[i] = (uint8_t)(((i / 257) + (i % 11)) & 1);
+    ent = &g_edicts[0];
+    ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.framenum = 0;
+
+    /* Dirty rows are contiguous only at 5..7; later rows must not be sent
+     * early, even when the packet has spare capacity. */
+    level.blight.dirty_rows[5] = 1;
+    level.blight.dirty_rows[6] = 1;
+    level.blight.dirty_rows[7] = 1;
+    level.blight.dirty_rows[10] = 1;
+    selected = 0;
+    expected_bytes = blight_reference_pack(expected, 512, 5, 3, &selected);
+    actual = G_BlightWriteDatagram(ent, data, sizeof(data));
+    T_EQ(actual, sizeof(header) + expected_bytes);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header.first_row, 5u); T_EQ(header.row_count, selected);
+    T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+    FOR_LOOP(y, selected) T_ASSERT(!(level.blight.dirty_rows[5 + y] & 1u));
+    T_ASSERT(level.blight.dirty_rows[10] & 1u);
+
+    /* A full client sync and its limited reservation must make progress. */
+    G_BlightMarkClientFull(ent);
+    expected_bytes = blight_reference_pack(expected, 512, 0, 192, &selected);
+    actual = G_BlightWriteDatagram(ent, data, sizeof(data));
+    T_EQ(actual, sizeof(header) + expected_bytes);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header.first_row, 0u); T_EQ(header.row_count, selected);
+    T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+
+    /* After dirty delivery, a periodic sweep uses the smaller 512-byte
+     * reservation and continues at the first unsent row. */
+    memset(level.blight.dirty_rows, 0, level.blight.height * sizeof(*level.blight.dirty_rows));
+    level.blight.sweep_row[0] = 37;
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    expected_bytes = blight_reference_pack(expected, BLIGHT_SWEEP_BYTES, 37, 192 - 37, &selected);
+    actual = G_BlightWriteDatagram(ent, data, sizeof(data));
+    T_EQ(actual, sizeof(header) + expected_bytes);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header.first_row, 37u); T_EQ(header.row_count, selected);
+    T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+    T_EQ(level.blight.sweep_row[0], (37u + selected) % 192u);
+
+    ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+    G_BlightShutdown();
+}
+
 TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     uint8_t data[8192], bits[4096];
     uint16_t header;
