@@ -406,7 +406,14 @@ mat4_t const *R_GetNodeGlobalMatrix(mdxModel_t const *model, mat4_t const *model
             if (!parent_matrix) {
                 return NULL;
             }
-            Matrix4_multiply(parent_matrix, local_matrix, global_matrix);
+            /* An unanimated node has the identity local TRS, so it inherits
+             * its parent's already-computed transform directly. Animated
+             * TRS and all billboard matrices are affine; avoid the general
+             * homogeneous 4x4 multiply on this hot bone-hierarchy path. */
+            if (!node->translation && !node->rotation && !node->scale)
+                *global_matrix = *parent_matrix;
+            else
+                Matrix4_multiply_affine(parent_matrix, local_matrix, global_matrix);
         } else {
             *global_matrix = *local_matrix;
         }
@@ -429,7 +436,7 @@ mat4_t const *R_GetNodeGlobalMatrix(mdxModel_t const *model, mat4_t const *model
                 quaternion_t tmprot = Quaternion_fromMatrix(&rotation);
                 tmprot = Quaternion_unm(&tmprot);
                 Matrix4_from_rotation_origin(&tmp1, &tmprot, &tmppvt);
-                Matrix4_multiply(&tmp1, global_matrix, &tmp2);
+                Matrix4_multiply_affine(&tmp1, global_matrix, &tmp2);
                 *global_matrix = tmp2;
             }
             
@@ -453,7 +460,7 @@ mat4_t const *R_GetNodeGlobalMatrix(mdxModel_t const *model, mat4_t const *model
             quaternion_t viewrot = Quaternion_fromMatrix(&tmp2);
             viewrot = Quaternion_unm(&viewrot);
             Matrix4_from_rotation_origin(&tmp1, &viewrot, &tmppvt);
-            Matrix4_multiply(&tmp1, global_matrix, &tmp2);
+            Matrix4_multiply_affine(&tmp1, global_matrix, &tmp2);
             *global_matrix = tmp2;
         }
     }

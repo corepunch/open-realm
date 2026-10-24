@@ -1,5 +1,35 @@
 # WC3 Performance Hot Spots
 
+## October 24 low-core x86 MDX affine hierarchy composition (patch twenty-five)
+
+Profiling Human02, NightElf07 and Undead07 on low-performance x86 CPU cores
+showed significant exclusive samples in general `Matrix4_multiply` (3.68%,
+4.76% and 5.34%, respectively). Those samples aggregate multiple call sites;
+they are *not* a prediction of patch twenty-five's FPS improvement.
+
+`R_GetNodeGlobalMatrix` now takes advantage of the MDX transform contract:
+`R_CalculateNodeMatrix` builds only translation/rotation/scale (affine) local
+matrices. For an unanimated child (no translation, rotation or scale tracks),
+the identity local matrix is composed by simply copying the already-resolved
+parent matrix. For animated children, parent/local composition uses
+`Matrix4_multiply_affine`, which evaluates the 3x4 affine product instead of
+an arbitrary 4x4 product. Billboard cancellation multiplies that are also
+known affine use the same helper. The generic `Matrix4_multiply` remains
+unchanged for projection, camera and other potentially projective callers;
+the view-projection/model multiplication in the billboard path remains
+fully general. The helper requires non-overlapping operands just as the
+original multiply did. No persistent cache, allocations, shared renderer
+state or new log output are introduced.
+
+Headless `renderer_model.mdx_affine_*` regressions compare the specialised
+multiply with the general implementation for rotated, scaled, translated
+and mirrored matrices, and check a three-node hierarchy containing an
+unanimated intermediate node and animated parent/child. The existing
+parented-billboard, attachment, ribbon and sprite tests should also be run.
+The native build passed; tests were not run. Compare matched x86 frame times
+first, then validate on ARM64 without assuming the x86 result transfers
+proportionally.
+
 ## October 24 ARM64 status-update frame gate and periodic pulse deadline (patch twenty-two)
 
 The Human02, NightElf07 and Undead07 profiles after the first 21 performance

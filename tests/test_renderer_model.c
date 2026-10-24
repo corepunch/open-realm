@@ -1505,6 +1505,98 @@ TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
     T_ASSERT(!MDLX_EventObjectId(&event, "SND", id, sizeof(id)));
 }
 
+/* MDX hierarchy inputs are affine, but projection matrices are not. The
+ * fast path must preserve the full transform for nonuniform/negative scale,
+ * pivot offsets, rotations and translations without relying on SIMD. */
+TEST(renderer_model, mdx_affine_multiply_matches_general_for_trs) {
+    FOR_LOOP(i, 5) {
+        vec3_t const translation_a = { 3.0f * i, -7.0f + i, 9.0f - i };
+        vec3_t const translation_b = { -5.0f + i, 0.25f * i, 11.0f };
+        vec3_t const scale_a = { i == 3 ? -2.0f : 0.7f, 1.0f + i, 0.5f };
+        vec3_t const scale_b = { 0.4f + i, i == 2 ? -1.6f : 1.2f, 1.25f };
+        vec3_t const pivot_a = { 1.0f, 2.0f + i, -3.0f };
+        vec3_t const pivot_b = { -2.0f, 1.0f, 4.0f + i };
+        quaternion_t const rotation_a = Quaternion_fromEuler(
+            &(vec3_t){ 11.0f * i, -29.0f, 47.0f }, ROTATE_XYZ);
+        quaternion_t const rotation_b = Quaternion_fromEuler(
+            &(vec3_t){ -17.0f, 6.0f * i, 24.0f }, ROTATE_ZYX);
+        mat4_t left, right, general, affine;
+        Matrix4_from_rotation_translation_scale_origin(&left, &rotation_a,
+                                                      &translation_a, &scale_a, &pivot_a);
+        Matrix4_from_rotation_translation_scale_origin(&right, &rotation_b,
+                                                      &translation_b, &scale_b, &pivot_b);
+        Matrix4_multiply(&left, &right, &general);
+        Matrix4_multiply_affine(&left, &right, &affine);
+        FOR_LOOP(j, 16) T_FEQ(affine.v[j], general.v[j], 0.0002f);
+        T_FEQ(affine.v[3], 0.0f, 0.0f);
+        T_FEQ(affine.v[7], 0.0f, 0.0f);
+        T_FEQ(affine.v[11], 0.0f, 0.0f);
+        T_FEQ(affine.v[15], 1.0f, 0.0f);
+    }
+}
+
+/* An unanimated child is precisely its parent in the model-local pose. It
+ * must still inherit movement, rotation and nonuniform (including mirrored)
+ * scale. A tracked grandchild must compose with that inherited matrix, and
+ * changing the child to animated must be visible on the next bind. */
+TEST(renderer_model, mdx_affine_pose_inherits_unanimated_nodes) {
+    uint8_t translations[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    uint8_t rotations[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(quaternion_t)] = {0};
+    uint8_t scales[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    uint8_t child_translations[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    mdxKeyTrack_t *shift_track = (mdxKeyTrack_t *)translations;
+    mdxKeyTrack_t *rotate_track = (mdxKeyTrack_t *)rotations;
+    mdxKeyTrack_t *scale_track = (mdxKeyTrack_t *)scales;
+    mdxKeyTrack_t *child_track = (mdxKeyTrack_t *)child_translations;
+    vec3_t const parent_shift = { 4.0f, 7.0f, -2.0f };
+    vec3_t const child_shift = { -3.0f, 5.0f, 6.0f };
+    vec3_t const parent_scale = { -1.5f, 0.75f, 2.0f };
+    vec3_t const zero = { 0, 0, 0 };
+    quaternion_t const parent_rotation = Quaternion_fromEuler(
+        &(vec3_t){ 13.0f, 24.0f, -31.0f }, ROTATE_XYZ);
+    mdxSequence_t sequence = { .interval = { 100, 200 } };
+    mdxNode_t parent = { .node_id = 0, .parent_id = UINT32_MAX,
+                         .translation = shift_track, .rotation = rotate_track, .scale = scale_track };
+    mdxNode_t middle = { .node_id = 1, .parent_id = 0 };
+    mdxNode_t grandchild = { .node_id = 2, .parent_id = 1, .translation = child_track };
+    mdxModel_t model = { .num_sequences = 1, .sequences = &sequence };
+    mat4_t world, parent_expected, local, expected, next;
+    mdxKeyTrack_t *tracks[] = { shift_track, rotate_track, scale_track, child_track };
+    FOR_LOOP(i, 4) {
+        tracks[i]->keyframeCount = 1;
+        tracks[i]->datatype = i == 1 ? TDATA_FLOAT4 : TDATA_FLOAT3;
+        tracks[i]->linetype = TRACK_NO_INTERP;
+        tracks[i]->globalSeqId = UINT32_MAX;
+        ((mdxKeyFrame_t *)tracks[i]->values)->time = 100;
+    }
+    memcpy(((mdxKeyFrame_t *)shift_track->values)->data, &parent_shift, sizeof(parent_shift));
+    memcpy(((mdxKeyFrame_t *)rotate_track->values)->data, &parent_rotation, sizeof(parent_rotation));
+    memcpy(((mdxKeyFrame_t *)scale_track->values)->data, &parent_scale, sizeof(parent_scale));
+    memcpy(((mdxKeyFrame_t *)child_track->values)->data, &child_shift, sizeof(child_shift));
+    model.nodes[0] = model.node_list[0] = &parent;
+    model.nodes[1] = model.node_list[1] = &middle;
+    model.nodes[2] = model.node_list[2] = &grandchild;
+    model.num_nodes = 3;
+    Matrix4_identity(&world);
+    MDLX_BindBoneMatrices(&model, &world, 125, 125);
+    Matrix4_from_rotation_translation_scale_origin(&parent_expected, &parent_rotation,
+                                                    &parent_shift, &parent_scale, &zero);
+    Matrix4_from_translation(&local, &child_shift);
+    Matrix4_multiply(&parent_expected, &local, &expected);
+    FOR_LOOP(i, 16) {
+        T_FEQ(node_matrices[0].v[i], parent_expected.v[i], 0.0002f);
+        T_FEQ(node_matrices[1].v[i], parent_expected.v[i], 0.0002f);
+        T_FEQ(node_matrices[2].v[i], expected.v[i], 0.0002f);
+    }
+
+    /* Same raw model, different parentage: an immediate rebinding cannot
+     * accidentally use the earlier identity-local shortcut. */
+    middle.translation = child_track;
+    MDLX_BindBoneMatrices(&model, &world, 125, 125);
+    Matrix4_multiply(&parent_expected, &local, &next);
+    FOR_LOOP(i, 16) T_FEQ(node_matrices[1].v[i], next.v[i], 0.0002f);
+}
+
 TEST(renderer_model, mdx_parented_eye_and_pendant_billboards_face_camera_without_losing_animated_pivots) {
     uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(quaternion_t))] = {0};
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
