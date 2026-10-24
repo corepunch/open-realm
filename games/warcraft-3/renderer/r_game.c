@@ -2214,13 +2214,18 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
 
 /* Share the drawn MDX bounds with the outer culler, including terrain-fitted
  * doodads whose roof extends beyond the registered model's authored Z range. */
-bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
-    if (!entity || !bounds || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx)
+bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, mat4_t *matrix) {
+    if (!entity || !bounds || !matrix || !entity->model ||
+        entity->model->modeltype != ID_MDLX || !entity->model->mdx)
         return false;
-    mat4_t transform;
-    R_GetEntityMatrix(entity, &transform);
-    *bounds = R_W3SpecialModel(entity, &transform)->bounds.box;
+    R_GetEntityMatrix(entity, matrix);
+    *bounds = R_W3SpecialModel(entity, matrix)->bounds.box;
     return true;
+}
+
+bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
+    mat4_t matrix;
+    return R_GetEntityBoundsAndMatrix(entity, bounds, &matrix);
 }
 
 mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {

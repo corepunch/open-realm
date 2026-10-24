@@ -386,6 +386,13 @@ bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     return true;
 }
 
+bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, mat4_t *matrix) {
+    if (!matrix || !R_GetEntityBounds(entity, bounds))
+        return false;
+    R_GetEntityMatrix(entity, matrix);
+    return true;
+}
+
 bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
     (void)entity;
     (void)origin;

@@ -248,6 +248,11 @@ bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     return false;
 }
 
+bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, mat4_t *matrix) {
+    (void)entity; (void)bounds; (void)matrix;
+    return false;
+}
+
 /* Build a stable top/front light for WoW UI model-camera previews. */
 static void R_WowEntityCameraLightMatrix(vec3_t const *target, float radius, mat4_t *output) {
     mat4_t proj;

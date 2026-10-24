@@ -64,6 +64,9 @@ void R_RenderModelInstanced(model_t const *model, instanceBuffer_t const *instan
 bool R_ModelCanStaticInstance(model_t const *model);
 bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance);
 bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds);
+/* As above, but return the exact matrix used to select the model bounds.
+ * A false result leaves matrix unspecified (the caller uses sphere fallback). */
+bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, mat4_t *matrix);
 bool R_GetModelInfo(model_t *model, modelInfo_t *info);
 /* Mandatory for every game, including identity conversions. Returns native-model -> actor basis. */
 mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose);

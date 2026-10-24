@@ -25,6 +25,76 @@ void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 void MDLX_TestResetSequenceSearches(void);
 uint32_t MDLX_TestSequenceSearches(void);
 
+/* The pre-optimisation eight-corner implementation is intentionally kept
+ * independent of the production support-point test. */
+static int renderer_test_frustum_box_corners(frustum3_t const *frustum, box3_t const *box, mat4_t const *matrix) {
+    vec3_t corners[8];
+    for (int k = 0; k < 8; k++) {
+        vec3_t local = {
+            (k & 1) ? box->max.x : box->min.x,
+            (k & 2) ? box->max.y : box->min.y,
+            (k & 4) ? box->max.z : box->min.z,
+        };
+        corners[k] = Matrix4_multiply_vector3(matrix, &local);
+    }
+    for (int i = 0; i < FRUSTUM_NUM_PLANES; i++) {
+        int any_inside = 0;
+        for (int k = 0; k < 8; k++) {
+            if (Plane3_MultiplyVector3(&frustum->planes[i], &corners[k]) > 0.0f) {
+                any_inside = 1;
+                break;
+            }
+        }
+        if (!any_inside) return 0;
+    }
+    return 1;
+}
+
+TEST(renderer_model, affine_frustum_box_matches_corner_test_across_rotations_and_boundaries) {
+    mat4_t camera;
+    frustum3_t frustum;
+    box3_t box = { .min = { -1.0f, -0.75f, -0.5f }, .max = { 1.0f, 0.75f, 0.5f } };
+    Matrix4_identity(&camera);
+    Frustum_Calculate(&camera, &frustum);
+
+    /* Cover all sides of the frustum, reflected axes, nonuniform scales,
+     * off-centre positions, non-orthogonal rotations, and large extents. */
+    for (int k = 0; k < 420; k++) {
+        mat4_t model;
+        vec3_t angles = { (k * 17) % 360, (k * 37) % 360, (k * 53) % 360 };
+        vec3_t scale = {
+            (k & 1) ? -1.3f : 0.65f,
+            (k & 2) ? 2.5f : 0.8f,
+            (k & 4) ? 0.5f : 1.7f,
+        };
+        Matrix4_identity(&model);
+        Matrix4_rotate(&model, &angles, ROTATE_XYZ);
+        Matrix4_scale(&model, &scale);
+        model.v[12] = ((k * 19) % 51 - 25) * 0.12f;
+        model.v[13] = ((k * 23) % 47 - 23) * 0.14f;
+        model.v[14] = ((k * 29) % 43 - 21) * 0.11f;
+        T_EQ(Frustum_ContainsBox(&frustum, &box, &model),
+             renderer_test_frustum_box_corners(&frustum, &box, &model));
+    }
+    for (int face = 0; face < 3; face++) {
+        for (int sign = -1; sign <= 1; sign += 2) {
+            for (int delta = -2; delta <= 2; delta++) {
+                mat4_t model;
+                Matrix4_identity(&model);
+                model.v[12 + face] = sign * (1.0f + (face == 0 ? 1.0f : (face == 1 ? .75f : .5f))) +
+                    delta * .000001f;
+                T_EQ(Frustum_ContainsBox(&frustum, &box, &model),
+                     renderer_test_frustum_box_corners(&frustum, &box, &model));
+            }
+        }
+    }
+    /* The projective path must keep the homogeneous-divide behaviour. */
+    Matrix4_perspective(&camera, 60.0f, 1.4f, 0.1f, 80.0f);
+    box.min.z = -6.0f; box.max.z = -4.0f;
+    T_EQ(Frustum_ContainsBox(&frustum, &box, &camera),
+         renderer_test_frustum_box_corners(&frustum, &box, &camera));
+}
+
 static char shader_src[16384];
 static void reset_shader(void);
 static rect_t backdrop_uv, backdrop_rect;

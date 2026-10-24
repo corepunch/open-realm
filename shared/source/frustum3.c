@@ -57,7 +57,10 @@ int Frustum_ContainsPoint(frustum3_t const *frustum, vec3_t const *point) {
     return Frustum_ContainsSphere(frustum, &(sphere3_t){.center=*point,.radius=0});
 }
 
-int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, mat4_t const *matrix) {
+/* Retain the exact corner test for projective transforms and borderline
+ * floating-point cases; the fast support-point test below handles affine
+ * model matrices without transforming eight corners for every plane. */
+static int Frustum_ContainsBoxCorners(frustum3_t const *frustum, box3_t const *box, mat4_t const *matrix) {
     vec3_t const points[] = {
         Matrix4_multiply_vector3(matrix, &(vec3_t) { box->min.x, box->min.y, box->min.z }),
         Matrix4_multiply_vector3(matrix, &(vec3_t) { box->max.x, box->min.y, box->min.z }),
@@ -76,6 +79,47 @@ int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, mat4_t con
         }
         return 0;
     next_cycle:;
+    }
+    return 1;
+}
+
+int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, mat4_t const *matrix) {
+    /* The homogeneous divide is not constant for perspective matrices.
+     * Preserve their original eight-corner path (e.g. model-camera views). */
+    if (matrix->v[3] != 0.0f || matrix->v[7] != 0.0f ||
+        matrix->v[11] != 0.0f || matrix->v[15] != 1.0f)
+        return Frustum_ContainsBoxCorners(frustum, box, matrix);
+
+    for (unsigned i = 0; i < FRUSTUM_NUM_PLANES; i++) {
+        plane3_t const *plane = &frustum->planes[i];
+        /* Maximise this plane's signed distance over the affine box.
+         * The affine image of a box is a parallelepiped, whose support
+         * point in direction n picks one endpoint on each local axis. */
+        float const dx = plane->a * matrix->v[0] + plane->b * matrix->v[1] + plane->c * matrix->v[2];
+        float const dy = plane->a * matrix->v[4] + plane->b * matrix->v[5] + plane->c * matrix->v[6];
+        float const dz = plane->a * matrix->v[8] + plane->b * matrix->v[9] + plane->c * matrix->v[10];
+        vec3_t const corner = {
+            dx > 0.0f ? box->max.x : box->min.x,
+            dy > 0.0f ? box->max.y : box->min.y,
+            dz > 0.0f ? box->max.z : box->min.z,
+        };
+        vec3_t const world = {
+            matrix->v[0] * corner.x + matrix->v[4] * corner.y + matrix->v[8] * corner.z + matrix->v[12],
+            matrix->v[1] * corner.x + matrix->v[5] * corner.y + matrix->v[9] * corner.z + matrix->v[13],
+            matrix->v[2] * corner.x + matrix->v[6] * corner.y + matrix->v[10] * corner.z + matrix->v[14],
+        };
+        float const distance = Plane3_MultiplyVector3(plane, &world);
+        /* Comparing exactly at a plane can change the strict > 0
+         * decision through rounding or support-axis cancellation.
+         * Let the original algorithm adjudicate only that narrow band. */
+        float const error = 16.0f * 1.19209290e-7f *
+            (fabsf(plane->a * world.x) + fabsf(plane->b * world.y) +
+             fabsf(plane->c * world.z) + fabsf(plane->d) + 1.0f);
+        if (distance > error)
+            continue;
+        if (distance < -error)
+            return 0;
+        return Frustum_ContainsBoxCorners(frustum, box, matrix);
     }
     return 1;
 }

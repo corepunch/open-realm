@@ -1,5 +1,39 @@
 # WC3 Performance Hot Spots
 
+## October 24 low-core x86 entity culling matrix and affine frustum (patch twenty-nine)
+
+NightElf07's post-patch-28 x86 samples identify `R_EntityInView` at 12.11%
+*inclusive* CPU share, including repeated `R_GetEntityMatrix` work and eight
+`Matrix4_multiply_vector3` operations per frustum box test. These sample shares
+are not frame-time or FPS measurements.
+
+The Warcraft III model-bounds provider needs a world matrix to choose the
+correct fitted doodad model. Previously the common entity culler called that
+provider, which computed the matrix, then recomputed the same matrix to test
+the resulting bounds. The new `R_GetEntityBoundsAndMatrix` contract returns
+both in one call. Warcraft III shares the matrix with fitted-model selection,
+while the StarCraft II provider computes a matrix only when model bounds
+exist; WoW retains its sphere-only fallback without introducing transforms.
+The old `R_GetEntityBounds` API remains available for rings and other callers.
+
+`Frustum_ContainsBox` now computes a support corner for each frustum plane in
+local coordinates when the model matrix is affine. It transforms only that
+candidate corner, rather than all eight corners, to determine whether the
+box is wholly outside the plane. Reflection, rotation and nonuniform scale
+are supported; the original eight-corner algorithm handles projective
+matrices and plane-contact cases where float rounding could change the strict
+`> 0` test. This is not an occlusion or visibility-rule change. No persistent
+cache, build-system flags, new diagnostics or save/network fields were added.
+
+`renderer_model.affine_frustum_box_matches_corner_test_across_rotations_and_boundaries`
+compares to the previous corner algorithm for rotated/mirrored/nonuniform
+transforms, outside/inside positions, exact plane contacts and a projective
+matrix. `renderer_game.wc3_entity_bounds_share_the_exact_culling_matrix`
+checks that the matrix used to choose WC3 bounds is the matrix passed to the
+culler and retains the unsupported-model fallback. The native build passed;
+tests were not run. Verify fixed-camera NightElf07 frame times and FPS, then
+repeat on Human02, Undead07 and ARM64.
+
 ## October 24 x86 MDX attachment reference-only fast path (patch twenty-eight)
 
 New NightElf07 and Undead07 low-performance x86 core `perf` call stacks show

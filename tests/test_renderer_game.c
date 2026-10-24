@@ -1273,3 +1273,29 @@ TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
     }
     FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
 }
+
+TEST(renderer_game, wc3_entity_bounds_share_the_exact_culling_matrix) {
+    mdxModel_t mdx = { .bounds.box = {
+        .min = { -24.0f, -8.0f, -12.0f }, .max = { 32.0f, 18.0f, 120.0f },
+    } };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = {
+        .model = &model, .origin = { 123.0f, -456.0f, 10.0f },
+        .angle = 33.0f, .scale = 1.35f,
+    };
+    box3_t bounds, legacy_bounds;
+    mat4_t matrix, expected;
+
+    T_ASSERT(R_GetEntityBoundsAndMatrix(&entity, &bounds, &matrix));
+    T_ASSERT(R_GetEntityBounds(&entity, &legacy_bounds));
+    R_TestEntityMatrixFromEnts(&entity, &expected);
+    FOR_LOOP(i, 16) T_FEQ(matrix.v[i], expected.v[i], 0.0001f);
+    T_FEQ(bounds.min.x, legacy_bounds.min.x, 0.0001f);
+    T_FEQ(bounds.max.y, legacy_bounds.max.y, 0.0001f);
+    T_FEQ(bounds.max.z, legacy_bounds.max.z, 0.0001f);
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(NULL, &bounds, &matrix));
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(&entity, NULL, &matrix));
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(&entity, &bounds, NULL));
+    model.modeltype = 0;
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(&entity, &bounds, &matrix));
+}

@@ -61,8 +61,7 @@ static bool R_EntityInView(renderEntity_t const *entity) {
 
     /* Model bounds cover tall map art whose gameplay selection radius is only
      * the ground footprint; keep the radius path for models without bounds. */
-    if (R_GetEntityBounds(entity, &bounds)) {
-        R_GetEntityMatrix(entity, &matrix);
+    if (R_GetEntityBoundsAndMatrix(entity, &bounds, &matrix)) {
         return Frustum_ContainsBox(&tr.viewDef.frustum, &bounds, &matrix);
     }
 
