@@ -530,6 +530,16 @@ uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *
 /* Pose generation belongs to the shared scratch matrices; only a caller that
  * just rendered/bound this pose should pass it to the reuse variant. */
 uint64_t MDLX_BoundBonePoseGeneration(void);
+/* Bounded, per-view alpha reuse; end invalidates every saved pose. */
+void MDLX_ViewPoseBegin(void);
+void MDLX_ViewPoseEnd(void);
+bool MDLX_ViewPoseCachedDraw(renderEntity_t const *entity, mdxModel_t const **model,
+                             mat4_t *transform);
+void MDLX_ViewPoseStore(renderEntity_t const *entity, mdxModel_t const *model,
+                        mat4_t const *transform, uint32_t frame, uint32_t oldframe);
+bool MDLX_ViewPoseRestore(renderEntity_t const *entity, mdxModel_t const *model,
+                          mat4_t const *transform, uint32_t frame, uint32_t oldframe);
+
 uint32_t MDLX_CollectAttachmentPositionsWithPose(mdxModel_t const *model, mat4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions,

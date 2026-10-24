@@ -1,3 +1,36 @@
+## October 24 low-core x86 cross-pass MDX pose reuse (patch thirty-one)
+
+NightElf07 profiling after patch thirty still shows about 7.03% inclusive CPU
+samples in solid-pass `MDLX_BindBoneMatrices` and 6.56% in alpha-pass bone
+binding. These are *sample shares*, not FPS or measured elapsed time.
+
+`MDX_RenderModel` now saves the pose of a scene MDX entity after its solid-pass
+bind **only when its materials, tint or ribbons require alpha work**. The
+snapshot uses a fixed per-view budget of 96 entities and 4,096 active nodes
+(about 280 KiB for node data), retaining only matrices for authored nodes.
+After other models overwrite the global bone scratch, an alpha-pass draw can
+restore the identical pose instead of rerunning animation keytrack searches.
+The `R_RenderModel` entrypoint also reuses the selected model matrix for
+eligible entities, eliminating redundant transform construction.
+
+Re-use demands the exact view entity pointer and contents, identical selected
+model, local frames (including Gold/Lumber remapping), effective global-sequence
+time, model transform, render time and camera view-projection matrix. The
+cache deliberately excludes terrain-fitted special meshes, temporary child
+models and sprites; unmatched/overflowed entities use the prior full bind.
+Every restored pose receives a fresh scratch generation so attachment and fire
+collectors still invalidate correctly after intervening child renders. The
+cache starts in the solid scene pass (or when an isolated portrait first saves
+an eligible model) and is cleared at the end of alpha rendering. It does not
+survive frames, nested view completion or model reload boundaries.
+
+`renderer_model.mdx_view_pose_*` tests validate scratch-pose restoration,
+child overwrites, frame and matrix changes, entity mutation, view time and
+camera changes, and end-of-view invalidation. The native build passed; tests
+were not run. Confirm sprite portraits, transparent units, attachments,
+billboard bones and construction animations visually and compare NightElf07
+frame times on x86/ARM64 before retaining.
+
 # WC3 Performance Hot Spots
 
 ## October 24 x86 MDX alpha-pass bone-pose fast path (patch thirty)

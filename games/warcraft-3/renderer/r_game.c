@@ -1306,6 +1306,7 @@ void R_SetupEnvironmentLighting(void) {
 }
 
 void R_DrawWorld(void) {
+    if (tr.render_phase == RENDER_PHASE_SOLID) MDLX_ViewPoseBegin();
     _W3M_DrawWorld();
     R_W3DrawEventSplats();
     R_W3DrawEventSpawns(false, NULL, 0);
@@ -1341,6 +1342,7 @@ void R_DrawAlphaSurfaces(void) {
     } else if (!(tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
         R_W3DrawEventSpawns(false, NULL, 0);
     }
+    MDLX_ViewPoseEnd(); /* no entries can outlive this view or a model reload */
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {
@@ -2139,9 +2141,17 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
     }
     MDLX_TickDetachedRibbons(); /* fade trails whose entity stopped drawing before this model draws */
-    R_GetEntityMatrix(entity, &transform);
+    /* The alpha pass uses the exact solid model matrix and pose when the
+     * scene entity and view are unchanged. Terrain-fitted special models are
+     * re-resolved normally since map-owned meshes can be replaced. */
+    mdxModel_t const *model = NULL;
+    if (tr.render_phase != RENDER_PHASE_ALPHA ||
+        !MDLX_ViewPoseCachedDraw(entity, &model, &transform)) {
+        R_GetEntityMatrix(entity, &transform);
+        model = R_W3SpecialModel(entity, &transform);
+    }
     uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
-    MDX_RenderModel(entity, R_W3SpecialModel(entity, &transform), &transform);
+    MDX_RenderModel(entity, model, &transform);
     uint64_t const pose_after = MDLX_BoundBonePoseGeneration();
     R_W3RenderAttachmentModels(entity, &transform,
                                pose_after != pose_before ? pose_after : 0);

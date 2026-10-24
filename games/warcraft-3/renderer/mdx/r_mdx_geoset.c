@@ -850,6 +850,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
             return;
     }
 
+    /* Retain the stable scene identity when animation remapping substitutes
+     * a stack-local draw entity. The cache key uses remapped frame values. */
+    renderEntity_t const *scene_entity = entity;
     renderEntity_t remappedEntity;
     if (entity->flags & RF_HAS_LUMBER) {
         remappedEntity = *entity;
@@ -930,7 +933,13 @@ void MDX_RenderModel(renderEntity_t const *entity,
 
     /* Environment light is already on viewDef from R_SetupEnvironmentLighting.
      * Rebind this entity before evaluating its local lights or rendering. */
-    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
+    if (!MDLX_ViewPoseRestore(scene_entity, model, transform, entity->frame, entity->oldframe)) {
+        MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
+        /* Only models that actually render an alpha contribution justify a
+         * saved pose; opaque-only models retain the existing one-pass path. */
+        if (tr.render_phase == RENDER_PHASE_SOLID && MDLX_ModelHasAlphaWork(entity, model))
+            MDLX_ViewPoseStore(scene_entity, model, transform, entity->frame, entity->oldframe);
+    }
     numLights += MDLX_CollectModelLights(model, transform, entity->frame,
                                         &lighting.lights[numLights],
                                         BZ_MODEL_LIGHT_MAX - numLights);

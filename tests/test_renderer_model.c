@@ -1798,6 +1798,100 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
 }
 
 
+/* Cross-pass snapshots must restore a parent's exact matrices after another
+ * model overwrites the shared scratch, without calling the keytrack evaluator. */
+TEST(renderer_model, mdx_view_pose_reuses_bones_after_intervening_model) {
+    mdxNode_t node = { .node_id = 7, .parent_id = UINT32_MAX };
+    mdxNode_t other_node = { .node_id = 7, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 }, other = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    renderEntity_t entity = { .number = 42, .model = &wrapper, .frame = 100, .oldframe = 80 };
+    mat4_t transform, alternate, saved;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    uint64_t generation;
+    mdxModel_t const *cached_model = NULL;
+
+    model.nodes[7] = model.node_list[0] = &node;
+    other.nodes[7] = other.node_list[0] = &other_node;
+    Matrix4_identity(&transform);
+    alternate = transform;
+    alternate.v[12] = 25.0f;
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+    tr.viewDef.time = 12345;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    MDLX_BindBoneMatrices(&model, &transform, 100, 80);
+    node_matrices[7].v[12] = 5.0f; /* Distinguishable authored pose for this snapshot test. */
+    saved = node_matrices[7];
+    MDLX_ViewPoseStore(&entity, &model, &transform, 100, 80);
+    MDLX_BindBoneMatrices(&other, &alternate, 101, 101);
+    T_NE(node_matrices[7].v[12], saved.v[12]);
+
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entity, &cached_model, &alternate));
+    T_ASSERT(cached_model == &model);
+    T_FEQ(alternate.v[12], transform.v[12], 0.001f);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_ASSERT(MDLX_ViewPoseRestore(&entity, &model, &transform, 100, 80));
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+    T_FEQ(node_matrices[7].v[12], saved.v[12], 0.001f);
+    T_ASSERT(!memcmp(&node_matrices[7], &saved, sizeof(saved)));
+    /* Attachment reuse remains valid for the restored generation. */
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    MDLX_ViewPoseEnd();
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &alternate));
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
+TEST(renderer_model, mdx_view_pose_invalidates_mutation_camera_and_time) {
+    mdxNode_t node = { .node_id = 2, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    renderEntity_t entity = { .number = 3, .model = &wrapper, .frame = 100 };
+    mat4_t transform;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    mdxModel_t const *cached_model = NULL;
+    model.nodes[2] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+    tr.viewDef.time = 555;
+    tr.viewDef.lerpfrac = 0.5f;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    MDLX_BindBoneMatrices(&model, &transform, 100, 100);
+    MDLX_ViewPoseStore(&entity, &model, &transform, 100, 100);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    T_ASSERT(!MDLX_ViewPoseRestore(&entity, &model, &transform, 101, 100));
+    transform.v[12] = 1.0f;
+    T_ASSERT(!MDLX_ViewPoseRestore(&entity, &model, &transform, 100, 100));
+    Matrix4_identity(&transform);
+    entity.tint = COLOR32_WHITE;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    entity.tint = 0;
+    tr.viewDef.time++;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    tr.viewDef.time--;
+    tr.viewDef.viewProjectionMatrix.v[0] = 2.0f;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    tr.viewDef.viewProjectionMatrix.v[0] = 1.0f;
+    tr.viewDef.lerpfrac += 0.1f;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    tr.viewDef.lerpfrac = 0.5f;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    MDLX_ViewPoseEnd();
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
 /* Shared MDX bones are scratch storage, not a persistent per-model cache.
  * Reuse is valid only when the draw that supplied the generation bound the
  * identical model, frames and transform, with no intervening child model. */

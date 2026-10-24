@@ -125,6 +125,143 @@ static mdxGlobalSequencePauseState_t global_sequence_pause[MAX_GAME_ENTITIES];
 static bool entity_global_time_valid;
 static uint32_t entity_global_time;
 
+/* Per-view, bounded cross-pass pose snapshot. The normal renderer has one
+ * global scratch pose: saving only the active node IDs lets an alpha draw
+ * restore its solid-pass result after arbitrary intervening models. No heap,
+ * no cross-frame/model-resource references, and no change to key evaluation. */
+#define MDLX_VIEW_POSE_ENTRIES 96
+#define MDLX_VIEW_POSE_NODES 4096
+
+typedef struct {
+    renderEntity_t const *entity_ptr;
+    renderEntity_t entity_snapshot;
+    mdxModel_t const *model;
+    mat4_t transform;
+    mat4_t view_projection;
+    uint32_t view_time, frame, oldframe, global_time;
+    float lerpfrac;
+    uint16_t start, count;
+} mdxViewPoseEntry_t;
+
+typedef struct {
+    uint16_t node_id;
+    mat4_t matrix;
+} mdxViewPoseNode_t;
+
+static struct {
+    bool active;
+    uint32_t count, nodes;
+    mdxViewPoseEntry_t entries[MDLX_VIEW_POSE_ENTRIES];
+    mdxViewPoseNode_t snapshots[MDLX_VIEW_POSE_NODES];
+} view_pose_cache;
+
+void MDLX_ViewPoseBegin(void) {
+    view_pose_cache.count = view_pose_cache.nodes = 0;
+    view_pose_cache.active = true;
+}
+
+void MDLX_ViewPoseEnd(void) {
+    view_pose_cache.active = false;
+    view_pose_cache.count = view_pose_cache.nodes = 0;
+}
+
+/* Never admit temporary child/sprite entities. The view's entity array owns
+ * the stable identities shared by the two passes. */
+static bool MDLX_ViewPoseIsSceneEntity(renderEntity_t const *entity) {
+    uintptr_t base, addr, size;
+    if (!entity || !tr.viewDef.entities || !tr.viewDef.num_entities) return false;
+    base = (uintptr_t)tr.viewDef.entities;
+    addr = (uintptr_t)entity;
+    size = (size_t)tr.viewDef.num_entities * sizeof(*entity);
+    return addr >= base && addr - base < size && (addr - base) % sizeof(*entity) == 0;
+}
+
+static mdxViewPoseEntry_t const *MDLX_ViewPoseFind(renderEntity_t const *entity) {
+    if (!view_pose_cache.active || !MDLX_ViewPoseIsSceneEntity(entity)) return NULL;
+    for (uint32_t i = view_pose_cache.count; i-- > 0;) {
+        mdxViewPoseEntry_t const *entry = &view_pose_cache.entries[i];
+        if (entry->entity_ptr == entity && entry->view_time == tr.viewDef.time &&
+            entry->lerpfrac == tr.viewDef.lerpfrac &&
+            !memcmp(&entry->entity_snapshot, entity, sizeof(*entity)) &&
+            !memcmp(&entry->view_projection, &tr.viewDef.viewProjectionMatrix,
+                    sizeof(entry->view_projection)))
+            return entry;
+    }
+    return NULL;
+}
+
+/* Called before alpha-pass transform construction. This includes the model
+ * selected for solid rendering, but excludes terrain-fitted replacements:
+ * those are map-owned mutable resources and must be re-resolved. */
+bool MDLX_ViewPoseCachedDraw(renderEntity_t const *entity, mdxModel_t const **model,
+                             mat4_t *transform) {
+    mdxViewPoseEntry_t const *entry = MDLX_ViewPoseFind(entity);
+    if (!entry || !entity->model || entry->model != entity->model->mdx ||
+        !model || !transform) return false;
+    *model = entry->model;
+    *transform = entry->transform;
+    return true;
+}
+
+void MDLX_ViewPoseStore(renderEntity_t const *entity, mdxModel_t const *model,
+                        mat4_t const *transform, uint32_t frame, uint32_t oldframe) {
+    mdxViewPoseEntry_t *entry;
+    if (tr.render_phase == RENDER_PHASE_SOLID && !view_pose_cache.active)
+        MDLX_ViewPoseBegin(); /* isolated portrait/entity-camera view */
+    if (!view_pose_cache.active || tr.render_phase != RENDER_PHASE_SOLID ||
+        !MDLX_ViewPoseIsSceneEntity(entity) || !entity->model || !model || !transform ||
+        model != entity->model->mdx || model->num_nodes < 0 ||
+        model->num_nodes > MDX_MAX_NODES ||
+        view_pose_cache.count >= MDLX_VIEW_POSE_ENTRIES ||
+        view_pose_cache.nodes + (uint32_t)model->num_nodes > MDLX_VIEW_POSE_NODES)
+        return;
+    entry = &view_pose_cache.entries[view_pose_cache.count++];
+    *entry = (mdxViewPoseEntry_t){
+        .entity_ptr = entity, .entity_snapshot = *entity,
+        .model = model, .transform = *transform,
+        .view_projection = tr.viewDef.viewProjectionMatrix,
+        .view_time = tr.viewDef.time, .frame = frame, .oldframe = oldframe,
+        .global_time = entity_global_time, .lerpfrac = tr.viewDef.lerpfrac,
+        .start = (uint16_t)view_pose_cache.nodes,
+        .count = (uint16_t)model->num_nodes,
+    };
+    FOR_LOOP(i, model->num_nodes) {
+        uint32_t const id = model->node_list[i]->node_id;
+        mdxViewPoseNode_t *snapshot = &view_pose_cache.snapshots[view_pose_cache.nodes++];
+        snapshot->node_id = (uint16_t)id;
+        snapshot->matrix = node_matrices[id];
+    }
+}
+
+bool MDLX_ViewPoseRestore(renderEntity_t const *entity, mdxModel_t const *model,
+                          mat4_t const *transform, uint32_t frame, uint32_t oldframe) {
+    mdxViewPoseEntry_t const *entry = MDLX_ViewPoseFind(entity);
+    if (tr.render_phase != RENDER_PHASE_ALPHA || !entry || entry->model != model ||
+        entry->frame != frame || entry->oldframe != oldframe ||
+        entry->global_time != entity_global_time ||
+        memcmp(&entry->transform, transform, sizeof(*transform)) ||
+        entry->count != (uint32_t)model->num_nodes)
+        return false;
+    FOR_LOOP(i, entry->count) {
+        mdxViewPoseNode_t const *snapshot = &view_pose_cache.snapshots[entry->start + i];
+        if (!model->node_list[i] || model->node_list[i]->node_id != snapshot->node_id)
+            return false;
+    }
+    FOR_LOOP(i, entry->count) {
+        mdxViewPoseNode_t const *snapshot = &view_pose_cache.snapshots[entry->start + i];
+        node_matrices[snapshot->node_id] = snapshot->matrix;
+    }
+    /* Other callers rely on a unique generation for the currently bound
+     * global scratch pose, including attachments after a child bind. */
+    bound_bone_pose.generation++;
+    if (!bound_bone_pose.generation) bound_bone_pose.generation++;
+    bound_bone_pose.model = model;
+    bound_bone_pose.transform = *transform;
+    bound_bone_pose.frame = frame;
+    bound_bone_pose.oldframe = oldframe;
+    return true;
+}
+
 /* MDX global sequences usually follow view time, but held construction must
  * keep per-entity global tracks (for example a Farm's globally animated saw)
  * at their current phase. Subtract accumulated paused time on resume so the
