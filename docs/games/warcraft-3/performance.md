@@ -1,5 +1,42 @@
 # WC3 Performance Hot Spots
 
+## October 24 x86 MDX attachment reference-only fast path (patch twenty-eight)
+
+New NightElf07 and Undead07 low-performance x86 core `perf` call stacks show
+`MDLX_CollectAttachmentPositionsWithPose` at 10.59% and 9.22% inclusive sample
+share through the alpha-pass attachment renderer, primarily under
+`MDLX_BindBoneMatrices`. These are sampled workload shares, not measured FPS.
+The old renderer collected every attachment *before* checking its nonempty
+child-model path, and could therefore rebuild a costly pose after a culled
+parent draw even when every attachment was merely an empty-path reference.
+
+`R_W3RenderAttachmentModels` now calls a render-only collection entrypoint that
+checks for at least one child-model path before binding any bones. If none is
+present it returns an empty list immediately; no drawn children can be lost.
+For mixed lists the original collector still runs, preserving encounter order,
+visibility filtering, the fixed 32-position limit (including reference-only
+entries) and the existing child model/animation mapping. This optimisation
+does not change `MDLX_CollectAttachmentPositions` for overhead, events,
+building overlays or other consumers of reference points.
+
+The building-fire `Sprite ` collector now accepts the parent's generation from
+the preceding MDX draw, just as the ordinary child-model collector does. The
+same checks require identical model identity, transform and frames, and a
+matching current scratch-pose generation; intervening model-child draws and
+other binds correctly force recalculation. The original model and frame
+contracts remain authoritative even for remapped Gold/Lumber animations and
+terrain-fitted models; unmatched poses still bind normally. No global or
+per-instance long-lived cache or debug logging was added.
+
+`renderer_model.mdx_render_attachments_*` verifies reference-only lists avoid
+binding after a culled draw, mixed lists retain reference ordering and cap
+semantics, and matching/mismatched poses reuse or recompute as appropriate.
+The existing `mdx_attachment_pose_reuse_invalidates_after_child_model` and
+`mdx_attachment_missing_prefix_skips_pose_binding` tests cover the shared
+scratch-pose invalidation and prefix cases. Compile and test on the x86
+low-performance cores, then compare fixed-scene FPS, median frame times and
+attachment/pose samples; verify ARM64 separately.
+
 ## October 24 low-core x86 occluded fog shadowcast/rim loop (patch twenty-six)
 
 The low-performance-core x86 profiles identify `G_FowCastLight` (3.89% of

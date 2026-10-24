@@ -1810,6 +1810,96 @@ TEST(renderer_model, mdx_attachment_pose_reuse_invalidates_after_child_model) {
     T_NE(MDLX_BoundBonePoseGeneration(), generation);
 }
 
+/* Reference-point attachments without a child MDX path are very common.
+ * Even after a culled draw (no parent bind), model-child rendering should
+ * not rebuild every bone merely to discard those reference entries. */
+TEST(renderer_model, mdx_render_attachments_skip_reference_only_poses) {
+    mdxAttachment_t origin = { 0 }, overhead = { 0 };
+    mdxModel_t model = { .attachments = &origin };
+    mdxAttachmentPosition_t positions[2] = { 0 };
+    mat4_t transform;
+    uint64_t const before = MDLX_BoundBonePoseGeneration();
+
+    origin.node.node_id = 0;
+    origin.node.parent_id = UINT32_MAX;
+    snprintf(origin.node.name, sizeof(origin.node.name), "Origin Ref");
+    origin.next = &overhead;
+    overhead.node.node_id = 1;
+    overhead.node.parent_id = UINT32_MAX;
+    snprintf(overhead.node.name, sizeof(overhead.node.name), "Overhead Ref");
+    model.nodes[0] = model.node_list[0] = &origin.node;
+    model.nodes[1] = model.node_list[1] = &overhead.node;
+    model.num_nodes = 2;
+    Matrix4_identity(&transform);
+
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 2, 0), 0u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), before);
+    /* The general attachment API remains authoritative for reference slots. */
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform,
+        50, 40, NULL, positions, 2, 0), 2u);
+    T_NE(MDLX_BoundBonePoseGeneration(), before);
+    T_STREQ(positions[0].name, "Origin Ref");
+    T_STREQ(positions[1].name, "Overhead Ref");
+}
+
+/* A mixed model still collects *all* attachment records in their original
+ * order, including empty paths that consumed one of the bounded 32 slots.
+ * Reusing a just-bound parent pose remains valid, while clobbering the
+ * shared scratch state or switching frames forces the normal recomputation. */
+TEST(renderer_model, mdx_render_attachments_preserve_mixed_order_and_reuse) {
+    mdxAttachment_t origin = { 0 }, child_ref = { 0 };
+    mdxModel_t model = { .attachments = &origin }, other = { 0 };
+    vec3_t pivots[] = { { 1, 2, 3 }, { 4, 5, 6 } };
+    mdxAttachmentPosition_t positions[2] = { 0 };
+    mat4_t transform;
+    uint64_t generation;
+
+    origin.node.node_id = 0;
+    origin.node.parent_id = UINT32_MAX;
+    origin.next = &child_ref;
+    snprintf(origin.node.name, sizeof(origin.node.name), "Origin Ref");
+    child_ref.node.node_id = 1;
+    child_ref.node.parent_id = UINT32_MAX;
+    snprintf(child_ref.node.name, sizeof(child_ref.node.name), "Weapon Ref");
+    snprintf(child_ref.path, sizeof(child_ref.path), "Abilities\\Weapons\\Test.mdx");
+    model.nodes[0] = model.node_list[0] = &origin.node;
+    model.nodes[1] = model.node_list[1] = &child_ref.node;
+    model.num_nodes = 2;
+    model.pivots = pivots;
+    model.num_pivots = 2;
+    Matrix4_identity(&transform);
+    Matrix4_translate(&transform, &(vec3_t){ 10, 20, 30 });
+
+    MDLX_BindBoneMatrices(&model, &transform, 50, 40);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 2, generation), 2u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_STREQ(positions[0].name, "Origin Ref");
+    T_STREQ(positions[1].path, "Abilities\\Weapons\\Test.mdx");
+    T_FEQ(positions[1].origin.x, 14, 0.001f);
+    T_FEQ(positions[1].origin.y, 25, 0.001f);
+    T_FEQ(positions[1].origin.z, 36, 0.001f);
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 1, generation), 1u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_STREQ(positions[0].name, "Origin Ref"); /* Preserve original cap. */
+
+    MDLX_BindBoneMatrices(&other, &transform, 50, 40);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 2, generation), 2u);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform,
+        50, 40, "Weapon ", positions, 2, generation), 1u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform,
+        51, 40, "Weapon ", positions, 2, generation), 1u);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+}
+
 TEST(renderer_model, mdx_attachment_missing_prefix_skips_pose_binding) {
     mdxAttachment_t attachment = { 0 };
     mdxModel_t model = { .attachments = &attachment };

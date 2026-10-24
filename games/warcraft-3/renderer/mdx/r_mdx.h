@@ -534,6 +534,12 @@ uint32_t MDLX_CollectAttachmentPositionsWithPose(mdxModel_t const *model, mat4_t
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions,
                                       uint64_t pose_generation);
+/* Model-child rendering only: references with an empty path cannot spawn a
+ * child, so avoid binding a bone pose when every attachment is a reference. */
+uint32_t MDLX_CollectRenderAttachmentPositionsWithPose(mdxModel_t const *model,
+                                      mat4_t const *model_matrix, uint32_t frame,
+                                      uint32_t oldframe, mdxAttachmentPosition_t *positions,
+                                      uint32_t max_positions, uint64_t pose_generation);
 bool MDLX_EventObjectId(mdxEvent_t const *event, cstring_t type, char *out, uint32_t out_size);
 bool MDLX_EventWorldTransform(mdxModel_t const *model, mdxEvent_t const *event,
                               renderEntity_t const *entity, mat4_t const *model_transform,

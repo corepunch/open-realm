@@ -566,6 +566,28 @@ uint32_t MDLX_CollectAttachmentPositionsWithPose(mdxModel_t const *model, mat4_t
     return count;
 }
 
+/* Most Warcraft models contain only point references (Origin, Overhead,
+ * Sprite, Weapon, etc.) without a child-model path. The regular collection
+ * API must still expose them to overhead and building-effect consumers, but
+ * the child-model renderer will discard all such entries. Avoid rebuilding
+ * an entire pose after a culled draw for those no-op attachment lists.
+ *
+ * Do not filter empty paths out of a mixed list: the original collector's
+ * encounter order, visibility tests and max_positions cap must remain intact. */
+uint32_t MDLX_CollectRenderAttachmentPositionsWithPose(mdxModel_t const *model,
+                                      mat4_t const *model_matrix, uint32_t frame,
+                                      uint32_t oldframe, mdxAttachmentPosition_t *positions,
+                                      uint32_t max_positions, uint64_t pose_generation) {
+    if (!model || !model_matrix || !positions || !max_positions) return 0;
+    FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
+        if (attachment->path[0]) {
+            return MDLX_CollectAttachmentPositionsWithPose(model, model_matrix,
+                frame, oldframe, NULL, positions, max_positions, pose_generation);
+        }
+    }
+    return 0;
+}
+
 uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions) {

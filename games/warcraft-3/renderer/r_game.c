@@ -544,8 +544,8 @@ static void R_W3RenderAttachmentModels(renderEntity_t const *entity, mat4_t cons
     uint32_t count;
 
     if (!entity || !entity->model || !entity->model->mdx || !transform) return;
-    count = MDLX_CollectAttachmentPositionsWithPose(entity->model->mdx, transform,
-                                             entity->frame, entity->oldframe, NULL, attachments,
+    count = MDLX_CollectRenderAttachmentPositionsWithPose(entity->model->mdx, transform,
+                                             entity->frame, entity->oldframe, attachments,
                                              sizeof(attachments) / sizeof(*attachments),
                                              parent_pose_generation);
     FOR_LOOP(i, count) {
@@ -2159,10 +2159,14 @@ void R_RenderModel(renderEntity_t const *entity) {
 
         slot_mask = (entity->effect_flags & EFX_SLOT_MASK) >> EFX_SLOT_SHIFT;
 
-        attachment_count = MDLX_CollectAttachmentPositions(entity->model->mdx, &transform,
+        /* If the normal attachment pass drew a child its bind generation no
+         * longer matches, and the collector safely rebuilds the parent pose.
+         * Without a child, reuse the parent bind for building-fire sprites. */
+        attachment_count = MDLX_CollectAttachmentPositionsWithPose(entity->model->mdx, &transform,
                                                             entity->frame, entity->oldframe,
                                                             "Sprite ", attachments,
-                                                            sizeof(attachments) / sizeof(*attachments));
+                                                            sizeof(attachments) / sizeof(*attachments),
+                                                            pose_after != pose_before ? pose_after : 0);
         FOR_LOOP(i, attachment_count) {
             static cstring_t const names[5] = {
                 "Sprite First", "Sprite Second", "Sprite Third", "Sprite Fourth", "Sprite Fifth",
