@@ -801,6 +801,33 @@ void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *m
     R_SetAlphaKeyState(false);
 }
 
+/* The alpha pass revisits every visible MDX entity, including models
+ * consisting only of opaque and alpha-key geosets. Such models have no own
+ * alpha work, so avoid another full bone evaluation (and shader setup).
+ *
+ * Inspect materials rather than the current animation's geoset visibility:
+ * animated visibility can change, and a material unused by visible geosets
+ * merely causes a conservative false positive. This is per-call derived data,
+ * not a cache that could survive asset reloads or material changes.
+ *
+ * R_RenderModel still processes child attachments and building-fire overlays
+ * after MDX_RenderModel returns, even when the parent itself has no alpha work. */
+bool MDLX_ModelHasAlphaWork(renderEntity_t const *entity, mdxModel_t const *model) {
+    color32_t color;
+    if (!entity || !model) return false;
+    color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
+    if (model->ribbons) return true; /* Alpha pass advances and draws ribbons. */
+    if (color.a != 255) {
+        /* A translucent instance's opaque/alpha-key layers move to alpha.
+         * No geosets means that the fast path remains safe either way. */
+        return model->geosets != NULL;
+    }
+    FOR_EACH_LIST(mdxMaterial_t, material, model->materials) {
+        if (MDLX_MaterialHasPass(material, true)) return true;
+    }
+    return false;
+}
+
 void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
                      mat4_t const *transform)
@@ -809,6 +836,8 @@ void MDX_RenderModel(renderEntity_t const *entity,
      * complete held interval outside the view is invisible to the per-entity
      * global-sequence clock and causes a phase jump when it returns. */
     MDLX_UpdateEntityAnimationPause(entity);
+    if (tr.render_phase == RENDER_PHASE_ALPHA && !MDLX_ModelHasAlphaWork(entity, model))
+        return;
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
         vec3_t const center = Box3_Center(&model->bounds.box);
         sphere3_t const sphere = {

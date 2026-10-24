@@ -1,5 +1,38 @@
 # WC3 Performance Hot Spots
 
+## October 24 x86 MDX alpha-pass bone-pose fast path (patch thirty)
+
+NightElf07 low-core x86 profiling after patch twenty-nine puts
+`MDLX_BindBoneMatrices` at 7.37% inclusive in the opaque entity branch and
+6.98% in the alpha entity branch. These are disjoint call paths, but sampled
+CPU shares are not direct frame-time or FPS measurements.
+
+The alpha pass traverses all MDX entities, although an untinted model whose
+materials have only `BLEND_MODE_NONE` or `BLEND_MODE_ALPHAKEY` layers and no
+ribbons contributes no parent-model geometry in that pass. `MDX_RenderModel`
+now skips its own frustum, shader setup, lighting and bone-pose bind for that
+case. It still calls `MDLX_UpdateEntityAnimationPause` before returning, so
+held global-sequence clocks remain correct. The existing opaque pass is not
+changed; alpha-tinted instances, blended/additive/modulate materials and
+ribbon emitters all use the previous path.
+
+The skip is *inside* `MDX_RenderModel`, not `R_RenderModel` or
+`R_DrawAlphaSurfaces`, so the caller still ticks detached ribbons, checks and
+renders child-model attachments, and processes building-fire overlays. A
+parent pose is rebound on demand if an attachment or fire overlay requires it.
+Material inspection uses existing loaded lists each call, avoiding persistent
+cache invalidation and conservatively allowing alpha work when a blended
+material is present even if no currently visible geoset uses it. Particle
+emitters remain exclusive to the solid pass as before.
+
+`renderer_model.mdx_alpha_*` covers no-alpha classification, white/unset and
+translucent tint, blended/alpha-key modes, ribbon preservation, mutations
+between calls, and the real alpha-render entrypoint's no-bind early exit. The
+native build passed; tests were not run. Compare fixed-scene FPS, median frame
+times, and `MDLX_BindBoneMatrices` alpha-pass samples on the x86 low-performance
+cores. Run on ARM64 before considering the optimisation validated for handhelds.
+
+
 ## October 24 low-core x86 entity culling matrix and affine frustum (patch twenty-nine)
 
 NightElf07's post-patch-28 x86 samples identify `R_EntityInView` at 12.11%

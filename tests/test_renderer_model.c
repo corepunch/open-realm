@@ -112,6 +112,75 @@ TEST(renderer_model, mdx_transparent_layers_run_after_water_and_tinted_opaque_la
     T_ASSERT(MDLX_RenderPhaseIncludesPass(RENDER_PHASE_LIGHTS, false, false));
 }
 
+/* Only alpha-contributing parent MDX models should bind a second pose.
+ * The alpha pass can still draw child attachments after the parent's early
+ * exit; the skip decision is local to MDX_RenderModel, not R_RenderModel. */
+TEST(renderer_model, mdx_alpha_work_classifies_opaque_tinted_blended_and_ribbons) {
+    mdxMaterialLayer_t layers[2] = { { .blendMode = BLEND_MODE_NONE },
+                                    { .blendMode = BLEND_MODE_ALPHAKEY } };
+    mdxMaterial_t first = { .num_layers = 2, .layers = layers }, second = { 0 };
+    mdxGeoset_t geoset = { 0 };
+    mdxRibbonEmitter_t ribbon = { 0 };
+    mdxModel_t model = { .materials = &first, .geosets = &geoset };
+    renderEntity_t entity = { 0 };
+
+    T_ASSERT(!MDLX_ModelHasAlphaWork(NULL, &model));
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, NULL));
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint = (color32_t){ .a = 0 }; /* An unset zero tint defaults white. */
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint_valid = true;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint = (color32_t){ .r = 255, .g = 255, .b = 255, .a = 255 };
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint.a = 254; /* Nearly opaque still moves layers to alpha. */
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    entity.tint_valid = false;
+    entity.tint.a = 0;
+
+    first.next = &second;
+    second.layers = (mdxMaterialLayer_t[]){ { .blendMode = BLEND_MODE_ADD } };
+    second.num_layers = 1;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    second.layers[0].blendMode = BLEND_MODE_MODULATE;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    second.layers[0].blendMode = BLEND_MODE_NONE;
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+    first.layers[1].blendMode = BLEND_MODE_BLEND;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    first.layers[1].blendMode = BLEND_MODE_ALPHAKEY;
+
+    model.ribbons = &ribbon;
+    T_ASSERT(MDLX_ModelHasAlphaWork(&entity, &model));
+    model.ribbons = NULL;
+    T_ASSERT(!MDLX_ModelHasAlphaWork(&entity, &model));
+}
+
+TEST(renderer_model, mdx_alpha_opaque_only_skips_pose_binding) {
+    mdxMaterialLayer_t layer = { .blendMode = BLEND_MODE_NONE };
+    mdxMaterial_t material = { .num_layers = 1, .layers = &layer };
+    mdxGeoset_t geoset = { 0 };
+    mdxModel_t model = { .materials = &material, .geosets = &geoset };
+    renderEntity_t entity = { .number = 1, .generation = 31, .frame = 120, .oldframe = 100 };
+    mat4_t transform;
+    render_phase_t const previous_phase = tr.render_phase;
+    uint32_t const previous_time = tr.viewDef.time;
+    uint64_t generation;
+
+    Matrix4_identity(&transform);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    tr.viewDef.time = 1234;
+    generation = MDLX_BoundBonePoseGeneration();
+    MDX_RenderModel(&entity, &model, &transform);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    /* Opaque + alpha-key layers must take the same early return. */
+    layer.blendMode = BLEND_MODE_ALPHAKEY;
+    MDX_RenderModel(&entity, &model, &transform);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    tr.render_phase = previous_phase;
+    tr.viewDef.time = previous_time;
+}
+
 /* Capture the real shader source submission without requiring a window in the unit suite. */
 static void BZ_TestShaderSource(GLuint shader, GLsizei count, GLchar const *const *strings, GLint const *lengths) {
     size_t used = 0;

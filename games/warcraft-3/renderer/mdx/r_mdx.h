@@ -552,6 +552,9 @@ void MDX_ReleaseBuffers(mdxModel_t *model);
 void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
+/* Classify parent-model alpha work before evaluating its bone pose. Child
+ * attachments are handled separately by R_RenderModel after this call. */
+bool MDLX_ModelHasAlphaWork(renderEntity_t const *entity, mdxModel_t const *model);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
