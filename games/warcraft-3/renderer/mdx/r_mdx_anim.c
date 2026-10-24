@@ -162,7 +162,10 @@ static struct {
     mdxViewPoseNode_t snapshots[MDLX_VIEW_POSE_NODES];
 } view_pose_cache;
 
+static void MDLX_KeySpanBegin(void);
+
 void MDLX_ViewPoseBegin(void) {
+    MDLX_KeySpanBegin();
     if (++view_pose_cache.epoch == 0) {
         memset(view_pose_cache.scene_epoch, 0, sizeof(view_pose_cache.scene_epoch));
         view_pose_cache.epoch = 1;
@@ -349,10 +352,74 @@ void MDLX_PopEntityAnimationTime(mdxAnimationTimeScope_t const *scope) {
     entity_global_time_valid = scope->previous_valid;
 }
 
+/* During a world view many instances sample the same immutable MDX tracks.
+ * Cache only their sequence-local search indexes, never evaluated values: the
+ * current sample time (including a paused/global-sequence clock) is always
+ * resolved normally. A new view invalidates every entry, so model reloads do
+ * not leave persistent pointers behind. Standalone keytrack consumers remain
+ * uncached. Direct-mapped collisions simply take the original search path. */
+#define MDLX_KEY_SPAN_SLOTS 1024
+
+typedef struct {
+    uint32_t epoch;
+    mdxKeyTrack_t const *track;
+    uint32_t stride, count, start, end;
+    uint32_t first_index, end_index, right_index;
+    bool span_valid, right_valid;
+} mdxKeySpanEntry_t;
+
+static struct {
+    uint32_t epoch;
+    mdxKeySpanEntry_t slots[MDLX_KEY_SPAN_SLOTS];
+} key_span_cache;
+
+static void MDLX_KeySpanBegin(void) {
+    if (++key_span_cache.epoch == 0) {
+        memset(key_span_cache.slots, 0, sizeof(key_span_cache.slots));
+        key_span_cache.epoch = 1;
+    }
+}
+
+static mdxKeySpanEntry_t *MDLX_KeySpanSlot(mdxKeyTrack_t const *track, uint32_t stride,
+                                           uint32_t count, uint32_t start, uint32_t end) {
+    uintptr_t const addr = (uintptr_t)track;
+    uint32_t const hash = (uint32_t)(addr >> 4) ^ (uint32_t)(addr >> 19) ^
+                          start * 2654435761u ^ end * 2246822519u;
+    mdxKeySpanEntry_t *slot;
+    if (!view_pose_cache.active || !key_span_cache.epoch) return NULL;
+    slot = &key_span_cache.slots[hash & (MDLX_KEY_SPAN_SLOTS - 1)];
+    if (slot->epoch != key_span_cache.epoch || slot->track != track ||
+        slot->stride != stride || slot->count != count ||
+        slot->start != start || slot->end != end) {
+        *slot = (mdxKeySpanEntry_t){
+            .epoch = key_span_cache.epoch, .track = track, .stride = stride,
+            .count = count, .start = start, .end = end,
+        };
+    }
+    return slot;
+}
+
+#ifdef BZ_TESTS
+static uint32_t test_mdx_keyframe_bound_searches;
+static uint32_t test_mdx_keyframe_span_hits;
+static uint32_t test_mdx_keyframe_bracket_hits;
+void MDLX_TestResetKeyframeSearchStats(void) {
+    test_mdx_keyframe_bound_searches = 0;
+    test_mdx_keyframe_span_hits = 0;
+    test_mdx_keyframe_bracket_hits = 0;
+}
+uint32_t MDLX_TestKeyframeBoundSearches(void) { return test_mdx_keyframe_bound_searches; }
+uint32_t MDLX_TestKeyframeSpanHits(void) { return test_mdx_keyframe_span_hits; }
+uint32_t MDLX_TestKeyframeBracketHits(void) { return test_mdx_keyframe_bracket_hits; }
+#endif
+
 /* MDX key times are authored in ascending order. Restrict binary searches
  * to the current sequence's key span instead of searching the whole track. */
 static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uint32_t time,
                                 bool upper, uint32_t lo, uint32_t hi) {
+#ifdef BZ_TESTS
+    test_mdx_keyframe_bound_searches++;
+#endif
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
         int32_t keytime = R_KeyFrameAt(track, stride, mid)->time;
@@ -367,7 +434,8 @@ static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uin
  * sequence logic here, but avoid repeating the sequence list walk for every
  * translation/rotation/scale track and for every bone. */
 static void MDLX_GetModelKeytrackValueResolved(mdxModel_t const *model, mdxKeyTrack_t const *keytrack,
-                                                uint32_t time, mdxSequence_t const *sequence, handle_t output) {
+                                                uint32_t time, mdxSequence_t const *sequence,
+                                                bool pose_sample, handle_t output) {
     uint32_t interval[2] = { 0, 0 };
     uint32_t stride;
 
@@ -423,10 +491,30 @@ static void MDLX_GetModelKeytrackValueResolved(mdxModel_t const *model, mdxKeyTr
     uint32_t const count = keytrack->keyframeCount;
     mdxKeyFrame_t const *track_first = R_KeyFrameAt(keytrack, stride, 0);
     mdxKeyFrame_t const *track_last = R_KeyFrameAt(keytrack, stride, count - 1);
-    uint32_t const first_index = track_first->time >= (int32_t)interval[0] ? 0 :
-        R_KeyFrameBound(keytrack, stride, interval[0], false, 0, count);
-    uint32_t const end_index = track_last->time <= (int32_t)interval[1] ? count :
-        R_KeyFrameBound(keytrack, stride, interval[1], true, first_index, count);
+    /* A track can span many authored sequences. Cache the occupied key range
+     * only for pose samples inside a live render view; non-pose callers and
+     * tests that mutate tracks retain their fully stateless lookup. */
+    mdxKeySpanEntry_t *cached = pose_sample ?
+        MDLX_KeySpanSlot(keytrack, stride, count, interval[0], interval[1]) : NULL;
+    uint32_t first_index, end_index;
+    if (cached && cached->span_valid) {
+        first_index = cached->first_index;
+        end_index = cached->end_index;
+#ifdef BZ_TESTS
+        test_mdx_keyframe_span_hits++;
+#endif
+    } else {
+        first_index = track_first->time >= (int32_t)interval[0] ? 0 :
+            R_KeyFrameBound(keytrack, stride, interval[0], false, 0, count);
+        end_index = track_last->time <= (int32_t)interval[1] ? count :
+            R_KeyFrameBound(keytrack, stride, interval[1], true, first_index, count);
+        if (cached) {
+            cached->first_index = first_index;
+            cached->end_index = end_index;
+            cached->span_valid = true;
+            cached->right_valid = false;
+        }
+    }
     if (first_index >= end_index)
         return;
     mdxKeyFrame_t *first = R_KeyFrameAt(keytrack, stride, first_index);
@@ -449,8 +537,25 @@ static void MDLX_GetModelKeytrackValueResolved(mdxModel_t const *model, mdxKeyTr
         memcpy(output, first->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
         return;
     }
-    uint32_t const right_index = end_index - first_index == 2 ? first_index + 1 :
-        R_KeyFrameBound(keytrack, stride, time, false, first_index + 1, end_index);
+    uint32_t right_index;
+    if (end_index - first_index == 2) {
+        right_index = first_index + 1;
+    } else if (cached && cached->right_valid &&
+               cached->right_index > first_index && cached->right_index < end_index &&
+               R_KeyFrameAt(keytrack, stride, cached->right_index - 1)->time < (int32_t)time &&
+               R_KeyFrameAt(keytrack, stride, cached->right_index)->time >= (int32_t)time) {
+        /* Exact lower_bound semantics, including duplicate authored times. */
+        right_index = cached->right_index;
+#ifdef BZ_TESTS
+        test_mdx_keyframe_bracket_hits++;
+#endif
+    } else {
+        right_index = R_KeyFrameBound(keytrack, stride, time, false, first_index + 1, end_index);
+        if (cached) {
+            cached->right_index = right_index;
+            cached->right_valid = true;
+        }
+    }
     mdxKeyFrame_t *right = R_KeyFrameAt(keytrack, stride, right_index);
     if (right->time == time)
         memcpy(output, right->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
@@ -465,7 +570,7 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
     mdxSequence_t const *sequence = NULL;
     if (!model || !keytrack || !output || !keytrack->keyframeCount) return;
     if (keytrack->globalSeqId == UINT32_MAX) sequence = R_FindSequenceAtTime(model, time);
-    MDLX_GetModelKeytrackValueResolved(model, keytrack, time, sequence, output);
+    MDLX_GetModelKeytrackValueResolved(model, keytrack, time, sequence, false, output);
 }
 
 /* This cache is a stack local owned by one MDLX_BindBoneMatrices invocation.
@@ -489,7 +594,7 @@ static void MDLX_GetPoseKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t con
         }
         sequence = pair->sequence[sample];
     }
-    MDLX_GetModelKeytrackValueResolved(model, track, time, sequence, output);
+    MDLX_GetModelKeytrackValueResolved(model, track, time, sequence, true, output);
 }
 
 /* Warcraft animated MDX color tracks use BGR component semantics in the file.

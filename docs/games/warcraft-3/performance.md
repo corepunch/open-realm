@@ -1,3 +1,41 @@
+## October 24 NightElf07 per-view MDX keyframe interval reuse (patch thirty-eight)
+
+Patch thirty-seven's NightElf07 profile attributes 8.89% inclusive sampled CPU
+cycles to opaque `MDLX_BindBoneMatrices`, with 2.38% exclusive in
+`R_KeyFrameBound`. For every animated translation/rotation/scale sample, MDX
+previously repeated up to three binary searches: the first/last keys owned by
+the selected sequence and the interpolation bracket for the current time.
+
+The renderer now keeps a **1,024-slot, direct-mapped index cache scoped to the
+current view**. Each entry is identified by the parsed track pointer, its
+keyframe count/stride, and the exact sequence interval bounds. The first and
+end key indexes can be reused across different units using the same model;
+when the next sampled time stays between the stored adjacent keys, its right
+bracket is reused as well. Bracket reuse checks the neighbouring key times
+and uses the original lower-bound search otherwise, preserving duplicate-key
+and exact-boundary semantics. Collisions simply fall back to the existing
+binary searches. Interpolated values are **never** cached: the current time,
+including global sequences, paused entity clocks, wraps, blended frames and
+per-node interpolation, is always evaluated normally.
+
+The cache starts with `MDLX_ViewPoseBegin` and becomes inaccessible after
+`MDLX_ViewPoseEnd`, preventing pointers into replaced MDX resources from
+surviving across views. Only bone-pose samples use it; general
+`MDLX_GetModelKeytrackValue` consumers remain stateless, which also preserves
+the behaviour of synthetic mutable test tracks. The implementation adds no
+debug logging or game/network state. A cache entry requires an immutable
+loaded MDX track for the duration of its current view, as in normal rendering.
+
+`renderer_model.mdx_view_key_span_reuses_sequence_bounds_and_nearby_brackets`
+compares the view-cache path with the original stateless evaluator across
+sequences, changed animation times and a fresh view.
+`renderer_model.mdx_view_key_span_preserves_global_clock_wrap_and_duplicate_keys`
+checks global-sequence wrap and duplicate authored key times. The test-only
+counters measure skipped binary-search calls. `make test-renderer-model`
+passes with 11,109 assertions across 222 tests. Reprofile
+`R_KeyFrameBound` and `MDLX_BindBoneMatrices`, and measure matched FPS/frame
+times; raw sampling percentages do not establish a speedup.
+
 ## October 24 NightElf07 shadow-splat cache collision avoidance (patch thirty-seven)
 
 The patch-thirty-six NightElf07 profile still attributes 6.55% inclusive

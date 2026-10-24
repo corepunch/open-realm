@@ -40,6 +40,10 @@ bool MDLX_ModelHasAlphaWork(renderEntity_t const *entity, mdxModel_t const *mode
 /* Test-only counter in the real MDX sequence selector. */
 void MDLX_TestResetSequenceSearches(void);
 uint32_t MDLX_TestSequenceSearches(void);
+void MDLX_TestResetKeyframeSearchStats(void);
+uint32_t MDLX_TestKeyframeBoundSearches(void);
+uint32_t MDLX_TestKeyframeSpanHits(void);
+uint32_t MDLX_TestKeyframeBracketHits(void);
 
 /* The pre-optimisation eight-corner implementation is intentionally kept
  * independent of the production support-point test. */
@@ -583,6 +587,101 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.5f, 0.001f);
     MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 2.5f, 0.001f);
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
+}
+
+/* Comparing each pose against the public stateless evaluator exercises the
+ * same interpolation code while making reuse/search-count regressions visible. */
+TEST(renderer_model, mdx_view_key_span_reuses_sequence_bounds_and_nearby_brackets) {
+    int const times[9] = {50, 120, 180, 240, 300, 360, 440, 520, 620};
+    mdxSequence_t sequences[2] = {{.interval = {100, 320}}, {.interval = {320, 560}}};
+    mdxNode_t node = {.node_id = 0, .parent_id = UINT32_MAX};
+    mdxModel_t model = {.sequences = sequences, .num_sequences = 2, .num_nodes = 1};
+    mat4_t transform;
+    float saved_lerp = tr.viewDef.lerpfrac;
+    uint32_t const samples[] = {125, 133, 140, 185, 239, 300, 321, 375, 390, 495, 110};
+    model.nodes[0] = model.node_list[0] = &node;
+    /* Use FLOAT3 for a real node position; update the stride and authored
+     * values to match the vector evaluator. */
+    {
+        uint8_t vector_storage[sizeof(mdxKeyTrack_t) + 9 * (sizeof(int) + sizeof(vec3_t))] = {0};
+        mdxKeyTrack_t *position = (mdxKeyTrack_t *)vector_storage;
+        position->keyframeCount = 9; position->datatype = TDATA_FLOAT3;
+        position->linetype = TRACK_LINEAR; position->globalSeqId = UINT32_MAX;
+        FOR_LOOP(i, 9) {
+            mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)position->values + i * (4 + sizeof(vec3_t)));
+            vec3_t const value = {(float)(i + 1), 0, 0};
+            key->time = times[i]; memcpy(key->data, &value, sizeof(value));
+        }
+        node.translation = position;
+        Matrix4_identity(&transform);
+        tr.viewDef.lerpfrac = 0;
+        MDLX_ViewPoseBegin();
+        MDLX_TestResetKeyframeSearchStats();
+        FOR_LOOP(i, sizeof(samples) / sizeof(samples[0])) {
+            vec3_t expected = {0};
+            uint32_t const time = samples[i];
+            MDLX_GetModelKeytrackValue(&model, position, time, &expected);
+            /* The public stateless evaluator's searches do not count toward
+             * the pose-cache assertions. */
+            MDLX_TestResetKeyframeSearchStats();
+            MDLX_BindBoneMatrices(&model, &transform, time, time);
+            T_FEQ(node_matrices[0].v[12], expected.x, .0001f);
+            if (i == 0) T_ASSERT(MDLX_TestKeyframeBoundSearches() > 0);
+            if (i == 1 || i == 2) {
+                T_EQ(MDLX_TestKeyframeBoundSearches(), 0u);
+                T_ASSERT(MDLX_TestKeyframeSpanHits() >= 1);
+                T_ASSERT(MDLX_TestKeyframeBracketHits() >= 1);
+            }
+        }
+        MDLX_ViewPoseEnd();
+        /* A fresh view must not reuse the previous sequence key indexes. */
+        sequences[0].interval[0] = 170;
+        sequences[0].interval[1] = 245;
+        MDLX_ViewPoseBegin();
+        MDLX_TestResetKeyframeSearchStats();
+        MDLX_BindBoneMatrices(&model, &transform, 190, 190);
+        T_ASSERT(MDLX_TestKeyframeBoundSearches() > 0);
+        T_FEQ(node_matrices[0].v[12], 3.1666667f, .0002f);
+        MDLX_ViewPoseEnd();
+    }
+    tr.viewDef.lerpfrac = saved_lerp;
+}
+
+TEST(renderer_model, mdx_view_key_span_preserves_global_clock_wrap_and_duplicate_keys) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 7 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    int const times[7] = {0, 100, 100, 250, 400, 500, 600};
+    mdxGlobalSequence_t global = {.value = 500};
+    mdxNode_t node = {.node_id = 0, .parent_id = UINT32_MAX, .translation = track};
+    mdxModel_t model = {.globalSequences = &global, .num_globalSequences = 1, .num_nodes = 1};
+    uint32_t const samples[] = {90, 100, 101, 110, 499, 500, 501, 602, 705, 80};
+    mat4_t transform;
+    uint32_t const old_time = tr.viewDef.time;
+    float const old_lerp = tr.viewDef.lerpfrac;
+    model.nodes[0] = model.node_list[0] = &node;
+    track->keyframeCount = 7; track->datatype = TDATA_FLOAT3;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = 0;
+    FOR_LOOP(i, 7) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * (4 + sizeof(vec3_t)));
+        vec3_t const value = {(float)(i * 5), 0, 0};
+        key->time = times[i]; memcpy(key->data, &value, sizeof(value));
+    }
+    Matrix4_identity(&transform);
+    tr.viewDef.lerpfrac = 0;
+    MDLX_ViewPoseBegin();
+    FOR_LOOP(i, sizeof(samples) / sizeof(samples[0])) {
+        mdxAnimationTimeScope_t scope;
+        vec3_t expected = {0};
+        tr.viewDef.time = samples[i];
+        MDLX_PushEntityAnimationTime(NULL, &scope);
+        MDLX_GetModelKeytrackValue(&model, track, 0, &expected);
+        MDLX_BindBoneMatrices(&model, &transform, 0, 0);
+        T_FEQ(node_matrices[0].v[12], expected.x, .0001f);
+        MDLX_PopEntityAnimationTime(&scope);
+    }
+    MDLX_ViewPoseEnd();
+    tr.viewDef.time = old_time;
+    tr.viewDef.lerpfrac = old_lerp;
 }
 
 TEST(renderer_model, mdx_single_key_track_respects_sequence_ownership) {
