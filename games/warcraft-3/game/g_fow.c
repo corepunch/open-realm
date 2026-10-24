@@ -356,23 +356,30 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
     for (int distance = row; distance <= radius; distance++) {
         bool blocked = false;
         float next_start = start;
-        int delta_y = -distance;
+        int const delta_y = -distance;
+        /* Each octant's row origin is fixed for every delta_x in that row.
+         * Compute it once, and do not calculate a cell position until the
+         * unchanged shadow-slope tests admit that cell. */
+        int const row_x = cx + delta_y * xy;
+        int const row_y = cy + delta_y * yy;
 
         for (int delta_x = -distance; delta_x <= 0; delta_x++) {
-            int x = cx + delta_x * xx + delta_y * xy;
-            int y = cy + delta_x * yx + delta_y * yy;
-            float left_slope = ((float)delta_x - 0.5f) / ((float)delta_y + 0.5f);
-            float right_slope = ((float)delta_x + 0.5f) / ((float)delta_y - 0.5f);
+            float const right_slope = ((float)delta_x + 0.5f) / ((float)delta_y - 0.5f);
+            float left_slope;
+            int x, y;
             bool in_bounds;
             bool cell_blocked;
 
             if (start < right_slope) {
                 continue;
             }
+            left_slope = ((float)delta_x - 0.5f) / ((float)delta_y + 0.5f);
             if (end > left_slope) {
                 break;
             }
 
+            x = row_x + delta_x * xx;
+            y = row_y + delta_x * yx;
             in_bounds = x >= 0 && y >= 0 &&
                         x < (int)level.fow.width && y < (int)level.fow.height;
             cell_blocked = in_bounds &&
@@ -439,31 +446,16 @@ static void G_FowRevealShadowcast(fowPlayerGrid_t *grid, uint32_t cx, uint32_t c
     }
 }
 
-static bool G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int margin) {
-    int margin_sq = margin * margin;
-
-    for (int dy = -margin; dy <= margin; dy++) {
-        int ny = y + dy;
-        if (ny < 0 || ny >= (int)level.fow.height) {
-            continue;
-        }
-        for (int dx = -margin; dx <= margin; dx++) {
-            int nx = x + dx;
-            uint32_t index;
-
-            if (nx < 0 || nx >= (int)level.fow.width) {
-                continue;
-            }
-            if (dx * dx + dy * dy > margin_sq) {
-                continue;
-            }
-            index = G_FOW_CELL_INDEX((uint32_t)nx, (uint32_t)ny);
-            if (grid->visible[index]) {
-                return true;
-            }
-        }
-    }
-    return false;
+/* The authored light margin is one cell. Its disk consists of the center
+ * and four orthogonal neighbours (not the diagonals). The rim caller has
+ * already established that the center is invisible. Keep accepting the
+ * temporary value 2, which allows contiguous blocker rims to propagate. */
+static bool G_FowHasVisibleRimNeighbor(fowPlayerGrid_t const *grid, uint32_t x, uint32_t y,
+                                       uint32_t index) {
+    return (x > 0 && grid->visible[index - 1]) ||
+           (x + 1 < level.fow.width && grid->visible[index + 1]) ||
+           (y > 0 && grid->visible[index - level.fow.width]) ||
+           (y + 1 < level.fow.height && grid->visible[index + level.fow.width]);
 }
 
 /* Commit only marked blockers; the old second square walk revisited over 10K cells per Human02 update. */
@@ -479,34 +471,29 @@ static void G_FowCommitRimCells(fowPlayerGrid_t *grid, uint32_t count) {
 }
 
 static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
-    int margin = FOW_BLOCKER_LIGHT_MARGIN_CELLS;
-    int max_radius = radius_cells + margin;
-    int max_radius_sq = max_radius * max_radius;
+    int const max_radius = radius_cells + FOW_BLOCKER_LIGHT_MARGIN_CELLS;
+    int const max_radius_sq = max_radius * max_radius;
+    /* Clip once for each axis. Border-adjacent revealers should not scan
+     * imaginary off-map columns for every row. Preserve y/x walk order: the
+     * temporary rim markers intentionally influence later blocker cells. */
+    int const min_x = MAX(0, (int)cx - max_radius);
+    int const max_x = MIN((int)level.fow.width - 1, (int)cx + max_radius);
+    int const min_y = MAX(0, (int)cy - max_radius);
+    int const max_y = MIN((int)level.fow.height - 1, (int)cy + max_radius);
     uint32_t rim_count = 0;
 
-    for (int dy = -max_radius; dy <= max_radius; dy++) {
-        int y = (int)cy + dy;
-        if (y < 0 || y >= (int)level.fow.height) {
-            continue;
-        }
-        for (int dx = -max_radius; dx <= max_radius; dx++) {
-            int x = (int)cx + dx;
-            uint32_t index;
-
-            if (x < 0 || x >= (int)level.fow.width) {
+    for (int y = min_y; y <= max_y; y++) {
+        int const dy = y - (int)cy;
+        uint32_t const row = (uint32_t)y * level.fow.width;
+        for (int x = min_x; x <= max_x; x++) {
+            uint32_t const index = row + (uint32_t)x;
+            int const dx = x - (int)cx;
+            /* Most terrain cells are not blockers. Skip the circular-radius
+             * test and neighbour probes for them entirely. */
+            if (!level.fow.blocked[index] || dx * dx + dy * dy > max_radius_sq)
                 continue;
-            }
-            if (dx * dx + dy * dy > max_radius_sq) {
-                continue;
-            }
-
-            index = G_FOW_CELL_INDEX((uint32_t)x, (uint32_t)y);
-            if (!level.fow.blocked[index]) {
-                continue;
-            }
             if (!grid->visible[index] &&
-                G_FowHasVisibleNeighbor(grid, x, y, margin))
-            {
+                G_FowHasVisibleRimNeighbor(grid, (uint32_t)x, (uint32_t)y, index)) {
                 grid->visible[index] = 2;
                 level.fow.rim_cells[rim_count++] = index;
             }

@@ -1,5 +1,38 @@
 # WC3 Performance Hot Spots
 
+## October 24 low-core x86 occluded fog shadowcast/rim loop (patch twenty-six)
+
+The low-performance-core x86 profiles identify `G_FowCastLight` (3.89% of
+exclusive samples on NightElf07) and `G_FowRevealBlockerRim` (1.77%) as
+significant simulation costs when units illuminate blocker-heavy terrain.
+The sample shares are hotspots, not predicted FPS gains; profile comparable
+scenes to determine whether this patch improves actual frame times.
+
+`G_FowCastLight` keeps exactly the same floating-point slope divisions,
+comparison order, octant order and recursive blocking decisions. It now
+computes each octant row's fixed world offset only once, evaluates the right
+slope before the left slope, and calculates world cell coordinates only after
+both slope filters accept the candidate. Rejected cells cannot change any
+fog state, so their coordinates were redundant. No rounding-sensitive slope
+reciprocal approximation is introduced.
+
+`G_FowRevealBlockerRim` clips candidate x/y bounds to the map once per
+revealer and checks the sparse blocker plane before computing the disk radius.
+The existing one-cell light margin has exactly four possible orthogonal
+visible neighbours once the candidate's center has been checked as invisible:
+these are now tested directly. Importantly, **the scan remains ordered by y
+then x**, and the temporary `visible == 2` markers still count as visible to
+subsequent rim candidates. The final commit still marks the same dirty rows,
+visible cells and explored cells. No fog buffer, cache, allocations, protocol,
+or save format changes occur.
+
+Added `wc3_game.fow_shadowcast_blocker_rim_rebuild_is_stable` and
+`wc3_game.fow_shadowcast_blocker_rim_clips_at_map_corner` regressions that
+exercise the actual fog update and blocker rebuild paths; run the existing
+blocker, tree-pathtex, fog state and packed-mask tests too. The native
+game-module build passed; tests were not run. Validate on x86 low-core FPS and
+frame times first, followed by ARM64 gameplay tests.
+
 ## October 24 low-core x86 MDX affine hierarchy composition (patch twenty-five)
 
 Profiling Human02, NightElf07 and Undead07 on low-performance x86 CPU cores

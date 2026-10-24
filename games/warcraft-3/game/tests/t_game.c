@@ -3967,6 +3967,92 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     G_FowShutdown();
 }
 
+/* Rebuilding the blocker plane after movement must produce the same sight
+ * mask when the original geometry returns. This exercises octant recursion,
+ * transient rim markers and deterministic traversal/commit ordering. */
+TEST(wc3_game, fow_shadowcast_blocker_rim_rebuild_is_stable) {
+    edict_t *revealer, *blocker;
+    uint8_t *original;
+    uint32_t width, height, cx, original_blocker, moved_blocker;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    width = level.fow.width;
+    height = level.fow.height;
+    cx = G_FowWorldToCellX(256.0f);
+    T_ASSERT(width > 7 && height > 4 && cx >= 3 && cx + 3 < width);
+    if (width <= 7 || height <= 4 || cx < 3 || cx + 3 >= width) {
+        G_FowShutdown();
+        return;
+    }
+
+    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 192.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 192.0f;
+    revealer->health.value = revealer->health.max_value = 100.0f;
+    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 384.0f, 192.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = blocker->health.max_value = 100.0f;
+
+    G_FowUpdate();
+    original_blocker = G_FowWorldToCellY(192.0f) * width + G_FowWorldToCellX(384.0f);
+    moved_blocker = G_FowWorldToCellY(192.0f) * width + G_FowWorldToCellX(128.0f);
+    T_ASSERT(level.fow.blocked[original_blocker]);
+    T_ASSERT(level.fow.players[0].visible[G_FowWorldToCellY(192.0f) * width + cx]);
+    original = gi.MemAlloc(width * height);
+    T_NOT_NULL(original);
+    if (!original) {
+        G_FowShutdown();
+        return;
+    }
+    memcpy(original, level.fow.players[0].visible, width * height);
+
+    blocker->s.origin.x = blocker->s.origin2.x = 128.0f;
+    G_FowMarkBlockersDirty();
+    G_FowUpdate();
+    T_ASSERT(!level.fow.blocked[original_blocker]);
+    T_ASSERT(level.fow.blocked[moved_blocker]);
+
+    blocker->s.origin.x = blocker->s.origin2.x = 384.0f;
+    G_FowMarkBlockersDirty();
+    G_FowUpdate();
+    T_ASSERT(level.fow.blocked[original_blocker]);
+    FOR_LOOP(i, width * height) {
+        T_EQ(original[i], level.fow.players[0].visible[i]);
+        T_ASSERT(level.fow.players[0].visible[i] <= 1); /* no leaked rim markers */
+    }
+    gi.MemFree(original);
+    G_FowShutdown();
+}
+
+/* Corner-adjacent sight sources enter both the shadowcasting and rim paths.
+ * Off-map rows and columns must neither be visited nor hide on-map blockers. */
+TEST(wc3_game, fow_shadowcast_blocker_rim_clips_at_map_corner) {
+    edict_t *revealer, *blocker;
+    uint32_t source_index, blocker_index;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 256.0f;
+    revealer->health.value = revealer->health.max_value = 100.0f;
+    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 0.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = blocker->health.max_value = 100.0f;
+
+    G_FowUpdate();
+    source_index = G_FowWorldToCellY(0.0f) * level.fow.width + G_FowWorldToCellX(0.0f);
+    blocker_index = G_FowWorldToCellY(0.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    T_ASSERT(level.fow.blocked[blocker_index]);
+    T_ASSERT(level.fow.players[0].visible[source_index]);
+    T_ASSERT(level.fow.players[0].visible[blocker_index]);
+    T_ASSERT(level.fow.players[0].explored[blocker_index]);
+    G_FowShutdown();
+}
+
 #ifdef WC3_FOW_PACKED_MASK
 static cstring_t fow_fast_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_fow_fast") ? "1" : fallback;
