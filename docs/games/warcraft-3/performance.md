@@ -1,3 +1,34 @@
+## October 24 NightElf07 per-frame entity-indicator lookup (patch forty-two)
+
+After patch forty-one, `CL_ApplyIndicator` accounts for 2.99% exclusive CPU
+cycles in the NightElf07 profile. The generic client used to scan all 32
+indicator slots for **every** visible render entity, even when there were no
+active indicators. This is CPU sampling evidence, not a matched frame-time
+comparison. The affected path is presentation-only; no Warcraft-specific
+ability logic or renderer API changes are required.
+
+The client now builds a fixed 64-bucket, open-addressed lookup from the 32
+indicator slots **once per client time value**. Rebuilding also expires old
+entries. An incoming `TE_ENTITY_INDICATOR` immediately invalidates the lookup,
+so events received at the same timestamp are visible without a frame delay.
+`CL_ClearTEnts` invalidates it on session/map reset. When no indicators are
+active, a single count check rejects the entity without hashing. The lookup
+preserves the original first-slot-wins behaviour for duplicate entity IDs,
+slot allocation/replacement order, 1,000 ms expiry, 500 ms blink period,
+250 ms on phase and alpha-zero cancellation. No heap allocations, per-entity
+state, protocol changes or production logs are introduced.
+
+`client_tent.indicator_lookup_preserves_flash_events_and_hash_collisions`
+checks multiple colliding entity IDs, blink boundaries, same-timestamp
+replacement, alpha-zero cancellation and expiration.
+`client_tent.indicator_lookup_preserves_first_slot_and_oldest_replacement`
+checks duplicate-slot precedence and pool-full oldest replacement. The
+`client_tent.indicator_lookup_expires_across_time_wrap_and_clears_on_reset`
+regression covers wraparound timing and map/session reset. Run these
+with `+test 'client_tent.*'` after compiling; the patch author did not compile
+or run tests locally at the user's request. Re-profile `CL_ApplyIndicator`,
+`V_AddClientEntity` and overall FPS/frame times in a matched NightElf07 scene.
+
 ## October 24 NightElf07 bounded blight datagram packing (patch forty-one)
 
 The post-patch-forty NightElf07 profile attributes 3.32% inclusive sampled

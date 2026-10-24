@@ -4,6 +4,7 @@
 #define MAX_SPELL_IMPACTS 32
 #define MAX_FLOATING_TEXTS 128     /* entries; fits 100 WC3 tags plus transient labels without dropping script text */
 #define MAX_ENTITY_INDICATORS 32     /* entries; repeated calls for one entity reuse its slot */
+#define ENTITY_INDICATOR_LOOKUP_SIZE 64 /* power-of-two, at most half filled */
 #define FLOATING_TEXT_CAPACITY 128 /* bytes including terminator; JASS texttags can contain full labels */
 #define SPELL_IMPACT_LIFETIME 800  /* ms — one-shot birth animation duration */
 #define ENTITY_INDICATOR_LIFETIME 1000 /* ms — retail AddIndicator flashes twice */
@@ -70,6 +71,50 @@ struct {
     entityIndicator_t indicators[MAX_ENTITY_INDICATORS];
     floatingText_t texts[MAX_FLOATING_TEXTS];
 } tents = { 0 };
+
+/* The indicator pool is small, but checking every slot for every visible
+ * entity is costly. Rebuild a compact index once per client timestamp (or
+ * after a received indicator event), preserving the first matching slot. */
+static struct {
+    uint32_t time;
+    uint8_t slots[ENTITY_INDICATOR_LOOKUP_SIZE]; /* slot + 1, 0 = empty */
+    uint8_t count;
+    bool valid;
+} indicator_lookup;
+
+static uint32_t CL_IndicatorHash(uint32_t entity) {
+    return (entity * 2654435761u) & (ENTITY_INDICATOR_LOOKUP_SIZE - 1);
+}
+
+static void CL_BuildIndicatorLookup(void) {
+    if (indicator_lookup.valid && indicator_lookup.time == cl.time) return;
+
+    memset(indicator_lookup.slots, 0, sizeof(indicator_lookup.slots));
+    indicator_lookup.count = 0;
+    FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
+        entityIndicator_t *indicator = &tents.indicators[i];
+        uint32_t slot;
+        if (!indicator->active) continue;
+        if (cl.time - indicator->starttime >= ENTITY_INDICATOR_LIFETIME) {
+            indicator->active = false;
+            continue;
+        }
+        slot = CL_IndicatorHash(indicator->entity);
+        while (indicator_lookup.slots[slot]) {
+            entityIndicator_t const *indexed =
+                &tents.indicators[indicator_lookup.slots[slot] - 1];
+            /* The previous linear scan took the earliest matching slot. */
+            if (indexed->entity == indicator->entity) break;
+            slot = (slot + 1) & (ENTITY_INDICATOR_LOOKUP_SIZE - 1);
+        }
+        if (!indicator_lookup.slots[slot]) {
+            indicator_lookup.slots[slot] = i + 1;
+            indicator_lookup.count++;
+        }
+    }
+    indicator_lookup.time = cl.time;
+    indicator_lookup.valid = true;
+}
 
 moveConfirmation_t cl_confs[MAX_CONFIRMATION_OBJECTS] = { 0 };
 uint32_t cl_confcounter = 0;
@@ -179,6 +224,7 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                     (packed >> 16) & 0xffu, (packed >> 24) & 0xffu);
                 indicator->starttime = cl.time;
                 indicator->active = indicator->color.a != 0;
+                indicator_lookup.valid = false;
             }
             break;
         case TE_FLOATING_TEXT:
@@ -591,32 +637,189 @@ TEST(client_tent, terrain_deform_temp_events_reach_the_renderer_intact) {
     T_EQ(sb.readcount, sb.cursize);
     re = api;
 }
+
+static void CL_TestReceiveIndicator(uint32_t entity, uint32_t packed) {
+    uint8_t bytes[16];
+    sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+    MSG_WriteByte(&msg, TE_ENTITY_INDICATOR);
+    MSG_WriteLong(&msg, (int32_t)entity);
+    MSG_WriteLong(&msg, (int32_t)packed);
+    CL_ParseTEnt(&msg);
+    T_EQ(msg.readcount, msg.cursize);
+}
+
+TEST(client_tent, indicator_lookup_preserves_flash_events_and_hash_collisions) {
+    entityIndicator_t saved[MAX_ENTITY_INDICATORS];
+    uint32_t const saved_time = cl.time;
+    renderEntity_t ent = { 0 };
+
+    memcpy(saved, tents.indicators, sizeof(saved));
+    memset(tents.indicators, 0, sizeof(tents.indicators));
+    indicator_lookup.valid = false;
+    cl.time = 1000;
+    /* The identifiers collide in the power-of-two lookup. */
+    CL_TestReceiveIndicator(65, 0xff030201u);
+    CL_TestReceiveIndicator(129, 0xff060504u);
+    CL_TestReceiveIndicator(193, 0xff090807u);
+    ent.number = 129;
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 4);
+    T_EQ(ent.indicator.g, 5);
+    T_EQ(ent.indicator.b, 6);
+    T_EQ(ent.indicator.a, 255);
+    ent = (renderEntity_t){ .number = 65 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 1);
+    ent = (renderEntity_t){ .number = 193 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 7);
+    ent = (renderEntity_t){ .number = 999 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 0);
+
+    cl.time = 1249;
+    ent = (renderEntity_t){ .number = 129 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 255);
+    cl.time = 1250;
+    ent = (renderEntity_t){ .number = 129 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 0);
+    cl.time = 1500;
+    ent = (renderEntity_t){ .number = 129 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 4);
+    /* Same-timestamp updates must invalidate the index and restart the flash. */
+    CL_TestReceiveIndicator(129, 0xff0c0b0au);
+    ent = (renderEntity_t){ .number = 129 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 10);
+    CL_TestReceiveIndicator(129, 0u); /* alpha-zero cancels the effect */
+    ent = (renderEntity_t){ .number = 129 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 0);
+    ent = (renderEntity_t){ .number = 65 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 1);
+    cl.time = 2000;
+    ent = (renderEntity_t){ .number = 65 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 0);
+    T_ASSERT(!tents.indicators[0].active);
+    T_EQ(indicator_lookup.count, 0);
+
+    memcpy(tents.indicators, saved, sizeof(saved));
+    indicator_lookup.valid = false;
+    cl.time = saved_time;
+}
+
+TEST(client_tent, indicator_lookup_preserves_first_slot_and_oldest_replacement) {
+    entityIndicator_t saved[MAX_ENTITY_INDICATORS];
+    uint32_t const saved_time = cl.time;
+    renderEntity_t ent = { 0 };
+
+    memcpy(saved, tents.indicators, sizeof(saved));
+    memset(tents.indicators, 0, sizeof(tents.indicators));
+    indicator_lookup.valid = false;
+    cl.time = 2000;
+    FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
+        tents.indicators[i] = (entityIndicator_t){
+            .active = true, .entity = i + 1,
+            .color = { (uint8_t)(i + 1), 0, 0, 255 },
+            .starttime = 1900 + i,
+        };
+    }
+    /* A duplicate can exist if an earlier inactive slot was reused while
+     * another slot still held that entity; the original scan chose first. */
+    tents.indicators[7].entity = 1;
+    ent.number = 1;
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 1);
+    T_EQ(indicator_lookup.count, MAX_ENTITY_INDICATORS - 1);
+
+    /* A full pool replaces the oldest slot and invalidates this timestamp. */
+    CL_TestReceiveIndicator(1000, 0xff00bb00u);
+    ent = (renderEntity_t){ .number = 1 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 8); /* duplicate still present at slot 7 */
+    ent = (renderEntity_t){ .number = 1000 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.g, 187);
+    CL_TestReceiveIndicator(1000, 0xff112233u);
+    ent = (renderEntity_t){ .number = 1000 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 51);
+    T_EQ(ent.indicator.g, 34);
+    T_EQ(ent.indicator.b, 17);
+
+    memcpy(tents.indicators, saved, sizeof(saved));
+    indicator_lookup.valid = false;
+    cl.time = saved_time;
+}
+
+TEST(client_tent, indicator_lookup_expires_across_time_wrap_and_clears_on_reset) {
+    uint8_t saved_tents[sizeof(tents)];
+    moveConfirmation_t saved_confs[MAX_CONFIRMATION_OBJECTS];
+    uint32_t const saved_time = cl.time;
+    renderEntity_t ent = { .number = 42 };
+
+    memcpy(saved_tents, &tents, sizeof(tents));
+    memcpy(saved_confs, cl_confs, sizeof(cl_confs));
+    memset(tents.indicators, 0, sizeof(tents.indicators));
+    indicator_lookup.valid = false;
+    tents.indicators[0] = (entityIndicator_t){
+        .active = true, .entity = 42, .color = { 8, 7, 6, 255 },
+        .starttime = UINT32_MAX - 100u,
+    };
+    cl.time = 100;
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 8);
+    cl.time = 900; /* 1,001 ms after start, modulo uint32_t */
+    ent.indicator = (color32_t){ 0 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 0);
+    T_EQ(indicator_lookup.count, 0);
+    CL_TestReceiveIndicator(42, 0xff070605u);
+    ent.indicator = (color32_t){ 0 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.r, 5);
+    CL_ClearTEnts();
+    ent.indicator = (color32_t){ 0 };
+    CL_ApplyIndicator(&ent);
+    T_EQ(ent.indicator.a, 0);
+    T_EQ(indicator_lookup.count, 0);
+
+    memcpy(&tents, saved_tents, sizeof(tents));
+    memcpy(cl_confs, saved_confs, sizeof(cl_confs));
+    indicator_lookup.valid = false;
+    cl.time = saved_time;
+}
 #endif
 
 void CL_ApplyIndicator(renderEntity_t *ent) {
+    uint32_t slot;
+    entityIndicator_t const *indicator;
+
     if (!ent || !ent->number) return;
-
-    FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
-        entityIndicator_t *indicator = &tents.indicators[i];
-        uint32_t age;
-
-        if (!indicator->active) continue;
-        age = cl.time - indicator->starttime;
-        if (age >= ENTITY_INDICATOR_LIFETIME) {
-            indicator->active = false;
-            continue;
+    CL_BuildIndicatorLookup();
+    if (!indicator_lookup.count) return;
+    slot = CL_IndicatorHash(ent->number);
+    while (indicator_lookup.slots[slot]) {
+        indicator = &tents.indicators[indicator_lookup.slots[slot] - 1];
+        if (indicator->entity == ent->number) {
+            uint32_t const age = cl.time - indicator->starttime;
+            if (age % ENTITY_INDICATOR_PERIOD < ENTITY_INDICATOR_ON_TIME)
+                ent->indicator = indicator->color;
+            return;
         }
-        if (indicator->entity != ent->number) continue;
-        if (age % ENTITY_INDICATOR_PERIOD < ENTITY_INDICATOR_ON_TIME) {
-            ent->indicator = indicator->color;
-        }
-        return;
+        slot = (slot + 1) & (ENTITY_INDICATOR_LOOKUP_SIZE - 1);
     }
 }
 
 void CL_ClearTEnts(void) {
     memset(&tents, 0, sizeof(tents));
     memset(cl_confs, 0, sizeof(cl_confs));
+    indicator_lookup.valid = false;
 }
 
 void CL_AddTEnts(void) {
