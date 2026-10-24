@@ -26,10 +26,11 @@ survive frames, nested view completion or model reload boundaries.
 
 `renderer_model.mdx_view_pose_*` tests validate scratch-pose restoration,
 child overwrites, frame and matrix changes, entity mutation, view time and
-camera changes, and end-of-view invalidation. The native build passed; tests
-were not run. Confirm sprite portraits, transparent units, attachments,
-billboard bones and construction animations visually and compare NightElf07
-frame times on x86/ARM64 before retaining.
+camera changes, and end-of-view invalidation. The renderer model suite passed
+(10,974 assertions across 211 tests), and the full `make test` suite passed.
+Confirm sprite portraits, transparent units, attachments, billboard bones and
+construction animations visually and compare NightElf07 frame times on
+x86/ARM64 before retaining.
 
 # WC3 Performance Hot Spots
 

@@ -1876,7 +1876,7 @@ TEST(renderer_model, mdx_view_pose_invalidates_mutation_camera_and_time) {
     Matrix4_identity(&transform);
     entity.tint = COLOR32_WHITE;
     T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
-    entity.tint = 0;
+    entity.tint = (color32_t){ 0 };
     tr.viewDef.time++;
     T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
     tr.viewDef.time--;
