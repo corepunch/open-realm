@@ -19,9 +19,9 @@ not widen cross-pass eligibility or retain anything across views.
 `renderer_model.mdx_view_pose_direct_index_*` tests cover sparse/nonsequential
 scene slots, duplicate scene-number values, out-of-array copies, repeat
 stores, budget exhaustion and new-view invalidation. Test-only counters
-verify that a cache hit examines exactly one candidate. The native build
-passed; tests were not run. Run renderer tests and re-profile NightElf07 before
-claiming an FPS improvement.
+verify that a cache hit examines exactly one candidate. The renderer model
+suite passed (10,996 assertions across 213 tests), and the full `make test`
+suite passed. Re-profile NightElf07 before claiming an FPS improvement.
 
 ## October 24 low-core x86 cross-pass MDX pose reuse (patch thirty-one)
 
