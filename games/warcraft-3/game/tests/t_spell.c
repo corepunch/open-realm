@@ -1831,7 +1831,8 @@ TEST(wc3_spell, regen_aura_cache_rescans_on_ability_data_generation) {
     T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), effect);
     T_EQ(S_TestRegenCacheEdictVisits(), globals.num_edicts);
     /* Metadata replacement changes the cache key without advancing time. */
-    rows = parse_slk_string("ID;PWXL;N;EBB;Y1;X2\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nE\n");
+    rows = parse_slk_string("ID;PWXL;N;EBB;Y2;X2\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y2;X1;K\"test\"\nC;Y2;X2;K\"test\"\nE\n");
+    T_ASSERT(rows != NULL);
     old = G_SetSLKRows("AbilityData", rows);
     T_EQ(S_TestTrackedRegenAuraEffect(owner, mana), effect);
     T_EQ(S_TestRegenCacheEdictVisits(), 2u * globals.num_edicts);
