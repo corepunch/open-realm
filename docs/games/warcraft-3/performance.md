@@ -1,3 +1,28 @@
+## October 24 NightElf07 world-splat isolation in HUD/cursor views (patch thirty-six)
+
+Patch thirty-five reduced main-scene alpha rendering to 5.14% inclusive
+sampled cycles. However, the NightElf07 call tree still routed the same
+world-owned `R_W3DrawEventSplats` pass through HUD model sprites (2.74%
+inclusive within that nested path) and the MDX cursor (1.49%). These are
+separate call paths within CPU samples, not measured frame-time savings.
+
+Both sprite types create nested `R_RenderView` calls with `RDF_NOWORLDMODEL`.
+`_W3M_DrawWorld` already suppresses terrain geometry in such views, but the
+game-level `R_DrawWorld` previously followed it with world event splats and
+world event-spawn children regardless of the flag. Patch thirty-six skips
+those world-owned effects in no-world subviews, while leaving the existing
+terrain-deformation update in `_W3M_DrawWorld` and all normal world-view
+splat processing intact. `R_W3DrawEventSplats` also rejects no-world views
+at its own entry to prevent accidental direct replay. The world pass still
+advances the original event lifetime and fade/atlas animation; no cached
+geometry, rendering order, shader blend state or splat ownership changes.
+
+`renderer_game.no_world_subviews_do_not_replay_event_splats` checks HUD and
+other no-world views do not batch or draw splats, a real world view draws
+them once, the alpha pass does not duplicate them and the normal solid pass
+still expires events. The native build passed; tests were not run. Compare
+matched FPS/frame times and the HUD/cursor `R_W3DrawEventSplats` call branches.
+
 ## October 24 NightElf07 alpha-pass filtering and cull reuse (patch thirty-five)
 
 After patch thirty-four, `R_EntityInView` still accounts for 7.29% inclusive

@@ -1415,6 +1415,10 @@ void R_DrawWorld(void) {
         R_SolidVisibilityBegin();
     }
     _W3M_DrawWorld();
+    /* HUD models and cursors render in their own no-world views. Keep the
+     * terrain update above, but do not replay world decals or child effects
+     * into those views; both belong to the actual scene's solid pass. */
+    if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) return;
     R_W3DrawEventSplats();
     R_W3DrawEventSpawns(false, NULL, 0);
 }
@@ -2157,7 +2161,7 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
 }
 
 static void R_W3DrawEventSplats(void) {
-    if (tr.render_phase != RENDER_PHASE_SOLID) return;
+    if (tr.render_phase != RENDER_PHASE_SOLID || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) return;
     /* This pass contains only splats: preserve slot order but merge adjacent
      * matching textures. Event emissions outside this pass stay immediate. */
     R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_default));

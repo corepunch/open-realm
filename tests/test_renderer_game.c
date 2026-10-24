@@ -144,6 +144,50 @@ TEST(renderer_game, retained_splat_pass_batches_in_slot_order_without_changing_i
     tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
 }
 
+/* Sprite/cursor views omit terrain but used to traverse the global event-splat
+ * array and submit ground decals anyway. The world view must still advance
+ * the same effects and preserve their authored lifetime. */
+TEST(renderer_game, no_world_subviews_do_not_replay_event_splats) {
+    wc3SplatData_t row = { .name = "SubviewSplat", .rows = 2, .columns = 1,
+        .scale = 10.0f, .lifespan = 2.0f, .texture = &test_splat_texture };
+    viewDef_t saved_view = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+
+    R_W3ClearEventSplats();
+    event_splats[0] = (wc3EventSplat_t){ .kind = WC3_EVENT_SPLAT_SPLAT,
+        .splat_row = &row, .start_time = 100, .active = true };
+    test_splat_count = test_splat_batch_adds = 0;
+    test_splat_batch_begins = test_splat_batch_ends = 0;
+    tr.render_phase = RENDER_PHASE_SOLID;
+    tr.viewDef.time = 500;
+    tr.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_UI_SPRITE;
+    R_W3DrawEventSplats(); /* HUD or cursor MDX sprite */
+    tr.viewDef.rdflags = RDF_NOWORLDMODEL;
+    R_W3DrawEventSplats(); /* Other no-world camera/view */
+    T_EQ(test_splat_batch_begins, 0); T_EQ(test_splat_batch_ends, 0);
+    T_EQ(test_splat_count, 0); T_EQ(test_splat_batch_adds, 0);
+    T_ASSERT(event_splats[0].active);
+
+    tr.viewDef.rdflags = 0;
+    R_W3DrawEventSplats(); /* Normal world pass at the same animation time */
+    T_EQ(test_splat_batch_begins, 1); T_EQ(test_splat_batch_ends, 1);
+    T_EQ(test_splat_count, 1); T_EQ(test_splat_batch_adds, 1);
+    T_ASSERT(event_splats[0].active);
+
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 1); /* No duplicate splat draw in alpha. */
+    tr.render_phase = RENDER_PHASE_SOLID;
+    tr.viewDef.time = 2500;
+    R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 1); /* Its lifetime still expires in the world. */
+    T_ASSERT(!event_splats[0].active);
+
+    R_W3ClearEventSplats();
+    tr.viewDef = saved_view;
+    tr.render_phase = saved_phase;
+}
+
 TEST(renderer_game, reused_entity_generation_seeds_mdx_event_clock) {
     uint32_t key = 100;
     vec3_t pivot = { 0 };
