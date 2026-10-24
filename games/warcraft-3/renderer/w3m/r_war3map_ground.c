@@ -78,6 +78,7 @@ void R_ResetTerrainNormalCache(void) {
 
 /* The layers themselves belong to g_groundLayers and are freed with it; only the range tables live here. */
 void R_ResetGroundTextures(void) {
+    R_InvalidateSplatGeometryCache();
     FOR_LOOP(i, MAX_MAP_LAYERS) SAFE_DELETE(g_groundBatches[i].first, ri.MemFree);
     memset(g_groundBatches, 0, sizeof(g_groundBatches));
     memset(g_groundTextures, 0, sizeof(g_groundTextures));
@@ -382,6 +383,155 @@ static void R_FlushSplatBatch(void) {
     ground_current_vertex = ground_vertex_buffer;
 }
 
+/* Persistent CPU geometry for repeated terrain-conforming splat rectangles. The
+ * cache is four-way set associative: a crowded group of stationary unit
+ * shadows must not evict each other merely because their positions hash to
+ * the same index. A two-observation admission rule still excludes one-frame
+ * and moving effects, and both the entry count and vertex budget are bounded. */
+#define SPLAT_CACHE_SETS 128u
+#define SPLAT_CACHE_WAYS 4u
+#define SPLAT_CACHE_SLOTS (SPLAT_CACHE_SETS * SPLAT_CACHE_WAYS)
+#define SPLAT_CACHE_MAX_VERTICES 512u
+#define SPLAT_CACHE_MAX_TILES 32u
+#define SPLAT_CACHE_BUDGET (512u * 1024u)
+typedef struct {
+    war3map_t const *map;
+    vec2_t mins, maxs;
+    vertex_t *vertices;
+    uint32_t count;
+    uint64_t last_used;
+    bool unavailable;
+} splatGeometryCacheEntry_t;
+static splatGeometryCacheEntry_t splat_geometry_cache[SPLAT_CACHE_SLOTS];
+static size_t splat_cache_bytes;
+static uint64_t splat_cache_clock;
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+static uint32_t splat_cache_hits, splat_cache_bakes;
+#endif
+
+static void R_ClearSplatCacheEntry(splatGeometryCacheEntry_t *entry) {
+    if (entry->vertices) {
+        splat_cache_bytes -= (size_t)entry->count * sizeof(vertex_t);
+        ri.MemFree(entry->vertices);
+    }
+    memset(entry, 0, sizeof(*entry));
+}
+
+void R_InvalidateSplatGeometryCache(void) {
+    FOR_LOOP(i, SPLAT_CACHE_SLOTS) R_ClearSplatCacheEntry(&splat_geometry_cache[i]);
+    splat_cache_bytes = 0;
+    splat_cache_clock = 0;
+}
+
+static uint32_t R_SplatCacheHash(vec2_t const *mins, vec2_t const *maxs) {
+    uint32_t bits[4], hash = UINT32_C(2166136261);
+    memcpy(bits, mins, sizeof(*mins));
+    memcpy(bits + 2, maxs, sizeof(*maxs));
+    FOR_LOOP(i, 4) { hash ^= bits[i]; hash *= UINT32_C(16777619); }
+    return hash & (SPLAT_CACHE_SETS - 1);
+}
+
+static splatGeometryCacheEntry_t *R_SplatCacheLookup(rectSplatParams_t const *params) {
+    splatGeometryCacheEntry_t *vacant = NULL, *oldest = NULL;
+    vec2_t const *mins = params->mins, *maxs = params->maxs;
+    if (!tr.world || !isfinite(mins->x) || !isfinite(mins->y) ||
+        !isfinite(maxs->x) || !isfinite(maxs->y)) return NULL;
+    uint32_t const base = R_SplatCacheHash(mins, maxs) * SPLAT_CACHE_WAYS;
+    FOR_LOOP(way, SPLAT_CACHE_WAYS) {
+        splatGeometryCacheEntry_t *entry = &splat_geometry_cache[base + way];
+        if (entry->map == tr.world && !memcmp(&entry->mins, mins, sizeof(*mins)) &&
+            !memcmp(&entry->maxs, maxs, sizeof(*maxs))) {
+            entry->last_used = ++splat_cache_clock;
+            return entry;
+        }
+        if (!entry->map && !vacant) vacant = entry;
+        if (!oldest || entry->last_used < oldest->last_used) oldest = entry;
+    }
+    /* Evict only a way in this set. Other collision partners stay resident. */
+    splatGeometryCacheEntry_t *entry = vacant ? vacant : oldest;
+    R_ClearSplatCacheEntry(entry);
+    entry->map = tr.world;
+    entry->mins = *mins;
+    entry->maxs = *maxs;
+    entry->last_used = ++splat_cache_clock;
+    return NULL; /* First observation: avoid capturing transient geometry. */
+}
+
+/* Reclaim oldest baked geometry when the fixed vertex budget fills. Unbaked
+ * entries cost no vertex memory and are handled by per-set replacement. */
+static bool R_SplatCacheReserve(size_t bytes, splatGeometryCacheEntry_t const *incoming) {
+    if (bytes > SPLAT_CACHE_BUDGET) return false;
+    while (bytes > SPLAT_CACHE_BUDGET - splat_cache_bytes) {
+        splatGeometryCacheEntry_t *oldest = NULL;
+        FOR_LOOP(i, SPLAT_CACHE_SLOTS) {
+            splatGeometryCacheEntry_t *entry = &splat_geometry_cache[i];
+            if (entry == incoming || !entry->vertices) continue;
+            if (!oldest || entry->last_used < oldest->last_used) oldest = entry;
+        }
+        if (!oldest) return false;
+        R_ClearSplatCacheEntry(oldest);
+    }
+    return true;
+}
+
+/* Replay through the original shared splat batch, respecting its flush boundary
+ * and preserving per-draw tint/UV changes and texture-group draw order. */
+static void R_ReplaySplatGeometry(splatGeometryCacheEntry_t const *entry, rectSplatParams_t const *params) {
+    for (uint32_t i = 0; i < entry->count;) {
+        uint32_t room = (uint32_t)(GROUND_VERTEX_BUFFER_CAPACITY -
+            (ground_current_vertex - ground_vertex_buffer));
+        uint32_t take = MIN(room, entry->count - i);
+        if (!room) { R_FlushSplatBatch(); continue; }
+        FOR_LOOP(j, take) {
+            vertex_t v = entry->vertices[i + j];
+            v.texcoord.x = LerpNumber(params->uv_mins->x, params->uv_maxs->x, v.texcoord.x);
+            v.texcoord.y = LerpNumber(params->uv_mins->y, params->uv_maxs->y, v.texcoord.y);
+            v.color = params->color;
+            *ground_current_vertex++ = v;
+        }
+        i += take;
+    }
+}
+
+/* Build the neutral mesh in a local vertex array without disturbing the
+ * accumulated batch. Keep the original generator for large splats. */
+static bool R_BakeSplatGeometry(rectSplatParams_t const *params,
+                                int x0, int y0, int x1, int y1,
+                                splatGeometryCacheEntry_t *entry) {
+    vertex_t scratch[SPLAT_CACHE_MAX_VERTICES];
+    vertex_t *saved = ground_current_vertex;
+    vec2_t const uv0 = {0, 0}, uv1 = {1, 1};
+    float width = params->maxs->x - params->mins->x;
+    float height = params->maxs->y - params->mins->y;
+    uint32_t count;
+    vertex_t *stored;
+    ground_current_vertex = scratch;
+    for (int x = x0; x < x1; x++) for (int y = y0; y < y1; y++) {
+        if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) continue;
+        if (ground_current_vertex - scratch > SPLAT_CACHE_MAX_VERTICES - SPLAT_TILE_MAX_VERTICES) {
+            ground_current_vertex = saved;
+            return false;
+        }
+        R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world, .x = (uint32_t)x, .y = (uint32_t)y,
+            .mins = params->mins, .uv_mins = &uv0, .uv_maxs = &uv1,
+            .width = width, .height = height, .color = COLOR32_WHITE));
+    }
+    count = (uint32_t)(ground_current_vertex - scratch);
+    ground_current_vertex = saved;
+    if (!count || !R_SplatCacheReserve((size_t)count * sizeof(vertex_t), entry))
+        return false;
+    stored = ri.MemAlloc((size_t)count * sizeof(vertex_t));
+    if (!stored) return false;
+    memcpy(stored, scratch, (size_t)count * sizeof(vertex_t));
+    entry->vertices = stored;
+    entry->count = count;
+    splat_cache_bytes += (size_t)count * sizeof(vertex_t);
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+    splat_cache_bakes++;
+#endif
+    return true;
+}
+
 /* Bind the splat shader/VAO/VBO and upload the per-view uniforms once.  All
  * splats in a batch share this state; only the texture and per-tile geometry
  * vary, so re-issuing it per splat was pure overhead. */
@@ -439,6 +589,24 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
 
     if (x_start >= x_end || y_start >= y_end) {
         return;
+    }
+
+    /* Only small, repeated rectangles qualify. A new or moving rectangle
+     * follows the original path, with no allocation and no extra copies. */
+    if ((size_t)(x_end - x_start) * (size_t)(y_end - y_start) <= SPLAT_CACHE_MAX_TILES) {
+        splatGeometryCacheEntry_t *entry = R_SplatCacheLookup(params);
+        if (entry) {
+            if (!entry->vertices && !entry->unavailable &&
+                !R_BakeSplatGeometry(params, x_start, y_start, x_end, y_end, entry))
+                entry->unavailable = true; /* Do not re-bake an oversized/uncacheable rect each draw. */
+            if (entry->vertices) {
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+                splat_cache_hits++;
+#endif
+                R_ReplaySplatGeometry(entry, params);
+                return;
+            }
+        }
     }
 
     for (int x = x_start; x < x_end; x++) {

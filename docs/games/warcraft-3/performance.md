@@ -1,3 +1,34 @@
+## October 24 NightElf07 shadow-splat cache collision avoidance (patch thirty-seven)
+
+The patch-thirty-six NightElf07 profile still attributes 6.55% inclusive
+sampled cycles to `R_DrawEntityShadows`, including terrain-conforming splat
+reconstruction. The terrain splat renderer already caches geometry for repeated
+small rectangles, but the previous 128-slot **direct-mapped** table discarded a
+cached stationary shadow whenever a different rectangle hashed to the same
+slot. A large number of units can therefore defeat the reuse even when none
+moves. These figures are profiler sample shares, not frame-time measurements.
+
+The cache now has 128 hash sets with four LRU ways each, a 512 KiB maximum
+vertex allocation budget and a two-observation admission rule. Four distinct
+rectangles in one set can coexist; a fifth evicts the least recently used way.
+If the vertex budget fills, admission releases the oldest baked entries until
+there is room. Transient/moving splats still follow the original generator on
+their first observation, and allocations that fail fall back to the original
+path. Entries retain exact world-map and rectangle bitwise identities and
+store terrain-conforming positions with neutral UVs/colour. Changing atlas
+frames, textures or tint still happens at draw time with the original batching
+and draw order. `R_InvalidateSplatGeometryCache` continues to clear all entries
+on terrain-height/deformation updates and map reset; no stale height data
+should survive those operations.
+
+`renderer_terrain.splat_cache_keeps_colliding_stationary_shadows_and_evicts_lru`
+exercises four simultaneous collisions, LRU replacement, cache reuse and
+reset. Existing `renderer_terrain.splat_cache_*` tests cover clipped geometry,
+UV/tint replay, moving rectangles, deformation reset and allocation failure.
+The native build passed; tests were not run. Reprofile `R_MakeSplatTile` and
+`R_DrawEntityShadows` and compare matched FPS/frame times; the largest benefit
+requires repeated stationary shadows, so mixed moving scenes might improve less.
+
 ## October 24 NightElf07 world-splat isolation in HUD/cursor views (patch thirty-six)
 
 Patch thirty-five reduced main-scene alpha rendering to 5.14% inclusive

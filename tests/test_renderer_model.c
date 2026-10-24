@@ -3428,6 +3428,210 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     T_FEQ(splat_bias.factor, 0.0f, 0.0f); T_FEQ(splat_bias.units, 0.0f, 0.0f);
 }
 
+TEST(renderer_terrain, splat_cache_replays_clipped_geometry_with_live_color_and_atlas) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    vec2_t atlas0 = { 0.25f, 0.125f }, atlas1 = { 0.75f, 0.625f };
+    color32_t const colored = { 72, 80, 90, 160 };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    uint32_t count;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_hits = splat_cache_bakes = 0;
+    ground_current_vertex = ground_vertex_buffer;
+    rectSplatParams_t neutral = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    R_GenerateSplatTiles(&neutral); /* one-off rect: use original geometry generation */
+    count = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_ASSERT(count > 0 && count <= SPLAT_CACHE_MAX_VERTICES);
+    memcpy(reference, ground_vertex_buffer, count * sizeof(vertex_t));
+    T_EQ(splat_cache_bakes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&neutral); /* second sighting: bake once */
+    T_EQ(splat_cache_bakes, 1);
+    T_EQ((uint32_t)(ground_current_vertex - ground_vertex_buffer), count);
+    ground_current_vertex = ground_vertex_buffer;
+    rectSplatParams_t changed = neutral;
+    changed.uv_mins = &atlas0; changed.uv_maxs = &atlas1; changed.color = colored;
+    R_GenerateSplatTiles(&changed); /* reuse positions while updating tint and UV */
+    T_EQ(splat_cache_bakes, 1);
+    T_ASSERT(splat_cache_hits >= 2);
+    T_EQ((uint32_t)(ground_current_vertex - ground_vertex_buffer), count);
+    FOR_LOOP(i, count) {
+        vertex_t const *v = ground_vertex_buffer + i;
+        T_FEQ(v->position.x, reference[i].position.x, 0.0001f);
+        T_FEQ(v->position.y, reference[i].position.y, 0.0001f);
+        T_FEQ(v->position.z, reference[i].position.z, 0.0001f);
+        T_FEQ(v->texcoord.x, LerpNumber(atlas0.x, atlas1.x, reference[i].texcoord.x), 0.0001f);
+        T_FEQ(v->texcoord.y, LerpNumber(atlas0.y, atlas1.y, reference[i].texcoord.y), 0.0001f);
+        T_EQ(v->color.r, colored.r); T_EQ(v->color.a, colored.a);
+    }
+    /* Terrain heights are part of the baked vertices, never the cache key. */
+    vertices[1].accurate_height += 2048;
+    R_W3ResetTerrainDeformations(); /* production terrain-reset invalidation */
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&neutral);
+    T_EQ(splat_cache_bakes, 1);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&neutral);
+    T_EQ(splat_cache_bakes, 2);
+    bool any_height_changed = false;
+    FOR_LOOP(i, count)
+        any_height_changed |= ground_vertex_buffer[i].position.z != reference[i].position.z;
+    T_ASSERT(any_height_changed);
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+/* Multiple stationary shadows can share a geometry hash bucket. The
+ * four-way cache should retain all four, then evict the least-recently-used
+ * one without touching a recently drawn shadow. */
+TEST(renderer_terrain, splat_cache_keeps_colliding_stationary_shadows_and_evicts_lru) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins[5], maxs[5];
+    vec2_t const uv0 = {0, 0}, uv1 = {1, 1};
+    uint32_t found = 0;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_hits = splat_cache_bakes = 0;
+
+    /* Find five distinct rects in the same set without relying on a
+     * particular hash result or assuming identical entity numbers. */
+    uint32_t target_hash = UINT32_MAX;
+    for (uint32_t i = 0; i < 4096 && found < 5; i++) {
+        vec2_t const lo = {24.0f + i * (1.0f / 1024.0f), 20.0f};
+        vec2_t const hi = {108.0f + i * (1.0f / 1024.0f), 112.0f};
+        uint32_t const hash = R_SplatCacheHash(&lo, &hi);
+        if (target_hash == UINT32_MAX) target_hash = hash;
+        if (hash != target_hash) continue;
+        mins[found] = lo; maxs[found] = hi;
+        found++;
+    }
+    T_EQ(found, 5);
+    for (uint32_t i = 0; i < 4; i++) {
+        rectSplatParams_t const rect = { .mins = &mins[i], .maxs = &maxs[i],
+            .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&rect);
+        T_EQ(splat_cache_bakes, i); /* first observation */
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&rect);
+        T_EQ(splat_cache_bakes, i + 1);
+    }
+    T_ASSERT(splat_cache_bytes > 0);
+    uint32_t const baked = splat_cache_bakes;
+    /* Refresh entry 0 so entry 1 is the oldest resident entry. */
+    rectSplatParams_t rect0 = { .mins = &mins[0], .maxs = &maxs[0],
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect0);
+    T_EQ(splat_cache_bakes, baked);
+    T_ASSERT(splat_cache_hits > 0);
+    rectSplatParams_t rect4 = rect0;
+    rect4.mins = &mins[4]; rect4.maxs = &maxs[4];
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect4); /* eviction on first sighting */
+    T_EQ(splat_cache_bakes, baked);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect4);
+    T_EQ(splat_cache_bakes, baked + 1);
+    uint32_t const hits = splat_cache_hits;
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect0);
+    T_EQ(splat_cache_bakes, baked + 1);
+    T_EQ(splat_cache_hits, hits + 1);
+    rectSplatParams_t rect1 = rect0;
+    rect1.mins = &mins[1]; rect1.maxs = &maxs[1];
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect1); /* first re-observation after eviction */
+    T_EQ(splat_cache_bakes, baked + 1);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect1);
+    T_EQ(splat_cache_bakes, baked + 2);
+    R_InvalidateSplatGeometryCache();
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, splat_cache_skips_transient_rectangles_and_resets_on_map_change) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t uv0 = {0, 0}, uv1 = {1, 1};
+    rectSplatParams_t params = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_bakes = 0;
+    FOR_LOOP(i, 16) {
+        mins.x += 1.0f;
+        maxs.x += 1.0f;
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&params);
+    }
+    T_EQ(splat_cache_bakes, 0);
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params);
+    T_EQ(splat_cache_bakes, 1);
+    T_ASSERT(splat_cache_bytes != 0);
+    R_ResetGroundTextures(); /* map removal resets renderer-owned geometry */
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params);
+    T_EQ(splat_cache_bakes, 1);
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, splat_cache_allocation_failure_preserves_original_geometry) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 }, uv0 = {0, 0}, uv1 = {1, 1};
+    rectSplatParams_t params = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    uint32_t count;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params);
+    count = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_ASSERT(count > 0 && count <= SPLAT_CACHE_MAX_VERTICES);
+    memcpy(reference, ground_vertex_buffer, count * sizeof(vertex_t));
+    test_alloc_fail_after = 0;
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params); /* second sighting cannot allocate; falls back */
+    T_EQ((uint32_t)(ground_current_vertex - ground_vertex_buffer), count);
+    FOR_LOOP(i, count) {
+        T_FEQ(ground_vertex_buffer[i].position.z, reference[i].position.z, 0.0001f);
+        T_FEQ(ground_vertex_buffer[i].texcoord.x, reference[i].texcoord.x, 0.0001f);
+    }
+    T_EQ(splat_cache_bytes, 0);
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
 /* Keep the original tile generator as a regression oracle. The optimized
  * path must produce the same vertex count, triangle order, Z, UV, tint and
  * skinning defaults for fully contained and partially clipped tiles. */
