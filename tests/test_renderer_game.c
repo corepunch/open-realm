@@ -1288,7 +1288,7 @@ TEST(renderer_game, wc3_entity_bounds_share_the_exact_culling_matrix) {
 
     T_ASSERT(R_GetEntityBoundsAndMatrix(&entity, &bounds, &matrix));
     T_ASSERT(R_GetEntityBounds(&entity, &legacy_bounds));
-    R_TestEntityMatrixFromEnts(&entity, &expected);
+    R_GetEntityMatrix(&entity, &expected);
     FOR_LOOP(i, 16) T_FEQ(matrix.v[i], expected.v[i], 0.0001f);
     T_FEQ(bounds.min.x, legacy_bounds.min.x, 0.0001f);
     T_FEQ(bounds.max.y, legacy_bounds.max.y, 0.0001f);
