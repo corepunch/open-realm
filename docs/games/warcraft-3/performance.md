@@ -1,3 +1,41 @@
+## October 24 NightElf07 alpha-pass filtering and cull reuse (patch thirty-five)
+
+After patch thirty-four, `R_EntityInView` still accounts for 7.29% inclusive
+sampled cycles and alpha rendering for 10.20%. `R_W3GetViewEntityMatrix`
+remains visible inside alpha draws. These numbers are sampling proportions,
+not measured frame-time improvements; patch thirty-five has not been profiled.
+
+The opaque entity pass now records each scene **position's** visibility in a
+view-local generation-stamped array. The Warcraft III alpha pass consults the
+same view's results once the water pass has completed, so a bare parent model
+that the solid frustum rejected need not re-enter its alpha model path. An
+unknown result (missing cull pass, changed view, out-of-budget index,
+`r_entities=0`) disables only cull-based rejection; the independent
+opaque-only alpha filter still applies. Attachment models, ribbons,
+model events and building-fire slots deliberately retain the original path:
+their contributions may outlive or extend beyond parent geometry. Transparent
+instance tint and blended/additive materials remain eligible; models with
+only opaque/alpha-key materials are rejected before matrix construction,
+rather than after binding the parent. Dynamic cliff replacements remain
+eligible without making assumptions about the fitted mesh. Rejected MDX
+entities still update their animation pause clocks, and orphan ribbon trails
+still tick even when no entity reaches `R_RenderModel` in alpha.
+
+The existing independent WC3 per-view transform cache is increased from 1,024
+to 4,096 entries (about 344 KiB of matrix/key storage). It retains its scene
+slot and changed-pose checks and normal overflow fallback, but can serve more
+of NightElf07's scene after the cull and solid passes. No persistent per-unit
+state, game/network contract, or new production diagnostics are introduced.
+
+`renderer_game.wc3_alpha_model_filter_preserves_attachments_ribbons_and_transparency`,
+`renderer_game.solid_culling_handoff_is_view_local_and_uses_scene_positions`,
+and `renderer_game.wc3_alpha_filter_skips_opaque_scene_without_building_matrices`
+cover conservative alpha eligibility, stale-view rejection, scene identity,
+and a real alpha pass without matrix construction. The native build passed;
+tests were not run. Verify transparent units, ribbons, child attachments,
+spell effects, terrain-fitted cliffs and NightElf07 FPS and sampled alpha/matrix
+costs on the target hardware.
+
 ## October 24 low-core x86 per-view Warcraft III entity-matrix reuse (patch thirty-four)
 
 NightElf07 profiling after patch thirty-three still attributes about 3.56%
@@ -10,7 +48,7 @@ between event presentation, model-bounds culling, opaque rendering and alpha
 rendering. Unlike the MDX pose cache (96 entries, qualifying blended models
 only), it can serve ordinary opaque and unanimated scene models too. Direct
 scene-array indexes and generation stamps avoid scans and per-view clearing
-of the full index; the cache holds at most 1,024 transforms and recomputes
+of the full index; the patch-thirty-four cache originally held 1,024 transforms and recomputed
 normally beyond the budget. Lookups verify unchanged origin, yaw and scale,
 which are the complete inputs to Warcraft III's fixed-basis model placement.
 Both the view scene-array identity and view lifecycle are checked.

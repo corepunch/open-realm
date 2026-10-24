@@ -46,6 +46,12 @@ void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source
 void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id);
 void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
+/* Optional, per-view opaque->alpha cull handoff; -1 means no valid result.
+ * The Warcraft III renderer owns its lifecycle. */
+void R_SolidVisibilityBegin(void);
+void R_SolidVisibilityEnd(void);
+bool R_SolidVisibilityMatchesView(void);
+int R_SolidVisibilityAt(uint32_t scene_index);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);
 float R_GetHeightAtPoint(float x, float y);
 void R_StartTerrainDeformation(terrainDeform_t const *deformation);

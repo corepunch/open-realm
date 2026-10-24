@@ -72,6 +72,71 @@ static bool R_EntityInView(renderEntity_t const *entity) {
     });
 }
 
+/* WC3's alpha pass can reuse the outer opaque pass's frustum result rather
+ * than revisiting offscreen models. Store by SCENE SLOT, never entity number:
+ * transient model children can carry the same number as their parent.
+ * The generation avoids clearing 16,000 bytes on every view (including UI
+ * portraits); a second view or an interrupted pass cannot reuse old results. */
+static struct {
+    bool active;
+    uint16_t generation;
+    uint16_t slot_generation[MAX_GAME_ENTITIES];
+    uint8_t slot_visible[MAX_GAME_ENTITIES];
+    renderEntity_t const *scene;
+    uint32_t count, time, rdflags;
+    mat4_t view_projection;
+    frustum3_t frustum;
+} solid_visibility;
+
+void R_SolidVisibilityBegin(void) {
+    if (++solid_visibility.generation == 0) {
+        memset(solid_visibility.slot_generation, 0, sizeof(solid_visibility.slot_generation));
+        solid_visibility.generation = 1;
+    }
+    solid_visibility.active = true;
+    solid_visibility.scene = tr.viewDef.entities;
+    solid_visibility.count = tr.viewDef.num_entities;
+    solid_visibility.time = tr.viewDef.time;
+    solid_visibility.rdflags = tr.viewDef.rdflags;
+    solid_visibility.view_projection = tr.viewDef.viewProjectionMatrix;
+    solid_visibility.frustum = tr.viewDef.frustum;
+}
+
+void R_SolidVisibilityEnd(void) {
+    solid_visibility.active = false;
+}
+
+/* Check the view only once at the start of the alpha pass; no matrix memcmp
+ * or pointer arithmetic is needed per alpha entity. A negative status means
+ * unknown (e.g. a camera-only view or r_entities=0) and must NOT be culled. */
+bool R_SolidVisibilityMatchesView(void) {
+    return solid_visibility.active &&
+           solid_visibility.scene == tr.viewDef.entities &&
+           solid_visibility.count == tr.viewDef.num_entities &&
+           solid_visibility.time == tr.viewDef.time &&
+           solid_visibility.rdflags == tr.viewDef.rdflags &&
+           !memcmp(&solid_visibility.view_projection, &tr.viewDef.viewProjectionMatrix,
+                   sizeof(solid_visibility.view_projection)) &&
+           !memcmp(&solid_visibility.frustum, &tr.viewDef.frustum,
+                   sizeof(solid_visibility.frustum));
+}
+
+int R_SolidVisibilityAt(uint32_t index) {
+    if (index >= MAX_GAME_ENTITIES ||
+        solid_visibility.slot_generation[index] != solid_visibility.generation)
+        return -1;
+    return solid_visibility.slot_visible[index] != 0;
+}
+
+static void R_SolidVisibilityRecord(uint32_t index, bool visible) {
+    if (!solid_visibility.active || tr.render_phase != RENDER_PHASE_SOLID ||
+        index >= MAX_GAME_ENTITIES ||
+        solid_visibility.scene != tr.viewDef.entities ||
+        solid_visibility.count != tr.viewDef.num_entities) return;
+    solid_visibility.slot_generation[index] = solid_visibility.generation;
+    solid_visibility.slot_visible[index] = visible;
+}
+
 static void R_DrawEntityShadows(bool shad);
 
 void R_DrawEntities(void) {
@@ -82,7 +147,10 @@ void R_DrawEntities(void) {
     uint32_t drawn = 0;
     uint32_t culled = 0;
 
-    if (!R_CvarEnabled("r_entities", "1")) return;
+    if (!R_CvarEnabled("r_entities", "1")) {
+        R_SolidVisibilityEnd(); /* alpha must treat unrecorded entries as unknown */
+        return;
+    }
     if (debug_entities) {
         memset(state, 0, sizeof(state));
     } else {
@@ -97,6 +165,7 @@ void R_DrawEntities(void) {
         renderEntity_t const *ent = tr.viewDef.entities+i;
         R_UpdateEntityPresentation(ent);
         bool in_view = R_EntityInView(ent);
+        R_SolidVisibilityRecord(i, in_view);
 
         if (debug_entities && ent->number < MAX_GAME_ENTITIES) {
             state[ent->number] = in_view ? 2 : 1;

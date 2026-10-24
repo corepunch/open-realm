@@ -1311,7 +1311,7 @@ void R_SetupEnvironmentLighting(void) {
  * Warcraft III's R_EntityPose basis is fixed; origin, yaw and scale are the
  * complete inputs to R_GetEntityMatrix. Selection of terrain-fitted models
  * is intentionally NOT cached, and must still run for every draw. */
-#define WC3_VIEW_MATRIX_ENTRIES 1024
+#define WC3_VIEW_MATRIX_ENTRIES 4096
 
 typedef struct {
     vec3_t origin;
@@ -1412,6 +1412,7 @@ void R_DrawWorld(void) {
     if (tr.render_phase == RENDER_PHASE_SOLID) {
         MDLX_ViewPoseBegin();
         R_W3ViewMatricesBegin();
+        R_SolidVisibilityBegin();
     }
     _W3M_DrawWorld();
     R_W3DrawEventSplats();
@@ -1426,6 +1427,32 @@ void R_DrawTerrainShadows(void) {
     _W3M_DrawTerrainShadows();
 }
 
+/* The parent model's alpha contribution is not the whole draw: attached
+ * meshes and construction-fire slots can still render, even when the parent
+ * itself has only opaque materials. Model events keep their separate update
+ * path; conservatively retain their render path as well. Cliffs may receive
+ * a terrain-fitted replacement, so never classify those from the source
+ * model alone. */
+static bool R_W3AlphaEntityNeedsDraw(renderEntity_t const *entity, int solid_visibility) {
+    mdxModel_t const *model;
+    if (!entity || (entity->flags & RF_HIDDEN) || !entity->model ||
+        entity->model->modeltype != ID_MDLX) return false;
+    model = entity->model->mdx;
+    if (!model) return true; /* preserve the existing model validation path */
+    if (model->attachments || model->events || model->ribbons ||
+        ((entity->effect_flags & EFX_MODEL) && entity->effect_model)) return true;
+    if (solid_visibility == 0) return false; /* outer pass already culled it */
+    if (MDLX_ModelHasAlphaWork(entity, model)) return true;
+    if (model->textures) FOR_LOOP(i, model->num_textures)
+        if (model->textures[i].replaceableID == 11) return true;
+    return false;
+}
+
+#ifdef BZ_TESTS
+static uint32_t test_wc3_alpha_model_draws;
+static uint32_t test_wc3_alpha_model_skips;
+#endif
+
 void R_DrawAlphaSurfaces(void) {
     if (!(tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
         _W3M_DrawAlphaSurfaces();
@@ -1436,10 +1463,26 @@ void R_DrawAlphaSurfaces(void) {
     /* MDX blended geosets must composite over water. Opaque geosets were
      * already rendered during the ordinary entity pass; RENDER_PHASE_ALPHA
      * selects only transparent model layers and the alpha of tinted units. */
+    /* Detached ribbon trails need their once-per-time tick even if every
+     * alpha entity is filtered out before R_RenderModel. */
+    MDLX_TickDetachedRibbons();
+    bool const cull_results_valid = R_SolidVisibilityMatchesView();
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *entity = tr.viewDef.entities + i;
-        if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX)
+        int const visible = cull_results_valid ? R_SolidVisibilityAt(i) : -1;
+        if (!R_W3AlphaEntityNeedsDraw(entity, visible)) {
+            /* MDX_RenderModel used to see every MDX entity here, including
+             * offscreen ones. Preserve its pause/global-sequence clock update. */
+            if (entity->model && entity->model->modeltype == ID_MDLX &&
+                !(entity->flags & RF_HIDDEN)) MDLX_UpdateEntityAnimationPause(entity);
+#ifdef BZ_TESTS
+            test_wc3_alpha_model_skips++;
+#endif
             continue;
+        }
+#ifdef BZ_TESTS
+        test_wc3_alpha_model_draws++;
+#endif
         R_RenderModel(entity);
     }
     if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities) {
@@ -1450,6 +1493,7 @@ void R_DrawAlphaSurfaces(void) {
     }
     MDLX_ViewPoseEnd(); /* no entries can outlive this view or a model reload */
     R_W3ViewMatricesEnd();
+    R_SolidVisibilityEnd();
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {

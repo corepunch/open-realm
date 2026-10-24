@@ -599,7 +599,8 @@ TEST(renderer_game, ground_surface_index_overflow_still_traces_all_surfaces) {
 TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
     mdxModel_t mdx = { 0 };
     model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
-    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model };
+    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model,
+                              .effect_flags = EFX_MODEL, .effect_model = &model };
     renderEntity_t *saved_entities = tr.viewDef.entities;
     uint32_t saved_num_entities = tr.viewDef.num_entities;
     render_phase_t saved_phase = tr.render_phase;
@@ -1272,6 +1273,119 @@ TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
         T_EQ(rows[1].groundTile, MAKEFOURCC('O','a','b','y'));
     }
     FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
+}
+
+TEST(renderer_game, wc3_alpha_model_filter_preserves_attachments_ribbons_and_transparency) {
+    mdxMaterialLayer_t layer = { .blendMode = BLEND_MODE_NONE };
+    mdxMaterial_t material = { .num_layers = 1, .layers = &layer };
+    mdxModel_t mdx = { .materials = &material };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .model = &model, .scale = 1.0f };
+    mdxAttachment_t attachment = {0};
+    mdxRibbonEmitter_t ribbon = {0};
+    mdxEvent_t event = {0};
+    mdxGeoset_t geoset = {0};
+    mdxTexture_t texture = { .replaceableID = 11 };
+
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, -1));
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 0));
+    layer.blendMode = BLEND_MODE_BLEND;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1));
+    /* When the solid pass rejects a bare model, the alpha pass can skip it. */
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 0));
+    layer.blendMode = BLEND_MODE_NONE;
+    mdx.geosets = &geoset;
+    entity.tint = (color32_t){255,255,255,120}; entity.tint_valid = true;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1));
+    entity.tint_valid = false; entity.tint = (color32_t){0};
+    mdx.geosets = NULL;
+    mdx.attachments = &attachment;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    mdx.attachments = NULL;
+    mdx.ribbons = &ribbon;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    mdx.ribbons = NULL;
+    mdx.events = &event;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    mdx.events = NULL;
+    entity.effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS;
+    entity.effect_model = &model;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    entity.effect_flags = 0; entity.effect_model = NULL;
+    mdx.textures = &texture; mdx.num_textures = 1;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1)); /* fitted cliffs */
+    texture.replaceableID = 0;
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
+    entity.flags = RF_HIDDEN;
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
+}
+
+TEST(renderer_game, solid_culling_handoff_is_view_local_and_uses_scene_positions) {
+    renderEntity_t scene[3] = {{ .number = 7 }, { .number = 7 }, { .number = 8 }};
+    viewDef_t saved = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+    tr.viewDef.entities = scene;
+    tr.viewDef.num_entities = 3;
+    tr.viewDef.time = 100;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_SolidVisibilityBegin();
+    T_ASSERT(R_SolidVisibilityMatchesView());
+    T_EQ(R_SolidVisibilityAt(0), -1); /* not yet traversed */
+    R_SolidVisibilityRecord(0, false);
+    R_SolidVisibilityRecord(1, true);
+    T_EQ(R_SolidVisibilityAt(0), 0);
+    T_EQ(R_SolidVisibilityAt(1), 1);
+    T_EQ(R_SolidVisibilityAt(2), -1);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_SolidVisibilityRecord(2, true); /* alpha must not write */
+    T_EQ(R_SolidVisibilityAt(2), -1);
+    tr.viewDef.time++;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.time--;
+    tr.viewDef.viewProjectionMatrix.v[0] += 1.0f;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.viewProjectionMatrix.v[0] -= 1.0f;
+    tr.viewDef.frustum.planes[0].distance += 1.0f;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.frustum.planes[0].distance -= 1.0f;
+    tr.viewDef.rdflags ^= RDF_NOFRUSTUMCULL;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.rdflags ^= RDF_NOFRUSTUMCULL;
+    tr.viewDef.entities = scene + 1;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.entities = scene;
+    R_SolidVisibilityEnd();
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    R_SolidVisibilityBegin();
+    T_EQ(R_SolidVisibilityAt(0), -1); /* new view invalidates all slots */
+    R_SolidVisibilityEnd();
+    tr.viewDef = saved; tr.render_phase = saved_phase;
+}
+
+TEST(renderer_game, wc3_alpha_filter_skips_opaque_scene_without_building_matrices) {
+    mdxMaterialLayer_t layer = { .blendMode = BLEND_MODE_ALPHAKEY };
+    mdxMaterial_t material = { .num_layers = 1, .layers = &layer };
+    mdxModel_t mdx = { .materials = &material };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entities[2] = {
+        { .model = &model, .scale = 1.0f },
+        { .model = &model, .scale = 1.0f },
+    };
+    viewDef_t saved = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 2;
+    tr.viewDef.rdflags = RDF_NOWORLDMODEL;
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_W3ViewMatricesResetBuildCount();
+    test_wc3_alpha_model_draws = test_wc3_alpha_model_skips = 0;
+    R_DrawAlphaSurfaces();
+    T_EQ(test_wc3_alpha_model_draws, 0);
+    T_EQ(test_wc3_alpha_model_skips, 2);
+    T_EQ(R_W3ViewMatricesBuildCount(), 0);
+    tr.viewDef = saved; tr.render_phase = saved_phase;
 }
 
 TEST(renderer_game, wc3_view_matrices_reuse_cull_solid_alpha_and_invalidate_mutations) {
