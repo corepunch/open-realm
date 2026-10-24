@@ -30,7 +30,16 @@ uint64_t MDLX_BoundBonePoseGeneration(void) {
     return bound_bone_pose.generation;
 }
 
+#ifdef BZ_TESTS
+static uint32_t test_mdx_sequence_searches;
+void MDLX_TestResetSequenceSearches(void) { test_mdx_sequence_searches = 0; }
+uint32_t MDLX_TestSequenceSearches(void) { return test_mdx_sequence_searches; }
+#endif
+
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time) {
+#ifdef BZ_TESTS
+    test_mdx_sequence_searches++;
+#endif
     FOR_LOOP(seqIndex, model->num_sequences) {
         mdxSequence_t const *seq = &model->sequences[seqIndex];
         if (seq->interval[0] <= time && seq->interval[1] > time) {
@@ -179,7 +188,12 @@ static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uin
     return lo;
 }
 
-void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t output) {
+/* Callers computing several tracks of the same pose already know which
+ * authored sequence contains each sampled time. Keep the range and global
+ * sequence logic here, but avoid repeating the sequence list walk for every
+ * translation/rotation/scale track and for every bone. */
+static void MDLX_GetModelKeytrackValueResolved(mdxModel_t const *model, mdxKeyTrack_t const *keytrack,
+                                                uint32_t time, mdxSequence_t const *sequence, handle_t output) {
     uint32_t interval[2] = { 0, 0 };
     uint32_t stride;
 
@@ -214,11 +228,9 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
             time = gs_len > 0 ? (global_time % gs_len) : 0;
         }
     } else {
-        mdxSequence_t const *seq = R_FindSequenceAtTime(model, time);
-        if (!seq)
-            return;
-        interval[0] = seq->interval[0];
-        interval[1] = seq->interval[1];
+        if (!sequence) return;
+        interval[0] = sequence->interval[0];
+        interval[1] = sequence->interval[1];
     }
     /* Constant tracks are common (bind poses and visibility). Their sole key
      * still belongs to a specific sequence; do not return it in a different
@@ -272,6 +284,40 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         R_GetKeyframeValue(R_KeyFrameAt(keytrack, stride, right_index - 1), right, keytrack, time, output);
 }
 
+/* General consumers remain stateless and reselect their sequence every call.
+ * The pose-only shortcut below never changes this public API's semantics. */
+void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack,
+                                uint32_t time, handle_t output) {
+    mdxSequence_t const *sequence = NULL;
+    if (!model || !keytrack || !output || !keytrack->keyframeCount) return;
+    if (keytrack->globalSeqId == UINT32_MAX) sequence = R_FindSequenceAtTime(model, time);
+    MDLX_GetModelKeytrackValueResolved(model, keytrack, time, sequence, output);
+}
+
+/* This cache is a stack local owned by one MDLX_BindBoneMatrices invocation.
+ * It holds exactly the two sampled sequence identities for that pose, never
+ * storing key pointers or data across binds, reloads or frame transitions.
+ * Resolve lazily: a model with only global-sequence tracks needs no search. */
+typedef struct {
+    mdxSequence_t const *sequence[2];
+    bool resolved[2];
+} mdxPoseSequencePair_t;
+
+static void MDLX_GetPoseKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *track,
+                                      uint32_t time, uint32_t sample, mdxPoseSequencePair_t *pair,
+                                      handle_t output) {
+    mdxSequence_t const *sequence = NULL;
+    if (!track || !track->keyframeCount) return;
+    if (track->globalSeqId == UINT32_MAX) {
+        if (!pair->resolved[sample]) {
+            pair->sequence[sample] = R_FindSequenceAtTime(model, time);
+            pair->resolved[sample] = true;
+        }
+        sequence = pair->sequence[sample];
+    }
+    MDLX_GetModelKeytrackValueResolved(model, track, time, sequence, output);
+}
+
 /* Warcraft animated MDX color tracks use BGR component semantics in the file.
  * Convert the float vector to renderer RGB after interpolation. This is not a
  * texture byte-order conversion, so it is identical on GL, GLES, and hosts with
@@ -297,7 +343,8 @@ void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vec3_
     *output = geosetAnim->staticColor;
 }
 
-static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint32_t frame1, uint32_t frame0, mat4_t *matrix) {
+static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint32_t frame1,
+                                   uint32_t frame0, mdxPoseSequencePair_t *sequences, mat4_t *matrix) {
     vec3_t vTranslation = { 0, 0, 0 };
     quaternion_t vRotation = { 0, 0, 0, 1 };
     vec3_t vScale = { 1, 1, 1 };
@@ -309,31 +356,31 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint
     if (frame0 != frame1) {
         if (node->translation) {
             vec3_t t0 = vTranslation, t1 = vTranslation;
-            MDLX_GetModelKeytrackValue(model, node->translation, frame0, &t0);
-            MDLX_GetModelKeytrackValue(model, node->translation, frame1, &t1);
+            MDLX_GetPoseKeytrackValue(model, node->translation, frame0, 0, sequences, &t0);
+            MDLX_GetPoseKeytrackValue(model, node->translation, frame1, 1, sequences, &t1);
             vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
         }
         if (node->rotation) {
             quaternion_t r0 = vRotation, r1 = vRotation;
-            MDLX_GetModelKeytrackValue(model, node->rotation, frame0, &r0);
-            MDLX_GetModelKeytrackValue(model, node->rotation, frame1, &r1);
+            MDLX_GetPoseKeytrackValue(model, node->rotation, frame0, 0, sequences, &r0);
+            MDLX_GetPoseKeytrackValue(model, node->rotation, frame1, 1, sequences, &r1);
             vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
         }
         if (node->scale) {
             vec3_t s0 = vScale, s1 = vScale;
-            MDLX_GetModelKeytrackValue(model, node->scale, frame0, &s0);
-            MDLX_GetModelKeytrackValue(model, node->scale, frame1, &s1);
+            MDLX_GetPoseKeytrackValue(model, node->scale, frame0, 0, sequences, &s0);
+            MDLX_GetPoseKeytrackValue(model, node->scale, frame1, 1, sequences, &s1);
             vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);
         }
     } else {
         if (node->translation) {
-            MDLX_GetModelKeytrackValue(model, node->translation, frame1, &vTranslation);
+            MDLX_GetPoseKeytrackValue(model, node->translation, frame1, 1, sequences, &vTranslation);
         }
         if (node->rotation) {
-            MDLX_GetModelKeytrackValue(model, node->rotation, frame1, &vRotation);
+            MDLX_GetPoseKeytrackValue(model, node->rotation, frame1, 1, sequences, &vRotation);
         }
         if (node->scale) {
-            MDLX_GetModelKeytrackValue(model, node->scale, frame1, &vScale);
+            MDLX_GetPoseKeytrackValue(model, node->scale, frame1, 1, sequences, &vScale);
         }
     }
     if (!node->translation && !node->rotation && !node->scale) {
@@ -421,6 +468,7 @@ void AddSkin(vec3_t *pos, mat4_t const *mat, vec3_t const *org, float weight) {
 }
 
 void MDLX_BindBoneMatrices(mdxModel_t const *model, mat4_t const *model_matrix, uint32_t frame1, uint32_t frame0) {
+    mdxPoseSequencePair_t sequences = { 0 };
     /* Only the nodes this model actually has need their global matrices
      * recomputed.  The old path memset the full 64KB node_matrices array and
      * scanned all MDX_MAX_NODES slots twice; models have tens of nodes, so the
@@ -428,7 +476,7 @@ void MDLX_BindBoneMatrices(mdxModel_t const *model, mat4_t const *model_matrix, 
     FOR_LOOP(i, model->num_nodes) {
         mdxNode_t *node = model->node_list[i];
         memset(&node_matrices[node->node_id], 0, sizeof(mat4_t)); /* reset the "computed" flag (v[15]==0) */
-        R_CalculateNodeMatrix(model, node, frame1, frame0, &local_matrices[node->node_id]);
+        R_CalculateNodeMatrix(model, node, frame1, frame0, &sequences, &local_matrices[node->node_id]);
     }
     FOR_LOOP(i, model->num_nodes)
         R_GetNodeGlobalMatrix(model, model_matrix, model->node_list[i]);

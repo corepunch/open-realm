@@ -21,6 +21,10 @@ texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
+/* Test-only counter in the real MDX sequence selector. */
+void MDLX_TestResetSequenceSearches(void);
+uint32_t MDLX_TestSequenceSearches(void);
+
 static char shader_src[16384];
 static void reset_shader(void);
 static rect_t backdrop_uv, backdrop_rect;
@@ -390,6 +394,89 @@ static rImageCacheEntry_t *test_texture_entry(cstring_t name) {
     for (rImageCacheEntry_t *entry = r_image_cache; entry; entry = entry->next)
         if (!strcasecmp(entry->name, name)) return entry;
     return NULL;
+}
+
+/* A bone pose samples several tracks at the same two animation times.
+ * Compare the actual bound matrices while asserting that each time resolves
+ * its authored sequence only once, regardless of the number of tracks/nodes. */
+TEST(renderer_model, mdx_bone_pose_resolves_each_sequence_once_per_bind) {
+    uint8_t translation_storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = { 0 };
+    uint8_t scale_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
+    mdxKeyTrack_t *translation = (mdxKeyTrack_t *)translation_storage;
+    mdxKeyTrack_t *scale = (mdxKeyTrack_t *)scale_storage;
+    mdxNode_t nodes[3] = { 0 };
+    mdxSequence_t sequences[2] = { { .interval = { 100, 200 } }, { .interval = { 200, 300 } } };
+    mdxModel_t model = { .sequences = sequences, .num_sequences = 2, .num_nodes = 3 };
+    mat4_t transform;
+    float const saved_lerp = tr.viewDef.lerpfrac;
+    vec3_t const positions[2] = { {10, 0, 0}, {20, 0, 0} };
+    vec3_t const unit_scale = { 1, 1, 1 };
+
+    translation->keyframeCount = 2; translation->datatype = TDATA_FLOAT3;
+    translation->linetype = TRACK_LINEAR; translation->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)translation->values + i * (sizeof(int) + sizeof(vec3_t)));
+        key->time = 100 + 80 * i;
+        memcpy(key->data, &positions[i], sizeof(positions[i]));
+    }
+    scale->keyframeCount = 1; scale->datatype = TDATA_FLOAT3;
+    scale->linetype = TRACK_LINEAR; scale->globalSeqId = UINT32_MAX;
+    ((mdxKeyFrame_t *)scale->values)->time = 100;
+    memcpy(((mdxKeyFrame_t *)scale->values)->data, &unit_scale, sizeof(unit_scale));
+    FOR_LOOP(i, 3) {
+        nodes[i].node_id = i;
+        nodes[i].parent_id = UINT32_MAX;
+        nodes[i].translation = translation;
+        nodes[i].scale = scale;
+        model.nodes[i] = model.node_list[i] = &nodes[i];
+    }
+    Matrix4_identity(&transform);
+    tr.viewDef.lerpfrac = 0.5f;
+
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 160, 120);
+    T_EQ(MDLX_TestSequenceSearches(), 2u); /* 3 nodes x 2 tracks x 2 times. */
+    FOR_LOOP(i, 3) T_FEQ(node_matrices[i].v[12], 15.0f, 0.001f);
+
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 140, 140);
+    T_EQ(MDLX_TestSequenceSearches(), 1u); /* One pose time, six local tracks. */
+    FOR_LOOP(i, 3) T_FEQ(node_matrices[i].v[12], 15.0f, 0.001f);
+
+    /* No interval retains its identity across binds: changing the authored
+     * sequence in place must be reflected immediately by the next bind. */
+    sequences[0].interval[1] = 120;
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 140, 140);
+    T_EQ(MDLX_TestSequenceSearches(), 1u);
+    FOR_LOOP(i, 3) T_FEQ(node_matrices[i].v[12], 0.0f, 0.001f);
+    tr.viewDef.lerpfrac = saved_lerp;
+}
+
+/* Global-sequence-only nodes do not need a regular model-sequence search. */
+TEST(renderer_model, mdx_bone_pose_global_tracks_skip_sequence_searches) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
+    mdxKeyTrack_t *translation = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxNode_t node = { .node_id = 0, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1,
+                         .num_nodes = 1 };
+    vec3_t const offset = { 7, 0, 0 };
+    mat4_t transform;
+    uint32_t const old_time = tr.viewDef.time;
+    translation->keyframeCount = 1; translation->datatype = TDATA_FLOAT3;
+    translation->linetype = TRACK_LINEAR; translation->globalSeqId = 0;
+    ((mdxKeyFrame_t *)translation->values)->time = 0;
+    memcpy(((mdxKeyFrame_t *)translation->values)->data, &offset, sizeof(offset));
+    node.translation = translation;
+    model.nodes[0] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.time = 400;
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 120, 80);
+    T_EQ(MDLX_TestSequenceSearches(), 0u);
+    T_FEQ(node_matrices[0].v[12], 7.0f, 0.001f);
+    tr.viewDef.time = old_time;
 }
 
 TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {

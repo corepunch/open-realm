@@ -701,6 +701,33 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 0 +set r_vsync
 build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 120 +map 'Maps/Campaign/Human02.w3m'
 ```
 
+## MDX per-pose sequence resolution (patch twenty-four, x86 low-performance cores)
+
+The x86 Human02, NightElf07 and Undead07 profiles continued to attribute
+exclusive cycles to `MDLX_GetModelKeytrackValue` and `R_KeyFrameBound` after
+keytrack binary interval-bound optimisations. While binding one bone pose,
+all nodes sample the same current and previous animation times; previously
+*each* animated translation/rotation/scale track independently called
+`R_FindSequenceAtTime`, linearly searching the model's authored sequences.
+
+`MDLX_BindBoneMatrices` now provides a **stack-local, two-sample sequence
+selection** shared by all node tracks for that bind. It resolves each unique
+sample on its first non-global keytrack and reuses the identity for the other
+tracks, reducing up to six or more repeated sequence-list walks per node to
+one or two walks per complete pose. Global-sequence-only tracks do not cause
+a regular sequence lookup. This does not cache results across models,
+attachments, animation samples, frame changes or reloads. The public
+`MDLX_GetModelKeytrackValue` remains stateless, and signed authored key times,
+sequence boundaries, interpolation and wrap-around remain unchanged.
+
+`renderer_model.mdx_bone_pose_resolves_each_sequence_once_per_bind` covers
+multiple animated bones, single vs dual sample times, transform results and
+in-place sequence edits on the next bind; a second regression checks that
+global-only tracks do not perform irrelevant sequence lookups. The
+instrumentation is under `BZ_TESTS` only. The native build passed; tests were
+not run. Compare matched-scene x86 frame times and ARM64 validation before
+attributing a concrete FPS improvement.
+
 ## MDX keytrack and ground splat hot paths
 
 An Instruments capture after the 64 FPS cap was added sampled `R_KeyFrameBound`
