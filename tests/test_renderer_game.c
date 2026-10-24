@@ -1334,6 +1334,10 @@ TEST(renderer_game, wc3_alpha_model_filter_preserves_attachments_ribbons_and_tra
     T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
     T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, -1));
     T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 0));
+    uint32_t const saved_rdflags = tr.viewDef.rdflags;
+    tr.viewDef.rdflags |= RDF_USE_ENTITY_CAMERA;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    tr.viewDef.rdflags = saved_rdflags;
     layer.blendMode = BLEND_MODE_BLEND;
     T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1));
     /* When the solid pass rejects a bare model, the alpha pass can skip it. */

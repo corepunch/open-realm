@@ -1443,6 +1443,9 @@ static bool R_W3AlphaEntityNeedsDraw(renderEntity_t const *entity, int solid_vis
         entity->model->modeltype != ID_MDLX) return false;
     model = entity->model->mdx;
     if (!model) return true; /* preserve the existing model validation path */
+    /* Entity-camera views render the source model as their scene. Keep its
+     * normal renderer entrypoint for camera-owned attachments and effects. */
+    if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) return true;
     if (model->attachments || model->events || model->ribbons ||
         ((entity->effect_flags & EFX_MODEL) && entity->effect_model)) return true;
     if (solid_visibility == 0) return false; /* outer pass already culled it */

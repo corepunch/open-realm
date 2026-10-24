@@ -21,6 +21,22 @@ texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
+/* The headless game-renderer harness links its own MDX_RenderModel stub; the
+ * real classifier is covered by test-mdx-geoset, so provide its contract here
+ * for the alpha-filter integration tests. */
+bool MDLX_ModelHasAlphaWork(renderEntity_t const *entity, mdxModel_t const *model) {
+    color32_t const color = (entity && (entity->tint_valid || entity->tint.a))
+        ? entity->tint : COLOR32_WHITE;
+    if (!entity || !model) return false;
+    if (model->ribbons) return true;
+    if (color.a != 255) return model->geosets != NULL;
+    FOR_EACH_LIST(mdxMaterial_t, material, model->materials) {
+        FOR_LOOP(i, material->num_layers)
+            if (material->layers[i].blendMode >= BLEND_MODE_BLEND) return true;
+    }
+    return false;
+}
+
 /* Test-only counter in the real MDX sequence selector. */
 void MDLX_TestResetSequenceSearches(void);
 uint32_t MDLX_TestSequenceSearches(void);
