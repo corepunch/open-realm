@@ -5,6 +5,7 @@
 #include "common/wow_view.h"
 #endif
 #include <float.h>
+#include <math.h>
 #include <stdlib.h>
 
 /* The Warcraft III native model basis is identity. Skip the full 4x4
@@ -16,13 +17,46 @@ static mat4_t const r_identity_entity_basis = { .v = {
     1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
 } };
 
+/* With no pitch or roll, the generic orientation quaternion reduces to
+ * (0, 0, sin(yaw/2), cos(yaw/2)). Construct the same column-major scaled
+ * placement directly instead of evaluating four unused trig functions and
+ * converting a general quaternion. Keep the half-angle convention: sin(yaw)
+ * and cos(yaw) do not round identically to the original quaternion path.
+ * The rotation origin supplied by R_GetEntityMatrix is always zero. */
+static void R_YawEntityPlacement(mat4_t *out, modelPose_t const *pose) {
+    float const half = pose->angles.yaw * 0.5f;
+    float const sine = sinf(half), cosine = cosf(half);
+    float const doubled_sine = sine + sine;
+    float const diagonal = 1.0f - sine * doubled_sine;
+    float const off_diagonal = cosine * doubled_sine;
+    float const scale = pose->scale;
+
+    *out = (mat4_t){ .v = {
+        diagonal * scale, off_diagonal * scale, 0, 0,
+        -off_diagonal * scale, diagonal * scale, 0, 0,
+        0, 0, scale, 0,
+        pose->origin.x, pose->origin.y, pose->origin.z, 1,
+    } };
+}
+
 void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
     modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
     mat4_t const *basis = R_EntityPose(entity, &pose);
-    quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
     mat4_t placement;
-    Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
-        &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
+
+    /* R_EntityPose can author pitch/roll or non-finite data (e.g. WoW
+     * doodads). Preserve the generic path for those cases, including its
+     * NaN/Inf propagation, rather than changing culling in invalid poses. */
+    if (pose.angles.pitch == 0.0f && pose.angles.roll == 0.0f &&
+        isfinite(pose.angles.yaw) && isfinite(pose.scale) &&
+        isfinite(pose.origin.x) && isfinite(pose.origin.y) &&
+        isfinite(pose.origin.z)) {
+        R_YawEntityPlacement(&placement, &pose);
+    } else {
+        quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
+        Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
+            &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
+    }
     /* Native skinning precedes this basis. All world-space consumers use this
      * same composition. An identity basis leaves the placement unchanged;
      * don't run 16 four-term dot products during every entity cull. */

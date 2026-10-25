@@ -1,3 +1,31 @@
+## October 25 NightElf07 yaw-only entity placement (patch forty-six)
+
+`R_GetEntityMatrix` previously built a general quaternion and full
+rotation/translation/scale matrix even when `R_EntityPose` supplied only a yaw.
+For these poses the quaternion is `(0, 0, sin(yaw/2), cos(yaw/2))`.
+The shared renderer now writes the equivalent column-major uniform-scale
+placement directly, computing only the half-angle sine and cosine and avoiding
+the general quaternion conversion. Retaining **half-angle arithmetic** (rather
+than `sin(yaw)` / `cos(yaw)`) preserves the reference transform's rounding near
+view-frustum boundaries. Patch thirty-nine's exact identity-basis shortcut
+still applies afterward; non-identity game/model bases still compose normally.
+
+The fast path is guarded on zero pitch/roll and finite yaw, origin and scale,
+so tilted poses and non-finite data keep the existing general builder. There
+are no new persistent caches, game-specific renderer assumptions or changed
+network/gameplay contracts. Tests
+`wc3_coordinates.yaw_only_entity_matrix_matches_quaternion_reference` and
+`wc3_coordinates.invalid_entity_pose_keeps_generic_matrix_behavior` compare
+coefficients and synthetic frustum decisions with the old quaternion path,
+including near-plane placements and exceptional floats. Warcraft III model
+placement, culling and game-module conventions remain the source of truth.
+
+This is a source-level CPU optimisation, **not** a measured FPS improvement.
+No compilation, tests or game launch were run locally per the user's request.
+Validate with the affected test suite and matched NightElf07 profiling of
+`R_GetEntityMatrix`, `Quaternion_fromOrientation`,
+`Matrix4_from_rotation_translation_scale_origin` and overall frame time/FPS.
+
 ## October 24 NightElf07 moving-shadow shared terrain corners (patch forty-five)
 
 After patch forty-four the NightElf07 sample attributes 7.29% inclusive CPU
