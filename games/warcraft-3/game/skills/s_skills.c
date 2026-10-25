@@ -784,14 +784,25 @@ static bool update_may_have_ability(edict_t const *ent, uint32_t code) {
     if (!ent || !code) return false;
     FOR_LOOP(i, (ent->unit_state ? MAX_HERO_ABILITIES : 0))
         if (ent->unit_state->ranks[i].level) return true;
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0))
-        if (ent->unit_state->overrides.added[i] == code) return true;
+    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
+        uint32_t const alias = ent->unit_state->overrides.added[i];
+        if (alias && (alias == code || G_AbilityCode(alias) == code)) return true;
+    }
     native = ent->data.UnitAbilities ? ent->data.UnitAbilities->abilList : NULL;
     if (!native) return false;
     memcpy(name, &code, 4);
-    /* A substring hit can only cause extra work; it cannot suppress a valid
-     * owner. Exact token and removed-ability checks stay in the real handler. */
-    return strstr(native, name) != NULL;
+    /* Keep the cheap common exact-code check. Custom authored aliases can
+     * inherit an update callback through AbilityData, so resolve list tokens
+     * when no literal match exists. These checks only admit extra callbacks;
+     * the owner procedure still validates current ownership and state. */
+    if (strstr(native, name)) return true;
+    PARSE_LIST(native, token, parse_segment) {
+        uint32_t alias = 0;
+        if (strlen(token) != 4) continue;
+        memcpy(&alias, token, sizeof(alias));
+        if (G_AbilityCode(alias) == code) return true;
+    }
+    return false;
 }
 
 /* Shadow Meld has two registered update procedures, both of which make several

@@ -113,6 +113,19 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_done(&fix);
 }
 
+/* The update dispatcher must admit a runtime-added ability even when the unit
+ * has no learned hero rank for the callback code. */
+TEST(wc3_spell, exhume_update_dispatch_recognizes_runtime_added_ability) {
+	exhFix_t fix;
+	exh_setup(&fix);
+	memset(fix.wagon->unit_state->ranks, 0, sizeof(fix.wagon->unit_state->ranks));
+	T_ASSERT(G_ActorAddSkill(fix.wagon, BZ_AEXH));
+	T_EQ(G_UnitAbilityLevel(fix.wagon, BZ_AEXH), 1u);
+	S_RunAbilityUpdates(fix.wagon);
+	T_NOT_NULL(exh_thinker(fix.wagon));
+	exh_done(&fix);
+}
+
 /* Amtc is corpse-only storage.  A Meat Wagon must not become a generic
  * transport just because the shared cargo array has empty slots. */
 TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
