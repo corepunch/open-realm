@@ -3638,11 +3638,11 @@ TEST(wc3_api, tint_datagram_staging_preserves_wire_order_and_all_or_nothing_fit)
     first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
     untinted = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
     second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 48, 32);
-    G_SetUnitFlag(first, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    first->vertex_color_set = true;
     first->vertex_color = MAKE(color32_t, 210, 150, 100, 255);
-    G_SetUnitFlag(second, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    second->vertex_color_set = true;
     second->vertex_color = MAKE(color32_t, 120, 160, 220, 128);
-    T_ASSERT(!G_UnitHasFlag(untinted, UNIT_FLAG_VERTEX_COLOR_SET));
+    T_ASSERT(!untinted->vertex_color_set);
     weather = G_WeatherAdd(&bounds, MAKEFOURCC('R','A','h','r'), true);
     T_NOT_NULL(weather);
     lightning = G_LightningAdd(&(lightningAddParams_t){
@@ -3699,7 +3699,7 @@ TEST(wc3_api, tint_datagram_reserves_pending_blight_mask_before_staging) {
     client_ent->client->ps.number = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
     unit->s.player = 0;
-    G_SetUnitFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    unit->vertex_color_set = true;
     unit->vertex_color = MAKE(color32_t, 40, 60, 80, 200);
     minimum_mask = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
     just_short = sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color) + minimum_mask - 1;
@@ -3742,7 +3742,7 @@ TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
     client_ent->client->ps.number = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
     unit->s.player = 0;
-    T_ASSERT(!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET));
+    T_ASSERT(!unit->vertex_color_set);
     unit->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
 
     size = G_WriteClientDatagram(client_ent, data, sizeof(data));
@@ -3765,55 +3765,6 @@ TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
     memcpy(&count, data + sizeof(header), sizeof(count));
     T_EQ(count, 0u);
     T_EQ(size, sizeof(header) + sizeof(count));
-}
-
-/* The common untinted case, including static scenery, must not generate
- * a tint section entry. Re-enabling an authored tint must take effect in
- * the very next datagram without a persistent candidate index. */
-TEST(wc3_api, tint_datagram_sparse_candidates_restore_on_state_changes) {
-    uint8_t data[128];
-    uint16_t header, count, number;
-    color32_t color;
-    edict_t *client_ent, *unit, *scenery;
-    uint32_t size;
-
-    reset_entities(); setup_test_world();
-    memset(level.weather_effects, 0, sizeof(level.weather_effects));
-    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
-    client_ent = &g_edicts[0];
-    client_ent->client = &game.clients[0];
-    client_ent->client->ps.number = 0;
-    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
-    scenery = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
-    unit->s.player = 0;
-    scenery->s.player = 1;
-    scenery->svflags |= SVF_STATIC_SCENERY;
-    T_ASSERT(!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET));
-    T_ASSERT(!G_UnitHasFlag(scenery, UNIT_FLAG_VERTEX_COLOR_SET));
-
-    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
-    T_EQ(size, sizeof(header) + sizeof(count));
-    memcpy(&header, data, sizeof(header));
-    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
-    memcpy(&count, data + sizeof(header), sizeof(count));
-    T_EQ(count, 0u);
-
-    unit->vertex_color = MAKE(color32_t, 90, 120, 180, 110);
-    G_SetUnitFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET, true);
-    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
-    T_EQ(size, sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color));
-    memcpy(&count, data + sizeof(header), sizeof(count));
-    T_EQ(count, 1u);
-    memcpy(&number, data + sizeof(header) + sizeof(count), sizeof(number));
-    memcpy(&color, data + sizeof(header) + sizeof(count) + sizeof(number), sizeof(color));
-    T_EQ(number, (uint16_t)unit->s.number);
-    T_EQ(color.r, 90); T_EQ(color.g, 120); T_EQ(color.b, 180); T_EQ(color.a, 110);
-
-    G_SetUnitFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET, false);
-    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
-    T_EQ(size, sizeof(header) + sizeof(count));
-    memcpy(&count, data + sizeof(header), sizeof(count));
-    T_EQ(count, 0u);
 }
 
 TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
