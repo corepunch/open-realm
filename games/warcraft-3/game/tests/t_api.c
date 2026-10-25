@@ -3638,11 +3638,11 @@ TEST(wc3_api, tint_datagram_staging_preserves_wire_order_and_all_or_nothing_fit)
     first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
     untinted = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
     second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 48, 32);
-    first->vertex_color_set = true;
+    G_SetUnitFlag(first, UNIT_FLAG_VERTEX_COLOR_SET, true);
     first->vertex_color = MAKE(color32_t, 210, 150, 100, 255);
-    second->vertex_color_set = true;
+    G_SetUnitFlag(second, UNIT_FLAG_VERTEX_COLOR_SET, true);
     second->vertex_color = MAKE(color32_t, 120, 160, 220, 128);
-    T_ASSERT(!untinted->vertex_color_set);
+    T_ASSERT(!G_UnitHasFlag(untinted, UNIT_FLAG_VERTEX_COLOR_SET));
     weather = G_WeatherAdd(&bounds, MAKEFOURCC('R','A','h','r'), true);
     T_NOT_NULL(weather);
     lightning = G_LightningAdd(&(lightningAddParams_t){
@@ -3699,7 +3699,7 @@ TEST(wc3_api, tint_datagram_reserves_pending_blight_mask_before_staging) {
     client_ent->client->ps.number = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
     unit->s.player = 0;
-    unit->vertex_color_set = true;
+    G_SetUnitFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET, true);
     unit->vertex_color = MAKE(color32_t, 40, 60, 80, 200);
     minimum_mask = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
     just_short = sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color) + minimum_mask - 1;
@@ -3742,7 +3742,7 @@ TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
     client_ent->client->ps.number = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
     unit->s.player = 0;
-    T_ASSERT(!unit->vertex_color_set);
+    T_ASSERT(!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET));
     unit->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
 
     size = G_WriteClientDatagram(client_ent, data, sizeof(data));

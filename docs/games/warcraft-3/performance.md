@@ -74,19 +74,15 @@ correctness constraints.
 
 | Commit | Targeted path and measured result | Evidence |
 |---|---|---|
-| `wc3: combine regeneration aura provider and effect scans` | Provider/effect traversal combined | Not separately measured; [implementation notes](#october-23-arm64-regeneration-aura-combined-cache-traversal). |
 | `renderer: preserve negative MDX camera key times` | — | Correctness fix, not a performance optimisation. |
 | `test: update regression fixtures for current state` | — | Test maintenance. |
 | `renderer: optimize MDX keytrack interval lookups` | MDX hotspot 0.93% → 0.54% (41.9% reduction) | Targeted hotspot measurement. |
 | `renderer: index walkable surfaces for ground conformance` | Ground conformance 0.65% → 0.31% (52.3% reduction) | Targeted hotspot measurement; [implementation notes](#october-23-arm64-ground-surface-candidate-index-patch-sixteen). |
-| `wc3: skip untinted entities during client datagram generation` | Datagram generation 2.31% → 2.29% (0.9% reduction; 0.02 pp) | Small and inconclusive. |
 | `renderer: batch contiguous Warcraft III splat submissions` | Retained event-splat path 3.61% → 1.39% (61.5% reduction) | Strong targeted result; [implementation notes](#october-23-arm64-contiguous-splat-submission-batching-patch-fourteen). |
 | `renderer: cache repeated terrain-conforming splat geometry` | Splat generation 2.77% → 2.81% (1.4% increase; 0.04 pp) | Dropped after this measured regression; the later [four-way collision follow-up](#october-24-nightelf07-shadow-splat-cache-collision-avoidance-patch-thirty-seven) retains the revised cache. |
-| `client: optimize HUD overlay drawing with stable paint groups` | HUD layout 10.78% → 10.23% (5.1% reduction; 0.55 pp) | Small and inconclusive; [implementation notes](#october-23-arm64-client-overlay-paint-pass-grouping). |
 | `wc3: optimize status-state queries using occupied-slot index` | Monster thinking 17.77% → 10.42% (41.4% reduction); original 7.54% status hotspot disappeared | Broad parent path plus hotspot; [implementation notes](#october-23-arm64-categorical-status-state-lookups). |
 | `fix(wc3): update optimizations for extracted unit state` | — | Compatibility/correctness fix; no separate measurement. |
 | `wc3: cache aura family classification and filter ability ownership checks` | Aura processing 5.93% → 4.26% (28.2% reduction) | Targeted path; [implementation notes](#october-22-arm64-aura-family-classification-and-ownership-filtering). |
-| `wc3: optimize client selection revalidation with single entity scan` | Selection update 1.59% → 1.56% (1.9% reduction; 0.03 pp) | Small and inconclusive; [implementation notes](#october-22-arm64-selection-revalidation-scan). |
 | `wc3: cache moon well ability classification by data generation` | Moon Well hotspot 1.19% → 1.09% (8.4% reduction; 0.10 pp) | Provisional; [implementation notes](#october-22-arm64-moon-well-class-lookup-caching). |
 | `wc3: optimize moon well ability update dispatch` | Ability-update branch 2.70% → 1.38% (48.9% reduction; 1.32 pp) | Targeted branch measurement; [implementation notes](#october-22-arm64-moon-well-update-filtering). |
 | `wc3: skip unnecessary per-unit ability update callbacks` | Ability-update path 11.37% → 2.70% (76.3% reduction; 8.67 pp) | One of the largest measured share drops; [implementation notes](#october-22-arm64-per-unit-ability-update-dispatch). |
@@ -1940,23 +1936,3 @@ NightElf07 `CAbilityBlightGrowth` → `G_SetBlightRadius` path, where
 `G_IsDestructable` and `Box2_containsPoint` sampled heavily. These were
 profile hotspots, not a measured post-patch improvement; compare matched
 NightElf07 scenes and frame times on the target ARM64 device.
-
-### Per-client tint scan rejection (patch fifteen, ARM64)
-
-`G_WriteClientDatagram` still visits edicts in entity-number order so its tint
-section remains complete and deterministic, including otherwise unselected
-units and tints which are not part of the bounded entity snapshot. Most map
-scenery, however, is neither explicitly tinted nor a source of viewer-relative
-alpha. A conservative, constant-time candidate predicate now rejects such
-edicts before evaluating hero dissipation or FoW/detector visibility. A live
-`currentmove`, Shadow Meld state, `RF_HIDDEN`, permanent/ghost invisibility,
-or the authored tint bit always falls back to the full original evaluation.
-
-This does **not** cache FoW across server snapshots or replace the tint set
-with `SV_BuildClientFrame`'s bounded entity candidates: those sets have
-different eligibility and saturation semantics. Tint count, ordering, overflow
-(all-or-nothing), weather/lightning placement and blight reservations retain
-their existing wire contract. This is a CPU fast-path candidate only; compare
-matched scenes and FPS/cycle rates before claiming a speedup. In-engine
-regressions cover sparse untinted scenes, toggle-on/off, owner ghost alpha,
-untinted hero dissipation, and full-buffer decisions.
