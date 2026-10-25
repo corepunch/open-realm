@@ -3507,6 +3507,16 @@ TEST(wc3_spell, disease_cloud_independent_sources_and_refresh) {
     S_RunAbilityUpdates(first);
     T_EQ(unit_findstatussource(target, a->code, first), a);
     T_EQ(a->next_tick, next_a); /* Same-source exposure does not reset DPS. */
+    unit_updatestatuses(target); /* Build the derived index before direct refresh. */
+    T_ASSERT(target->unit_state->timed_status_update_mask & (1u << (a - target->unit_state->statuses)));
+    /* Model a previously valid index that omitted this still-live status. */
+    target->unit_state->timed_status_update_mask = (1u << MAX_UNIT_STATUSES) | (1u << (b - target->unit_state->statuses));
+    a->timestamp = G_Time() + 1500;
+    CAbilityDiseaseCloud(first, A_UPDATE, NULL); /* Refresh must invalidate the timed index. */
+    T_EQ(a->timestamp, G_Time() + 5000);
+    T_EQ(target->unit_state->timed_status_update_mask, 0u); /* Invalidated for a rebuild. */
+    unit_updatestatuses(target);
+    T_ASSERT(target->unit_state->timed_status_update_mask & (1u << (a - target->unit_state->statuses)));
     level.time += 1000;
     unit_updatestatuses(target);
     T_FEQ(target->health.value, 74.0f, 0.001f);

@@ -71,6 +71,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
             uint32_t duration_ms = (uint32_t)(row->data[0].number * 1000.0f);
             slot->timestamp = G_Time() + duration_ms;
             slot->duration_ms = duration_ms;
+            unit_status_invalidate_update_mask(target);
         } else {
             status_application_t app = {
                 .buff = buff, .level = ability.level, .duration = row->data[0].number,
