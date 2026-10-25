@@ -1468,29 +1468,6 @@ linear edict-bound pass and runtime ability removal/re-add. The stored profile h
 only about 4K CPU samples and no scene/build metadata; take a new weighted profile to
 measure the post-fix cycle share.
 
-## October 23 ARM64 regeneration-aura combined cache traversal
-
-The ARM64 profile after MDX keytrack fast paths still samples regeneration-aura
-provider processing during simulation. `regen_aura_cache_update` previously
-walked every allocated edict twice on a cache miss: first to resolve active
-provider abilities, then to rebuild the recipient and caster presentation-effect
-slots. Those scans now share **one traversal** while retaining increasing-edict
-provider precedence and first-match overlay precedence. Entities without any
-unit-state ability storage or authored `abilList` are skipped by the provider
-resolver but remain eligible for the overlay index (for example, attached
-spell effects). No new persistent indexing or save data is introduced.
-
-The provider and overlay indexes are still recomputed on simulation-frame or
-`G_AbilityDataGeneration()` changes. Recipient distances, alliances, target
-masks and immediate active/invisible/death checks remain on the existing live
-paths; the two-second numeric/presentation refresh cadence is unchanged.
-`wc3_spell.regen_aura_cache_combines_provider_and_overlay_scans` verifies one
-edict pass per cache refresh, same-frame reuse, source/recipient artwork role
-separation and effect replacement on the next frame. The companion generation
-test covers same-frame metadata changes. These tests also exercise the current
-heap-owned `unit_state` rank and added-ability layout; no new debug output is
-emitted. CPU or FPS impact must be assessed on a comparable ARM64 capture.
-
 Profile-driven optimizations across the renderer, client, and server. The five sampled hot spots and the fixes applied to each are listed below so a future reader understands *why* each path is shaped the way it is.
 
 ## Client frame-rate limiter
