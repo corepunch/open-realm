@@ -8,6 +8,7 @@ variation, and the rows are not additive. Grouped measurements cannot isolate
 the contribution of each commit. Percentage suffixes on rewritten commit
 subjects refer to these sampled hotspot reductions; suffixes marked `group`
 describe a grouped comparison rather than an individual commit result.
+Regression suffixes use `+` to show an increase in sampled cost.
 
 | Rank | Commit | Targeted hotspot | Sample share | Hotspot reduction | Share drop |
 |---:|---|---|---:|---:|---:|
