@@ -92,6 +92,20 @@ correctness constraints.
 | `wc3: optimize status level queries with occupied slot index` | Original `G_UnitStatusLevel` hotspot at 8.15% disappeared | Large hotspot elimination; exact reduction unavailable. |
 | `wc3: optimize timed status updates with indexed slots` | Timed-status hotspot 8.15% → ~0.64% (~92.1% reduction; ~7.51 pp) | Another status-query hotspot remained until the following optimisation. |
 
+### Reverted or dropped performance changes
+
+These changes were removed because the available profiles did not establish a
+useful improvement for their added code paths. Their results are hotspot
+sample-share comparisons from separate runs, not frame-time measurements.
+
+| Commit | Decision and evidence |
+|---|---|
+| `b47e389b` — skip untinted entities during client datagram generation | Reverted. Datagram generation changed from 2.31% to 2.29% of samples (0.02 percentage points; 0.9% relative), too small to distinguish from sampling variation. |
+| `2ae8ad97` — selection revalidation with a single entity scan | Reverted. Selection update changed from 1.59% to 1.56% (0.03 percentage points; 1.9% relative), inconclusive against run variation. |
+| `6e495b3b` — HUD overlay stable paint groups | Reverted. HUD layout changed from 10.78% to 10.23% (0.55 percentage points; 5.1% relative), a small result without matched frame-time confirmation. |
+| `e5118fec` — combine regeneration aura provider and effect scans | Reverted. It merged traversals, but no isolated post-change profile measured its effect, so the runtime benefit was unconfirmed. |
+| `renderer: cache repeated terrain-conforming splat geometry` | Dropped after splat-generation samples rose from 2.77% to 2.81% (0.04 percentage points; 1.4% relative). A later collision-avoidance cache follow-up remains and is measured separately. |
+
 ### Largest measured contributors in this group
 
 The largest reported reductions are per-unit ability-update dispatch
