@@ -1,3 +1,31 @@
+## October 25 NightElf07 selected-entity HUD lookup (patch forty-eight)
+
+After patch forty-seven, `SCR_LayoutSelectedEntity` accounted for roughly
+**2.09% exclusive** CPU-cycle sample share in the NightElf07 capture. The
+command-button drawer called it for each button, and it scanned up to
+`cl.num_entities` slots every time even though all buttons in one layout draw
+use the same first selected entity.
+
+The generic client now resolves the first `RF_SELECTED` entity **lazily once
+per complete `SCR_DrawLayout` invocation**, sharing the result across its HUD
+layers and transient windows. An independently drawn `SCR_LayoutDrawOverlay`
+(including loading UI or a standalone window) receives its own lookup scope.
+Nested overlays preserve their parent's resolved selection, and direct
+`SCR_LayoutDrawCommandButton` calls outside a layout draw retain the previous
+uncached scan. Both selected pointers and the absence of selection are cached;
+end-of-draw cleanup drops the pointer and resolved state, so the next draw
+reflects snapshot changes and reused entity slots. The original lowest-index
+selected-entity precedence and ability-glow semantics are unchanged. No game
+logic, protocol changes, heap allocations or production debug logs are added.
+
+`client_layout.selected_entity_lookup_*` tests cover first-slot precedence,
+repeated reads, nested overlay scopes, cached NULL, selection changes between
+separate draws, empty entity ranges and reused slots. These are regression
+cases for the scoped lookup; compile and run them plus integration UI tests
+locally. Compare subsequent NightElf07 `SCR_LayoutSelectedEntity` sample share,
+`SCR_LayoutDrawCommandButton` call trees and actual frame times. No compilation
+or runtime tests were performed while preparing this patch.
+
 ## October 25 NightElf07 axis-aligned frustum culling (patch forty-seven)
 
 After patch forty-six, `Frustum_ContainsAABox` still used the original eight-corner

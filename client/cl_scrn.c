@@ -375,12 +375,47 @@ static rect_t scale_rect(rect_t const *r, float f) {
     return (rect_t){ r->x + dx/2, r->y + dy/2, r->w - dx, r->h - dy };
 }
 
+/* A HUD draw can emit several command buttons (and nested window overlays).
+ * Resolve its first selected entity once. The cache is deliberately scoped to
+ * drawing, not cl.time: an unrelated draw or a new snapshot must never inherit
+ * a stale selection, including a cached NULL result. */
+static struct {
+    uint32_t depth;
+    bool resolved;
+    entityState_t const *entity;
+} layout_selected_cache;
+
+static void SCR_BeginSelectedEntityDraw(void) {
+    if (!layout_selected_cache.depth++) {
+        layout_selected_cache.resolved = false;
+        layout_selected_cache.entity = NULL;
+    }
+}
+
+static void SCR_EndSelectedEntityDraw(void) {
+    if (!--layout_selected_cache.depth) {
+        layout_selected_cache.resolved = false;
+        layout_selected_cache.entity = NULL;
+    }
+}
+
 static entityState_t const *SCR_LayoutSelectedEntity(void) {
+    entityState_t const *selected = NULL;
+    if (layout_selected_cache.depth && layout_selected_cache.resolved)
+        return layout_selected_cache.entity;
+
     FOR_LOOP(i, cl.num_entities) {
         entityState_t const *ent = &cl.ents[i].current;
-        if (ent && (ent->renderfx & RF_SELECTED)) return ent;
+        if (ent->renderfx & RF_SELECTED) {
+            selected = ent;
+            break;
+        }
     }
-    return NULL;
+    if (layout_selected_cache.depth) {
+        layout_selected_cache.entity = selected;
+        layout_selected_cache.resolved = true;
+    }
+    return selected;
 }
 
 void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const *frame, rect_t const *screen) {
@@ -1558,6 +1593,7 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     uint32_t const nframes = SCR_NumFrames();
     uint32_t total = 0;
 
+    SCR_BeginSelectedEntityDraw();
     layout_current = layout;
     FOR_LOOP(i, nframes) {
         uiFrame_t const *frame = SCR_Frame(i);
@@ -1588,10 +1624,12 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
                 SCR_LayoutDrawFrame(frame);
         }
     }
+    SCR_EndSelectedEntityDraw();
 }
 
 void SCR_DrawLayout(void) {
     active_tooltip = NULL;
+    SCR_BeginSelectedEntityDraw();
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         uint32_t flags = cl.playerstate.uiflags;
@@ -1614,6 +1652,7 @@ void SCR_DrawLayout(void) {
     /* Transient windows are frontmost gameplay UI. The window manager already
      * preserves server-authored z-order, but previously had no screen caller. */
     CL_WindowDraw();
+    SCR_EndSelectedEntityDraw();
 }
 
 /* The initial layout is a loading-only packet, not a gameplay HUD layer. */
@@ -1968,3 +2007,89 @@ void CL_ParseUnitUI(sizeBuf_t *msg) {
         }
     }
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+/* Change only the fields used by selection resolution, so these tests do not
+ * disrupt unrelated renderer and client fixtures. Every test restores them. */
+TEST(client_layout, selected_entity_lookup_is_reused_only_inside_a_draw) {
+    uint32_t const saved_count = cl.num_entities;
+    uint32_t saved_flags[4];
+    __typeof__(layout_selected_cache) const saved_cache = layout_selected_cache;
+
+    FOR_LOOP(i, 4) {
+        saved_flags[i] = cl.ents[i].current.renderfx;
+        cl.ents[i].current.renderfx = 0;
+    }
+    cl.num_entities = 4;
+    layout_selected_cache = (__typeof__(layout_selected_cache)){0};
+    cl.ents[1].current.renderfx = RF_SELECTED;
+    cl.ents[2].current.renderfx = RF_SELECTED;
+
+    /* The old scan's lowest selected slot has precedence. */
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[1].current);
+    SCR_BeginSelectedEntityDraw();
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[1].current);
+    cl.ents[1].current.renderfx = 0;
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[1].current); /* no second scan */
+
+    /* Nested overlays must not invalidate the enclosing HUD's result. */
+    SCR_BeginSelectedEntityDraw();
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[1].current);
+    SCR_EndSelectedEntityDraw();
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[1].current);
+    SCR_EndSelectedEntityDraw();
+
+    /* Independent direct draws and following frames see the new selection. */
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[2].current);
+    SCR_BeginSelectedEntityDraw();
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[2].current);
+    SCR_EndSelectedEntityDraw();
+
+    FOR_LOOP(i, 4) cl.ents[i].current.renderfx = saved_flags[i];
+    cl.num_entities = saved_count;
+    layout_selected_cache = saved_cache;
+}
+
+TEST(client_layout, selected_entity_lookup_caches_empty_selection_and_restarts) {
+    uint32_t const saved_count = cl.num_entities;
+    uint32_t saved_flags[3];
+    __typeof__(layout_selected_cache) const saved_cache = layout_selected_cache;
+
+    FOR_LOOP(i, 3) {
+        saved_flags[i] = cl.ents[i].current.renderfx;
+        cl.ents[i].current.renderfx = 0;
+    }
+    cl.num_entities = 3;
+    layout_selected_cache = (__typeof__(layout_selected_cache)){0};
+
+    SCR_BeginSelectedEntityDraw();
+    T_NULL(SCR_LayoutSelectedEntity());
+    cl.ents[0].current.renderfx = RF_SELECTED;
+    T_NULL(SCR_LayoutSelectedEntity()); /* cached NULL, not a new scan */
+    SCR_EndSelectedEntityDraw();
+
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[0].current);
+    SCR_BeginSelectedEntityDraw();
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[0].current);
+    SCR_EndSelectedEntityDraw();
+
+    /* A reused slot and a new entity count cannot inherit the old result. */
+    cl.num_entities = 0;
+    T_NULL(SCR_LayoutSelectedEntity());
+    SCR_BeginSelectedEntityDraw();
+    T_NULL(SCR_LayoutSelectedEntity());
+    SCR_EndSelectedEntityDraw();
+    cl.num_entities = 3;
+    cl.ents[0].current.renderfx = 0;
+    cl.ents[2].current.renderfx = RF_SELECTED;
+    SCR_BeginSelectedEntityDraw();
+    T_EQ(SCR_LayoutSelectedEntity(), &cl.ents[2].current);
+    SCR_EndSelectedEntityDraw();
+
+    FOR_LOOP(i, 3) cl.ents[i].current.renderfx = saved_flags[i];
+    cl.num_entities = saved_count;
+    layout_selected_cache = saved_cache;
+}
+#endif
