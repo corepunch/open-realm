@@ -6534,7 +6534,10 @@ TEST(wc3_api, unit_flags_native_updates_preserve_other_bits) {
         "endfunction\n"));
     edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(unit); if (!unit) return;
+    level.time = 1000;
     T_ASSERT(unit_addtimedstatus(unit, "BTLF", 1, 10.0f));
+    unit->movetype = MOVETYPE_NONE;
+    G_RunEntity(unit); /* Build the timed-status index before pausing. */
     jass_callbyname(level.vm, "freeze", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(unit->unit_flags, UNIT_FLAG_IGNORE_ALARM | UNIT_FLAG_INVULNERABLE |
@@ -6542,6 +6545,8 @@ TEST(wc3_api, unit_flags_native_updates_preserve_other_bits) {
     heroabilitystatus_t *life = unit_findstatus(unit, MAKEFOURCC('B','T','L','F'));
     T_NOT_NULL(life); if (!life) return;
     T_EQ(life->timestamp, 0); T_ASSERT(life->data > 0);
+    level.time = 1200;
+    G_RunEntity(unit); /* A frame while paused clears its timed-slot bit. */
     jass_callbyname(level.vm, "resume", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(unit->unit_flags, UNIT_FLAG_IGNORE_ALARM | UNIT_FLAG_INVULNERABLE | UNIT_FLAG_TIMED_LIFE_PAUSED);
@@ -6550,6 +6555,9 @@ TEST(wc3_api, unit_flags_native_updates_preserve_other_bits) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(unit->unit_flags, UNIT_FLAG_IGNORE_ALARM | UNIT_FLAG_INVULNERABLE);
     T_ASSERT(life->timestamp > G_Time()); T_EQ(life->data, 0);
+    level.time = life->timestamp + 1;
+    G_RunEntity(unit);
+    T_ASSERT(M_IsDead(unit)); /* Resuming restores expiry after the index was cleared. */
 }
 
 TEST(wc3_api, unit_invulnerable_default_false) {

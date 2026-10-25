@@ -700,6 +700,7 @@ uint32_t UnitPauseTimedLife(jass_t *j) {
         }
     }
     G_SetUnitFlag(whichUnit, UNIT_FLAG_TIMED_LIFE_PAUSED, flag);
+    unit_status_invalidate_update_mask(whichUnit);
     return 0;
 }
 uint32_t UnitResetCooldown(jass_t *j) {
