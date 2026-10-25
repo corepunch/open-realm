@@ -1,3 +1,63 @@
+## NightElf07 profiling comparison summary (October 25, 2026)
+
+The comparisons below rank the measured **reduction in sampled CPU-cycle
+share for the targeted hotspot**, using separate NightElf07 runs. A hotspot
+reduction is `(before - after) / before`; it is not a reduction in total CPU
+time or an FPS improvement. Sample shares can shift with workload and sampling
+variation, and the rows are not additive. Grouped measurements cannot isolate
+the contribution of each commit.
+
+| Rank | Commit | Targeted hotspot | Sample share | Hotspot reduction | Share drop |
+|---:|---|---|---:|---:|---:|
+| 1 | `client: cache active entity indicators per frame` | `CL_ApplyIndicator` | 2.99% → 0.05% | 98.3% | 2.94 pp |
+| 2 | `renderer: hash registered texture IDs for fast model lookup` | `R_FindTextureByID` | 1.52% → 0.08% | 94.7% | 1.44 pp |
+| 3 | `client: sample entity debug cvar once per scene batch` | NightElf07 string comparison | 5.94% → 0.32% | ~94.6% | 5.62 pp |
+| 4 | `renderer: skip reference-only MDX attachment poses and reuse fire poses` | Attachment collection | 10.59% → 1.18% | 88.9% | 9.41 pp |
+| 5 | `wc3: skip unchanged blight destructable scans` | `G_IsDestructable` | 1.96% → 0.32% | 83.7% | 1.64 pp |
+| 6 | `client: cache selected entity during HUD layout rendering` | Selected-entity scan | 2.09% → 0.37% | 82.3% | 1.72 pp |
+| 7 | `renderer: use direct scene indexing for MDX pose cache` | `MDLX_ViewPoseFind` | 1.35% → 0.31% | ~77% | 1.04 pp |
+| 8 | `renderer: skip world event splats in HUD and cursor views` | HUD sprite rendering | — | 74.2% | — |
+| 9 | `renderer: reuse MDX bone poses and transforms across render passes` | MDX alpha rendering | 9.87% → 3.68% | 62.7% | 6.19 pp |
+| 10 | `renderer: skip identity-basis multiplication for entity transforms` | `R_GetEntityMatrix` | — | 60.6% | — |
+| 11 | `renderer: reuse entity bounds matrix and optimize affine frustum culling` | Entity visibility | 12.11% → 5.40% | 55.4% | 6.71 pp |
+| 12 | `wc3: optimise fog blocker-rim traversal with indexed rows` | Blocker-rim scan | 1.83% → 0.91% | 50.3% | 0.92 pp |
+| 13 | `renderer: reuse culling results and filter redundant MDX alpha draws` | Alpha-surface rendering | — | 49.6% | — |
+| 14 | `wc3: avoid repeated blight datagram compression retries` | `SV_SendClientMessages` | 7.15% → 3.70% | 48.3% | 3.45 pp |
+| 15 | `renderer: cache MDX keyframe intervals within render views` | Keyframe-bound search | — | 42.0% | — |
+| 16 | `renderer: fast-path yaw-only entity matrix construction` | Entity matrix construction | 2.80% → 1.63% | 41.8% | 1.17 pp |
+| 17 | `wc3: compact AI creep camp candidate searches` | `G_BotUnitAlive` | 1.94% → 1.14% | 41.2% | 0.80 pp |
+| 18 | `shared: optimise axis-aligned frustum culling with support points` | AABB frustum culling, inclusive | 1.98% → 1.18% | 40.4% | 0.80 pp |
+| 19 | `renderer: reuse terrain corners across moving shadow splat tiles` | Terrain-height sampling | — | 39.3% | — |
+| 20 | `renderer: reduce terrain-splat cache collisions for unit shadows` | Splat-tile creation | — | 31.0% | — |
+| 21 | `wc3: optimize fog shadowcasting and blocker rim traversal` | Blocker-rim samples | 1.77% → 1.34% | ~24%* | 0.43 pp |
+| 22 | `renderer: reuse Warcraft III entity matrices across render passes` | Matrix multiplication | — | 20.6% | — |
+| 23 | `renderer: avoid redundant clipped splat UV generation` | Splat-tile creation | 3.08% → 2.84% | ~7.8%* | 0.24 pp |
+| 24 | `renderer: avoid duplicate global-sequence bone track evaluations` | `R_CalculateNodeMatrix` | — | 6.5% | — |
+| 25 | `renderer: skip MDX bone binding for opaque-only alpha passes` | Alpha-pass bone binding | 6.98% → 6.56% | 6.0% | 0.42 pp |
+
+The largest priorities to retain are MDX attachment and pose reuse, entity
+culling, client HUD/indicator caching, texture-ID lookup, and blight processing.
+These paths removed substantial sampled work from already prominent call
+trees. Percentages for small functions can still represent modest absolute
+reductions, so the targeted share and surrounding parent path matter when
+prioritising follow-up work.
+
+| Commit or group | Evidence and decision |
+|---|---|
+| `wc3: prune rejected fog shadowcasting slope windows` | Inclusive shadowcasting cost rose 5.1%; candidate for reverting. |
+| `wc3: cache shadowcasting slopes across fog revealers` | Exclusive shadowcasting cost rose 1.4%; no demonstrated benefit. |
+| `renderer: optimize affine MDX bone hierarchy transforms` | About 44% fewer scalar multiplications theoretically; runtime benefit not isolated. |
+| `renderer: reuse MDX sequence selection across bone pose` | About 98.9% fewer sequence searches theoretically; runtime benefit not isolated. |
+| `wc3: skip idle status updates and defer scheduled pulses` | Not separately quantified. |
+| `wc3: reject out-of-range Disease Cloud targets before spell validation` | Not separately quantified; targets a previously expensive path. |
+| `renderer: preserve entity-camera alpha rendering` | Correctness fix; no performance improvement measured. |
+| Test and documentation commits | Coverage, fixtures, or documentation only; no performance claim. |
+
+The shadowcasting figures above are reasons to review those changes separately,
+not proof that either change alone caused the observed cost. A matched FPS or
+frame-time comparison against an unoptimised build is still needed to measure
+the complete game's speedup.
+
 ## October 25 NightElf07 fog blocker-rim word index (patch fifty-one; patches 49/50 excluded)
 
 The latest NightElf07 profile after patch fifty (which is **not** retained)
