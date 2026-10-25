@@ -281,25 +281,16 @@ typedef struct {
     color32_t color;
 } splatTileParams_t;
 
-/* Emit one terrain tile of a splat while remapping both whole and clipped
- * polygons into atlas UVs. The clipped path used to compute and remap the
- * original six quad UVs, then discard every one during triangulation. */
-static void R_MakeSplatTile(splatTileParams_t const *params) {
+/* Emit one terrain tile with its already sampled corner positions. The
+ * clipped path constructs UVs from the final vertices; a moving rectangle
+ * can reuse neighbouring corners without altering clipping or draw order. */
+static void R_EmitSplatTile(splatTileParams_t const *params, vec3_t const p[4]) {
     struct splClip clips[4];
     uint32_t num_clips = 0;
-    war3map_t const *map = params->map;
     vec2_t const *mins = params->mins;
     vec2_t const *uv_mins = params->uv_mins;
     vec2_t const *uv_maxs = params->uv_maxs;
     float const width = params->width, height = params->height;
-    /* Sample terrain Z once for each corner. Retain the exact original
-     * positions and triangle order for both the whole and clipped tile. */
-    vec3_t const p[4] = {
-        R_GetVertexPosition(map, params->x, params->y, true),
-        R_GetVertexPosition(map, params->x + 1, params->y, true),
-        R_GetVertexPosition(map, params->x + 1, params->y + 1, true),
-        R_GetVertexPosition(map, params->x, params->y + 1, true),
-    };
 
     if (p[0].x >= mins->x && p[1].x <= mins->x + width &&
         p[0].y >= mins->y && p[2].y <= mins->y + height) {
@@ -359,6 +350,18 @@ static void R_MakeSplatTile(splatTileParams_t const *params) {
     }
 }
 
+static void R_MakeSplatTile(splatTileParams_t const *params) {
+    /* The original four-sample path also serves oversized rectangles and
+     * stationary splats being baked into the persistent geometry cache. */
+    vec3_t const p[4] = {
+        R_GetVertexPosition(params->map, params->x, params->y, true),
+        R_GetVertexPosition(params->map, params->x + 1, params->y, true),
+        R_GetVertexPosition(params->map, params->x + 1, params->y + 1, true),
+        R_GetVertexPosition(params->map, params->x, params->y + 1, true),
+    };
+    R_EmitSplatTile(params, p);
+}
+
 static void R_MakeBlightTile(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, uint32_t blight_tile) {
     vertex_t geom[6];
     R_BuildSplatQuad(map, x, y, mins, width, height, COLOR32_WHITE, geom);
@@ -406,7 +409,7 @@ static splatGeometryCacheEntry_t splat_geometry_cache[SPLAT_CACHE_SLOTS];
 static size_t splat_cache_bytes;
 static uint64_t splat_cache_clock;
 #ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
-static uint32_t splat_cache_hits, splat_cache_bakes;
+static uint32_t splat_cache_hits, splat_cache_bakes, splat_corner_reuses;
 #endif
 
 static void R_ClearSplatCacheEntry(splatGeometryCacheEntry_t *entry) {
@@ -570,6 +573,72 @@ static void R_SetupSplatState(texture_t const *texture, splat_shader_t *shader) 
     R_ApplyShader(shader);
 }
 
+/* The persistent cache deliberately misses moving splats. Their adjacent
+ * tiles still share terrain vertices, however. Cache the two x-columns of
+ * corners only while generating THIS rectangle, so deformation/map changes
+ * cannot leave stale heights behind. Maximum eligible area is 32 tiles,
+ * therefore each column needs at most 33 corners and no allocations. */
+static void R_GenerateSplatTilesWithSharedCorners(rectSplatParams_t const *params,
+                                                  int x_start, int y_start, int x_end, int y_end) {
+    vec3_t columns[2][SPLAT_CACHE_MAX_TILES + 1];
+    bool valid[2][SPLAT_CACHE_MAX_TILES + 1] = {{false}};
+    float const width = params->maxs->x - params->mins->x;
+    float const height = params->maxs->y - params->mins->y;
+
+    for (int x = x_start; x < x_end; x++) {
+        int const left = (x - x_start) & 1;
+        int const right = left ^ 1;
+        /* The old right column becomes the new left column; the next right
+         * column is unobserved until a tile actually needs its vertices. */
+        memset(valid[right], 0, sizeof(valid[right]));
+        for (int y = y_start; y < y_end; y++) {
+            if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) continue;
+            int const row = y - y_start;
+            vec3_t p[4];
+            if (!valid[left][row]) {
+                columns[left][row] = R_GetVertexPosition(tr.world, (uint32_t)x, (uint32_t)y, true);
+                valid[left][row] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            if (!valid[right][row]) {
+                columns[right][row] = R_GetVertexPosition(tr.world, (uint32_t)x + 1, (uint32_t)y, true);
+                valid[right][row] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            if (!valid[right][row + 1]) {
+                columns[right][row + 1] = R_GetVertexPosition(tr.world, (uint32_t)x + 1, (uint32_t)y + 1, true);
+                valid[right][row + 1] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            if (!valid[left][row + 1]) {
+                columns[left][row + 1] = R_GetVertexPosition(tr.world, (uint32_t)x, (uint32_t)y + 1, true);
+                valid[left][row + 1] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            p[0] = columns[left][row];
+            p[1] = columns[right][row];
+            p[2] = columns[right][row + 1];
+            p[3] = columns[left][row + 1];
+            if (ground_current_vertex - ground_vertex_buffer >
+                GROUND_VERTEX_BUFFER_CAPACITY - SPLAT_TILE_MAX_VERTICES) {
+                R_FlushSplatBatch();
+            }
+            R_EmitSplatTile(&MAKE(splatTileParams_t, .map = tr.world,
+                .x = (uint32_t)x, .y = (uint32_t)y, .mins = params->mins,
+                .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+                .width = width, .height = height, .color = params->color), p);
+        }
+    }
+}
+
 /* Emit terrain-conforming tiles for one splat rect into the shared buffer,
  * flushing to the GPU only when the buffer fills. */
 static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
@@ -591,9 +660,10 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
         return;
     }
 
-    /* Only small, repeated rectangles qualify. A new or moving rectangle
-     * follows the original path, with no allocation and no extra copies. */
-    if ((size_t)(x_end - x_start) * (size_t)(y_end - y_start) <= SPLAT_CACHE_MAX_TILES) {
+    /* Only small, repeated rectangles qualify for persistent geometry.
+     * Moving rectangles instead reuse corners within the current traversal. */
+    size_t const tiles = (size_t)(x_end - x_start) * (size_t)(y_end - y_start);
+    if (tiles <= SPLAT_CACHE_MAX_TILES) {
         splatGeometryCacheEntry_t *entry = R_SplatCacheLookup(params);
         if (entry) {
             if (!entry->vertices && !entry->unavailable &&
@@ -606,6 +676,11 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
                 R_ReplaySplatGeometry(entry, params);
                 return;
             }
+        }
+        /* Single-tile splats cannot share corners; avoid setup overhead. */
+        if (tiles > 1) {
+            R_GenerateSplatTilesWithSharedCorners(params, x_start, y_start, x_end, y_end);
+            return;
         }
     }
 

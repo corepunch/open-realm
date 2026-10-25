@@ -1,3 +1,38 @@
+## October 24 NightElf07 moving-shadow shared terrain corners (patch forty-five)
+
+After patch forty-four the NightElf07 sample attributes 7.29% inclusive CPU
+cycles to `R_DrawEntityShadows`, including 2.74% under
+`R_GenerateSplatTiles` and 2.09% under `R_MakeSplatTile`. These are sampled
+shares, not FPS or frame-time measurements. Shadows are already batched by
+contiguous texture runs, and the persistent splat geometry cache intentionally
+admits only repeated stationary rectangles. Moving shadows change their XY
+rectangle every frame and take the uncached path.
+
+The uncached splat builder used to sample all four terrain corners for **each**
+accepted tile. For small rectangles crossing adjacent tiles, that reads the
+same `R_GetVertexPosition` corners repeatedly, including the dynamic terrain
+offset. Patch forty-five stores two adjacent columns of corner positions
+**only for the duration of the current rectangle**. The columns are lazily
+populated for accepted tiles, then rotated as the x-major traversal advances.
+A fully accepted 2-by-2 rectangle now samples nine shared grid corners rather
+than sixteen per-tile corners; a 4-by-4 rectangle samples 25 rather than 64.
+There are no persistent allocations or new renderer/game APIs. Terrain
+height/ramp/offset rules, clipped geometry, UVs, tints, blending order and
+batch flushes still use the existing tile emitter.
+
+Only uncached rectangles with between 2 and 32 candidate tiles use the new
+stack-local cache. Single-tile rectangles avoid setup overhead; oversized
+splats and geometry-cache baking retain the original four-sample path.
+Previously cached geometry is still invalidated on deformation/map reset.
+`renderer_terrain.moving_splat_corners_preserve_original_clipped_vertices`
+compares generated vertices against the previous per-tile sampling algorithm
+for clipped, moving, horizontal/vertical, edge and multi-height rectangles,
+and asserts that corners are actually reused. The oversized fallback test
+compares the original traversal. Existing geometry-cache/batching tests still
+cover admission, release, atlas tint and draw order. This patch was reviewed
+statically; the user will compile/run `+test 'renderer_terrain.*'` and compare
+matched `R_MakeSplatTile`, `R_GetVertexPosition`, and FPS/frame times.
+
 ## October 24 NightElf07 hashed GL texture-ID lookup (patch forty-four)
 
 The post-forty-three NightElf07 profile still samples `R_FindTextureByID`

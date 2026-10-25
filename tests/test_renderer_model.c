@@ -3751,6 +3751,119 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     T_FEQ(splat_bias.factor, 0.0f, 0.0f); T_FEQ(splat_bias.units, 0.0f, 0.0f);
 }
 
+/* Oracle for moving splats: the old rectangle walk sampled all four
+ * corners of every accepted tile. Keep the production tile emitter, clips,
+ * UV mapping and tile order rather than substituting a simplified grid. */
+static uint32_t R_TestUncachedSplatReference(rectSplatParams_t const *params) {
+    vec2_t const *mins = params->mins, *maxs = params->maxs;
+    int const x0 = MAX(0, (int)floor((mins->x - tr.world->center.x) / TILE_SIZE));
+    int const y0 = MAX(0, (int)floor((mins->y - tr.world->center.y) / TILE_SIZE));
+    int const x1 = MIN((int)tr.world->width - 1, (int)ceil((maxs->x - tr.world->center.x) / TILE_SIZE));
+    int const y1 = MIN((int)tr.world->height - 1, (int)ceil((maxs->y - tr.world->center.y) / TILE_SIZE));
+    ground_current_vertex = ground_vertex_buffer;
+    for (int x = x0; x < x1; x++) for (int y = y0; y < y1; y++) {
+        if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) continue;
+        R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world,
+            .x = (uint32_t)x, .y = (uint32_t)y, .mins = mins,
+            .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+            .width = maxs->x - mins->x, .height = maxs->y - mins->y,
+            .color = params->color));
+    }
+    return (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+}
+
+TEST(renderer_terrain, moving_splat_corners_preserve_original_clipped_vertices) {
+    war3mapVertex_t vertices[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t const uv0 = { 0.125f, 0.25f }, uv1 = { 0.75f, 0.875f };
+    color32_t const tint = { 41, 82, 123, 164 };
+    struct { vec2_t mins, maxs; } const rects[] = {
+        { { 10, 20 }, { 240, 250 } },   /* 2x2, four clipped edges */
+        { { 140, 8 }, { 360, 255 } },   /* shifted moving rectangle */
+        { { 20, 130 }, { 100, 475 } }, /* 1x3 vertical */
+        { { 130, 20 }, { 470, 105 } }, /* 3x1 horizontal */
+        { { -20, -10 }, { 210, 200 } }, /* clipped at map boundary */
+        { { 34, 30 }, { 485, 478 } },  /* 4x4, height variation */
+        { { 8, 6 }, { 105, 110 } },    /* single-tile fallback */
+    };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 25) {
+        vertices[i].accurate_height = 8192 + (i * 113);
+        /* Keep all tiles ground-owned while varying the per-corner height. */
+    }
+    tr.world = &map;
+    FOR_LOOP(i, sizeof(rects) / sizeof(rects[0])) {
+        rectSplatParams_t const params = {
+            .mins = &rects[i].mins, .maxs = &rects[i].maxs,
+            .uv_mins = &uv0, .uv_maxs = &uv1, .color = tint,
+        };
+        R_InvalidateSplatGeometryCache(); /* every rectangle is a first observation */
+        uint32_t const expected = R_TestUncachedSplatReference(&params);
+        T_ASSERT(expected > 0 && expected <= SPLAT_CACHE_MAX_VERTICES);
+        memcpy(reference, ground_vertex_buffer, expected * sizeof(vertex_t));
+        ground_current_vertex = ground_vertex_buffer;
+        splat_corner_reuses = splat_cache_bakes = 0;
+        R_GenerateSplatTiles(&params);
+        uint32_t const actual = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+        T_EQ(actual, expected);
+        T_EQ(splat_cache_bakes, 0);
+        T_ASSERT((i == 6) ? (splat_corner_reuses == 0) : (splat_corner_reuses > 0));
+        FOR_LOOP(j, MIN(actual, expected)) {
+            vertex_t const *a = &reference[j], *b = &ground_vertex_buffer[j];
+            T_FEQ(a->position.x, b->position.x, 0.0f);
+            T_FEQ(a->position.y, b->position.y, 0.0f);
+            T_FEQ(a->position.z, b->position.z, 0.0f);
+            T_FEQ(a->texcoord.x, b->texcoord.x, 0.0f);
+            T_FEQ(a->texcoord.y, b->texcoord.y, 0.0f);
+            T_EQ(a->color.r, b->color.r);
+            T_EQ(a->color.g, b->color.g);
+            T_EQ(a->color.b, b->color.b);
+            T_EQ(a->color.a, b->color.a);
+            T_FEQ(a->normal.z, b->normal.z, 0.0f);
+            T_ASSERT(!memcmp(a->skin, b->skin, sizeof(a->skin)));
+            T_ASSERT(!memcmp(a->boneWeight, b->boneWeight, sizeof(a->boneWeight)));
+        }
+    }
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, oversized_moving_splat_uses_original_corner_path) {
+    war3mapVertex_t vertices[64] = {0};
+    war3map_t map = { .width = 8, .height = 8, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t const mins = { 0, 0 }, maxs = { 7 * TILE_SIZE, 7 * TILE_SIZE };
+    vec2_t const uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    rectSplatParams_t const params = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 64) vertices[i].accurate_height = 8192 + i * 23;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    uint32_t const expected = R_TestUncachedSplatReference(&params);
+    T_ASSERT(expected > 0 && expected <= SPLAT_CACHE_MAX_VERTICES);
+    memcpy(reference, ground_vertex_buffer, expected * sizeof(vertex_t));
+    ground_current_vertex = ground_vertex_buffer;
+    splat_corner_reuses = splat_cache_bakes = 0;
+    R_GenerateSplatTiles(&params);
+    uint32_t const actual = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_EQ(actual, expected);
+    T_EQ(splat_corner_reuses, 0);
+    T_EQ(splat_cache_bakes, 0);
+    FOR_LOOP(j, MIN(actual, expected)) {
+        T_FEQ(ground_vertex_buffer[j].position.z, reference[j].position.z, 0.0f);
+        T_FEQ(ground_vertex_buffer[j].texcoord.x, reference[j].texcoord.x, 0.0f);
+        T_FEQ(ground_vertex_buffer[j].texcoord.y, reference[j].texcoord.y, 0.0f);
+    }
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
 TEST(renderer_terrain, splat_cache_replays_clipped_geometry_with_live_color_and_atlas) {
     war3mapVertex_t vertices[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
