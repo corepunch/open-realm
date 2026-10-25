@@ -61,6 +61,76 @@ not proof that either change alone caused the observed cost. A matched FPS or
 frame-time comparison against an unoptimised build is still needed to measure
 the complete game's speedup.
 
+## October 22–23, 2026 ARM64 profiling comparison
+
+These comparisons report reductions in sampled CPU cost for the named function
+or subsystem, **not overall FPS or frame-time improvements**. Captures came
+from separate runs, so workload and sampling variation apply. A percentage
+reduction is relative to the targeted path; percentage-point (pp) changes show
+the difference in its share of total samples. Parent paths and narrower
+hotspots can overlap, and neither percentages nor share drops should be added
+across rows. The detailed sections below describe the changes and their
+correctness constraints.
+
+| Commit | Targeted path and measured result | Evidence |
+|---|---|---|
+| `wc3: combine regeneration aura provider and effect scans` | Provider/effect traversal combined | Not separately measured; [implementation notes](#october-23-arm64-regeneration-aura-combined-cache-traversal). |
+| `renderer: preserve negative MDX camera key times` | — | Correctness fix, not a performance optimisation. |
+| `test: update regression fixtures for current state` | — | Test maintenance. |
+| `renderer: optimize MDX keytrack interval lookups` | MDX hotspot 0.93% → 0.54% (41.9% reduction) | Targeted hotspot measurement. |
+| `renderer: index walkable surfaces for ground conformance` | Ground conformance 0.65% → 0.31% (52.3% reduction) | Targeted hotspot measurement; [implementation notes](#october-23-arm64-ground-surface-candidate-index-patch-sixteen). |
+| `wc3: skip untinted entities during client datagram generation` | Datagram generation 2.31% → 2.29% (0.9% reduction; 0.02 pp) | Small and inconclusive. |
+| `renderer: batch contiguous Warcraft III splat submissions` | Retained event-splat path 3.61% → 1.39% (61.5% reduction) | Strong targeted result; [implementation notes](#october-23-arm64-contiguous-splat-submission-batching-patch-fourteen). |
+| `renderer: cache repeated terrain-conforming splat geometry` | Splat generation 2.77% → 2.81% (1.4% increase; 0.04 pp) | Dropped after this measured regression; the later [four-way collision follow-up](#october-24-nightelf07-shadow-splat-cache-collision-avoidance-patch-thirty-seven) retains the revised cache. |
+| `client: optimize HUD overlay drawing with stable paint groups` | HUD layout 10.78% → 10.23% (5.1% reduction; 0.55 pp) | Small and inconclusive; [implementation notes](#october-23-arm64-client-overlay-paint-pass-grouping). |
+| `wc3: optimize status-state queries using occupied-slot index` | Monster thinking 17.77% → 10.42% (41.4% reduction); original 7.54% status hotspot disappeared | Broad parent path plus hotspot; [implementation notes](#october-23-arm64-categorical-status-state-lookups). |
+| `fix(wc3): update optimizations for extracted unit state` | — | Compatibility/correctness fix; no separate measurement. |
+| `wc3: cache aura family classification and filter ability ownership checks` | Aura processing 5.93% → 4.26% (28.2% reduction) | Targeted path; [implementation notes](#october-22-arm64-aura-family-classification-and-ownership-filtering). |
+| `wc3: optimize client selection revalidation with single entity scan` | Selection update 1.59% → 1.56% (1.9% reduction; 0.03 pp) | Small and inconclusive; [implementation notes](#october-22-arm64-selection-revalidation-scan). |
+| `wc3: cache moon well ability classification by data generation` | Moon Well hotspot 1.19% → 1.09% (8.4% reduction; 0.10 pp) | Provisional; [implementation notes](#october-22-arm64-moon-well-class-lookup-caching). |
+| `wc3: optimize moon well ability update dispatch` | Ability-update branch 2.70% → 1.38% (48.9% reduction; 1.32 pp) | Targeted branch measurement; [implementation notes](#october-22-arm64-moon-well-update-filtering). |
+| `wc3: skip unnecessary per-unit ability update callbacks` | Ability-update path 11.37% → 2.70% (76.3% reduction; 8.67 pp) | One of the largest measured share drops; [implementation notes](#october-22-arm64-per-unit-ability-update-dispatch). |
+| `wc3: reuse bound mdx bone pose for attachment collection` | Sampled rendering path 27.89% → 25.01%; alpha surfaces improved 31.1% | Broader rendering path; measurements overlap. |
+| `wc3: optimize aura provider discovery with single-pass resolution` | Aura-update path 8.73% → 5.59% (36.0% reduction; 3.14 pp) | Targeted path. |
+| `wc3: optimize client tint visibility and snapshot packing` | Snapshot subpath 11.19% → 2.59% (76.9% reduction; 8.60 pp); broader client-message path improved 52.2% | Large subpath and parent-path changes; do not add together. |
+| `wc3: optimize status level queries with occupied slot index` | Original `G_UnitStatusLevel` hotspot at 8.15% disappeared | Large hotspot elimination; exact reduction unavailable. |
+| `wc3: optimize timed status updates with indexed slots` | Timed-status hotspot 8.15% → ~0.64% (~92.1% reduction; ~7.51 pp) | Another status-query hotspot remained until the following optimisation. |
+
+### Largest measured contributors in this group
+
+The largest reported reductions are per-unit ability-update dispatch
+(8.67 pp), client tint/snapshot packing (8.60 pp in its subpath), timed-status
+indexing (~7.51 pp), status-state indexing (the monster-thinking parent path
+dropped 7.35 pp while its original 7.54% status hotspot disappeared), and
+contiguous event-splat batching (2.22 pp). The status-state result combines a
+parent-path change with the disappearance of a narrower hotspot; those figures
+describe overlapping views of work. These are useful priorities for retention
+and regression coverage, not an estimate of cumulative frame-time savings.
+
+The earlier status-level index result has no exact post-change percentage,
+although its original hotspot disappeared. Regeneration-aura traversal,
+MDX-bound pose reuse and single-pass aura-provider discovery also lack an
+isolated commit-level reduction in the supplied comparison. Treat them as
+unquantified here rather than assigning them a percentage based on adjacent
+measurements.
+
+### Results to keep provisional or review
+
+The initial terrain-conforming splat geometry cache measured a slight increase
+in splat-generation share (2.77% to 2.81%) and its commit was dropped. A later
+four-way collision follow-up reintroduces a revised cache with a separate
+NightElf07 measurement; see its dated section below. The untinted-entity
+datagram change (0.02 pp) and selection scan change (0.03 pp) are too small to
+distinguish confidently from sampling variation. HUD grouping and Moon Well
+classification showed small reductions and merit matched A/B measurements.
+These results do not prove that the changes have no value on other workloads.
+
+The large results identify worthwhile hot paths, but do not establish an
+end-to-end speedup: profiles were collected in separate runs, some rows cover
+overlapping parent and child paths, and removing one hotspot can shift the
+remaining sample shares. Use matched scenes, repeated frame-time measurements
+and comparable profiles to assess complete-game impact.
+
 ## October 25 NightElf07 fog blocker-rim word index (patch fifty-one; patches 49/50 excluded)
 
 The latest NightElf07 profile after patch fifty (which is **not** retained)
@@ -892,8 +962,9 @@ The post-patch-thirteen handheld profile puts the world splat geometry path at
 about 2.81% inclusive CPU sample share and the immediate-event splat draw path
 at about 3.21% within the sampled HUD/rendering call chain. These paths
 **overlap other renderer costs** and cannot be summed or translated directly
-into an FPS improvement. The prior small-rectangle geometry cache showed a 1.4% increase in sampled
-splat-generation cost and was removed; this pass targets redundant submissions.
+into an FPS improvement. The initial small-rectangle geometry-cache commit
+showed a 1.4% increase in sampled splat-generation cost and was dropped; the
+later four-way cache follow-up remains. This pass targets redundant submissions.
 
 `R_AddRectSplatUV` reuses the existing vertex buffer, per-texture flush, and
 shader state setup for **contiguous compatible splats**. Different atlas frames,

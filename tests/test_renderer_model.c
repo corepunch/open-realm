@@ -3546,6 +3546,7 @@ static void test_splat_draw_arrays(GLenum mode, GLint first, GLsizei count) {
 #define glBlendFunc test_splat_blend_func
 #define R_BindTexture test_splat_bind_texture
 #define R_SetTextureWrap test_splat_wrap_texture
+#undef R_ApplyShader
 #define R_ApplyShader test_splat_apply_shader
 void R_TestProductionRenderRectSplatUV(rectSplatParams_t const *params);
 static struct { uint32_t calls, first, count; float z; } ground_update;

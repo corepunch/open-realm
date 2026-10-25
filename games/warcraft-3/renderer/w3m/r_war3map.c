@@ -333,6 +333,7 @@ static void R_W3ClearTerrainDeformations(void) {
 }
 
 static void R_W3ResetTerrainDeformations(void) {
+    R_InvalidateSplatGeometryCache();
     memset(w3_deformations, 0, sizeof(w3_deformations));
     if (w3_terrain_offsets) memset(w3_terrain_offsets, 0, (size_t)w3_terrain_offset_count * sizeof(float));
     if (w3_terrain_dirty_segments) memset(w3_terrain_dirty_segments, 1, w3_terrain_segment_count);
@@ -469,7 +470,10 @@ void R_W3UpdateTerrainDeformations(void) {
         w3_deform_x0 = current_x0; w3_deform_y0 = current_y0;
         w3_deform_x1 = current_x1; w3_deform_y1 = current_y1;
     } else w3_deform_bounds_valid = false;
-    if (changed) w3_terrain_rebuild_pending = true;
+    if (changed) {
+        R_InvalidateSplatGeometryCache(); /* Height offsets changed before mesh rebake. */
+        w3_terrain_rebuild_pending = true;
+    }
     if (!active) w3_deform_last_update = 0;
 }
 
@@ -502,6 +506,7 @@ static void R_W3EmitChangedTerrain(void) {
         }
     }
     if (rebuilt) {
+        R_InvalidateSplatGeometryCache();
         R_W3InvalidateSpecialModels();
         R_FinishCliffs();
         R_InvalidateBlightLayer();
