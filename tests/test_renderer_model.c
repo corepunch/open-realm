@@ -72,6 +72,124 @@ static int renderer_test_frustum_box_corners(frustum3_t const *frustum, box3_t c
     return 1;
 }
 
+/* Independently preserve the pre-patch-47 corner order and > 0 rule.
+ * This is deliberately not an invocation of the production fallback. */
+static int renderer_test_frustum_aabox_corners(frustum3_t const *frustum, box3_t const *box) {
+    vec3_t const corners[8] = {
+        { box->min.x, box->min.y, box->min.z },
+        { box->max.x, box->min.y, box->min.z },
+        { box->min.x, box->max.y, box->min.z },
+        { box->max.x, box->max.y, box->min.z },
+        { box->min.x, box->min.y, box->max.z },
+        { box->max.x, box->min.y, box->max.z },
+        { box->min.x, box->max.y, box->max.z },
+        { box->max.x, box->max.y, box->max.z },
+    };
+    for (int p = 0; p < FRUSTUM_NUM_PLANES; p++) {
+        int any = 0;
+        for (int k = 0; k < 8; k++) {
+            if (Plane3_MultiplyVector3(&frustum->planes[p], &corners[k]) > 0.0f) {
+                any = 1;
+                break;
+            }
+        }
+        if (!any) return 0;
+    }
+    return 1;
+}
+
+TEST(renderer_model, axis_aligned_frustum_box_matches_all_corners) {
+    mat4_t projection;
+    frustum3_t frustum;
+    Matrix4_identity(&projection);
+    Frustum_Calculate(&projection, &frustum);
+
+    /* Real frustum planes and deterministic boxes exercising all six faces,
+     * different extents, inside/outside/overlap, and zero-area axes. */
+    for (int i = 0; i < 864; i++) {
+        box3_t box;
+        float const cx = ((i * 37) % 89 - 44) * 0.095f;
+        float const cy = ((i * 47) % 83 - 41) * 0.099f;
+        float const cz = ((i * 59) % 79 - 39) * 0.103f;
+        float const dx = (i % 7) * 0.41f;
+        float const dy = ((i / 7) % 8) * 0.32f;
+        float const dz = ((i / 13) % 6) * 0.25f;
+        box.min = (vec3_t){cx - dx, cy - dy, cz - dz};
+        box.max = (vec3_t){cx + dx, cy + dy, cz + dz};
+        T_EQ(Frustum_ContainsAABox(&frustum, &box),
+             renderer_test_frustum_aabox_corners(&frustum, &box));
+    }
+
+    /* Synthetic oblique planes catch wrong support-axis selection and
+     * cancellation when the farthest corner differs from plane to plane. */
+    for (int p = 0; p < FRUSTUM_NUM_PLANES; p++) {
+        frustum.planes[p].a = ((p * 7) % 9 - 4) * 0.27f;
+        frustum.planes[p].b = ((p * 5) % 11 - 5) * 0.16f;
+        frustum.planes[p].c = ((p * 3) % 7 - 3) * 0.31f;
+        frustum.planes[p].d = ((p * 13) % 7 - 3) * 0.12f;
+    }
+    for (int i = 0; i < 864; i++) {
+        float const x = ((i * 31) % 41 - 20) * 0.2f;
+        float const y = ((i * 17) % 43 - 21) * 0.18f;
+        float const z = ((i * 23) % 47 - 23) * 0.11f;
+        box3_t const box = {
+            .min = { x, y, z },
+            .max = { x + (i % 11) * 0.39f,
+                     y + (i % 9) * 0.28f, z + (i % 13) * 0.21f },
+        };
+        T_EQ(Frustum_ContainsAABox(&frustum, &box),
+             renderer_test_frustum_aabox_corners(&frustum, &box));
+    }
+}
+
+TEST(renderer_model, axis_aligned_frustum_box_preserves_contact_and_invalid_values) {
+    frustum3_t frustum;
+    mat4_t projection;
+    Matrix4_identity(&projection);
+    Frustum_Calculate(&projection, &frustum);
+
+    /* Strict > 0: a box which just touches a plane can be outside. Exercise
+     * either side of all three axes, including rounding to the same float. */
+    for (int axis = 0; axis < 3; axis++) {
+        for (int sign = -1; sign <= 1; sign += 2) {
+            for (int step = -8; step <= 8; step++) {
+                box3_t box = { .min = {-0.5f, -0.5f, -0.5f},
+                               .max = { 0.5f, 0.5f, 0.5f} };
+                float const contact = sign * 1.0f + step * 0.00000012f;
+                if (axis == 0) box.min.x = box.max.x = contact;
+                if (axis == 1) box.min.y = box.max.y = contact;
+                if (axis == 2) box.min.z = box.max.z = contact;
+                T_EQ(Frustum_ContainsAABox(&frustum, &box),
+                     renderer_test_frustum_aabox_corners(&frustum, &box));
+            }
+        }
+    }
+
+    box3_t specials[] = {
+        { .min = {-1, -1, -1}, .max = {1, 1, 1} },
+        { .min = {2, -1, -1}, .max = {-2, 1, 1} }, /* inverted */
+        { .min = {-INFINITY, -1, -1}, .max = {1, 1, 1} },
+        { .min = {-1, -1, -1}, .max = {INFINITY, 1, 1} },
+        { .min = {NAN, -1, -1}, .max = {1, 1, 1} },
+        { .min = {-1, -1, -1}, .max = {1, NAN, 1} },
+        { .min = {-1.0e30f, -1.0e30f, -1.0e30f},
+          .max = {1.0e30f, 1.0e30f, 1.0e30f} },
+        { .min = {-1.0e-30f, -1.0e-30f, -1.0e-30f},
+          .max = {1.0e-30f, 1.0e-30f, 1.0e-30f} },
+    };
+    for (size_t i = 0; i < sizeof(specials) / sizeof(specials[0]); i++) {
+        T_EQ(Frustum_ContainsAABox(&frustum, &specials[i]),
+             renderer_test_frustum_aabox_corners(&frustum, &specials[i]));
+    }
+    /* Invalid plane values also must use the original corner comparisons. */
+    for (int which = 0; which < 3; which++) {
+        frustum3_t changed = frustum;
+        changed.planes[0].a = which == 0 ? NAN : (which == 1 ? INFINITY : -INFINITY);
+        T_EQ(Frustum_ContainsAABox(&changed, &specials[0]),
+             renderer_test_frustum_aabox_corners(&changed, &specials[0]));
+    }
+}
+
 TEST(renderer_model, affine_frustum_box_matches_corner_test_across_rotations_and_boundaries) {
     mat4_t camera;
     frustum3_t frustum;

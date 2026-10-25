@@ -1,3 +1,31 @@
+## October 25 NightElf07 axis-aligned frustum culling (patch forty-seven)
+
+After patch forty-six, `Frustum_ContainsAABox` still used the original eight-corner
+search for every shadow or terrain AABB and occupied approximately **1.14%**
+exclusive CPU-cycle sample share; `Plane3_MultiplyVector3` also remained visible
+in shadow frustum rejection. Those samples indicate a promising hot path,
+not an observed speedup.
+
+The shared `Frustum_ContainsAABox` now evaluates only the per-plane support
+corner selected by its normal's signs. For ordinary finite, correctly ordered
+bounds, this reduces up to eight corner dot products per plane to one. It
+preserves the original corner-order and **strict `> 0`** decisions through a
+conservative error interval: contact/borderline cases, non-finite inputs,
+reversed bounds, and overflow/invalid plane arithmetic run the original
+corner-test implementation. The error interval uses all possible corner
+magnitudes, not just the chosen support corner, so different-corner rounding
+near a plane cannot silently change culling. No frustum or game-specific
+state is cached; Warcraft III shadows, terrain and other shared callers retain
+their existing visibility decisions.
+
+`renderer_model.axis_aligned_frustum_box_*` tests compare with an independent
+copy of the original eight-corner reference for real and oblique planes,
+inside/outside/straddling and degenerate boxes, near-plane contacts, large and
+small coordinates, inverted extents, NaNs and infinities. Compile and run the
+renderer tests, then compare matched NightElf07 shadow/terrain `perf` call
+stacks and frame time/FPS. No compilation or tests were run locally while
+preparing the patch.
+
 ## October 25 NightElf07 yaw-only entity placement (patch forty-six)
 
 `R_GetEntityMatrix` previously built a general quaternion and full

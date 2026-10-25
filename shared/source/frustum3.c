@@ -1,4 +1,5 @@
 #include "../cmath3.h"
+#include <float.h>
 
 void Frustum_Calculate(mat4_t const *matrix, frustum3_t *output) {
     output->right.normal.x = matrix->v[ 3] - matrix->v[ 0];
@@ -124,7 +125,9 @@ int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, mat4_t con
     return 1;
 }
 
-int Frustum_ContainsAABox(frustum3_t const *frustum, box3_t const *box) {
+/* Original eight-corner classification. Preserve this as the exact referee
+ * for contact with a plane, non-finite inputs, and unusual box bounds. */
+static int Frustum_ContainsAABoxCorners(frustum3_t const *frustum, box3_t const *box) {
     vec3_t const points[] = {
         { box->min.x, box->min.y, box->min.z },
         { box->max.x, box->min.y, box->min.z },
@@ -143,6 +146,44 @@ int Frustum_ContainsAABox(frustum3_t const *frustum, box3_t const *box) {
         }
         return 0;
     next_cycle:;
+    }
+    return 1;
+}
+
+/* An AABB's maximum signed distance from a plane is attained at the corner
+ * selected by the signs of the normal. This avoids up to 48 dot products and
+ * repeatedly constructing the same corners for every shadow/terrain AABB.
+ * Keep the original strict > 0 classification near floating-point contact:
+ * a different corner can round across zero even when its exact distance is
+ * smaller. The error envelope also catches overflow, NaNs and infinities. */
+int Frustum_ContainsAABox(frustum3_t const *frustum, box3_t const *box) {
+    if (!isfinite(box->min.x) || !isfinite(box->min.y) || !isfinite(box->min.z) ||
+        !isfinite(box->max.x) || !isfinite(box->max.y) || !isfinite(box->max.z) ||
+        box->min.x > box->max.x || box->min.y > box->max.y || box->min.z > box->max.z)
+        return Frustum_ContainsAABoxCorners(frustum, box);
+
+    /* The maximum absolute coordinate bounds the roundoff for *all* eight
+     * corners, not just the selected support corner. Compute it only once. */
+    float const bound_x = fmaxf(fabsf(box->min.x), fabsf(box->max.x));
+    float const bound_y = fmaxf(fabsf(box->min.y), fabsf(box->max.y));
+    float const bound_z = fmaxf(fabsf(box->min.z), fabsf(box->max.z));
+
+    for (unsigned i = 0; i < FRUSTUM_NUM_PLANES; i++) {
+        plane3_t const *plane = &frustum->planes[i];
+        vec3_t const corner = {
+            plane->a > 0.0f ? box->max.x : box->min.x,
+            plane->b > 0.0f ? box->max.y : box->min.y,
+            plane->c > 0.0f ? box->max.z : box->min.z,
+        };
+        float const distance = Plane3_MultiplyVector3(plane, &corner);
+        float const error = 16.0f * FLT_EPSILON *
+            (fabsf(plane->a) * bound_x + fabsf(plane->b) * bound_y +
+             fabsf(plane->c) * bound_z + fabsf(plane->d) + 1.0f);
+        if (distance > error)
+            continue;
+        if (distance < -error)
+            return 0;
+        return Frustum_ContainsAABoxCorners(frustum, box);
     }
     return 1;
 }
