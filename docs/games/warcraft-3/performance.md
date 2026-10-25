@@ -1035,33 +1035,6 @@ index cases. The existing saved-unit-state index rebuild test remains
 applicable. Build and run the tests, then compare the same gameplay scene's
 `unit_hasstatusstate` samples and median frame times on ARM64.
 
-## October 22 ARM64 selection revalidation scan
-
-On the handheld, `G_UpdateClientSelections` accounted for about 1.6% of
-exclusive `cycles:ppp` samples. Previously it scanned `globals.num_edicts`
-for *each* client on every server frame, regardless of how many units were
-selected. JASS `SelectUnit` and `ClearSelection` can alter `edict_t.selected`
-directly, so a persistent index maintained only by the C selection helpers
-would not represent authoritative selection state.
-
-`G_UpdateClientSelections` now gathers all edicts with any raw selection bit
-in a single scan, in entity order. Each player's current bit is tested when
-processing that player, then the existing selectability and selection-limit
-rules apply unchanged. Hidden, dead, fogged, and newly unselectable units still
-have stale raw bits removed. Cap reduction continues to use Warcraft priority
-ordering and publish the original JASS events. A selection change triggers a
-fresh candidate scan before processing another client, because those events
-may select units that were not present in the initial snapshot. Abnormally
-large scripted selections (more than `MAX_CLIENTS * WC3_SELECTION_MAX`
-distinct edicts) use the old unbounded scan instead of truncating the set.
-
-There is no persistent index, save-format change, or network-protocol change.
-The `wc3_api.selection_revalidation_*` and existing selection-limit/JASS tests
-cover the raw-bit and lifecycle cases. Compare frame times in the same scene;
-relative CPU sampling shares alone do not prove an FPS increase.
-
-For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
-
 ## October 22 ARM64 Moon Well class-lookup caching
 
 `perf` after the Moon Well dispatch guard found two `S_MoonWellMayUpdate`
