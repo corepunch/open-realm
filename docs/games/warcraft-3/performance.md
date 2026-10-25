@@ -5,7 +5,9 @@ share for the targeted hotspot**, using separate NightElf07 runs. A hotspot
 reduction is `(before - after) / before`; it is not a reduction in total CPU
 time or an FPS improvement. Sample shares can shift with workload and sampling
 variation, and the rows are not additive. Grouped measurements cannot isolate
-the contribution of each commit.
+the contribution of each commit. Percentage suffixes on rewritten commit
+subjects refer to these sampled hotspot reductions; suffixes marked `group`
+describe a grouped comparison rather than an individual commit result.
 
 | Rank | Commit | Targeted hotspot | Sample share | Hotspot reduction | Share drop |
 |---:|---|---|---:|---:|---:|
@@ -23,7 +25,7 @@ the contribution of each commit.
 | 12 | `wc3: optimise fog blocker-rim traversal with indexed rows` | Blocker-rim scan | 1.83% → 0.91% | 50.3% | 0.92 pp |
 | 13 | `renderer: reuse culling results and filter redundant MDX alpha draws` | Alpha-surface rendering | — | 49.6% | — |
 | 14 | `wc3: avoid repeated blight datagram compression retries` | `SV_SendClientMessages` | 7.15% → 3.70% | 48.3% | 3.45 pp |
-| 15 | `renderer: cache MDX keyframe intervals within render views` | Keyframe-bound search | — | 42.0% | — |
+| 15 | `renderer: cache MDX keyframe intervals within render views` | Keyframe-bound search; combined search/cache cost | — | 42.0%; 16.3% combined | — |
 | 16 | `renderer: fast-path yaw-only entity matrix construction` | Entity matrix construction | 2.80% → 1.63% | 41.8% | 1.17 pp |
 | 17 | `wc3: compact AI creep camp candidate searches` | `G_BotUnitAlive` | 1.94% → 1.14% | 41.2% | 0.80 pp |
 | 18 | `shared: optimise axis-aligned frustum culling with support points` | AABB frustum culling, inclusive | 1.98% → 1.18% | 40.4% | 0.80 pp |
