@@ -1549,84 +1549,59 @@ void SCR_LayoutUpdateTooltip(handle_t layout) {
     SCR_LayoutRunFrames(layout, SCR_LayoutUpdateFrame);
 }
 
-/* This order is shared by retained HUD layers, loading UI and transient
- * windows.  Each group is stable by frame number (the original pass order).
- * Highlights intentionally receive a second entry after normal content. */
-typedef enum {
-    OVERLAY_BASE_SPRITES,
-    OVERLAY_BASE_TEXTURES,
-    OVERLAY_STATUS_BARS,
-    OVERLAY_CONTENT,
-    OVERLAY_GLUE_HIGHLIGHTS,
-    OVERLAY_TOP_TEXTURES,
-    OVERLAY_TOP_SPRITES,
-    OVERLAY_TEXT_RANK_3,
-    OVERLAY_TEXT_RANK_2,
-    OVERLAY_TEXT_RANK_1,
-    OVERLAY_TEXT_RANK_0,
-    OVERLAY_GROUP_COUNT
-} overlayDrawGroup_t;
-
-static overlayDrawGroup_t SCR_LayoutFrameDrawGroup(uiFrame_t const *frame) {
-    if (frame->flags.type == FT_SPRITE)
-        return (frame->flagsvalue & UIFLAG_SPRITE_OVERLAY) ? OVERLAY_TOP_SPRITES : OVERLAY_BASE_SPRITES;
-    if (frame->flags.type == FT_TEXTURE)
-        return (frame->flagsvalue & UIFLAG_TEXTURE_OVERLAY) ? OVERLAY_TOP_TEXTURES : OVERLAY_BASE_TEXTURES;
-    if (frame->flags.type == FT_SIMPLESTATUSBAR) return OVERLAY_STATUS_BARS;
-    if (frame->flags.type == FT_TEXT && (frame->flagsvalue & UIFLAG_TEXT_OVERLAY)) {
-        uint32_t const rank = (frame->flagsvalue & UIFLAG_TEXT_RANK_MASK) >> UIFLAG_TEXT_RANK_SHIFT;
-        return (overlayDrawGroup_t)(OVERLAY_TEXT_RANK_3 + 3 - rank);
-    }
-    return OVERLAY_CONTENT;
-}
-
 void SCR_LayoutDrawOverlay(handle_t layout) {
-    /* The decoded layout is bounded by MAX_LAYOUT_OBJECTS.  A transient,
-     * stable counting sort avoids eleven complete frame scans and does not
-     * retain any pointer across SCR_ClearLayer/SCR_ClearWindow calls.  Each
-     * glue button contributes one normal draw and one highlight draw. */
-    uint16_t ordered[MAX_LAYOUT_OBJECTS * 2];
-    uint8_t group_of[MAX_LAYOUT_OBJECTS];
-    uint32_t counts[OVERLAY_GROUP_COUNT] = { 0 };
-    uint32_t offsets[OVERLAY_GROUP_COUNT];
-    uint32_t cursor[OVERLAY_GROUP_COUNT];
-    uint32_t const nframes = SCR_NumFrames();
-    uint32_t total = 0;
-
     SCR_BeginSelectedEntityDraw();
     layout_current = layout;
-    FOR_LOOP(i, nframes) {
-        uiFrame_t const *frame = SCR_Frame(i);
-        overlayDrawGroup_t const group = SCR_LayoutFrameDrawGroup(frame);
-        group_of[i] = (uint8_t)group;
-        counts[group]++;
-        if (frame->flags.type == FT_GLUETEXTBUTTON || frame->flags.type == FT_GLUEBUTTON)
-            counts[OVERLAY_GLUE_HIGHLIGHTS]++;
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
-    FOR_LOOP(group, OVERLAY_GROUP_COUNT) {
-        offsets[group] = total;
-        cursor[group] = total;
-        total += counts[group];
+    /* Paint the common sibling stack as texture background -> status bar ->
+     * remaining frames/text. Frame numbers can reflect FDF parse order rather
+     * than paint order: the Hero level label belongs above its XP bar, while
+     * hover-bar fills belong above their FT_TEXTURE backings. */
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_TEXTURE && !(f->flagsvalue & UIFLAG_TEXTURE_OVERLAY))
+            SCR_LayoutDrawFrame(f);
     }
-    FOR_LOOP(i, nframes) {
-        uint32_t const group = group_of[i];
-        ordered[cursor[group]++] = (uint16_t)i;
-        uiFrame_t const *frame = SCR_Frame(i);
-        if (frame->flags.type == FT_GLUETEXTBUTTON || frame->flags.type == FT_GLUEBUTTON)
-            ordered[cursor[OVERLAY_GLUE_HIGHLIGHTS]++] = (uint16_t)i;
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_SIMPLESTATUSBAR) SCR_LayoutDrawFrame(f);
     }
-    FOR_LOOP(group, OVERLAY_GROUP_COUNT) {
-        for (uint32_t i = offsets[group]; i < cursor[group]; i++) {
-            uiFrame_t const *frame = SCR_Frame(ordered[i]);
-            if (group == OVERLAY_GLUE_HIGHLIGHTS)
-                SCR_LayoutDrawGlueTextButtonHighlight(frame);
-            else
-                SCR_LayoutDrawFrame(frame);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_TEXTURE &&
+            f->flags.type != FT_SIMPLESTATUSBAR &&
+            !(f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY)))
+            SCR_LayoutDrawFrame(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && (f->flags.type == FT_GLUETEXTBUTTON || f->flags.type == FT_GLUEBUTTON))
+            SCR_LayoutDrawGlueTextButtonHighlight(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_TEXTURE && (f->flagsvalue & UIFLAG_TEXTURE_OVERLAY))
+            SCR_LayoutDrawFrame(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_SPRITE && (f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
+    }
+    /* Paint captions after the sprite, rightmost first. The rank belongs to
+     * high flag bits, never frame.stat (which changes the label's text). */
+    for (int rank = 3; rank >= 0; --rank) {
+        FOR_LOOP(i, SCR_NumFrames()) {
+            uiFrame_t const *f = SCR_Frame(i);
+            if (f && f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY) &&
+                (int)((f->flagsvalue & UIFLAG_TEXT_RANK_MASK) >> UIFLAG_TEXT_RANK_SHIFT) == rank)
+                SCR_LayoutDrawFrame(f);
         }
     }
     SCR_EndSelectedEntityDraw();
 }
-
 void SCR_DrawLayout(void) {
     active_tooltip = NULL;
     SCR_BeginSelectedEntityDraw();

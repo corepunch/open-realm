@@ -35,28 +35,6 @@ game UI authoring
 including `-1` sentinels. Code reading an unsigned wire field must cast its
 result to `BYTE`; do not globally change `MSG_ReadByte` semantics.
 
-## Client overlay paint-order traversal
-
-`SCR_LayoutDrawOverlay` preserves server-authored sibling paint order by
-partitioning a decoded layout into 11 paint groups: background sprites,
-background textures, status bars, ordinary content, glue-button highlights,
-late textures, late sprites, and late text ranks 3 through 0. Within each
-group, frames draw in ascending frame-number order regardless of their wire
-serialization order. `FT_GLUETEXTBUTTON` and `FT_GLUEBUTTON` intentionally
-appear in both ordinary content and the later highlight pass; text rank is
-read from `UIFLAG_TEXT_RANK_MASK`, **not** `frame.stat`.
-
-Instead of scanning the entire layout once per group, the client performs a
-stable, temporary counting partition by frame index during each draw. This
-uses two frame traversals followed by the ordered draw calls. It does not
-retain pointers or indexes across `SCR_ClearLayer`, `SCR_ClearWindow`, layer
-changes, or frames, and it changes no wire fields or layout ownership.
-`client_layout.overlay_paint_groups_stay_stable_with_mixed_frames` verifies
-this ordering through the actual renderer callbacks alongside the existing
-sprite-overlay regression test. The grouping optimisation does not remove
-image/text draw calls, so HUD-inclusive perf percentages are not estimates
-of its potential savings.
-
 ## Frame Point ABI
 
 `common/msg.c:uiFrameFields` serializes each `uiFrame_t.points` element and

@@ -989,25 +989,6 @@ splat batching while preserving one-off event renders. **No local compilation
 or test execution was performed for this patch.** Compare the same gameplay
 scene on ARM64 using stable frame-time measurements and a fresh cycle profile.
 
-## October 23 ARM64 client overlay paint-pass grouping
-
-After the occupied-index status-state patch, `SCR_DrawLayout` was 10.78%
-inclusive and `SCR_LayoutDrawOverlay` 6.22% inclusive in the sampled handheld
-profile. These paths include real rendering; neither figure is wholly
-recoverable scan overhead. The generic client previously traversed the
-complete decoded frame array for each of 11 paint passes, including four
-late-caption ranks.
-
-`SCR_LayoutDrawOverlay` now performs a stable per-draw partition into the
-same eleven groups, preserving frame-number order within each paint pass,
-normal/overlay sprite and texture ordering, status bars under labels,
-separate glue-button highlights and descending caption ranks. No persistent
-cache, game-specific UI logic, or network/save format change is involved.
-Regression coverage is in `client_layout.overlay_paint_groups_stay_stable_with_mixed_frames`
-and the existing sprite-over-button ordering test. Compare FPS or median
-frame times in a repeatable scene; only that can establish a device-level
-gain from fewer scans.
-
 ## October 23 ARM64 categorical status-state lookups
 
 The ARM64 `cycles:ppp` capture with the first ten performance patches reports
