@@ -277,10 +277,18 @@ static void CM_WowWmoMatrix(cmWowWmoDef_t const *def, mat4_t *matrix) {
 
 static void CM_WowWmoGroupPath(cstring_t root, uint32_t index, string_t out, uint32_t out_size) {
     size_t len = strlen(root);
-    if (len > 4 && !strcasecmp(root + len - 4, ".wmo"))
-        snprintf(out, out_size, "%.*s_%03u.wmo", (int)(len - 4), root, (unsigned)index);
-    else
-        snprintf(out, out_size, "%s_%03u.wmo", root, (unsigned)index);
+    char suffix[16];
+    size_t base_len = len;
+    int suffix_len;
+    if (len > 4 && !strcasecmp(root + len - 4, ".wmo")) base_len -= 4;
+    suffix_len = snprintf(suffix, sizeof(suffix), "_%03u.wmo", (unsigned)index);
+    if (!out || !out_size) return;
+    if (suffix_len < 0 || (size_t)suffix_len >= sizeof(suffix) || base_len + (size_t)suffix_len >= out_size) {
+        out[0] = '\0';
+        return;
+    }
+    memcpy(out, root, base_len);
+    memcpy(out + base_len, suffix, (size_t)suffix_len + 1);
 }
 
 static bool CM_WowWmoAppendTriangle(cmWowWmoModel_t *model, vec3_t const *a, vec3_t const *b, vec3_t const *c) {

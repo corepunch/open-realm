@@ -12,11 +12,11 @@ static sc2UnitState_t *SC2_UnitState(void *ptr) {
 static void SC2_UnitInitLinks(sc2UnitState_t *u) {
     char links[SC2_UNIT_ABILS][SC2_LINK_LEN];
     u->abil_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_ABIL,links,SC2_UNIT_ABILS);
-    for (int i=0;i<u->abil_n;i++) { snprintf(u->abils[i].link,SC2_LINK_LEN,"%s",links[i]); u->abils[i].level=1; }
+    for (int i=0;i<u->abil_n;i++) { strlcpy(u->abils[i].link,links[i],sizeof(u->abils[i].link)); u->abils[i].level=1; }
     u->weapon_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_WEAPON,links,SC2_UNIT_WEAPONS);
-    for (int i=0;i<u->weapon_n;i++) snprintf(u->weapons[i].link,SC2_LINK_LEN,"%s",links[i]);
+    for (int i=0;i<u->weapon_n;i++) strlcpy(u->weapons[i].link,links[i],sizeof(u->weapons[i].link));
     u->behavior_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_BEHAVIOR,links,SC2_UNIT_BEHAVIORS);
-    for (int i=0;i<u->behavior_n;i++) { snprintf(u->behaviors[i].link,SC2_LINK_LEN,"%s",links[i]); u->behaviors[i].count=1; }
+    for (int i=0;i<u->behavior_n;i++) { strlcpy(u->behaviors[i].link,links[i],sizeof(u->behaviors[i].link)); u->behaviors[i].count=1; }
 }
 static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
     sc2UnitState_t *u=&ent->unit;
