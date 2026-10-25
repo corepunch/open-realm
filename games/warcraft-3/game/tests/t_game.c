@@ -27,6 +27,7 @@ void setup_test_world(void);
 void G_ResetTestSelectionChecks(void);
 uint32_t G_GetTestSelectionChecks(void);
 bool run_test_jass(cstring_t src);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 
 #include "../game/hud/hud_utils.h"
@@ -3967,6 +3968,93 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     G_FowShutdown();
 }
 
+bool G_FowTestReindexBlockers(void);
+void G_FowTestRevealBlockerRim(fowPlayerGrid_t *, uint32_t, uint32_t, int, bool);
+
+/* A compact row-bit index must visit the same blockers, in the same order, as
+ * the original rectangular scan: a marker with value 2 can reveal a later
+ * blocker in the same pass. Also protect word-edge masks, map clipping,
+ * mixed source visibility and rebuilds after blocker additions/removals. */
+TEST(wc3_game, fow_blocker_rim_bit_index_matches_rectangular_reference) {
+    static int const radii[] = { 0, 1, 2, 5, 15, 32, 48 };
+    fowPlayerGrid_t *fast, *reference;
+    uint32_t width, height, cells;
+    box2_t const old_bounds = CM_GetWorldBounds();
+
+    reset_entities();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f},
+                                        .max = {8192.0f, 8192.0f}));
+    G_FowInit();
+    width = level.fow.width;
+    height = level.fow.height;
+    cells = width * height;
+    fast = &level.fow.players[0];
+    reference = &level.fow.players[1];
+    T_ASSERT(width > 65 && height > 65 && level.fow.blocked != NULL);
+    if (width <= 65 || height <= 65 || !level.fow.blocked) {
+        G_FowShutdown();
+        CM_SetupTestWorldBounds(&old_bounds);
+        return;
+    }
+
+    FOR_LOOP(pattern, 5) {
+        /* The fifth pattern after a dense one exercises full clearing of
+         * stale index bits when blockers move or disappear. */
+        FOR_LOOP(y, height) {
+            FOR_LOOP(x, width) {
+                uint32_t const i = y * width + x;
+                level.fow.blocked[i] = pattern == 0 ? 0 :
+                    pattern == 1 ? (x == 31 || x == 32 || x == 63 || x == 64) :
+                    pattern == 2 ? (x + y) % 3 == 0 :
+                    pattern == 3 ? (x * 19 + y * 23) % 43 == 0 :
+                                   (x > 30 && x < 66 && y == height / 2);
+            }
+        }
+        T_ASSERT(G_FowTestReindexBlockers());
+        FOR_LOOP(r, sizeof(radii) / sizeof(*radii)) {
+            FOR_LOOP(c, 5) {
+                uint32_t const cx = c == 0 ? 0 :
+                    c == 1 ? width - 1 : c == 2 ? width / 2 :
+                    c == 3 ? 32 : 63;
+                uint32_t const cy = c == 0 ? 0 :
+                    c == 1 ? height - 1 : height / 2;
+                FOR_LOOP(i, cells) {
+                    uint32_t const x = i % width, y = i / width;
+                    /* This includes initially visible blockers and an
+                     * ordered chain of blockers adjacent to visible cells. */
+                    uint8_t const vis = (uint8_t)(
+                        (x == cx && y == cy) ||
+                        (x == 30 && y == height / 2) ||
+                        ((x * 7 + y * 11 + c) % 37 == 0));
+                    fast->visible[i] = reference->visible[i] = vis;
+                    fast->explored[i] = reference->explored[i] = vis;
+                }
+                memset(fast->visible_rows, 0, height);
+                memset(fast->dirty_visible_rows, 0, height);
+                memset(fast->dirty_explored_rows, 0, height);
+                memset(reference->visible_rows, 0, height);
+                memset(reference->dirty_visible_rows, 0, height);
+                memset(reference->dirty_explored_rows, 0, height);
+
+                G_FowTestRevealBlockerRim(fast, cx, cy, radii[r], true);
+                G_FowTestRevealBlockerRim(reference, cx, cy, radii[r], false);
+                FOR_LOOP(i, cells) {
+                    T_EQ(fast->visible[i], reference->visible[i]);
+                    T_EQ(fast->explored[i], reference->explored[i]);
+                    T_ASSERT(fast->visible[i] <= 1);
+                }
+                FOR_LOOP(y, height) {
+                    T_EQ(fast->visible_rows[y], reference->visible_rows[y]);
+                    T_EQ(fast->dirty_visible_rows[y], reference->dirty_visible_rows[y]);
+                    T_EQ(fast->dirty_explored_rows[y], reference->dirty_explored_rows[y]);
+                }
+            }
+        }
+    }
+    G_FowShutdown();
+    CM_SetupTestWorldBounds(&old_bounds);
+}
+
 /* Rebuilding the blocker plane after movement must produce the same sight
  * mask when the original geometry returns. This exercises octant recursion,
  * transient rim markers and deterministic traversal/commit ordering. */
@@ -4189,7 +4277,6 @@ TEST(wc3_game, fow_full_sync_marks_player_connected) {
  * numbers).
  * ========================================================================= */
 
-void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 static volatile float acquisition_bench_sink;
 

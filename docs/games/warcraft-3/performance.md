@@ -1,3 +1,43 @@
+## October 25 NightElf07 fog blocker-rim word index (patch fifty-one; patches 49/50 excluded)
+
+The latest NightElf07 profile after patch fifty (which is **not** retained)
+shows `G_FowRevealBlockerRim` at **2.06% exclusive** CPU-cycle sample
+share, while `G_FowCastLight` costs 5.35%. The retained baseline for this
+change is **patch forty-eight**: the speculative two-way MDX keyspan cache
+(patch 49) and translation-only bone hierarchy composition (patch 50) are
+both excluded. These percentages are sampled relative CPU shares, not
+projected frame-time gains.
+
+The rim pass previously inspected every cell in the clipped circular
+bounding square, rejecting most cells at the `blocked` byte lookup. The
+game-side fog module now maintains a compact **32-cells-per-word, row-major
+blocker bit index** alongside the authoritative blocked byte grid. The bit
+index is allocated and cleared at fog map initialization, cleared whenever
+the blocker grid is rebuilt, and populated by the same `G_FowSetBlocked`
+writer that handles trees, other occluders, path-texture pixels and
+dilation. When a bit-index allocation fails, the unchanged rectangular
+scan remains available; no extra persistent state is written to saves.
+
+For the blocker-rim pass, each clipped row visits only set bits in the
+intersecting 32-cell words, in increasing x order. The original circular
+inclusion test, four-connected visible-neighbour check, transient marker
+value 2, deferred commit order, explored/dirty-row updates and map-edge
+clipping are unchanged. The bit index does **not** replace the byte grid
+used by recursive shadowcasting, nor does it alter normal `G_FowCastLight`
+visibility. Rebuild synchronisation prevents stale blockers after movement,
+death, removal, path-texture changes or map transitions.
+
+`wc3_game.fow_blocker_rim_bit_index_matches_rectangular_reference` compares
+both traversals byte-for-byte for empty, sparse, dense, striped and
+multi-cell blocker patterns, 32-bit word boundaries, several sight radii,
+map corners, transient rim propagation and successive rebuilds. The existing
+`wc3_game.fow_shadowcast_blocker_rim_rebuild_is_stable` and
+`wc3_game.fow_shadowcast_blocker_rim_clips_at_map_corner` tests exercise the
+live entity/rebuild path. Compile and test locally, then profile matched
+NightElf07 runs for `G_FowRevealBlockerRim`, `G_FowUpdate`, the cost of
+rebuilding blocker indices and FPS/frame times. No compile or runtime tests
+were executed while preparing this patch; no production debug logs added.
+
 ## October 25 NightElf07 selected-entity HUD lookup (patch forty-eight)
 
 After patch forty-seven, `SCR_LayoutSelectedEntity` accounted for roughly

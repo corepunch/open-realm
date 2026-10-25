@@ -26,6 +26,10 @@ static uint32_t g_fow_blocker_hash;
 static uint32_t g_fow_blocker_count;
 static bool g_fow_blockers_valid;
 static bool g_fow_blockers_dirty = true;
+/* One bit per blocker cell, grouped by row. Rebuilt together with blocked;
+ * this is only a traversal accelerator, not authoritative fog state. */
+static uint32_t *g_fow_blocker_words;
+static uint32_t g_fow_blocker_word_stride;
 #ifdef WC3_FOW_PACKED_MASK
 static bool g_fow_fast;
 #endif
@@ -191,6 +195,10 @@ static void G_FowSetBlocked(uint32_t x, uint32_t y) {
     if (!level.fow.blocked[index]) {
         level.fow.blocked[index] = 1;
         level.fow.num_blocked++;
+        if (g_fow_blocker_words) {
+            g_fow_blocker_words[(size_t)y * g_fow_blocker_word_stride + (x >> 5)] |=
+                1u << (x & 31);
+        }
     }
 }
 
@@ -470,37 +478,93 @@ static void G_FowCommitRimCells(fowPlayerGrid_t *grid, uint32_t count) {
     }
 }
 
-static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
+/* Unlike the shadowcasting pass, the blocker rim needs to examine only
+ * blocked cells. Visit the set bits from lowest x to highest x in each row;
+ * the temporary value 2 must still propagate to subsequent blockers in
+ * precisely the same order as the original rectangular scan. */
+static void G_FowRevealBlockerRimWithMode(fowPlayerGrid_t *grid, uint32_t cx,
+                                         uint32_t cy, int radius_cells,
+                                         bool use_blocker_words) {
     int const max_radius = radius_cells + FOW_BLOCKER_LIGHT_MARGIN_CELLS;
     int const max_radius_sq = max_radius * max_radius;
-    /* Clip once for each axis. Border-adjacent revealers should not scan
-     * imaginary off-map columns for every row. Preserve y/x walk order: the
-     * temporary rim markers intentionally influence later blocker cells. */
     int const min_x = MAX(0, (int)cx - max_radius);
     int const max_x = MIN((int)level.fow.width - 1, (int)cx + max_radius);
     int const min_y = MAX(0, (int)cy - max_radius);
     int const max_y = MIN((int)level.fow.height - 1, (int)cy + max_radius);
     uint32_t rim_count = 0;
 
+    if (min_x > max_x || min_y > max_y) return;
     for (int y = min_y; y <= max_y; y++) {
         int const dy = y - (int)cy;
         uint32_t const row = (uint32_t)y * level.fow.width;
-        for (int x = min_x; x <= max_x; x++) {
-            uint32_t const index = row + (uint32_t)x;
-            int const dx = x - (int)cx;
-            /* Most terrain cells are not blockers. Skip the circular-radius
-             * test and neighbour probes for them entirely. */
-            if (!level.fow.blocked[index] || dx * dx + dy * dy > max_radius_sq)
-                continue;
-            if (!grid->visible[index] &&
-                G_FowHasVisibleRimNeighbor(grid, (uint32_t)x, (uint32_t)y, index)) {
-                grid->visible[index] = 2;
-                level.fow.rim_cells[rim_count++] = index;
+        if (use_blocker_words && g_fow_blocker_words) {
+            uint32_t const first_word = (uint32_t)min_x >> 5;
+            uint32_t const last_word = (uint32_t)max_x >> 5;
+            uint32_t const *words = g_fow_blocker_words +
+                                    (size_t)y * g_fow_blocker_word_stride;
+            for (uint32_t word = first_word; word <= last_word; word++) {
+                uint32_t bits = words[word];
+                if (word == first_word) bits &= 0xffffffffu << (min_x & 31);
+                if (word == last_word) bits &= 0xffffffffu >> (31 - (max_x & 31));
+                while (bits) {
+                    /* ctz is only called for a nonzero word. */
+                    int const x = (int)(word * 32 + (uint32_t)__builtin_ctz(bits));
+                    uint32_t const index = row + (uint32_t)x;
+                    int const dx = x - (int)cx;
+                    if (dx * dx + dy * dy <= max_radius_sq &&
+                        !grid->visible[index] &&
+                        G_FowHasVisibleRimNeighbor(grid, (uint32_t)x, (uint32_t)y, index)) {
+                        grid->visible[index] = 2;
+                        level.fow.rim_cells[rim_count++] = index;
+                    }
+                    bits &= bits - 1;
+                }
+            }
+        } else {
+            /* Allocation-failure fallback, also used as the test oracle. */
+            for (int x = min_x; x <= max_x; x++) {
+                uint32_t const index = row + (uint32_t)x;
+                int const dx = x - (int)cx;
+                if (!level.fow.blocked[index] || dx * dx + dy * dy > max_radius_sq)
+                    continue;
+                if (!grid->visible[index] &&
+                    G_FowHasVisibleRimNeighbor(grid, (uint32_t)x, (uint32_t)y, index)) {
+                    grid->visible[index] = 2;
+                    level.fow.rim_cells[rim_count++] = index;
+                }
             }
         }
     }
     G_FowCommitRimCells(grid, rim_count);
 }
+
+static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
+    G_FowRevealBlockerRimWithMode(grid, cx, cy, radius_cells, true);
+}
+
+#ifdef BZ_TESTS
+/* Tests author blocker patterns directly. Reindex them through the same bit
+ * layout that the live blocker writer updates during a terrain rebuild. */
+bool G_FowTestReindexBlockers(void) {
+    if (!g_fow_blocker_words) return false;
+    memset(g_fow_blocker_words, 0,
+           (size_t)g_fow_blocker_word_stride * level.fow.height * sizeof(uint32_t));
+    FOR_LOOP(y, level.fow.height) {
+        FOR_LOOP(x, level.fow.width) {
+            if (level.fow.blocked[G_FOW_CELL_INDEX(x, y)]) {
+                g_fow_blocker_words[(size_t)y * g_fow_blocker_word_stride + (x >> 5)] |=
+                    1u << (x & 31);
+            }
+        }
+    }
+    return true;
+}
+
+void G_FowTestRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy,
+                               int radius_cells, bool use_blocker_words) {
+    G_FowRevealBlockerRimWithMode(grid, cx, cy, radius_cells, use_blocker_words);
+}
+#endif
 
 static void G_FowRevealCircle(uint32_t player, edict_t const *ent, float radius) {
     fowPlayerGrid_t *grid;
@@ -766,6 +830,10 @@ static void G_FowRebuildBlockers(void) {
         return;
     }
     memset(level.fow.blocked, 0, G_FowCellCount());
+    if (g_fow_blocker_words) {
+        memset(g_fow_blocker_words, 0,
+               (size_t)g_fow_blocker_word_stride * level.fow.height * sizeof(uint32_t));
+    }
     level.fow.num_blocked = 0;
     FOR_LOOP(i, globals.num_edicts) {
         G_FowMarkBlocker(&g_edicts[i]);
@@ -939,6 +1007,8 @@ void G_FowShutdown(void) {
     }
     SAFE_DELETE(level.fow.blocked, gi.MemFree);
     SAFE_DELETE(level.fow.rim_cells, gi.MemFree);
+    SAFE_DELETE(g_fow_blocker_words, gi.MemFree);
+    g_fow_blocker_word_stride = 0;
     memset(&level.fow, 0, sizeof(level.fow));
     memset(g_fog_modifiers, 0, sizeof(g_fog_modifiers));
     g_num_fog_modifiers = 0;
@@ -969,6 +1039,14 @@ void G_FowInit(void) {
         return;
     }
     memset(level.fow.blocked, 0, cells);
+    g_fow_blocker_word_stride = (level.fow.width + 31) >> 5;
+    g_fow_blocker_words = gi.MemAlloc((size_t)g_fow_blocker_word_stride *
+                                      level.fow.height * sizeof(uint32_t));
+    /* Optional accelerator: allocation failure retains the original scan. */
+    if (g_fow_blocker_words) {
+        memset(g_fow_blocker_words, 0,
+               (size_t)g_fow_blocker_word_stride * level.fow.height * sizeof(uint32_t));
+    }
 
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
