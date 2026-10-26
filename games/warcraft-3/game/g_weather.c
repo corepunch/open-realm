@@ -76,7 +76,7 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
         if (!client_ent || !client_ent->client) return false;
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayersShareVision(player, unit->s.player)) return false;
-        if (!unit->shadowmeld && !(unit->s.renderfx & RF_HIDDEN) &&
+        if (!G_GetShadowMeld(unit) && !(unit->s.renderfx & RF_HIDDEN) &&
             !(unit->runtime.flags & (UNIT_BALANCE_PERMANENT_INVISIBLE | UNIT_BALANCE_GHOST_INVISIBLE)))
             return false;
     }

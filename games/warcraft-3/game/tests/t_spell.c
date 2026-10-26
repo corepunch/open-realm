@@ -2978,10 +2978,10 @@ TEST(wc3_spell, moon_well_dispatch_keeps_construction_effect_cleanup) {
     edict_t *effect = G_Spawn();
 
     well->data.UnitAbilities = &abilities;
-    well->construction = G_AllocConstruction();
-    T_NOT_NULL(well->construction);
-    well->construction->paused = true;
-    well->construction->type = CONSTRUCTION_NIGHTELF;
+    G_AddComponent(well, COMPONENT_CONSTRUCTION);
+    T_NOT_NULL(G_GetConstruction(well));
+    G_GetConstruction(well)->paused = true;
+    G_GetConstruction(well)->type = CONSTRUCTION_NIGHTELF;
     T_NOT_NULL(effect);
     effect->owner = well;
     effect->summon_ability = MAKEFOURCC('A','m','b','t');

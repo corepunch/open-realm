@@ -811,7 +811,7 @@ static bool update_may_have_ability(edict_t const *ent, uint32_t code) {
  * reaches the original handlers; explicit disable events own removal cleanup. */
 static bool update_may_need_shadowmeld(edict_t const *ent) {
     if (!ent) return false;
-    if (ent->shadowmeld) return true;
+    if (G_GetShadowMeld(ent)) return true;
     return update_may_have_ability(ent, MAKEFOURCC('A','s','h','m')) ||
            update_may_have_ability(ent, MAKEFOURCC('A','h','i','d'));
 }
@@ -830,15 +830,15 @@ void S_RunAbilityUpdates(edict_t *ent) {
                 shadow_checked = true;
             }
             if (!shadow_needed) continue;
-        } else if (proc == CAbilityRavenForm && (!ent || !ent->raven)) {
+        } else if (proc == CAbilityRavenForm && (!ent || !G_GetRaven(ent))) {
             continue; /* rise animation and height only exist with raven state */
-        } else if (proc == CAbilityEnsnare && (!ent || !ent->ensnare)) {
+        } else if (proc == CAbilityEnsnare && (!ent || !G_GetEnsnare(ent))) {
             continue; /* landing/rising height only exists with ensnare state */
-        } else if (proc == CAbilityBlightGrowth && (!ent || !ent->blight_growth)) {
+        } else if (proc == CAbilityBlightGrowth && (!ent || !G_GetBlightGrowth(ent))) {
             continue; /* Abli initializes its state on A_UNIT_INIT/A_ENABLE */
-        } else if (proc == CAbilityManaFlare && (!ent || !ent->channel)) {
+        } else if (proc == CAbilityManaFlare && (!ent || !G_GetChannel(ent))) {
             continue; /* A_UPDATE only cancels an expired active channel */
-        } else if (proc == CAbilityEntangledGoldMine && (!ent || !ent->mineoverlay)) {
+        } else if (proc == CAbilityEntangledGoldMine && (!ent || !G_GetMineOverlay(ent))) {
             continue; /* gold income requires an established mine overlay */
         } else if (proc == CAbilityManaBattery && !S_MoonWellMayUpdate(ent)) {
             continue; /* skip unrelated native/custom abilities before owner lookup */

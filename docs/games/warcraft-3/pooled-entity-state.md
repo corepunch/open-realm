@@ -18,6 +18,12 @@ The reference is id Software's [Quake II edict definition](https://github.com/id
 
 ## Optional components
 
+Dispatch fast paths and presentation candidate checks must query the typed getters too:
+`S_RunAbilityUpdates` checks retained components without allocating, and
+`G_ClientVertexColor` uses `G_GetShadowMeld` for its tint eligibility check.
+Tests for dynamic ability ownership, blight rescans, Moon Well construction cleanup
+and repair rejection use the same component attachments and getters.
+
 `edict_t.components` owns an intrusive singly linked list. `waygate_t`, `avatar_t`,
 `polymorph_t`, `raven_t`, `ensnare_t`, `artillery_t`, `sleep_t`, `rally_t`,
 `sacrifice_t`, `unsummon_t`, `blightGrowth_t`, `shadowMeld_t`, `militia_t`,

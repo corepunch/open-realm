@@ -4911,7 +4911,7 @@ TEST(wc3_building, roc_peasant_aliased_repair_order_repairs_damaged_structure) {
 #else
     /* Without the RoC exception, the authored mask excludes structures. */
     T_ASSERT(!S_OrderRepair(worker, building, MAKEFOURCC('A','h','r','p')));
-    T_NULL(worker->buildwork);
+    T_NULL(G_GetBuildwork(worker));
     T_FEQ(building->health.value, 500.0f, 0.001f);
 #endif
 

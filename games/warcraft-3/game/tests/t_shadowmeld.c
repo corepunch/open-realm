@@ -212,33 +212,33 @@ TEST(wc3_shadowmeld, update_dispatch_rechecks_dynamic_and_authored_ownership) {
     G_UpdateTimeOfDay();
 
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(!fix.unit->shadowmeld ||
-             (!fix.unit->shadowmeld->active && !fix.unit->shadowmeld->fading));
+    T_ASSERT(!G_GetShadowMeld(fix.unit) ||
+             (!G_GetShadowMeld(fix.unit)->active && !G_GetShadowMeld(fix.unit)->fading));
 
     /* Runtime ability addition must become visible on the very next tick. */
     T_ASSERT(G_ActorAddSkill(fix.unit, ID_ASHM));
     shadowmeld_tick(fix.unit, 1);
-    T_NOT_NULL(fix.unit->shadowmeld);
-    T_ASSERT(fix.unit->shadowmeld->fading);
+    T_NOT_NULL(G_GetShadowMeld(fix.unit));
+    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
 
     /* Removal uses the normal disable event to break the active fade. */
     T_ASSERT(G_ActorRemoveSkill(fix.unit, ID_ASHM));
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(!fix.unit->shadowmeld->fading);
-    T_ASSERT(!fix.unit->shadowmeld->active);
+    T_ASSERT(!G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(!G_GetShadowMeld(fix.unit)->active);
 
     /* Authored list changes and hero ranks cannot depend on a cached bit. */
     fix.unit->data.UnitAbilities = &native_abilities;
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(fix.unit->shadowmeld->fading);
+    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
     S_ShadowMeldBreak(fix.unit); /* unit-type changes retire the old fade */
     fix.unit->data.UnitAbilities = &empty_abilities;
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(!fix.unit->shadowmeld->fading);
+    T_ASSERT(!G_GetShadowMeld(fix.unit)->fading);
 
     fix.unit->unit_state->ranks[0] = MAKE(heroability_t, .code = ID_AHID, .level = 1);
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(fix.unit->shadowmeld->fading);
+    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
     shadowmeld_done(&fix);
 }
 

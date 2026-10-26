@@ -207,23 +207,23 @@ TEST(wc3_destructable, blight_point_noop_skips_destructable_rescan) {
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     late = make_blight_test_probe(point.x, point.y);
-    T_ASSERT(!late->destructable->blighted);
+    T_ASSERT(!G_GetDestructable(late)->blighted);
 
     /* No new cells: the existing-world scan must not visit this uninitialized
      * probe. Real spawns call G_BlightInitializeDestructable instead. */
     G_SetBlightPoint(&point, true);
-    T_ASSERT(!late->destructable->blighted);
+    T_ASSERT(!G_GetDestructable(late)->blighted);
     G_BlightInitializeDestructable(late);
-    T_ASSERT(late->destructable->blighted);
+    T_ASSERT(G_GetDestructable(late)->blighted);
 
     G_SetBlightPoint(&point, false);
     T_ASSERT(!G_IsPointBlighted(&point));
-    T_ASSERT(late->destructable->blighted); /* one-way tint */
+    T_ASSERT(G_GetDestructable(late)->blighted); /* one-way tint */
     after_clear = make_blight_test_probe(point.x, point.y);
     G_SetBlightPoint(&point, false);
-    T_ASSERT(!after_clear->destructable->blighted);
+    T_ASSERT(!G_GetDestructable(after_clear)->blighted);
     G_SetBlightPoint(&point, true);
-    T_ASSERT(after_clear->destructable->blighted);
+    T_ASSERT(G_GetDestructable(after_clear)->blighted);
 }
 
 TEST(wc3_destructable, blight_radius_noop_skips_destructable_rescan) {
@@ -236,13 +236,13 @@ TEST(wc3_destructable, blight_radius_noop_skips_destructable_rescan) {
     T_ASSERT(G_IsPointBlighted(&point));
     probe = make_blight_test_probe(point.x, point.y);
     G_SetBlightRadius(&point, 96.0f, true);
-    T_ASSERT(!probe->destructable->blighted);
+    T_ASSERT(!G_GetDestructable(probe)->blighted);
 
     G_SetBlightRadius(&point, 96.0f, false);
     T_ASSERT(!G_IsPointBlighted(&point));
     G_SetBlightRadius(&point, 96.0f, true);
     T_ASSERT(G_IsPointBlighted(&point));
-    T_ASSERT(probe->destructable->blighted);
+    T_ASSERT(G_GetDestructable(probe)->blighted);
 }
 
 TEST(wc3_destructable, blight_rect_noop_skips_destructable_rescan) {
@@ -256,13 +256,13 @@ TEST(wc3_destructable, blight_rect_noop_skips_destructable_rescan) {
     T_ASSERT(G_IsPointBlighted(&point));
     probe = make_blight_test_probe(point.x, point.y);
     G_SetBlightRect(&rect, true);
-    T_ASSERT(!probe->destructable->blighted);
+    T_ASSERT(!G_GetDestructable(probe)->blighted);
 
     G_SetBlightRect(&rect, false);
     T_ASSERT(!G_IsPointBlighted(&point));
     G_SetBlightRect(&rect, true);
     T_ASSERT(G_IsPointBlighted(&point));
-    T_ASSERT(probe->destructable->blighted);
+    T_ASSERT(G_GetDestructable(probe)->blighted);
 }
 
 static uint32_t blight_image_index_calls;
