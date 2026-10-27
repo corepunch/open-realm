@@ -47,6 +47,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
     uint32_t damage = (uint32_t)S_SpellData(spell->code, level, 1);
     float duration = S_SpellDuration(spell->code, level, false);
 
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+
 #define WAR_STOMP_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
                            S_SpellIsEnemy(caster, t) && G_UnitTargetType(t) == TARG_GROUND && \
                            Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= radius)
