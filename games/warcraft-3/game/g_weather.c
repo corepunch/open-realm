@@ -61,6 +61,7 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
     uint32_t player;
     color32_t color;
     float presentation_alpha = 1.0f;
+    bool illusion_tint = false;
 
     if (!unit || !unit->inuse || !out) return false;
     color = G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) ? unit->vertex_color : COLOR32_WHITE;
@@ -77,7 +78,8 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayersShareVision(player, unit->s.player)) return false;
         if (!G_GetShadowMeld(unit) && !(unit->s.renderfx & RF_HIDDEN) &&
-            !(unit->runtime.flags & (UNIT_BALANCE_PERMANENT_INVISIBLE | UNIT_BALANCE_GHOST_INVISIBLE)))
+            !(unit->runtime.flags & (UNIT_BALANCE_PERMANENT_INVISIBLE | UNIT_BALANCE_GHOST_INVISIBLE)) &&
+            !(unit->aiflags & AI_ILLUSION))
             return false;
     }
 
@@ -88,10 +90,19 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
             float ghost_alpha = S_ShadowMeldPresentationAlpha(unit);
             if (S_UnitHasInvisibilityState(unit)) ghost_alpha = MIN(ghost_alpha, 0.35f);
             presentation_alpha *= ghost_alpha;
+            /* Warcraft marks Mirror Image clones with a blue cast for their
+             * owner and shared-vision allies. Other viewers retain the normal
+             * unit/team tint so the illusion does not reveal itself. */
+            if (unit->aiflags & AI_ILLUSION) {
+                color.r = (uint8_t)((uint32_t)color.r * 160u / 255u);
+                color.g = (uint8_t)((uint32_t)color.g * 192u / 255u);
+                color.b = (uint8_t)((uint32_t)color.b * 255u / 255u);
+                illusion_tint = true;
+            }
         }
     }
 
-    if (!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) && presentation_alpha >= 1.0f) return false;
+    if (!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) && presentation_alpha >= 1.0f && !illusion_tint) return false;
     color.a = (uint8_t)MIN(255, MAX(0, (int)((float)color.a * presentation_alpha + 0.5f)));
     *out = color;
     return true;
