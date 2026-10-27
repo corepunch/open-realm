@@ -3307,11 +3307,14 @@ TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f'))); T_FEQ(G_UnitArmorValue(ally), 7.0f, 0.001f);
 	enemy->unit_state->attack1.cooldown = 1.0f;
 	enemy->unit_state->attack1.damagePoint = 0.3f;
+	enemy->unitinfo.MoveSpeed = 270.0f;
+	float const normal_move_distance = unit_movedistance(enemy);
 	attack_melee(enemy);
 	T_FEQ(enemy->wait, 0.3f, 0.001f);
 	test_execute_code(caster, "Aslo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o')));
 	T_FEQ(S_HumanMoveFactor(enemy), 0.4f, 0.001f);
+	T_FEQ(unit_movedistance(enemy), normal_move_distance * 0.4f, 0.01f);
 	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), -0.25f, 0.001f);
 	attack_melee(enemy);
 	T_FEQ(enemy->wait, 0.4f, 0.001f);

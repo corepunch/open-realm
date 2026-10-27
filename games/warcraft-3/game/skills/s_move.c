@@ -221,6 +221,8 @@ static bool unit_routes_to_location(edict_t const *ent) {
     return ent->currentmove->proc == CAbilityAttack && ent->goalentity == ent->orders->attackmove_waypoint;
 }
 
+static float unit_effective_speed(edict_t *ent);
+
 /* Unit's effective current move speed.  Group moves travel at the slowest
  * member's speed so the selection stays a cohesive formation instead of
  * stringing out (WC3); the cap is gated on the move state so it never leaks
@@ -235,11 +237,7 @@ static float unit_apply_earthquake_speed(edict_t const *unit, float speed) {
 }
 
 static float unit_current_speed(edict_t const *self) {
-    float speed = self->unitinfo.MoveSpeed > 0
-        ? self->unitinfo.MoveSpeed
-        : self->data.UnitBalance->speed;
-    if (S_ItemSpeedActive(self)) speed = game.constants.maxUnitSpeed;
-    else speed = unit_apply_earthquake_speed(self, speed);
+    float speed = unit_effective_speed((edict_t *)self);
     if (self->movement && self->movement->group_speed > 0 && self->movement->group_speed < speed && unit_is_walking(self)) {
         speed = self->movement->group_speed;
     }
