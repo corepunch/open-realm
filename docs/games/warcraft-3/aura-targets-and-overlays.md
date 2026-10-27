@@ -118,7 +118,11 @@ saves, following the normal no-migration policy. There is no network change.
 See [Save/Load](save-load.md).
 
 Brilliance, Endurance, Vampiric, Thorns, and Command Aura do not use this pair
-of slots. Vampiric's extra buff `SpecialArt` is a separate contract.
+of world-space overlay slots. Brilliance Aura still exposes its active
+recipient buff virtually in the selected-unit status strip. TFT reads the
+authored `AHab` `BuffID` (`BHab`); RoC has no `BuffID` column, so the
+`BZ_COMPAT_WORKAROUNDS` mapping supplies `BHab` for stock `AHab`. Vampiric's
+extra buff `SpecialArt` is a separate contract.
 
 The scenery bug made recipient art appear under crates and trees. The recipient
 regression runs `monster_think` on a friendly unit and two static destructables,

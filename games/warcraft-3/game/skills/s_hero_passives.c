@@ -132,6 +132,7 @@ static edict_t *devotion_source_fx[MAX_ENTITIES];
 static edict_t *unholy_source_fx[MAX_ENTITIES];
 static uint32_t devotion_recipient_buff[MAX_ENTITIES];
 static uint32_t unholy_recipient_buff[MAX_ENTITIES];
+static uint32_t brilliance_recipient_buff[MAX_ENTITIES];
 static uint32_t regen_value_next_update[MAX_ENTITIES];
 static uint32_t regen_visual_next_update[MAX_ENTITIES];
 static void const *regen_value_ability_data[MAX_ENTITIES];
@@ -158,6 +159,7 @@ static void aura_cache_update_time(void) {
         memset(aura_cache_generation, 0, sizeof(aura_cache_generation));
         memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
         memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
+        memset(brilliance_recipient_buff, 0, sizeof(brilliance_recipient_buff));
     }
     aura_cache_last_time = level.time;
 }
@@ -472,6 +474,7 @@ void G_ResetHeroPassiveCaches(void) {
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
     memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
+    memset(brilliance_recipient_buff, 0, sizeof(brilliance_recipient_buff));
     memset(regen_value_cache, 0, sizeof(regen_value_cache));
     memset(regen_value_next_update, 0, sizeof(regen_value_next_update));
     memset(regen_visual_next_update, 0, sizeof(regen_visual_next_update));
@@ -500,6 +503,7 @@ typedef struct {
 
 #if BZ_COMPAT_WORKAROUNDS
 static heroAuraCompatBuff_t const hero_aura_compat_buffs[] = {
+    { ID_BRILLIANCE, MAKEFOURCC('B', 'H', 'a', 'b') },
     { ID_DEVOTION_AURA, MAKEFOURCC('B', 'H', 'a', 'd') }
 };
 #endif
@@ -592,6 +596,7 @@ static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, uint32_t 
     if (base_code == ID_REGEN_MANA) return entry->mana;
     if (base_code == ID_DEVOTION_AURA) return entry->devotion;
     if (base_code == ID_UNHOLY_AURA) return entry->unholy;
+    if (base_code == ID_BRILLIANCE) return entry->combat[0];
     return (auraAbilityRef_t){0};
 }
 
@@ -943,12 +948,15 @@ static void hero_aura_sync_source(edict_t *unit, uint32_t base_code, edict_t * *
 }
 
 void S_UpdateHeroAuraEffects(edict_t *unit) {
-    heroAuraPresentation_t devotion, unholy;
-    uint32_t old_devotion, old_unholy;
+    heroAuraPresentation_t brilliance, devotion, unholy;
+    uint32_t old_brilliance, old_devotion, old_unholy;
 
     if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
+    old_brilliance = brilliance_recipient_buff[unit->s.number];
     old_devotion = devotion_recipient_buff[unit->s.number];
     old_unholy = unholy_recipient_buff[unit->s.number];
+    brilliance = hero_aura_presentation(unit, ID_BRILLIANCE);
+    brilliance_recipient_buff[unit->s.number] = brilliance.alias ? brilliance.buff : 0;
     devotion = hero_aura_presentation(unit, ID_DEVOTION_AURA);
     devotion_recipient_buff[unit->s.number] = devotion.alias ? devotion.buff : 0;
     hero_aura_sync_overlay(unit, ID_DEVOTION_AURA, devotion_overlays, devotion.alias ? &devotion : NULL);
@@ -959,9 +967,15 @@ void S_UpdateHeroAuraEffects(edict_t *unit) {
     hero_aura_sync_overlay(unit, ID_UNHOLY_AURA, unholy_overlays, unholy.alias ? &unholy : NULL);
     hero_aura_sync_source(unit, ID_UNHOLY_AURA, unholy_source_fx, unholy_overlays);
 
-    if (old_devotion != devotion_recipient_buff[unit->s.number] ||
+    if (old_brilliance != brilliance_recipient_buff[unit->s.number] ||
+        old_devotion != devotion_recipient_buff[unit->s.number] ||
         old_unholy != unholy_recipient_buff[unit->s.number])
         G_InvalidateUnitInfoPanel(unit);
+}
+
+uint32_t S_BrillianceAuraBuff(edict_t *unit) {
+    if (!unit || unit->s.number >= MAX_ENTITIES) return 0;
+    return brilliance_recipient_buff[unit->s.number];
 }
 
 uint32_t S_DevotionAuraBuff(edict_t *unit) {
