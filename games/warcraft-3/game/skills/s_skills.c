@@ -1168,6 +1168,12 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
         uint32_t const code = call && call->item ? call->item->code : 0;
         if ((ability->flags & AB_SPELL) && code &&
             !G_UnitAbilityResearchAvailable(ent, code)) return false;
+        /* Autocast acquisition runs independently of the normal cast pipeline.
+         * Keep spell autocasts from repeatedly selecting targets while their
+         * shared ability cooldown is active; non-spell autocasts (e.g. Repair)
+         * do not have spell cooldowns and retain their own policy. */
+        if (msg == A_AUTOCAST_ACQUIRE && (ability->flags & AB_SPELL) && code &&
+            !S_SpellCooldownReady(ent, code)) return false;
         if ((code && !G_IsUnitAbilityAvailable(ent, code)) ||
             !S_AncientAbilityAvailable(ent, ability)) return false;
     }
