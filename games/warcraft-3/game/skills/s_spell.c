@@ -1564,6 +1564,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
+    case MAKEFOURCC('B','H','t','c'):
         break;
     default: return;
     }
@@ -1603,6 +1604,11 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         ability = MAKEFOURCC('A','f','a','e');
         status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
         break;
+    case MAKEFOURCC('B','H','t','c'):
+        if (!ability) ability = MAKEFOURCC('A','H','t','c');
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 4));
+        break;
     default: return;
     }
 }
@@ -1624,12 +1630,10 @@ heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float 
     return S_SpellApplyTimedStatus(unit, "BTLF", level, duration);
 }
 
-/* Ordinary target buffs add the standard authored TargetArt on top of the
- * shared timed-status lifecycle. */
-heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
-    /* Pass the actual ability identity before installing authored modifiers.
-     * Calling the generic wrapper first would populate descriptors from a
-     * stock alias, leaving the custom caster's Data fields ignored. */
+/* Apply a timed status with its originating ability identity so authored
+ * modifiers use the correct row even when several abilities share a buff. */
+heroabilitystatus_t *S_SpellApplyTimedStatusFromAbility(edict_t *target, uint32_t code, uint32_t level,
+                                                        cstring_t buff, float duration) {
     status_application_t app = { .buff = buff, .level = level, .duration = duration,
                                  .source_ability = code, .rank = level };
     heroabilitystatus_t *status;
@@ -1637,6 +1641,14 @@ heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t cod
     status = unit_applystatus(target, &app);
     if (!status) return NULL;
     status_apply_authored_modifiers(status, code);
+    return status;
+}
+
+/* Ordinary target buffs add the standard authored TargetArt on top of the
+ * shared timed-status lifecycle. */
+heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
+    heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(target, code, level, buff, duration);
+    if (!status) return NULL;
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return status;
 }
