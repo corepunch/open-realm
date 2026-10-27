@@ -119,7 +119,8 @@ See [Save/Load](save-load.md).
 
 Brilliance Aura uses the same source-pattern and recipient-glow pair as
 Devotion and Unholy Aura, and exposes its active recipient buff virtually in
-the selected-unit status strip. TFT reads the authored `AHab` `BuffID`
+the selected-unit status strip. Only friendly recipients with a positive max
+mana value receive its mana bonus or presentation. TFT reads the authored `AHab` `BuffID`
 (`BHab`); RoC has no `BuffID` column, so the `BZ_COMPAT_WORKAROUNDS` mapping
 supplies `BHab` for stock `AHab`. Endurance, Vampiric, Thorns, and Command Aura
 do not use these world-space overlay slots. Vampiric's extra buff `SpecialArt`

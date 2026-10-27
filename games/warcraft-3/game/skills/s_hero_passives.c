@@ -775,6 +775,7 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
         if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data) { slot = i; break; }
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
+    if (code == ID_BRILLIANCE && unit->mana.max_value <= 0.0f) return 0.0f;
     /* Slow auras are position-dependent and their range applies immediately,
      * so share the provider snapshot but evaluate current range and target
      * eligibility instead of caching the recipient result. */
@@ -825,6 +826,7 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
                 auraAbilityRef_t const ability = source->combat[j];
                 abilityLevel_t const *row;
                 if (!ability.alias) continue;
+                if (aura_cache_keys[j].code == ID_BRILLIANCE && unit->mana.max_value <= 0.0f) continue;
                 if (aura_cache_keys[j].enemy ? !S_SpellIsEnemy(aura, unit) : !S_SpellIsFriend(aura, unit)) continue;
                 row = G_AbilityLevel(ability.alias, ability.level);
                 if (Vector2_distance(&aura->s.origin2, &unit->s.origin2) > row->area ||
@@ -865,6 +867,7 @@ typedef struct {
 static heroAuraPresentation_t hero_aura_presentation(edict_t *unit, uint32_t base_code) {
     heroAuraPresentation_t result = {0};
 
+    if (base_code == ID_BRILLIANCE && (!unit || unit->mana.max_value <= 0.0f)) return result;
     regen_aura_cache_update();
     FOR_LOOP(i, regen_source_count) {
         edict_t *source = regen_sources[i].source;
