@@ -124,14 +124,21 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     float duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
     cstring_t buff = S_SpellBuffId(spell->code, level);
     edict_t *thinker = S_SpellIdentityThinker(caster, 0, NULL);
+    heroabilitystatus_t *status;
 
     if (!thinker) return;
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC AbilityData has no BuffID column; the HumanAbilityFunc contract
+     * still authors Divine Shield's TargetArt under BHds. */
+    if ((!buff || !*buff || !strcmp(buff, "-") || !strcmp(buff, "_")) &&
+        spell->code == MAKEFOURCC('A','H','d','s')) buff = "BHds";
+#endif
     thinker->resources = G_UnitHasFlag(caster, UNIT_FLAG_INVULNERABLE);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     G_SetUnitFlag(caster, UNIT_FLAG_INVULNERABLE, true);
     thinker->think = divine_shield_think;
-    if (buff && strlen(buff) >= 4) S_SpellApplyTimedStatus(caster, buff, level, duration);
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+    status = buff && strlen(buff) >= 4 ? S_SpellApplyTimedStatus(caster, buff, level, duration) : NULL;
+    if (status) unit_status_enabletargetart(caster, status, "origin");
 }
 
 /* Name=Bash
