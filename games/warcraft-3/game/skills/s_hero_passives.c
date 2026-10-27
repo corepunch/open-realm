@@ -135,6 +135,9 @@ static edict_t *brilliance_source_fx[MAX_ENTITIES];
 static edict_t *devotion_source_fx[MAX_ENTITIES];
 static edict_t *unholy_source_fx[MAX_ENTITIES];
 static edict_t *endurance_source_fx[MAX_ENTITIES];
+/* Visual-only, rebuilt on level/map reset and save restore. The per-entity
+ * generation checks avoid retaining an effect across recycled edict slots. */
+static edict_t *spiked_barricades_fx[MAX_ENTITIES];
 static uint32_t devotion_recipient_buff[MAX_ENTITIES];
 static uint32_t unholy_recipient_buff[MAX_ENTITIES];
 static uint32_t brilliance_recipient_buff[MAX_ENTITIES];
@@ -167,6 +170,7 @@ static void aura_cache_update_time(void) {
         memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
         memset(brilliance_recipient_buff, 0, sizeof(brilliance_recipient_buff));
         memset(endurance_recipient_buff, 0, sizeof(endurance_recipient_buff));
+        memset(spiked_barricades_fx, 0, sizeof(spiked_barricades_fx));
     }
     aura_cache_last_time = level.time;
 }
@@ -781,6 +785,52 @@ bool S_RegenerationAuraUpdateDue(edict_t *unit) {
     return true;
 }
 
+/* Spikes are a research-owned model, not a permanent entity attribute.
+ * Reconcile at the existing passive presentation cadence: research completion,
+ * ownership transfer, save/load and new buildings require no serialized FX
+ * state. Custom Aspi without Rosp does not receive the stock War Mill model. */
+static void spiked_barricades_sync_effect(edict_t *unit) {
+    edict_t *effect;
+    bool enabled;
+    cstring_t art;
+
+    if (unit->s.number >= MAX_ENTITIES) return;
+    effect = spiked_barricades_fx[unit->s.number];
+    if (effect && (!effect->inuse || effect->owner != unit || effect->goalentity != unit ||
+                   effect->damage != unit->spawn_time ||
+                   effect->summon_ability != ID_SPIKED_BARRICADES))
+        effect = NULL;
+    enabled = G_SpikedBarricadesResearchLevel(unit) > 0 &&
+              !(unit->svflags & SVF_OWNER_ONLY) &&
+              !G_GetConstruction(unit) && !G_BuildingIsUnsummoning(unit) &&
+              !M_IsDead(unit);
+    if (!enabled && effect) {
+        spiked_barricades_fx[unit->s.number] = NULL;
+        G_DestroyEffect(effect);
+        return;
+    }
+    if (effect || !enabled) return;
+    /* A save can restore the presentation edict without restoring this
+     * transient pointer cache. Reuse the linked model instead of doubling
+     * the spikes on the building after the first passive update. */
+    FILTER_EDICTS(existing, existing->owner == unit && existing->goalentity == unit &&
+                  existing->damage == unit->spawn_time &&
+                  existing->summon_ability == ID_SPIKED_BARRICADES &&
+                  (existing->s.flags & EF_NOT_SELECTABLE)) {
+        spiked_barricades_fx[unit->s.number] = existing;
+        return;
+    }
+    art = G_AbilityEffectArt(ID_SPIKED_BARRICADES, WC3_EFFECT_TARGET, 0);
+    if (!art || !*art || !strcmp(art, "-") || !strcmp(art, "_"))
+        art = "Abilities\\Spells\\Orc\\SpikeBarrier\\SpikeBarrier.mdx";
+    effect = G_SpawnModelEffect(art, NULL, unit, NULL, false);
+    if (effect) {
+        effect->owner = unit;
+        effect->summon_ability = ID_SPIKED_BARRICADES;
+        spiked_barricades_fx[unit->s.number] = effect;
+    }
+}
+
 /* Aura presentation is an ability-owned periodic update, reached through the
  * shared ability dispatcher rather than the physics implementation. */
 void S_UpdateUnitPassiveEffects(edict_t *unit) {
@@ -788,6 +838,7 @@ void S_UpdateUnitPassiveEffects(edict_t *unit) {
         !unit->data.UnitBalance || !S_RegenerationAuraUpdateDue(unit)) return;
     S_UpdateRegenerationAuraEffects(unit);
     S_UpdateHeroAuraEffects(unit);
+    spiked_barricades_sync_effect(unit);
 }
 
 /* Refresh all combat aura families together so one recipient scan serves every consumer. */
@@ -1148,10 +1199,17 @@ int S_ManaShieldDamage(edict_t *target, int damage) {
     return damage - (int)absorbed;
 }
 
+/* Called after the attack resolver has selected the active weapon profile.
+ * Do not infer melee from Attack 1 when the hit used Attack 2. */
+float S_ThornsMeleeDamageReturn(edict_t const *target, float damage) {
+    return target && damage > 0.0f ? damage * hero_aura_bonus((edict_t *)target, ID_THORNS_AURA, 1) : 0.0f;
+}
+
 float S_ThornsDamageReturn(edict_t const *target, edict_t const *attacker, float damage) {
-    if (!target || !attacker || (attacker->unit_state->attack1.weapon != WPN_NORMAL && attacker->unit_state->attack1.weapon != WPN_INSTANT))
+    if (!target || !attacker || !attacker->unit_state ||
+        (attacker->unit_state->attack1.weapon != WPN_NORMAL && attacker->unit_state->attack1.weapon != WPN_INSTANT))
         return 0.0f;
-    return damage * hero_aura_bonus((edict_t *)target, ID_THORNS_AURA, 1);
+    return S_ThornsMeleeDamageReturn(target, damage);
 }
 
 bool S_EvasionRoll(edict_t *target) {
@@ -1176,11 +1234,53 @@ float S_SpikedArmorBonus(edict_t const *unit) {
     return level ? S_SpellData(ID_SPIKED_CARAPACE, level, 3) : 0.0f;
 }
 
+float S_SpikedCarapaceDamageReturn(edict_t const *unit, float damage) {
+    abilityAliasRef_t const own = S_ResolveAbilityAlias((edict_t *)unit, ID_SPIKED_CARAPACE);
+    if (!own.level || damage <= 0.0f) return 0.0f;
+    return MAX(S_SpellData(own.alias, own.level, 2), damage * S_SpellData(own.alias, own.level, 1));
+}
+
+float S_SpikedBarricadesDamageReturn(edict_t const *unit, float damage) {
+    int32_t const tech_level = G_SpikedBarricadesResearchLevel(unit);
+
+    if (damage <= 0.0f) return 0.0f;
+    if (tech_level >= 0) {
+        UpgradeData_t const *upgrade;
+        float base = 4.0f, increment = 6.0f;
+        if (!tech_level) return 0.0f;
+        if (G_SpikedBarricadesModernEnabled())
+            return 5.0f + damage * (tech_level >= 2 ? 0.50f : 0.20f);
+        /* In classic data the upgrade's base/mod fields are the flat damage
+         * and improvement. Respect custom UpgradeData whenever supplied. */
+        upgrade = G_UpgradeData(MAKEFOURCC('R', 'o', 's', 'p'));
+        if (upgrade && upgrade->id == MAKEFOURCC('R', 'o', 's', 'p')) {
+            FOR_LOOP(i, 4) {
+                /* Percentage-based modern UpgradeData values must not leak
+                 * into the disabled-by-default classic calculation. Classic
+                 * damage values use positive flat base and flat increment. */
+                if (upgrade->effect[i] && upgrade->effectBase[i] >= 1.0f &&
+                    upgrade->effectMod[i] >= 1.0f) {
+                    base = upgrade->effectBase[i];
+                    increment = upgrade->effectMod[i];
+                    break;
+                }
+            }
+        }
+        return MAX(0.0f, base + increment * (float)(tech_level - 1));
+    }
+    /* Custom standalone Aspi, without Rosp in Upgrades Used. */
+    {
+        abilityAliasRef_t const own = S_ResolveAbilityAlias((edict_t *)unit, ID_SPIKED_BARRICADES);
+        if (!own.level) return 0.0f;
+        return MAX(S_SpellData(own.alias, own.level, 2), damage * S_SpellData(own.alias, own.level, 1));
+    }
+}
+
+/* Keep the old combined query for existing callers, while combat emits two
+ * independent retaliation events with their own damage semantics. */
 float S_SpikedDamageReturn(edict_t const *unit, float damage) {
-    uint32_t code = ID_SPIKED_CARAPACE, level = G_UnitAbilityLevel(unit, code);
-    if (!level) { code = ID_SPIKED_BARRICADES; level = G_UnitAbilityLevel(unit, code); }
-    if (!level) return 0.0f;
-    return MAX(S_SpellData(code, level, 2), damage * S_SpellData(code, level, 1));
+    return S_SpikedCarapaceDamageReturn(unit, damage) +
+           S_SpikedBarricadesDamageReturn(unit, damage);
 }
 
 /* Pulverize is a passive attack proc. DataA is percent chance, DataB damage,

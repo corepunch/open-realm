@@ -80,6 +80,8 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define WC3_PATH_UNFLOAT     CM_PATHING_UNSWIMMABLE
 #define WC3_PATH_UNAMPH      0x80 /* placement predicate: UNWALKABLE && UNSWIMMABLE */
 #define WC3_PATH_NAGA_SHALLOW 0x01 /* preview policy: allow shallow-water UNBUILDABLE */
+#define ID_SPIKED_BARRICADES_UPGRADE MAKEFOURCC('R', 'o', 's', 'p')
+#define ID_SPIKED_BARRICADES_ABILITY MAKEFOURCC('A', 's', 'p', 'i')
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
@@ -212,6 +214,27 @@ static bool G_UnitUsesUpgrade(edict_t const *unit, uint32_t upgrade_id) {
         if (strlen(token) == 4 && !memcmp(token, &upgrade_id, 4)) return true;
     }
     return false;
+}
+
+/* -1 means this is not a research-controlled barricade holder. In
+ * particular, a custom unit with a directly granted Aspi and no Rosp entry
+ * retains the standalone passive's authored damage values. Never cache the
+ * owner's technology: JASS, owner transfer and save restoration can change it. */
+int32_t G_SpikedBarricadesResearchLevel(edict_t const *unit) {
+    gameClient_t *owner;
+
+    if (!unit || !unit->inuse || !G_UnitIsStructure(unit) ||
+        !G_UnitUsesUpgrade(unit, ID_SPIKED_BARRICADES_UPGRADE)) return -1;
+    owner = G_GetPlayerClientByNumber(unit->s.player);
+    if (!owner || owner->ps.number != unit->s.player) return 0;
+    return G_GetPlayerTechResearchedLevel(owner, ID_SPIKED_BARRICADES_UPGRADE);
+}
+
+/* An explicit opt-in for the post-1.31 balance rules. Classic remains the
+ * default even if a later patch's MPQ is loaded. Run with
+ * +set wc3_spiked_barricades_modern 1 to select two-level modern rules. */
+bool G_SpikedBarricadesModernEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_spiked_barricades_modern", "0")) != 0;
 }
 
 uint32_t G_GetUnitUpgradeForClass(edict_t const *unit, cstring_t wanted_class) {
@@ -438,8 +461,13 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             /* Warsmash's rlev contract sets the affected ability to
              * researched-level + 1; removing the tech returns it to level 1.
              * The base/mod numeric columns are not part of this effect. */
+            /* Aspi's first active rank is Rosp level 1, not level 2.
+             * The zero-tech holder stays dormant through the research gate. */
+            int32_t const rank = upgrade->id == ID_SPIKED_BARRICADES_UPGRADE &&
+                                 ability_id == ID_SPIKED_BARRICADES_ABILITY
+                                 ? MAX(1, new_level) : (new_level > 0 ? new_level + 1 : 1);
             if (ability_id && G_UnitAbilityLevel(unit, ability_id) &&
-                G_UnitSetAbilityLevel(unit, ability_id, new_level > 0 ? new_level + 1 : 1)) {
+                G_UnitSetAbilityLevel(unit, ability_id, rank)) {
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_MAX_MANA) {
@@ -602,6 +630,10 @@ int32_t G_UpgradeGoldCost(uint32_t upgrade_id, int32_t level_value) {
 int32_t G_UpgradeLumberCost(uint32_t upgrade_id, int32_t level_value) {
     UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
     if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0;
+    if (upgrade_id == ID_SPIKED_BARRICADES_UPGRADE && G_SpikedBarricadesModernEnabled()) {
+        /* Modern level 2 costs 100 lumber, versus classic's 175. */
+        return level_value == 1 ? 75 : 100;
+    }
     return MAX(0, upgrade->lumberBase + upgrade->lumberMod * (level_value - 1));
 }
 
@@ -955,6 +987,8 @@ buildCommandState_t G_GetResearchCommandState(gameClient_t *client, edict_t *pro
     current = G_GetPlayerTechResearchedLevel(client, upgrade_id);
     level_value = current + 1;
     maximum = upgrade->maxLevel;
+    if (upgrade_id == ID_SPIKED_BARRICADES_UPGRADE && G_SpikedBarricadesModernEnabled())
+        maximum = MIN(maximum, 2);
     player_max = G_GetPlayerTechMaxAllowed(client, upgrade_id);
     if (player_max >= 0) maximum = MIN(maximum, player_max);
     if (current >= maximum || G_GetPlayerTechInProgress(client, upgrade_id) > 0) {

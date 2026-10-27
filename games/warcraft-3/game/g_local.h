@@ -3586,6 +3586,8 @@ int32_t G_GetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid);
 void G_SetPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t level_value);
 void G_AddPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t levels);
 int32_t G_GetPlayerTechResearchedLevel(gameClient_t *client, uint32_t techid);
+int32_t G_SpikedBarricadesResearchLevel(edict_t const *unit);
+bool G_SpikedBarricadesModernEnabled(void);
 int32_t G_PlayerRequirementCount(gameClient_t *client, uint32_t techid);
 float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect);
 #define ID_UPGRADE_EFFECT_MAX_MANA MAKEFOURCC('r', 'm', 'n', 'x')

@@ -309,6 +309,57 @@ author the missing spell-to-upgrade tier. The stock table remains necessary
 until a supported authoritative source exposes those links and tiers. Do not
 infer them from text fields or repurpose `reqLevel`.
 
+### `Rosp` / `Aspi` — Orc Spiked Barricades
+
+Spiked Barricades is a research-owned *passive retaliation*, not an attack-stat
+upgrade. The War Mill exposes `Rosp` through `UnitProfile.researches`; an
+eligible real building lists `Rosp` in `UnitBalance.upgrades` (Upgrades Used).
+The `Rosp` technology level is stored on the owning player, independent of the
+War Mill. The first researched level activates retaliation. Research level 0
+leaves an authored base `Aspi` dormant when the structure lists `Rosp`.
+Existing and newly built structures query that owner technology rather than
+storing another permanent per-building level. Player changes and save restores
+therefore do not require special technology serialization.
+
+**Default: classic RoC/TFT.** Damage returned to a successful enemy melee
+attacker is a flat 4/10/16 for levels 1/2/3. The implementation first uses
+`Rosp`'s authored positive flat `effectBase` and `effectMod` pair when supplied
+(4 + 6 per additional level in stock classic), then falls back to these
+classic values when the row does not expose them as flat damage values. The general passive `Aspi`
+on a custom unit *without* `Rosp` in Upgrades Used retains its original
+ability DataA/DataB formula; `AUts` Spiked Carapace remains separate.
+
+**Optional modern behaviour:** set `wc3_spiked_barricades_modern 1` before
+loading the map (default is `0`). Modern level 1 returns `5 + 20%` of the
+resolved attack damage; level 2 returns `5 + 50%`. Normal research is capped
+at two levels, and level 2 costs 100 rather than 175 lumber. Research time and
+per-level tech prerequisites continue to use authored data. The two stock
+modern tooltips are substituted when this opt-in is enabled while loading
+classic game data. This is a game/server setting and should be the same for
+all players in a match. Changing it midway through a match is unsupported.
+
+Normal damage reflection triggers only for a successfully resolved enemy
+`WPN_NORMAL` or `WPN_INSTANT` attack. The attack resolver uses the *selected*
+weapon profile, including Attack 2, not merely the attacker's first weapon.
+Retaliation uses independent Thorns, Carapace and Barricades events. The
+Barricades event follows the existing `S_SpellDamage` mitigation path, which
+checks spell immunity and anti-magic absorption; none of these secondary damage
+events recursively re-enters the attack-hit resolver. Impact reflection uses
+the final `S_ResolveAttackHit` damage argument after attack-type, armor,
+ability and defensive hit modifiers.
+
+The Warcraft `SpikeBarrier.mdx` visual is attached via the generic effect
+system, preferring the authored `Aspi` TargetArt when available. It is
+reconciled during periodic passive-effect updates for completed living
+buildings, and is removed when research, construction/unsummoning state, or
+ownership no longer qualifies. Construction previews are deliberately
+excluded. No new serialized edict fields are required.
+
+Remaining external-data limitations: `war3map.w3q` upgrade overrides are not
+currently normalized; research level configuration comes from the loaded SLK
+and per-level requirements. Full art placement and rare lethal-hit/immunity
+ordering should be compared with retail visual/gameplay captures.
+
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 
 `rmnx` changes maximum mana by the authored old/new level delta and moves

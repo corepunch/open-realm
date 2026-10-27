@@ -492,10 +492,24 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     S_OrbOnHit(attacker, target);
     S_PoisonOnHit(attacker, target);
     G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
-    if (target->inuse) {
-        float thorns = S_ThornsDamageReturn(target, attacker, damage);
-        float spiked = S_SpikedDamageReturn(target, damage);
-        if (thorns + spiked > 0.0f) T_Damage(attacker, target, (int)(thorns + spiked));
+    if (target->inuse && attacker->inuse && !M_IsDead(attacker) &&
+        S_SpellIsEnemy(target, attacker)) {
+        /* Damage returned by a normal melee attack is a secondary damage
+         * event, never another attack hit. Ranged attacks and spell impacts
+         * cannot trigger it even when they occur at point-blank range. */
+        unitAttack_t const *profile = attack_profile(attacker, target);
+        if (profile && (profile->weapon == WPN_NORMAL || profile->weapon == WPN_INSTANT)) {
+            float const thorns = S_ThornsMeleeDamageReturn(target, damage);
+            float const carapace = S_SpikedCarapaceDamageReturn(target, damage);
+            float const barricades = S_SpikedBarricadesDamageReturn(target, damage);
+            if (thorns > 0.0f) T_Damage(attacker, target, (int)thorns);
+            if (carapace > 0.0f && attacker->inuse && !M_IsDead(attacker))
+                T_Damage(attacker, target, (int)carapace);
+            /* Spikes are magic retaliation: go through spell immunity and
+             * anti-magic absorption, not the plain physical-damage path. */
+            if (barricades > 0.0f && attacker->inuse && !M_IsDead(attacker))
+                S_SpellDamage(attacker, target, (int)barricades);
+        }
     }
 }
 

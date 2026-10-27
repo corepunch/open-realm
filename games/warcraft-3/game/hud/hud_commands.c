@@ -83,6 +83,15 @@ static void UI_FormatTooltipLevel(cstring_t code, cstring_t tip, cstring_t ubert
                      (unsigned)supply_icon, (unsigned)food_cost);
         }
     }
+    /* This explicit opt-in changes the stock research balance while classic
+     * MPQs still provide the old tooltip text. Preserve normal authored text
+     * for all other upgrades and for the default classic mode. */
+    if (class_id == MAKEFOURCC('R','o','s','p') && upgrade && upgrade->id == class_id &&
+        G_SpikedBarricadesModernEnabled()) {
+        ubertip = level >= 2
+            ? "Returns 5 damage plus 50% of the attacker's attack damage to melee attackers of Orc buildings."
+            : "Returns 5 damage plus 20% of the attacker's attack damage to melee attackers of Orc buildings.";
+    }
     if (ubertip && *ubertip) {
         snprintf(out + strlen(out), out_size - strlen(out), "|n%s", ubertip);
     }

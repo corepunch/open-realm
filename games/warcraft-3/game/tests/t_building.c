@@ -6901,4 +6901,99 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     gi.ImageIndex = old_image_index;
 }
 
+
+/* Rosp is a player technology; a unit's authored Upgrades Used controls
+ * whether stock barricades activate, and a directly granted Aspi with no
+ * Rosp entry remains independent of the War Mill. */
+static cstring_t building_spikes_modern_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "wc3_spiked_barricades_modern") ? "1" : fallback;
+}
+
+static cstring_t building_spikes_classic_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "wc3_spiked_barricades_modern") ? "0" : fallback;
+}
+
+TEST(wc3_building, spiked_barricades_research_uses_owner_tech_and_classic_upgrade_data) {
+    static const char upgrades[] =
+        "ID;PWXL;N;E\nB;X7;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\n"
+        "C;X3;K\"effect1\"\nC;X4;K\"base1\"\nC;X5;K\"mod1\"\n"
+        "C;X6;K\"lumberbase\"\nC;X7;K\"lumbermod\"\n"
+        "C;X1;Y2;K\"Rosp\"\nC;X2;K3\nC;X3;K\"rspi\"\n"
+        "C;X4;K4\nC;X5;K6\nC;X6;K75\nC;X7;K100\nE\n";
+    gameClient_t *owner = &game.clients[0], *other = &game.clients[1];
+    cstring_t (*previous)(cstring_t, cstring_t) = gi.CvarString;
+    edict_t *building = alloc_test_unit(MAKEFOURCC('o','b','a','r'), 0, 0);
+    edict_t *future = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 128, 0);
+    UnitBalance_t balance = { .upgrades = "Rosp" };
+    slkTestData_t *rows = parse_slk_string(upgrades);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+
+    memset(owner->tech, 0, sizeof(owner->tech));
+    memset(other->tech, 0, sizeof(other->tech));
+    gi.CvarString = building_spikes_classic_cvar;
+    T_ASSERT(!G_SpikedBarricadesModernEnabled());
+    building->s.flags |= EF_BUILDING;
+    future->s.flags |= EF_BUILDING;
+    building->s.player = future->s.player = owner->ps.number;
+    building->data.UnitBalance = future->data.UnitBalance = &balance;
+    T_EQ(G_SpikedBarricadesResearchLevel(building), 0);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 0, 0.001f);
+
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 1);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 4, 0.001f);
+    T_FEQ(S_SpikedBarricadesDamageReturn(future, 40), 4, 0.001f);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 2);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 10, 0.001f);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 3);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 16, 0.001f);
+
+    /* Ownership is resolved from current player, without stale per-unit data. */
+    building->s.player = other->ps.number;
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 0, 0.001f);
+    building->s.player = owner->ps.number;
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 0);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 0, 0.001f);
+    T_EQ(G_UpgradeLumberCost(MAKEFOURCC('R','o','s','p'), 2), 175);
+
+    gi.CvarString = previous;
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, spiked_barricades_modern_flag_is_opt_in) {
+    static const char upgrades[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\n"
+        "C;X3;K\"lumberbase\"\nC;X4;K\"lumbermod\"\n"
+        "C;X1;Y2;K\"Rosp\"\nC;X2;K3\nC;X3;K75\nC;X4;K100\nE\n";
+    cstring_t (*previous)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner = &game.clients[0];
+    edict_t *building = alloc_test_unit(MAKEFOURCC('o','b','a','r'), 0, 0);
+    UnitBalance_t balance = { .upgrades = "Rosp" };
+    UnitProfile_t profile = { .researches = "Rosp" };
+    slkTestData_t *rows = parse_slk_string(upgrades);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+    memset(owner->tech, 0, sizeof(owner->tech));
+    building->s.player = owner->ps.number;
+    building->s.flags |= EF_BUILDING;
+    building->data.UnitBalance = &balance;
+    building->data.UnitProfile = &profile;
+    gi.CvarString = building_spikes_modern_cvar;
+    T_ASSERT(G_SpikedBarricadesModernEnabled());
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 1);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 13, 0.001f);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 2);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 25, 0.001f);
+    T_EQ(G_UpgradeLumberCost(MAKEFOURCC('R','o','s','p'), 2), 100);
+    /* The authoring file still allows classic level 3, but a modern match
+     * must not offer a third research command. */
+    T_EQ(G_GetResearchCommandState(owner, building, MAKEFOURCC('R','o','s','p'),
+                                   NULL, NULL, 0), BUILD_COMMAND_HIDDEN);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 0);
+    gi.CvarString = previous;
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
 #endif
