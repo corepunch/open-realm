@@ -17,6 +17,17 @@ and writes the generic index + flags. The client-side `games/<game>/renderer/` h
 consumes `effect`/`effect_flags` generically; it must not contain a table of per-race
 or per-spell asset paths.
 
+## Named model attachments
+
+For an entity that follows a named socket on another rendered entity, set
+`EF_NAMED_ATTACHMENT`. The snapshot reuses existing fields: `name` carries the packed
+`CS_GENERAL` socket name and `hover_value` carries the parent entity number plus one.
+The game snapshot customization preserves those values for flagged entities; the
+generic client resolves the socket string and copies the parent/name into its local
+render entity, and the selected game renderer resolves the animated socket transform.
+This keeps `entityState_t` size and the 32-bit delta mask unchanged. Do not add wire
+fields for parent or socket identity.
+
 ## Anti-pattern (do not repeat)
 
 An earlier version of building-damage fire rendering (see PR #241, commit `5be1bfc`)

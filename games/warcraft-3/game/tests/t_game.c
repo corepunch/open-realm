@@ -5079,6 +5079,8 @@ SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE
 SAVE_INT_FIELD_TEST(field_script_explosion_round_trip, aiflags, AI_SCRIPT_EXPLODED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, missile->attack_type, ATK_PIERCE)
+SAVE_INT_FIELD_TEST(field_projectile_owner_spawn_time_round_trip, missile->owner_spawn_time, 250)
+SAVE_COMPONENT_FLOAT_FIELD_TEST(field_avatar_original_scale_round_trip, avatar, G_GetAvatar, original_scale, 1.35f)
 SAVE_INT_FIELD_TEST(field_attack_cooldown_end_time_round_trip, unit_state->attack_cooldown_end_time, 12345)
 SAVE_INT_FIELD_TEST(field_attack_backswing_end_time_round_trip, unit_state->attack_backswing_end_time, 12346)
 /* The splash profile is a component payload: the edict schema no longer carries an artillery member. */

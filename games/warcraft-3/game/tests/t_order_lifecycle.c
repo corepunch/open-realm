@@ -161,10 +161,13 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     vec2_t point = {600, 0};
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     edict_t *missile = G_Spawn();
+    G_InitMissile(missile);
     missile->owner = unit;
     missile->goalentity = enemy;
     missile->velocity = 10000;
     missile->damage = 10000;
+    missile->missile->attack_type = ATK_NORMAL;
+    missile->missile->owner_spawn_time = unit->spawn_time;
     T_ASSERT(unit_issueorder(unit, "move", &point));
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &MAKE(vec2_t, .x = 800), true, 0, 0));
     umove_t const *move = unit->currentmove;
@@ -173,6 +176,28 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     T_ASSERT(M_IsDead(enemy));
     T_ASSERT(unit->currentmove == move);
     T_EQ(G_UnitQueuedOrderCount(unit), 1);
+}
+
+TEST(wc3_order_lifecycle, projectile_from_removed_attacker_is_discarded) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+    edict_t *missile = G_Spawn();
+    float const health = enemy->health.value;
+
+    G_InitMissile(missile);
+    missile->owner = unit;
+    missile->goalentity = enemy;
+    missile->velocity = 10000;
+    missile->damage = 10000;
+    missile->missile->attack_type = ATK_NORMAL;
+    missile->missile->owner_spawn_time = unit->spawn_time;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    G_FreeEdict(unit);
+
+    SV_Physics_Toss(missile);
+
+    T_ASSERT(!missile->inuse);
+    T_FEQ(enemy->health.value, health, 0.001f);
 }
 
 TEST(wc3_order_lifecycle, explicit_attack_replaces_persistent_follow) {

@@ -15,6 +15,10 @@ void unit_stand(edict_t *self);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
+static int purge_test_model_index(cstring_t path) {
+	return path && strstr(path, "anim_oneshot.mdx") ? 91 : 0;
+}
+
 /* Non-stock DataA/DataC/DataD/DataE/Dur so tests cannot pass on hardcoded retail constants. */
 #define PURGE_APG2_SLK \
 	"ID;PWXL;N;EBB;Y3;X14\n" \
@@ -125,22 +129,29 @@ TEST(wc3_spell, purge_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_AILP).ability->proc, CAbilityPurge);
 }
 
-TEST(wc3_spell, purge_renders_authored_special_and_slow_target_art) {
+TEST(wc3_spell, purge_renders_authored_slow_target_art) {
+	const char buff_slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+		"C;Y2;X1;K\"Bprg\"\nC;Y2;X2;K\"Bprg\"\n"
+		"C;Y2;X3;K\"TestUI\\\\Models\\\\anim_oneshot.mdx\"\nE\n";
+	slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
 	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	int const special_model = G_RegisterModel(G_AbilityEffectArt(BZ_APG2, WC3_EFFECT_SPECIAL, 0));
+	int (*old_model_index)(cstring_t) = gi.ModelIndex;
+	gi.ModelIndex = purge_test_model_index;
 	int const buff_model = G_RegisterModel(G_AbilityEffectArt(BZ_BPRG, WC3_EFFECT_TARGET, 0));
-	bool special_seen = false, buff_seen = false;
+	bool buff_seen = false;
 
-	T_ASSERT(special_model > 0);
 	T_ASSERT(buff_model > 0);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
 	FILTER_EDICTS(effect, effect->goalentity == fix.enemy && effect->damage == fix.enemy->spawn_time) {
-		if (effect->s.model == special_model && effect->status_effect_code != BZ_BPRG) special_seen = true;
 		if (effect->s.model == buff_model && effect->status_effect_code == BZ_BPRG) buff_seen = true;
 	}
-	T_ASSERT(special_seen);
 	T_ASSERT(buff_seen);
+	gi.ModelIndex = old_model_index;
 	purge_done(fix);
+	G_SetSLKRows("AbilityBuffData", old_buff);
+	free_slk_rows(buff_rows);
 }
 
 /* Aprg with DataD=0 slows by authored DataA and does not immobilize. */

@@ -5378,6 +5378,17 @@ TEST(wc3_api, customize_entity_publishes_gold_mine_hover_value) {
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
 }
 
+TEST(wc3_api, customize_entity_preserves_named_attachment_payload) {
+    edict_t ent = { .s = { .flags = EF_NAMED_ATTACHMENT, .name = 41, .hover_value = 12 } };
+    entityState_t state = ent.s;
+
+    globals.CustomizeEntity(0, &ent, &state);
+
+    T_ASSERT(state.flags & EF_NAMED_ATTACHMENT);
+    T_EQ(state.name, 41);
+    T_EQ(state.hover_value, 12);
+}
+
 TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t parent = {

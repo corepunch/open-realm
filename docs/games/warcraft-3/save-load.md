@@ -29,8 +29,8 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot and a raw `edict_t` block for used slots;
-- sparse lifecycle records for all 27 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
-- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
+- sparse lifecycle records for all 29 component pools and ten direct edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
+- basic attack projectiles retain their launch-time attack type and owner incarnation, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and a checksum over the complete preceding payload. Since version 74 the checksum folds native 64-bit words into four FNV-style lanes. The previous byte-wise FNV-1a dominated save/load time at about 6 MB per file.
 
@@ -1182,16 +1182,18 @@ are identical to the row-based exclusion (the link was already zero in the file)
 so the format version does not change; the earlier slice sections describe the
 rows as they were introduced.
 
-## Generated component sections (version 116)
+## Generated component sections (since version 116)
 
 The component save sections are generated from the `G_COMPONENTS` table in
 `g_local.h`, one per row. The ten direct `MAX_ENTITIES` pools are written first
 in their previous relative order (`orders`, `movement`, `route`, `wander`,
 `unit_state`, `sound`, `missile`, `inventory`, `harvest`, `vision`). The
-component sections follow in component-ID order, from `waygate` (1) to `item`
-(28). Each section's name, record size, capacity, field table and exact component
+component sections follow in component-ID order, from `waygate` (1) through
+`pillage` (29). Each section's name, record size, capacity, field table and exact component
 ID come from its row, and restore allocates through the component registry
 (`G_AllocDetachedComponent`) instead of a per-type save allocator. Payload bytes,
 ID validation, link clearing and entity-reference fixups are unchanged; only the
 section order differs from version 115, so version 115 saves are rejected. The
-wire format is unchanged.
+wire format is unchanged. Version 117 adds the Pillage building ledger and Avatar
+original-scale field. Version 118 adds the launch-time attacker incarnation to each
+basic attack missile; mismatched earlier versions are rejected.

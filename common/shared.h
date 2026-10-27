@@ -233,6 +233,7 @@ enum {
     FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
     FLAG(EF_MDX_EMISSION_PAUSED, 19), /* suppress new MDX particles while authored entity animation is held */
     FLAG(EF_MDX_ANIMATION_PAUSED, 20), /* hold MDX global-sequence tracks while authored entity animation is held */
+    FLAG(EF_NAMED_ATTACHMENT, 21), /* entity uses name/hover payload for parent and attachment socket */
 };
 
 enum {
@@ -751,13 +752,11 @@ typedef struct entityState_s {
     uint8_t player;
     uint16_t model;
     uint16_t model2;
-    uint16_t attachment_entity; /* parent entity for a named model attachment; 0 = unattached */
-    uint16_t attachment_name;   /* packed CS_GENERAL name index for the attachment socket */
     uint8_t effect;
     uint16_t effect_flags; /* EFX_* presentation contract for effect/splat effects */
     uint16_t image;
-    uint16_t name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
-    uint32_t hover_value;   /* recipient-filtered hover detail; 0 = absent, present values are wire_value - 1 */
+    uint16_t name;        /* packed name/socket: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
+    uint32_t hover_value;   /* hover detail or named-attachment parent+1 when EF_NAMED_ATTACHMENT is set */
     uint16_t sound;
     uint32_t frame;
     uint8_t event;

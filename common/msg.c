@@ -41,8 +41,6 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, frame), NFT_LONG },
     { NETF(entityState_t, model), NFT_SHORT },
     { NETF(entityState_t, model2), NFT_SHORT },
-    { NETF(entityState_t, attachment_entity), NFT_SHORT },
-    { NETF(entityState_t, attachment_name), NFT_SHORT },
     { NETF(entityState_t, effect), NFT_BYTE },
     { NETF(entityState_t, effect_flags), NFT_SHORT },
 #ifdef WOW

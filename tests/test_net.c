@@ -4007,6 +4007,25 @@ TEST(net, entity_delta_preserves_effect_model) {
     T_EQ(out.effect_flags, to.effect_flags);
 }
 
+TEST(net, entity_delta_preserves_named_attachment_payload) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .flags = EF_NAMED_ATTACHMENT,
+        .name = 41, .hover_value = 12 }, out = { 0 };
+    uint32_t bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_NAMED_ATTACHMENT);
+    T_EQ(out.name, 41);
+    T_EQ(out.hover_value, 12);
+}
+
 /* Other game entity events remain delta-compatible; WC3 sounds use svc_sound. */
 TEST(net, entity_delta_preserves_entity_event) {
     uint8_t buf[256];

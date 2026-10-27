@@ -2976,16 +2976,21 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
 
     T_FEQ(S_EnduranceMoveBonus(target), 0.10f, 0.001f);
     T_FEQ(S_EnduranceAttackBonus(target), 0.20f, 0.001f);
+    S_UpdateHeroAuraEffects(target);
     T_EQ(S_EnduranceAuraBuff(target), MAKEFOURCC('B','O','a','e'));
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f / 1.2f, 0.001f);
 
     source->s.renderfx |= RF_HIDDEN;
+    S_UpdateHeroAuraEffects(target);
+    T_EQ(S_EnduranceAuraBuff(target), 0);
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f, 0.001f);
     source->s.renderfx &= ~RF_HIDDEN;
 
     target->s.renderfx |= RF_HIDDEN;
+    S_UpdateHeroAuraEffects(target);
+    T_EQ(S_EnduranceAuraBuff(target), 0);
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f, 0.001f);
     target->s.renderfx &= ~RF_HIDDEN;

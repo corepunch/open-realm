@@ -805,6 +805,7 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	source->unit_state->ranks[2] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','v'), .level = 1);
 	source->unit_state->ranks[3] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','d'), .level = 1);
 	target->unit_state->armor_value = 2.0f;
+	target->mana.value = target->mana.max_value = 100.0f;
 	T_FEQ(S_BrillianceManaRegen(target), 0.75f, 0.001f);
 	T_FEQ(G_UnitArmorValue(target), 5.0f, 0.001f);
 	T_FEQ(S_UnholyMoveBonus(target), 0.1f, 0.001f);
@@ -5247,14 +5248,15 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	T_EQ(fae.ability->proc, CAbilityFaerieFire); T_ASSERT(fae.ability->flags & AB_AUTOCAST);
 	T_EQ(rej.ability->proc, CAbilityRejuvination);
 	T_EQ(roa.ability->proc, CAbilityRoar);
+	float const normal_move_distance = unit_movedistance(ally);
 	test_execute_code(caster, "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','b','l','o')));
 	T_ASSERT(unit_status_can_steal(unit_findstatus(ally, MAKEFOURCC('B','b','l','o'))));
 	T_FEQ(S_BloodlustAttackBonus(ally), 0.4f, 0.001f); T_FEQ(S_BloodlustMoveBonus(ally), 0.25f, 0.001f);
 	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.4f, 0.001f);
 	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.25f, 0.001f);
+	T_FEQ(unit_movedistance(ally), normal_move_distance * 1.25f, 0.01f);
 	{
-		float const normal_move_distance = unit_movedistance(ally);
 		ally->unit_state->attack1.cooldown = 1.0f;
 		ally->unit_state->attack1.damagePoint = 0.3f;
 		attack_melee(ally);
@@ -5752,12 +5754,14 @@ TEST(wc3_spell, lightning_shield_roc_missing_buff_id_uses_compat_fallback) {
         "C;Y2;X1;K\"Alsh\"\nC;Y2;X2;K\"Alsh\"\n"
         "C;Y2;X3;K\"15\"\nC;Y2;X4;K\"200\"\nC;Y2;X5;K\"25\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    static UnitAbilities_t const abilities = { .abilList = "Alsh" };
     edict_t *caster = make_hero(MAKEFOURCC('o','s','h','m'), 300, 300, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
     target->s.player = caster->s.player;
     target->svflags |= SVF_MONSTER;
     target->targtype = TARG_GROUND;
     target->health.value = target->health.max_value = 500;
+    caster->data.UnitAbilities = &abilities;
 
 #if BZ_COMPAT_WORKAROUNDS
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Alsh"), target));

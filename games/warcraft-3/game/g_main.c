@@ -2305,8 +2305,8 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         G_FowPlayerCanHoverEntity(player, ent);
 
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL | EF_ALLIED);
-    state->name = 0;
-    state->hover_value = 0;
+    state->name = state->flags & EF_NAMED_ATTACHMENT ? ent->s.name : 0;
+    state->hover_value = state->flags & EF_NAMED_ATTACHMENT ? ent->s.hover_value : 0;
     state->stats[ENT_CARGO] = 0;
     /* World items have no health/mana hover bars, but their authored display
      * name should still appear when the pointer rests on a visible pickup. */

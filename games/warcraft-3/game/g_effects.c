@@ -426,8 +426,9 @@ static void G_EffectSetAttachment(edict_t *effect, edict_t *target, cstring_t at
     while (out && isspace((unsigned char)socket[out - 1])) out--;
     socket[out] = '\0';
     if (!out) return;
-    effect->s.attachment_entity = (uint16_t)target->s.number;
-    effect->s.attachment_name = G_NameConfigstring(socket);
+    effect->s.flags |= EF_NAMED_ATTACHMENT;
+    effect->s.hover_value = target->s.number + 1;
+    effect->s.name = G_NameConfigstring(socket);
 }
 
 edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target,
