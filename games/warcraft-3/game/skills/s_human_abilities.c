@@ -50,9 +50,10 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
      * dispellable but are not transferable until their cleanup is audited. */
     if (status && status->code == MAKEFOURCC('B','i','n','f')) {
         status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL |
-                             WC3_STATUS_BUFF_TRANSFERABLE;
+                             WC3_STATUS_BUFF_TRANSFERABLE | WC3_STATUS_BUFF_TARGET_ART;
         status->source_ability = spell->code;
         status->rank = level;
+        G_SpawnStatusEffectTarget(status->code, st.entity, "overhead");
     }
     return status;
 }
