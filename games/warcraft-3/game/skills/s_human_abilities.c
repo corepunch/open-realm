@@ -650,6 +650,7 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
                   Vector2_distance(&target->s.origin2, point) <= area) {
         uint32_t target_removed = 0;
+        bool affected;
         FOR_LOOP(i, target->unit_state ? MAX_UNIT_STATUSES : 0) {
             if (target->unit_state->statuses[i].level && target->unit_state->statuses[i].timestamp) {
                 if (!unit_status_can_magic_dispel(&target->unit_state->statuses[i])) continue;
@@ -662,9 +663,11 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
             G_InvalidateUnitInfoPanel(target);
         }
         /* Retail dispel damages hostile summons, not friendly summons. */
+        affected = target_removed > 0;
         if (!S_SpellIsFriend(caster, target) && dispel_is_summoned(target) &&
             !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
-            S_SpellDamage(target, caster, (int)summon_dmg);
+            affected |= S_SpellDamage(target, caster, (int)summon_dmg);
+        if (affected) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     }
     if (removed && heal_hp > 0.0f) S_SpellHeal(caster, heal_hp * (float)removed);
     if (removed && heal_mana > 0.0f)
