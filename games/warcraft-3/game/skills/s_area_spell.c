@@ -318,18 +318,28 @@ static void area_damage_status_execute(edict_t *caster, spellTarget_t st, abilit
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     cstring_t buff = S_SpellBuffId(spell->code, level);
 
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 predates Thunder Clap's BuffID column; stock AHtc still applies
+     * BHtc with its authored duration and DataC/DataD movement/attack slows. */
+    if ((!buff || strlen(buff) < 4) && spell->code == MAKEFOURCC('A','H','t','c')) buff = "BHtc";
+#endif
+
     FILTER_EDICTS(target, target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {
         if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && buff && strlen(buff) >= 4 && duration > 0.0f)
-            S_SpellApplyTimedStatus(target, buff, level, duration);
+            S_SpellApplyTimedStatusFromAbility(target, spell->code, level, buff,
+                                               S_SpellResistantDuration(spell->code, level, target));
     }
 }
 
 /* Name=Thunder Clap
  * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityThunderClap) { area_damage_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityThunderClap) {
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+    area_damage_status_execute(caster, st, spell);
+}
 /* Name=Frost Nova
  * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
  */
