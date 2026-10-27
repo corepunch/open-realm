@@ -5647,6 +5647,33 @@ TEST(wc3_spell, lightning_shield_full_status_capacity_rejects_cast_and_thinker) 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, lightning_shield_roc_missing_buff_id_uses_compat_fallback) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Alsh\"\nC;Y2;X2;K\"Alsh\"\n"
+        "C;Y2;X3;K\"15\"\nC;Y2;X4;K\"200\"\nC;Y2;X5;K\"25\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('o','s','h','m'), 300, 300, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+    target->s.player = caster->s.player;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 500;
+
+#if BZ_COMPAT_WORKAROUNDS
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Alsh"), target));
+    T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','l','s','h')));
+#else
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Alsh"), target));
+    T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','l','s','h')));
+#endif
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, nightelf_passive_abilities_are_registered_with_correct_handlers) {
 	InitAbilities();
 	ability_t const *vengeance = FindAbilityByClassname("Avng");
