@@ -5144,6 +5144,7 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
 	ally->unit_state->armor_value = 2; enemy->unit_state->armor_value = 6;
 	ally->health.value = 60; ally->health.max_value = 100;
+	ally->unitinfo.MoveSpeed = 270.0f;
 	ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
 	T_EQ(blo.ability->proc, CAbilityBloodlust); T_ASSERT(blo.ability->flags & AB_AUTOCAST);
 	T_EQ(fae.ability->proc, CAbilityFaerieFire); T_ASSERT(fae.ability->flags & AB_AUTOCAST);
@@ -5153,6 +5154,16 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','b','l','o')));
 	T_ASSERT(unit_status_can_steal(unit_findstatus(ally, MAKEFOURCC('B','b','l','o'))));
 	T_FEQ(S_BloodlustAttackBonus(ally), 0.4f, 0.001f); T_FEQ(S_BloodlustMoveBonus(ally), 0.25f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.4f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.25f, 0.001f);
+	{
+		float const normal_move_distance = unit_movedistance(ally);
+		ally->unit_state->attack1.cooldown = 1.0f;
+		ally->unit_state->attack1.damagePoint = 0.3f;
+		attack_melee(ally);
+		T_FEQ(unit_movedistance(ally), normal_move_distance * 1.25f, 0.01f);
+		T_FEQ(ally->wait, 0.3f / 1.4f, 0.001f);
+	}
 	test_execute_code(caster, "Afae", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e')));
 	T_ASSERT(unit_status_can_steal(unit_findstatus(enemy, MAKEFOURCC('B','f','a','e'))));
