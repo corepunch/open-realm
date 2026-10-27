@@ -1666,7 +1666,8 @@ static bool unit_status_timedlife(uint32_t code) {
 
 bool unit_statusshowstimedbar(uint32_t code) {
     return code == MAKEFOURCC('B', 'T', 'L', 'F') ||
-           code == MAKEFOURCC('B', 'm', 'i', 'l');
+           code == MAKEFOURCC('B', 'm', 'i', 'l') ||
+           code == MAKEFOURCC('B', 'H', 'a', 'v');
 }
 
 float unit_statusremainingfraction(heroabilitystatus_t const *status) {

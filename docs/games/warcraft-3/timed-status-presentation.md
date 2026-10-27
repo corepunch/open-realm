@@ -10,6 +10,7 @@ OpenRealm currently opts these statuses into the timed bar:
 | --- | --- | --- |
 | `Bmil` | Human `Amil` Call to Arms transform | `S_MilitiaExpire()` restores Peasant form |
 | `BTLF` | summoned-unit timed life | unit dies when the status expires; Dispel/Purge/Devour Magic cannot remove this lifecycle status |
+| `BHav` | Mountain King `AHav` Avatar | restores Avatar's stats, scale, and alternate model animation |
 
 Other timed statuses such as `Bstu` remain ordinary simulation statuses and do not claim the selected-unit countdown bar. `BTLF` is also
 classified as undispellable by `S_StatusIsUndispellable()`: removing it early would erase the simulation-owned expiration and turn a
@@ -112,7 +113,7 @@ Warsmash locally decrements its cached remaining duration every rendered frame b
 
 Do not move expiration to the client to fix that. A future interpolation pass should transmit enough timing information to predict presentation only, then reconcile to the server value.
 
-Avatar and other Warsmash buffs that opt into `isTimedLifeBar()` are not automatically classified here because their corresponding OpenRealm gameplay paths are not yet implemented/verified. Add them alongside their gameplay implementation rather than guessing from duration alone.
+Other Warsmash buffs that opt into `isTimedLifeBar()` are not automatically classified here because their corresponding OpenRealm gameplay paths are not yet implemented/verified. Add them alongside their gameplay implementation rather than guessing from duration alone.
 
 ## Verification
 
