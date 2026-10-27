@@ -290,7 +290,8 @@ static float unit_detector_range(edict_t const *detector) {
 		if (abilities[i] == magic_sentry) {
 			gameClient_t *owner = G_GetPlayerClientByNumber(detector->s.player);
 			/* Towers carry Adts in their unit rows before research; Rhse is
-			 * what activates its true-sight radius for that player. */
+			 * what activates its true-sight radius. The owning player's allied
+			 * vision recipients then share the detector through the usual path. */
 			if (!owner || G_GetPlayerTechResearchedLevel(owner, magic_sentry_research) <= 0) continue;
 		}
 		if (level) range = MAX(range, S_SpellRange(abilities[i], level));

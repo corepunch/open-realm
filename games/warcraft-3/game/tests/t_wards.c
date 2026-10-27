@@ -114,7 +114,7 @@ static void ward_done(wardFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
 }
 
-TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_is_owner_local) {
+TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_vision) {
 	static UnitAbilities_t const tower_abilities = { .abilList = "Adts" };
 	uint32_t const magic_sentry = MAKEFOURCC('A','d','t','s');
 	uint32_t const magic_sentry_upgrade = MAKEFOURCC('R','h','s','e');
@@ -137,6 +137,11 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_is_owner_local) {
 
 	G_SetPlayerTechResearched(&game.clients[0], magic_sentry_upgrade, 1);
 	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
+	/* Alliance direction: owner 0 shares its vision with ally 2. */
+	level.alliances[0][2] |= 1 << ALLIANCE_SHARED_VISION;
+	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 2));
+	level.alliances[0][2] &= ~(1 << ALLIANCE_SHARED_VISION);
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
 
 	G_SetPlayerTechResearched(&game.clients[0], magic_sentry_upgrade, 0);
