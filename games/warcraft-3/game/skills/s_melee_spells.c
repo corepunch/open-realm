@@ -67,6 +67,38 @@ static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         melee_status_capacity(caster, st.entity, spell);
 }
 
+/* Bloodlust autocast is combat-driven: only consider friendly units that have
+ * actually entered an attack order against a live enemy. */
+static bool bloodlust_autocast_acquire(edict_t *caster, uint32_t code) {
+    edict_t *best = NULL;
+    float best_distance = FLT_MAX;
+    uint32_t level;
+    float range;
+    abilityitem_t item = S_AbilityItem(code);
+
+    if (!caster || !code || !item.ability) return false;
+    level = S_SpellLevel(caster, code);
+    range = S_SpellRange(code, level);
+    if (range <= 0.0f) range = 600.0f;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target)) {
+        edict_t *enemy = target->combatentity;
+        float distance;
+        if (!target->currentmove || target->currentmove->proc != CAbilityAttack ||
+            !enemy || !enemy->inuse || !S_SpellIsAliveTarget(enemy) ||
+            !S_SpellIsEnemy(target, enemy) || !S_SpellIsFriend(caster, target) ||
+            S_UnitHasStatus(target, MAKEFOURCC('B','b','l','o')) ||
+            !S_SpellAllowsTarget(code, caster, target)) continue;
+        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
+        if (distance > range || distance >= best_distance) continue;
+        spellTarget_t spell_target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &spell_target);
+        if (!S_AbilityMessage(caster, A_VALIDATE, &call)) continue;
+        best = target;
+        best_distance = distance;
+    }
+    return best && S_CastUnitTargetSpell(caster, code, best);
+}
+
 static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity) &&
         melee_status_capacity(caster, st.entity, spell);
@@ -99,7 +131,7 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->unit_state->autocast == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, false, 900.0f);
+    case A_AUTOCAST_ACQUIRE: return bloodlust_autocast_acquire(ent, code);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
