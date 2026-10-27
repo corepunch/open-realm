@@ -2335,6 +2335,9 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
     uint32_t buff;
 
     if (!status || !status->level) return 0;
+    /* Runtime stun state is Bstu; Warcraft's visible pause buff is BPSE. */
+    if (status->code == MAKEFOURCC('B','s','t','u'))
+        return MAKEFOURCC('B','P','S','E');
     if ((status->code & 0xff) == 'B') return status->code;
     /* Timed statuses use a separate progress-bar presentation. Persistent
      * Axxx status records (for example Devotion Aura on its caster) have

@@ -495,13 +495,15 @@ edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_
     edict_t *effect = NULL;
     char classname[5], key[32];
     cstring_t count_value;
+    uint32_t art_id = status_id == MAKEFOURCC('B','s','t','u')
+        ? MAKEFOURCC('B','P','S','E') : status_id;
     uint32_t count = 1;
     uint32_t i;
     if (!status_id || !target || !target->inuse) return NULL;
     FILTER_EDICTS(existing, existing->status_effect_code == status_id &&
                   existing->goalentity == target && existing->damage == target->spawn_time)
         return existing;
-    memcpy(classname, &status_id, 4);
+    memcpy(classname, &art_id, 4);
     classname[4] = '\0';
     count_value = FindConfigValue(classname, "Targetattachcount");
     if (count_value && *count_value) count = (uint32_t)MAX(1, atoi(count_value));
@@ -514,7 +516,7 @@ edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_
         authored_attach = FindConfigValue(classname, key);
         if (authored_attach && *authored_attach) selected_attach = authored_attach;
         {
-            edict_t *attached = G_SpawnAbilityEffectTarget(status_id, WC3_EFFECT_TARGET, 0,
+            edict_t *attached = G_SpawnAbilityEffectTarget(art_id, WC3_EFFECT_TARGET, 0,
                                                             target, selected_attach, false);
             if (!effect) effect = attached;
             if (attached) attached->status_effect_code = status_id;

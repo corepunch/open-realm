@@ -1671,7 +1671,8 @@ heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t cod
 /* Warcraft's standard stun lifecycle is always Bstu at status level one.
  * Callers own hit validation and the exact authored/resistant duration. */
 void S_SpellApplyStun(edict_t *target, float duration) {
-    (void)S_SpellApplyTimedStatus(target, "Bstu", 1, duration);
+    heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, "Bstu", 1, duration);
+    if (status) unit_status_enabletargetart(target, status, "overhead");
 }
 
 /* Fixed-damage point/radius family used by simple area nukes. More selective
