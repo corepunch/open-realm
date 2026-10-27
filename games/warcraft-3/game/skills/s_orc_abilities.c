@@ -76,13 +76,17 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     }
     unit_refreshstatusflags(st.entity);
     G_InvalidateUnitInfoPanel(st.entity);
+    /* Purge's cast impact is authored as SpecialArt, not TargetArt. */
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, st.entity, "origin", true);
     /* The hostile-only movement effect is independent of Purge's dispel. */
     if (hostile) {
         buff = S_SpellBuffId(spell->code, level);
         if (!buff || strlen(buff) < 4) buff = "Bprg";
-        slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                             S_SpellDuration(spell->code, level, false));
-        if (slot) slot->data = spell->code;
+        slot = S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
+        if (slot) {
+            slot->data = spell->code;
+            unit_status_enabletargetart(st.entity, slot, "origin");
+        }
     }
     if (st.entity->owner && !S_SummonIsDispelImmune(st.entity))
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));

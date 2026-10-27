@@ -125,6 +125,24 @@ TEST(wc3_spell, purge_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_AILP).ability->proc, CAbilityPurge);
 }
 
+TEST(wc3_spell, purge_renders_authored_special_and_slow_target_art) {
+	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+	int const special_model = G_RegisterModel(G_AbilityEffectArt(BZ_APG2, WC3_EFFECT_SPECIAL, 0));
+	int const buff_model = G_RegisterModel(G_AbilityEffectArt(BZ_BPRG, WC3_EFFECT_TARGET, 0));
+	bool special_seen = false, buff_seen = false;
+
+	T_ASSERT(special_model > 0);
+	T_ASSERT(buff_model > 0);
+	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
+	FILTER_EDICTS(effect, effect->goalentity == fix.enemy && effect->damage == fix.enemy->spawn_time) {
+		if (effect->s.model == special_model && effect->status_effect_code != BZ_BPRG) special_seen = true;
+		if (effect->s.model == buff_model && effect->status_effect_code == BZ_BPRG) buff_seen = true;
+	}
+	T_ASSERT(special_seen);
+	T_ASSERT(buff_seen);
+	purge_done(fix);
+}
+
 /* Aprg with DataD=0 slows by authored DataA and does not immobilize. */
 TEST(wc3_spell, purge_aprg_slows_by_authored_dataa_without_immobilize) {
 	const char slk[] =
