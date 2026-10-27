@@ -1698,7 +1698,8 @@ typedef struct shopStockItem_s {
     X(25, CHANNEL, channel, Channel, channel_t, LIFECYCLE_POOL_CAP, channel_fields) \
     X(26, DESTRUCTABLE, destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP, destructable_fields) \
     X(27, CONSTRUCTION, construction, Construction, construction_t, LIFECYCLE_POOL_CAP, construction_fields) \
-    X(28, ITEM, item, Item, item_t, LIFECYCLE_POOL_CAP, item_fields)
+    X(28, ITEM, item, Item, item_t, LIFECYCLE_POOL_CAP, item_fields) \
+    X(29, PILLAGE, pillage, Pillage, pillage_t, LIFECYCLE_POOL_CAP, scalar_pool_fields)
 
 typedef enum {
 #define G_COMPONENT_ID(id, ID, member, Name, type, cap, fields) COMPONENT_##ID = id,
@@ -1711,6 +1712,16 @@ typedef struct component_s {
     uint32_t id;
     struct component_s *next;
 } component_t;
+
+/* Target-owned Pillage ledger. Only buildings that suffer qualifying hits allocate
+ * one. Damage/remainder belong to the receiving building AND attacking player:
+ * another player's attacks must not consume fractional rewards. No entity refs. */
+typedef struct {
+    component_t component;
+    double damage_remainder[MAX_PLAYERS]; /* uncompleted DataB damage steps */
+    double gold_remainder[MAX_PLAYERS];   /* fractional pre-upkeep currency */
+    double lumber_remainder[MAX_PLAYERS];
+} pillage_t;
 
 /* Shop-owned stock list retained across patron selection and purchases. */
 typedef struct stock_s {

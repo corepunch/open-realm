@@ -16,6 +16,31 @@ type definitions. Unknown or unsupported codes may resolve to explicit local
 stubs for recognition/passive coverage, but command-card discovery requires a
 an explicit command or an executable `AB_SPELL` definition so a stub cannot create a dead button.
 
+## Orc Pillage (`Asal` / `Ropg`)
+
+Pillage is a passive attack-damage consumer, not a spell cast. `Asal` remains
+registered under `CAbilitySalvage`, but `S_PillageOnAttackDamage()` now awards
+resources only for **primary** attack damage after shields/Spirit Link and
+other damage reductions. Splash, scripted damage, retaliation, spell attacks,
+misses and overkill never independently award Pillage. Completed live
+structures use their `UnitBalance` gold/lumber costs and live maximum HP.
+
+The unit's active `Asal`-family alias determines its `DataA` salvage ratio
+(`Sal1`) and `DataB` damage accumulation step (`Sal2`); rank and runtime
+ability additions/removals are respected. Stock `Asal` is gated by researched
+`Ropg` when the unit's Upgrades Used list contains `Ropg`. Direct custom
+aliases without the stock dependency work immediately. Income is awarded via
+`G_CreditResourceIncome` for the owning player, including ordinary upkeep and
+score/HUD accounting. Per-structure, per-attacking-player fractional damage
+and resource entitlements reside in the optional Pillage component and survive
+save/load; component ID 29 and save version 117 are reserved for this contract.
+Invalid DataB (non-positive/nonfinite) disables payment instead of hanging.
+
+Remaining retail-observation details: exact integer rounding on DataB > 1,
+neutral relationship masks in specialized custom maps, whether income is
+rounded before or after upkeep on each threshold, and cap/overheal behaviour.
+See [Pillage mechanics](../pillage.md) for tests and limitations.
+
 ## Current Model
 
 Campaign rawcodes in `CampaignAbilityStrings.txt` are registered through

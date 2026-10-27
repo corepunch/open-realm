@@ -520,4 +520,128 @@ TEST(wc3_spell, creep_bash_alias_uses_authored_data) {
     T_ASSERT(target->health.value < 500);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
+/* Stock Pillage uses Ropg as an unlock, but a custom map may grant an Asal
+ * family alias directly. Synthetic rows avoid dependency on installed MPQs. */
+static const char pillage_ability_slk[] =
+    "ID;PWXL;N;E\nB;X5;Y3;D0\n"
+    "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\n"
+    "C;X4;K\"DataB1\"\nC;X5;K\"targs\"\n"
+    "C;X1;Y2;K\"Asal\"\nC;X2;K\"Asal\"\nC;X3;K0.5\nC;X4;K1\n"
+    "C;X5;K\"structure,enemy\"\n"
+    "C;X1;Y3;K\"Zsal\"\nC;X2;K\"Asal\"\nC;X3;K0.25\nC;X4;K4\n"
+    "C;X5;K\"structure,enemy\"\nE\n";
+static const char pillage_upgrade_slk[] =
+    "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\n"
+    "C;X1;Y2;K\"Ropg\"\nC;X2;K1\nE\n";
+
+typedef struct {
+    slkTestData_t *abilities, *upgrades, *old_abilities, *old_upgrades;
+    edict_t *attacker, *building;
+    gameClient_t *owner;
+} pillageFixture_t;
+
+static pillageFixture_t pillage_setup(cstring_t granted_ability, bool upgrade_listed) {
+    pillageFixture_t fix = {0};
+    static UnitBalance_t const building_cost = { .goldCost = 500, .lumberCost = 300 };
+    static UnitBalance_t const stock_grunt = { .upgrades = "Ropg" };
+    static UnitBalance_t const custom_grunt = { .upgrades = "" };
+    static UnitAbilities_t const stock_abilities = { .abilList = "Asal" };
+    static UnitAbilities_t const custom_abilities = { .abilList = "Zsal" };
+    creep_alias_world();
+    fix.abilities = parse_slk_string(pillage_ability_slk);
+    fix.upgrades = parse_slk_string(pillage_upgrade_slk);
+    fix.old_abilities = G_SetSLKRows("AbilityData", fix.abilities);
+    fix.old_upgrades = G_SetSLKRows("UpgradeData", fix.upgrades);
+    fix.owner = &game.clients[0];
+    memset(fix.owner->tech, 0, sizeof(fix.owner->tech));
+    fix.owner->ps.number = 0;
+    fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    fix.owner->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    fix.owner->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    fix.attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 0, 0);
+    fix.attacker->s.player = 0;
+    fix.attacker->svflags |= SVF_MONSTER;
+    fix.attacker->data.UnitBalance = upgrade_listed ? &stock_grunt : &custom_grunt;
+    fix.attacker->data.UnitAbilities = !strcmp(granted_ability, "Asal") ? &stock_abilities : &custom_abilities;
+    fix.building = alloc_test_unit(MAKEFOURCC('h','f','a','r'), 100, 0);
+    fix.building->s.player = 1;
+    fix.building->svflags |= SVF_MONSTER;
+    fix.building->s.flags |= EF_BUILDING;
+    fix.building->targtype = TARG_STRUCTURE;
+    fix.building->data.UnitBalance = &building_cost;
+    fix.building->health.max_value = fix.building->health.value = 1000;
+    return fix;
+}
+
+static void pillage_teardown(pillageFixture_t fix) {
+    G_SetSLKRows("UpgradeData", fix.old_upgrades);
+    G_SetSLKRows("AbilityData", fix.old_abilities);
+    free_slk_rows(fix.upgrades);
+    free_slk_rows(fix.abilities);
+}
+
+TEST(wc3_spell, pillage_stock_upgrade_controls_reward_for_existing_unit) {
+    pillageFixture_t fix = pillage_setup("Asal", true);
+    uint32_t const research = MAKEFOURCC('R','o','p','g');
+    T_EQ(G_UnitAbilityLevel(fix.attacker, BZ_ASAL), 1);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(fix.attacker, BZ_ASAL));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    G_SetPlayerTechResearched(fix.owner, research, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(fix.attacker, BZ_ASAL));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 25);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 15);
+    G_SetPlayerTechResearched(fix.owner, research, 0);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 25);
+    pillage_teardown(fix);
+}
+TEST(wc3_spell, pillage_custom_alias_respects_damage_threshold_and_remainder) {
+    pillageFixture_t fix = pillage_setup("Zsal", false);
+    T_ASSERT(S_ResolveAbilityAlias(fix.attacker, BZ_ASAL).alias == MAKEFOURCC('Z','s','a','l'));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 3);
+    T_NOT_NULL(G_GetPillage(fix.building)); /* record allocated, still no payout */
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 97);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12); /* 12.5 truncates; remainder retained */
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 7);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 25);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 15);
+    pillage_teardown(fix);
+}
+TEST(wc3_spell, pillage_only_primary_hits_and_completed_structures_pay) {
+    pillageFixture_t fix = pillage_setup("Zsal", false);
+    /* Generic spell/secondary T_Damage must not award even against a building. */
+    T_Damage(fix.building, fix.attacker, 10);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    T_NULL(G_GetPillage(fix.building));
+    G_AddConstruction(fix.building);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_NULL(G_GetPillage(fix.building));
+    G_FreeConstruction(fix.building);
+    fix.building->s.flags &= ~EF_BUILDING;
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_NULL(G_GetPillage(fix.building));
+    fix.building->s.flags |= EF_BUILDING;
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);
+    pillage_teardown(fix);
+}
+
+TEST(wc3_spell, pillage_primary_attack_integration) {
+    pillageFixture_t fix = pillage_setup("Zsal", false);
+    /* Primary attack resolves through shields and committed HP loss. */
+    S_ResolveAttackHit(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 7);
+    T_FEQ(fix.building->health.value, 900.0f, 0.001f);
+    /* Direct damage takes the non-primary path and cannot credit Pillage. */
+    T_Damage(fix.building, fix.attacker, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);
+    pillage_teardown(fix);
+}
 #endif

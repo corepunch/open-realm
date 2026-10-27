@@ -32,6 +32,12 @@ The runtime reads upgrade metadata from `Units\UpgradeData.slk`:
 - the four `effect`, `base`, `mod`, and `code` slots (`effect`/`code` are
   stored as FOURCCs)
 
+Orc Pillage uses stock research `Ropg` to unlock the passive `Asal` ability
+for units listing `Ropg` under Upgrades Used. This gate is handled by the
+stock compatibility requirement table; direct `Asal`-family custom aliases
+without a corresponding research dependency remain independently usable.
+See [Pillage](pillage.md) for damage and income behaviour.
+
 Buildings expose upgrades through the `Researches` (`ures`) field already parsed
 into `UnitProfile_t.researches`. Unit types opt into completed upgrade effects
 through `UnitBalance.upgrades` (`upgrades` / Upgrades Used).

@@ -237,6 +237,92 @@ BZ_ABILITY_PROC(CAbilityGhostVisible) { return CAbilityPassive(ent, msg, call); 
 BZ_ABILITY_PROC(CAbilityEthereal) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityScout) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityBallsOfFire) { return CAbilityPassive(ent, msg, call); }
+/* Pillage (Asal): the passive handler itself never polls; actual primary-hit
+ * damage calls here from T_DamageInternal after mitigation and Spirit Link.
+ * DataA=Sal1 salvage ratio; DataB=Sal2 accumulated HP per award step.
+ * A separate ledger on each building keeps attackers/players independent and
+ * survives save/load through the component pool. */
+#define ID_PILLAGE MAKEFOURCC('A','s','a','l')
+
+static bool pillage_allows_target(edict_t *attacker, edict_t *target, uint32_t alias, uint32_t rank) {
+    abilityLevel_t const *row = G_AbilityLevel(alias, rank);
+    cstring_t mask = row ? row->targs : NULL;
+    bool enemy = S_SpellIsEnemy(attacker, target);
+    bool friend = S_SpellIsFriend(attacker, target);
+    bool neutral = target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
+
+    if (!mask || !*mask) return enemy;
+    if (S_SpellTargetHasToken(mask, "enemy", NULL) && enemy) return true;
+    if (S_SpellTargetHasToken(mask, "friend", NULL) && friend) return true;
+    if (S_SpellTargetHasToken(mask, "neutral", NULL) && neutral) return true;
+    if (S_SpellTargetHasToken(mask, "player", NULL) && attacker->s.player == target->s.player) return true;
+    return !S_SpellTargetHasToken(mask, "enemy", NULL) &&
+           !S_SpellTargetHasToken(mask, "friend", NULL) &&
+           !S_SpellTargetHasToken(mask, "neutral", NULL) &&
+           !S_SpellTargetHasToken(mask, "player", NULL) && enemy;
+}
+
+/* Convert double-precision fractional entitlements into integral transactions.
+ * Payout is bounded so malicious custom data cannot overflow the player state. */
+static void pillage_credit(edict_t *target, player_t *player, uint32_t resource, double *remainder,
+                           double gained) {
+    int32_t whole;
+    if (!isfinite(gained) || gained <= 0.0) return;
+    *remainder += gained;
+    if (!isfinite(*remainder)) { *remainder = 0.0; return; }
+    if (*remainder < 1.0) return;
+    /* G_CreditResourceIncome adds a signed player stat. Do not overflow the
+     * resource counter when a map authors extreme building costs/ratios. */
+    whole = (int32_t)MIN(floor(*remainder + 1e-9),
+                         (double)MAX(0, INT32_MAX - MAX(0, player->stats[resource])));
+    if (whole <= 0) return;
+    *remainder -= whole;
+    G_CreditResourceIncome(player, target, resource, whole);
+}
+
+void S_PillageOnAttackDamage(edict_t *attacker, edict_t *target, float health_removed) {
+    abilityAliasRef_t ability;
+    gameClient_t *client;
+    pillage_t *ledger;
+    UnitBalance_t const *building;
+    double step, ratio, completed, hp;
+    uint32_t owner;
+
+    if (!attacker || !target || health_removed <= 0.0f || !target->inuse ||
+        !G_UnitIsStructure(target) || G_GetConstruction(target) || !target->data.UnitBalance ||
+        target->health.max_value <= 0.0f || M_IsDead(target) ||
+        G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) return;
+    owner = attacker->s.player;
+    if (owner >= MAX_PLAYERS || !(client = G_GetPlayerClientByNumber(owner)) ||
+        client->ps.number != owner) return;
+    ability = S_ResolveAbilityAlias(attacker, ID_PILLAGE);
+    if (!ability.alias || !ability.level || !G_IsUnitAbilityAvailable(attacker, ability.alias) ||
+        !G_UnitAbilityResearchAvailable(attacker, ability.alias) ||
+        !pillage_allows_target(attacker, target, ability.alias, ability.level)) return;
+    building = target->data.UnitBalance;
+    if (building->goldCost <= 0 && building->lumberCost <= 0) return;
+    ratio = (double)S_SpellData(ability.alias, ability.level, 1);
+    step = (double)S_SpellData(ability.alias, ability.level, 2);
+    if (!isfinite(ratio) || ratio <= 0.0 || !isfinite(step) || step <= 0.0) return;
+    if (!(ledger = G_AddPillage(target))) return;
+
+    /* DataB is a damage threshold, not a per-hit multiplier. Retain sub-step
+     * HP independently for each recipient, even when another unit repairs or
+     * a non-Pillage source damages the same building. */
+    hp = ledger->damage_remainder[owner] + health_removed;
+    completed = floor(hp / step + 1e-9);
+    if (completed < 1.0) { ledger->damage_remainder[owner] = hp; return; }
+    ledger->damage_remainder[owner] = hp - completed * step;
+    hp = completed * step / (double)target->health.max_value;
+    if (building->goldCost > 0)
+        pillage_credit(target, &client->ps, PLAYERSTATE_RESOURCE_GOLD,
+                       &ledger->gold_remainder[owner], building->goldCost * ratio * hp);
+    if (building->lumberCost > 0)
+        pillage_credit(target, &client->ps, PLAYERSTATE_RESOURCE_LUMBER,
+                       &ledger->lumber_remainder[owner], building->lumberCost * ratio * hp);
+}
+
 BZ_ABILITY_PROC(CAbilitySalvage) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityTreeOfLife) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityGrabTree) { return CAbilityPassive(ent, msg, call); }

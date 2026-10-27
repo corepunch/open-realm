@@ -359,7 +359,7 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack) {
     bool instant_kill;
 
     if (!target || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
@@ -384,6 +384,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     damage = S_SpiritLinkRedirect(target, attacker, damage);
     if (damage <= 0) return;
+    /* Primary attack only: shields, Spirit Link, damage immunities and overkill
+     * have already been resolved. Award before death can free this edict. */
+    if (primary_attack && attacker)
+        S_PillageOnAttackDamage(attacker, target, MIN(target->health.value, (float)damage));
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
     G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
@@ -429,6 +433,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
 }
 
+void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+    T_DamageInternal(target, attacker, damage, false);
+}
+
 /* Secondary hits carry the primary weapon's type, not a different weapon selected for the victim.
  * Previously only the primary hit rejected physical damage against Ethereal. */
 bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target) {
@@ -463,7 +471,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
-    T_Damage(target, attacker, damage);
+    T_DamageInternal(target, attacker, damage, true);
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
