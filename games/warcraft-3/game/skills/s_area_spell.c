@@ -144,6 +144,41 @@ static bool shockwave_hits(edict_t *target, shockwaveContext_t const *ctx) {
     return along >= 0.0f && along <= ctx->length && fabsf(across) <= ctx->width;
 }
 
+static umove_t shockwave_visual_move = {
+    .animation = "Stand",
+    .endfunc = G_FreeEdict
+};
+
+/* Shockwave's line damage resolves immediately, while its authored missile
+ * travels along that same corridor as a presentation-only projectile. */
+static void shockwave_spawn_missile(edict_t *caster, uint32_t code, vec2_t const *direction,
+                                   float length, float speed) {
+    cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
+    edict_t *missile;
+    channel_t *cast;
+
+    if (!art || !*art || length <= 0.0f || speed <= 0.0f) return;
+    missile = G_Spawn();
+    if (!missile) return;
+    missile->class_id = code;
+    missile->owner = caster;
+    missile->s.player = caster->s.player;
+    missile->s.origin = caster->s.origin;
+    missile->s.origin2 = caster->s.origin2;
+    missile->s.angle = atan2f(direction->y, direction->x);
+    missile->s.model = G_RegisterModel(art);
+    if (!missile->s.model) { G_FreeEdict(missile); return; }
+    G_InheritUnitTeamColor(missile, caster);
+    cast = G_AddChannel(missile);
+    cast->owner_spawn_time = caster->spawn_time;
+    cast->origin = Vector2_mad(&caster->s.origin2, length, direction);
+    missile->velocity = speed / 1000.0f;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->aiflags |= AI_PROJECTILE_FIXED_TARGET;
+    missile->currentmove = &shockwave_visual_move;
+    G_StartProjectilePresentation(missile);
+}
+
 void rain_of_fire_think(edict_t *ent) {
     uint32_t now = G_Time();
 
@@ -239,22 +274,30 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
  */
 /* Shockwave uses the authored damage, cap, travel distance, and corridor width
  * rather than treating the line spell as a circular point-target burst. */
-BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
+void S_ShockwaveExecute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code), ntargets = 0;
     shockwaveContext_t ctx = { .caster = caster };
     vec2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
     float distance = Vector2_distance(&caster->s.origin2, &st.point);
     float damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
     float maxtotal = S_SpellData(spell->code, level, 2);
+    uint32_t base_code = G_AbilityCode(spell->code);
+    cstring_t speed_text = S_SpellString(base_code, "Missilespeed", 0);
+    float speed = speed_text && *speed_text ? (float)atof(speed_text) : 1050.0f;
 
     if (distance <= 0.0f) return;
     ctx.direction = Vector2_scale(&offset, 1.0f / distance);
     ctx.length = MIN(distance, S_SpellData(spell->code, level, 3));
     ctx.width = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    shockwave_spawn_missile(caster, spell->code, &ctx.direction, ctx.length, speed);
     FILTER_EDICTS(target, shockwave_hits(target, &ctx)) ntargets++;
     if (maxtotal > 0.0f && ntargets && damage * ntargets > maxtotal)
         damage = MAX(1.0f, maxtotal / (float)ntargets);
     FILTER_EDICTS(target, shockwave_hits(target, &ctx)) S_SpellDamage(target, caster, (uint32_t)damage);
+}
+
+BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
+    S_ShockwaveExecute(caster, st, spell);
 }
 
 /* Name=Rain of Fire

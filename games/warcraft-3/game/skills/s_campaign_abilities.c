@@ -37,7 +37,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
     if (buff) S_SpellApplyTimedStatus(summon, buff, level, S_SpellDuration(spell->code, level, false));
     G_FreeEdict(st.entity);
 }
-BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { S_ShockwaveExecute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
@@ -477,7 +477,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire) { S_SummonAbilityUnits(caster, spell
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySerpentWard) { S_SummonAbilityUnits(caster, spell->code, &st); }
-BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCairne) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCairne) { S_ShockwaveExecute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityEnduranceAuraCampaign) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCairne) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityVoodooSpirits) { S_SummonAbilityUnits(caster, spell->code, &st); }

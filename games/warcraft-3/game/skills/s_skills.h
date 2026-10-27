@@ -272,6 +272,7 @@ BZ_ABILITY_PROC(CAbilitySpawnTentacle);
 BZ_ABILITY_PROC(CAbilityAvatarCampaign);
 BZ_ABILITY_PROC(CAbilityDarkConversion);
 BZ_ABILITY_PROC(CAbilityShockwaveCampaign);
+void S_ShockwaveExecute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell);
 BZ_ABILITY_PROC(CAbilityWarStompCampaign);
 BZ_ABILITY_PROC(CAbilityFeralSpiritCampaign);
 BZ_ABILITY_PROC(CAbilitySpiritBeast);
