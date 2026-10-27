@@ -4,6 +4,7 @@
 #include "../game/skills/s_skills.h"
 
 void attack_melee(edict_t *self);
+void whirlwind_think(edict_t *ent);
 
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
@@ -3243,6 +3244,56 @@ TEST(wc3_spell, first_new_ability_handlers_are_real_spells) {
 	T_NOT_NULL(thunder_clap);
 	T_ASSERT(thunder_clap->flags & AB_SPELL);
 	T_EQ((int)thunder_clap_item.code, (int)MAKEFOURCC('A', 'H', 't', 'c'));
+}
+
+TEST(wc3_spell, bladestorm_deals_110_damage_to_nearby_enemy_ground_units) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+		"C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Area1\"\n"
+		"C;Y2;X1;K\"AOww\"\nC;Y2;X2;K\"AOww\"\n"
+		"C;Y2;X3;K\"110\"\nC;Y2;X4;K\"200\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	edict_t *caster = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+	edict_t *ground_enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+	edict_t *air_enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+	edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 80, 0);
+	edict_t *distant_enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 250, 0);
+	edict_t *thinker;
+	uint32_t const code = MAKEFOURCC('A','O','w','w');
+
+	caster->s.player = 0;
+	caster->unit_state->ranks[0].code = code;
+	caster->unit_state->ranks[0].level = 1;
+	G_AddChannel(caster);
+	G_GetChannel(caster)->code = code;
+	G_GetChannel(caster)->serial = 1;
+
+	ground_enemy->s.player = air_enemy->s.player = distant_enemy->s.player = 1;
+	ally->s.player = 0;
+	ground_enemy->targtype = TARG_GROUND;
+	air_enemy->targtype = TARG_AIR;
+	distant_enemy->targtype = TARG_GROUND;
+	FOR_LOOP(i, 4) {
+		edict_t *unit = i == 0 ? ground_enemy : i == 1 ? air_enemy : i == 2 ? ally : distant_enemy;
+		unit->svflags |= SVF_MONSTER;
+		unit->health.value = unit->health.max_value = 300;
+	}
+	memset(level.alliances, 0, sizeof(level.alliances));
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	thinker = S_SpellChannelThinker(caster, code);
+	thinker->spawn_time = G_Time() + 5000;
+	whirlwind_think(thinker);
+
+	T_FEQ(ground_enemy->health.value, 190.0f, 0.001f);
+	T_FEQ(air_enemy->health.value, 300.0f, 0.001f);
+	T_FEQ(ally->health.value, 300.0f, 0.001f);
+	T_FEQ(distant_enemy->health.value, 300.0f, 0.001f);
+
+	G_FreeEdict(thinker);
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
 }
 
 TEST(wc3_spell, tornado_uses_whirlwind_channel_handler) {

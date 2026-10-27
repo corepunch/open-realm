@@ -54,11 +54,13 @@ static void toggle_status_execute(edict_t *caster, spellTarget_t st, abilityitem
     S_ToggleUnitAbilityStatus(caster, spell->code, S_SpellLevel(caster, spell->code));
 }
 
-static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t const *spell, uint32_t data) {
+static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t const *spell,
+                                 uint32_t data, bool exclude_air) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  (!exclude_air || G_UnitTargetType(target) != TARG_AIR) &&
                   Vector2_distance(&target->s.origin2, &point) <= area) {
         S_SpellDamage(target, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, data)));
         if (buff && !M_IsDead(target))
@@ -169,7 +171,8 @@ void whirlwind_think(edict_t *ent) {
     if (ent->freetime && G_Time() < ent->freetime) return;
     if (item.ability && (item.ability->proc == CAbilityWhirlwind || item.ability->proc == CAbilityTornado))
         ent->s.origin2 = ent->owner->s.origin2;
-    radial_damage_status(ent->owner, ent->s.origin2, &item, data);
+    radial_damage_status(ent->owner, ent->s.origin2, &item, data,
+                         item.ability && item.ability->proc == CAbilityWhirlwind);
     ent->freetime = G_Time() + 1000;
 }
 
@@ -867,7 +870,7 @@ BZ_ABILITY_PROC(CAbilityFingerOfDeath) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDreadLordInferno) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    radial_damage_status(caster, st.point, spell, 1);
+    radial_damage_status(caster, st.point, spell, 1, false);
     S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point,
                       S_SpellData(spell->code, level, 2));
 }
