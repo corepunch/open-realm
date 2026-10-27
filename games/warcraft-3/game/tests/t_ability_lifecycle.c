@@ -531,13 +531,13 @@ TEST(wc3_ability_lifecycle, water_elemental_recovers_roc_dataa_unit_id) {
     abilityLevel_t const *row;
 
     row = (abilityLevel_t *)G_AbilityLevel(FS_SLKKey("AHwe"), 1);
-    ((abilityLevel_t *)row)->data[0].id = MAKEFOURCC('h','w','a','t');
+    ((abilityLevel_t *)row)->data[0].id = MAKEFOURCC('h','f','o','o');
     ((abilityLevel_t *)row)->data[0].number = 0;
     ((abilityLevel_t *)row)->unitID = 0;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHwe")));
     FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
                   unit->summon_ability == FS_SLKKey("AHwe") &&
-                  unit->class_id == MAKEFOURCC('h','w','a','t')) count++;
+                  unit->class_id == MAKEFOURCC('h','f','o','o')) count++;
     T_EQ(count, 1);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);

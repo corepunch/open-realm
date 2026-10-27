@@ -316,6 +316,17 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     count = (uint32_t)S_SpellData(spell->code, level, 2);
     duration = S_SpellDuration(spell->code, level, false);
     distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 AOsf has no UnitID or Area: its rank selects osw1-osw3,
+     * DataB remains the summon count, and the wolves spawn at the caster. */
+    if (spell->code == MAKEFOURCC('A','O','s','f') && !unit_id) {
+        static uint32_t const legacy_wolves[] = {
+            MAKEFOURCC('o','s','w','1'), MAKEFOURCC('o','s','w','2'), MAKEFOURCC('o','s','w','3')
+        };
+        uint32_t const rank = MIN(level, 3u) - 1;
+        if (G_UnitData(legacy_wolves[rank])->id == legacy_wolves[rank]) unit_id = legacy_wolves[rank];
+    }
+#endif
     if (!unit_id || !count) return;
 
     /* Warsmash keeps the previous Feral Spirit cast as ability-owned summons:
