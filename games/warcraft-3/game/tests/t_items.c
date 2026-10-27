@@ -170,7 +170,7 @@ static edict_t *make_item_test_world_item(uint32_t class_id, float x, float y) {
     item->s.model = 1;
     item->movetype = MOVETYPE_NONE;
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->carrier = NULL;
     G_GetItem(item)->inventory_slot = -1;
     G_GetItem(item)->in_world = true;
@@ -190,7 +190,7 @@ static edict_t *make_item_test_shop(float x, float y) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddComponent(shop, COMPONENT_STOCK);
+    G_AddStock(shop);
     G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
     return shop;
@@ -208,7 +208,7 @@ static edict_t *make_unit_test_shop(float x, float y) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddComponent(shop, COMPONENT_STOCK);
+    G_AddStock(shop);
     G_GetStock(shop)->unit_slots = 11;
     gi.LinkEntity(shop);
     return shop;
@@ -234,7 +234,7 @@ TEST(wc3_items, validated_state_preserves_identity_and_never_allocates) {
     T_NULL(G_ItemState(NULL));
     T_NULL(G_ItemState(ent));
     T_NULL(ent->components);
-    item_t *rec = G_AddComponent(ent, COMPONENT_ITEM);
+    item_t *rec = G_AddItem(ent);
     ent->data.ItemData = NULL;
     T_NULL(G_ItemState(ent));
     rec->in_world = true;
@@ -2063,7 +2063,7 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     shop->s.player = 0;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddComponent(shop, COMPONENT_STOCK);
+    G_AddStock(shop);
     T_NOT_NULL(G_GetStock(shop));
     G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
@@ -2088,7 +2088,7 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     gate_shop->s.player = 0;
     gate_shop->collision = 32.0f;
     gate_shop->spawn_time = G_Time();
-    G_AddComponent(gate_shop, COMPONENT_STOCK);
+    G_AddStock(gate_shop);
     T_NOT_NULL(G_GetStock(gate_shop));
     G_GetStock(gate_shop)->item_slots = 11;
     gi.LinkEntity(gate_shop);
@@ -2106,7 +2106,7 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     custom_shop->s.player = 0;
     custom_shop->collision = 32.0f;
     custom_shop->spawn_time = G_Time();
-    G_AddComponent(custom_shop, COMPONENT_STOCK);
+    G_AddStock(custom_shop);
     T_NOT_NULL(G_GetStock(custom_shop));
     G_GetStock(custom_shop)->item_slots = 11;
     gi.LinkEntity(custom_shop);
@@ -2146,7 +2146,7 @@ TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddComponent(shop, COMPONENT_STOCK);
+    G_AddStock(shop);
     T_NOT_NULL(G_GetStock(shop));
     G_GetStock(shop)->item_slots = 11;
     gi.LinkEntity(shop);
@@ -2701,7 +2701,7 @@ TEST(wc3_items, perishable_success_consumes_charge_and_removes_at_zero) {
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
     item->data.ItemData = &perishable;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->charges = 2;
 
     G_ConsumeItemCharge(item);
@@ -2719,7 +2719,7 @@ TEST(wc3_items, nonperishable_use_decrements_charges_but_keeps_item_at_zero) {
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
     item->data.ItemData = &reusable;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->charges = 2;
 
     G_ConsumeItemCharge(item);
@@ -2848,7 +2848,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     hero->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
     item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
     item_slot = (uint32_t)(item - g_edicts);
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     item->data.ItemData = &item_data; G_GetItem(item)->charges = 4; item->spawn_time = 1234;
     T_ASSERT(G_AddItemToSlot(hero, item, 0));
     G_SelectEntity(player->client, hero);
@@ -3151,7 +3151,7 @@ TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
     T_EQ(G_GetItem(item)->drop_id, MAKEFOURCC('h','f','o','o'));
     index = item->s.number;
     T_ASSERT(WriteGame(path));
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->drop_id = 0;
     T_ASSERT(ReadGame(path));
     T_EQ(G_GetItem(&g_edicts[index])->drop_id, MAKEFOURCC('h','f','o','o'));
@@ -3249,7 +3249,7 @@ TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     T_ASSERT(G_GetItem(item)->in_world);
     T_ASSERT(unit->s.origin2.x > 0);
 
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = false;
     unit->currentmove->think(unit);
     T_NULL(unit->goalentity);
@@ -3303,7 +3303,7 @@ TEST(wc3_items, point_drop_revalidates_carried_item) {
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->carrier = NULL;
     unit->currentmove->think(unit);
 
@@ -3745,7 +3745,7 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
 
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddComponent(gem, COMPONENT_ITEM);
+    G_AddItem(gem);
     G_GetItem(gem)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
     clent = G_GetPlayerEntityByNumber(0);
@@ -3829,7 +3829,7 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     grom->targtype = TARG_GROUND;
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddComponent(gem, COMPONENT_ITEM);
+    G_AddItem(gem);
     G_GetItem(gem)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
 
@@ -3923,7 +3923,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gi.LinkEntity(target);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddComponent(gem, COMPONENT_ITEM);
+    G_AddItem(gem);
     G_GetItem(gem)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 1));
 
@@ -3974,7 +3974,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     target2->stand = unit_stand; unit_stand(target2); gi.LinkEntity(target2);
     gem2 = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem2->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddComponent(gem2, COMPONENT_ITEM);
+    G_AddItem(gem2);
     G_GetItem(gem2)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem2, 2));
     G_UseItem(carrier, 2);
@@ -4046,7 +4046,7 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
     target->targtype = TARG_GROUND;
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddComponent(gem, COMPONENT_ITEM);
+    G_AddItem(gem);
     G_GetItem(gem)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
 
@@ -4087,8 +4087,8 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     target->s.player = 1;
     T_ASSERT(G_ActorAddSkill(carrier, asou));
     T_ASSERT(G_ActorAddSkill(target, asou));
-    G_AddComponent(carrier, COMPONENT_SOULTRAP);
-    G_AddComponent(target, COMPONENT_SOULTRAP);
+    G_AddSoulTrap(carrier);
+    G_AddSoulTrap(target);
     G_GetSoulTrap(carrier)->possession_added = true;
     filled = make_item_test_world_item(MAKEFOURCC('s','o','u','l'), 64, 64);
     filled->data.ItemData = G_ItemData(MAKEFOURCC('s','o','u','l'));
@@ -4106,7 +4106,7 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     target->s.renderfx |= RF_HIDDEN;
     target->svflags |= SVF_NOCLIENT;
     target->s.flags |= EF_NOT_SELECTABLE;
-    G_AddComponent(filled, COMPONENT_ITEM);
+    G_AddItem(filled);
     G_GetItem(filled)->soul_target = target;
     G_GetItem(filled)->soul_target_spawn_time = target->spawn_time;
 
@@ -4155,7 +4155,7 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     target->stand = unit_stand; unit_stand(target); gi.LinkEntity(target);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddComponent(gem, COMPONENT_ITEM);
+    G_AddItem(gem);
     G_GetItem(gem)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
 
@@ -4286,15 +4286,15 @@ TEST(wc3_items, orc08_scripted_soul_slot_swap_keeps_item_bound_to_carrier) {
     if (!carrier || !other || !soul || !target) return;
     target->s.player = 1;
     target->aiflags |= AI_SOUL_TRAPPED;
-    G_AddComponent(carrier, COMPONENT_SOULTRAP);
-    G_AddComponent(target, COMPONENT_SOULTRAP);
+    G_AddSoulTrap(carrier);
+    G_AddSoulTrap(target);
     G_GetSoulTrap(target)->carrier = carrier;
     G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
     G_GetSoulTrap(carrier)->head = target;
     G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
     G_GetSoulTrap(target)->item = soul;
     G_GetSoulTrap(target)->item_spawn_time = soul->spawn_time;
-    G_AddComponent(soul, COMPONENT_ITEM);
+    G_AddItem(soul);
     G_GetItem(soul)->soul_target = target;
     G_GetItem(soul)->soul_target_spawn_time = target->spawn_time;
     T_ASSERT(G_ActorAddSkill(carrier, MAKEFOURCC('A','s','o','u')));
@@ -4314,7 +4314,7 @@ TEST(wc3_items, missing_item_data_does_not_make_item_droppable) {
     setup_test_world();
     item = alloc_test_unit(MAKEFOURCC('z','z','z','z'), 32.0f, 32.0f);
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
     G_GetItem(item)->inventory_slot = -1;
     item->data.ItemData = NULL;
@@ -4362,7 +4362,7 @@ TEST(wc3_items, consumed_perishable_keeps_manipulated_item_through_sleep) {
     T_NOT_NULL(carrier);
     item = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     item->data.ItemData = &soul_data;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, item, 0));
 

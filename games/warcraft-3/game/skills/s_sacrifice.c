@@ -126,7 +126,7 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
     G_SetUnitFlag(result, UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED, false);
     G_SetHealth(result, 0);
     result->s.renderfx |= RF_HIDDEN;
-    sacrifice_t *queued = G_AddComponent(result, COMPONENT_SACRIFICE);
+    sacrifice_t *queued = G_AddSacrifice(result);
     queued->worker = worker;
     queued->worker_spawn_time = worker->spawn_time;
     queued->restore_paused = G_UnitHasFlag(worker, UNIT_FLAG_PAUSED);

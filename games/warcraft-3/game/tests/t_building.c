@@ -551,7 +551,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->data.UnitBalance = &balance;
     building->s.player = client->ps.number;
     building->build = building;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     building->currentmove = &birth;
     building->health.value = building->health.max_value * 0.5f;
     gi.Write = building_queue_capture_write;
@@ -570,7 +570,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->build = NULL;
     G_FreeConstruction(building);
     building->currentmove = NULL;
-    G_AddComponent(building, COMPONENT_RESEARCH);
+    G_AddResearch(building);
     G_GetResearch(building)->upgrade = building->class_id;
     G_GetResearch(building)->duration = 100.0f;
     G_GetResearch(building)->progress = 50.0f;
@@ -618,7 +618,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     client->infopanel.count = (int32_t)building->health.value;
     client->infopanel.xp = 0;
     building->build = building;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     building->currentmove = &birth;
     G_InvalidateUnitInfoPanel(building);
     T_ASSERT(G_GetMainSelectedUnit(client) == building);
@@ -634,7 +634,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     building->build = NULL;
     G_FreeConstruction(building);
     building->currentmove = NULL;
-    G_AddComponent(building, COMPONENT_RESEARCH);
+    G_AddResearch(building);
     G_GetResearch(building)->upgrade = building->class_id;
     G_GetResearch(building)->duration = 100.0f;
     G_GetResearch(building)->progress = 50.0f;
@@ -672,7 +672,7 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     building->s.player = trainee->s.player = client->ps.number;
     building->build = trainee;
     G_SetUnitFlag(trainee, UNIT_FLAG_TRAINING, true);
-    G_AddComponent(trainee, COMPONENT_FOOD);
+    G_AddFood(trainee);
     G_GetFood(trainee)->used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
@@ -838,7 +838,7 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     level.events.read = level.events.write = 0;
 
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
-    G_AddComponent(building, COMPONENT_RESEARCH);
+    G_AddResearch(building);
     G_GetResearch(building)->progress = G_GetResearch(building)->duration;
     G_RunBuildingUpgradeFrame(building);
 
@@ -1123,7 +1123,7 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
     G_RunEvents();
     jass_runevents(level.vm);
     T_NOT_NULL(producer->build);
-    G_AddComponent(producer->build, COMPONENT_RESEARCH);
+    G_AddResearch(producer->build);
     G_GetResearch(producer->build)->duration = 0.0f;
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
@@ -3400,7 +3400,7 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
 
     building->s.flags &= ~EF_NOT_SELECTABLE;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     CM_BakeStaticObstacles();
     T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
     building->pathtex = NULL;
@@ -3581,9 +3581,9 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
     mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -64, -64);
     builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
-    G_AddComponent(builder, COMPONENT_GOLDMINE);
+    G_AddGoldMine(builder);
     G_GetGoldMine(builder)->mine = mine; G_GetGoldMine(builder)->mine_spawn_time = mine->spawn_time;
-    G_SetUnitFlag(builder, UNIT_FLAG_INVULNERABLE, true); builder->s.renderfx |= RF_HIDDEN; G_InitGoldMine(mine); G_GetGoldMine(mine)->occupants = 1;
+    G_SetUnitFlag(builder, UNIT_FLAG_INVULNERABLE, true); builder->s.renderfx |= RF_HIDDEN; G_AddGoldMine(mine); G_GetGoldMine(mine)->occupants = 1;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
@@ -3873,10 +3873,10 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
     T_ASSERT(G_StartHumanConstruction(builder, building));
     /* Keep this lifecycle test independent of the optional Repair SLK fixture. */
     builder->build = building;
-    buildwork_t *work = G_AddComponent(builder, COMPONENT_BUILDWORK);
+    buildwork_t *work = G_AddBuildwork(builder);
     work->ability = MAKEFOURCC('A','r','e','p');
     work->primary = true;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->primary_builder = builder;
     T_ASSERT(builder->build == building);
 
@@ -4478,7 +4478,7 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     building->health.value = 1000.0f;
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->paid = true;
     G_GetConstruction(building)->payer = client->ps.number;
     G_GetConstruction(building)->gold = balance.goldCost;
@@ -4555,7 +4555,7 @@ TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
     building->s.player = client->ps.number;
     building->svflags |= SVF_MONSTER;
     building->stand = unit_stand;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->paid = true;
     G_GetConstruction(building)->payer = client->ps.number;
     G_GetConstruction(building)->gold = 100;
@@ -4664,7 +4664,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->s.player = client->ps.number;
     building->health.max_value = 1000.0f;
     building->health.value = 400.0f;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->paused = true;
     G_GetConstruction(building)->type = CONSTRUCTION_HUMAN;
     G_GetConstruction(building)->primary_builder = builder;
@@ -5914,7 +5914,7 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     building->health.max_value = 1000.0f;
     building->health.value = 100.0f;
     building->svflags |= SVF_MONSTER;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->paused = true;
     G_GetConstruction(building)->type = CONSTRUCTION_ORC;
 
@@ -6632,7 +6632,7 @@ TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
     balance.buildTime = 10;
     building->data.UnitBalance = &balance;
     building->animation = &birth;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->paused = true;
     building->aiflags |= AI_HOLD_FRAME;
 
@@ -6739,7 +6739,7 @@ static buildingTinyFixture_t building_tiny_fixture(cstring_t ability) {
     item_data = MAKE(ItemData_t, .abilList = ability, .uses = 2, .perishable = false);
     f.item = alloc_test_unit(MAKEFOURCC('s','t','w','p'), -200.0f, -200.0f);
     f.item->s.model = 1; f.item->movetype = MOVETYPE_NONE; f.item->targtype = TARG_ITEM;
-    G_AddComponent(f.item, COMPONENT_ITEM);
+    G_AddItem(f.item);
     G_GetItem(f.item)->carrier = NULL; G_GetItem(f.item)->inventory_slot = -1; G_GetItem(f.item)->in_world = true;
     f.item->data.ItemData = &item_data; G_GetItem(f.item)->charges = 2; f.item->spawn_time = 1234;
     gi.LinkEntity(f.item);
@@ -6881,7 +6881,7 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     building->data.UnitBalance = &balance;
     building->s.player = client->ps.number;
     building->build = building;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     G_GetConstruction(building)->type = CONSTRUCTION_TINY;
     G_GetConstruction(building)->duration_ms = 9000.0f;
     building->health.value = building->health.max_value * 0.5f;

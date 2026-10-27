@@ -641,7 +641,7 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 building->health.value, building->health.max_value);
     }
-    buildwork_t *work = G_AddComponent(ent, COMPONENT_BUILDWORK);
+    buildwork_t *work = G_AddBuildwork(ent);
     *work = (buildwork_t){ .component = work->component, .ability = code, .primary = primary };
     move_reset_progress(ent);
 #ifdef WC3_DEBUG_AUTOCAST
@@ -701,7 +701,7 @@ void repair_build_legacy(edict_t *ent, edict_t *building) {
     gi.LinkEntity(ent);
     ent->build = building;
     ent->goalentity = building;
-    buildwork_t *work = G_AddComponent(ent, COMPONENT_BUILDWORK);
+    buildwork_t *work = G_AddBuildwork(ent);
     *work = (buildwork_t){ .component = work->component }; /* Legacy construction work has no concrete Repair rawcode. */
     unit_setmove(ent, &repair_legacy_move_work);
 }

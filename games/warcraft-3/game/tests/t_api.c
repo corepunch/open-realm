@@ -4732,7 +4732,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
     building->stand = unit_stand;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
@@ -7213,7 +7213,7 @@ static edict_t *alloc_world_test_item(uint32_t class_id) {
     edict_t *item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
     G_GetItem(item)->inventory_slot = -1;
     return item;

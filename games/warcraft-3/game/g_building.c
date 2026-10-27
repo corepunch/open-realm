@@ -1115,7 +1115,7 @@ bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
     G_ClearUnitOrderQueue(building);
     if (building->stand) building->stand(building);
     G_FreeResearch(building);
-    research_t *study = G_AddComponent(building, COMPONENT_RESEARCH);
+    research_t *study = G_AddResearch(building);
     *study = (research_t){ .component = study->component, .upgrade = unit_id, .gold = gold, .lumber = lumber,
                            .duration = (float)MAX(0, target->buildTime) };
     G_SetUnitFoodUsed(building, MAX(0, target->foodUsed));
@@ -1621,7 +1621,7 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
     edictStat_s *hp;
 
     if (!building || !G_UnitIsStructure(building)) return false;
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     hp = &building->health;
     G_GetConstruction(building)->paused = paused;
     G_GetConstruction(building)->type = type;

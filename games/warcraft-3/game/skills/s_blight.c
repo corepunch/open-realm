@@ -41,7 +41,7 @@ static void blight_growth_reset(edict_t *ent, uint32_t code, uint32_t now) {
     float const interval = level ? S_SpellDuration(code, level, false) : 0.0f;
 
     if (!code) { G_FreeBlightGrowth(ent); return; }
-    blightGrowth_t *growth = G_AddComponent(ent, COMPONENT_BLIGHT_GROWTH);
+    blightGrowth_t *growth = G_AddBlightGrowth(ent);
     growth->ability = code;
     growth->radius = 0.0f;
     growth->next_update = now + (uint32_t)(MAX(0.0f, interval) * 1000.0f);

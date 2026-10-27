@@ -34,7 +34,7 @@ static edict_t *make_walk_hero(float x, float y) {
 static edict_t *give_item(edict_t *hero, uint32_t class_id, uint32_t slot, uint32_t charges) {
     edict_t *item = alloc_test_unit(class_id, hero->s.origin2.x + 32.0f, hero->s.origin2.y);
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
     G_GetItem(item)->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(hero, item, slot));
@@ -108,7 +108,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     saved_item1 = item1->class_id;
     saved_charges0 = G_GetItem(item0)->charges;
     saved_charges1 = G_GetItem(item1)->charges;
-    G_AddComponent(item0, COMPONENT_ITEM);
+    G_AddItem(item0);
     G_GetItem(item0)->drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
     strlcpy(saved_move, hero->currentmove->animation, sizeof(saved_move));
     index = hero->s.number;

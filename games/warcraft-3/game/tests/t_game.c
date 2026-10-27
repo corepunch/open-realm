@@ -3896,7 +3896,7 @@ TEST(wc3_game, fow_world_items_follow_position_instead_of_default_owner) {
     item = alloc_test_unit(MAKEFOURCC('I','t','e','m'), 1024.0f, 1024.0f);
     item->s.player = 0; /* Unowned map items can retain this default owner. */
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
 
     G_FowUpdate();
@@ -4416,7 +4416,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     G_SetUnitSharedVision(first, 0, true); G_SetUnitSharedVision(first, 7, true);
     G_InitMissile(first);
     first->missile->reflected = true;
-    ((sleep_t *)G_AddComponent(first, COMPONENT_SLEEP))->can_sleep = true;
+    ((sleep_t *)G_AddSleep(first))->can_sleep = true;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
@@ -4425,7 +4425,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->orders->explicit_allied_attack = true;
     G_InitInventory(first);
     first->inventory->slots[2] = second;
-    G_AddComponent(first, COMPONENT_CARGO);
+    G_AddCargo(first);
     G_GetCargo(first)->units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
@@ -4772,7 +4772,7 @@ static field_t const *find_save_field(cstring_t name) {
 static void prepare_save_field(edict_t *unit, cstring_t name) {
     savePool_t const *pool = find_save_pool(name);
     if (pool && !SavePoolSlot(unit, pool)) {
-        void *slot = pool->alloc();
+        void *slot = SavePoolAlloc(pool);
         AttachPoolSlot(unit, pool, slot);
     }
 }
@@ -4948,7 +4948,7 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     thinker->class_id = ability;
     thinker->s.origin2 = (vec2_t){ 192.0f, -64.0f };
     thinker->spawn_time = 34567;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->think = human_ability_think;
 
@@ -5086,7 +5086,7 @@ TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     cstring_t filename = Test_TempPath("wc3-save-artillery-profile.bin");
     reset_entities();
     edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    artillery_t *splash = G_AddComponent(projectile, COMPONENT_ARTILLERY);
+    artillery_t *splash = G_AddArtillery(projectile);
     *splash = (artillery_t) { .component = splash->component, .attack_type = ATK_SIEGE,
         .area_targets = WC3_TARGET_FLAG_GROUND, .targets_allowed = WC3_TARGET_FLAG_GROUND,
         .area_full = 40.0f, .area_medium = 80.0f, .area_small = 120.0f, .factor_medium = 0.5f, .factor_small = 0.25f };
@@ -5129,7 +5129,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
         level.stock.item_slots = 11;
         level.stock.unit_slots = 9;
-        G_AddComponent(shop, COMPONENT_STOCK);
+        G_AddStock(shop);
         G_GetStock(shop)->item_slots = 11;
         G_GetStock(shop)->unit_slots = 9;
         G_GetStock(shop)->items_initialized = true;
@@ -5198,7 +5198,7 @@ TEST(wc3_save, avatar_component_fields_round_trip) {
     cstring_t filename = Test_TempPath("wc3-avatar-fields.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    avatar_t *avatar = G_AddComponent(unit, COMPONENT_AVATAR);
+    avatar_t *avatar = G_AddAvatar(unit);
     avatar->level = 2; avatar->damage = 31; avatar->armor = 7; avatar->health = 600;
     T_EQ(find_save_field("avatar->level")->type, F_INT);
     T_EQ(find_save_field("avatar->damage")->type, F_INT);
@@ -5259,11 +5259,11 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
 
     setup_test_world(); reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    blightGrowth_t *growth = G_AddComponent(unit, COMPONENT_BLIGHT_GROWTH);
+    blightGrowth_t *growth = G_AddBlightGrowth(unit);
     growth->ability = ability;
     growth->radius = 146.0f;
     growth->next_update = 12345;
-    G_AddComponent(unit, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(unit);
     G_GetDestructable(unit)->blighted = true;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
@@ -5316,7 +5316,7 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
-    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_AddChannel(unit);
     G_GetChannel(unit)->origin = (vec2_t){ 12.5f, 34.5f };
     T_ASSERT(WriteGame(filename)); G_GetChannel(unit)->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
     T_FEQ(G_GetChannel(unit)->origin.x, 12.5f, 0.001f); T_FEQ(G_GetChannel(unit)->origin.y, 34.5f, 0.001f);
@@ -5570,7 +5570,7 @@ TEST(wc3_save, construction_payment_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
-    G_AddComponent(unit, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(unit);
     G_GetConstruction(unit)->type = CONSTRUCTION_NAGA;
     G_GetConstruction(unit)->worker = worker;
     G_GetConstruction(unit)->worker_spawn_time = 1234;
@@ -5632,7 +5632,7 @@ TEST(wc3_save, tiny_construction_round_trips_in_roc_and_tft_map_state) {
         snprintf(name, sizeof(name), "wc3-save-tiny-construction-%u.bin", (unsigned)formats[i]);
         snprintf(filename, sizeof(filename), "%s", Test_TempPath(name));
         building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
-        G_AddComponent(building, COMPONENT_CONSTRUCTION);
+        G_AddConstruction(building);
         G_GetConstruction(building)->type = CONSTRUCTION_TINY;
         G_GetConstruction(building)->progress = 4000.0f;
         G_GetConstruction(building)->duration_ms = 9000.0f;
@@ -5662,13 +5662,13 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     acolyte = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     parent->resources = 7777;
-    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_AddMineOverlay(overlay);
     G_GetMineOverlay(overlay)->parent = parent;
     G_GetMineOverlay(overlay)->parent_spawn_time = parent->spawn_time;
     G_GetMineOverlay(overlay)->income_time = 12345;
     G_GetMineOverlay(overlay)->active_interval_index = 3;
     G_GetMineOverlay(overlay)->entangle_permanent_before = true;
-    G_AddComponent(acolyte, COMPONENT_ACOLYTE_MINE);
+    G_AddAcolyteMine(acolyte);
     G_GetAcolyteMine(acolyte)->mine = overlay;
     G_GetAcolyteMine(acolyte)->mine_spawn_time = overlay->spawn_time;
     G_GetAcolyteMine(acolyte)->slot = 4;
@@ -5705,13 +5705,13 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
     reset_entities();
     tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
-    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_AddMineOverlay(overlay);
     G_GetMineOverlay(overlay)->entangle_tree = tree;
     G_GetMineOverlay(overlay)->entangle_tree_spawn_time = tree->spawn_time;
     T_NOT_NULL(desc);
     if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
     T_ASSERT(WriteGame(filename));
-    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_AddMineOverlay(overlay);
     G_GetMineOverlay(overlay)->entangle_tree = NULL;
     G_GetMineOverlay(overlay)->entangle_tree_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
@@ -5842,12 +5842,12 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     filled->class_id = MAKEFOURCC('s','o','u','l');
     filled->targtype = TARG_ITEM;
     carrier->s.player = 0; target->s.player = 1;
-    G_AddComponent(carrier, COMPONENT_SOULTRAP);
-    G_AddComponent(target, COMPONENT_SOULTRAP);
+    G_AddSoulTrap(carrier);
+    G_AddSoulTrap(target);
     G_GetSoulTrap(carrier)->head = target; G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
     G_GetSoulTrap(target)->carrier = carrier; G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
     G_GetSoulTrap(target)->item = filled; G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
-    G_AddComponent(filled, COMPONENT_ITEM);
+    G_AddItem(filled);
     G_GetItem(filled)->soul_target = target; G_GetItem(filled)->soul_target_spawn_time = target->spawn_time;
     G_AddUnitForcedVisibility(carrier, target->s.player);
     target->aiflags |= AI_SOUL_TRAPPED;
@@ -5882,9 +5882,9 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = Test_TempPath("wc3-save-nested-runtime.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    militia_t *state = G_AddComponent(unit, COMPONENT_MILITIA);
+    militia_t *state = G_AddMilitia(unit);
     state->partner = (edict_t *)(uintptr_t)1;
-    G_AddComponent(unit, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(unit);
     G_GetDestructable(unit)->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
     ARRAY_COUNT(G_GetDestructable(unit)->drop_sets) = 7;
     T_ASSERT(WriteGame(filename));
@@ -5973,23 +5973,23 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     unit->vision->reveal_until = 97531;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
-    G_AddComponent(chain, COMPONENT_CHANNEL);
+    G_AddChannel(chain);
     G_GetChannel(chain)->owner_spawn_time = unit->spawn_time;
     chain->s.origin2 = (vec2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
     chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
     chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
-    G_AddComponent(chain_marker, COMPONENT_CHANNEL);
+    G_AddChannel(chain_marker);
     chain_marker->owner = chain; G_GetChannel(chain_marker)->owner_spawn_time = chain->spawn_time;
     chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
     reincarnation->owner = unit; reincarnation->class_id = MAKEFOURCC('A', 'O', 'r', 'e');
-    G_AddComponent(reincarnation, COMPONENT_CHANNEL); assert(G_GetChannel(reincarnation));
+    G_AddChannel(reincarnation); assert(G_GetChannel(reincarnation));
     G_GetChannel(reincarnation)->owner_spawn_time = unit->spawn_time;
     acid_bomb->owner = unit; acid_bomb->goalentity = mine; acid_bomb->class_id = MAKEFOURCC('A', 'N', 'a', 'b');
-    G_AddComponent(acid_bomb, COMPONENT_CHANNEL); assert(G_GetChannel(acid_bomb));
+    G_AddChannel(acid_bomb); assert(G_GetChannel(acid_bomb));
     G_GetChannel(acid_bomb)->owner_spawn_time = unit->spawn_time;
     G_GetChannel(acid_bomb)->target_spawn_time = mine->spawn_time;
     morph->owner = unit; morph->resources = MAKEFOURCC('h', 'd', 'h', 'u');
-    G_AddComponent(morph, COMPONENT_CHANNEL); assert(G_GetChannel(morph));
+    G_AddChannel(morph); assert(G_GetChannel(morph));
     G_GetChannel(morph)->owner_spawn_time = unit->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;

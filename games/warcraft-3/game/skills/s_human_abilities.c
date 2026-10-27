@@ -130,7 +130,7 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
     if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
-    avatar = G_AddComponent(caster, COMPONENT_AVATAR);
+    avatar = G_AddAvatar(caster);
     avatar->level = rank; avatar->armor = S_SpellData(spell->code, rank, 1);
     avatar->health = S_SpellData(spell->code, rank, 2); avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
     G_ApplyTemporaryArmorBonus(caster, avatar->armor);
@@ -380,7 +380,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 
     morph = G_GetPolymorph(st.entity);
     if (!morph) { /* The first application owns the inverse; refreshes keep that snapshot. */
-        morph = G_AddComponent(st.entity, COMPONENT_POLYMORPH);
+        morph = G_AddPolymorph(st.entity);
         morph->original_model = st.entity->s.model;
         morph->original_scale = st.entity->s.scale;
         morph->original_move_speed = st.entity->unitinfo.MoveSpeed;
@@ -608,7 +608,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = human_ability_think; human_ability_think(thinker);

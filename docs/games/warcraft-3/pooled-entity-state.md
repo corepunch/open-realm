@@ -2,12 +2,12 @@
 
 ## Ownership and access
 
-Sparse lifecycle records live in `game/g_pool.c`. Ability-owned, producer-owned, item and destructable records attach through the component list described below; only the `MAX_ENTITIES` unit/movement records still attach directly to `edict_t` pointers. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Attach explicitly at the owning lifecycle entry point with `G_AddComponent` (components) or the PascalCase `G_Alloc*` allocator (direct pointers). Reads never allocate and never substitute a shared zero object.
+Sparse lifecycle records live in `game/g_pool.c`. Ability-owned, producer-owned, item and destructable records attach through the component list described below; only the `MAX_ENTITIES` unit/movement records still attach directly to `edict_t` pointers. Types have no edict/game prefix: `ancientRoot_t`, `goldMine_t`, `cargo_t`, `channel_t`, etc. Attach explicitly at the owning lifecycle entry point with the typed `G_Add*` entry (components, such as `G_AddAncientRoot`) or the PascalCase `G_Alloc*` allocator (direct pointers). Reads never allocate and never substitute a shared zero object.
 
 ```c
 ancientRoot_t *root = G_GetAncientRoot(ent);
 if (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED)
-    root = G_AddComponent(ent, COMPONENT_ANCIENT_ROOT);
+    root = G_AddAncientRoot(ent);
 /* The owned transition requires this record; cache it for the operation. */
 root->mode = ANCIENT_ROOTING;
 ```
@@ -55,7 +55,7 @@ introduced; existing ability procedures and scheduling retain behavior ownership
 | Revival | `m_unit.c`, `s_train.c` | Hero death and `G_QueueHeroRevive`; the corpse's `awaiting` flag survives a cancelled queue | entity teardown; `G_ReviveHero` and death rewrite the whole record |
 | Buildwork | `s_repair.c` | Repair start and the legacy construction work move; the whole record is rewritten | entity teardown; `repair_release` zeroes it |
 | Ancient Root | `s_utility_abilities.c` | first Root command/update on an Ancient; `mode` distinguishes settled forms and transitions | entity teardown; death/removal mark it uninitialized |
-| Gold Mine | `s_goldmine.c` | mine admission (`G_InitGoldMine`) and worker entry | worker exit zeroes the worker's record; teardown |
+| Gold Mine | `s_goldmine.c` | mine admission (`G_AddGoldMine` on the mine) and worker entry | worker exit zeroes the worker's record; teardown |
 | Mine overlay | `s_goldmine.c` | Haunt/Entangle overlay binding to its parent mine | `S_MineOverlayRelease` zeroes it; teardown |
 | Acolyte mine | `s_goldmine.c` | Acolyte slot claim on a Haunted mine | slot release zeroes it; teardown |
 | Cargo | `s_cargo.c` | first load or corpse-cargo claim | `cargo_drop_all` empties it; teardown |
@@ -79,12 +79,18 @@ introduced; existing ability procedures and scheduling retain behavior ownership
   `G_HeroIsReviving`/`G_HeroAwaitsRevival` fold the common null-and-flag check;
   null entities and absent records return null. Cache the typed result within an
   operation; the owning behaviours hold one local pointer per transition.
-- `G_AddComponent` explicitly allocates from the existing typed pool, prepends
-  the common header, and returns the existing record on repeated initialization.
-- `G_FreeComponent` unlinks before returning storage to its typed pool. The
-  per-type `G_Free*` wrappers retain each owning behavior's release API, so
-  `S_PolymorphRemove`, Ensnare's snap/finish paths and unit death keep their
-  existing cleanup ordering.
+- The typed `G_Add*` entries (`G_AddAncientRoot`, `G_AddChannel`, ...) explicitly
+  allocate from the row's typed pool, prepend the common header, and return the
+  existing record unchanged on repeated initialization. They return the concrete
+  record type, so a caller cannot pair a type with another row's ID. The untyped
+  add and the per-type allocators are private to `g_pool.c`.
+- The typed `G_Free*` entries unlink before returning storage to the typed pool,
+  and do nothing when the record is absent. Each owning behavior calls its own
+  release, so `S_PolymorphRemove`, Ensnare's snap/finish paths and unit death keep
+  their existing cleanup ordering.
+- `G_AttachComponent` attaches a record the caller already holds: restore uses
+  `G_AllocDetachedComponent` and attaches only a completely decoded record, and
+  API tests attach caller-owned stack fixtures.
 - A cached pointer does not survive a call that can release its record. Re-read
   the record after such a call: for example, Soul Trap's carried-soul release
   re-reads the carrier's record each pass, because releasing the last soul frees it.
@@ -95,17 +101,38 @@ introduced; existing ability procedures and scheduling retain behavior ownership
 - `G_PoolsReset` clears heads and pools without following potentially partial
   restored links or invoking gameplay callbacks.
 
-The static `component_types` registry in `g_pool.c` selects allocation and raw
-release. Save descriptors in `g_save.c` select the concrete payload schema and
-capacity. Adding a component requires both registrations, a header-first payload
-(`COMPONENT_ALLOC` asserts `offsetof(type, component) == 0`), and typed accessors; it does not require another edict pointer or a descriptor row
-for the list link. Direct attachments
-remain for the other records while migration proceeds.
+`G_COMPONENTS` in `g_local.h` is the single component table. Each row gives the
+stable save ID, the `COMPONENT_*` suffix, the pool and save-section name, the
+accessor stem, the record type, the pool capacity and the save field table:
+
+```c
+X(25, CHANNEL, channel, Channel, channel_t, LIFECYCLE_POOL_CAP, channel_fields)
+```
+
+The enum, `G_GetChannel`/`G_AddChannel`/`G_FreeChannel`, the typed pool, the
+allocation and release registry, pool reset and peak reporting, the registry
+tests and the `channel` save section are all generated from that row. Each row
+statically asserts a nonzero ID and a header at offset 0. The registry is a
+switch over the rows, so two rows with the same ID fail to compile as duplicate
+case labels. Adding a component therefore means one row, a header-first record
+type, and a save field table when the payload holds entity references. IDs are
+persisted: append new rows and never renumber an existing one. The `MAX_ENTITIES`
+direct pools have their own private table, `G_DIRECT_POOLS`, in `g_pool.c`, and
+remain direct attachments while migration proceeds.
 
 Lookup is O(attached components), rather than a direct load. Header and slot
 alignment costs apply to every reserved typed-pool slot, including unused ones;
 a smaller edict alone does not establish lower total memory consumption. Keep
 hot unit/combat and movement access direct until measurements justify migration.
+
+Measured in release builds with `wc3_perf.run_entities_1900` (1,900 units,
+15 interleaved runs, medians): `G_RunEntity` performs five component lookups per
+unit per frame (Research twice, Channel, Destructable, Construction). With empty
+lists, disabling the lookups entirely does not measurably change the timing (about 0.16 ms
+per frame). Attaching five unrelated components to every unit raises it to about
+0.25 ms, because most of those lookups miss and walk the whole list. The walk cost
+therefore grows with list length on per-frame paths; a per-edict presence mask
+would turn such misses into one bit test if longer lists become common.
 
 Each operation reads a record once: owners hold one local pointer per entity
 (for example `site`, `rec`, `hold`, `wares`) and refresh it only after a call
@@ -116,8 +143,8 @@ per candidate, the snapshot customizer reads item and cargo state only for
 items and transports, and the edict sweeps (`FILTER_EDICTS`) test one cached
 record per edict instead of repeating the lookup inside the condition. An owned
 transition asserts the record it requires (`assert(site)`), while classification
-queries test the pointer. The registry indexes the dense IDs directly and
-verifies the row identity.
+queries test the pointer. The registry dispatches on the exact ID through the
+generated switch.
 
 Item classification uses `G_ItemState`: it checks null/in-use/rawcode/target-type
 first, then performs one component lookup and the existing world/carrier/pending-use
@@ -139,12 +166,13 @@ casts to an arbitrary derived payload. Retail binary evidence establishes abilit
 objects, owner/reference plumbing and inheritance, but does not establish this
 per-edict linked-list layout: see [binary evidence](ability-inheritance-binary.md).
 
-Formats 107 to 115 persist exact component IDs and payloads in the existing typed
+Formats 107 to 116 persist exact component IDs and payloads in the existing typed
 pool sections (108 added Polymorph, Raven Form, Ensnare and artillery; 109 added
 Sleep, Rally, Sacrifice, Unsummon and Blight Growth; 110 added Shadow Meld,
 Militia, Revival and Buildwork; 111 added Ancient Root, the three mine records,
 Cargo and Soul Trap; 112 added Research, Food and shop Stock; 113 added the spell Channel;
-114 added Destructable and Construction; 115 added Item). The destructable pool keeps its 8,192-slot
+114 added Destructable and Construction; 115 added Item; 116 writes the component
+sections in component-ID order after the direct pools, generated from `G_COMPONENTS`). The destructable pool keeps its 8,192-slot
 capacity; a component record costs the same slot as before plus its header. Entity references inside a payload (`rally->entity`,
 `sacrifice->worker`, `unsummon->target`, `revival->producer`, `revival->queue_next`,
 `ancient_root->approach_goal`, `goldmine->mine`, the mine overlay links, `acolyte_mine->mine`,
@@ -162,7 +190,9 @@ contract. Earlier versions are rejected; network messages are unchanged.
 `wc3_components.mixed_list_release_reuse_and_entity_lifetime` covers mixed-list
 lookup, head/non-head removal, zeroed reuse, edict teardown and reset;
 `wc3_components.every_registered_type_attaches_releases_and_rejects_other_ids`
-walks the whole registry. `wc3_save.component_links_are_transient_and_wrong_type_is_rejected`
+expands every table row through its typed add, get and free entries and checks
+released-slot poisoning; `wc3_components.detached_restore_storage_attaches_by_exact_id`
+covers the restore allocation path. `wc3_save.component_links_are_transient_and_wrong_type_is_rejected`
 checks link exclusion and exact-type validation. The all-pool and truncated-load
 tests cover mixed direct/component restoration and cleanup; the per-field
 `SAVE_COMPONENT_*_FIELD_TEST` round trips in `t_game.c` and the artillery and

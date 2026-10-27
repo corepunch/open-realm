@@ -516,7 +516,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     SP_DestructableModelFilename(row, edict->variation, buffer, sizeof(buffer));
     edict->s.model = G_RegisterModel(buffer);
-    dstr = G_AddComponent(edict, COMPONENT_DESTRUCTABLE);
+    dstr = G_AddDestructable(edict);
     dstr->occluder_height = row->occluderHeight;
     dstr->alive_pathtex = M_LoadPathTex(path_tex);
     dstr->death_pathtex = M_LoadPathTex(row->deathPathingTexture);

@@ -31,7 +31,7 @@ void G_ResetRallyTarget(edict_t *producer) {
 
 bool G_SetRallyPoint(edict_t *producer, vec2_t const *point) {
     if (!G_UnitHasRally(producer) || !point) return false;
-    rally_t *rally = G_AddComponent(producer, COMPONENT_RALLY);
+    rally_t *rally = G_AddRally(producer);
     *rally = (rally_t){ .component = rally->component, .type = RALLY_TARGET_POINT, .point = *point };
     G_RefreshRallyIndicatorForProducer(producer);
     return true;
@@ -42,7 +42,7 @@ bool G_SetRallyEntity(edict_t *producer, edict_t *target) {
     /* Preserve an explicit click on the producer as an entity rally. The
      * zero-initialized SELF state means untouched default and must remain a
      * no-order handoff; an explicit self target is a Smart instruction. */
-    rally_t *rally = G_AddComponent(producer, COMPONENT_RALLY);
+    rally_t *rally = G_AddRally(producer);
     *rally = (rally_t){ .component = rally->component, .type = RALLY_TARGET_ENTITY, .entity = target,
                         .entity_spawn_time = target->spawn_time };
     G_RefreshRallyIndicatorForProducer(producer);

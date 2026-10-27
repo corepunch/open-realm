@@ -153,7 +153,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     if (!carrier || !carrier->inuse || M_IsDead(carrier) || !target || !target->inuse ||
         M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return false;
     /* A unit may be both carrier and target; the two records are distinct only when the edicts are. */
-    soulTrap_t *carried = G_AddComponent(carrier, COMPONENT_SOULTRAP), *souls = G_AddComponent(target, COMPONENT_SOULTRAP);
+    soulTrap_t *carried = G_AddSoulTrap(carrier), *souls = G_AddSoulTrap(target);
     if (!G_ActorHasSkill(carrier, "Asou")) {
         if (!G_ActorAddSkill(carrier, code)) {
             fprintf(stderr, "Soul Trap: unable to add Asou possession state to carrier %.4s\n",

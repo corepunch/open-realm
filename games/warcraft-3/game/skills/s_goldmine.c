@@ -252,14 +252,13 @@ static bool goldmine_membership_valid(edict_t const *worker, edict_t const *mine
 
 static void goldmine_register_miner(edict_t *worker, edict_t *mine) {
     goldMine_t *mine_gmine;
-    goldMine_t *gmine = G_AddComponent(worker, COMPONENT_GOLDMINE);
+    goldMine_t *gmine = G_AddGoldMine(worker);
     gmine->mine = mine;
     gmine->mine_spawn_time = mine->spawn_time;
     gmine->restore_invulnerable = G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE);
     G_SetUnitFlag(worker, UNIT_FLAG_INVULNERABLE, true);
     worker->s.renderfx |= RF_HIDDEN;
-    G_InitGoldMine(mine);
-    mine_gmine = G_GetGoldMine(mine); /* Admission attached the mine's record. */
+    mine_gmine = G_AddGoldMine(mine); /* Admission attaches the mine's record. */
     mine_gmine->occupants++;
     if (mine_gmine->occupants == 1) G_AddUnitAnimationProperties(mine, "work", true);
 }
@@ -709,7 +708,7 @@ bool S_MineOverlayBind(edict_t *overlay, edict_t *parent) {
         return false;
     }
 
-    ovl = G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    ovl = G_AddMineOverlay(overlay);
     if (ovl->parent) S_MineOverlayRelease(overlay);
     ovl->parent = parent;
     ovl->parent_spawn_time = parent->spawn_time;
@@ -1045,7 +1044,7 @@ static bool acolyte_claim_slot(edict_t *worker, edict_t *mine) {
     }
     if (best < 0) return false;
 
-    acolyteMine_t *amine = G_AddComponent(worker, COMPONENT_ACOLYTE_MINE);
+    acolyteMine_t *amine = G_AddAcolyteMine(worker);
     amine->mine = mine;
     amine->mine_spawn_time = mine->spawn_time;
     amine->slot = best;

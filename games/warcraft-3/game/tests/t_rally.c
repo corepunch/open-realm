@@ -57,7 +57,7 @@ TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
     producer->data.UnitProfile = &rally_train_profile;
     producer->data.UnitAbilities = &rally_ancient_abilities;
-    G_AddComponent(producer, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(producer);
     G_GetAncientRoot(producer)->ability = MAKEFOURCC('A','r','o','1');
     G_GetAncientRoot(producer)->mode = ANCIENT_ROOTED;
     producer->s.flags |= EF_BUILDING;

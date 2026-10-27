@@ -182,7 +182,7 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     ent->targtype = TARG_DEBRIS;
     ent->health.value = life;
     ent->health.max_value = life;
-    G_AddComponent(ent, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(ent);
     G_GetDestructable(ent)->placement_solid = true;
     G_GetDestructable(ent)->alive_collision = 1.0f;
     G_GetDestructable(ent)->pathing_active = true;
@@ -588,7 +588,7 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
 
     setup_test_pathmap(8, 8, cells);
     dest = make_test_destructable(10.0f, center.x, center.y);
-    G_AddComponent(dest, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(dest);
     G_GetDestructable(dest)->death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
 
     G_KillDestructable(dest, NULL);
@@ -608,7 +608,7 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     setup_test_pathmap(8, 8, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(bridge);
     G_GetDestructable(bridge)->alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
     G_GetDestructable(bridge)->death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
     bridge->pathtex = G_GetDestructable(bridge)->alive_pathtex;
@@ -645,7 +645,7 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rai
     setup_test_pathmap(9, 7, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(bridge);
     G_GetDestructable(bridge)->alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
     bridge->pathtex = G_GetDestructable(bridge)->alive_pathtex;
     bridge->targtype = TARG_BRIDGE;
@@ -686,7 +686,7 @@ TEST(wc3_destructable, human06_bridge_fixtures_cross_from_both_sides) {
         bridge->s.class_id = fixture->id;
         bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f };
         bridge->data.DestructableData = &bridge_data;
-        G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+        G_AddDestructable(bridge);
         G_GetDestructable(bridge)->alive_pathtex = (pathTex_t *)&pathtex;
         bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE;
@@ -727,7 +727,7 @@ TEST(wc3_destructable, human06_yt20_runtime_bridge_crosses_north_to_south) {
     bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
     bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
     bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f }; bridge->data.DestructableData = &bridge_data;
-    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(bridge);
     G_GetDestructable(bridge)->alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
     bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
 
@@ -756,7 +756,7 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
         bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f }; bridge->s.angle = angle * (float)M_PI / 2.0f;
         bridge->data.DestructableData = &bridge_data;
-        G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+        G_AddDestructable(bridge);
         G_GetDestructable(bridge)->alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
         transform = CM_GetPathTexTransform(bridge);
@@ -783,7 +783,7 @@ TEST(wc3_destructable, gate_path_texture_rotation_covers_all_quarter_turns) {
         gate->class_id = MAKEFOURCC('D', 'T', 'g', '3');
         gate->s.class_id = gate->class_id;
         gate->s.angle = angle * (float)M_PI / 2.0f;
-        G_AddComponent(gate, COMPONENT_DESTRUCTABLE);
+        G_AddDestructable(gate);
         G_GetDestructable(gate)->alive_pathtex = (pathTex_t *)&pathtex;
         gate->pathtex = (pathTex_t *)&pathtex;
 
@@ -822,7 +822,7 @@ TEST(wc3_destructable, non_gate_path_texture_orientation_follows_facing_in_pathi
         elevator->s.class_id = elevator->class_id;
         elevator->s.origin2 = center;
         elevator->s.angle = angle * (float)M_PI / 2.0f;
-        G_AddComponent(elevator, COMPONENT_DESTRUCTABLE);
+        G_AddDestructable(elevator);
         G_GetDestructable(elevator)->alive_pathtex = (pathTex_t *)&pathtex;
         elevator->pathtex = (pathTex_t *)&pathtex;
 

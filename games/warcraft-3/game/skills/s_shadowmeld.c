@@ -119,7 +119,7 @@ static void shadowmeld_update(edict_t *unit) {
 
     if (!unit || !unit->inuse) return;
     if (!G_GetShadowMeld(unit) && !shadowmeld_has_ability(unit)) return;
-    meld = G_AddComponent(unit, COMPONENT_SHADOWMELD);
+    meld = G_AddShadowMeld(unit);
     if (!shadowmeld_any_ability_available(unit)) {
         S_ShadowMeldBreak(unit);
         return;
@@ -187,7 +187,7 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
     case A_EXECUTE:
         if (!ent || !G_IsNight() || !shadowmeld_ability_available(ent, akama)) return false;
         order_stop_cleanup(ent);
-        meld = G_AddComponent(ent, COMPONENT_SHADOWMELD);
+        meld = G_AddShadowMeld(ent);
         shadowmeld_set_hide_order(ent, true);
         if (!meld->active) {
             meld->fade_start = 0;

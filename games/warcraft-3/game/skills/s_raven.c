@@ -143,7 +143,7 @@ static bool raven_form_order(edict_t *unit, bool raven_form) {
         return false;
     }
 
-    raven_t *raven = G_AddComponent(unit, COMPONENT_RAVEN);
+    raven_t *raven = G_AddRaven(unit);
     raven->rise_state = RAVEN_RISE_NONE;
     if (raven_form) {
         raven->fly_height = unit->unitinfo.FlyHeight;

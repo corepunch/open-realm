@@ -139,7 +139,7 @@ BZ_ABILITY_PROC(CAbilityCreepSleep) {
     switch (msg) {
     case A_UNIT_INIT:
         if (!ent_sleep && !ent->data.UnitData->canSleep) return true;
-        sleep = G_AddComponent(ent, COMPONENT_SLEEP);
+        sleep = G_AddSleep(ent);
         sleep->can_sleep = ent->data.UnitData->canSleep;
         if (!sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
         return true;
@@ -148,7 +148,7 @@ BZ_ABILITY_PROC(CAbilityCreepSleep) {
     case A_DISABLE:
         if (!unit_is_neutral_sleep_candidate(ent)) return false;
         if (!ent_sleep && msg == A_DISABLE) return true;
-        sleep = G_AddComponent(ent, COMPONENT_SLEEP);
+        sleep = G_AddSleep(ent);
         sleep->can_sleep = msg == A_ENABLE;
         if (!sleep->can_sleep) creep_sleep_wake(ent);
         return true;

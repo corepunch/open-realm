@@ -146,7 +146,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 113 moves Channel onto the component list. */
 /* Version 114 moves Destructable, Construction onto the component list. */
 /* Version 115 moves Item onto the component list. */
-static uint32_t const save_version = 115;
+/* Version 116 writes component pools in component-ID order, generated from G_COMPONENTS. */
+static uint32_t const save_version = 116;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2167,38 +2168,11 @@ typedef struct {
     field_t const *fields;
     void *(*alloc)(void);
     uint32_t capacity;
-    componentId_t component; /* zero for direct attachments; otherwise exact saved component type */
+    componentId_t component; /* zero for direct attachments; otherwise exact saved component type, allocated through the registry */
 } savePool_t;
 
 static field_t const scalar_pool_fields[] = { { NULL, 0, 0, 0, 0, 0 } };
 #define POOL_ALLOC(Name) static void *SaveAlloc##Name(void) { return G_Alloc##Name(); }
-POOL_ALLOC(Construction)
-POOL_ALLOC(Research)
-POOL_ALLOC(Rally)
-POOL_ALLOC(Food)
-POOL_ALLOC(Buildwork)
-POOL_ALLOC(Revival)
-POOL_ALLOC(Sacrifice)
-POOL_ALLOC(Unsummon)
-POOL_ALLOC(ShadowMeld)
-POOL_ALLOC(Militia)
-POOL_ALLOC(Polymorph)
-POOL_ALLOC(Raven)
-POOL_ALLOC(BlightGrowth)
-POOL_ALLOC(Ensnare)
-POOL_ALLOC(AncientRoot)
-POOL_ALLOC(GoldMine)
-POOL_ALLOC(MineOverlay)
-POOL_ALLOC(AcolyteMine)
-POOL_ALLOC(Item)
-POOL_ALLOC(Destructable)
-POOL_ALLOC(Cargo)
-POOL_ALLOC(Stock)
-POOL_ALLOC(Waygate)
-POOL_ALLOC(Artillery)
-POOL_ALLOC(Avatar)
-POOL_ALLOC(Sleep)
-POOL_ALLOC(SoulTrap)
 POOL_ALLOC(UnitState)
 POOL_ALLOC(Sounds)
 POOL_ALLOC(Missile)
@@ -2209,48 +2183,29 @@ POOL_ALLOC(Orders)
 POOL_ALLOC(Movement)
 POOL_ALLOC(Route)
 POOL_ALLOC(Wander)
-POOL_ALLOC(Channel)
 
+/* Direct pools keep their historical order; component pools follow in ID order, one per table row. */
 static savePool_t const save_pools[] = {
     { "orders", offsetof(edict_t, orders), sizeof(unitOrders_t), order_fields, SaveAllocOrders, MAX_ENTITIES },
     { "movement", offsetof(edict_t, movement), sizeof(movement_t), movement_fields, SaveAllocMovement, MAX_ENTITIES },
     { "route", offsetof(edict_t, route), sizeof(routeCache_t), route_fields, SaveAllocRoute, MAX_ENTITIES },
     { "wander", offsetof(edict_t, wander), sizeof(wander_t), wander_fields, SaveAllocWander, MAX_ENTITIES },
-    { "construction", 0, sizeof(construction_t), construction_fields, SaveAllocConstruction, LIFECYCLE_POOL_CAP, COMPONENT_CONSTRUCTION },
-    { "research", 0, sizeof(research_t), scalar_pool_fields, SaveAllocResearch, LIFECYCLE_POOL_CAP, COMPONENT_RESEARCH },
-    { "rally", 0, sizeof(rally_t), rally_fields, SaveAllocRally, LIFECYCLE_POOL_CAP, COMPONENT_RALLY },
-    { "food", 0, sizeof(food_t), scalar_pool_fields, SaveAllocFood, LIFECYCLE_POOL_CAP, COMPONENT_FOOD },
-    { "buildwork", 0, sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork, LIFECYCLE_POOL_CAP, COMPONENT_BUILDWORK },
-    { "revival", 0, sizeof(revival_t), revival_fields, SaveAllocRevival, LIFECYCLE_POOL_CAP, COMPONENT_REVIVAL },
-    { "sacrifice", 0, sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice, LIFECYCLE_POOL_CAP, COMPONENT_SACRIFICE },
-    { "unsummon", 0, sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon, LIFECYCLE_POOL_CAP, COMPONENT_UNSUMMON },
-    { "shadowmeld", 0, sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld, LIFECYCLE_POOL_CAP, COMPONENT_SHADOWMELD },
-    { "militia", 0, sizeof(militia_t), militia_fields, SaveAllocMilitia, LIFECYCLE_POOL_CAP, COMPONENT_MILITIA },
-    { "polymorph", 0, sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph, LIFECYCLE_POOL_CAP, COMPONENT_POLYMORPH },
-    { "raven", 0, sizeof(raven_t), raven_fields, SaveAllocRaven, LIFECYCLE_POOL_CAP, COMPONENT_RAVEN },
-    { "blight_growth", 0, sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth, LIFECYCLE_POOL_CAP, COMPONENT_BLIGHT_GROWTH },
-    { "ensnare", 0, sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare, LIFECYCLE_POOL_CAP, COMPONENT_ENSNARE },
-    { "ancient_root", 0, sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot, LIFECYCLE_POOL_CAP, COMPONENT_ANCIENT_ROOT },
-    { "goldmine", 0, sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine, LIFECYCLE_POOL_CAP, COMPONENT_GOLDMINE },
-    { "mineoverlay", 0, sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay, LIFECYCLE_POOL_CAP, COMPONENT_MINE_OVERLAY },
-    { "acolyte_mine", 0, sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine, LIFECYCLE_POOL_CAP, COMPONENT_ACOLYTE_MINE },
-    { "item", 0, sizeof(item_t), item_fields, SaveAllocItem, LIFECYCLE_POOL_CAP, COMPONENT_ITEM },
-    { "destructable", 0, sizeof(destructable_t), destructable_fields, SaveAllocDestructable, DESTRUCTABLE_POOL_CAP, COMPONENT_DESTRUCTABLE },
-    { "cargo", 0, sizeof(cargo_t), cargo_fields, SaveAllocCargo, LIFECYCLE_POOL_CAP, COMPONENT_CARGO },
-    { "stock", 0, sizeof(stock_t), stock_fields, SaveAllocStock, LIFECYCLE_POOL_CAP, COMPONENT_STOCK },
-    { "waygate", 0, sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate, LIFECYCLE_POOL_CAP, COMPONENT_WAYGATE },
-    { "artillery", 0, sizeof(artillery_t), artillery_fields, SaveAllocArtillery, LIFECYCLE_POOL_CAP, COMPONENT_ARTILLERY },
-    { "avatar", 0, sizeof(avatar_t), avatar_fields, SaveAllocAvatar, LIFECYCLE_POOL_CAP, COMPONENT_AVATAR },
-    { "sleep", 0, sizeof(sleep_t), sleep_fields, SaveAllocSleep, LIFECYCLE_POOL_CAP, COMPONENT_SLEEP },
-    { "soultrap", 0, sizeof(soulTrap_t), soultrap_fields, SaveAllocSoulTrap, LIFECYCLE_POOL_CAP, COMPONENT_SOULTRAP },
     { "unit_state", offsetof(edict_t, unit_state), sizeof(unitState_t), unit_state_fields, SaveAllocUnitState, MAX_ENTITIES },
     { "sound", offsetof(edict_t, sound), sizeof(unitSounds_t), sound_fields, SaveAllocSounds, MAX_ENTITIES },
     { "missile", offsetof(edict_t, missile), sizeof(attackMissile_t), missile_fields, SaveAllocMissile, MAX_ENTITIES },
     { "inventory", offsetof(edict_t, inventory), sizeof(inventory_t), inventory_fields, SaveAllocInventory, MAX_ENTITIES },
     { "harvest", offsetof(edict_t, harvest), sizeof(harvest_t), harvest_fields, SaveAllocHarvest, MAX_ENTITIES },
     { "vision", offsetof(edict_t, vision), sizeof(visibility_t), vision_fields, SaveAllocVisibility, MAX_ENTITIES },
-    { "channel", 0, sizeof(channel_t), channel_fields, SaveAllocChannel, LIFECYCLE_POOL_CAP, COMPONENT_CHANNEL },
+#define SAVE_COMPONENT_POOL(id, ID, member, Name, type, cap, fields) \
+    { #member, 0, sizeof(type), fields, NULL, cap, COMPONENT_##ID },
+    G_COMPONENTS(SAVE_COMPONENT_POOL)
+#undef SAVE_COMPONENT_POOL
 };
+
+/* Component rows allocate detached storage through the registry; direct rows use their typed pool. */
+static void *SavePoolAlloc(savePool_t const *pool) {
+    return pool->component ? G_AllocDetachedComponent(pool->component) : pool->alloc();
+}
 
 static void *SavePoolSlot(edict_t const *ent, savePool_t const *pool) {
     if (pool->component) return G_GetComponent(ent, pool->component);
@@ -2296,7 +2251,7 @@ static bool ReadPool(FILE *f, savePool_t const *pool) {
         uint32_t index;
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.num_edicts ||
             !g_edicts[index].inuse || SavePoolSlot(g_edicts + index, pool)) return false;
-        void *slot = pool->alloc();
+        void *slot = SavePoolAlloc(pool);
         if (!LoadBytes(f, slot, pool->size)) return false;
         if (pool->component) ((component_t *)slot)->next = NULL;
         ClearRuntimeFields(slot, pool->fields, FIELD_RUNTIME);
@@ -2860,7 +2815,7 @@ TEST(wc3_save, polymorphed_unit_rebinds_form_and_original_models_after_load) {
     old = G_SetSLKRows("UnitUI", rows);
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
     unit->s.flags |= EF_UNIT;
-    polymorph_t *morph = G_AddComponent(unit, COMPONENT_POLYMORPH);
+    polymorph_t *morph = G_AddPolymorph(unit);
     morph->form_type = MAKEFOURCC('o', 'p', 'e', 'o');
     morph->original_model = 4;
     unit->s.model = 5;
@@ -3108,7 +3063,7 @@ TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
     deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
     deck->s.class_id = deck->class_id;
     G_BindEntityData(deck);
-    G_AddComponent(deck, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(deck);
     G_GetDestructable(deck)->occluder_height = 256.0f;
     deck->queued_animation = G_InternAnimationName("stand third");
     T_ASSERT(WriteGame(filename));
@@ -3231,8 +3186,8 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
 TEST(wc3_save, component_links_are_transient_and_wrong_type_is_rejected) {
     reset_entities();
     edict_t *unit = G_Spawn();
-    G_AddComponent(unit, COMPONENT_AVATAR);
-    waygate_t *gate = G_AddComponent(unit, COMPONENT_WAYGATE);
+    G_AddAvatar(unit);
+    waygate_t *gate = G_AddWaygate(unit);
     gate->destination = (vec2_t){128, 256};
     T_NOT_NULL(gate->component.next);
     savePool_t const *pool = NULL;
@@ -3266,20 +3221,21 @@ TEST(wc3_save, component_links_are_transient_and_wrong_type_is_rejected) {
     fclose(f);
 }
 
-/* A truncated late pool also detaches components decoded earlier in the stream. */
+/* A truncated final pool also detaches records decoded earlier in the stream. */
 TEST(wc3_save, failed_pool_restore_detaches_all_partial_records) {
+    size_t const count = sizeof(save_pools) / sizeof(save_pools[0]);
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     FILE *f = tmpfile();
     T_NOT_NULL(f);
     if (!f) return;
-    FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
+    FOR_LOOP(i, count) {
         savePool_t const *pool = save_pools + i;
         if (!SavePoolSlot(unit, pool)) {
-            void *slot = pool->alloc();
+            void *slot = SavePoolAlloc(pool);
             AttachPoolSlot(unit, pool, slot);
         }
-        if (!strcmp(pool->name, "channel")) {
+        if (i + 1 == count) {
             uint32_t count = 1, index = (uint32_t)(unit - g_edicts);
             T_ASSERT(SaveBytes(f, &count, sizeof(count)));
             T_ASSERT(SaveBytes(f, &index, sizeof(index)));
@@ -3290,7 +3246,7 @@ TEST(wc3_save, failed_pool_restore_detaches_all_partial_records) {
     }
     rewind(f);
     T_ASSERT(!ReadPools(f));
-    FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0]))
+    FOR_LOOP(i, count)
         T_NULL(SavePoolSlot(unit, save_pools + i));
     fclose(f);
     G_PoolsReset();
@@ -3342,7 +3298,7 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
     FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
         if (SavePoolSlot(unit, save_pools + i)) continue;
-        void *slot = save_pools[i].alloc();
+        void *slot = SavePoolAlloc(save_pools + i);
         AttachPoolSlot(unit, save_pools + i, slot);
     }
 

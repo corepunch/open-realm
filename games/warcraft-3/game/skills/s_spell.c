@@ -624,7 +624,7 @@ edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) 
     edict_t *ent = G_Spawn();
     if (!ent) return NULL;
     ent->owner = owner; ent->class_id = code; ent->goalentity = target;
-    channel_t *cast = G_AddComponent(ent, COMPONENT_CHANNEL);
+    channel_t *cast = G_AddChannel(ent);
     cast->owner_spawn_time = owner ? owner->spawn_time : 0;
     cast->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
@@ -758,7 +758,7 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);
 static void spell_begin_channel(edict_t *caster, uint32_t code) {
     channel_t *cast;
     if (caster->stand) caster->stand(caster);
-    cast = G_AddComponent(caster, COMPONENT_CHANNEL);
+    cast = G_AddChannel(caster);
     cast->serial++;
     cast->code = code;
     cast->origin = caster->s.origin2;
@@ -997,7 +997,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
     thinker->goalentity = goal;
-    channel_t *cast = G_AddComponent(thinker, COMPONENT_CHANNEL);
+    channel_t *cast = G_AddChannel(thinker);
     cast->owner_spawn_time = caster->spawn_time;
     cast->target_spawn_time = target ? target->spawn_time : 0;
     thinker->class_id = code;
@@ -1372,7 +1372,7 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     missile->s.player = caster->s.player;
     G_InheritUnitTeamColor(missile, caster);
     missile->goalentity = target;
-    channel_t *cast = G_AddComponent(missile, COMPONENT_CHANNEL);
+    channel_t *cast = G_AddChannel(missile);
     cast->owner_spawn_time = caster->spawn_time;
     cast->target_spawn_time = target->spawn_time;
     missile->owner = caster;

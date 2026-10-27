@@ -1181,3 +1181,17 @@ field tables no longer carry a `component.next` exclusion row. The written bytes
 are identical to the row-based exclusion (the link was already zero in the file),
 so the format version does not change; the earlier slice sections describe the
 rows as they were introduced.
+
+## Generated component sections (version 116)
+
+The component save sections are generated from the `G_COMPONENTS` table in
+`g_local.h`, one per row. The ten direct `MAX_ENTITIES` pools are written first
+in their previous relative order (`orders`, `movement`, `route`, `wander`,
+`unit_state`, `sound`, `missile`, `inventory`, `harvest`, `vision`). The
+component sections follow in component-ID order, from `waygate` (1) to `item`
+(28). Each section's name, record size, capacity, field table and exact component
+ID come from its row, and restore allocates through the component registry
+(`G_AllocDetachedComponent`) instead of a per-type save allocator. Payload bytes,
+ID validation, link clearing and entity-reference fixups are unchanged; only the
+section order differs from version 115, so version 115 saves are rejected. The
+wire format is unchanged.

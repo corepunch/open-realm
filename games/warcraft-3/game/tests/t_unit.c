@@ -223,7 +223,7 @@ static edict_t *make_world_item(uint32_t class_id) {
     G_BindEntityData(item);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
     G_GetItem(item)->inventory_slot = -1;
     return item;
@@ -1189,7 +1189,7 @@ TEST(wc3_unit, no_creep_sleep_player_state_blocks_new_natural_sleep) {
 
     creep->svflags |= SVF_MONSTER;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    ((sleep_t *)G_AddComponent(creep, COMPONENT_SLEEP))->can_sleep = true;
+    ((sleep_t *)G_AddSleep(creep))->can_sleep = true;
     *no_creep_sleep = 1;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -1212,11 +1212,11 @@ TEST(wc3_unit, unit_add_sleep_policy_is_neutral_only_and_wakes_when_disabled) {
 
     neutral->svflags |= SVF_MONSTER;
     neutral->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    ((sleep_t *)G_AddComponent(neutral, COMPONENT_SLEEP))->can_sleep = false;
+    ((sleep_t *)G_AddSleep(neutral))->can_sleep = false;
     G_InitUnitOrders(player_unit);
     player_unit->svflags |= SVF_MONSTER;
     player_unit->s.player = 0;
-    ((sleep_t *)G_AddComponent(player_unit, COMPONENT_SLEEP))->can_sleep = false;
+    ((sleep_t *)G_AddSleep(player_unit))->can_sleep = false;
 
     G_UnitSetCanSleep(neutral, true);
     G_UnitSetCanSleep(player_unit, true);
@@ -1471,7 +1471,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     hero->svflags |= SVF_DEADMONSTER;
     hero->s.flags |= EF_NOT_SELECTABLE;
     hero->s.renderfx |= RF_HIDDEN;
-    revival_t *revival = G_AddComponent(hero, COMPONENT_REVIVAL);
+    revival_t *revival = G_AddRevival(hero);
     revival->awaiting = true;
     revival->reviving = true;
     revival->producer = altar;
@@ -1515,7 +1515,7 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
     altar->data.UnitProfile = &revive_profile;
     altar->build = hero;
-    revival_t *revival = G_AddComponent(hero, COMPONENT_REVIVAL);
+    revival_t *revival = G_AddRevival(hero);
     revival->awaiting = true;
     revival->reviving = true;
     revival->producer = altar;
@@ -1543,7 +1543,7 @@ TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queu
     edict_t *worker = make_unit(0, 0);
     edict_t *building = make_unit(0, 0);
 
-    G_AddComponent(building, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(building);
     building->build = building;
     worker->build = building;
 
@@ -1563,7 +1563,7 @@ TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
 
     altar->data.UnitProfile = &revive_profile;
     altar->s.player = old_client->ps.number;
-    G_AddComponent(altar, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(altar);
     altar->build = altar;
 
     G_SetUnitPlayer(altar, new_client->ps.number);
@@ -2208,7 +2208,7 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    raven_t *raven = G_AddComponent(ent, COMPONENT_RAVEN);
+    raven_t *raven = G_AddRaven(ent);
     raven->fly_height = 100;
     raven->rise_duration = 2;
     T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
@@ -2239,7 +2239,7 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    raven_t *raven = G_AddComponent(ent, COMPONENT_RAVEN);
+    raven_t *raven = G_AddRaven(ent);
     raven->fly_height = 100;
     raven->rise_duration = 2;
     T_EQ(raven->rise_state, RAVEN_RISE_AFTER_MORPH);
@@ -2271,7 +2271,7 @@ TEST(wc3_unit, ravenForm_takeoff_interpolates_from_ground_to_authored_height) {
 
     reset_test_entities(); setup_test_world();
     ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
-    raven_t *raven = G_AddComponent(ent, COMPONENT_RAVEN);
+    raven_t *raven = G_AddRaven(ent);
     raven->fly_height = 100.0f;
     raven->rise_start = 1000;
     raven->rise_duration = 2.0f;

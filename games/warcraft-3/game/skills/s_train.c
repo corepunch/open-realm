@@ -535,7 +535,7 @@ bool G_QueueHeroRevive(edict_t *altar, edict_t *hero) {
     if (gold > client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
         lumber > client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
 
-    revival_t *revival = G_AddComponent(hero, COMPONENT_REVIVAL);
+    revival_t *revival = G_AddRevival(hero);
     *revival = (revival_t){ .component = revival->component, .awaiting = revival->awaiting, .reviving = true,
                             .producer = altar, .player = altar->s.player, .gold = (int32_t)gold, .lumber = (int32_t)lumber };
     unit_add_build_queue(altar, hero);
@@ -668,7 +668,7 @@ bool G_QueueResearch(edict_t *producer, uint32_t upgrade_id) {
     item->s.player = producer->s.player;
     G_SetUnitFlag(item, UNIT_FLAG_TRAINING, true);
     item->s.renderfx |= RF_HIDDEN;
-    research_t *study = G_AddComponent(item, COMPONENT_RESEARCH);
+    research_t *study = G_AddResearch(item);
     *study = (research_t){ .component = study->component, .upgrade = upgrade_id, .level = level_value,
                            .gold = gold, .lumber = lumber, .duration = duration };
     unit_add_build_queue(producer, item);

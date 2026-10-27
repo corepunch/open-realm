@@ -80,7 +80,7 @@ static edict_t *make_moving_unit(float x, float y) {
 static edict_t *make_harvest_tree(float x, float y, float life) {
     edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), x, y);
     SP_monster_tree(tree);
-    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(tree);
     G_GetDestructable(tree)->item_table = (uint32_t)-1;
     tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = life;
@@ -2019,7 +2019,7 @@ static edict_t *make_smart_destructable(float x, float y,
     edict_t *dest = G_Spawn();
     dest->class_id = MAKEFOURCC('L','T','0','5');
     dest->data.DestructableData = data;
-    G_AddComponent(dest, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(dest);
     G_GetDestructable(dest)->placement_solid = true;
     dest->health.value = dest->health.max_value = 500.0f;
     dest->targtype = targtype;
@@ -3250,7 +3250,7 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
-    G_AddComponent(mill, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(mill);
     S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
     worker->s.renderfx |= RF_HAS_LUMBER;
 
@@ -3273,7 +3273,7 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
     complete_hall->s.player = unfinished_hall->s.player = worker->s.player;
     make_live_dropoff(complete_hall, &return_gold_lumber_abilities);
     make_live_dropoff(unfinished_hall, &return_gold_lumber_abilities);
-    G_AddComponent(unfinished_hall, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(unfinished_hall);
     S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
 
     T_ASSERT(!S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
@@ -3612,7 +3612,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
-    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(bridge);
     G_GetDestructable(bridge)->placement_solid = true;
     G_GetDestructable(bridge)->occluder_height = 32.0f; /* does not offset non-elevator bridges */
     bridge->pathtex = (pathTex_t *)&bridge_path;
@@ -3637,7 +3637,7 @@ TEST(wc3_movement, elevator_level_controls_ground_unit_height_and_clears_on_exit
 
     deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
     deck->data.DestructableData = &elevator_data;
-    G_AddComponent(deck, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(deck);
     G_GetDestructable(deck)->placement_solid = true;
     deck->pathtex = (pathTex_t *)&path;
     deck->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain);
@@ -3672,7 +3672,7 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
 
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0');
         bridge->data.DestructableData = &bridge_data;
-        G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+        G_AddDestructable(bridge);
         G_GetDestructable(bridge)->placement_solid = true;
         bridge->pathtex = (pathTex_t *)&bridge_path;
         bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 100.0f);
@@ -3696,7 +3696,7 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
-    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(bridge);
     G_GetDestructable(bridge)->placement_solid = true;
 
     G_RegisterGroundSurface(bridge);
@@ -3784,7 +3784,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     unit->data.UnitData = &float_data;
     set_uniform_test_water_height(32.0f);
     bridge->data.DestructableData = &bridge_data;
-    G_AddComponent(bridge, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(bridge);
     G_GetDestructable(bridge)->placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
@@ -5049,7 +5049,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     first->stand = second->stand = unit_stand;
     first->s.renderfx |= RF_HIDDEN; second->s.renderfx |= RF_HIDDEN;
     G_SetUnitFlag(first, UNIT_FLAG_PAUSED, true); G_SetUnitFlag(second, UNIT_FLAG_PAUSED, true);
-    G_AddComponent(mine, COMPONENT_CARGO);
+    G_AddCargo(mine);
     G_GetCargo(mine)->units[0] = first; G_GetCargo(mine)->units[1] = second; G_GetCargo(mine)->count = 2;
 
     T_ASSERT(S_MineOverlayBind(mine, parent));
@@ -5096,7 +5096,7 @@ TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation
     caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
-    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_AddMineOverlay(overlay);
     G_GetMineOverlay(overlay)->parent = parent;
     G_GetMineOverlay(overlay)->parent_spawn_time = parent->spawn_time;
     G_GetMineOverlay(overlay)->caster = caster;
@@ -5138,7 +5138,7 @@ static void movement_prepare_rooted_entangle_caster(edict_t *caster, uint32_t pl
     caster->data.UnitAbilities = &test_entangle_caster;
     G_ActorAddSkill(caster, entangle);
     G_ActorAddSkill(caster, root);
-    G_AddComponent(caster, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(caster);
     G_GetAncientRoot(caster)->ability = root;
     G_GetAncientRoot(caster)->mode = ANCIENT_ROOTED;
     caster->s.flags |= EF_BUILDING;
@@ -5305,7 +5305,7 @@ TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
     far_parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 48.0f, 0.0f);
     movement_prepare_rooted_entangle_caster(caster, 0);
-    G_AddComponent(caster, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(caster);
     G_GetAncientRoot(caster)->mode = ANCIENT_UPROOTED;
     caster->s.flags &= ~EF_BUILDING;
     caster->aiflags &= ~AI_IMMOBILE;
@@ -5350,7 +5350,7 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
     mine->data.UnitAbilities = &test_entangled_mine;
     mine->s.player = wisp->s.player = 0;
-    G_AddComponent(mine, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(mine);
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->stand = unit_stand;
     unit_stand(wisp);
@@ -5387,7 +5387,7 @@ TEST(wc3_movement, harvest_order_boards_wisp_into_entangled_mine) {
     mine->s.player = wisp->s.player = 0;
     setup_test_goldmine(parent, &test_goldmine_stock, 5000);
     mine->data.UnitAbilities = &test_entangled_mine;
-    G_AddComponent(mine, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(mine);
     T_NOT_NULL(G_GetConstruction(mine));
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
@@ -5462,7 +5462,7 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
     producer->stand = unit_stand;
     producer->s.player = mine->s.player = wisp->s.player = 0;
     mine->data.UnitAbilities = &test_entangled_mine;
-    G_AddComponent(mine, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(mine);
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
     wisp->data.UnitBalance = &balance;
@@ -5529,7 +5529,7 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     caster->data.UnitAbilities = &test_entangle_caster;
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
     G_ActorAddSkill(caster, ability);
-    G_AddComponent(caster, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(caster);
     G_GetAncientRoot(caster)->ability = MAKEFOURCC('A','r','o','1');
     G_GetAncientRoot(caster)->mode = ANCIENT_UPROOTED;
     G_SelectEntity(client, caster);
@@ -5548,7 +5548,7 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
 
     T_ASSERT(WriteGame(filename));
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, false));
-    G_AddComponent(overlay, COMPONENT_MINE_OVERLAY);
+    G_AddMineOverlay(overlay);
     G_GetMineOverlay(overlay)->entangle_permanent_before = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
@@ -5600,7 +5600,7 @@ TEST(wc3_movement, entangle_tft_still_requires_authored_overlay_unit_id) {
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
     caster->data.UnitAbilities = &test_entangle_caster;
     caster->s.player = parent->s.player = client->ps.number;
-    G_AddComponent(caster, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(caster);
     G_GetAncientRoot(caster)->ability = MAKEFOURCC('A','r','o','1');
     G_GetAncientRoot(caster)->mode = ANCIENT_ROOTED;
     G_ActorAddSkill(caster, MAKEFOURCC('A','e','n','t'));
@@ -5649,7 +5649,7 @@ TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     caster->unit_state->overrides.added[0] = ability;
     caster->unit_state->overrides.added[1] = MAKEFOURCC('A','r','o','1');
     caster->unit_state->overrides.added_count = 2;
-    G_AddComponent(caster, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(caster);
     G_GetAncientRoot(caster)->ability = MAKEFOURCC('A','r','o','1');
     G_GetAncientRoot(caster)->mode = ANCIENT_ROOTED;
     caster->s.flags |= EF_BUILDING;
@@ -6022,7 +6022,7 @@ TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
     third = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     transport->data.UnitAbilities = &transport_abilities;
     transport->think = monster_think; transport->stand = unit_stand;
-    G_AddComponent(transport, COMPONENT_CARGO);
+    G_AddCargo(transport);
     G_GetCargo(transport)->units[0] = first;
     G_GetCargo(transport)->units[1] = second;
     G_GetCargo(transport)->units[2] = third;
@@ -6095,7 +6095,7 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
     T_ASSERT(!stop);
     T_ASSERT(!stand_down);
 
-    G_AddComponent(burrow, COMPONENT_CARGO);
+    G_AddCargo(burrow);
     G_GetCargo(burrow)->units[0] = peon;
     G_GetCargo(burrow)->count = 1;
     count = G_GetCommandButtons(burrow, buttons, (uint8_t)(sizeof(buttons) / sizeof(buttons[0])));
@@ -6121,7 +6121,7 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
 
     burrow->data.UnitAbilities = &burrow_abilities;
     burrow->stand = unit_stand;
-    G_AddComponent(burrow, COMPONENT_CARGO);
+    G_AddCargo(burrow);
     G_GetCargo(burrow)->units[0] = peon;
     G_GetCargo(burrow)->count = 1;
     peon->s.renderfx |= RF_HIDDEN;
@@ -6153,7 +6153,7 @@ TEST(wc3_movement, removing_loaded_unit_releases_transport_slot) {
     setup_test_world();
     transport = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    G_AddComponent(transport, COMPONENT_CARGO);
+    G_AddCargo(transport);
     G_GetCargo(transport)->units[0] = passenger;
     G_GetCargo(transport)->count = 1;
     passenger->s.renderfx |= RF_HIDDEN;
@@ -6172,7 +6172,7 @@ TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaini
 
     first->s.renderfx |= RF_HIDDEN; G_SetUnitFlag(first, UNIT_FLAG_PAUSED, true);
     second->s.renderfx |= RF_HIDDEN; G_SetUnitFlag(second, UNIT_FLAG_PAUSED, true);
-    G_AddComponent(burrow, COMPONENT_CARGO);
+    G_AddCargo(burrow);
     G_GetCargo(burrow)->units[0] = first; G_GetCargo(burrow)->units[1] = second; G_GetCargo(burrow)->count = 2;
 
     T_ASSERT(S_CargoTransportForUnit(first) == burrow);

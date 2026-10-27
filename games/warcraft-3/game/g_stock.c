@@ -136,7 +136,7 @@ void G_InitStockSlots(edict_t *unit) {
     stock_t *wares = G_GetStock(unit);
     if (!unit || (!wares && !G_IsItemShop(unit) && !G_IsUnitShop(unit) &&
         !G_ActorHasSkill(unit, "Asid") && !G_ActorHasSkill(unit, "Asud"))) return;
-    wares = G_AddComponent(unit, COMPONENT_STOCK);
+    wares = G_AddStock(unit);
 
     wares->item_slots = level.stock.item_slots;
     wares->unit_slots = level.stock.unit_slots;
@@ -170,7 +170,7 @@ void G_SetStockSlots(edict_t *unit, bool items, int32_t slots) {
     uint32_t value = (uint32_t)MAX(0, slots);
     if (!unit) return;
     if (!wares) {
-        wares = G_AddComponent(unit, COMPONENT_STOCK);
+        wares = G_AddStock(unit);
         wares->item_slots = level.stock.item_slots;
         wares->unit_slots = level.stock.unit_slots;
     }

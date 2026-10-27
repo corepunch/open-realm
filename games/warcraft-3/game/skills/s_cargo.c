@@ -162,7 +162,7 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
     uint32_t old_count;
 
     if (!transport || !unit || !cargo_has_capacity(transport, 1)) return;
-    cargo_t *hold = G_AddComponent(transport, COMPONENT_CARGO);
+    cargo_t *hold = G_AddCargo(transport);
     old_count = hold->count;
     hold->units[hold->count++] = unit;
     G_ClearUnitOrderQueue(unit);
@@ -487,7 +487,7 @@ static bool corpse_cargo_start(edict_t *transport, edict_t *corpse, uint32_t cod
     thinker->owner = transport;
     thinker->goalentity = corpse;
     thinker->class_id = code;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->target_spawn_time = corpse->spawn_time;
     thinker->think = corpse_cargo_approach_think;
     return true;
@@ -737,7 +737,7 @@ BZ_COMMAND_PROC(AbilityBattlestations) {
     uint32_t capacity, free_slots, count;
 
     if (!transport || !S_CargoIsBurrow(transport)) return;
-    hold = G_AddComponent(transport, COMPONENT_CARGO);
+    hold = G_AddCargo(transport);
     capacity = S_CargoCapacity(transport);
     if (capacity <= hold->count) return;
     free_slots = MIN(capacity - hold->count, (uint32_t)MAX_CARGO);

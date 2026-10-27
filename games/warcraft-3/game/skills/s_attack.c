@@ -118,7 +118,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     rocket->missile->attack_type = desc->attack_type;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        channel_t *cast = G_AddComponent(rocket, COMPONENT_CHANNEL);
+        channel_t *cast = G_AddChannel(rocket);
         cast->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
@@ -126,7 +126,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         rocket->goalentity = desc->target;
         cast->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            artillery_t *splash = G_AddComponent(rocket, COMPONENT_ARTILLERY);
+            artillery_t *splash = G_AddArtillery(rocket);
             splash->attack_type = desc->attack->type;
             splash->area_targets = desc->area_targets;
             splash->targets_allowed = desc->attack->targetsAllowed;
@@ -1099,7 +1099,7 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     unit->goalentity = waypoint;
     unit->unit_state->attack_target_spawn_time = 0;
     attack_ground_walk(unit);
-    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_AddChannel(unit);
     G_GetChannel(unit)->origin = *point;
     return true;
 }

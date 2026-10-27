@@ -59,14 +59,14 @@ bool S_WaygateGetDestination(edict_t const *gate, vec2_t *destination) {
 
 void S_WaygateSetDestination(edict_t *gate, vec2_t const *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return;
-    waygate_t *state = G_AddComponent(gate, COMPONENT_WAYGATE);
+    waygate_t *state = G_AddWaygate(gate);
     state->destination = *destination;
     state->destination_set = true;
 }
 
 void S_WaygateSetActive(edict_t *gate, bool active) {
     if (!S_WaygateIsGate(gate)) return;
-    waygate_t *state = G_AddComponent(gate, COMPONENT_WAYGATE);
+    waygate_t *state = G_AddWaygate(gate);
     state->active = active != false;
     G_AddUnitAnimationProperties(gate, "alternate", state->active);
 }

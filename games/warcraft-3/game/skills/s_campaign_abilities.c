@@ -249,7 +249,7 @@ static void ensnare_begin_land(edict_t *unit, uint32_t spell_code, uint32_t leve
         unit->unitinfo.FlyHeight = 0.0f;
         G_FreeEnsnare(unit);
     } else {
-        ensnare_t *snare = G_AddComponent(unit, COMPONENT_ENSNARE);
+        ensnare_t *snare = G_AddEnsnare(unit);
         snare->adjust = adjust;
         snare->height = height;
         snare->start = G_Time();
@@ -364,7 +364,7 @@ static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
         adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : (snare ? snare->adjust : 0.0f);
         target = ensnare_authored_height(unit);
         if (adjust > 0.0f) {
-            if (!snare) snare = G_AddComponent(unit, COMPONENT_ENSNARE);
+            if (!snare) snare = G_AddEnsnare(unit);
             snare->adjust = adjust;
             snare->height = target > 0.0f ? target : snare->height;
             snare->start = G_Time();

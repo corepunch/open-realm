@@ -35,7 +35,7 @@ The command path rejects an unavailable spell before opening a target cursor and
 
 ## Runtime behavior
 
-A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. The `polymorph_t` component (`G_GetPolymorph`, attached with `G_AddComponent(unit, COMPONENT_POLYMORPH)` on the first cast) snapshots the model handle, model scale, and base movement speed needed for restoration. The configured morph unit contributes its model/scale and authored movement speed while the Polymorph buff is live.
+A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. The `polymorph_t` component (`G_GetPolymorph`, attached with `G_AddPolymorph(unit)` on the first cast) snapshots the model handle, model scale, and base movement speed needed for restoration. The configured morph unit contributes its model/scale and authored movement speed while the Polymorph buff is live.
 
 The morph interrupts the current incompatible action and queued orders. While the Polymorph component is attached, attack orders and new spell casts are rejected. Fresh movement orders remain legal, using the temporary movement speed. `S_HumanCanAttack()` also rejects autonomous attacks so acquisition cannot bypass order validation.
 

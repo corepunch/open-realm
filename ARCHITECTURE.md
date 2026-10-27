@@ -280,9 +280,10 @@ For in-depth details on specific engine subsystems, consult the following dedica
   carry (a construction site, a gold mine, an item, a channelled spell) lives in fixed-capacity typed pools inside the
   game module, never in `entityState_t`, `entityShared_t` or anything the server reads. WC3 attaches ability-,
   producer-, item- and destructable-owned records to `edict_t.components`, an intrusive list keyed by exact layout IDs
-  (`COMPONENT_*`). Each record starts with its `component_t` header (statically asserted), and typed getters
-  (`G_GetConstruction`) are NULL-safe and never allocate. Only owning transitions attach (`G_AddComponent`) or release
-  (`G_Free*`) a record. Per-frame movement and combat records stay direct pointers until a measurement justifies list
+  (`COMPONENT_*`). One `G_COMPONENTS` table row per component generates its ID, typed pool, accessors and save
+  section. Each record starts with its `component_t` header (statically asserted), and typed getters
+  (`G_GetConstruction`) are NULL-safe and never allocate. Only owning transitions attach (`G_AddConstruction`) or
+  release (`G_FreeConstruction`) a record. Per-frame movement and combat records stay direct pointers until a measurement justifies list
   lookup on those paths. Cache a record once per operation, and re-read it after any call that may release it: test
   builds poison released slots so a stale pointer faults. Saves persist each payload with its type ID and rebuild the
   links on load. See [pooled entity state](docs/games/warcraft-3/pooled-entity-state.md).

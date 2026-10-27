@@ -70,7 +70,7 @@ static edict_t *volcano_make_destructable(float life, float x, float y, TARGTYPE
     ent->s.origin2 = MAKE(vec2_t, x, y);
     ent->targtype = type;
     ent->health.value = ent->health.max_value = life;
-    G_AddComponent(ent, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(ent);
     G_GetDestructable(ent)->item_table = (uint32_t)-1; /* no random loot table */
     return ent;
 }

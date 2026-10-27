@@ -109,7 +109,7 @@ void G_SetUnitFoodUsed(edict_t *unit, int32_t amount) {
 
     if (!unit) return;
     if (!ledger && amount <= 0) return;
-    ledger = G_AddComponent(unit, COMPONENT_FOOD);
+    ledger = G_AddFood(unit);
     value = MAX(0, amount);
     delta = value - ledger->used;
     ledger->used = value;
@@ -124,7 +124,7 @@ void G_SetUnitFoodMade(edict_t *unit, int32_t amount) {
 
     if (!unit) return;
     if (!ledger && amount <= 0) return;
-    ledger = G_AddComponent(unit, COMPONENT_FOOD);
+    ledger = G_AddFood(unit);
     value = MAX(0, amount);
     delta = value - ledger->made;
     ledger->made = value;
@@ -212,7 +212,7 @@ bool G_ReserveTrainingFood(edict_t *unit) {
     if (!unit || !unit->data.UnitBalance) return false;
     cost = MAX(0, unit->data.UnitBalance->foodUsed);
     if (cost == 0 && !ledger) return true;
-    ledger = G_AddComponent(unit, COMPONENT_FOOD);
+    ledger = G_AddFood(unit);
     if (ledger->used == cost) return true;
     if (ledger->used != 0) return false;
     if (cost == 0) return true;

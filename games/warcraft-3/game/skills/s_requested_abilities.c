@@ -296,7 +296,7 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
     marker->class_id = ID_CHAIN_LIGHTNING_VISIT;
     marker->svflags |= SVF_NOCLIENT;
     marker->owner = thinker;
-    G_AddComponent(marker, COMPONENT_CHANNEL);
+    G_AddChannel(marker);
     G_GetChannel(marker)->owner_spawn_time = thinker->spawn_time;
     marker->goalentity = target;
     marker->resources = target->spawn_time;
@@ -394,7 +394,7 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     thinker->class_id = spell->code;
     thinker->svflags |= SVF_NOCLIENT;
     thinker->owner = caster;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->s.origin2 = st.entity->s.origin2;
     thinker->goalentity = st.entity;
@@ -423,7 +423,7 @@ void S_ReincarnationOnDeath(edict_t *unit) {
     FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
     thinker = G_Spawn(); thinker->owner = unit; thinker->class_id = code; thinker->s.origin2 = unit->s.origin2;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->owner_spawn_time = unit->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellData(code, level, 1) * 1000.0f);
     thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
@@ -823,7 +823,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
     if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->resources = original;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f); thinker->think = morph_end;
 }
@@ -997,7 +997,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
     thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
-    channel_t *cast = G_AddComponent(thinker, COMPONENT_CHANNEL);
+    channel_t *cast = G_AddChannel(thinker);
     cast->owner_spawn_time = caster->spawn_time;
     cast->target_spawn_time = st.entity->spawn_time;
     thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));

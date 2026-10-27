@@ -471,7 +471,7 @@ TEST(wc3_ability_lifecycle, blizzard_damage_phase_survives_save_load) {
     level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
     T_FEQ(enemy->health.value, 1000, .001f);
     T_ASSERT(WriteGame(path));
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     G_GetChannel(caster)->code = 0; thinker->think = NULL; thinker->variation = 1;
     T_ASSERT(ReadGame(path));
     T_ASSERT(thinker->think == blizzard_think);
@@ -628,7 +628,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_continues_after_save_load) {
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
     edict_t *thinker = review_thinker(caster);
     T_NOT_NULL(thinker); T_ASSERT(G_UnitHasFlag(target, UNIT_FLAG_PAUSED)); T_ASSERT(WriteGame(path));
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     G_GetChannel(caster)->code = 0; thinker->think = NULL; G_SetUnitFlag(target, UNIT_FLAG_PAUSED, false);
     T_ASSERT(ReadGame(path));
     T_ASSERT(thinker->think == mass_teleport_think); T_ASSERT(G_UnitHasFlag(target, UNIT_FLAG_PAUSED));
@@ -917,7 +917,7 @@ TEST(wc3_ability_lifecycle, removed_caster_slot_cannot_own_old_drain) {
     G_FreeEdict(caster); level.time += 2000;
     edict_t *fresh = review_unit(0, 0);
     T_ASSERT(fresh == caster);
-    G_AddComponent(fresh, COMPONENT_CHANNEL);
+    G_AddChannel(fresh);
     G_GetChannel(fresh)->code = FS_SLKKey("AHdr"); G_GetChannel(fresh)->serial = G_GetChannel(thinker)->serial;
     G_RunEntity(thinker);
     T_ASSERT(!thinker->inuse); T_FEQ(enemy->mana.value, 100, .001f);
@@ -1001,7 +1001,7 @@ TEST(wc3_ability_lifecycle, live_drain_continues_once_after_save_load) {
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
     edict_t *thinker = review_thinker(caster);
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     T_ASSERT(WriteGame(path)); G_GetChannel(caster)->code = 0; thinker->think = NULL;
     T_ASSERT(ReadGame(path));
     level.time += 1000; G_RunEntity(thinker);

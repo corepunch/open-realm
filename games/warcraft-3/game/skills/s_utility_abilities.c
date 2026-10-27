@@ -595,7 +595,7 @@ static void ancient_root_command(edict_t *clent) {
         !G_UnitCanControl(clent->client, unit) || !ancient_root_ability(unit)) return;
     ancientRoot_t *root = G_GetAncientRoot(unit);
     if (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED) {
-        root = G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+        root = G_AddAncientRoot(unit);
         root->ability = ancient_root_ability(unit);
         root->unit_type = unit->class_id;
         root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
@@ -628,7 +628,7 @@ static void ancient_root_update(edict_t *unit) {
     if (!root || root->mode == ANCIENT_ROOT_UNINITIALIZED) {
         uint32_t alias = ancient_root_ability(unit);
         if (!alias) return;
-        root = G_AddComponent(unit, COMPONENT_ANCIENT_ROOT);
+        root = G_AddAncientRoot(unit);
         root->ability = alias;
         root->unit_type = unit->class_id;
         root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);

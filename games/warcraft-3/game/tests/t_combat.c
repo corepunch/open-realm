@@ -316,7 +316,7 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    ((sleep_t *)G_AddComponent(target, COMPONENT_SLEEP))->can_sleep = true;
+    ((sleep_t *)G_AddSleep(target))->can_sleep = true;
     target->s.radius = 32.0f;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -365,7 +365,7 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    ((sleep_t *)G_AddComponent(target, COMPONENT_SLEEP))->can_sleep = true;
+    ((sleep_t *)G_AddSleep(target))->can_sleep = true;
     attacker->s.player = 0;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -867,7 +867,7 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gate->targtype = TARG_DEBRIS;
     gate->health.value = gate->health.max_value = 500.0f;
     gate->collision = 50.0f;
-    G_AddComponent(gate, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(gate);
     G_GetDestructable(gate)->placement_solid = true;
     G_GetDestructable(gate)->pathing_active = true;
     attacker->s.player = 0;
@@ -904,7 +904,7 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
     gate = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 128.0f, 0.0f);
     gate->svflags &= ~SVF_MONSTER;
     gate->targtype = TARG_DEBRIS;
-    G_AddComponent(gate, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(gate);
     attacker->unit_state->attack1.type = ATK_NORMAL;
     attacker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->unit_state->attack2.type = ATK_SIEGE;

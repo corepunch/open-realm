@@ -659,7 +659,7 @@ TEST(wc3_spell, relationship_uses_passive_alliance_not_other_flags) {
 
 TEST(wc3_spell, channel_cancel_stun) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	G_GetChannel(caster)->origin = caster->s.origin2;
 	unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
@@ -672,7 +672,7 @@ TEST(wc3_spell, expired_stun_does_not_cancel_channel_before_cleanup) {
     edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
     level.time = 1000;
     unit_addtimedstatus(caster, "Bstu", 1, 0.1f);
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
     G_GetChannel(caster)->origin = caster->s.origin2;
     level.time = 1100;
@@ -682,7 +682,7 @@ TEST(wc3_spell, expired_stun_does_not_cancel_channel_before_cleanup) {
 
 TEST(wc3_spell, channel_cancel_death) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	G_GetChannel(caster)->origin = caster->s.origin2;
 	caster->health.value = 0;
@@ -692,7 +692,7 @@ TEST(wc3_spell, channel_cancel_death) {
 
 TEST(wc3_spell, channel_cancel_movement) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	G_GetChannel(caster)->origin.x = 100; G_GetChannel(caster)->origin.y = 100;
 	caster->s.origin.x = 101; caster->s.origin.y = 100;
@@ -703,7 +703,7 @@ TEST(wc3_spell, channel_cancel_movement) {
 
 TEST(wc3_spell, channel_persists_no_movement) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	G_GetChannel(caster)->origin = caster->s.origin2;
 	spell_run_frame(caster);
@@ -712,7 +712,7 @@ TEST(wc3_spell, channel_persists_no_movement) {
 
 TEST(wc3_spell, channel_cancel_clears_code) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	S_SpellCancelChannel(caster);
 	T_EQ((int)G_GetChannel(caster)->code, 0);
@@ -721,7 +721,7 @@ TEST(wc3_spell, channel_cancel_clears_code) {
 
 TEST(wc3_spell, channel_cancel_noop_empty) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = 0;
 	S_SpellCancelChannel(caster);
 	T_EQ((int)G_GetChannel(caster)->code, 0);
@@ -729,7 +729,7 @@ TEST(wc3_spell, channel_cancel_noop_empty) {
 
 TEST(wc3_spell, channel_run_frame_noop_when_idle) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = 0;
 	unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
 	spell_run_frame(caster);
@@ -1179,8 +1179,8 @@ TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
     footman->targtype = TARG_GROUND;
     crate->targtype = TARG_DEBRIS; tree->targtype = TARG_TREE;
     crate->svflags |= SVF_STATIC_SCENERY; tree->svflags |= SVF_STATIC_SCENERY;
-    G_AddComponent(crate, COMPONENT_DESTRUCTABLE);
-    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(crate);
+    G_AddDestructable(tree);
 
     T_FEQ(S_DevotionArmorBonus(footman), 3.0f, 0.001f);
     T_FEQ(S_DevotionArmorBonus(crate), 0.0f, 0.001f);
@@ -1291,7 +1291,7 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
 
     source->unit_state->overrides.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
     ARRAY_COUNT(source->unit_state->overrides.added) = 1;
-    shadowMeld_t *meld = G_AddComponent(source, COMPONENT_SHADOWMELD);
+    shadowMeld_t *meld = G_AddShadowMeld(source);
     meld->active = true;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
@@ -1301,7 +1301,7 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
 
     target->unit_state->overrides.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
     ARRAY_COUNT(target->unit_state->overrides.added) = 1;
-    meld = G_AddComponent(target, COMPONENT_SHADOWMELD);
+    meld = G_AddShadowMeld(target);
     meld->active = true;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
@@ -2420,7 +2420,7 @@ TEST(wc3_spell, hero_duration_uses_herodur_col) {
 TEST(wc3_spell, spell_is_channeling_detects_active) {
 	edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	T_ASSERT(!S_SpellIsChanneling(caster));
-	G_AddComponent(caster, COMPONENT_CHANNEL);
+	G_AddChannel(caster);
 	G_GetChannel(caster)->code = MAKEFOURCC('A','H','b','z');
 	T_ASSERT(S_SpellIsChanneling(caster));
 	G_GetChannel(caster)->code = 0;
@@ -2450,7 +2450,7 @@ TEST(wc3_spell, channel_owner_resolves_only_captured_incarnation) {
     edict_t *thinker;
     uint32_t spawn_time;
 
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     G_GetChannel(caster)->serial = 6;
     thinker = S_SpellChannelThinker(caster, MAKEFOURCC('A','H','d','r'));
     T_ASSERT(S_SpellChannelOwner(thinker) == caster);
@@ -2467,7 +2467,7 @@ TEST(wc3_spell, channel_target_resolves_only_captured_incarnation) {
     edict_t *thinker;
     uint32_t spawn_time;
 
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     G_GetChannel(caster)->serial = 7;
     thinker = S_SpellChannelTargetThinker(caster, MAKEFOURCC('A','H','d','r'), target);
     T_ASSERT(S_SpellChannelTarget(thinker) == target);
@@ -2484,7 +2484,7 @@ TEST(wc3_spell, projectile_owner_resolves_only_captured_incarnation) {
     uint32_t spawn_time = caster->spawn_time;
 
     missile->owner = caster;
-    G_AddComponent(missile, COMPONENT_CHANNEL);
+    G_AddChannel(missile);
     G_GetChannel(missile)->owner_spawn_time = caster->spawn_time;
     T_ASSERT(S_SpellProjectileOwner(missile) == caster);
     caster->spawn_time++;
@@ -2783,7 +2783,7 @@ TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
     well->data.UnitBalance = &balance;
     well->mana.max_value = 100.0f;
     well->mana.value = 50.0f;
-    G_AddComponent(well, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(well);
     G_GetConstruction(well)->type = CONSTRUCTION_NIGHTELF;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -2978,7 +2978,7 @@ TEST(wc3_spell, moon_well_dispatch_keeps_construction_effect_cleanup) {
     edict_t *effect = G_Spawn();
 
     well->data.UnitAbilities = &abilities;
-    G_AddComponent(well, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(well);
     T_NOT_NULL(G_GetConstruction(well));
     G_GetConstruction(well)->paused = true;
     G_GetConstruction(well)->type = CONSTRUCTION_NIGHTELF;
@@ -3035,7 +3035,7 @@ TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
     well->data.UnitBalance = &balance;
     well->mana.max_value = 100.0f;
     well->mana.value = 50.0f;
-    G_AddComponent(well, COMPONENT_CONSTRUCTION);
+    G_AddConstruction(well);
     G_GetConstruction(well)->paused = true;
     G_GetConstruction(well)->type = CONSTRUCTION_NIGHTELF;
     G_SetTimeOfDay(12.0f);
@@ -3932,7 +3932,7 @@ TEST(wc3_spell, entangling_roots_tracks_source_interrupts_channel_and_ticks_auth
     caster->s.player = 0; target->s.player = 1;
     target->health.value = target->health.max_value = 100.0f;
     target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
-    G_AddComponent(target, COMPONENT_CHANNEL);
+    G_AddChannel(target);
     G_GetChannel(target)->code = MAKEFOURCC('A','H','m','t');
 
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
@@ -3988,7 +3988,7 @@ TEST(wc3_spell, entangling_roots_death_cleanup_and_failed_status_do_not_interrup
         target->unit_state->statuses[i].level = 1;
         target->unit_state->statuses[i].timestamp = G_Time() + 60000;
     }
-    G_AddComponent(target, COMPONENT_CHANNEL);
+    G_AddChannel(target);
     G_GetChannel(target)->code = MAKEFOURCC('A','H','m','t');
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
     T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
@@ -4208,7 +4208,7 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
     T_ASSERT(WriteGame(Test_TempPath("divine-shield-save.bin")));
-    G_AddComponent(caster, COMPONENT_CHANNEL);
+    G_AddChannel(caster);
     G_GetChannel(caster)->code = 0; if (thinker) thinker->think = NULL;
     T_ASSERT(ReadGame(Test_TempPath("divine-shield-save.bin")));
     FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
@@ -5056,7 +5056,7 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     T_ASSERT(!test_ability_message(caster, A_VALIDATE, &ability_item, &st));
 
     target->aiflags &= ~AI_ILLUSION;
-    polymorph_t *morph = G_AddComponent(target, COMPONENT_POLYMORPH);
+    polymorph_t *morph = G_AddPolymorph(target);
     *morph = MAKE(polymorph_t, .component = morph->component,
         .ability = MAKEFOURCC('A','p','l','y'), .buff = MAKEFOURCC('B','p','l','y'),
         .form_type = MAKEFOURCC('o','p','e','o'), .original_model = 17,
@@ -5616,7 +5616,7 @@ TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	item->targtype = TARG_ITEM;
-	G_AddComponent(item, COMPONENT_ITEM);
+	G_AddItem(item);
 	G_GetItem(item)->in_world = true;
 	G_GetItem(item)->inventory_slot = -1;
 	T_ASSERT(G_AddItemToSlot(attacker, item, 0));
@@ -6273,8 +6273,8 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     air->targtype = TARG_AIR; building->targtype = TARG_STRUCTURE; building->s.flags |= EF_BUILDING;
     ground->svflags |= SVF_MONSTER; air->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER;
     rooted_ancient->targtype = uprooted_ancient->targtype = TARG_STRUCTURE;
-    G_AddComponent(rooted_ancient, COMPONENT_ANCIENT_ROOT);
-    G_AddComponent(uprooted_ancient, COMPONENT_ANCIENT_ROOT);
+    G_AddAncientRoot(rooted_ancient);
+    G_AddAncientRoot(uprooted_ancient);
     G_GetAncientRoot(rooted_ancient)->ability = G_GetAncientRoot(uprooted_ancient)->ability = MAKEFOURCC('A','r','o','o');
     G_GetAncientRoot(rooted_ancient)->mode = ANCIENT_ROOTED;
     rooted_ancient->s.flags |= EF_BUILDING;
@@ -6286,7 +6286,7 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     building->health.value = building->health.max_value = 500;
     rooted_ancient->health.value = rooted_ancient->health.max_value = 500;
     uprooted_ancient->health.value = uprooted_ancient->health.max_value = 500;
-    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(tree);
     tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = 500;
     level.time = 0;
@@ -6418,9 +6418,9 @@ TEST(wc3_spell, earthquake_respects_authored_relationship_and_destructable_token
     friend_building->health.value = friend_building->health.max_value = 500;
     enemy_ground->health.value = enemy_ground->health.max_value = 500;
     enemy_building->health.value = enemy_building->health.max_value = 500;
-    G_AddComponent(tree, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(tree);
     tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE;
-    G_AddComponent(debris, COMPONENT_DESTRUCTABLE);
+    G_AddDestructable(debris);
     debris->svflags &= ~SVF_MONSTER; debris->targtype = TARG_DEBRIS;
     tree->health.value = tree->health.max_value = 500;
     debris->health.value = debris->health.max_value = 500;

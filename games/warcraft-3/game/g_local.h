@@ -1660,36 +1660,50 @@ typedef struct shopStockItem_s {
     uint32_t delay_end;
 } shopStockItem_t;
 
-/* Game-owned optional state; IDs identify exact layouts, independently of ability rawcodes. */
+/* Game-owned optional state. One row per exact record layout; every component
+ * table, typed accessor and save section is generated from these rows:
+ *   id       stable nonzero ID persisted in saves; never renumber a row
+ *   ID       COMPONENT_<ID> enumerator
+ *   member   pool and save-section name
+ *   Name     typed accessor stem: G_Get<Name>, G_Add<Name>, G_Free<Name>
+ *   type     record type; it must start with its component_t header
+ *   cap      pool capacity, including the reserved slot zero
+ *   fields   save schema with the record's pointer fixups
+ * IDs identify layouts, independently of ability rawcodes and unit families. */
+#define G_COMPONENTS(X) \
+    X(1, WAYGATE, waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(2, AVATAR, avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP, avatar_fields) \
+    X(3, POLYMORPH, polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP, polymorph_fields) \
+    X(4, RAVEN, raven, Raven, raven_t, LIFECYCLE_POOL_CAP, raven_fields) \
+    X(5, ENSNARE, ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP, ensnare_fields) \
+    X(6, ARTILLERY, artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP, artillery_fields) \
+    X(7, SLEEP, sleep, Sleep, sleep_t, LIFECYCLE_POOL_CAP, sleep_fields) \
+    X(8, RALLY, rally, Rally, rally_t, LIFECYCLE_POOL_CAP, rally_fields) \
+    X(9, SACRIFICE, sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP, sacrifice_fields) \
+    X(10, UNSUMMON, unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP, unsummon_fields) \
+    X(11, BLIGHT_GROWTH, blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(12, SHADOWMELD, shadowmeld, ShadowMeld, shadowMeld_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(13, MILITIA, militia, Militia, militia_t, LIFECYCLE_POOL_CAP, militia_fields) \
+    X(14, REVIVAL, revival, Revival, revival_t, LIFECYCLE_POOL_CAP, revival_fields) \
+    X(15, BUILDWORK, buildwork, Buildwork, buildwork_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(16, ANCIENT_ROOT, ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP, ancient_root_fields) \
+    X(17, GOLDMINE, goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP, goldmine_fields) \
+    X(18, MINE_OVERLAY, mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP, mineoverlay_fields) \
+    X(19, ACOLYTE_MINE, acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP, acolyte_mine_fields) \
+    X(20, CARGO, cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP, cargo_fields) \
+    X(21, SOULTRAP, soultrap, SoulTrap, soulTrap_t, LIFECYCLE_POOL_CAP, soultrap_fields) \
+    X(22, RESEARCH, research, Research, research_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(23, FOOD, food, Food, food_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(24, STOCK, stock, Stock, stock_t, LIFECYCLE_POOL_CAP, stock_fields) \
+    X(25, CHANNEL, channel, Channel, channel_t, LIFECYCLE_POOL_CAP, channel_fields) \
+    X(26, DESTRUCTABLE, destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP, destructable_fields) \
+    X(27, CONSTRUCTION, construction, Construction, construction_t, LIFECYCLE_POOL_CAP, construction_fields) \
+    X(28, ITEM, item, Item, item_t, LIFECYCLE_POOL_CAP, item_fields)
+
 typedef enum {
-    COMPONENT_WAYGATE = 1,
-    COMPONENT_AVATAR = 2,
-    COMPONENT_POLYMORPH = 3,
-    COMPONENT_RAVEN = 4,
-    COMPONENT_ENSNARE = 5,
-    COMPONENT_ARTILLERY = 6,
-    COMPONENT_SLEEP = 7,
-    COMPONENT_RALLY = 8,
-    COMPONENT_SACRIFICE = 9,
-    COMPONENT_UNSUMMON = 10,
-    COMPONENT_BLIGHT_GROWTH = 11,
-    COMPONENT_SHADOWMELD = 12,
-    COMPONENT_MILITIA = 13,
-    COMPONENT_REVIVAL = 14,
-    COMPONENT_BUILDWORK = 15,
-    COMPONENT_ANCIENT_ROOT = 16,
-    COMPONENT_GOLDMINE = 17,
-    COMPONENT_MINE_OVERLAY = 18,
-    COMPONENT_ACOLYTE_MINE = 19,
-    COMPONENT_CARGO = 20,
-    COMPONENT_SOULTRAP = 21,
-    COMPONENT_RESEARCH = 22,
-    COMPONENT_FOOD = 23,
-    COMPONENT_STOCK = 24,
-    COMPONENT_CHANNEL = 25,
-    COMPONENT_DESTRUCTABLE = 26,
-    COMPONENT_CONSTRUCTION = 27,
-    COMPONENT_ITEM = 28
+#define G_COMPONENT_ID(id, ID, member, Name, type, cap, fields) COMPONENT_##ID = id,
+    G_COMPONENTS(G_COMPONENT_ID)
+#undef G_COMPONENT_ID
 } componentId_t;
 
 /* Intrusive owner list; links are process-owned and rebuilt after loading. */
@@ -1827,7 +1841,8 @@ typedef struct {
     float progress;
 } revival_t;
 
-/* Hidden sacrifice-result queue record retaining the consumed worker for cancellation. */
+/* Hidden sacrifice-result queue record retaining the consumed worker for cancellation.
+ * The queue item is the hidden result unit, so generic unit AI stays Pit-free. */
 typedef struct {
     component_t component;
     edict_t *worker;
@@ -4298,98 +4313,25 @@ extern struct level_locals level;
 void G_PoolsReset(void);
 void G_PoolsReportPeaks(void);
 void G_PoolsReleaseEdict(edict_t *ent);
-void G_FreeConstruction(edict_t *ent);
-construction_t *G_AllocConstruction(void);
-void G_FreeResearch(edict_t *ent);
-research_t *G_AllocResearch(void);
-void G_FreeRally(edict_t *ent);
-rally_t *G_AllocRally(void);
-void G_FreeFood(edict_t *ent);
-food_t *G_AllocFood(void);
-void G_FreeBuildwork(edict_t *ent);
-buildwork_t *G_AllocBuildwork(void);
-void G_FreeRevival(edict_t *ent);
-revival_t *G_AllocRevival(void);
-void G_FreeSacrifice(edict_t *ent);
-sacrifice_t *G_AllocSacrifice(void);
-void G_FreeUnsummon(edict_t *ent);
-unsummon_t *G_AllocUnsummon(void);
-void G_FreeShadowMeld(edict_t *ent);
-shadowMeld_t *G_AllocShadowMeld(void);
-void G_FreeMilitia(edict_t *ent);
-militia_t *G_AllocMilitia(void);
-void G_FreePolymorph(edict_t *ent);
-polymorph_t *G_AllocPolymorph(void);
-void G_FreeRaven(edict_t *ent);
-raven_t *G_AllocRaven(void);
-void G_FreeBlightGrowth(edict_t *ent);
-blightGrowth_t *G_AllocBlightGrowth(void);
-void G_FreeEnsnare(edict_t *ent);
-ensnare_t *G_AllocEnsnare(void);
-void G_FreeAncientRoot(edict_t *ent);
-ancientRoot_t *G_AllocAncientRoot(void);
-void G_FreeGoldMine(edict_t *ent);
-goldMine_t *G_AllocGoldMine(void);
-void G_InitGoldMine(edict_t *ent);
-void G_FreeMineOverlay(edict_t *ent);
-mineOverlay_t *G_AllocMineOverlay(void);
-void G_FreeAcolyteMine(edict_t *ent);
-acolyteMine_t *G_AllocAcolyteMine(void);
-void G_FreeItem(edict_t *ent);
-item_t *G_AllocItem(void);
-void G_FreeDestructable(edict_t *ent);
-destructable_t *G_AllocDestructable(void);
-void G_FreeCargo(edict_t *ent);
-cargo_t *G_AllocCargo(void);
-void G_FreeStock(edict_t *ent);
-stock_t *G_AllocStock(void);
-void G_FreeWaygate(edict_t *ent);
 void *G_GetComponent(edict_t const *ent, componentId_t id);
-void *G_AddComponent(edict_t *ent, componentId_t id);
+/* Restore and caller-owned test fixtures attach records they already hold;
+ * gameplay attaches through the typed G_Add* entries. */
 void G_AttachComponent(edict_t *ent, component_t *record, componentId_t id);
-void G_FreeComponent(edict_t *ent, componentId_t id);
-static inline waygate_t *G_GetWaygate(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_WAYGATE); }
-static inline avatar_t *G_GetAvatar(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_AVATAR); }
-static inline polymorph_t *G_GetPolymorph(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_POLYMORPH); }
-static inline raven_t *G_GetRaven(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RAVEN); }
-static inline ensnare_t *G_GetEnsnare(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ENSNARE); }
-static inline artillery_t *G_GetArtillery(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ARTILLERY); }
-static inline sleep_t *G_GetSleep(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SLEEP); }
-static inline rally_t *G_GetRally(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RALLY); }
-/* A sacrifice queue item is the hidden result unit; it keeps the consumed worker so generic unit AI stays Pit-free. */
-static inline sacrifice_t *G_GetSacrifice(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SACRIFICE); }
-static inline unsummon_t *G_GetUnsummon(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_UNSUMMON); }
-static inline blightGrowth_t *G_GetBlightGrowth(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BLIGHT_GROWTH); }
-static inline shadowMeld_t *G_GetShadowMeld(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SHADOWMELD); }
-static inline militia_t *G_GetMilitia(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MILITIA); }
-static inline revival_t *G_GetRevival(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_REVIVAL); }
-static inline buildwork_t *G_GetBuildwork(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_BUILDWORK); }
-static inline ancientRoot_t *G_GetAncientRoot(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ANCIENT_ROOT); }
-static inline goldMine_t *G_GetGoldMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_GOLDMINE); }
-static inline mineOverlay_t *G_GetMineOverlay(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_MINE_OVERLAY); }
-static inline acolyteMine_t *G_GetAcolyteMine(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ACOLYTE_MINE); }
-static inline cargo_t *G_GetCargo(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CARGO); }
-static inline soulTrap_t *G_GetSoulTrap(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_SOULTRAP); }
-static inline research_t *G_GetResearch(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_RESEARCH); }
-static inline food_t *G_GetFood(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_FOOD); }
-static inline stock_t *G_GetStock(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_STOCK); }
-static inline channel_t *G_GetChannel(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CHANNEL); }
-static inline destructable_t *G_GetDestructable(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_DESTRUCTABLE); }
-static inline construction_t *G_GetConstruction(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_CONSTRUCTION); }
-static inline item_t *G_GetItem(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_ITEM); }
+/* Detached zeroed storage for restore, which attaches only fully decoded records. */
+void *G_AllocDetachedComponent(componentId_t id);
+/* Per row: reads never allocate; G_Add* explicitly attaches and returns an existing
+ * record unchanged; G_Free* unlinks and releases it, or does nothing when absent. */
+#define G_COMPONENT_API(id, ID, member, Name, type, cap, fields) \
+    static inline type *G_Get##Name(edict_t const *ent) { return G_GetComponent(ent, COMPONENT_##ID); } \
+    type *G_Add##Name(edict_t *ent); \
+    void G_Free##Name(edict_t *ent);
+G_COMPONENTS(G_COMPONENT_API)
+#undef G_COMPONENT_API
 /* A queue item or building researches while its record names an upgrade; completed research frees the record. */
 static inline bool G_UnitIsResearching(edict_t const *ent) { research_t const *r = G_GetResearch(ent); return r && r->upgrade; }
 /* Queue membership and the awaiting-revival corpse are distinct states; both are read from any entity. */
 static inline bool G_HeroIsReviving(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->reviving; }
 static inline bool G_HeroAwaitsRevival(edict_t const *ent) { revival_t const *r = G_GetRevival(ent); return r && r->awaiting; }
-waygate_t *G_AllocWaygate(void);
-void G_FreeArtillery(edict_t *ent);
-artillery_t *G_AllocArtillery(void);
-void G_FreeAvatar(edict_t *ent);
-avatar_t *G_AllocAvatar(void);
-void G_FreeSleep(edict_t *ent);
-sleep_t *G_AllocSleep(void);
-soulTrap_t *G_AllocSoulTrap(void);
 unitState_t *G_AllocUnitState(void);
 void G_FreeUnitState(edict_t *ent);
 void G_InitUnitState(edict_t *ent);
@@ -4408,8 +4350,6 @@ void G_InitHarvest(edict_t *ent);
 visibility_t *G_AllocVisibility(void);
 void G_FreeVisibility(edict_t *ent);
 void G_InitVisibility(edict_t *ent);
-void G_FreeSoulTrap(edict_t *ent);
-void G_FreeChannel(edict_t *ent);
 unitOrders_t *G_AllocOrders(void);
 void G_FreeOrders(edict_t *ent);
 void G_InitUnitOrders(edict_t *ent);
@@ -4420,7 +4360,6 @@ void G_FreeRoute(edict_t *ent);
 wander_t *G_AllocWander(void);
 void G_FreeWander(edict_t *ent);
 void G_BeginMovement(edict_t *ent);
-channel_t *G_AllocChannel(void);
 extern struct edict_s *g_edicts;
 
 /* Simulation clock reader. Spell-rank parameters named `level` shadow the global in

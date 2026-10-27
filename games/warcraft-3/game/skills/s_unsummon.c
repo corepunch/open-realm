@@ -268,7 +268,7 @@ static void unsummon_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
     thinker->resources = level;
     thinker->think = unsummon_think;
     /* The thinker owns the demolition ledger; the caster mirrors the approach so Move cannot cancel it. */
-    unsummon_t *job = G_AddComponent(thinker, COMPONENT_UNSUMMON), *approach = G_AddComponent(caster, COMPONENT_UNSUMMON);
+    unsummon_t *job = G_AddUnsummon(thinker), *approach = G_AddUnsummon(caster);
     job->target = approach->target = st.entity;
     job->target_spawn_time = approach->target_spawn_time = st.entity->spawn_time;
     job->ability = approach->ability = spell->code;

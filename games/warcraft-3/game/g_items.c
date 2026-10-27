@@ -139,7 +139,7 @@ void SP_SpawnItem(edict_t *self) {
 #endif
     self->movetype = MOVETYPE_NONE;
     self->targtype = TARG_ITEM;
-    rec = G_AddComponent(self, COMPONENT_ITEM);
+    rec = G_AddItem(self);
     rec->carrier = NULL;
     rec->inventory_slot = -1;
     rec->in_world = true;

@@ -121,15 +121,20 @@ Not character walking, not separator loops. The format string IS the parser.
 ## Intrusive typed components over fixed pools
 
 WC3 attaches optional per-entity records to `edict_t.components` instead of adding one pointer per behavior. Each record
-type puts a `component_t { uint32_t id; component_t *next; }` header first, which `COMPONENT_ALLOC` checks with
-`_Static_assert(offsetof(type, component) == 0)`. Records are allocated from a static typed pool, and one registry row
-maps each exact `COMPONENT_*` ID to its allocator and release function:
+type puts a `component_t { uint32_t id; component_t *next; }` header first. One X-macro row in `G_COMPONENTS` describes a
+component completely, and every table, accessor and save section is expanded from it:
 
 ```c
-construction_t *site = G_GetConstruction(building);   /* NULL-safe read, never allocates */
-research_t *study = G_AddComponent(item, COMPONENT_RESEARCH); /* idempotent attach */
-G_FreeResearch(item);                                  /* unlink, then release the slot */
+X(22, RESEARCH, research, Research, research_t, LIFECYCLE_POOL_CAP, scalar_pool_fields)
+
+construction_t *site = G_GetConstruction(building); /* NULL-safe read, never allocates */
+research_t *study = G_AddResearch(item);            /* typed, idempotent attach */
+G_FreeResearch(item);                               /* unlink, then release the slot */
 ```
+
+The expansion statically asserts a nonzero ID and `offsetof(type, component) == 0`, and the registry is a switch over
+the rows, so a duplicated ID is a duplicate case label. Typed adders return the record type, so a caller cannot pair a
+type with another row's ID; the untyped add and the per-type allocators stay private to `g_pool.c`.
 
 IDs name exact layouts. They are not class or family masks, and they are separate from authored rawcodes. Lookup walks a
 short list, so cache the pointer once per operation and re-read it after any call that may release the record. Test

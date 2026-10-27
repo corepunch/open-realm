@@ -391,7 +391,7 @@ static bool cannibalize_command(edict_t *caster, edict_t *clent, abilityitem_t c
     thinker->owner = caster;
     thinker->goalentity = corpse;
     thinker->class_id = spell->code;
-    G_AddComponent(thinker, COMPONENT_CHANNEL);
+    G_AddChannel(thinker);
     G_GetChannel(thinker)->target_spawn_time = corpse->spawn_time;
     thinker->think = cannibalize_approach_think;
     return true;

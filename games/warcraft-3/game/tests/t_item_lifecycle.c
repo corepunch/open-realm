@@ -73,7 +73,7 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     FOR_LOOP(i, 3) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
-        G_AddComponent(item, COMPONENT_ITEM);
+        G_AddItem(item);
         G_GetItem(item)->in_world = true;
         G_GetItem(item)->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
@@ -128,7 +128,7 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
     unit->unit_state->attack1.temporaryDamageBonus = unit->unit_state->attack2.temporaryDamageBonus = 0;
     item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 0);
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
     G_GetItem(item)->inventory_slot = -1;
 
@@ -268,7 +268,7 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
     FOR_LOOP(i, 2) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
-        G_AddComponent(item, COMPONENT_ITEM);
+        G_AddItem(item);
         G_GetItem(item)->in_world = true;
         G_GetItem(item)->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
@@ -325,7 +325,7 @@ TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     item->targtype = TARG_ITEM;
-    G_AddComponent(item, COMPONENT_ITEM);
+    G_AddItem(item);
     G_GetItem(item)->in_world = true;
     G_GetItem(item)->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(attacker, item, 0));
@@ -347,7 +347,7 @@ TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     edict_t *creep = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     creep->svflags |= SVF_MONSTER;
-    ((sleep_t *)G_AddComponent(creep, COMPONENT_SLEEP))->can_sleep = true;
+    ((sleep_t *)G_AddSleep(creep))->can_sleep = true;
     creep->stand = unit_stand;
     unit_stand(creep);
     G_SetTimeOfDay(game.constants.duskTimeGameHours);

@@ -334,7 +334,7 @@ TEST(wc3_order_lifecycle, queued_hold_preserves_later_fifo_work) {
 TEST(wc3_order_lifecycle, hold_position_interrupts_active_channel) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0);
-    G_AddComponent(unit, COMPONENT_CHANNEL);
+    G_AddChannel(unit);
     G_GetChannel(unit)->code = MAKEFOURCC('A','x','x','x');
 
     T_ASSERT(S_HoldPosition(unit));

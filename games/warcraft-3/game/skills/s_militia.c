@@ -87,7 +87,7 @@ static void militia_sync_form(edict_t *unit, uint32_t ability) {
     normal_type = S_SpellDataId(ability, 1, 1);
     militia_type = S_SpellDataId(ability, 1, 2);
     if (!normal_type || !militia_type || unit->class_id != militia_type) return;
-    state = G_AddComponent(unit, COMPONENT_MILITIA);
+    state = G_AddMilitia(unit);
     state->ability = ability;
     state->normal_type = normal_type;
     state->militia_type = militia_type;
@@ -303,7 +303,7 @@ bool S_MilitiaTargetOrder(edict_t *worker, cstring_t order, edict_t *hall) {
         return false;
     }
     militia_sync_form(worker, worker_ability);
-    militia_t *state = G_AddComponent(worker, COMPONENT_MILITIA);
+    militia_t *state = G_AddMilitia(worker);
 
     if (returning != state->active) {
         return false;
@@ -442,7 +442,7 @@ BZ_COMMAND_PROC(AbilityMilitiaConvert) {
             militia_t const *state = G_GetMilitia(worker);
             if (!worker_ability || (state && state->partner) || S_GoldMineWorkerIsInside(worker)) continue;
             militia_sync_form(worker, worker_ability);
-            state = G_AddComponent(worker, COMPONENT_MILITIA);
+            state = G_AddMilitia(worker);
             if (off != state->active) continue;
             if (distance > radius) continue;
             if (G_IssueUnitTargetOrder(worker, off ? "militiaoff" : "militia", hall, false, client->ps.number))

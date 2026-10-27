@@ -48,7 +48,7 @@ static void hero_become_revivable(edict_t *self) {
 
     if (!self || !self->inuse || !G_UnitIsHero(self) ||
         (self->aiflags & AI_ILLUSION) || !(self->svflags & SVF_DEADMONSTER)) return;
-    revival_t *revival = G_AddComponent(self, COMPONENT_REVIVAL);
+    revival_t *revival = G_AddRevival(self);
     revival->awaiting = true;
     revival->reviving = false;
     self->s.renderfx |= RF_HIDDEN;
@@ -508,7 +508,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
     if (G_UnitIsHero(self)) { /* Death starts a fresh revival lifecycle on the persistent Hero record. */
-        revival_t *revival = G_AddComponent(self, COMPONENT_REVIVAL);
+        revival_t *revival = G_AddRevival(self);
         *revival = (revival_t){ .component = revival->component };
     }
     unit_leavecombat(self);
@@ -3326,7 +3326,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME;
     ent->combatentity = NULL;
-    revival_t *revival = G_AddComponent(ent, COMPONENT_REVIVAL);
+    revival_t *revival = G_AddRevival(ent);
     *revival = (revival_t){ .component = revival->component };
     ent->s.renderfx &= ~RF_HIDDEN;
     G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
