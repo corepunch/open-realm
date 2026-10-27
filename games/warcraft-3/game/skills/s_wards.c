@@ -274,6 +274,8 @@ static bool ward_is_sentry(edict_t const *ward) {
 /* Passive detectors all expose their authored true-sight radius through Rng.
  * Keep this list data-driven rather than keying detection to unit rawcodes. */
 static float unit_detector_range(edict_t const *detector) {
+	static uint32_t const magic_sentry = MAKEFOURCC('A', 'd', 't', 's');
+	static uint32_t const magic_sentry_research = MAKEFOURCC('R', 'h', 's', 'e');
 	static uint32_t const abilities[] = {
 		MAKEFOURCC('A', 'd', 'e', 't'), /* Detector */
 		MAKEFOURCC('A', 'g', 'y', 'v'), /* True Sight (Flying Machine) */
@@ -285,6 +287,12 @@ static float unit_detector_range(edict_t const *detector) {
 	float range = 0.0f;
 	FOR_LOOP(i, sizeof(abilities) / sizeof(*abilities)) {
 		uint32_t level = G_UnitAbilityLevel(detector, abilities[i]);
+		if (abilities[i] == magic_sentry) {
+			gameClient_t *owner = G_GetPlayerClientByNumber(detector->s.player);
+			/* Towers carry Adts in their unit rows before research; Rhse is
+			 * what activates its true-sight radius for that player. */
+			if (!owner || G_GetPlayerTechResearchedLevel(owner, magic_sentry_research) <= 0) continue;
+		}
 		if (level) range = MAX(range, S_SpellRange(abilities[i], level));
 	}
 	return range;

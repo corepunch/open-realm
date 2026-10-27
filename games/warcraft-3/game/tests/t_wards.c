@@ -33,7 +33,7 @@ void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
 static char const wards_slk[] =
-	"ID;PWXL;N;EBB;Y12;X16\n"
+	"ID;PWXL;N;EBB;Y13;X16\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
@@ -69,7 +69,9 @@ static char const wards_slk[] =
 	"C;Y11;X1;K\"Amnx\"\nC;Y11;X2;K\"Adda\"\nC;Y11;X3;K\"1\"\n"
 	"C;Y11;X4;K\"ground,structure,tree,debris,enemy\"\nC;Y11;X8;K\"0.3\"\nC;Y11;X10;K\"100\"\nC;Y11;X11;K\"40\"\nC;Y11;X12;K\"250\"\nC;Y11;X13;K\"20\"\n"
 	"C;Y12;X1;K\"APwt\"\nC;Y12;X2;K\"Aeye\"\nC;Y12;X3;K\"1\"\n"
-	"C;Y12;X8;K\"13\"\nC;Y12;X14;K\"ogru\"\nE\n";
+	"C;Y12;X8;K\"13\"\nC;Y12;X14;K\"ogru\"\n"
+	"C;Y13;X1;K\"Adts\"\nC;Y13;X2;K\"Adts\"\nC;Y13;X3;K\"1\"\n"
+	"C;Y13;X4;K\"vuln,invu\"\nC;Y13;X7;K\"900\"\nE\n";
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -110,6 +112,36 @@ static void ward_setup(wardFix_t *fix) {
 
 static void ward_done(wardFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
+}
+
+TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_is_owner_local) {
+	static UnitAbilities_t const tower_abilities = { .abilList = "Adts" };
+	uint32_t const magic_sentry = MAKEFOURCC('A','d','t','s');
+	uint32_t const magic_sentry_upgrade = MAKEFOURCC('R','h','s','e');
+	wardFix_t fix;
+	edict_t *tower;
+
+	ward_setup(&fix);
+	game.clients[0].ps.number = 0;
+	game.clients[2].ps.number = 2;
+	tower = alloc_test_unit(MAKEFOURCC('h','g','t','w'), 0, 0);
+	tower->data.UnitAbilities = (UnitAbilities_t *)&tower_abilities;
+	tower->s.player = 0;
+	tower->svflags |= SVF_MONSTER;
+	tower->health.value = tower->health.max_value = 500;
+	fix.enemy->s.origin2 = (vec2_t){ 128, 0 };
+	fix.enemy->s.renderfx |= RF_HIDDEN;
+	T_ASSERT(G_UnitAbilityLevel(tower, magic_sentry));
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
+
+	G_SetPlayerTechResearched(&game.clients[0], magic_sentry_upgrade, 1);
+	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
+
+	G_SetPlayerTechResearched(&game.clients[0], magic_sentry_upgrade, 0);
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	ward_done(&fix);
 }
 
 static void ward_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
