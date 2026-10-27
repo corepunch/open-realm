@@ -5183,6 +5183,52 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, bloodlust_autocast_waits_for_spell_cooldown) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X9\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+		"C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"BuffID1\"\n"
+		"C;Y2;X1;K\"Ablo\"\nC;Y2;X2;K\"Ablo\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+		"C;Y2;X4;K\"50\"\nC;Y2;X5;K\"10\"\nC;Y2;X6;K\"600\"\n"
+		"C;Y2;X7;K\"30\"\nC;Y2;X8;K\"30\"\nC;Y2;X9;K\"Bblo\"\nE\n";
+	static UnitAbilities_t abilities = { .abilList = "Ablo" };
+	slkTestData_t *rows = parse_slk_string(slk), *old;
+	edict_t *caster, *ally;
+	abilityitem_t item;
+	abilityCall_t call;
+	float mana_after_cast;
+
+	reset_entities(); setup_test_world(); level.time = 1000;
+	old = G_SetSLKRows("AbilityData", rows);
+	caster = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 0, 0);
+	ally = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+	caster->data.UnitAbilities = &abilities;
+	caster->s.player = ally->s.player = 0;
+	caster->mana.value = caster->mana.max_value = 300;
+	caster->svflags |= SVF_MONSTER;
+	ally->svflags |= SVF_MONSTER;
+	ally->targtype = TARG_GROUND;
+	ally->health.value = ally->health.max_value = 500;
+	item = S_AbilityItem(FS_SLKKey("Ablo"));
+	call = MAKE(abilityCall_t, .item = &item);
+
+	T_ASSERT(G_SetUnitAutocast(caster, item.code, true));
+	T_ASSERT(S_AbilityMessage(caster, A_AUTOCAST_ACQUIRE, &call));
+	T_ASSERT(!S_SpellCooldownReady(caster, item.code));
+	mana_after_cast = caster->mana.value;
+	T_FEQ(mana_after_cast, 250, 0.001f);
+	T_ASSERT(!S_AbilityMessage(caster, A_AUTOCAST_ACQUIRE, &call));
+	T_FEQ(caster->mana.value, mana_after_cast, 0.001f);
+
+	level.time += 10000;
+	T_ASSERT(S_AbilityMessage(caster, A_AUTOCAST_ACQUIRE, &call));
+	T_FEQ(caster->mana.value, mana_after_cast - 50, 0.001f);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y4;X10\n"
