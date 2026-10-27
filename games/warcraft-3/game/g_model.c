@@ -385,6 +385,23 @@ static void AnimationParseRequest(cstring_t text, char primary[WC3_ANIMATION_TAG
     primary[0] = '\0';
     AnimationParseWords(text, &words);
     if (!words.count) return;
+    /* Some retail models put the alternate tag before the primary family
+     * ("Alternate Stand", "Alternate Walk"). Normalize those sequence names
+     * to the same family/tag form used by requests such as "stand alternate".
+     * Warcraft's "Alternate Ready" is the ready variant of Stand. */
+    if (words.count > 1 && !strcasecmp(words.value[0], "alternate")) {
+        if (!strcasecmp(words.value[1], "ready")) {
+            strlcpy(primary, "stand", WC3_ANIMATION_TAG_SIZE);
+            AnimationTagSetAdd(secondary, "alternate");
+            AnimationTagSetAdd(secondary, "ready");
+            for (uint32_t i = 2; i < words.count; i++) AnimationTagSetAdd(secondary, words.value[i]);
+            return;
+        }
+        strlcpy(primary, words.value[1], WC3_ANIMATION_TAG_SIZE);
+        AnimationTagSetAdd(secondary, "alternate");
+        for (uint32_t i = 2; i < words.count; i++) AnimationTagSetAdd(secondary, words.value[i]);
+        return;
+    }
     strlcpy(primary, words.value[0], WC3_ANIMATION_TAG_SIZE);
     for (uint32_t i = 1; i < words.count; i++) AnimationTagSetAdd(secondary, words.value[i]);
 }
