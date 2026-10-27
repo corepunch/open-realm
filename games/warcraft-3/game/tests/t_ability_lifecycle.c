@@ -522,6 +522,28 @@ TEST(wc3_ability_lifecycle, water_elemental_uses_dataa_count_and_marks_summons) 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+#if BZ_COMPAT_WORKAROUNDS
+/* RoC 1.0 stores the Water Elemental unit rawcode in DataA's fourcc slot. */
+TEST(wc3_ability_lifecycle, water_elemental_recovers_roc_dataa_unit_id) {
+    edict_t *caster = review_setup();
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    uint32_t count = 0;
+    abilityLevel_t const *row;
+
+    row = (abilityLevel_t *)G_AbilityLevel(FS_SLKKey("AHwe"), 1);
+    ((abilityLevel_t *)row)->data[0].id = MAKEFOURCC('h','w','a','t');
+    ((abilityLevel_t *)row)->data[0].number = 0;
+    ((abilityLevel_t *)row)->unitID = 0;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHwe")));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
+                  unit->summon_ability == FS_SLKKey("AHwe") &&
+                  unit->class_id == MAKEFOURCC('h','w','a','t')) count++;
+    T_EQ(count, 1);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+#endif
+
 /* Mass Teleport is a real channel: DataB delays the relocation, the caster
  * counts against DataA, and only the caster player's mobile units are moved. */
 TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_structures) {

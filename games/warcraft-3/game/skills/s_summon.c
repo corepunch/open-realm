@@ -261,6 +261,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
     cstring_t buff = S_SpellBuffId(spell->code, level);
     vec2_t loc = caster->s.origin2;
 
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 stores the summon unit rawcode in DataA and leaves UnitID
+     * empty. Its DataA number is therefore zero; later data uses DataA as
+     * the summon count and puts the rawcode in UnitID. */
+    if (spell->code == MAKEFOURCC('A','H','w','e') && !unit_id) {
+        uint32_t const legacy_unit_id = S_SpellDataId(spell->code, level, 1);
+        if (legacy_unit_id && G_UnitData(legacy_unit_id)->id == legacy_unit_id) {
+            unit_id = legacy_unit_id;
+            count = 1;
+        }
+    }
+#endif
     if (!caster || !unit_id || !count) return;
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
