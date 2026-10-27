@@ -3105,6 +3105,37 @@ TEST(wc3_combat, attack_damage_pierce_vs_small) {
     T_EQ(G_AttackDamage(a, t, 100), 200);
 }
 
+TEST(wc3_combat, blademaster_critical_strike_doubles_full_attack_hit_damage) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"levels\"\n"
+        "C;Y2;X1;K\"AOcr\"\nC;Y2;X2;K\"AOcr\"\n"
+        "C;Y2;X3;K\"100\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"3\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "AOcr" };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *blademaster, *target;
+
+    reset_entities();
+    setup_test_world();
+    blademaster = make_combat_unit(MAKEFOURCC('O','b','l','m'), 1000.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 50.0f, 0.0f);
+    blademaster->data.UnitAbilities = &abilities;
+    blademaster->unit_state->attack1.type = ATK_CHAOS;
+    blademaster->s.player = 0;
+    target->s.player = 1;
+
+    S_ResolveAttackHit(blademaster, target, 100);
+
+    T_FEQ(target->health.value, 800.0f, 0.01f);
+    T_ASSERT(blademaster->combatentity == target);
+    T_ASSERT(target->combatentity == blademaster);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Normal vs medium = 1.5× (footmen effective vs soldiers). */
 TEST(wc3_combat, attack_damage_normal_vs_medium) {
     edict_t *a = make_attacker(ATK_NORMAL);
