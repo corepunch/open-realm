@@ -411,6 +411,7 @@ float S_RegenerationManaAura(edict_t *unit);
 void S_UpdateRegenerationAuraEffects(edict_t *unit);
 void S_UpdateHeroAuraEffects(edict_t *unit);
 void S_UpdateUnitPassiveEffects(edict_t *unit);
+void S_UpdateMagicSentryPresentation(edict_t *unit);
 uint32_t S_DevotionAuraBuff(edict_t *unit);
 uint32_t S_UnholyAuraBuff(edict_t *unit);
 uint32_t S_BrillianceAuraBuff(edict_t *unit);

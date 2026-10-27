@@ -760,6 +760,7 @@ bool S_RegenerationAuraUpdateDue(edict_t *unit) {
 /* Aura presentation is an ability-owned periodic update, reached through the
  * shared ability dispatcher rather than the physics implementation. */
 void S_UpdateUnitPassiveEffects(edict_t *unit) {
+	S_UpdateMagicSentryPresentation(unit);
     if (!unit || !unit->inuse || (unit->svflags & SVF_STATIC_SCENERY) ||
         !unit->data.UnitBalance || !S_RegenerationAuraUpdateDue(unit)) return;
     S_UpdateRegenerationAuraEffects(unit);

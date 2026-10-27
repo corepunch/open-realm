@@ -299,6 +299,40 @@ static float unit_detector_range(edict_t const *detector) {
 	return range;
 }
 
+/* Magic Sentry has no TargetArt in either the RoC or TFT AbilityData row.
+ * Use its authored caster model as the persistent researched tower visual. */
+void S_UpdateMagicSentryPresentation(edict_t *unit) {
+	static uint32_t const magic_sentry = MAKEFOURCC('A', 'd', 't', 's');
+	static uint32_t const magic_sentry_research = MAKEFOURCC('R', 'h', 's', 'e');
+	static cstring_t const model = "Abilities\\Spells\\Human\\MagicSentry\\MagicSentryCaster.mdx";
+	edict_t *effect = NULL;
+	gameClient_t *owner;
+	bool active;
+
+	if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
+	FILTER_EDICTS(candidate, candidate->owner == unit && candidate->summon_ability == magic_sentry &&
+	              (candidate->s.flags & EF_NOT_SELECTABLE)) {
+		effect = candidate;
+		break;
+	}
+	owner = G_GetPlayerClientByNumber(unit->s.player);
+	active = G_UnitAbilityLevel(unit, magic_sentry) > 0 && owner &&
+	         G_GetPlayerTechResearchedLevel(owner, magic_sentry_research) > 0;
+	if (active) {
+		if (!effect) {
+			effect = G_SpawnModelEffect(model, NULL, unit, "overhead", false);
+			if (effect) {
+				effect->owner = unit;
+				effect->summon_ability = magic_sentry;
+			}
+		}
+	} else if (effect) {
+		effect->owner = NULL;
+		effect->summon_ability = 0;
+		G_DestroyEffect(effect);
+	}
+}
+
 static float permanent_invisibility_transition(edict_t const *unit) {
 	uint32_t level = unit ? G_UnitAbilityLevel(unit, ID_APIV) : 0;
 	return level ? S_SpellDuration(ID_APIV, level, false) : -1.0f;
