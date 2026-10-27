@@ -471,6 +471,7 @@ bool S_UnitIsResistant(edict_t const *unit);
 void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage);
 void S_HumanBreakInvisibility(edict_t *unit);
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level);
+void S_HumanStatusApplied(edict_t *unit, heroabilitystatus_t const *status);
 bool S_UnitSpellImmune(edict_t const *unit);
 int S_AntiMagicShellAbsorb(edict_t *target, int damage);
 int S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, int damage);

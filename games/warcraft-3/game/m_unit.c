@@ -2201,6 +2201,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     heroabilitystatus_t *slot = NULL;
     cstring_t stacktype;
     wc3_status_apply_check_t preflight;
+    bool status_replaced = false;
 
     /* Fail before any removal or state mutation when allocation is impossible. */
     preflight = unit_status_checkapplication(ent, app);
@@ -2240,6 +2241,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                  * instance becomes visible (Refresh/Stack must not). */
                 unit_removestatus_deferred(ent, status, STATUS_REMOVE_REPLACED);
                 status->code = code;
+                status_replaced = true;
                 status->instance_id = ++ent->unit_state->next_status_id;
                 if (!status->instance_id) status->instance_id = ++ent->unit_state->next_status_id;
                 status->stack_policy = app->stack_policy;
@@ -2261,6 +2263,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                 }
             }
             unit_status_track_timed_slot(ent, status);
+            if (status_replaced) S_HumanStatusApplied(ent, status);
             if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
                 G_SpawnStatusEffectTarget(status->code, ent, "origin");
             unit_refreshstatusflags(ent);
@@ -2292,6 +2295,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     slot->rank = app->rank;
     slot->next_tick = 0;
     unit_status_track_timed_slot(ent, slot);
+    S_HumanStatusApplied(ent, slot);
     if (slot->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
         G_SpawnStatusEffectTarget(slot->code, ent, "origin");
     unit_refreshstatusflags(ent);
