@@ -1345,8 +1345,11 @@ bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool w
     edict_t *best = NULL;
     float best_distance = FLT_MAX;
     float range;
+    abilityitem_t item;
 
     if (!caster || !code) return false;
+    item = S_AbilityItem(code);
+    if (!item.ability) return false;
     range = S_SpellRange(code, S_SpellLevel(caster, code));
     if (range <= 0.0f) range = fallback_range;
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target)) {
@@ -1354,6 +1357,12 @@ bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool w
         if (friendly != S_SpellIsFriend(caster, target)) continue;
         if (wounded && target->health.value >= target->health.max_value) continue;
         if (!S_SpellAllowsTarget(code, caster, target)) continue;
+        /* Filter through the ability's ordinary validation before choosing
+         * the nearest candidate. A nearer unit may already carry this buff or
+         * otherwise fail application while a farther valid target is available. */
+        spellTarget_t spell_target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &spell_target);
+        if (!S_AbilityMessage(caster, A_VALIDATE, &call)) continue;
         distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
         if ((range <= 0.0f || distance <= range) && distance < best_distance) {
             best = target;

@@ -62,7 +62,8 @@ static bool melee_status_capacity(edict_t *caster, edict_t *target, abilityitem_
 }
 
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
+    return spell && st.entity && !S_UnitHasStatus(st.entity, MAKEFOURCC('B','b','l','o')) &&
+        S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
         melee_status_capacity(caster, st.entity, spell);
 }
 

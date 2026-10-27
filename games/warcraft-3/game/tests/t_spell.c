@@ -5194,7 +5194,7 @@ TEST(wc3_spell, bloodlust_autocast_waits_for_spell_cooldown) {
 		"C;Y2;X7;K\"30\"\nC;Y2;X8;K\"30\"\nC;Y2;X9;K\"Bblo\"\nE\n";
 	static UnitAbilities_t abilities = { .abilList = "Ablo" };
 	slkTestData_t *rows = parse_slk_string(slk), *old;
-	edict_t *caster, *ally;
+	edict_t *caster, *ally, *other_ally;
 	abilityitem_t item;
 	abilityCall_t call;
 	float mana_after_cast;
@@ -5203,13 +5203,17 @@ TEST(wc3_spell, bloodlust_autocast_waits_for_spell_cooldown) {
 	old = G_SetSLKRows("AbilityData", rows);
 	caster = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 0, 0);
 	ally = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+	other_ally = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 96, 0);
 	caster->data.UnitAbilities = &abilities;
-	caster->s.player = ally->s.player = 0;
+	caster->s.player = ally->s.player = other_ally->s.player = 0;
 	caster->mana.value = caster->mana.max_value = 300;
 	caster->svflags |= SVF_MONSTER;
 	ally->svflags |= SVF_MONSTER;
+	other_ally->svflags |= SVF_MONSTER;
 	ally->targtype = TARG_GROUND;
+	other_ally->targtype = TARG_GROUND;
 	ally->health.value = ally->health.max_value = 500;
+	other_ally->health.value = other_ally->health.max_value = 500;
 	item = S_AbilityItem(FS_SLKKey("Ablo"));
 	call = MAKE(abilityCall_t, .item = &item);
 
@@ -5224,6 +5228,49 @@ TEST(wc3_spell, bloodlust_autocast_waits_for_spell_cooldown) {
 	level.time += 10000;
 	T_ASSERT(S_AbilityMessage(caster, A_AUTOCAST_ACQUIRE, &call));
 	T_FEQ(caster->mana.value, mana_after_cast - 50, 0.001f);
+	T_ASSERT(S_UnitHasStatus(other_ally, MAKEFOURCC('B','b','l','o')));
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, bloodlust_autocast_skips_unit_already_bloodlusted) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X9\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+		"C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"BuffID1\"\n"
+		"C;Y2;X1;K\"Ablo\"\nC;Y2;X2;K\"Ablo\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+		"C;Y2;X4;K\"50\"\nC;Y2;X5;K\"10\"\nC;Y2;X6;K\"600\"\n"
+		"C;Y2;X7;K\"30\"\nC;Y2;X8;K\"30\"\nC;Y2;X9;K\"Bblo\"\nE\n";
+	static UnitAbilities_t abilities = { .abilList = "Ablo" };
+	slkTestData_t *rows = parse_slk_string(slk), *old;
+	edict_t *caster, *buffed, *eligible;
+	abilityitem_t item;
+	abilityCall_t call;
+
+	reset_entities(); setup_test_world(); level.time = 1000;
+	old = G_SetSLKRows("AbilityData", rows);
+	caster = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 0, 0);
+	buffed = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 32, 0);
+	eligible = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+	caster->data.UnitAbilities = &abilities;
+	caster->s.player = buffed->s.player = eligible->s.player = 0;
+	caster->mana.value = caster->mana.max_value = 300;
+	caster->svflags |= SVF_MONSTER;
+	buffed->svflags |= eligible->svflags |= SVF_MONSTER;
+	buffed->targtype = eligible->targtype = TARG_GROUND;
+	buffed->health.value = buffed->health.max_value = 500;
+	eligible->health.value = eligible->health.max_value = 500;
+	item = S_AbilityItem(FS_SLKKey("Ablo"));
+	call = MAKE(abilityCall_t, .item = &item);
+
+	T_ASSERT(test_execute_code(caster, "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = buffed)));
+	T_ASSERT(S_UnitHasStatus(buffed, MAKEFOURCC('B','b','l','o')));
+	T_ASSERT(G_SetUnitAutocast(caster, item.code, true));
+	T_ASSERT(S_AbilityMessage(caster, A_AUTOCAST_ACQUIRE, &call));
+	T_ASSERT(S_UnitHasStatus(eligible, MAKEFOURCC('B','b','l','o')));
+	T_FEQ(caster->mana.value, 250, 0.001f);
 
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
