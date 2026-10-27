@@ -572,6 +572,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     UnitAbilities_t const *a;
     bool is_burrow;
     bool burrow_occupied;
+    bool armed_structure;
 
     if (!ent || !ent->class_id || !buttons) {
         return 0;
@@ -582,6 +583,9 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     a = ent->data.UnitAbilities;
     is_burrow = S_CargoIsBurrow(ent);
     burrow_occupied = is_burrow && ent_hold && ent_hold->count > 0;
+    armed_structure = G_UnitIsStructure(ent) &&
+        ((w->attack1.damageDice && S_UnitAttackSlotEnabled(ent, 0)) ||
+         (w->attack2.damageDice && S_UnitAttackSlotEnabled(ent, 1)));
 
     /* Unsummon owns the building until destruction. Rally metadata remains
      * editable, but actions and cancellation are hidden. */
@@ -619,9 +623,10 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
-    } else if (burrow_occupied) {
-        /* Burrows are immobile, but Stop is meaningful once their Peons have
-         * enabled the building attack: it cancels the current attack/order. */
+    } else if (burrow_occupied || armed_structure) {
+        /* Immobile armed structures (including Guard Towers) still need Stop
+         * to cancel their current attack/order. Burrows expose it only while
+         * occupied, when their attack slot is enabled. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
     if (S_AncientCanShowRootedAttackCommand(ent) &&
