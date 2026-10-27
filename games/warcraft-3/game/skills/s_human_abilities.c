@@ -31,6 +31,8 @@ static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     switch (G_AbilityCode(spell->code)) {
     case BZ_POLYMORPH: return "Bply"; /* Aply/ACpy share the TFT token. */
     case MAKEFOURCC('A','i','n','f'): return "Binf";
+    case MAKEFOURCC('A','s','l','o'): return "Bslo";
+    case MAKEFOURCC('A','i','v','s'): return "Bivs";
     default: return NULL;
     }
 #else
@@ -289,7 +291,18 @@ static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint3
     /* AbilityData stores Ply1..Ply5 in DataA..DataE.  The typed FOURCC view
      * deliberately keeps the first rawcode from Warcraft's unit-list string;
      * stock Aply uses one morph unit for each movement class. */
-    return S_SpellDataId(code, level, data_slot);
+    {
+        uint32_t const authored = S_SpellDataId(code, level, data_slot);
+        if (authored) return authored;
+#if BZ_COMPAT_WORKAROUNDS
+        if (G_AbilityCode(code) == BZ_POLYMORPH) {
+            if (data_slot == BZ_POLYMORPH_FLY_SLOT)
+                return MAKEFOURCC('n','s','h','f');
+            return MAKEFOURCC('n','s','h','e');
+        }
+#endif
+        return 0;
+    }
 }
 
 /* Reject invalid targets and authored morph forms before spell resources commit. */
