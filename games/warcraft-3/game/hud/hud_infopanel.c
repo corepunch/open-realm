@@ -220,6 +220,20 @@ static void FormatAttackDamageValue(char *buffer, size_t buffer_size,
     }
 }
 
+static void FormatArmorValue(char *buffer, size_t buffer_size, edict_t const *ent) {
+    float const temporary_bonus = ent->unit_state ? ent->unit_state->temporary_armor_bonus : 0.0f;
+    int32_t const base = (int32_t)(G_UnitArmorValue(ent) - temporary_bonus + 0.5f);
+    int32_t const bonus = (int32_t)temporary_bonus;
+
+    if (bonus > 0) {
+        snprintf(buffer, buffer_size, "%ld |cff00ff00+%ld|r", (long)base, (long)bonus);
+    } else if (bonus < 0) {
+        snprintf(buffer, buffer_size, "%ld |cffff0000%ld|r", (long)base, (long)bonus);
+    } else {
+        snprintf(buffer, buffer_size, "%ld", (long)(base + bonus));
+    }
+}
+
 static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
                                  bool has_attack2, int32_t min_damage, int32_t max_damage,
                                  int32_t min_damage2, int32_t max_damage2, bool is_hero,
@@ -239,7 +253,7 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
     UI_SetText(hud.unit.DefenseLabel, "Armor:");
     if (G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) UI_SetText(hud.unit.DefenseValue, "%s", "|cffff0000Invulnerable|r");
     else {
-        snprintf(buffer, sizeof(buffer), "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+        FormatArmorValue(buffer, sizeof(buffer), ent);
         UI_SetText(hud.unit.DefenseValue, "%s", buffer);
     }
     UI_SetText(hud.unit.SpeedTitle, "Speed:");
@@ -617,7 +631,7 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
                           armor_upgrade != 0);
     if (G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", "|cffff0000Invulnerable|r");
     else {
-        snprintf(value, sizeof(value), "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+        FormatArmorValue(value, sizeof(value), ent);
         UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", value);
     }
     SetUpgradeLevel(hud.simple.InfoPanelIconLevel_2, armor_upgrade, ent);
