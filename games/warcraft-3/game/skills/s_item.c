@@ -132,7 +132,8 @@ static void soul_trap_release_carried(edict_t *carrier, vec2_t const *position, 
     soulTrap_t *souls = G_GetSoulTrap(carrier);
     uint32_t guard = 0;
     if (!carrier || !souls) return;
-    while (souls && souls->head && guard++ < globals.max_edicts) {
+    /* Releasing the last soul may free the carrier's record, so each pass re-reads it. */
+    while ((souls = G_GetSoulTrap(carrier)) && souls->head && guard++ < globals.max_edicts) {
         edict_t *target = souls->head;
         uint32_t spawn_time = souls->head_spawn_time;
         if (!target->inuse || target->spawn_time != spawn_time || !soul_trap_valid_link(carrier, target)) {
@@ -321,14 +322,17 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     }
     case A_DEATH:
         if (ent && souls && souls->head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        souls = G_GetSoulTrap(ent); /* The carried release may have freed the record. */
         if (ent && souls && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, NULL, false);
         return true;
     case A_DISABLE:
         if (ent && souls && souls->head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        souls = G_GetSoulTrap(ent); /* The carried release may have freed the record. */
         if (ent && souls && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, &ent->s.origin2, true);
         return true;
     case A_UNIT_REMOVE:
         if (ent && souls && souls->head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        souls = G_GetSoulTrap(ent); /* The carried release may have freed the record. */
         if (ent && souls && (ent->aiflags & AI_SOUL_TRAPPED)) {
             souls->trapped_ability_added = false;
             soul_trap_release_target(ent, NULL, false);

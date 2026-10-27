@@ -2032,12 +2032,13 @@ void G_CompleteConstruction(edict_t *building) {
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_FINISH);
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
+        food_t const *ledger = G_GetFood(building); /* Buildings without food supply own no ledger. */
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-publish building=%ld id=%.4s player=%u event=%u build_link=%ld food_made=%d\n",
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 (unsigned)building->s.player, (unsigned)EVENT_PLAYER_UNIT_CONSTRUCT_FINISH,
                 building->build ? (long)(building->build - globals.edicts) : -1L,
-                G_GetFood(building)->made);
+                ledger ? ledger->made : 0);
     }
     if (client) {
         edict_t *clent = G_GetPlayerEntityByNumber(client->ps.number);

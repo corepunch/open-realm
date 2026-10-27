@@ -216,8 +216,9 @@ thinkers may reuse `S_SpellChannelTarget()` only when they already store the sam
 Cannibalize/corpse-cargo approaches, Unsummon thinker lookup, and Acid Bomb use that
 contract. Route later reads of the captured target generation through the resolver.
 Range rechecks, duration, pulse cadence, pause/ownership changes, cancellation side effects and
-cleanup remain ability-owned. Do not reallocate `thinker->channel` after either
-channel constructor: the constructor already owns that lifecycle storage.
+cleanup remain ability-owned. Do not attach or reset the thinker's channel component
+(`G_AddComponent(thinker, COMPONENT_CHANNEL)`) after either channel constructor: the
+constructor already owns that lifecycle storage; read it with `G_GetChannel(thinker)`.
 For chained/bouncing unit spells, use `S_SpellBounceTargetAllowed()` for the
 demonstrated common candidate contract (alive, authored target mask, friendly or
 enemy relation, and jump radius) and `S_SpellTargetVisited()` for small

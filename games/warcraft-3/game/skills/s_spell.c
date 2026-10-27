@@ -65,7 +65,7 @@ BZ_ABILITY_PROC(CAbilityPassive) {
 /* CAbilitySimpleSpell owns the shared command path and accepts validation
  * unless a concrete TFT procedure supplies stricter target rules. */
 BZ_ABILITY_PROC(CAbilitySimpleSpell) {
-    channel_t *cast = G_GetChannel(ent);
+    channel_t const *cast;
     (void)ent;
     if (!call || !call->item || !call->item->ability) return false;
     switch (msg) {
@@ -78,6 +78,8 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
         return true;
     case A_VALIDATE: return true;
     case A_MOVE_LEAVE:
+        /* Shared fallback for many procedures: only movement reads the channel. */
+        cast = G_GetChannel(ent);
         if (ent && cast && cast->code == call->item->code) S_SpellCancelChannel(ent);
         return true;
     default:

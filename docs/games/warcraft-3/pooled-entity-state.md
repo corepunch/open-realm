@@ -85,6 +85,11 @@ introduced; existing ability procedures and scheduling retain behavior ownership
   per-type `G_Free*` wrappers retain each owning behavior's release API, so
   `S_PolymorphRemove`, Ensnare's snap/finish paths and unit death keep their
   existing cleanup ordering.
+- A cached pointer does not survive a call that can release its record. Re-read
+  the record after such a call: for example, Soul Trap's carried-soul release
+  re-reads the carrier's record each pass, because releasing the last soul frees it.
+  Test builds (`BZ_TESTS`) fill released pool slots with `0xa5`, so a stale read
+  faults in the suite instead of observing the old payload.
 - `G_PoolsReleaseEdict` drains the component list. It performs raw storage cleanup;
   ability-owned inverses still run in their existing lifecycle paths.
 - `G_PoolsReset` clears heads and pools without following potentially partial
@@ -92,8 +97,8 @@ introduced; existing ability procedures and scheduling retain behavior ownership
 
 The static `component_types` registry in `g_pool.c` selects allocation and raw
 release. Save descriptors in `g_save.c` select the concrete payload schema and
-capacity. Adding a component requires both registrations, a header-first payload,
-and typed accessors; it does not require another edict pointer or a descriptor row
+capacity. Adding a component requires both registrations, a header-first payload
+(`COMPONENT_ALLOC` asserts `offsetof(type, component) == 0`), and typed accessors; it does not require another edict pointer or a descriptor row
 for the list link. Direct attachments
 remain for the other records while migration proceeds.
 

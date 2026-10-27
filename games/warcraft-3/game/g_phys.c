@@ -98,10 +98,11 @@ static void G_AdvanceProjectilePresentation(edict_t *ent) {
  * If the distance remaining is less than the per-frame travel distance the
  * projectile hits, deals damage via T_Damage(), and is freed. */
 void SV_Physics_Toss(edict_t *ent) {
-    channel_t *cast = G_GetChannel(ent);
     float distance;
     vec3_t target, dir;
     bool const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
+    /* Only fixed-point projectiles carry a channel record; homing missiles skip the lookup. */
+    channel_t const *cast = fixed_target ? G_GetChannel(ent) : NULL;
 
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     distance = ent->velocity * FRAMETIME;

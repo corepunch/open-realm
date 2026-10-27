@@ -1218,12 +1218,13 @@ static edict_t *entangle_overlay_caster(edict_t *overlay) {
 
 static bool entangle_overlay_has_caster(edict_t const *overlay, edict_t const *caster,
                                         uint32_t alias, edict_t const *except) {
-    return overlay && overlay != except && overlay->inuse && G_GetMineOverlay(overlay) && !M_IsDead(overlay) &&
-           G_GetMineOverlay(overlay)->caster == caster &&
-           G_GetMineOverlay(overlay)->caster_spawn_time == caster->spawn_time &&
-           G_GetMineOverlay(overlay)->entangle_ability == alias &&
-           G_GetMineOverlay(overlay)->parent && G_GetMineOverlay(overlay)->parent->inuse &&
-           G_GetMineOverlay(overlay)->parent->spawn_time == G_GetMineOverlay(overlay)->parent_spawn_time;
+    mineOverlay_t const *ovl = G_GetMineOverlay(overlay);
+    return overlay && overlay != except && overlay->inuse && ovl && !M_IsDead(overlay) &&
+           ovl->caster == caster &&
+           ovl->caster_spawn_time == caster->spawn_time &&
+           ovl->entangle_ability == alias &&
+           ovl->parent && ovl->parent->inuse &&
+           ovl->parent->spawn_time == ovl->parent_spawn_time;
 }
 
 /* A Tree can maintain one mine link. Overlay ownership is generation-guarded

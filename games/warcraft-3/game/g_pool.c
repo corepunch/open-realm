@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -8,6 +9,14 @@ typedef struct {
     void *(*alloc)(void);
     void (*release)(void *);
 } componentType_t;
+
+/* Test builds poison released records so a pointer cached across a release
+ * faults instead of reading the stale payload; allocation zeroes the slot. */
+#ifdef BZ_TESTS
+#define POISON_RELEASED(slot) memset(&(slot).data, 0xa5, sizeof((slot).data))
+#else
+#define POISON_RELEASED(slot) ((void)0)
+#endif
 
 #define DEFINE_STORAGE(member, Name, type, POOL_CAP) \
 static struct { type data; uint16_t next; bool live; } member##_slots[POOL_CAP]; \
@@ -35,6 +44,7 @@ type *G_Alloc##Name(void) { \
 static void Release##Name(void *record) { \
     uint16_t i = (uint16_t)(((unsigned char *)record - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
     assert(i > 0 && i < POOL_CAP && member##_slots[i].live); \
+    POISON_RELEASED(member##_slots[i]); \
     member##_slots[i].live = false; \
     member##_live--; \
     member##_slots[i].next = member##_free; \
@@ -89,36 +99,39 @@ DEFINE_POOL(route, Route, routeCache_t, MAX_ENTITIES)
 DEFINE_POOL(wander, Wander, wander_t, MAX_ENTITIES)
 DEFINE_STORAGE(channel, Channel, channel_t, LIFECYCLE_POOL_CAP)
 
-/* Typed allocators keep their concrete return type; the registry needs the untyped record. */
-#define COMPONENT_ALLOC(Name) static void *Alloc##Name##Component(void) { return G_Alloc##Name(); }
-COMPONENT_ALLOC(Waygate)
-COMPONENT_ALLOC(Avatar)
-COMPONENT_ALLOC(Polymorph)
-COMPONENT_ALLOC(Raven)
-COMPONENT_ALLOC(Ensnare)
-COMPONENT_ALLOC(Artillery)
-COMPONENT_ALLOC(Sleep)
-COMPONENT_ALLOC(Rally)
-COMPONENT_ALLOC(Sacrifice)
-COMPONENT_ALLOC(Unsummon)
-COMPONENT_ALLOC(BlightGrowth)
-COMPONENT_ALLOC(ShadowMeld)
-COMPONENT_ALLOC(Militia)
-COMPONENT_ALLOC(Revival)
-COMPONENT_ALLOC(Buildwork)
-COMPONENT_ALLOC(AncientRoot)
-COMPONENT_ALLOC(GoldMine)
-COMPONENT_ALLOC(MineOverlay)
-COMPONENT_ALLOC(AcolyteMine)
-COMPONENT_ALLOC(Cargo)
-COMPONENT_ALLOC(SoulTrap)
-COMPONENT_ALLOC(Research)
-COMPONENT_ALLOC(Food)
-COMPONENT_ALLOC(Stock)
-COMPONENT_ALLOC(Channel)
-COMPONENT_ALLOC(Destructable)
-COMPONENT_ALLOC(Construction)
-COMPONENT_ALLOC(Item)
+/* Typed allocators keep their concrete return type; the registry needs the untyped record.
+ * The header must lead each record so list nodes and typed records share one address. */
+#define COMPONENT_ALLOC(Name, type) \
+_Static_assert(offsetof(type, component) == 0, #type " must start with its component header"); \
+static void *Alloc##Name##Component(void) { return G_Alloc##Name(); }
+COMPONENT_ALLOC(Waygate, waygate_t)
+COMPONENT_ALLOC(Avatar, avatar_t)
+COMPONENT_ALLOC(Polymorph, polymorph_t)
+COMPONENT_ALLOC(Raven, raven_t)
+COMPONENT_ALLOC(Ensnare, ensnare_t)
+COMPONENT_ALLOC(Artillery, artillery_t)
+COMPONENT_ALLOC(Sleep, sleep_t)
+COMPONENT_ALLOC(Rally, rally_t)
+COMPONENT_ALLOC(Sacrifice, sacrifice_t)
+COMPONENT_ALLOC(Unsummon, unsummon_t)
+COMPONENT_ALLOC(BlightGrowth, blightGrowth_t)
+COMPONENT_ALLOC(ShadowMeld, shadowMeld_t)
+COMPONENT_ALLOC(Militia, militia_t)
+COMPONENT_ALLOC(Revival, revival_t)
+COMPONENT_ALLOC(Buildwork, buildwork_t)
+COMPONENT_ALLOC(AncientRoot, ancientRoot_t)
+COMPONENT_ALLOC(GoldMine, goldMine_t)
+COMPONENT_ALLOC(MineOverlay, mineOverlay_t)
+COMPONENT_ALLOC(AcolyteMine, acolyteMine_t)
+COMPONENT_ALLOC(Cargo, cargo_t)
+COMPONENT_ALLOC(SoulTrap, soulTrap_t)
+COMPONENT_ALLOC(Research, research_t)
+COMPONENT_ALLOC(Food, food_t)
+COMPONENT_ALLOC(Stock, stock_t)
+COMPONENT_ALLOC(Channel, channel_t)
+COMPONENT_ALLOC(Destructable, destructable_t)
+COMPONENT_ALLOC(Construction, construction_t)
+COMPONENT_ALLOC(Item, item_t)
 
 /* Exact IDs authorize the concrete layout; families and authored rawcodes are separate concepts. */
 static componentType_t const *ComponentType(componentId_t id) {
