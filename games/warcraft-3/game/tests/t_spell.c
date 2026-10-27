@@ -3,6 +3,8 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
+void attack_melee(edict_t *self);
+
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
 bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent);
@@ -3303,8 +3305,16 @@ TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
 	T_FEQ(ally->health.value, 85.0f, 0.001f);
 	test_execute_code(caster, "Ainf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f'))); T_FEQ(G_UnitArmorValue(ally), 7.0f, 0.001f);
+	enemy->unit_state->attack1.cooldown = 1.0f;
+	enemy->unit_state->attack1.damagePoint = 0.3f;
+	attack_melee(enemy);
+	T_FEQ(enemy->wait, 0.3f, 0.001f);
 	test_execute_code(caster, "Aslo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
-	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o'))); T_FEQ(S_HumanMoveFactor(enemy), 0.4f, 0.001f);
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o')));
+	T_FEQ(S_HumanMoveFactor(enemy), 0.4f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), -0.25f, 0.001f);
+	attack_melee(enemy);
+	T_FEQ(enemy->wait, 0.4f, 0.001f);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

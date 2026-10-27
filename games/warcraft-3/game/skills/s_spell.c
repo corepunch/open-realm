@@ -1561,6 +1561,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
     switch (slot->code) {
     case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
+    case MAKEFOURCC('B','s','l','o'):
     case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
@@ -1580,6 +1581,10 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         if (!ability) ability = MAKEFOURCC('A','b','l','o');
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','s','l','o'):
+        ability = MAKEFOURCC('A','s','l','o');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
         break;
     case MAKEFOURCC('B','f','z','y'):
         ability = MAKEFOURCC('A','f','z','y');
