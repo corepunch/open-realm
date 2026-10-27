@@ -125,9 +125,11 @@ static uint32_t regen_source_count;
 static uint32_t regen_cache_frame = UINT_MAX;
 static uint32_t regen_cache_generation = UINT_MAX;
 static edict_t *regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
+static edict_t *brilliance_overlays[MAX_ENTITIES];
 static edict_t *devotion_overlays[MAX_ENTITIES];
 static edict_t *unholy_overlays[MAX_ENTITIES];
 /* Ability TargetArt on the caster. Recipient slots above keep BuffID TargetArt. */
+static edict_t *brilliance_source_fx[MAX_ENTITIES];
 static edict_t *devotion_source_fx[MAX_ENTITIES];
 static edict_t *unholy_source_fx[MAX_ENTITIES];
 static uint32_t devotion_recipient_buff[MAX_ENTITIES];
@@ -468,8 +470,10 @@ void G_ResetHeroPassiveCaches(void) {
     regen_cache_frame = UINT_MAX;
     regen_cache_generation = UINT_MAX;
     memset(regen_overlays, 0, sizeof(regen_overlays));
+    memset(brilliance_overlays, 0, sizeof(brilliance_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
+    memset(brilliance_source_fx, 0, sizeof(brilliance_source_fx));
     memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
@@ -561,8 +565,10 @@ static void regen_aura_cache_update(void) {
     regen_cache_frame = level.framenum;
     regen_cache_generation = ability_generation;
     memset(regen_overlays, 0, sizeof(regen_overlays));
+    memset(brilliance_overlays, 0, sizeof(brilliance_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
+    memset(brilliance_source_fx, 0, sizeof(brilliance_source_fx));
     memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     FOR_LOOP(i, globals.num_edicts) {
@@ -570,14 +576,18 @@ static void regen_aura_cache_update(void) {
         regenFamily_t family;
         if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
             effect->goalentity != effect->owner) continue;
-        if (effect->summon_ability == ID_DEVOTION_AURA || effect->summon_ability == ID_UNHOLY_AURA) {
+        if (effect->summon_ability == ID_BRILLIANCE || effect->summon_ability == ID_DEVOTION_AURA ||
+            effect->summon_ability == ID_UNHOLY_AURA) {
             edict_t * *slots;
             /* The current alias/art can change or disappear. Bind by the saved
              * role so a custom caster rune cannot become an orphaned recipient. */
-            if (effect->aura_effect_role == AURA_EFFECT_SOURCE)
-                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
-            else if (effect->aura_effect_role == AURA_EFFECT_RECIPIENT)
-                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
+            if (effect->aura_effect_role == AURA_EFFECT_SOURCE) {
+                if (effect->summon_ability == ID_BRILLIANCE) slots = brilliance_source_fx;
+                else slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
+            } else if (effect->aura_effect_role == AURA_EFFECT_RECIPIENT) {
+                if (effect->summon_ability == ID_BRILLIANCE) slots = brilliance_overlays;
+                else slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
+            }
             else continue;
             if (!slots[effect->owner->s.number]) slots[effect->owner->s.number] = effect;
             continue;
@@ -957,6 +967,8 @@ void S_UpdateHeroAuraEffects(edict_t *unit) {
     old_unholy = unholy_recipient_buff[unit->s.number];
     brilliance = hero_aura_presentation(unit, ID_BRILLIANCE);
     brilliance_recipient_buff[unit->s.number] = brilliance.alias ? brilliance.buff : 0;
+    hero_aura_sync_overlay(unit, ID_BRILLIANCE, brilliance_overlays, brilliance.alias ? &brilliance : NULL);
+    hero_aura_sync_source(unit, ID_BRILLIANCE, brilliance_source_fx, brilliance_overlays);
     devotion = hero_aura_presentation(unit, ID_DEVOTION_AURA);
     devotion_recipient_buff[unit->s.number] = devotion.alias ? devotion.buff : 0;
     hero_aura_sync_overlay(unit, ID_DEVOTION_AURA, devotion_overlays, devotion.alias ? &devotion : NULL);

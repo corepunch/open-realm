@@ -77,12 +77,12 @@ for each recipient and keeps that buff's `TargetArt` on the recipient. The
 ability's own `TargetArt` is a second effect, spawned only on the unit that owns
 the aura.
 
-| | Devotion Aura | Unholy Aura |
-|---|---|---|
-| Ability rawcode | `AHad` | `AUau` |
-| Ability `TargetArt` (caster ground pattern) | `Abilities\Spells\Human\DevotionAura\DevotionAura.mdl` | `Abilities\Spells\Undead\UnholyAura\UnholyAura.mdl` |
-| Buff rawcode | `BHad` | `BUau` |
-| Buff `TargetArt` (recipient glow) | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` |
+| | Brilliance Aura | Devotion Aura | Unholy Aura |
+|---|---|---|---|
+| Ability rawcode | `AHab` | `AHad` | `AUau` |
+| Ability `TargetArt` (caster ground pattern) | `Abilities\Spells\Human\Brilliance\Brilliance.mdl` | `Abilities\Spells\Human\DevotionAura\DevotionAura.mdl` | `Abilities\Spells\Undead\UnholyAura\UnholyAura.mdl` |
+| Buff rawcode | `BHab` | `BHad` | `BUau` |
+| Buff `TargetArt` (recipient glow) | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` |
 
 ROC `War3.mpq` and TFT `War3x.mpq` both author those strings in
 `Units/HumanAbilityFunc.txt` and `Units/UndeadAbilityFunc.txt`. `Targetattach`
@@ -117,12 +117,13 @@ changes, and save/load. Save format 72 serializes the role and rejects earlier
 saves, following the normal no-migration policy. There is no network change.
 See [Save/Load](save-load.md).
 
-Brilliance, Endurance, Vampiric, Thorns, and Command Aura do not use this pair
-of world-space overlay slots. Brilliance Aura still exposes its active
-recipient buff virtually in the selected-unit status strip. TFT reads the
-authored `AHab` `BuffID` (`BHab`); RoC has no `BuffID` column, so the
-`BZ_COMPAT_WORKAROUNDS` mapping supplies `BHab` for stock `AHab`. Vampiric's
-extra buff `SpecialArt` is a separate contract.
+Brilliance Aura uses the same source-pattern and recipient-glow pair as
+Devotion and Unholy Aura, and exposes its active recipient buff virtually in
+the selected-unit status strip. TFT reads the authored `AHab` `BuffID`
+(`BHab`); RoC has no `BuffID` column, so the `BZ_COMPAT_WORKAROUNDS` mapping
+supplies `BHab` for stock `AHab`. Endurance, Vampiric, Thorns, and Command Aura
+do not use these world-space overlay slots. Vampiric's extra buff `SpecialArt`
+is a separate contract.
 
 The scenery bug made recipient art appear under crates and trees. The recipient
 regression runs `monster_think` on a friendly unit and two static destructables,
