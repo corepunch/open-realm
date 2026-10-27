@@ -2953,11 +2953,14 @@ TEST(wc3_combat, attack_speed_scales_with_agility) {
 
 TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X6\n"
+        "ID;PWXL;N;EBB;Y3;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
         "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
-        "C;Y2;X4;K\"0.10\"\nC;Y2;X5;K\"0.20\"\nC;Y2;X6;K\"1\"\nE\n";
+        "C;Y2;X4;K\"0.10\"\nC;Y2;X5;K\"0.20\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AOr2\"\nC;Y3;X2;K\"AOae\"\nC;Y3;X3;K\"900\"\n"
+        "C;Y3;X4;K\"0.10\"\nC;Y3;X5;K\"0.20\"\nC;Y3;X6;K\"1\"\nE\n";
+    static UnitAbilities_t endurance_abilities = { .abilList = "AOr2" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *source, *target;
 
@@ -2966,14 +2969,14 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     source = make_combat_unit(MAKEFOURCC('O','b','l','m'), 725.0f, 0.0f, 0.0f);
     target = make_combat_unit(MAKEFOURCC('o','g','r','u'), 700.0f, 100.0f, 0.0f);
     source->s.player = target->s.player = 0;
-    source->unit_state->overrides.added[0] = MAKEFOURCC('A','O','a','e');
-    ARRAY_COUNT(source->unit_state->overrides.added) = 1;
+    source->data.UnitAbilities = &endurance_abilities;
     target->unit_state->attack1.cooldown = 1.0f;
     target->unit_state->attack1.damagePoint = 0.2f;
     target->unit_state->hero.agi = 0;
 
     T_FEQ(S_EnduranceMoveBonus(target), 0.10f, 0.001f);
     T_FEQ(S_EnduranceAttackBonus(target), 0.20f, 0.001f);
+    T_EQ(S_EnduranceAuraBuff(target), MAKEFOURCC('B','O','a','e'));
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f / 1.2f, 0.001f);
 

@@ -596,12 +596,13 @@ static void WriteBuffStatusFrames(edict_t *ent) {
         slot++;
     }
 
-    /* Passive auras do not own gameplay status slots. Brilliance, Devotion and
-     * Unholy Aura recipient presentation is reconciled by the shared aura
-     * cadence; render the authored BuffID virtually without fabricating abilstatus[]. */
+    /* Passive auras do not own gameplay status slots. Their recipient
+     * presentation is reconciled by the shared aura cadence; render authored
+     * BuffIDs virtually without fabricating abilstatus[]. */
     WriteVirtualBuffStatusFrame(S_BrillianceAuraBuff(ent), shown, &slot);
     WriteVirtualBuffStatusFrame(S_DevotionAuraBuff(ent), shown, &slot);
     WriteVirtualBuffStatusFrame(S_UnholyAuraBuff(ent), shown, &slot);
+    WriteVirtualBuffStatusFrame(S_EnduranceAuraBuff(ent), shown, &slot);
 }
 
 static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *weapons,

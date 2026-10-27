@@ -1548,6 +1548,52 @@ static uint32_t hero_aura_art_count(edict_t *unit, uint32_t base, uint32_t model
 }
 
 #if BZ_COMPAT_WORKAROUNDS
+/* RoC omits BuffID on Cairne's AOr2 alias. Resolve recipients to BOae's
+ * authored buff art so they receive the glow/icon, not AOae's caster rune. */
+TEST(wc3_spell, endurance_aura_roc_compat_uses_boae_recipient_art) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\nC;Y1;X7;K\"TargetArt\"\n"
+        "C;Y2;X1;K\"AOr2\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"ground,air,friend,self\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.3\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"TestUI\\\\Models\\\\caster_pattern.mdx\"\n"
+        "C;Y3;X1;K\"AOae\"\nC;Y3;X2;K\"AOae\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"TestUI\\\\Models\\\\caster_pattern.mdx\"\nE\n";
+    const char buff_slk[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"TargetArt\"\nC;Y1;X4;K\"Buffart\"\n"
+        "C;Y2;X1;K\"BOae\"\nC;Y2;X2;K\"BOae\"\n"
+        "C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\n"
+        "C;Y2;X4;K\"ReplaceableTextures\\\\CommandButtons\\\\BTNEnduranceAura.blp\"\n"
+        "C;Y3;X1;K\"AOae\"\nC;Y3;X2;K\"AOae\"\n"
+        "C;Y3;X3;K\"TestUI\\\\Models\\\\caster_pattern.mdx\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOr2" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    edict_t *source = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+    uint32_t const base = MAKEFOURCC('A','O','a','e');
+    uint32_t const buff = MAKEFOURCC('B','O','a','e');
+    int const pattern = G_RegisterModel(G_AbilityEffectArt(base, WC3_EFFECT_TARGET, 0));
+    int const glow = G_RegisterModel(G_AbilityEffectArt(buff, WC3_EFFECT_TARGET, 0));
+
+    T_ASSERT(pattern > 0 && glow > 0 && pattern != glow);
+    source->data.UnitAbilities = &abilities;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->think = target->think = monster_think;
+    level.time = level.framenum = 0;
+    G_RunEntities();
+    T_EQ(S_EnduranceAuraBuff(target), buff);
+    T_EQ(hero_aura_art_count(target, base, pattern), 0);
+    T_EQ(hero_aura_art_count(target, base, glow), 1);
+
+    G_SetSLKRows("AbilityData", old);
+    G_SetSLKRows("AbilityBuffData", old_buff);
+    free_slk_rows(rows);
+    free_slk_rows(buff_rows);
+}
+
 /* RoC omits BuffID; the compatibility table resolves stock AHad to BHad,
  * preserving separate caster pattern and recipient glow. */
 TEST(wc3_spell, devotion_aura_roc_compat_uses_bhad_recipient_art) {

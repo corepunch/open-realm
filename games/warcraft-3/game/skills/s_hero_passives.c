@@ -104,6 +104,7 @@ typedef struct {
     auraAbilityRef_t mana;
     auraAbilityRef_t devotion;
     auraAbilityRef_t unholy;
+    auraAbilityRef_t endurance;
     auraAbilityRef_t combat[HERO_AURA_CACHE_KEYS];
 } regenAuraSource_t;
 
@@ -128,13 +129,16 @@ static edict_t *regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
 static edict_t *brilliance_overlays[MAX_ENTITIES];
 static edict_t *devotion_overlays[MAX_ENTITIES];
 static edict_t *unholy_overlays[MAX_ENTITIES];
+static edict_t *endurance_overlays[MAX_ENTITIES];
 /* Ability TargetArt on the caster. Recipient slots above keep BuffID TargetArt. */
 static edict_t *brilliance_source_fx[MAX_ENTITIES];
 static edict_t *devotion_source_fx[MAX_ENTITIES];
 static edict_t *unholy_source_fx[MAX_ENTITIES];
+static edict_t *endurance_source_fx[MAX_ENTITIES];
 static uint32_t devotion_recipient_buff[MAX_ENTITIES];
 static uint32_t unholy_recipient_buff[MAX_ENTITIES];
 static uint32_t brilliance_recipient_buff[MAX_ENTITIES];
+static uint32_t endurance_recipient_buff[MAX_ENTITIES];
 static uint32_t regen_value_next_update[MAX_ENTITIES];
 static uint32_t regen_visual_next_update[MAX_ENTITIES];
 static void const *regen_value_ability_data[MAX_ENTITIES];
@@ -162,8 +166,17 @@ static void aura_cache_update_time(void) {
         memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
         memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
         memset(brilliance_recipient_buff, 0, sizeof(brilliance_recipient_buff));
+        memset(endurance_recipient_buff, 0, sizeof(endurance_recipient_buff));
     }
     aura_cache_last_time = level.time;
+}
+
+/* Cairne's TFT Endurance Aura row is a concrete hero alias. Keep its family
+ * identity even when a data source omits or fails to resolve the `code=AOae`
+ * ancestry at runtime. */
+static bool aura_alias_matches_base(uint32_t alias, uint32_t base_code) {
+    return alias == base_code || G_AbilityCode(alias) == base_code ||
+        (base_code == ID_ENDURANCE_AURA && alias == MAKEFOURCC('A','O','r','2'));
 }
 
 /* Shared owned-alias resolver: actual rawcode plus actual rank for base_code,
@@ -178,7 +191,7 @@ abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code) {
             uint32_t alias = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&alias, token, sizeof(alias));
-            if (alias == base_code || G_AbilityCode(alias) == base_code) {
+            if (aura_alias_matches_base(alias, base_code)) {
                 result.alias = alias;
                 result.level = 1;
                 return result;
@@ -189,7 +202,7 @@ abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code) {
         uint32_t const alias = ent->unit_state->overrides.added[i];
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
-        if (G_ActorHasSkill(ent, alias_name) && (alias == base_code || G_AbilityCode(alias) == base_code)) {
+        if (G_ActorHasSkill(ent, alias_name) && aura_alias_matches_base(alias, base_code)) {
             result.alias = alias;
             result.level = 1;
             return result;
@@ -197,7 +210,7 @@ abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code) {
     }
     FOR_LOOP(i, ent->unit_state ? MAX_HERO_ABILITIES : 0) {
         heroability_t const *hero = ent->unit_state->ranks + i;
-        if (hero->level && (hero->code == base_code || G_AbilityCode(hero->code) == base_code)) {
+        if (hero->level && aura_alias_matches_base(hero->code, base_code)) {
             result.alias = hero->code;
             result.level = hero->level;
             return result;
@@ -252,7 +265,7 @@ static uint32_t aura_owned_family_mask(uint32_t alias) {
 #endif
     base = G_AbilityCode(alias);
     FOR_LOOP(i, AURA_OWNED_COUNT) {
-        if (aura_owned_codes[i] == alias || aura_owned_codes[i] == base)
+        if (aura_alias_matches_base(alias, aura_owned_codes[i]) || aura_owned_codes[i] == base)
             mask |= 1u << i;
     }
     *entry = (auraFamilyClassEntry_t){ alias, generation, mask, true };
@@ -473,12 +486,15 @@ void G_ResetHeroPassiveCaches(void) {
     memset(brilliance_overlays, 0, sizeof(brilliance_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
+    memset(endurance_overlays, 0, sizeof(endurance_overlays));
     memset(brilliance_source_fx, 0, sizeof(brilliance_source_fx));
     memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
+    memset(endurance_source_fx, 0, sizeof(endurance_source_fx));
     memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
     memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
     memset(brilliance_recipient_buff, 0, sizeof(brilliance_recipient_buff));
+    memset(endurance_recipient_buff, 0, sizeof(endurance_recipient_buff));
     memset(regen_value_cache, 0, sizeof(regen_value_cache));
     memset(regen_value_next_update, 0, sizeof(regen_value_next_update));
     memset(regen_visual_next_update, 0, sizeof(regen_visual_next_update));
@@ -498,8 +514,7 @@ static uint32_t aura_buff_code(cstring_t buff_id) {
     return code;
 }
 
-/* Original RoC omits AbilityData.BuffID, but its engine maps stock Devotion
- * Aura to BHad. Keep this compatibility mapping limited to that base family;
+/* Original RoC omits AbilityData.BuffID. Keep stock aura mappings here;
  * an explicit buff on a custom alias still takes precedence. */
 typedef struct {
     uint32_t ability, buff;
@@ -508,7 +523,8 @@ typedef struct {
 #if BZ_COMPAT_WORKAROUNDS
 static heroAuraCompatBuff_t const hero_aura_compat_buffs[] = {
     { ID_BRILLIANCE, MAKEFOURCC('B', 'H', 'a', 'b') },
-    { ID_DEVOTION_AURA, MAKEFOURCC('B', 'H', 'a', 'd') }
+    { ID_DEVOTION_AURA, MAKEFOURCC('B', 'H', 'a', 'd') },
+    { ID_ENDURANCE_AURA, MAKEFOURCC('B', 'O', 'a', 'e') }
 };
 #endif
 
@@ -551,13 +567,14 @@ static void regen_aura_cache_update(void) {
         entry->mana = owned[AURA_OWNED_MANA];
         entry->devotion = owned[AURA_OWNED_DEVOTION];
         entry->unholy = owned[AURA_OWNED_UNHOLY];
+        entry->endurance = owned[AURA_OWNED_ENDURANCE];
         FOR_LOOP(j, HERO_AURA_CACHE_KEYS) {
             auraAbilityRef_t const ability = owned[aura_combat_owned_slots[j]];
             entry->combat[j] = ability;
             if (ability.alias) has_combat_aura = true;
         }
         if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
-            entry->devotion.alias || entry->unholy.alias || has_combat_aura) {
+            entry->devotion.alias || entry->unholy.alias || entry->endurance.alias || has_combat_aura) {
             entry->active = S_AuraUnitActive(source);
             regen_source_count++;
         }
@@ -568,25 +585,31 @@ static void regen_aura_cache_update(void) {
     memset(brilliance_overlays, 0, sizeof(brilliance_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
+    memset(endurance_overlays, 0, sizeof(endurance_overlays));
     memset(brilliance_source_fx, 0, sizeof(brilliance_source_fx));
     memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
+    memset(endurance_source_fx, 0, sizeof(endurance_source_fx));
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *effect = g_edicts + i;
         regenFamily_t family;
         if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
             effect->goalentity != effect->owner) continue;
         if (effect->summon_ability == ID_BRILLIANCE || effect->summon_ability == ID_DEVOTION_AURA ||
-            effect->summon_ability == ID_UNHOLY_AURA) {
+            effect->summon_ability == ID_UNHOLY_AURA || effect->summon_ability == ID_ENDURANCE_AURA) {
             edict_t * *slots;
             /* The current alias/art can change or disappear. Bind by the saved
              * role so a custom caster rune cannot become an orphaned recipient. */
             if (effect->aura_effect_role == AURA_EFFECT_SOURCE) {
                 if (effect->summon_ability == ID_BRILLIANCE) slots = brilliance_source_fx;
-                else slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
+                else if (effect->summon_ability == ID_DEVOTION_AURA) slots = devotion_source_fx;
+                else if (effect->summon_ability == ID_UNHOLY_AURA) slots = unholy_source_fx;
+                else slots = endurance_source_fx;
             } else if (effect->aura_effect_role == AURA_EFFECT_RECIPIENT) {
                 if (effect->summon_ability == ID_BRILLIANCE) slots = brilliance_overlays;
-                else slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
+                else if (effect->summon_ability == ID_DEVOTION_AURA) slots = devotion_overlays;
+                else if (effect->summon_ability == ID_UNHOLY_AURA) slots = unholy_overlays;
+                else slots = endurance_overlays;
             }
             else continue;
             if (!slots[effect->owner->s.number]) slots[effect->owner->s.number] = effect;
@@ -606,6 +629,7 @@ static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, uint32_t 
     if (base_code == ID_REGEN_MANA) return entry->mana;
     if (base_code == ID_DEVOTION_AURA) return entry->devotion;
     if (base_code == ID_UNHOLY_AURA) return entry->unholy;
+    if (base_code == ID_ENDURANCE_AURA) return entry->endurance;
     if (base_code == ID_BRILLIANCE) return entry->combat[0];
     return (auraAbilityRef_t){0};
 }
@@ -908,7 +932,9 @@ static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * 
     uint32_t desired_model;
     edict_t *keep = unit->s.number < MAX_ENTITIES ? overlays[unit->s.number] : NULL;
 
-    if ((!art || !*art) && info && info->alias) {
+    /* Endurance's ability TargetArt is Cairne's caster pattern. Recipients
+     * should only use the authored BuffID art, never copy that pattern. */
+    if ((!art || !*art) && info && info->alias && base_code != ID_ENDURANCE_AURA) {
         effect_code = info->alias;
         art = G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0);
     }
@@ -961,13 +987,14 @@ static void hero_aura_sync_source(edict_t *unit, uint32_t base_code, edict_t * *
 }
 
 void S_UpdateHeroAuraEffects(edict_t *unit) {
-    heroAuraPresentation_t brilliance, devotion, unholy;
-    uint32_t old_brilliance, old_devotion, old_unholy;
+    heroAuraPresentation_t brilliance, devotion, unholy, endurance;
+    uint32_t old_brilliance, old_devotion, old_unholy, old_endurance;
 
     if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
     old_brilliance = brilliance_recipient_buff[unit->s.number];
     old_devotion = devotion_recipient_buff[unit->s.number];
     old_unholy = unholy_recipient_buff[unit->s.number];
+    old_endurance = endurance_recipient_buff[unit->s.number];
     brilliance = hero_aura_presentation(unit, ID_BRILLIANCE);
     brilliance_recipient_buff[unit->s.number] = brilliance.alias ? brilliance.buff : 0;
     hero_aura_sync_overlay(unit, ID_BRILLIANCE, brilliance_overlays, brilliance.alias ? &brilliance : NULL);
@@ -982,9 +1009,15 @@ void S_UpdateHeroAuraEffects(edict_t *unit) {
     hero_aura_sync_overlay(unit, ID_UNHOLY_AURA, unholy_overlays, unholy.alias ? &unholy : NULL);
     hero_aura_sync_source(unit, ID_UNHOLY_AURA, unholy_source_fx, unholy_overlays);
 
+    endurance = hero_aura_presentation(unit, ID_ENDURANCE_AURA);
+    endurance_recipient_buff[unit->s.number] = endurance.alias ? endurance.buff : 0;
+    hero_aura_sync_overlay(unit, ID_ENDURANCE_AURA, endurance_overlays,
+                           endurance.alias ? &endurance : NULL);
+    hero_aura_sync_source(unit, ID_ENDURANCE_AURA, endurance_source_fx, endurance_overlays);
     if (old_brilliance != brilliance_recipient_buff[unit->s.number] ||
         old_devotion != devotion_recipient_buff[unit->s.number] ||
-        old_unholy != unholy_recipient_buff[unit->s.number])
+        old_unholy != unholy_recipient_buff[unit->s.number] ||
+        old_endurance != endurance_recipient_buff[unit->s.number])
         G_InvalidateUnitInfoPanel(unit);
 }
 
@@ -1001,6 +1034,11 @@ uint32_t S_DevotionAuraBuff(edict_t *unit) {
 uint32_t S_UnholyAuraBuff(edict_t *unit) {
     if (!unit || unit->s.number >= MAX_ENTITIES) return 0;
     return unholy_recipient_buff[unit->s.number];
+}
+
+uint32_t S_EnduranceAuraBuff(edict_t *unit) {
+    if (!unit || unit->s.number >= MAX_ENTITIES) return 0;
+    return endurance_recipient_buff[unit->s.number];
 }
 
 float S_BrillianceManaRegen(edict_t *unit) { return hero_aura_bonus(unit, ID_BRILLIANCE, 1); }
