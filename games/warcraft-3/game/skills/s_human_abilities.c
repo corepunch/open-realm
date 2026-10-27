@@ -26,8 +26,16 @@ void human_ability_think(edict_t *thinker);
 static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     cstring_t buff = S_SpellBuffId(spell->code, level);
     if (buff) return buff;
-    /* ROC omits BuffID; Aply/ACpy share the TFT token. */
-    return G_AbilityCode(spell->code) == BZ_POLYMORPH ? "Bply" : NULL;
+#if BZ_COMPAT_WORKAROUNDS
+    /* ROC omits BuffID for these stock statuses. */
+    switch (G_AbilityCode(spell->code)) {
+    case BZ_POLYMORPH: return "Bply"; /* Aply/ACpy share the TFT token. */
+    case MAKEFOURCC('A','i','n','f'): return "Binf";
+    default: return NULL;
+    }
+#else
+    return NULL;
+#endif
 }
 
 static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitStatusLevel(ent, code) != 0; }
