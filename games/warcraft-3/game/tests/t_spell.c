@@ -5572,7 +5572,13 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 		"C;Y2;X1;K\"Alsh\"\nC;Y2;X2;K\"Alsh\"\nC;Y2;X3;K\"air,ground,friend,enemy\"\n"
 		"C;Y2;X4;K\"15\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"200\"\n"
 		"C;Y2;X7;K\"Blsh\"\nC;Y2;X8;K\"600\"\nE\n";
+	const char buff_slk[] =
+		"ID;PWXL;N;EBB;Y2;X3\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+		"C;Y2;X1;K\"Blsh\"\nC;Y2;X2;K\"Blsh\"\n"
+		"C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
 	edict_t *caster = make_hero(MAKEFOURCC('o','s','h','m'), 300, 300, 0, 0);
 	/* Carrier is far from caster (0,0) so caster is outside the 200-unit Area. */
 	edict_t *carrier = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 500, 0);
@@ -5587,9 +5593,17 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 	T_EQ(S_AbilityItem(FS_SLKKey("Alsh")).ability->proc, CAbilityLightningShield);
 	test_execute_code(caster, "Alsh", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = carrier));
 	T_ASSERT(S_UnitHasStatus(carrier, MAKEFOURCC('B','l','s','h')));
+	T_NOT_NULL(G_AbilityEffectArt(MAKEFOURCC('B','l','s','h'), WC3_EFFECT_TARGET, 0));
+	{
+		bool attached_lightning_shield = false;
+		FILTER_EDICTS(effect, effect->status_effect_code == MAKEFOURCC('B','l','s','h') &&
+		              effect->goalentity == carrier && effect->damage == carrier->spawn_time)
+			attached_lightning_shield = true;
+		T_ASSERT(attached_lightning_shield);
+	}
 	/* Find the thinker and run it — nearby unit takes the initial tick of damage. */
 	edict_t *thinker = NULL;
-	FILTER_EDICTS(ent, ent->owner == carrier && ent->think) thinker = ent;
+	FILTER_EDICTS(ent, ent->owner == carrier && ent->think == lsh_think) thinker = ent;
 	T_NOT_NULL(thinker);
 	level.time = 1000; G_RunEntity(thinker);
 	T_ASSERT(nearby->health.value < 1000);    /* took damage */
@@ -5601,7 +5615,8 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 	/* Past expiry the thinker stops and the carrier no longer has the buff (status expired). */
 	level.time = 30000; G_RunEntity(thinker);
 	T_ASSERT(!thinker->inuse);
-	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+	G_SetSLKRows("AbilityData", old); G_SetSLKRows("AbilityBuffData", old_buff);
+	free_slk_rows(rows); free_slk_rows(buff_rows);
 }
 
 /* A failed status insertion must not create Lightning Shield's damage thinker. */

@@ -178,6 +178,7 @@ static void lightning_shield_execute(edict_t *caster, spellTarget_t st, abilityi
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
     if (!S_SpellApplyTimedStatus(st.entity, buff, level, dur)) return;
+    unit_status_enabletargetart(st.entity, unit_findstatus(st.entity, FS_SLKKey(buff)), "origin");
     thinker = S_SpellIdentityThinker(st.entity, spell->code, caster);
     if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);
