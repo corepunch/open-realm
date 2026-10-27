@@ -2269,6 +2269,7 @@ typedef struct {
 /* Basic-attack launch snapshot and one-time Defend reflection state; launch to projectile teardown. */
 typedef struct {
     uint32_t attack_type;
+    uint32_t owner_spawn_time;
     bool reflected;
 } attackMissile_t;
 

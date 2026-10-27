@@ -994,6 +994,7 @@ static field_t const inventory_fields[] = {
 
 static field_t const missile_fields[] = {
     TF(attackMissile_t, attack_type, F_INT),
+    TF(attackMissile_t, owner_spawn_time, F_INT),
     TF(attackMissile_t, reflected, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };

@@ -116,6 +116,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     rocket->damage = desc->damage;
     G_InitMissile(rocket);
     rocket->missile->attack_type = desc->attack_type;
+    rocket->missile->owner_spawn_time = ent->spawn_time;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
         channel_t *cast = G_AddChannel(rocket);

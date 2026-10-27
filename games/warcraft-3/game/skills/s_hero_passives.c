@@ -1131,7 +1131,8 @@ float S_CommandAuraAttackBonus(edict_t *unit) {
 float S_WarDrumsAttackBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_WAR_DRUMS, 1); }
 
 float S_TrueshotAttackBonus(edict_t *unit) {
-    return unit->unit_state->attack1.type == ATK_PIERCE ? hero_aura_bonus(unit, ID_TRUESHOT_AURA, 1) : 0.0f;
+    return unit && unit->unit_state && unit->unit_state->attack1.type == ATK_PIERCE ?
+        hero_aura_bonus(unit, ID_TRUESHOT_AURA, 1) : 0.0f;
 }
 
 int S_SearingArrowDamage(edict_t *attacker, int damage) {

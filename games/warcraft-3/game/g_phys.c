@@ -134,9 +134,18 @@ void SV_Physics_Toss(edict_t *ent) {
                     (!primary->inuse || primary->spawn_time != cast->target_spawn_time)) primary = NULL;
                 S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, G_GetArtillery(ent));
             } else {
-                int const damage = G_AttackDamageWithType(ent->owner, ent->goalentity, ent->damage,
-                                                          ent->missile ? ent->missile->attack_type : ATK_NORMAL);
-                S_ResolveAttackHit(ent->owner, ent->goalentity, damage);
+                /* The attacker may have been removed while its missile was in
+                 * flight. Edict slots are cleared and reused, so validate the
+                 * launch identity before dereferencing owner during hit math. */
+                edict_t *attacker = ent->owner;
+                if (!attacker || !attacker->inuse || !attacker->unit_state ||
+                    !ent->missile || attacker->spawn_time != ent->missile->owner_spawn_time) {
+                    G_FreeEdict(ent);
+                    return;
+                }
+                int const damage = G_AttackDamageWithType(attacker, ent->goalentity, ent->damage,
+                                                          ent->missile->attack_type);
+                S_ResolveAttackHit(attacker, ent->goalentity, damage);
             }
             G_FreeEdict(ent);
         }
