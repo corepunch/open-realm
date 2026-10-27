@@ -116,6 +116,7 @@ static void ward_done(wardFix_t *fix) {
 
 TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_vision) {
 	static UnitAbilities_t const tower_abilities = { .abilList = "Adts" };
+	static UnitWeapons_t const tower_weapons = { .attacksEnabled = 1 };
 	uint32_t const magic_sentry = MAKEFOURCC('A','d','t','s');
 	uint32_t const magic_sentry_upgrade = MAKEFOURCC('R','h','s','e');
 	wardFix_t fix;
@@ -126,17 +127,37 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_
 	game.clients[2].ps.number = 2;
 	tower = alloc_test_unit(MAKEFOURCC('h','g','t','w'), 0, 0);
 	tower->data.UnitAbilities = (UnitAbilities_t *)&tower_abilities;
+	tower->data.UnitWeapons = (UnitWeapons_t *)&tower_weapons;
 	tower->s.player = 0;
 	tower->svflags |= SVF_MONSTER;
 	tower->health.value = tower->health.max_value = 500;
+	tower->unit_state->attack1.type = ATK_NORMAL;
+	tower->unit_state->attack1.weapon = WPN_NORMAL;
+	tower->unit_state->attack1.damageBase = 20;
+	tower->unit_state->attack1.damagePoint = 0.01f;
+	tower->unit_state->attack1.cooldown = 0.5f;
+	tower->unit_state->attack1.range = 200.0f;
+	tower->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
 	fix.enemy->s.origin2 = (vec2_t){ 128, 0 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
+	T_ASSERT(unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f));
 	T_ASSERT(G_UnitAbilityLevel(tower, magic_sentry));
+	T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 0));
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
+	T_ASSERT(!S_AttackCanTarget(tower, fix.enemy));
+	T_ASSERT(!S_OrderAttack(tower, fix.enemy));
 
 	G_SetPlayerTechResearched(&game.clients[0], magic_sentry_upgrade, 1);
 	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.enemy, 0));
+	T_ASSERT(S_AttackCanTarget(tower, fix.enemy));
+	T_ASSERT(S_OrderAttack(tower, fix.enemy));
+	T_EQ(tower->goalentity, fix.enemy);
+	T_NOT_NULL(tower->currentmove);
+	tower->currentmove->think(tower);
+	tower->currentmove->think(tower);
+	T_ASSERT(fix.enemy->health.value < fix.enemy->health.max_value);
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
 	/* Alliance direction: owner 0 shares its vision with ally 2. */
 	level.alliances[0][2] |= 1 << ALLIANCE_SHARED_VISION;
@@ -146,6 +167,7 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_
 
 	G_SetPlayerTechResearched(&game.clients[0], magic_sentry_upgrade, 0);
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_AttackCanTarget(tower, fix.enemy));
 	ward_done(&fix);
 }
 
