@@ -472,6 +472,23 @@ static void G_AddMagicSentryIndicator(edict_t *ent, gameCommandButton_t *buttons
     if (*count > index) buttons[index].disabled = 1;
 }
 
+static void G_AddPillageIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                  uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A', 's', 'a', 'l');
+    static uint32_t const research = MAKEFOURCC('R', 'o', 'p', 'g');
+    gameClient_t *owner;
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, ability) || G_HasCommandRawcode(buttons, *count, ability)) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || G_GetPlayerTechResearchedLevel(owner, research) <= 0) return;
+
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, "Asal", false, 0);
+    if (*count > index) buttons[index].disabled = 1;
+}
+
 static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons,
                                        uint8_t *count, cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
@@ -699,6 +716,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
     }
     G_AddMagicSentryIndicator(ent, buttons, max_buttons, &count);
+    G_AddPillageIndicator(ent, buttons, max_buttons, &count);
     FOR_LOOP(i, ent->unit_state ? MAX_HERO_ABILITIES : 0) {
         heroability_t const *ha = ent->unit_state->ranks + i;
         if (ha->level > 0 && G_IsUnitAbilityAvailable(ent, ha->code) &&
