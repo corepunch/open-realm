@@ -140,6 +140,8 @@ typedef struct {
     texture_t const *splat;
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
+    uint32_t attachment_entity; /* parent snapshot entity for a named attachment */
+    cstring_t attachment_name;  /* packed server-authored attachment socket name */
     uint32_t generation; /* client-local entity incarnation; not serialized */
     uintptr_t instance_id; /* Stable identity for retained renderer presentation state. */
     uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */

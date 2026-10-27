@@ -1370,6 +1370,33 @@ static uint32_t R_W3ViewMatrixSceneIndex(renderEntity_t const *entity) {
     return (uint32_t)index;
 }
 
+static bool R_W3ResolveAttachmentMatrix(renderEntity_t const *entity, mat4_t *matrix) {
+    renderEntity_t const *parent = NULL;
+    mdxAttachmentPosition_t attachments[32];
+    mat4_t parent_matrix;
+    uint32_t count;
+    if (!entity || !entity->attachment_entity || !entity->attachment_name || !*entity->attachment_name)
+        return false;
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *candidate = tr.viewDef.entities + i;
+        if (candidate->number == entity->attachment_entity) { parent = candidate; break; }
+    }
+    if (!parent || !parent->model || parent->model->modeltype != ID_MDLX || !parent->model->mdx)
+        return false;
+    R_GetEntityMatrix(parent, &parent_matrix);
+    count = MDLX_CollectAttachmentPositionsWithPose(parent->model->mdx, &parent_matrix,
+        parent->frame, parent->oldframe, entity->attachment_name, attachments,
+        sizeof(attachments) / sizeof(attachments[0]), 0);
+    if (!count) return false;
+    {
+        renderEntity_t attached = *entity;
+        attached.origin = attachments[0].origin;
+        attached.angle = parent->angle;
+        R_GetEntityMatrix(&attached, matrix);
+    }
+    return true;
+}
+
 #ifdef BZ_TESTS
 static uint32_t test_wc3_view_matrix_builds;
 static void R_W3ViewMatricesResetBuildCount(void) { test_wc3_view_matrix_builds = 0; }
@@ -1377,6 +1404,7 @@ static uint32_t R_W3ViewMatricesBuildCount(void) { return test_wc3_view_matrix_b
 #endif
 
 static void R_W3GetViewEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
+    if (R_W3ResolveAttachmentMatrix(entity, matrix)) return;
     uint32_t index = R_W3ViewMatrixSceneIndex(entity);
     wc3MatrixPoseKey_t key = { .origin = entity->origin,
                                .angle = entity->angle, .scale = entity->scale };

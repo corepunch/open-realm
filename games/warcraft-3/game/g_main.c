@@ -2178,7 +2178,7 @@ static bool G_PrepareMap(cstring_t filename) {
 /* Look up or register a display name in the packed CS_GENERAL configstring pool.
  * Each configstring stores ENT_NAMES_PER_CS names of ENT_NAME_SLOT_SIZE bytes each.
  * Returns a 1-based packed index (0 = not found / pool full). */
-static uint16_t G_UnitNameConfigstring(cstring_t name) {
+uint16_t G_NameConfigstring(cstring_t name) {
     char buf[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
     if (!name || !*name) return 0;
     for (uint32_t slot = 0; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
@@ -2197,7 +2197,7 @@ static uint16_t G_UnitNameConfigstring(cstring_t name) {
             return (uint16_t)(slot * ENT_NAMES_PER_CS + sub + 1);
         }
     }
-    fprintf(stderr, "G_UnitNameConfigstring: pool full for \"%s\"\n", name);
+    fprintf(stderr, "G_NameConfigstring: pool full for \"%s\"\n", name);
     return 0;
 }
 
@@ -2314,7 +2314,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     if (rec) {
         if (rec->in_world && !(state->renderfx & RF_HIDDEN) &&
             !(state->flags & EF_NOT_SELECTABLE) && G_FowPlayerCanHoverEntity(player, ent)) {
-            state->name = G_UnitNameConfigstring(G_ObjectName(ent->class_id));
+            state->name = G_NameConfigstring(G_ObjectName(ent->class_id));
             /* The client's shared world-hover gate requires a positive health
              * snapshot even for name-only entities. Items have no health bar,
              * so publish a minimal presence value and keep the neutral pickup
@@ -2344,7 +2344,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
                 snprintf(localized, sizeof(localized), "%.*s", (int)(len - 2), name + 1);
                 name = localized;
             }
-            state->name = G_UnitNameConfigstring(G_LevelString(name));
+            state->name = G_NameConfigstring(G_LevelString(name));
             state->stats[ENT_HEALTH] = compress_stat(&ent->health);
             state->flags |= EF_NEUTRAL;
             /* TFT authors breakable selectability explicitly. ROC predates
@@ -2376,7 +2376,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         }
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
-        state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
+            state->name = G_NameConfigstring(G_UnitName(ent->s.class_id));
         state->hover_value = G_HoverResourceValue(ent);
         if (!G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) state->flags |= EF_HOVER_HEALTH;
         if (ent->mana.max_value > 0.0f) state->flags |= EF_HOVER_MANA;

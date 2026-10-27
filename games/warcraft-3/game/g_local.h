@@ -3245,6 +3245,7 @@ void monster_think(edict_t *);
 // g_model.c
 void         G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size);
 int          G_RegisterModel(cstring_t filename);
+uint16_t     G_NameConfigstring(cstring_t name);
 animation_t const *G_GetAnimation(uint32_t modelindex, cstring_t animname);
 animation_t const *G_SelectAnimationForProperties(animation_t const *animations, uint32_t count, cstring_t animname, cstring_t properties);
 animation_t const *G_SelectAnimationVariantForProperties(animation_t const *animations, uint32_t count, cstring_t animname, cstring_t properties, bool randomize);

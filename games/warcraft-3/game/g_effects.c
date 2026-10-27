@@ -410,6 +410,26 @@ static void G_EffectStartAnimation(edict_t *effect, bool temporary) {
     }
 }
 
+static void G_EffectSetAttachment(edict_t *effect, edict_t *target, cstring_t attach_point) {
+    char socket[64];
+    size_t out = 0;
+    bool capitalize = true;
+    if (!effect || !target || !attach_point || !*attach_point ||
+        !strcasecmp(attach_point, "origin") || !strcasecmp(attach_point, "overhead")) return;
+    for (size_t i = 0; attach_point[i] && out + 1 < sizeof(socket); i++) {
+        unsigned char c = (unsigned char)attach_point[i];
+        if (c == ',') c = ' ';
+        if (isspace(c)) capitalize = true;
+        else if (capitalize) { c = (unsigned char)toupper(c); capitalize = false; }
+        socket[out++] = (char)c;
+    }
+    while (out && isspace((unsigned char)socket[out - 1])) out--;
+    socket[out] = '\0';
+    if (!out) return;
+    effect->s.attachment_entity = (uint16_t)target->s.number;
+    effect->s.attachment_name = G_NameConfigstring(socket);
+}
+
 edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target,
                            cstring_t attach_point, bool temporary) {
     edict_t *effect;
@@ -438,6 +458,7 @@ edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *targe
         effect->damage = target->spawn_time; /* target generation guard */
         effect->movetype = MOVETYPE_LINK;
         effect->prethink = G_EffectValidateTarget;
+        G_EffectSetAttachment(effect, target, attach_point);
         if (attach_point && !strcasecmp(attach_point, "overhead")) {
             effect->wait = target->s.radius * 2.5f;
             effect->s.origin.z += effect->wait;
@@ -471,13 +492,34 @@ edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, u
  * duplicate models. The tag is intentionally presentation-only: authoritative
  * status state remains in abilstatus and can recreate the visual as needed. */
 edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_t attach_point) {
-    edict_t *effect;
+    edict_t *effect = NULL;
+    char classname[5], key[32];
+    cstring_t count_value;
+    uint32_t count = 1;
+    uint32_t i;
     if (!status_id || !target || !target->inuse) return NULL;
     FILTER_EDICTS(existing, existing->status_effect_code == status_id &&
                   existing->goalentity == target && existing->damage == target->spawn_time)
         return existing;
-    effect = G_SpawnAbilityEffectTarget(status_id, WC3_EFFECT_TARGET, 0, target, attach_point, false);
-    if (effect) effect->status_effect_code = status_id;
+    memcpy(classname, &status_id, 4);
+    classname[4] = '\0';
+    count_value = FindConfigValue(classname, "Targetattachcount");
+    if (count_value && *count_value) count = (uint32_t)MAX(1, atoi(count_value));
+    count = MIN(count, 8u);
+    for (i = 0; i < count; i++) {
+        cstring_t authored_attach = NULL;
+        cstring_t selected_attach = attach_point;
+        if (i == 0) strlcpy(key, "Targetattach", sizeof(key));
+        else snprintf(key, sizeof(key), "Targetattach%u", i);
+        authored_attach = FindConfigValue(classname, key);
+        if (authored_attach && *authored_attach) selected_attach = authored_attach;
+        {
+            edict_t *attached = G_SpawnAbilityEffectTarget(status_id, WC3_EFFECT_TARGET, 0,
+                                                            target, selected_attach, false);
+            if (!effect) effect = attached;
+            if (attached) attached->status_effect_code = status_id;
+        }
+    }
     return effect;
 }
 

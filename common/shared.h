@@ -751,6 +751,8 @@ typedef struct entityState_s {
     uint8_t player;
     uint16_t model;
     uint16_t model2;
+    uint16_t attachment_entity; /* parent entity for a named model attachment; 0 = unattached */
+    uint16_t attachment_name;   /* packed CS_GENERAL name index for the attachment socket */
     uint8_t effect;
     uint16_t effect_flags; /* EFX_* presentation contract for effect/splat effects */
     uint16_t image;

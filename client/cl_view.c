@@ -389,6 +389,13 @@ static void V_AddClientEntity(centity_t const *ent, bool debug_entities) {
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
+    re.attachment_entity = ent->current.attachment_entity;
+    if (ent->current.attachment_name) {
+        uint32_t i = ent->current.attachment_name - 1;
+        cstring_t cs = i / ENT_NAMES_PER_CS < CS_MAX_NAMES / ENT_NAMES_PER_CS
+            ? cl.configstrings[CS_GENERAL + i / ENT_NAMES_PER_CS] : NULL;
+        re.attachment_name = cs ? cs + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE : NULL;
+    }
     re.generation = ent->presentation_generation;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
