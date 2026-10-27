@@ -81,6 +81,12 @@ static void blizzard_spawn_shards(edict_t *ent) {
     uint32_t shards = (uint32_t)MAX(0.0f, S_SpellData(ent->class_id, level, 3));
     cstring_t effect_id = G_AbilityLevel(ent->class_id, level)->efctID;
     uint32_t effect_code = effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : ent->class_id;
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 keeps Blizzard's shard art and sounds under XHbz in
+     * HumanAbilityFunc.txt, before AHbz gained the AbilityData EfctID field. */
+    if ((!effect_id || strlen(effect_id) < 4) && ent->class_id == MAKEFOURCC('A','H','b','z'))
+        effect_code = MAKEFOURCC('X','H','b','z');
+#endif
 
     FOR_LOOP(i, shards) {
         float angle = ((float)rand() / (float)RAND_MAX) * 2.0f * (float)M_PI;
@@ -179,7 +185,19 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     uint32_t waves = (uint32_t)S_SpellData(spell->code, level, 1);
     uint32_t damage = (uint32_t)S_SpellData(spell->code, level, 2);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    float cast_delay = S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, level);
+    float wave_interval = cast_delay;
     edict_t *thinker;
+
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 AHbz authors its one-second wave interval in Dur and Cast=0.
+     * Later data moved that interval to Cast and set Dur=0. Keep the first
+     * wave immediate, but use the legacy Dur between subsequent waves. */
+    if (spell->code == MAKEFOURCC('A','H','b','z') && wave_interval <= 0.0f) {
+        float const legacy_interval = S_SpellDuration(spell->code, level, false);
+        if (legacy_interval > 0.0f) wave_interval = legacy_interval;
+    }
+#endif
 
     thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
@@ -190,12 +208,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     thinker->resources = waves ? waves : 1;
     thinker->variation = level;
     thinker->velocity = S_SpellData(spell->code, level, 6); /* DataF = Max Damage per Wave */
-    thinker->wait = S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, level);
+    thinker->wait = wave_interval;
     thinker->think = blizzard_think;
     /* Cast is Blizzard's authored delay before the first shard wave.  A zero
      * delay still begins the shard phase immediately, but damage never lands
      * until the fixed shard-to-impact delay has elapsed. */
-    thinker->freetime = G_Time() + (uint32_t)MAX(0.0f, thinker->wait * 1000.0f);
+    thinker->freetime = G_Time() + (uint32_t)MAX(0.0f, cast_delay * 1000.0f);
     blizzard_think(thinker);
 }
 
