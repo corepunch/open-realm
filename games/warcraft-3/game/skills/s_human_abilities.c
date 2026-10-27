@@ -875,6 +875,14 @@ void S_HumanBreakInvisibility(edict_t *unit) {
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     (void)level;
     if (!unit) return;
+    if (code == MAKEFOURCC('B','b','l','o')) {
+        float const factor = 1.3f;
+        unit->s.scale /= factor;
+        avatar_t *avatar = G_GetAvatar(unit);
+        polymorph_t *morph = G_GetPolymorph(unit);
+        if (avatar && avatar->level) avatar->original_scale /= factor;
+        if (morph) morph->original_scale /= factor;
+    }
     if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) G_AddUnitAnimationProperties(unit, "defend", false);
     if (code == MAKEFOURCC('B','i','n','v') &&
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
@@ -882,4 +890,13 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     if (code == BZ_AVATAR_BUFF) avatar_expire_internal(unit, false);
     polymorph_t const *morph = G_GetPolymorph(unit);
     if (morph && code == morph->buff) S_PolymorphRemove(unit);
+}
+
+void S_HumanStatusApplied(edict_t *unit, heroabilitystatus_t const *status) {
+    if (!unit || !status || !status->level || status->code != MAKEFOURCC('B','b','l','o')) return;
+    unit->s.scale *= 1.3f;
+    avatar_t *avatar = G_GetAvatar(unit);
+    polymorph_t *morph = G_GetPolymorph(unit);
+    if (avatar && avatar->level) avatar->original_scale *= 1.3f;
+    if (morph) morph->original_scale *= 1.3f;
 }
