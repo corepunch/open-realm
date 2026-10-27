@@ -480,6 +480,14 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
     if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) {
         return true;
     }
+    if (strstr(targets, "player") && caster && target->s.player == caster->s.player) {
+        return true;
+    }
+    if (strstr(targets, "ally") && caster && target->s.player != caster->s.player &&
+        caster->s.player < MAX_PLAYERS && target->s.player < MAX_PLAYERS &&
+        G_PlayerTreatsPlayerAsAlly(caster->s.player, target->s.player)) {
+        return true;
+    }
     if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) {
         return true;
     }
@@ -487,7 +495,8 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
         level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) {
         return true;
     }
-    return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
+    return !strstr(targets, "friend") && !strstr(targets, "player") && !strstr(targets, "ally") &&
+        !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
 static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *target, bool stored) {

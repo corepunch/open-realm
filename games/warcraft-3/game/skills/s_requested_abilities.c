@@ -536,6 +536,21 @@ void mass_teleport_think(edict_t *thinker) {
 BZ_ABILITY_PROC(CAbilityMassTeleport) {
     abilityitem_t const *spell = call ? call->item : NULL;
 
+    if (msg == A_VALIDATE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        if (!target || !S_SpellIsAliveTarget(target) || target == ent ||
+            !S_SpellAllowsAreaTarget(spell ? spell->code : 0, ent, target)) return false;
+#if BZ_COMPAT_WORKAROUNDS
+        /* RoC AHmt has no player/ally relationship tokens in targs, so retain
+         * its retail friendly-destination rule explicitly. */
+        if (spell && spell->code == MAKEFOURCC('A','H','m','t')) {
+            abilityLevel_t const *row = G_AbilityLevel(spell->code, S_SpellLevel(ent, spell->code));
+            if (row && row->targs && !strstr(row->targs, "player") && !strstr(row->targs, "ally") &&
+                !S_SpellIsFriend(ent, target)) return false;
+        }
+#endif
+        return true;
+    }
     if (msg == A_CANCEL) {
         uint32_t code = spell ? spell->code : 0;
         FILTER_EDICTS(thinker, thinker->inuse && S_SpellChannelOwner(thinker) == ent &&
