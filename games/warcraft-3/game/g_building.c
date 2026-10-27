@@ -463,6 +463,8 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
 
 static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
                                          int32_t old_level, int32_t new_level) {
+    static uint32_t const magic_sentry_upgrade = MAKEFOURCC('R', 'h', 's', 'e');
+    static uint32_t const magic_sentry_ability = MAKEFOURCC('A', 'd', 't', 's');
     UpgradeData_t const *upgrade;
     uint32_t player;
 
@@ -476,6 +478,8 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
     player = client->ps.number;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {
         G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        if (techid == magic_sentry_upgrade && G_UnitAbilityLevel(unit, magic_sentry_ability))
+            S_UpdateMagicSentryPresentation(unit);
     }
 }
 

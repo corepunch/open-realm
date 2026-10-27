@@ -301,36 +301,48 @@ static float unit_detector_range(edict_t const *detector) {
 
 /* Magic Sentry has no TargetArt in either the RoC or TFT AbilityData row.
  * Use its authored caster model as the persistent researched tower visual. */
-void S_UpdateMagicSentryPresentation(edict_t *unit) {
-	static uint32_t const magic_sentry = MAKEFOURCC('A', 'd', 't', 's');
-	static uint32_t const magic_sentry_research = MAKEFOURCC('R', 'h', 's', 'e');
-	static cstring_t const model = "Abilities\\Spells\\Human\\MagicSentry\\MagicSentryCaster.mdx";
-	edict_t *effect = NULL;
-	gameClient_t *owner;
-	bool active;
+static uint32_t const magic_sentry = MAKEFOURCC('A', 'd', 't', 's');
+static uint32_t const magic_sentry_research = MAKEFOURCC('R', 'h', 's', 'e');
+static cstring_t const magic_sentry_model = "Abilities\\Spells\\Human\\MagicSentry\\MagicSentryCaster.mdx";
 
-	if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
+static edict_t *find_magic_sentry_effect(edict_t *unit) {
+	edict_t *effect = NULL;
+	if (!unit || unit->s.number >= MAX_ENTITIES) return NULL;
 	FILTER_EDICTS(candidate, candidate->owner == unit && candidate->summon_ability == magic_sentry &&
 	              (candidate->s.flags & EF_NOT_SELECTABLE)) {
 		effect = candidate;
 		break;
 	}
+	return effect;
+}
+
+void S_RemoveMagicSentryPresentation(edict_t *unit) {
+	edict_t *effect = find_magic_sentry_effect(unit);
+	if (!effect) return;
+	effect->owner = NULL;
+	effect->summon_ability = 0;
+	G_DestroyEffect(effect);
+}
+
+void S_UpdateMagicSentryPresentation(edict_t *unit) {
+	edict_t *effect;
+	gameClient_t *owner;
+	bool active;
+
+	if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES ||
+	    !G_UnitAbilityLevel(unit, magic_sentry)) return;
+	effect = find_magic_sentry_effect(unit);
 	owner = G_GetPlayerClientByNumber(unit->s.player);
-	active = G_UnitAbilityLevel(unit, magic_sentry) > 0 && owner &&
-	         G_GetPlayerTechResearchedLevel(owner, magic_sentry_research) > 0;
+	active = owner && G_GetPlayerTechResearchedLevel(owner, magic_sentry_research) > 0;
 	if (active) {
 		if (!effect) {
-			effect = G_SpawnModelEffect(model, NULL, unit, "overhead", false);
+			effect = G_SpawnModelEffect(magic_sentry_model, NULL, unit, "overhead", false);
 			if (effect) {
 				effect->owner = unit;
 				effect->summon_ability = magic_sentry;
 			}
 		}
-	} else if (effect) {
-		effect->owner = NULL;
-		effect->summon_ability = 0;
-		G_DestroyEffect(effect);
-	}
+	} else S_RemoveMagicSentryPresentation(unit);
 }
 
 static float permanent_invisibility_transition(edict_t const *unit) {
