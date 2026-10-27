@@ -789,9 +789,18 @@ bool S_RegenerationAuraUpdateDue(edict_t *unit) {
  * Reconcile at the existing passive presentation cadence: research completion,
  * ownership transfer, save/load and new buildings require no serialized FX
  * state. Custom Aspi without Rosp does not receive the stock War Mill model. */
+static void spiked_barricades_set_size(edict_t *effect, int32_t research_level) {
+    cstring_t size_tag = research_level >= 3 ? "large" : research_level == 2 ? "medium" : NULL;
+    cstring_t current = effect->animation_props ? effect->animation_props : "";
+    if ((size_tag && !strcmp(current, size_tag)) || (!size_tag && !*current)) return;
+    G_AddUnitAnimationProperties(effect, "medium large", false);
+    if (size_tag) G_AddUnitAnimationProperties(effect, size_tag, true);
+}
+
 static void spiked_barricades_sync_effect(edict_t *unit) {
     edict_t *effect;
     bool enabled;
+    int32_t research_level;
     cstring_t art;
 
     if (unit->s.number >= MAX_ENTITIES) return;
@@ -800,7 +809,8 @@ static void spiked_barricades_sync_effect(edict_t *unit) {
                    effect->damage != unit->spawn_time ||
                    effect->summon_ability != ID_SPIKED_BARRICADES))
         effect = NULL;
-    enabled = G_SpikedBarricadesResearchLevel(unit) > 0 &&
+    research_level = G_SpikedBarricadesResearchLevel(unit);
+    enabled = research_level > 0 &&
               !(unit->svflags & SVF_OWNER_ONLY) &&
               !G_GetConstruction(unit) && !G_BuildingIsUnsummoning(unit) &&
               !M_IsDead(unit);
@@ -809,7 +819,14 @@ static void spiked_barricades_sync_effect(edict_t *unit) {
         G_DestroyEffect(effect);
         return;
     }
-    if (effect || !enabled) return;
+    if (!enabled) return;
+    /* SpikeBarrier.mdx authors progressively more protruding Stand variants.
+     * Keep its Birth/Stand animation family and select the size with Required
+     * Animation Names: base at level 1, Medium at level 2, Large at level 3. */
+    if (effect) {
+        spiked_barricades_set_size(effect, research_level);
+        return;
+    }
     /* A save can restore the presentation edict without restoring this
      * transient pointer cache. Reuse the linked model instead of doubling
      * the spikes on the building after the first passive update. */
@@ -817,6 +834,7 @@ static void spiked_barricades_sync_effect(edict_t *unit) {
                   existing->damage == unit->spawn_time &&
                   existing->summon_ability == ID_SPIKED_BARRICADES &&
                   (existing->s.flags & EF_NOT_SELECTABLE)) {
+        spiked_barricades_set_size(existing, research_level);
         spiked_barricades_fx[unit->s.number] = existing;
         return;
     }
@@ -827,6 +845,7 @@ static void spiked_barricades_sync_effect(edict_t *unit) {
     if (effect) {
         effect->owner = unit;
         effect->summon_ability = ID_SPIKED_BARRICADES;
+        spiked_barricades_set_size(effect, research_level);
         spiked_barricades_fx[unit->s.number] = effect;
     }
 }
