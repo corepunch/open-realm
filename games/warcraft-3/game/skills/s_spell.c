@@ -1267,7 +1267,9 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
                 S_SpellNumber(code, ABILITY_NUMBER_COST, level), (unsigned)S_SpellCooldownReady(caster, code));
 
     spell_commit(caster, code, level, NULL);
-    if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
+    if (spell->flags & AB_CHANNEL) {
+        spell_begin_channel(caster, code);
+    }
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;

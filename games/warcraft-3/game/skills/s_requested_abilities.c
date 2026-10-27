@@ -13,6 +13,7 @@
 #define CHAIN_LIGHTNING_BOLT_MS 2000
 
 void whirlwind_think(edict_t *ent);
+static umove_t whirlwind_blade_storm_move = { "attack walk stand spin", NULL, NULL };
 
 typedef struct {
     edict_t *caster;
@@ -164,10 +165,24 @@ void far_sight_think(edict_t *thinker) {
 }
 
 void whirlwind_think(edict_t *ent) {
-    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
+    if (!S_SpellChannelActive(ent)) {
+        edict_t *caster = S_SpellChannelOwner(ent);
+        if (caster && !M_IsDead(caster) && ent->class_id == MAKEFOURCC('A','O','w','w') &&
+            caster->currentmove == &whirlwind_blade_storm_move && caster->stand)
+            caster->stand(caster);
+        S_SpellEndChannel(ent);
+        return;
+    }
     abilityitem_t item = S_AbilityItem(ent->class_id);
     uint32_t data = item.ability && item.ability->proc == CAbilityStampede ? 2 : 1;
-    if (G_Time() >= ent->spawn_time) { S_SpellEndChannel(ent); return; }
+    if (G_Time() >= ent->spawn_time) {
+        edict_t *caster = S_SpellChannelOwner(ent);
+        if (caster && !M_IsDead(caster) && ent->class_id == MAKEFOURCC('A','O','w','w') &&
+            caster->currentmove == &whirlwind_blade_storm_move && caster->stand)
+            caster->stand(caster);
+        S_SpellEndChannel(ent);
+        return;
+    }
     if (ent->freetime && G_Time() < ent->freetime) return;
     if (item.ability && (item.ability->proc == CAbilityWhirlwind || item.ability->proc == CAbilityTornado))
         ent->s.origin2 = ent->owner->s.origin2;
@@ -179,7 +194,17 @@ void whirlwind_think(edict_t *ent) {
 static void whirlwind_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
+    if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, true) * 1000.0f);
+    if (spell->code == MAKEFOURCC('A','O','w','w')) {
+        animation_t const *spin = G_GetUnitAnimation(caster, "attack walk stand spin");
+        if (spin) {
+        /* This is presentation inside the active channel, not a new order:
+         * unit_setmove would dispatch A_MOVE_LEAVE and cancel Bladestorm. */
+        caster->currentmove = &whirlwind_blade_storm_move;
+        G_SetUnitAnimation(caster, "attack walk stand spin");
+        }
+    }
     thinker->think = whirlwind_think; whirlwind_think(thinker);
 }
 
