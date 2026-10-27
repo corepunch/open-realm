@@ -729,6 +729,7 @@ static field_t const avatar_fields[] = {
     TF(avatar_t, level, F_INT),
     TF(avatar_t, armor, F_FLOAT),
     TF(avatar_t, health, F_FLOAT),
+    TF(avatar_t, original_scale, F_FLOAT),
     TF(avatar_t, damage, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };

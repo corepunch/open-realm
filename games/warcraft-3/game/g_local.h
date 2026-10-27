@@ -2048,6 +2048,7 @@ typedef struct {
     component_t component;
     uint32_t level;
     float armor, health;
+    float original_scale;
     int32_t damage;
 } avatar_t;
 

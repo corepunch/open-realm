@@ -100,6 +100,7 @@ static void avatar_expire_internal(edict_t *unit, bool remove_buff) {
     unit->unit_state->temporary_health_bonus -= avatar->health;
     unit->health.max_value = MAX(1.0f, unit->health.max_value - avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
+    unit->s.scale = avatar->original_scale;
     G_FreeAvatar(unit);
     if (remove_buff) human_remove_status(unit, BZ_AVATAR_BUFF);
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
@@ -133,11 +134,13 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
     avatar = G_AddAvatar(caster);
     avatar->level = rank; avatar->armor = S_SpellData(spell->code, rank, 1);
     avatar->health = S_SpellData(spell->code, rank, 2); avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
+    avatar->original_scale = caster->s.scale;
     G_ApplyTemporaryArmorBonus(caster, avatar->armor);
     G_ApplyTemporaryAttackDamageBonus(caster, (float)avatar->damage);
     caster->unit_state->temporary_health_bonus += avatar->health;
     caster->health.max_value = MAX(1.0f, caster->health.max_value + avatar->health);
     G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, avatar->health)));
+    caster->s.scale = avatar->original_scale * (1.0f + S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank));
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 
