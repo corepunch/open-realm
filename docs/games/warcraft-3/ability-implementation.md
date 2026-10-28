@@ -784,7 +784,7 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 | Campaign entry | Registry status | Result |
 | --- | --- | --- |
 | `AOw2` War Stomp | `CAbilityWarStompCampaign` | campaign procedure reads its requested rawcode |
-| `ANsh` / `AOs2` Shockwave | `CAbilityShockwaveCampaign` / `CAbilityShockwaveCairne` | shared campaign area-damage helper, separate rawcodes |
+| `ANsh` / `AOs2` Shockwave | `CAbilityShockwaveCampaign` / `CAbilityShockwaveCairne` | `S_ShockwaveExecute` line corridor, separate rawcodes; authored target mask filters both damage and cap contributors |
 | `ANcf` Breath of Fire | `CAbilityBreathOfFireCampaign` | shared campaign area-damage helper |
 | `Acdh`, `ANhw`, `ANhx` | campaign Drunken Haze, Healing Wave, and Hex procedures | currently share `campaign_status_execute`; verify each gameplay contract |
 | `ACs7`, `ACs8`, `Arsq`, `Arsg`, `Arsp`, `Acef`, `Arsw`, `AOls` | campaign summon procedures | share `campaign_summon_execute` with authored rawcodes |
@@ -794,6 +794,17 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 
 These are registration and code-path observations, not a completeness claim. Verify the behavior in
 `skills/s_campaign_abilities.c` with focused tests before consolidating a campaign row with a standard procedure.
+
+Shockwave's shared corridor filters targets through `S_SpellAllowsAreaTarget`
+before counting DataB's damage-cap contributors and before applying damage.
+Ignoring the mask let flyers take damage and dilute each ground target's share.
+`wc3_spell.shockwave_target_mask_filters_damage_and_cap` covers `AOsh`, `ANsh`,
+and `AOs2` with RoC `Data11`/`Data12`/`Data13` and TFT `DataA1`/`DataB1`/`DataC1`
+fixtures, ground enemies, a flyer, an ally, and an enemy outside the corridor.
+The [Blizzard Tauren Chieftain reference](https://classic.battle.net/war3/orc/units/taurenchieftain.shtml)
+describes land-unit line damage and a total damage cap. Damage still resolves
+immediately; the travelling missile is presentation only, so retail travel-time
+damage parity remains unverified. No network or save format changes.
 
 ## Human Ability Audit
 

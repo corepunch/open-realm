@@ -11,6 +11,7 @@ static uint32_t blizzard_level(edict_t const *ent) {
 
 typedef struct {
     edict_t *caster;
+    uint32_t code;
     vec2_t direction;
     float length, width;
 } shockwaveContext_t;
@@ -137,7 +138,8 @@ static bool shockwave_hits(edict_t *target, shockwaveContext_t const *ctx) {
     float along, across;
 
     if (!target->inuse || target == ctx->caster || !S_SpellIsAliveTarget(target) ||
-        !S_SpellIsEnemy(ctx->caster, target)) return false;
+        !S_SpellIsEnemy(ctx->caster, target) ||
+        !S_SpellAllowsAreaTarget(ctx->code, ctx->caster, target)) return false;
     offset = Vector2_sub(&target->s.origin2, &ctx->caster->s.origin2);
     along = Vector2_dot(&offset, &ctx->direction);
     across = offset.x * ctx->direction.y - offset.y * ctx->direction.x;
@@ -276,7 +278,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
  * rather than treating the line spell as a circular point-target burst. */
 void S_ShockwaveExecute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code), ntargets = 0;
-    shockwaveContext_t ctx = { .caster = caster };
+    shockwaveContext_t ctx = { .caster = caster, .code = spell->code };
     vec2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
     float distance = Vector2_distance(&caster->s.origin2, &st.point);
     float damage = MAX(1.0f, S_SpellData(spell->code, level, 1));

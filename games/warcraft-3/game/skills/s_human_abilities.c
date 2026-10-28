@@ -736,7 +736,12 @@ bool S_HumanCanAttack(edict_t const *unit) {
 float S_HumanMoveFactor(edict_t const *unit) {
     uint32_t level;
     float factor = 1.0f;
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','s','l','o'), level, 1);
+    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) {
+        heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B','s','l','o'));
+        uint32_t const ability = status->source_ability ? status->source_ability : MAKEFOURCC('A','s','l','o');
+        uint32_t const rank = status->rank ? status->rank : level;
+        factor *= 1.0f - S_SpellData(ability, rank, 1);
+    }
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     factor *= 1.0f - S_SlowAuraMoveReduction(unit);

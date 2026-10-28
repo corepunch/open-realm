@@ -51,12 +51,15 @@ strongest contributor to become effective without a separate inverse update.
 Inner Fire (`Binf`) installs authored armor and attack-percentage descriptors;
 `S_ResolveAttackHit` consumes the attack bonus exactly once. Do not also multiply
 it in `S_HumanAttackDamage`. Slow (`Bslo`) installs its attack-speed descriptor
-from DataB. Both must retain the applying `source_ability` alias when reading
+from DataB; `S_HumanMoveFactor` reads its movement reduction from DataA using
+the same status's `source_ability` and `rank`. Both must retain the applying alias when reading
 Data fields: a stock BuffID does not imply stock `Ainf`/`Aslo` balance.
 `wc3_spell.human_support_spells_use_authored_status_and_heal_values` covers an
 actual attack before/after dispel; `human_support_aliases_preserve_authored_modifiers`
 covers custom values in RoC `Data11`/`Data12` and TFT `DataA1`/`DataB1` columns,
-armor, hit damage, attack timing, and removal. No save or wire layout changes.
+armor, hit damage, attack timing, movement distance, and restoration after dispel.
+The movement query retains the stock `Aslo`/status-level behavior for statuses
+without an applying ability. No save or wire layout changes.
 
 The strongest-wins hash table is initialized lazily: units with no applicable
 strongest-wins modifiers avoid zeroing the 64-entry table and skip its final

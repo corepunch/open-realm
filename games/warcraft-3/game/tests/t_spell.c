@@ -3297,6 +3297,43 @@ TEST(wc3_spell, bladestorm_deals_110_damage_to_nearby_enemy_ground_units) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, shockwave_target_mask_filters_damage_and_cap) {
+    static cstring_t const codes[] = { "AOsh", "ANsh", "AOs2" };
+    FOR_LOOP(edition, 2) FOR_LOOP(variant, 3) {
+        char slk[2048];
+        snprintf(slk, sizeof(slk),
+            "ID;PWXL;N;EBB;Y2;X7\n"
+            "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"targs\"\n"
+            "C;X4;K\"%s\"\nC;X5;K\"%s\"\nC;X6;K\"%s\"\nC;X7;K\"Area1\"\n"
+            "C;Y2;X1;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"ground,enemy\"\n"
+            "C;X4;K75\nC;X5;K90\nC;X6;K600\nC;X7;K100\nE\n",
+            edition ? "DataA1" : "Data11", edition ? "DataB1" : "Data12",
+            edition ? "DataC1" : "Data13", codes[variant], codes[variant]);
+        reset_entities(); setup_test_world();
+        slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+        edict_t *caster = make_hero(MAKEFOURCC('O','t','c','h'), 500, 300, 0, 0);
+        edict_t *targets[5];
+        caster->s.player = 0;
+        memset(level.alliances, 0, sizeof(level.alliances));
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+        FOR_LOOP(i, 5) {
+            targets[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100 + i * 50, 0);
+            targets[i]->s.player = i == 3 ? 0 : 1;
+            targets[i]->targtype = i == 2 ? TARG_AIR : TARG_GROUND;
+            targets[i]->svflags |= SVF_MONSTER;
+            targets[i]->health.value = targets[i]->health.max_value = 300;
+        }
+        targets[4]->s.origin2.y = 200; /* outside the corridor */
+        T_ASSERT(test_execute_code(caster, codes[variant],
+            MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = { 600, 0 })));
+        T_FEQ(targets[0]->health.value, 255.0f, 0.001f);
+        T_FEQ(targets[1]->health.value, 255.0f, 0.001f);
+        FOR_LOOP(i, 3) T_FEQ(targets[i + 2]->health.value, 300.0f, 0.001f);
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    }
+}
+
 TEST(wc3_spell, tornado_uses_whirlwind_channel_handler) {
 	abilityitem_t tornado_item = S_AbilityItem(FS_SLKKey("ANto"));
 	ability_t const *tornado = tornado_item.ability;
@@ -3462,12 +3499,17 @@ TEST(wc3_spell, human_support_aliases_preserve_authored_modifiers) {
         T_FEQ(enemy->health.value, 265.0f, 0.001f);
         enemy->unit_state->attack1.cooldown = 1.0f;
         enemy->unit_state->attack1.damagePoint = 0.3f;
+        enemy->unitinfo.MoveSpeed = 270.0f;
+        float const normal_move_distance = unit_movedistance(enemy);
         T_ASSERT(test_execute_code(caster, "C002", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy)));
+        T_FEQ(S_HumanMoveFactor(enemy), 0.4f, 0.001f);
+        T_FEQ(unit_movedistance(enemy), normal_move_distance * 0.4f, 0.01f);
         attack_melee(enemy);
         T_FEQ(enemy->wait, 0.3f / 0.55f, 0.001f);
         unit_removestatus(enemy, unit_findstatus(enemy, MAKEFOURCC('B','s','l','o')), STATUS_REMOVE_DISPEL);
         attack_melee(enemy);
         T_FEQ(enemy->wait, 0.3f, 0.001f);
+        T_FEQ(unit_movedistance(enemy), normal_move_distance, 0.01f);
         G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     }
 }
