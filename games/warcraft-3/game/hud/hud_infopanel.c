@@ -12,8 +12,8 @@
 #include "../skills/s_skills.h"
 
 #define INVENTORY_CHARGE_FONT_SIZE 10
-#define DAMAGE_TOOLTIP_TIP_SIZE 256
-#define DAMAGE_TOOLTIP_BODY_SIZE 1536
+#define DAMAGE_TOOLTIP_TIP_SIZE 256 // bytes; fits one localized label with color codes and NUL for tooltip formatting
+#define DAMAGE_TOOLTIP_BODY_SIZE 1536 // bytes; fits the expanded damage/armor paragraphs and markup before serialization
 /* Warsmash anchors its 0.180 x 0.120 simple info panel at the bottom-centre
  * of the 0.800 x 0.600 UI. Cargo icons are TOPLEFT-relative to that panel at
  * y = -0.75 * frontQueueIconWidth. Convert that bottom-origin geometry to

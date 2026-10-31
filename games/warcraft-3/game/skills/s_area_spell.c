@@ -443,8 +443,8 @@ static void shockwave_spawn_missile(edict_t *caster, uint32_t code, vec2_t const
  * These small save-safe thinkers do not belong to the caster's channel. A
  * canceled cast stops future waves, but completed hits continue burning.
  * Identity storage prevents slot reuse from redirecting burn damage. */
-#define RAIN_FIRE_BURN_TICK_MS 1000u
-#define RAIN_FIRE_BURN_TICKS   3u
+#define RAIN_FIRE_BURN_TICK_MS 1000u // milliseconds; one-second cadence for each landed Rain of Fire burn
+#define RAIN_FIRE_BURN_TICKS   3u // ticks; three pulses preserve the authored three-second burn duration
 
 void rain_of_fire_burn_think(edict_t *burn) {
     edict_t *target = S_SpellChannelTarget(burn);

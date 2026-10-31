@@ -1,11 +1,11 @@
 #include "s_skills.h"
 
-#define LOCUST_SEEKING 1u
-#define LOCUST_ATTACKING 2u
-#define LOCUST_RETURNING 3u
-#define LOCUST_REACQUIRE_MS 250u
-#define LOCUST_MAX_ATTACKERS_PER_TARGET 256u
-#define LOCUST_RECALL_GRACE_MS 8000u
+#define LOCUST_SEEKING 1u // state ID; member is flying toward an eligible target
+#define LOCUST_ATTACKING 2u // state ID; member is applying swarm attacks to its target
+#define LOCUST_RETURNING 3u // state ID; member has left combat and is returning to its host
+#define LOCUST_REACQUIRE_MS 250u // milliseconds; bounds idle target scans while allowing prompt retargeting
+#define LOCUST_MAX_ATTACKERS_PER_TARGET 256u // members; avoids assigning the full swarm to one target
+#define LOCUST_RECALL_GRACE_MS 8000u // milliseconds; lets idle swarm members disperse before retirement
 /* Idle flight is a loose, continually changing cloud, not a fixed ring.
  * Fractions are presentation approximations; Area remains the authored limit. */
 #define LOCUST_IDLE_RADIUS_FRACTION 0.78f

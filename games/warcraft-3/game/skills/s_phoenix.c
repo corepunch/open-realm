@@ -2,12 +2,12 @@
 
 /* Stock Phoenix morphing uses unit objects, not a timed summon. In particular
  * neither Dispel Magic nor the generic summoned-unit limit may destroy hphx. */
-#define PHOENIX_UNIT MAKEFOURCC('h','p','h','x')
-#define PHOENIX_EGG MAKEFOURCC('h','p','x','e')
-#define PHOENIX_MORPH MAKEFOURCC('A','p','h','x')
-#define PHOENIX_FIRE MAKEFOURCC('A','p','x','f')
-#define PHOENIX_HATCH_MS 10000u
-#define PHOENIX_FIRE_TICK_MS 1000u
+#define PHOENIX_UNIT MAKEFOURCC('h','p','h','x') // rawcode; stock Phoenix unit restored when its egg hatches
+#define PHOENIX_EGG MAKEFOURCC('h','p','x','e') // rawcode; stock temporary egg form during rebirth
+#define PHOENIX_MORPH MAKEFOURCC('A','p','h','x') // rawcode; stock Phoenix Egg rebirth ability
+#define PHOENIX_FIRE MAKEFOURCC('A','p','x','f') // rawcode; Phoenix Fire passive attack effect
+#define PHOENIX_HATCH_MS 10000u // milliseconds; authored Phoenix Egg lifetime before rebirth completes
+#define PHOENIX_FIRE_TICK_MS 1000u // milliseconds; authored cadence for Phoenix Fire self-damage ticks
 
 static void phoenix_fire_impact(edict_t *missile);
 static umove_t phoenix_fire_missile_move = { "stand", NULL, phoenix_fire_impact, CAbilityPhoenixFire };

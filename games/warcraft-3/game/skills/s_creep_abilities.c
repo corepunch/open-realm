@@ -449,7 +449,7 @@ BZ_ABILITY_PROC(CAbilityTreeOfLife) {
 }
 /* War Club is a per-unit alternate weapon, not a temporary modification of
  * shared unit data. The stock club lasts for fifteen committed swings. */
-#define WAR_CLUB_STRIKES 15u
+#define WAR_CLUB_STRIKES 15u // committed attacks; stock War Club expires after fifteen Attack 2 hits
 
 bool S_WarClubActive(edict_t const *unit) {
     return unit && unit->unit_state && unit->unit_state->war_club_attacks_remaining > 0;
