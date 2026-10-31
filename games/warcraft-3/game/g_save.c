@@ -991,14 +991,21 @@ static field_t const impale_wave_fields[] = {
 };
 
 static field_t const locust_swarm_fields[] = {
-    TF(locustSwarm_t, caster_spawn_time, F_INT), TF(locustSwarm_t, ability, F_INT),
-    TF(locustSwarm_t, level, F_INT), TF(locustSwarm_t, start_ms, F_INT),
-    TF(locustSwarm_t, end_ms, F_INT), TF(locustSwarm_t, next_release_ms, F_INT),
-    TF(locustSwarm_t, release_interval_ms, F_INT), TF(locustSwarm_t, total, F_INT),
-    TF(locustSwarm_t, released, F_INT), TF(locustSwarm_t, unit_id, F_INT),
+    TF(locustSwarm_t, caster_spawn_time, F_INT),
+    TF(locustSwarm_t, ability, F_INT),
+    TF(locustSwarm_t, level, F_INT),
+    TF(locustSwarm_t, start_ms, F_INT),
+    TF(locustSwarm_t, end_ms, F_INT),
+    TF(locustSwarm_t, next_release_ms, F_INT),
+    TF(locustSwarm_t, release_interval_ms, F_INT),
+    TF(locustSwarm_t, total, F_INT),
+    TF(locustSwarm_t, released, F_INT),
+    TF(locustSwarm_t, unit_id, F_INT),
     TF(locustSwarm_t, recall_deadline_ms, F_INT),
-    TF(locustSwarm_t, area, F_FLOAT), TF(locustSwarm_t, target_cap, F_FLOAT),
-    TF(locustSwarm_t, heal_factor, F_FLOAT), TF(locustSwarm_t, return_threshold, F_FLOAT),
+    TF(locustSwarm_t, area, F_FLOAT),
+    TF(locustSwarm_t, target_cap, F_FLOAT),
+    TF(locustSwarm_t, heal_factor, F_FLOAT),
+    TF(locustSwarm_t, return_threshold, F_FLOAT),
     TF(locustSwarm_t, active, F_INT),
     TF(locustSwarm_t, recalling, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
