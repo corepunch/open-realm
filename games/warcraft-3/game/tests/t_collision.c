@@ -29,6 +29,9 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+/* Routing test fixtures; only compiled for test builds. */
+void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 
 
@@ -508,6 +511,89 @@ TEST(wc3_collision, load_tga_rejects_truncated_header_and_pixels) {
     T_NULL(LoadTGA(NULL, 0));
     T_NULL(LoadTGA(buf, sizeof(test_tga_hdr_t) - 1));
     T_NULL(LoadTGA(buf, sz - 1));
+}
+
+/* A private location waypoint that becomes temporarily unreachable (here the
+ * map splits it from the mover; in play an active construction site can cut the
+ * field) must not make the unit shuttle between the closest reachable point and
+ * the blocking wall.  While the construction keeps the waypoint authoritative
+ * the mover waits in the stand pose at the legal point; once that construction
+ * ends the order resolves normally. */
+TEST(wc3_collision, location_order_cut_by_construction_waits_without_swaying) {
+    static uint8_t pathmap[64 * 64];
+    vec2_t const start = { -300.0f, 0.0f };
+    vec2_t const dest = { 400.0f, 0.0f };
+    edict_t *mover, *site, *waypoint;
+    vec2_t last_step = { 0, 0 };
+    int reversals = 0;
+    float max_step = 0.0f;
+
+    memset(pathmap, 0, sizeof(pathmap));
+    for (int y = 0; y < 64; y++)
+        for (int x = 32; x <= 33; x++)
+            pathmap[x + y * 64] = 0x02;
+    reset_collision_world();
+    CM_SetupTestPathmap(64, 64, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+
+    site = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 600.0f, -600.0f);
+    site->s.flags |= EF_BUILDING;
+    site->construction = G_AllocConstruction();
+    site->construction->paused = true;
+    site->construction->type = CONSTRUCTION_HUMAN;
+    site->stand = unit_stand;
+    gi.LinkEntity(site);
+
+    mover = make_collision_unit(start.x, start.y, 16.0f);
+    mover->unitinfo.MoveSpeed = 190.0f;
+    waypoint = Waypoint_add(&dest);
+    order_move(mover, waypoint);
+
+    /* Walk to the closest legal point and settle into the wait pose. */
+    FOR_LOOP(i, 80) {
+        CM_ProcessPathJobs(65536);
+        if (!mover->currentmove || !mover->currentmove->animation ||
+            strcmp(mover->currentmove->animation, "walk") != 0)
+            break;
+        mover->currentmove->think(mover);
+    }
+    T_ASSERT(mover->currentmove);
+    T_STREQ(mover->animation_request, "stand");
+    T_ASSERT(CM_PointIsPathableForRadius(&mover->s.origin2, mover->collision));
+    /* The original waypoint stays authoritative while the construction runs. */
+    T_FEQ(waypoint->s.origin2.x, dest.x, 0.001f);
+    T_FEQ(waypoint->s.origin2.y, dest.y, 0.001f);
+
+    /* Sampling the wait window must show no alternating steps. */
+    for (int i = 0; i < 12; i++) {
+        vec2_t const before = mover->s.origin2;
+        vec2_t step;
+        CM_ProcessPathJobs(65536);
+        if (!mover->currentmove || !mover->currentmove->think) break;
+        mover->currentmove->think(mover);
+        step = Vector2_sub(&mover->s.origin2, &before);
+        if (Vector2_len(&step) > 0.1f) {
+            if (Vector2_len(&last_step) > 0.1f && Vector2_dot(&step, &last_step) < -0.01f)
+                reversals++;
+            if (Vector2_len(&step) > max_step) max_step = Vector2_len(&step);
+            last_step = step;
+        }
+    }
+    T_EQ(reversals, 0);
+    T_ASSERT(max_step < 1.0f);
+    T_STREQ(mover->animation_request, "stand");
+
+    /* Once the construction no longer forces the waypoint to be preserved, the
+     * order resolves to the closest reachable point and completes. */
+    G_FreeConstruction(site);
+    FOR_LOOP(i, 80) {
+        CM_ProcessPathJobs(65536);
+        if (!mover->currentmove || !mover->currentmove->think || mover->movement == NULL)
+            break;
+        mover->currentmove->think(mover);
+    }
+    T_NULL(mover->movement);
+    T_ASSERT(!mover->currentmove || strcmp(mover->currentmove->animation, "stand") == 0);
 }
 
 /* -----------------------------------------------------------------------

@@ -25,6 +25,43 @@ collision remains part of the resource contract: the approach to a tree. Gold
 Mine approach and both resource-return legs intentionally ignore live units and
 therefore do not select `MOVE_AVOID_RESOURCE_WORKER`.
 
+## Near-Side Chop Targets
+
+Tree approach does not follow a field rooted at the tree centre. The centre is
+inside the authored footprint, so the field's adjusted goal is one grid-selected
+corner shared by every worker in a group: the first worker chops there and the
+rest queue at the contact boundary, which used to look like a group marching in
+place next to the tree. `harvest_near_side_approach()` instead selects each
+worker's own nearest legal point inside the authored chop range — the point on
+the worker's own bearing — and steers there with the worker crowd policy. Each
+worker's bearing already separates the targets; proactive per-tree caps spread a
+group over neighbours, and the crowd queue/pass policy handles same-side
+workers. The group spreads around the accessible edge and each worker stops on
+its own `HARVEST_RANGE` check.
+
+Distribution is planned **up front** rather than discovered reactively.
+`harvest_start()` caps the number of live workers targeting one tree at
+`HARVEST_TREE_WORKER_CAP` (2): the third and later workers of a group are sent
+straight to `find_adjacent_harvest_tree()`, which keeps the nearest few live
+trees and scores them by distance plus a penalty per worker already targeting
+them. The group therefore spreads over adjacent trees as soon as the order is
+issued, without any wait. This is a plan, not a reachability proof — the strict
+direct-approach check still runs later in `find_reachable_replacement_tree()`,
+the fallback that takes over when routing reports the chosen tree unreachable.
+
+If no legal near-side point is visible, or the live-unit crowd blocks the step,
+`ai_walktree()` holds the **stand** pose for that tick instead of presenting the
+walk cycle in place; the queue/pass policy keeps retrying and the walk pose
+returns on the first accepted step.
+
+A worker that still cannot make meaningful progress for 20 consecutive ticks
+(less than a quarter of one movement step, and only while it is actually beside
+its tree) is reassigned again as a backstop for late arrivals and trees that
+filled up after the order. Regressions:
+`wc3_lumber_crowd.group_ordered_to_one_tree_reaches_chop_range`,
+`wc3_lumber_crowd.crowded_tree_large_footprint_waits_without_marching`, and
+`wc3_lumber_crowd.crowded_tree_spreads_group_to_adjacent_trees`.
+
 ## Why Queue Instead Of Alternating Lanes
 
 The August 31 Human02 logs showed three starting Peasants converging on the Gold Mine at `(-4736,-3840)` and returning to the Town Hall at `(-3776,-4032)`.  The logs report a 19-unit worker step and the existing tests use the observed 16-unit Peasant collision radius.  Mine footprint samples match a 256x256 authored blocking footprint.  Town Hall samples recover a 384x384 footprint: for example, a worker 233.6 units horizontally and 198.2 vertically from the Town Hall centre reports a 42.1-unit footprint distance, which matches `hypot(233.6 - 192, 198.2 - 192)`.
@@ -111,6 +148,8 @@ Focused C regressions cover the policy primitives:
 - `wc3_movement.worker_resource_tree_approach_keeps_live_unit_collision` checks tree harvesting retains ordinary unit collision for a destructable/tree target;
 - `wc3_movement.worker_resource_lumber_return_ignores_live_units` checks Return Resources uses the no-live-unit-collision policy;
 - `wc3_movement.worker_resource_static_detour_uses_worker_radius` puts a Farm-sized static block across the mine lane and checks the bounded detour is built with the Peasant collision radius;
+- `wc3_lumber_crowd.group_ordered_to_one_tree_reaches_chop_range` orders six Peasants to one tree and checks most reach chop range while no worker is left presenting the Walk animation outside it;
+- `wc3_lumber_crowd.crowded_tree_large_footprint_waits_without_marching` checks a group that cannot all fit around a large footprint queues in the stand pose instead of marching in place;
 - `wc3_pathfinding.invalidation_does_not_recycle_heatmap_generation` checks a static/cache rebuild cannot alias a stale route generation to a new field;
 - existing gold footprint tests continue to check mine entry, return, and deposit boundaries.
 
