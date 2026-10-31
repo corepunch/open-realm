@@ -4,7 +4,13 @@
 #include <stdio.h>
 #include <time.h>
 #ifdef _WIN32
-#include <windows.h>
+/* Only the kernel32 timing API is needed. <windows.h> would pull in winuser.h,
+ * whose SetRect declaration and GetClassName/DrawText macros rename or collide
+ * with engine symbols in the unity translation units that include this header.
+ * Keep minwindef's legacy far/near macros: mmsystem.h requires them when a
+ * later file in the same unity includes <windows.h>. */
+#include <windef.h>
+#include <winbase.h>
 #endif
 
 /* Renderer and game modules are separately linked; diagnostics cannot call engine common symbols. */

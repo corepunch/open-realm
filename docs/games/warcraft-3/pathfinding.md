@@ -20,6 +20,27 @@ Normal movement uses the live `unitinfo.PropWindow`, initialized from `UnitData.
 
 Tests cover sub-cell rectangles, blocked intersecting cells, and live occupancy being ignored by the static query.
 
+### Escaping a baked footprint
+
+A mover can legally stand inside blocked static pathing: the Human primary builder stays on the construction site it started (see [Building Construction](building-construction.md)), and scripts can place units inside a structure. Static routing has no legal node there, so every route field reports the mover's own cell as unreachable and local slide alone cannot escape.
+
+`move_steer_egress()` therefore runs before any route request. While `CM_PointIsPathableForRadiusFlags()` rejects the mover's own origin, it caches the nearest pathable point from `CM_ClosestPathablePointForRadiusFlags()`, sets the heading straight at it, and marks the escape on `movement_t` (`egress_target`/`egress_valid`). `move_is_valid_policy()` accepts steps while egressing only when they do not move away from that point, so the escape stays local instead of slipping through unrelated walls. `unit_commit_step()` clears the egress as soon as the new origin is pathable, and ordinary direct-line/flow/bounded-A* routing resumes. Live units still constrain every egress step; only static pathing is bypassed, and only for the escape corridor.
+
+Egress applies to ordinary Move/Attack/Patrol/Follow steering and to the interaction walks that use `unit_changeangle_for_radius*`. It is deliberately not used by the resource-return point helpers, which keep their own `wisp_egress` tree corridor or ignore-live-units contracts. The construction-start relocation teleport is gone: the builder works from its site, and an order that takes it elsewhere walks it out to the nearest legal point.
+
+### Crowd contact and no-marching
+
+Two behaviours keep packed movers from locking up or standing still while playing the walk cycle:
+
+- **Contact grazing.** A unit resting exactly on another unit's collision boundary has no 15° slide candidate that clears the circle — every chord cuts inside it. `move_is_valid_policy()` therefore accepts a step whose swept path never comes closer than `rr - MOVE_CONTACT_GRAZE` when the mover already sits within `rr + MOVE_CONTACT_GRAZE`. The step can shave at most the sub-unit tolerance and lets packed units slide along each other instead of freezing. It can never deepen penetration beyond the tolerance.
+- **Blocked movers stand, they do not march.** `unit_moveindirection_policy()` asks for Walk only once the heading is inside the propulsion window, and when both the facing-lagged and the resolved-heading steps are rejected it switches the presentation back to Stand for that tick. Every move behaviour (Move, Attack, Harvest, Repair, Patrol, resource legs) inherits this: a unit that cannot advance stops the walk clip instead of restarting it in place forever.
+
+`wc3_lumber_crowd.group_ordered_to_one_tree_reaches_chop_range` and `wc3_lumber_crowd.crowded_tree_large_footprint_waits_without_marching` assert the no-marching result for a packed worker group; the contact-graze rule is exercised by the existing collision and crowd suites.
+
+### Interaction slots
+
+Several units ordered to one structure must surround it rather than queue on a single approach point. `repair_find_interaction_slot()` starts from the nearest footprint point, and when another worker assigned to the same building already stands on it or is walking to it, rotates around the footprint in 30° steps until it finds a legal, unclaimed point. Peak-build and repair groups therefore spread around the building and all contribute without stacking. Workers targeting one tree use the equivalent near-side scan (each worker's own bearing) described in [Resource Worker Crowd Routing](worker-crowd-routing.md).
+
 ### Movement-class static pathing
 
 WC3 derives static routing policy from authored `movetp` rather than reducing every non-flyer to ground movement:
@@ -121,6 +142,8 @@ Two defects explained the Human01 fence report and units getting stuck behind tr
 2. Location steering requested a point-sized route while `move_is_valid()` rejected positions using the unit collision radius. The field could therefore direct a unit through a gap that its body could not occupy. Move, Patrol, and Attack-move now use `self->collision` for the direct line and field; interaction behaviors retain radius zero.
 
 When a clicked destination is in another static connected component, the destination-rooted field reports the mover cell unreachable. `CM_ClosestReachablePointForRadius(from, target, radius)` floods the mover component with the same radius and diagonal rules, then chooses its legal cell nearest the click. The location order retargets its private waypoint once and follows a normal field to that point. This avoids both failure modes of the old behavior: freezing at the order origin and sliding forever along the blocking wall.
+
+While any structure is under construction, `move_has_active_construction()` keeps a private location waypoint authoritative instead of consuming the order, because a new construction site can temporarily split the route (a scripted Peasant may still be travelling to a broad trigger region). In that state `unit_changeangle()` installs the closest-reachable staging point. `ai_move_walk()` then **snaps onto that point** when it is within one movement step and **waits there in the stand pose** until static pathing changes. Two details matter: the mover must not re-steer at the raw unreachable click on the following tick, and it must not simply keep stepping toward the staging point. Either mistake produces a two-tick cycle: the unit steps one movement distance past the point, the heading flips, it steps back, and it looks like the unit is walking in place (or swaying left and right) forever. The order stays active and resumes when the site completes or is cancelled; once no construction is active the waypoint retarget above resolves it normally. `wc3_collision.location_order_cut_by_construction_waits_without_swaying` covers the wait window, the preserved waypoint, the snap, and the final resolution.
 
 Ordinary destination fields remain incremental and frame-budgeted. The mover-component flood is synchronous only after a completed destination field proves the click unreachable, so this exceptional recovery does not add input-time work to reachable orders.
 
