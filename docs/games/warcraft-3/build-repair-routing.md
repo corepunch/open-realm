@@ -9,7 +9,11 @@ field destination.
 Repair keeps the gameplay target in `ent->build`, but routing depends on target
 geometry. Buildings route toward a collision-safe point beside
 `building->pathtex`; models without a footprint retain the collision-circle
-fallback. Repairable mobile mechanical units keep the live unit itself as
+fallback. `repair_find_interaction_slot()` prefers the nearest legal point but
+rotates around the footprint in 30° steps when another worker assigned to the
+same building already stands on it or is walking to it, so a multi-worker build
+or repair group surrounds the structure instead of stacking on one approach
+point. Repairable mobile mechanical units keep the live unit itself as
 `goalentity`, so movement follows its current position rather than baking a
 static approach waypoint. Build-site travel uses the worker collision radius
 when requesting direct/flow steering. This mirrors the resource-gathering rule

@@ -4764,7 +4764,12 @@ TEST(wc3_building, human_repair_capability_comes_from_unit_ability_list) {
     T_ASSERT(!G_UnitHasHumanRepair(worker));
 }
 
-TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
+/* Construction used to teleport the primary builder to the first ring exit of
+ * the just-baked footprint, which the player sees as a horizontal jump.  The
+ * builder now stays exactly where its accepted build order ended and works from
+ * its own site: Repair range is measured against the authored footprint, so a
+ * worker standing inside the footprint is already in range. */
+TEST(wc3_building, human_builder_works_from_inside_its_own_construction_site) {
     enum { FOOTPRINT_W = 10, FOOTPRINT_H = 10 };
     edict_t *builder;
     edict_t *building;
@@ -4773,20 +4778,29 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
     slkTestData_t *rows, *old_abilities;
     size_t const pathtex_size = sizeof(*pathtex) +
                                 FOOTPRINT_W * FOOTPRINT_H * sizeof(color32_t);
+    vec2_t const start = { 0.0f, 0.0f };
+    animation_t birth = { .name = "birth", .interval = { 1000, 3000 } };
+    UnitBalance_t balance;
+    float progress, health;
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
-    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), start.x, start.y);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), start.x, start.y);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 60;
+    building->data.UnitBalance = &balance;
     builder->data.UnitAbilities = &abilities;
     builder->collision = 16.0f;
     builder->s.model = 1;
+    builder->stand = unit_stand;
     building->s.model = 1;
     building->movetype = MOVETYPE_NONE;
     building->svflags |= SVF_MONSTER;
+    building->s.flags |= EF_BUILDING;
     building->health.max_value = 1200.0f;
     building->health.value = 1200.0f;
-    T_ASSERT(G_StartHumanConstruction(builder, building));
+    building->stand = unit_stand;
 
     pathtex = gi.MemAlloc(pathtex_size);
     memset(pathtex, 0, pathtex_size);
@@ -4798,13 +4812,87 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
     gi.LinkEntity(builder);
     gi.LinkEntity(building);
     CM_BakeStaticObstacles();
+    T_ASSERT(!CM_PointIsPathableForRadius(&start, builder->collision));
 
+    building->animation = &birth;
+    T_ASSERT(G_StartHumanConstruction(builder, building));
     repair_build_primary(builder, building);
 
     T_ASSERT(builder->build == building);
+    T_ASSERT(building->construction->primary_builder == builder);
+    /* No relocation: the worker is still on the site it walked to. */
+    T_FEQ(builder->s.origin2.x, start.x, 0.001f);
+    T_FEQ(builder->s.origin2.y, start.y, 0.001f);
+    T_STREQ(builder->currentmove->animation, "stand work");
+
+    /* The builder contributes construction progress from inside the site. */
+    progress = building->construction->progress;
+    health = building->health.value;
+    FOR_LOOP(i, 4) builder->currentmove->think(builder);
+    T_ASSERT(building->construction->progress > progress);
+    T_ASSERT(building->health.value > health);
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+    building_restore_repair_data(old_abilities, rows);
+}
+
+/* The builder may stay inside the baked site, so a later order out of it must
+ * not deadlock on static pathing: the mover walks to the nearest legal point
+ * before ordinary routing resumes. */
+TEST(wc3_building, human_builder_walks_out_of_its_own_construction_site) {
+    enum { FOOTPRINT_W = 10, FOOTPRINT_H = 10 };
+    edict_t *builder;
+    edict_t *building;
+    pathTex_t *pathtex;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    slkTestData_t *rows, *old_abilities;
+    size_t const pathtex_size = sizeof(*pathtex) +
+                                FOOTPRINT_W * FOOTPRINT_H * sizeof(color32_t);
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    builder->data.UnitAbilities = &abilities;
+    builder->collision = 16.0f;
+    builder->s.model = 1;
+    builder->movetype = MOVETYPE_STEP;
+    builder->stand = unit_stand;
+    building->s.model = 1;
+    building->movetype = MOVETYPE_NONE;
+    building->svflags |= SVF_MONSTER;
+    building->s.flags |= EF_BUILDING;
+    building->health.max_value = 1200.0f;
+    building->health.value = 1200.0f;
+    building->stand = unit_stand;
+
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = FOOTPRINT_W;
+    pathtex->height = FOOTPRINT_H;
+    FOR_LOOP(i, FOOTPRINT_W * FOOTPRINT_H) pathtex->map[i].b = 0xff;
+    building->pathtex = pathtex;
+
+    gi.LinkEntity(builder);
+    gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    repair_build_primary(builder, building);
+    T_ASSERT(builder->build == building);
+
+    {
+        vec2_t dest = { 512.0f, 0.0f };
+        T_ASSERT(unit_issueorder(builder, "move", &dest));
+        FOR_LOOP(i, 40) {
+            CM_ProcessPathJobs(65536);
+            if (!builder->currentmove || !builder->currentmove->think) break;
+            builder->currentmove->think(builder);
+        }
+    }
+
     T_ASSERT(CM_PointIsPathableForRadius(&builder->s.origin2, builder->collision));
-    T_ASSERT(fabsf(builder->s.origin2.x - building->s.origin2.x) >= 160.0f ||
-             fabsf(builder->s.origin2.y - building->s.origin2.y) >= 160.0f);
+    T_ASSERT(builder->s.origin2.x > 200.0f);
 
     building->pathtex = NULL;
     gi.MemFree(pathtex);

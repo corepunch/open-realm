@@ -350,6 +350,90 @@ static edict_t *find_reachable_replacement_tree(edict_t *ent, edict_t *exclude) 
     return other;
 }
 
+/* A worker that cannot get a chop position at its current tree (the group is
+ * already crowded around it) is reassigned to a nearby tree instead of pushing
+ * forever.  The nearest few trees are scored by distance plus a penalty per
+ * worker already targeting them, so a whole blocked group spreads over adjacent
+ * trees instead of all moving to the same neighbour.
+ *
+ * This is a *plan*, not a reachability proof: the candidate is validated with
+ * the strict direct-approach check only later, in find_reachable_replacement_tree
+ * (the fallback that runs when routing reports the target unreachable).  Requiring
+ * a direct line here would reject valid neighbours from the wrong side of a
+ * footprint — the direct-approach probe is angle-sensitive and cell-quantised. */
+#define HARVEST_ADJACENT_TREE_CANDIDATES 16
+#define HARVEST_CROWD_RETARGET_TICKS 20
+#define HARVEST_TREE_WORKER_CAP 2   /* eager spread: at most this many workers per tree */
+
+static edict_t *find_adjacent_harvest_tree(edict_t *ent, edict_t *exclude) {
+    edict_t *candidates[HARVEST_ADJACENT_TREE_CANDIDATES];
+    float distances[HARVEST_ADJACENT_TREE_CANDIDATES];
+    int loads[HARVEST_ADJACENT_TREE_CANDIDATES] = { 0 };
+    uint32_t count = 0;
+    float const search_range = harvest_lumber_tuning(ent).search_range;
+    float best_score = FLT_MAX;
+    edict_t *best = NULL;
+
+    /* Keep the nearest handful of live trees by distance. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *tree = globals.edicts + i;
+        float const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+        uint32_t insert = 0;
+
+        if (tree == exclude || tree->targtype != TARG_TREE || M_IsDead(tree))
+            continue;
+        if (distance >= search_range)
+            continue;
+        if (count == HARVEST_ADJACENT_TREE_CANDIDATES && distance >= distances[count - 1])
+            continue;
+        while (insert < count && distances[insert] <= distance) insert++;
+        if (count < HARVEST_ADJACENT_TREE_CANDIDATES) count++;
+        for (uint32_t k = count - 1; k > insert; k--) {
+            candidates[k] = candidates[k - 1];
+            distances[k] = distances[k - 1];
+        }
+        candidates[insert] = tree;
+        distances[insert] = distance;
+    }
+    if (!count) return NULL;
+
+    /* Count how many workers already target each candidate. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *worker = globals.edicts + i;
+        if (!worker->inuse || M_IsDead(worker) || !worker->orders || !worker->orders->resource_goal)
+            continue;
+        FOR_LOOP(c, count)
+            if (worker->orders->resource_goal == candidates[c]) { loads[c]++; break; }
+    }
+
+    for (uint32_t i = 0; i < count; i++) {
+        float const score = distances[i] +
+            (float)loads[i] * (MAX(ent->collision, 8.0f) * 8.0f + 64.0f);
+        if (score < best_score) {
+            best_score = score;
+            best = candidates[i];
+        }
+    }
+    return best;
+}
+
+/* Count live lumber workers already targeting 'target'.  A group ordered onto
+ * one tree is spread up front instead of waiting for the crowd to build and
+ * the reactive retarget to notice it. */
+static int harvest_tree_worker_load(edict_t *target) {
+    int load = 0;
+
+    if (!target) return 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *worker = globals.edicts + i;
+        if (!worker->inuse || M_IsDead(worker) || !worker->orders ||
+            worker->orders->resource_goal != target)
+            continue;
+        load++;
+    }
+    return load;
+}
+
 static void harvest_route_failed(edict_t *ent, cstring_t reason) {
     edict_t *failed = ent->goalentity;
     edict_t *other = find_reachable_replacement_tree(ent, failed);
@@ -524,6 +608,29 @@ void G_FreeActorSkills(edict_t *ent) {
     if (ent && ent->unit_state) memset(&ent->unit_state->overrides, 0, sizeof(ent->unit_state->overrides));
 }
 
+/* Nearest legal point inside chop range on the worker's own side of the tree.
+ * A field is rooted at the tree centre, which is inside the authored footprint,
+ * so its adjusted goal is one grid corner shared by every worker in a group.
+ * Continuous near-side targets instead spread the group around the accessible
+ * edge: each worker's own bearing already separates the targets, proactive
+ * per-tree caps (HARVEST_TREE_WORKER_CAP) spread a group over neighbours, and
+ * the crowd queue/pass policy handles same-side workers. */
+static bool harvest_near_side_approach(edict_t *ent, edict_t *tree, float range, vec2_t *out) {
+    uint8_t const flags = M_UnitStaticPathingFlags(ent);
+    vec2_t const offset = Vector2_sub(&ent->s.origin2, &tree->s.origin2);
+    float const len = Vector2_len(&offset);
+    float const radius = MAX(1.0f, range - MAX(2.0f, ent->collision * 0.5f));
+    float const base = len > 0.001f ? atan2f(offset.y, offset.x) : 0.0f;
+    vec2_t const point = Vector2_mad(&tree->s.origin2, radius,
+                                     &MAKE(vec2_t, cosf(base), sinf(base)));
+
+    if (!out) return false;
+    if (!CM_PointIsPathableForRadiusFlags(&point, ent->collision, flags)) return false;
+    if (!CM_LineIsPathableForRadiusFlags(&ent->s.origin2, &point, ent->collision, flags)) return false;
+    *out = point;
+    return true;
+}
+
 static void ai_walktree(edict_t *ent) {
     float const distance = M_DistanceToGoal(ent);
     float const range = harvest_lumber_tuning(ent).range;
@@ -539,7 +646,15 @@ static void ai_walktree(edict_t *ent) {
          * choose competing generic slide sides.  Same-stream workers queue
          * briefly, then take the deterministic bounded pass if the worker in
          * front has stopped inside chop range. */
-        unit_changeangle_for_radius_worker(ent, ent->collision);
+        vec2_t approach;
+        vec2_t const before = ent->s.origin2;
+        if (harvest_near_side_approach(ent, ent->goalentity, range, &approach) ||
+            (CM_FindDirectApproachPointForRadius(&ent->s.origin2, &ent->goalentity->s.origin2,
+                                                 range, ent->collision, &approach))) {
+            unit_changeangle_towards_point_worker(ent, &approach);
+        } else {
+            unit_changeangle_for_radius_worker(ent, ent->collision);
+        }
         if (ent->movement->flow_goal_reached) {
             harvest_route_failed(ent, "route_goal_out_of_range");
             return;
@@ -549,6 +664,38 @@ static void ai_walktree(edict_t *ent) {
             return;
         }
         unit_moveindirection(ent);
+        /* A worker that cannot take a step is waiting behind the crowd (or for
+         * a route).  Hold the stand pose instead of marching in place; the next
+         * tick retries the queue/pass policy and switches back to Walk as soon
+         * as a step is accepted.  If the crowd does not clear, or the worker
+         * only mills sideways without getting closer to the tree, reassign it
+         * to an adjacent tree instead of leaving it queued forever. */
+        {
+            float const moved = Vector2_distance(&ent->s.origin2, &before);
+            float const progress = MAX(1.0f, unit_movedistance(ent) * 0.1f);
+            if (moved <= 0.01f && !G_AnimationHasPrimary(ent->animation, "stand"))
+                unit_setanimation(ent, "stand");
+            if (ent->movement->last_distance < 0.0f ||
+                distance < ent->movement->last_distance - progress) {
+                ent->movement->last_distance = distance;
+                ent->movement->blocked_frames = 0;
+            } else if (++ent->movement->blocked_frames >= HARVEST_CROWD_RETARGET_TICKS &&
+                       distance <= range * 1.5f) {
+                /* Only consider a reassignment while the worker is actually at
+                 * the crowded tree.  Once it has been sent to an adjacent tree
+                 * a bad local block must not bounce it between neighbours. */
+                edict_t *other = find_adjacent_harvest_tree(ent, ent->goalentity);
+                ent->movement->blocked_frames = 0;
+                if (other) {
+                    HARVEST_PATH_LOG(1,
+                        "crowd-retarget worker=%d old=%d new=%d pos=(%.1f,%.1f)\n",
+                        ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1,
+                        other->s.number, ent->s.origin2.x, ent->s.origin2.y);
+                    harvest_start(ent, other);
+                    return;
+                }
+            }
+        }
     } else {
         HARVEST_PATH_LOG(1,
             "reached worker=%d target=%d distance=%.1f range=%.1f\n",
@@ -725,6 +872,14 @@ void CMD_Harvest(edict_t *ent);
 
 void harvest_start(edict_t *self, edict_t *target) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
+
+    /* Plan ahead instead of waiting for the crowd: if the clicked tree already
+     * has enough workers, this worker goes straight to a nearby tree. */
+    if (target && target->targtype == TARG_TREE && !M_IsDead(target) &&
+        harvest_tree_worker_load(target) >= HARVEST_TREE_WORKER_CAP) {
+        edict_t *other = find_adjacent_harvest_tree(self, target);
+        if (other) target = other;
+    }
 
     self->orders->resource_goal = target;
     if ((self->harvest ? self->harvest->lumber : 0) >= tuning.lumber_capacity && (self->harvest ? self->harvest->lumber : 0) > 0) {

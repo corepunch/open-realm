@@ -24,6 +24,7 @@
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
 #define MOVE_ARRIVE_TOLERANCE 4.0f
+#define MOVE_CONTACT_GRAZE 0.75f  /* contact-boundary slack so packed units can slide, not freeze */
 #define EARTHQUAKE_MIN_MOVE_SPEED 140.0f
 #define BZ_MOVE_FALLBACK_RETRY_MS 500 // milliseconds; bounds repeated unreachable floods; used as the retry interval
 
@@ -40,6 +41,7 @@ typedef struct {
 #define MOVE_WORKER_CORRIDOR_RESET (30.0f * (float)M_PI / 180.0f)
 #define MOVE_WORKER_MAX_DEVIATION 5.0f                         /* collision radii */
 #define MOVE_WORKER_ESCAPE_DEVIATION 6.0f                      /* collision radii */
+#define MOVE_WORKER_MAX_RETREAT 4.0f                           /* collision radii behind the corridor origin */
 #define MAX_MOVE_COLLIDERS     256
 
 typedef enum {
@@ -445,11 +447,54 @@ void M_StartWispTreeEgress(edict_t *self, edict_t *tree) {
     self->orders->wisp_egress_target_valid = false;
 }
 
+/* A mover can legally end up inside a baked static footprint: the primary
+ * builder stands on the site it just started, and scripted/teleported units may
+ * be inside a structure.  Static routing has no legal node there, so route
+ * fields cannot help.  Instead the mover walks out to the nearest pathable
+ * point; ordinary route logic resumes as soon as it clears the footprint. */
+static bool move_origin_static_blocked(edict_t const *self) {
+    if (!self || G_UnitHasFlag(self, UNIT_FLAG_NO_PATHING)) return false;
+    return !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision,
+                                             M_UnitStaticPathingFlags(self));
+}
+
+static bool move_egress_begin(edict_t *self) {
+    vec2_t target;
+
+    if (!self || !self->movement) return false;
+    if (!move_origin_static_blocked(self)) {
+        self->movement->egress_valid = false;
+        return false;
+    }
+    if (self->movement->egress_valid) return true;
+    if (!CM_ClosestPathablePointForRadiusFlags(&self->s.origin2, self->collision,
+                                               M_UnitStaticPathingFlags(self), &target))
+        return false;
+    self->movement->egress_target = target;
+    self->movement->egress_valid = true;
+    return true;
+}
+
+/* While egressing, only steps that do not move away from the legal exit point
+ * are accepted; this keeps the escape local instead of letting the mover slip
+ * through unrelated walls. */
+static bool move_egress_step(edict_t const *self, vec2_t const *cand) {
+    float const current = Vector2_distance(&self->s.origin2, &self->movement->egress_target);
+    float const next = Vector2_distance(cand, &self->movement->egress_target);
+    return next <= current + 0.01f;
+}
+
 /* Is the position 'cand' free for 'self' (static world + other units)?  On a
  * unit rejection, records the blocking unit in trymove_blocker (NULL otherwise)
- * so the slide can apply speed-priority give-way. */
+ * so the slide can apply speed-priority give-way.
+ *
+ * 'allow_egress' is set by movement stepping: a mover standing inside a blocked
+ * static footprint may leave it even though the origin/intermediate cells fail
+ * the radius query.  Placement and arrival queries pass false so a point still
+ * has to be legal ground on its own. */
 static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
-                                 moveCollisionPolicy_t collision_policy) {
+                                 moveCollisionPolicy_t collision_policy,
+                                 bool allow_egress) {
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     trymove_blocker = NULL;
     /* Pathing-disabled units (SetUnitPathing(false), scripted moves) ignore
@@ -458,9 +503,14 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
         return true;
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
-    bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
+    bool const egress = allow_egress && self->movement && self->movement->egress_valid &&
+        move_egress_step(self, cand);
+    bool const wisp_egress = !egress && move_wisp_egress_tree_valid(self) &&
         !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags);
-    if (wisp_egress) {
+    if (egress) {
+        /* Leaving blocked static pathing: neither the origin nor intermediate
+         * cells can pass the radius query, so only live units constrain it. */
+    } else if (wisp_egress) {
         if (!move_wisp_egress_corridor_clear(self, self->orders->wisp_egress_tree, cand, blocked_flags)) {
             return false;
         }
@@ -470,7 +520,8 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
-    if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags) &&
+    if (!egress &&
+        CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags) &&
         !CM_LineIsPathableForRadiusFlags(&self->s.origin2, cand, self->collision, blocked_flags))
         return false;
 
@@ -510,6 +561,18 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
             continue;  /* already overlapping b: allow only a step whose path does
                         * not go deeper into b — lets it separate, never slide
                         * tangentially or jump THROUGH it. */
+        /* A unit resting exactly on another unit's collision boundary has no
+         * 15-degree step that clears the circle: every chord cuts inside, so
+         * generic slide and the worker pass both report "no candidate" and the
+         * unit freezes in the Walk cycle.  Allow a grazing step that never
+         * comes closer than the contact tolerance; it may shave at most that
+         * much overlap and lets packed units slide along each other instead of
+         * locking up.  The tolerance scales with the pair radius: a fixed
+         * world-unit slack would be a whole collision diameter for tiny
+         * test/creep units and would let a step land on the blocker's centre. */
+        float const graze = MIN(MOVE_CONTACT_GRAZE, rr * 0.02f + 0.01f);
+        if (cur_d <= rr + graze && seg_d >= rr - graze)
+            continue;
         trymove_blocker = b;
         return false;
     }
@@ -517,16 +580,20 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
 }
 
 static bool move_is_valid(edict_t *self, vec2_t const *cand) {
-    return move_is_valid_policy(self, cand, MOVE_COLLIDE_UNITS);
+    return move_is_valid_policy(self, cand, MOVE_COLLIDE_UNITS, true);
 }
 
 /* Shared steering uses the same static-only policy as resource interaction movement. */
-static bool move_static_is_valid(edict_t *self, vec2_t const *cand) { return move_is_valid_policy(self, cand, MOVE_IGNORE_UNITS); }
+static bool move_static_is_valid(edict_t *self, vec2_t const *cand) {
+    return move_is_valid_policy(self, cand, MOVE_IGNORE_UNITS, true);
+}
 
 /* Public: would 'pos' be a free standing spot for 'self' (terrain + units)?
  * Used by the move arrival to avoid snapping a unit onto an occupied goal. */
 bool M_MoveIsValid(edict_t *self, vec2_t const *pos) {
-    return move_is_valid(self, pos);
+    /* A placement/arrival query never inherits the egress bypass: the point
+     * must be legal ground for the unit on its own. */
+    return move_is_valid_policy(self, pos, MOVE_COLLIDE_UNITS, false);
 }
 
 static void unit_commit_step(edict_t *self, vec2_t const *cand) {
@@ -535,6 +602,11 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     self->s.origin.x = cand->x;
     self->s.origin.y = cand->y;
     gi.LinkEntity(self);
+    /* Reaching legal ground ends a footprint egress; the next think resumes
+     * ordinary direct/flow routing. */
+    if (self->movement && self->movement->egress_valid &&
+        !move_origin_static_blocked(self))
+        self->movement->egress_valid = false;
     if (self->movement->route_resume_active && self->movement->route_resume_goal &&
         self->movement->route_resume_goal->inuse) {
         self->movement->route_resume_time = level.time;
@@ -627,17 +699,24 @@ static void unit_moveindirection_policy(edict_t *self,
     /* A lagging facing is useful while turning around an obstacle, but it must
      * not carry a unit away from the heading selected by the route solver. */
     if (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress &&
-        move_is_valid_policy(self, &by_facing, collision_policy)) {
+        move_is_valid_policy(self, &by_facing, collision_policy, true)) {
         unit_commit_step(self, &by_facing);
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
     }
     vec2_t const by_heading = Vector2_mad(&self->s.origin2, dist,
                                            &MAKE(vec2_t, cosf(self->movement->heading), sinf(self->movement->heading)));
-    if (move_is_valid_policy(self, &by_heading, collision_policy)) {
+    if (move_is_valid_policy(self, &by_heading, collision_policy, true)) {
         unit_commit_step(self, &by_heading);
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
     } else {
+        /* The resolved heading is blocked by the crowd or the contact boundary
+         * this tick.  Hold the stand pose instead of restarting the walk cycle
+         * in place; the next tick re-evaluates and switches back to Walk on the
+         * first accepted step.  This is the common no-marching guarantee for
+         * Move, Attack, Harvest, Repair, Patrol and resource walkers. */
+        if (!G_AnimationHasPrimary(self->animation, "stand"))
+            unit_setanimation(self, "stand");
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
     }
 }
@@ -663,7 +742,7 @@ bool unit_snap_to_point_ignore_units(edict_t *self, vec2_t const *point) {
         return false;
     if (Vector2_distance(&self->s.origin2, point) > unit_movedistance(self) + 0.001f)
         return false;
-    if (!move_is_valid_policy(self, point, MOVE_IGNORE_UNITS))
+    if (!move_is_valid_policy(self, point, MOVE_IGNORE_UNITS, true))
         return false;
     unit_commit_step(self, point);
     return true;
@@ -698,6 +777,27 @@ void unit_facegoal(edict_t *self) {
         !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))) return;
     vec2_t delta = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     if (Vector2_len(&delta) > 0.001f) unit_turn_toward(self, atan2f(delta.y, delta.x));
+}
+
+/* Walk straight out of a blocked footprint before requesting any route.  The
+ * nearest legal point is cached on the mover so the escape stays local and the
+ * ordinary direct/flow steering resumes once the unit clears the footprint. */
+static bool move_steer_egress(edict_t *self) {
+    vec2_t dir;
+
+    if (!move_egress_begin(self)) return false;
+    dir = Vector2_sub(&self->movement->egress_target, &self->s.origin2);
+    if (Vector2_len(&dir) <= 0.001f) {
+        self->movement->egress_valid = false;
+        return false;
+    }
+    self->movement->heading = atan2f(dir.y, dir.x);
+    self->movement->flow_direct = true;
+    self->movement->flow_generation = 0;
+    self->movement->flow_goal_reached = false;
+    self->movement->flow_unreachable = false;
+    unit_turn_toward(self, self->movement->heading);
+    return true;
 }
 
 /* Resource workers need a different local crowd rule from ordinary combat
@@ -777,6 +877,37 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
             }
         }
     }
+    /* Every forward and side step is blocked: the worker is wedged in a pocket
+     * (for example between two neighbours chopping the same tree).  Allow a
+     * bounded backward detour out of the pocket up to 180 degrees; backward
+     * candidates stay close to the corridor line, so the same deviation limit
+     * still applies and the worker re-approaches on the following ticks.
+     *
+     * The perpendicular deviation bound does not constrain travel *behind* the
+     * corridor origin, so an explicit retreat cap prevents a worker from backing
+     * up indefinitely instead of re-approaching once a gap opens. */
+    {
+        vec2_t const corridor = { cosf(self->movement->worker_avoid_heading),
+                                  sinf(self->movement->worker_avoid_heading) };
+        float const retreat_cap = MAX(self->collision, 8.0f) * MOVE_WORKER_MAX_RETREAT;
+        for (int sign = -1; sign <= 1; sign += 2) {
+            for (int ring = MOVE_SLIDE_RINGS + 1; ring <= MOVE_SLIDE_RINGS * 2; ring++) {
+                float const angle = angle_wrap(goal_angle + sign * ring * MOVE_SLIDE_STEP);
+                vec2_t const cand = Vector2_mad(&self->s.origin2, dist,
+                                                 &MAKE(vec2_t, cosf(angle), sinf(angle)));
+                vec2_t const delta = Vector2_sub(&cand, &self->movement->worker_avoid_origin);
+                float const parallel = corridor.x * delta.x + corridor.y * delta.y;
+                if (unit_worker_lateral_deviation(self, &cand) > max_deviation)
+                    continue;
+                if (parallel < -retreat_cap)
+                    continue;
+                if (move_is_valid(self, &cand)) {
+                    self->movement->worker_avoid_blocked_frames = 0;
+                    return angle;
+                }
+            }
+        }
+    }
     return goal_angle;
 }
 
@@ -793,7 +924,7 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
                                          &MAKE(vec2_t, cosf(goal_angle), sinf(goal_angle)));
     if (policy == MOVE_AVOID_RESOURCE_WORKER)
         return unit_worker_desired_heading(self, goal_angle, dist);
-    if (move_is_valid_policy(self, &straight, collision_policy))
+    if (move_is_valid_policy(self, &straight, collision_policy, true))
         return goal_angle;
 
     int max_rings = MOVE_SLIDE_RINGS;
@@ -804,7 +935,20 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
     }
     routeSlide_t slide = { .ent = self, .angle = goal_angle, .dist = dist, .rings = max_rings,
         .valid = collision_policy == MOVE_IGNORE_UNITS ? move_static_is_valid : move_is_valid };
-    return CM_SlideRoute(&slide);
+    {
+        float angle = CM_SlideRoute(&slide);
+        /* No forward or side step clears the crowd/contact ring: try the
+         * bounded backward detour (up to 180 degrees) so a wedged unit can
+         * leave the pocket instead of standing in the walk cycle.  A faster
+         * unit holding its line against a slower one keeps the narrow yield
+         * search: swinging wide there would break the speed-priority give-way
+         * contract, so it waits instead. */
+        if (angle == goal_angle && max_rings == MOVE_SLIDE_RINGS) {
+            slide.rings = MOVE_SLIDE_RINGS * 2;
+            angle = CM_SlideRoute(&slide);
+        }
+        return angle;
+    }
 }
 
 static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy_t policy) {
@@ -839,6 +983,7 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
     G_BeginMovement(self);
     vec2_t dir;
     if (move_displacement_steer(self, policy)) return;
+    if (move_steer_egress(self)) return;
     self->movement->heading = self->s.angle;
     self->movement->flow_generation = 0;
     self->movement->flow_goal_reached = false;
@@ -929,6 +1074,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         self->orders->wisp_egress_active = false;
         self->orders->wisp_egress_target_valid = false;
     }
+    if (move_steer_egress(self))
+        return;
     if (move_fallback_steer(self, policy))
         return;
     self->movement->route_resume_active = false;
@@ -1066,6 +1213,9 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
     self->movement->flow_goal_reached = false;
     self->movement->flow_unreachable = false;
     self->movement->flow_direct = false;
+
+    if (move_steer_egress(self))
+        return;
 
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
         self->movement->path.valid = false;
@@ -1458,6 +1608,7 @@ void move_reset_progress(edict_t *self) {
     self->movement->worker_avoid_heading = self->s.angle;
     self->movement->worker_avoid_blocked_frames = 0;
     self->movement->worker_avoid_active = false;
+    self->movement->egress_valid = false;
     self->movement->group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
@@ -1844,6 +1995,28 @@ static void ai_move_walk(edict_t *ent) {
         }
         unit_changeangle(ent);
 
+        /* An unreachable private waypoint resolves to the closest legal point
+         * in unit_changeangle().  While an active construction keeps that
+         * waypoint authoritative, snap onto the staging point when it is within
+         * this tick's budget and wait there in the stand pose: without the snap
+         * the mover overshoots it every tick and steps back, which is the
+         * visible left/right sway behind blocked paths.  The order stays alive
+         * and resumes as soon as the construction ends. */
+        if (move_has_active_construction() && unit_routes_to_location(ent) &&
+            ent->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED &&
+            ent->movement->flow_fallback_goal == ent->goalentity) {
+            float const approach_distance = Vector2_distance(&ent->s.origin2,
+                                                              &ent->movement->flow_fallback_approach);
+            if (approach_distance <= unit_movedistance(ent) + MOVE_ARRIVE_TOLERANCE) {
+                if (approach_distance <= unit_movedistance(ent) &&
+                    M_MoveIsValid(ent, &ent->movement->flow_fallback_approach))
+                    unit_commit_step(ent, &ent->movement->flow_fallback_approach);
+                if (!G_AnimationHasPrimary(ent->animation, "stand"))
+                    unit_setanimation(ent, "stand");
+                return;
+            }
+        }
+
         if (ent->movement->flow_unreachable) {
             vec2_t approach;
             vec2_t direction;
@@ -1894,6 +2067,17 @@ static void ai_move_walk(edict_t *ent) {
         }
         move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
         if (ent->movement->flow_goal_reached) {
+            /* A location order whose private waypoint is unreachable ends at
+             * the closest legal cell.  Wait there in the stand pose; the order
+             * stays alive (nothing is consumed) and resumes when the route
+             * becomes reachable again.  Reachable waypoints always settle inside
+             * `settle_distance` first, so this branch only covers offset route
+             * ends such as a destination inside blocked pathing. */
+            if (unit_routes_to_location(ent) &&
+                Vector2_distance(&ent->s.origin2, &ent->goalentity->s.origin2) > settle_distance) {
+                if (!G_AnimationHasPrimary(ent->animation, "stand"))
+                    unit_setanimation(ent, "stand");
+            }
             return;
         }
 

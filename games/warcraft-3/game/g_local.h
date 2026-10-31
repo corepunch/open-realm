@@ -2044,6 +2044,8 @@ typedef struct {
     float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
     uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
     bool worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
+    vec2_t egress_target;        /* nearest static-pathable point while leaving a blocked footprint */
+    bool egress_valid;           /* mover stands inside blocked static pathing and must step out first */
 } movement_t;
 
 /* Orders survive stationary pauses and combat detours; consumed by Move, Patrol, guard and interaction abilities. */

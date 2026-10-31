@@ -1652,9 +1652,13 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
 
     /* Only the translucent Construction Site Indicator is walk-through. The
      * real construction footprint becomes a route obstacle before the worker
-     * begins Repair/build work. */
+     * begins Repair/build work. Hidden workers and the Human primary builder
+     * are excluded from the exit relocation: they may legally work from inside
+     * their own footprint, and teleporting them to an exit ring produced a
+     * visible horizontal jump at construction start. */
     CM_BakeStaticObstacles();
-    G_TeleportBuildingOccupants(building, worker_inside ? builder : NULL);
+    G_TeleportBuildingOccupants(building,
+        (worker_inside || type == CONSTRUCTION_HUMAN) ? builder : NULL);
 
     G_UpdateConstructionAnimation(building);
     return true;

@@ -376,6 +376,81 @@ static void repair_set_work(edict_t *ent) {
         unit_setmove(ent, &repair_move_work);
 }
 
+/* A candidate interaction point is claimed when another worker assigned to the
+ * same building already stands on it or is walking to it.  Collect the claimed
+ * positions once per slot search so the per-candidate check below is a tight
+ * array loop instead of re-scanning every edict for each 30-degree step. */
+#define REPAIR_MAX_SLOT_CLAIMS 64
+
+static uint32_t repair_collect_slot_claims(edict_t *self, edict_t *building,
+                                           vec2_t *points, float *radii) {
+    uint32_t count = 0;
+
+    FILTER_EDICTS(other, other != self && other->inuse && !M_IsDead(other) &&
+                  other->build == building) {
+        float const rr = self->collision + other->collision + 2.0f;
+        if (count < REPAIR_MAX_SLOT_CLAIMS) {
+            points[count] = other->s.origin2;
+            radii[count] = rr;
+            count++;
+        }
+        if (other->goalentity && count < REPAIR_MAX_SLOT_CLAIMS) {
+            points[count] = other->goalentity->s.origin2;
+            radii[count] = rr;
+            count++;
+        }
+    }
+    return count;
+}
+
+static bool repair_point_claimed(vec2_t const *point, vec2_t const *points,
+                                 float const *radii, uint32_t count) {
+    for (uint32_t i = 0; i < count; i++)
+        if (Vector2_distance(&points[i], point) < radii[i])
+            return true;
+    return false;
+}
+
+/* Pick a repair/build position around the target footprint.  The nearest legal
+ * point is preferred, but when another worker already claims it, rotate around
+ * the footprint in 30-degree steps so a group surrounds the building instead of
+ * queueing on one spot. */
+static bool repair_find_interaction_slot(edict_t *self, edict_t *building,
+                                         float interaction_range, vec2_t *out) {
+    uint8_t const flags = M_UnitStaticPathingFlags(self);
+    vec2_t nearest;
+    vec2_t const center = building->s.origin2;
+    vec2_t claims[REPAIR_MAX_SLOT_CLAIMS];
+    float claim_radii[REPAIR_MAX_SLOT_CLAIMS];
+    uint32_t const nclaims = repair_collect_slot_claims(self, building, claims, claim_radii);
+    float base, radius;
+
+    if (!CM_FindApproachPointToFootprintForRadius(building, &self->s.origin2,
+                                                  interaction_range, self->collision, &nearest))
+        return false;
+    if (!repair_point_claimed(&nearest, claims, claim_radii, nclaims)) {
+        *out = nearest;
+        return true;
+    }
+    base = atan2f(nearest.y - center.y, nearest.x - center.x);
+    radius = Vector2_distance(&center, &nearest);
+    for (int step = 1; step <= 6; step++) {
+        for (int sign = -1; sign <= 1; sign += 2) {
+            float const angle = base + (float)sign * (float)step * (30.0f * (float)M_PI / 180.0f);
+            vec2_t const cand = Vector2_mad(&center, radius,
+                                            &MAKE(vec2_t, cosf(angle), sinf(angle)));
+            if (CM_DistanceToPathingFootprint(building, &cand) > interaction_range) continue;
+            if (!CM_PointIsPathableForRadiusFlags(&cand, self->collision, flags)) continue;
+            if (!CM_LineIsPathableForRadiusFlags(&self->s.origin2, &cand, self->collision, flags)) continue;
+            if (repair_point_claimed(&cand, claims, claim_radii, nclaims)) continue;
+            *out = cand;
+            return true;
+        }
+    }
+    *out = nearest; /* every slot is claimed: queue on the nearest one */
+    return true;
+}
+
 static bool repair_prepare_approach(edict_t *ent) {
     edict_t *building = ent ? ent->build : NULL;
     vec2_t approach;
@@ -394,8 +469,7 @@ static bool repair_prepare_approach(edict_t *ent) {
         return true;
     }
 
-    found = CM_FindApproachPointToFootprintForRadius(
-        building, &ent->s.origin2, interaction_range, ent->collision, &approach);
+    found = repair_find_interaction_slot(ent, building, interaction_range, &approach);
     if (found) {
         ent->goalentity = Waypoint_add(&approach);
         move_reset_progress(ent);
@@ -616,9 +690,6 @@ bool S_RepairWorkerAdvancingHumanConstruction(edict_t const *worker, edict_t con
 }
 
 static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool primary) {
-    vec2_t origin;
-    float angle;
-
     if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) return false;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD repair-begin worker=%ld building=%ld id=%.4s primary=%d origin=(%.1f,%.1f)\n",
@@ -657,17 +728,14 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
 #endif
 
     if (primary) {
-        /* The initial Human builder starts inside the newly baked footprint.
-         * Relocate only this construction transition; ordinary Repair orders
-         * must approach through pathfinding instead of teleporting. */
-        if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
-            repair_release(ent);
-            if (ent->stand) ent->stand(ent);
-            return false;
-        }
-        ent->s.origin2 = origin;
-        ent->s.angle = angle - M_PI;
-        gi.LinkEntity(ent);
+        /* The primary builder stays exactly where the accepted build order
+         * ended.  It may legally stand inside the freshly baked site: Repair
+         * range is measured against the authored footprint, so the worker is
+         * already in range and starts hammering.  Earlier builds relocated the
+         * worker to the first ring exit via SP_FindUnitExitPosition(), which
+         * produced a visible horizontal jump at construction start.  Steps out
+         * of the worker's own site are handled by the generic footprint egress
+         * in s_move.c. */
         building->construction->primary_builder = ent;
     }
 
@@ -685,17 +753,10 @@ void repair_build_primary(edict_t *ent, edict_t *building) {
 }
 
 void repair_build_legacy(edict_t *ent, edict_t *building) {
-    vec2_t origin;
-    float angle;
-
     if (!ent || !building) return;
-    if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
-        if (ent->stand) ent->stand(ent);
-        return;
-    }
-    ent->s.origin2 = origin;
-    ent->s.angle = angle - M_PI;
-    gi.LinkEntity(ent);
+    /* Legacy construction keeps the worker at the accepted build site; it must
+     * not teleport (custom/unknown workers walked here through the build
+     * order).  The building's own build clock still advances. */
     ent->build = building;
     ent->goalentity = building;
     if (!ent->buildwork) ent->buildwork = G_AllocBuildwork();
