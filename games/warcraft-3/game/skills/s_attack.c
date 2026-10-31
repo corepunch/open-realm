@@ -323,7 +323,7 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 }
 
 static bool can_attack(edict_t const *ent) {
-    if (unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
+    if (S_UnitIsFreezingBreathFrozen(ent) || unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
         S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
@@ -335,7 +335,7 @@ static bool can_attack(edict_t const *ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
-    if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
+    if (!attacker || S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
         (S_ImpaleIsAirborne(target) && !S_ImpaleAirborneVulnerable(target)) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
@@ -588,6 +588,7 @@ bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t
 
 void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
                                  uint32_t arrow_code, uint32_t arrow_level) {
+    float const initial_health = target ? target->health.value : 0.0f;
     /* A missile can reach a corpse after another hit has killed its target.
      * Such a hit must not produce a second Dark Minion. */
     if (!attacker || !target || M_IsDead(target) ||
@@ -625,6 +626,18 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
     T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level);
+    if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
+        target->health.value < initial_health) {
+        static uint32_t const ability = MAKEFOURCC('A','f','r','z');
+        uint32_t const level = G_UnitAbilityLevel(attacker, ability);
+        if (level) {
+            cstring_t buff = S_SpellBuffId(ability, level);
+            float const duration = S_SpellDuration(ability, level, false);
+            if (!buff || strlen(buff) < 4) buff = "Bfrz";
+            if (duration > 0.0f)
+                S_SpellApplyTimedStatusFromAbility(target, ability, level, buff, duration);
+        }
+    }
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);

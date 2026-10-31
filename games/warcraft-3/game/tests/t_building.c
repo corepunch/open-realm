@@ -14,6 +14,7 @@ void repair_build_legacy(edict_t *ent, edict_t *building);
 void attack_melee(edict_t *ent);
 void build_build(edict_t *ent);
 void ai_train_build(edict_t *ent);
+void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);
 bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void build_menu_selectlocation(edict_t *ent, uint32_t building_id);
 slkTestData_t *parse_slk_string(char const *slk_text);
@@ -950,6 +951,69 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, freezing_breath_attack_pauses_enemy_production_for_authored_duration) {
+    static UnitAbilities_t frost_wyrm_abilities = { .abilList = "Afrz" };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Afrz\"\nC;Y2;X2;K\"Afrz\"\n"
+        "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"Bfrz\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *attacker, *building, *trainee;
+    gameClient_t *enemy_client;
+    UnitBalance_t trainee_balance = { .buildTime = 100, .foodUsed = 0 };
+    heroabilitystatus_t *frozen;
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    enemy_client = &game.clients[1];
+    enemy_client->connected = true;
+    enemy_client->ps.number = 1;
+    enemy_client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    attacker = alloc_test_unit(MAKEFOURCC('u','u','f','w'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    trainee = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    attacker->data.UnitAbilities = &frost_wyrm_abilities;
+    attacker->s.player = 0;
+    building->s.player = trainee->s.player = 1;
+    building->s.flags |= EF_BUILDING;
+    building->svflags |= SVF_MONSTER;
+    building->health.value = building->health.max_value = 1000.0f;
+    building->build = trainee;
+    trainee->data.UnitBalance = &trainee_balance;
+    trainee->health.value = 25.0f;
+    trainee->health.max_value = 100.0f;
+    G_SetUnitFlag(trainee, UNIT_FLAG_TRAINING, true);
+
+    T_EQ(G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','r','z')), 1u);
+    T_FEQ(S_SpellDuration(MAKEFOURCC('A','f','r','z'), 1, false), 5.0f, 0.001f);
+    T_STREQ(S_SpellBuffId(MAKEFOURCC('A','f','r','z'), 1), "Bfrz");
+    T_ASSERT(S_SpellIsEnemy(attacker, building));
+    S_ResolveAttackHit(attacker, building, 10);
+    T_ASSERT(building->health.value < 1000.0f);
+    frozen = unit_findstatus(building, MAKEFOURCC('B','f','r','z'));
+    T_NOT_NULL(frozen);
+    T_EQ(frozen ? frozen->timestamp : 0u, G_Time() + 5000u);
+    T_ASSERT(S_UnitIsFreezingBreathFrozen(building));
+
+    ai_train_build(building);
+    T_FEQ(trainee->health.value, 25.0f, 0.001f);
+
+    level.time += 5000;
+    unit_updatestatuses(building);
+    T_ASSERT(!S_UnitIsFreezingBreathFrozen(building));
+    ai_train_build(building);
+    T_ASSERT(trainee->health.value > 25.0f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {

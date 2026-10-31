@@ -477,6 +477,7 @@ static void ai_repair(edict_t *ent) {
         repair_stop_reason(ent, "work_target_invalid");
         return;
     }
+    if (S_UnitIsFreezingBreathFrozen(building)) return;
     if (!repair_in_range(ent, building)) {
         repair_set_walk(ent);
         return;

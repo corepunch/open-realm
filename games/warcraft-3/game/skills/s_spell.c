@@ -1844,6 +1844,14 @@ heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, ui
     return status;
 }
 
+/* Freezing Breath uses a timed status as the saveable owner of a building's
+ * disabled interval. Its gameplay lock is consumed by building production
+ * and attack paths rather than by a generic stun state. */
+bool S_UnitIsFreezingBreathFrozen(edict_t const *unit) {
+    heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B','f','r','z'));
+    return status && (!status->timestamp || (int32_t)(status->timestamp - G_Time()) > 0);
+}
+
 /* BTLF is lifecycle ownership rather than an ordinary dispellable buff.
  * Callers still decide whether a zero duration means permanent lifecycle state
  * or whether no timed-life marker should be created at all. */

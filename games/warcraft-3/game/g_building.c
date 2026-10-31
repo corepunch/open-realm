@@ -2000,7 +2000,7 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
 #endif
 
     if (site->type != CONSTRUCTION_HUMAN) return;
-    if (!G_UnitHasFlag(building, UNIT_FLAG_PAUSED)) {
+    if (!G_UnitHasFlag(building, UNIT_FLAG_PAUSED) && !S_UnitIsFreezingBreathFrozen(building)) {
         FOR_LOOP(i, globals.num_edicts) {
             edict_t const *worker = &g_edicts[i];
             if (S_RepairWorkerAdvancingHumanConstruction(worker, building)) {
@@ -2054,7 +2054,8 @@ void G_RunConstructionFrame(edict_t *building) {
 
     if (!building || !site) return;
     G_UpdateHumanConstructionEmitterState(building);
-    if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED) || !building->data.UnitBalance) return;
+    if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED) || S_UnitIsFreezingBreathFrozen(building) ||
+        !building->data.UnitBalance) return;
 
     duration = MAX(1.0f, site->duration_ms > 0 ?
                    site->duration_ms : (float)building->data.UnitBalance->buildTime * 1000.0f);

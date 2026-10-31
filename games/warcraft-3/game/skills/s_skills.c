@@ -552,7 +552,7 @@ static ability_t abilitylist[] = {
     { "Apts", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Disease Cloud */
     { "Afrb", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Breath */
     { "Afra", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Frost Attack */
-    { "Afrz", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Freezing Breath */
+    { "Afrz", CAbilityPassive, AB_PASSIVE },  /* Freezing Breath: Frost Wyrm attacks disable enemy buildings */
     { "Arai", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead */
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
