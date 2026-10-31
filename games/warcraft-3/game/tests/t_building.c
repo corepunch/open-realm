@@ -1018,6 +1018,11 @@ TEST(wc3_building, freezing_breath_attack_pauses_enemy_production_for_authored_d
     T_ASSERT(S_SpellIsEnemy(attacker, building));
     S_ResolveAttackHit(attacker, building, 10);
     T_ASSERT(building->health.value < 1000.0f);
+    T_NULL(unit_findstatus(building, MAKEFOURCC('B','f','r','z')));
+    T_ASSERT(!S_UnitIsFreezingBreathFrozen(building));
+
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','f','b'), 1);
+    S_ResolveAttackHit(attacker, building, 10);
     frozen = unit_findstatus(building, MAKEFOURCC('B','f','r','z'));
     T_NOT_NULL(frozen);
     T_EQ(frozen ? frozen->timestamp : 0u, G_Time() + 5000u);

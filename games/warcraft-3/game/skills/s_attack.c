@@ -629,8 +629,11 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
         target->health.value < initial_health) {
         static uint32_t const ability = MAKEFOURCC('A','f','r','z');
+        static uint32_t const research = MAKEFOURCC('R','u','f','b');
         uint32_t const level = G_UnitAbilityLevel(attacker, ability);
-        if (level) {
+        gameClient_t *owner = G_GetPlayerClientByNumber(attacker->s.player);
+        /* Afrz exists before TFT research; only researched Rufb grants its building-hit effect. */
+        if (level && owner && G_GetPlayerTechResearchedLevel(owner, research) > 0) {
             cstring_t buff = S_SpellBuffId(ability, level);
             float const duration = S_SpellDuration(ability, level, false);
             if (!buff || strlen(buff) < 4) buff = "Bfrz";
