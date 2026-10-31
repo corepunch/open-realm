@@ -1052,13 +1052,13 @@ TEST(wc3_building, freezing_breath_indicator_is_disabled_until_researched) {
     gameCommandButton_t buttons[16], freezing_breath;
     uint8_t count;
     playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
-    uint32_t const research = MAKEFOURCC('R','f','r','z');
+    uint32_t const research = MAKEFOURCC('R','u','f','b');
     cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t (*test_cvar)(cstring_t, cstring_t) = NULL;
     static cstring_t const ability_config =
         "[Afrz]\nArt=ReplaceableTextures\\CommandButtons\\BTNFrostWyrm.blp\n"
         "Buttonpos=0,2\nTip=Freezing Breath\nUbertip=Halts enemy buildings.\n"
-        "[Rfrz]\nName=Freezing Breath\n";
+        "[Rufb]\nName=Freezing Breath\nTip=Research Freezing |cffffcc00B|rreath\n";
 
     reset_entities(); setup_test_world();
     client = &game.clients[0]; client->ps.number = 0;
@@ -1083,6 +1083,7 @@ TEST(wc3_building, freezing_breath_indicator_is_disabled_until_researched) {
              freezing_breath.indicator_dimmed);
     T_NOT_NULL(strstr(freezing_breath.ubertip, "Requires:"));
     T_NOT_NULL(strstr(freezing_breath.ubertip, "Freezing Breath"));
+    T_NOT_NULL(strstr(freezing_breath.ubertip, " - Freezing Breath|r"));
 
     G_SetPlayerTechResearched(client, research, 1);
     count = G_GetCommandButtons(wyrm, buttons, 16);

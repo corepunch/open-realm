@@ -516,6 +516,7 @@ static void G_AddResearchRequirementTooltip(gameCommandButton_t *button, uint32_
     if (!button || !research) return;
     memcpy(code, &research, 4);
     name = FindConfigValue(code, "Name");
+    if (!name || !*name) name = FindConfigValue(code, STR_TIP);
     if (!name || !*name) name = code;
     name = G_CleanTooltipString(G_StringForLevel(name, (uint32_t)MAX(1, required_level)), 0);
     strlcpy(description, button->ubertip, sizeof(description));
@@ -623,7 +624,7 @@ static void G_AddExhumeCorpsesIndicator(edict_t *ent, gameCommandButton_t *butto
 static void G_AddFreezingBreathIndicator(edict_t *ent, gameCommandButton_t *buttons,
                                          uint8_t max_buttons, uint8_t *count) {
     static uint32_t const ability = MAKEFOURCC('A', 'f', 'r', 'z');
-    static uint32_t const research = MAKEFOURCC('R', 'f', 'r', 'z');
+    static uint32_t const research = MAKEFOURCC('R', 'u', 'f', 'b');
     gameClient_t *owner;
     uint8_t index;
 
