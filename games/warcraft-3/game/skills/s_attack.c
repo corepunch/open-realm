@@ -635,7 +635,7 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
             float const duration = S_SpellDuration(ability, level, false);
             if (!buff || strlen(buff) < 4) buff = "Bfrz";
             if (duration > 0.0f)
-                S_SpellApplyTimedStatusFromAbility(target, ability, level, buff, duration);
+                S_SpellApplyTimedTargetStatus(target, ability, level, buff, duration);
         }
     }
     S_CreepAttackOnHit(attacker, target);

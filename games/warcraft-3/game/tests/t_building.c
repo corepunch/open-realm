@@ -118,6 +118,14 @@ static void building_queue_capture_write(pfWriteType_t type, void const *value) 
 
 static void building_test_unicast(edict_t *ent) { (void)ent; }
 
+static cstring_t building_freezing_breath_roc_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
+static cstring_t building_freezing_breath_tft_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
 static bool building_find_command(gameCommandButton_t const *buttons, uint8_t count,
                                  cstring_t command, gameCommandButton_t *out) {
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, command)) {
@@ -961,15 +969,27 @@ TEST(wc3_building, freezing_breath_attack_pauses_enemy_production_for_authored_d
         "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"BuffID1\"\n"
         "C;Y2;X1;K\"Afrz\"\nC;Y2;X2;K\"Afrz\"\n"
         "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"Bfrz\"\nE\n";
+    static char const buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"TargetArt\"\nC;Y1;X3;K\"EffectArt\"\n"
+        "C;Y2;X1;K\"Bfrz\"\nC;Y2;X2;K\"TestUI\\\\Models\\\\freezing-breath-target.mdx\"\nE\n";
+    static char const buff_config[] =
+        "[Bfrz]\nTargetArt=TestUI\\Models\\freezing-breath-target.mdx\n";
     slkTestData_t *rows, *old;
-    edict_t *attacker, *building, *trainee;
+    slkTestData_t *buff_rows, *old_buff;
+    edict_t *attacker, *building, *trainee, *target_effect = NULL;
     gameClient_t *enemy_client;
     UnitBalance_t trainee_balance = { .buildTime = 100, .foodUsed = 0 };
     heroabilitystatus_t *frozen;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
 
     reset_entities(); setup_test_world();
     rows = parse_slk_string(ability_slk);
     old = G_SetSLKRows("AbilityData", rows);
+    buff_rows = parse_slk_string(buff_slk);
+    old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    T_ASSERT(G_TestPushAbilityConfig(buff_config));
+    gi.ModelIndex = building_test_image_index;
     enemy_client = &game.clients[1];
     enemy_client->connected = true;
     enemy_client->ps.number = 1;
@@ -1002,6 +1022,10 @@ TEST(wc3_building, freezing_breath_attack_pauses_enemy_production_for_authored_d
     T_NOT_NULL(frozen);
     T_EQ(frozen ? frozen->timestamp : 0u, G_Time() + 5000u);
     T_ASSERT(S_UnitIsFreezingBreathFrozen(building));
+    FILTER_EDICTS(effect, effect->inuse && effect->goalentity == building && effect->s.model)
+        target_effect = effect;
+    T_NOT_NULL(target_effect);
+    if (target_effect) T_STREQ(building_image_path, "TestUI\\Models\\freezing-breath-target.mdx");
 
     ai_train_build(building);
     T_FEQ(trainee->health.value, 25.0f, 0.001f);
@@ -1014,6 +1038,62 @@ TEST(wc3_building, freezing_breath_attack_pauses_enemy_production_for_authored_d
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+    G_SetSLKRows("AbilityBuffData", old_buff);
+    free_slk_rows(buff_rows);
+    G_TestPopAbilityConfig();
+    gi.ModelIndex = old_model_index;
+}
+
+TEST(wc3_building, freezing_breath_indicator_is_disabled_until_researched) {
+    static UnitAbilities_t const abilities = { .abilList = "Afrz" };
+    static UnitBalance_t const balance = { .upgrades = "" };
+    gameClient_t *client;
+    edict_t *wyrm;
+    gameCommandButton_t buttons[16], freezing_breath;
+    uint8_t count;
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    uint32_t const research = MAKEFOURCC('R','f','r','z');
+    cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*test_cvar)(cstring_t, cstring_t) = NULL;
+    static cstring_t const ability_config =
+        "[Afrz]\nArt=ReplaceableTextures\\CommandButtons\\BTNFrostWyrm.blp\n"
+        "Buttonpos=0,2\nTip=Freezing Breath\nUbertip=Halts enemy buildings.\n"
+        "[Rfrz]\nName=Freezing Breath\n";
+
+    reset_entities(); setup_test_world();
+    client = &game.clients[0]; client->ps.number = 0;
+    memcpy(old_tech, client->tech, sizeof(old_tech));
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, research, 1);
+    wyrm = alloc_test_unit(MAKEFOURCC('u','u','f','w'), 64, 64);
+    wyrm->s.player = 0;
+    wyrm->data.UnitAbilities = &abilities;
+    wyrm->data.UnitBalance = &balance;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+
+    test_cvar = building_freezing_breath_roc_cvar;
+    gi.CvarString = test_cvar;
+    count = G_GetCommandButtons(wyrm, buttons, 16);
+    T_ASSERT(!building_find_command(buttons, count, "Afrz", NULL));
+    test_cvar = building_freezing_breath_tft_cvar;
+    gi.CvarString = test_cvar;
+    count = G_GetCommandButtons(wyrm, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Afrz", &freezing_breath));
+    T_ASSERT(freezing_breath.indicator && freezing_breath.disabled &&
+             freezing_breath.indicator_dimmed);
+    T_NOT_NULL(strstr(freezing_breath.ubertip, "Requires:"));
+    T_NOT_NULL(strstr(freezing_breath.ubertip, "Freezing Breath"));
+
+    G_SetPlayerTechResearched(client, research, 1);
+    count = G_GetCommandButtons(wyrm, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Afrz", &freezing_breath));
+    T_ASSERT(freezing_breath.indicator && !freezing_breath.disabled &&
+             !freezing_breath.indicator_dimmed);
+    T_ASSERT(!strstr(freezing_breath.ubertip, "Requires:"));
+
+    memcpy(client->tech, old_tech, sizeof(old_tech));
+    gi.CvarString = previous_cvar;
+    G_TestPopAbilityConfig();
 }
 
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {

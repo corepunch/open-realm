@@ -620,6 +620,31 @@ static void G_AddExhumeCorpsesIndicator(edict_t *ent, gameCommandButton_t *butto
     }
 }
 
+static void G_AddFreezingBreathIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                         uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A', 'f', 'r', 'z');
+    static uint32_t const research = MAKEFOURCC('R', 'f', 'r', 'z');
+    gameClient_t *owner;
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, ability) || G_HasCommandRawcode(buttons, *count, ability)) return;
+    if (!gi.CvarString || !atoi(gi.CvarString("fs_expansion", "0"))) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || owner->ps.number != ent->s.player ||
+        G_GetPlayerTechMaxAllowed(owner, research) == 0) return;
+
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, "Afrz", false, 0);
+    if (*count > index) {
+        buttons[index].disabled = G_GetPlayerTechResearchedLevel(owner, research) <= 0;
+        buttons[index].indicator = 1;
+        buttons[index].indicator_dimmed = buttons[index].disabled;
+        if (buttons[index].indicator_dimmed)
+            G_AddResearchRequirementTooltip(&buttons[index], research, 1);
+    }
+}
+
 static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *buttons,
                                         uint8_t max_buttons, uint8_t *count,
                                         uint32_t owned_ability, uint32_t button_ability) {
@@ -990,6 +1015,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     G_AddPillageIndicator(ent, buttons, max_buttons, &count);
     G_AddDiseaseCloudIndicator(ent, buttons, max_buttons, &count);
     G_AddExhumeCorpsesIndicator(ent, buttons, max_buttons, &count);
+    G_AddFreezingBreathIndicator(ent, buttons, max_buttons, &count);
     G_AddPassiveEffectIndicators(ent, buttons, max_buttons, &count);
     FOR_LOOP(i, ent->unit_state ? MAX_HERO_ABILITIES : 0) {
         heroability_t const *ha = ent->unit_state->ranks + i;
