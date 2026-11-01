@@ -77,7 +77,10 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
     edict_t *item;
     uint32_t item_spawn;
     if (!target || !(target->aiflags & AI_SOUL_TRAPPED)) return;
+    uint32_t const target_spawn = target->spawn_time;
+    vec2_t const release_position = position ? *position : target->s.origin2;
     soul_trap_unlink(target);
+    if (!target->inuse || target->spawn_time != target_spawn || G_IsDeferredFree(target)) return;
     item = target->soul_trap_item;
     item_spawn = target->soul_trap_item_spawn_time;
     target->soul_trap_item = NULL;
@@ -88,19 +91,24 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
         item->item->soul_target_spawn_time = 0;
         G_RemoveItem(item);
     }
+    if (!target->inuse || target->spawn_time != target_spawn || G_IsDeferredFree(target) ||
+        (target->aiflags & AI_SOUL_TRAPPED)) return;
     remove_asou = target->soul_trapped_ability_added;
     target->soul_trapped_ability_added = false;
     if (restore_world && !M_IsDead(target)) {
         if (position) {
-            target->s.origin2 = *position;
-            target->s.origin.x = position->x;
-            target->s.origin.y = position->y;
-            target->s.origin.z = CM_GetHeightAtPoint(position->x, position->y);
+            target->s.origin2 = release_position;
+            target->s.origin.x = release_position.x;
+            target->s.origin.y = release_position.y;
+            target->s.origin.z = CM_GetHeightAtPoint(release_position.x, release_position.y);
         }
         G_SetEntityHidden(target,false);
         target->svflags &= ~SVF_NOCLIENT;
         target->s.flags &= ~EF_NOT_SELECTABLE;
         if (target->stand) target->stand(target);
+        if (!target->inuse || target->spawn_time != target_spawn || G_IsDeferredFree(target) ||
+            M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return;
+        S_RefreshUnitSeparation(target);
         gi.LinkEntity(target);
         if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         if (G_UnitIsStructure(target)) CM_BakeStaticObstacles();
@@ -155,6 +163,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     target->soul_trap_viewer = target->s.player;
     G_AddUnitForcedVisibility(carrier, target->soul_trap_viewer);
     target->aiflags |= AI_SOUL_TRAPPED;
+    S_RefreshUnitSeparation(target);
     S_SpellCancelChannel(target);
     G_ClearUnitOrderQueue(target);
     S_SetMoveGoal(target, &target->secondarygoal, NULL);

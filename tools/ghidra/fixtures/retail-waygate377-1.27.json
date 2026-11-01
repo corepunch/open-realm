@@ -14,10 +14,10 @@
     "wc3_movement.retail_gate*"
   ],
   "pins": {
-    "games/warcraft-3/game/g_local.h": "342b6349034c8200a66400ee3bd00873cb44b72b038e14c507dda8eccb23dcc6",
+    "games/warcraft-3/game/g_local.h": "8ab214bd278894c1c3d0bb199c166fd541146b006b0142c7dd63ef89ab7f6ce9",
     "games/warcraft-3/game/g_save.c": "470b8f32c09099dfaf13a8b1e2d85ed205bde767faccaff4e735f0b5ba16db42",
     "games/warcraft-3/game/m_unit.c": "59581e2b7889dcdc43649be0130419d43d4994081b87c1546d6941911cb22209",
-    "games/warcraft-3/game/skills/s_move.c": "f8959cd271413baa270e333a8f0e77d6bce7be95f0e82030161339d1d614932a",
+    "games/warcraft-3/game/skills/s_move.c": "7d40b6eeae6ec5de0020d221b07af456d1712396b10ac041352e88717ce6a2d1",
     "games/warcraft-3/game/skills/s_waygate.c": "241e6c59997b44c89ad54486f3291d038b06496e4ceb27881a1ce4b7ba5b8514",
     "games/warcraft-3/game/tests/t_target377.c": "9f9a8f874db9bd224682a09c2b41c936d8f98f5801677b2ad8628ef2097b7fed",
     "games/warcraft-3/game/tests/t_waygate.c": "89df75a999334045ddc91f3df01e024ccc5dfc5b5fd106801e559c0c44917a65",

@@ -4032,6 +4032,7 @@ void S_SetUnitPauseFlag(edict_t *, bool);
 bool S_UnitExecutionPaused(edict_t const *);
 bool S_UnitOrderExecutionHeld(edict_t const *);
 bool S_UnitOrdersPaused(edict_t const *);
+void S_RefreshUnitSeparation(edict_t *);
 void S_AcquireUnitSeparationSuppression(edict_t *);
 void S_ReleaseUnitSeparationSuppression(edict_t *);
 void S_RefreshUnitPauseSuppression(edict_t *);

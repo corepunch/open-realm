@@ -1,0 +1,30 @@
+{
+  "capture_files_sha256": {
+    "observe1.jsonl": "325b57fee30b656a01c1e98f937abc2323f689d62f18c953afe3f9670fa24452",
+    "observe2.jsonl": "83e67a5ba74df0793c52b79aa19e52eb1482f1dd849b43231edb32eeac222931",
+    "control1.jsonl": "092fd8ac89c8d0b2b314bcc3db2cb148da4d98f8c570f4c6ee415a44b8d2617b",
+    "observe1-preload.txt": "e801db88d44e9bb415646cee8ba17f0185d0ad6650bfae6a3f55c575fef0ed69",
+    "observe2-preload.txt": "e801db88d44e9bb415646cee8ba17f0185d0ad6650bfae6a3f55c575fef0ed69",
+    "control1-preload.txt": "e184e61510358e297a53406f42bb1c99f3a01ccdd27eb97bf571227cf05e9eaf",
+    "frozen-sources.json": "e7c25e9fbde5f2ecfd671236e6260fd37a7986347d6024f57a76164c27d1dc4c",
+    "runs.json": "bfa3a5d9158609a03ab64a4ade5828da12fc781eae940dcb20f3ab42ca871e23",
+    "abi-static.json": "ec0a68f8b32a1602b5a42495d7879d61ac6149905d6b662735cf0daafc9e36ea",
+    "RS-TARGET251-couple-cantpath-v1.json": "eed7f9d14ec5957409d79bd4c103f876c170aeb22ed2ef71f44fc2b6d2eac075",
+    "itemdrop_capture.py": "b2e25346367ec768e34c229ee4d67b0c9b108f32ceae58e7493fd15ae854bd74",
+    "itemdrop_make_map.py": "7ed646842f001a7fc968589497a5907393739999a9eda59f74503a0d63492c38",
+    "itemdrop_probe.j": "6dab9f30482a3472adb8a0cb414f8846bb051b4b90786699e2e9ac7a57e8b047",
+    "itemdrop_observer.js": "b848f2b86cd75654a455a97cad0f3704a9ef5ab0e15c14a8912e773f58c9d222",
+    "RS-TARGET251-couple-cantpath-v1.w3m": "e5afa56cd448b08331c5dfd94ffa304bf1266bbeaeab8b651ff878d7f955402d",
+    "run.py": "0ab1f90e28d33519d10caf5719249d96f9c592b44fb5b9b997d90c329aa58a35"
+  },
+  "projection_sha256": "82c88d945f00eed5a09cd972874740fc75e8cad0fe4d7240af6eed4380653c19",
+  "header_sha256": "82a1832829ecd5eaf4502aa70f3c73dbc0ad06107dec2854dde875ffc1c7bdec",
+  "capture_dir": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-cantpath257-separation-v1",
+  "limits": [
+    "1397 ordered core rows only; supplementary058900 queries include renderer/internal reads and differ5138/5121, retained raw but excluded.",
+    "Typed pointer keys and opaque potential_cc words excluded; native canonical identities and remaining numeric fields unchanged.",
+    "Opaque separation prefix0..4 retained raw only; prefix5 is mover pointer; only documented vector6/7 and policy8 projected.",
+    "No RNG state captured by257; do not infer seed from displacement.",
+    "Header preserves native identity/flag encodings; engine comparison must explicitly map roles rather than assume numeric identity equality."
+  ]
+}

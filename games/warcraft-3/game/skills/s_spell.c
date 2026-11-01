@@ -1679,8 +1679,17 @@ void S_SpellTargetApproachComplete(edict_t *receiver, edict_t *caster, bool arri
          * queued successor here. Never execute an unreachable cast. */
         bool terminal=!caster->movement.group_id && caster->goalentity==receiver->goalentity &&
             move_is_active_order_walk(caster);
+        uint32_t spawn=caster->spawn_time,revision=G_UnitMoveRevision(caster);
         G_FreeEdict(receiver);
-        if(terminal)unit_stand(caster);
+        if(terminal && caster->inuse && caster->spawn_time==spawn &&
+           !G_IsDeferredFree(caster) && !M_IsDead(caster) && G_UnitMoveRevision(caster)==revision) {
+            /* Native251 publishes the reciprocal inverse while the failed
+             * producer still owns its public head. Stand retires that head
+             * only after the authored inverse and its callbacks complete. */
+            S_UnitAbilityEvent(caster,A_COMMAND_OWNER_LEAVE);
+            if(caster->inuse && caster->spawn_time==spawn && !G_IsDeferredFree(caster) &&
+               !M_IsDead(caster) && G_UnitMoveRevision(caster)==revision)unit_stand(caster);
+        }
         return;
     }
     spell_finish_target_approach(receiver,true);

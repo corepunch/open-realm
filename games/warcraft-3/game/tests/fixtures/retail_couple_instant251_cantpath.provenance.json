@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "projection_sha256": "f4b134a229aaf1b7f7d2466cc8bebc672f467bd7b54d0c4e8cdd62b8bbd91289",
+  "header_sha256": "ebd8df05a473f93b94561377629f3af5a7852370742fdf72892df7e50b63a2c7",
+  "capture_files_sha256": {
+    "abi-static.json": "c78c9d871963f040afea32037f640253e6586a6e64b0b98cf002c0a1f925b876",
+    "design.json": "b33dac8d26c0ae1e5cf0fbff9acd973510fc8b213d682758ef4a0bbe68197a0f",
+    "itemdrop_capture.py": "b2e25346367ec768e34c229ee4d67b0c9b108f32ceae58e7493fd15ae854bd74",
+    "itemdrop_observer.js": "e18cd7135bdcce8fcfe323754669727d8fd1422ea341878cf4cf89bd9ff7f5ce",
+    "itemdrop_probe.j": "6dab9f30482a3472adb8a0cb414f8846bb051b4b90786699e2e9ac7a57e8b047",
+    "itemdrop_make_map.py": "7ed646842f001a7fc968589497a5907393739999a9eda59f74503a0d63492c38",
+    "run.py": "0ab1f90e28d33519d10caf5719249d96f9c592b44fb5b9b997d90c329aa58a35",
+    "RS-TARGET251-couple-cantpath-v1.w3m": "e5afa56cd448b08331c5dfd94ffa304bf1266bbeaeab8b651ff878d7f955402d",
+    "RS-TARGET251-couple-cantpath-v1.json": "eed7f9d14ec5957409d79bd4c103f876c170aeb22ed2ef71f44fc2b6d2eac075",
+    "frozen-sources.json": "764862098badacf94c533b504f59d88beb1c46f07cbc4d3de80931a451458abd",
+    "runs.json": "af5c91e380a80ed78c326b99d162fef044dd970fdf8ccc8e18f3848e73ebe2a2",
+    "observe1.jsonl": "6d1a2d8756cab554db948bd7867b2e6a1242cafd63c51eb2ae098b949ccf99bd",
+    "observe2.jsonl": "1fac294097e7bf5fdd6dc2afbf5c0b9e81abac066a84c24711c91dfc756aea79",
+    "control1.jsonl": "0bc08498026e3036052333aa190607cdc69ca679fff5a0535d857d3fc86e6b14",
+    "observe1-preload.txt": "e801db88d44e9bb415646cee8ba17f0185d0ad6650bfae6a3f55c575fef0ed69",
+    "observe2-preload.txt": "e801db88d44e9bb415646cee8ba17f0185d0ad6650bfae6a3f55c575fef0ed69",
+    "control1-preload.txt": "8a87b53518bba12152435e7cb9ac59dad44b44ec6cd8c120c1736b840d36ac9c"
+  },
+  "limitations": [
+    "Hook tick is last public marker; clock/counter are authoritative.",
+    "No complete numeric movement parity claim;727 scoped rows select documented fields without pointer normalization.",
+    "Archer fails first in paired scene; peer cancellation is not a second independent physical failure.",
+    "Fresh candidate eligibility is independently checked by scene2.",
+    "Native275FINISH276ENDCAST; ability integers are nativeFourCC and require typed normalization."
+  ]
+}

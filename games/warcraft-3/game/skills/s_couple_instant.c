@@ -219,6 +219,10 @@ static bool instant_complete(edict_t *unit,abilityCall_t const *call) {
         if(!S_RetireCoupleInputWorld(target) || !instant_alive(unit,spawn))return true;
         edict_t *rider=SP_SpawnAtLocationNoBirth(result,player,&origin);
         if(!rider)return true; /* Native failed spawn leaves world-retired originals. */
+        /* 4ca180 uses the full677870 creation factory with placement enabled.
+         * Its fresh-mover writes also establish the result's fine pose before
+         * separation; publishing the input's raw fractional pose is different. */
+        S_InitUnitPosition(rider,&origin);
         rider->s.angle=angle;G_ActivateUnitFood(rider);unit_stand(rider);
         if(instant_alive(unit,spawn))S_CompleteCoupleInputRetirement(unit);
         if(instant_alive(target,target_spawn))S_CompleteCoupleInputRetirement(target);

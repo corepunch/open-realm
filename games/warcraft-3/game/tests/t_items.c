@@ -5043,4 +5043,75 @@ TEST(wc3_items, rune_rebirth_requires_original_monster_identity) {
     free_slk_rows(rows);
 }
 
+/* Engine regression: Soul Trap's existing world-absence contract must own
+ * separation membership. The nonstock repulse policy is deliberate; this is
+ * not a new retail Soul Trap count/suppression claim. */
+TEST(wc3_items, soul_trap_refreshes_authored_repulsor_capture_and_release) {
+    FOR_LOOP(paused_release,2) {
+        reset_entities();setup_test_world();
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType=kPlayerTypeHuman;
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+        level.alliances[0][1]=level.alliances[1][0]=0;
+        T_ASSERT(run_test_jass(
+            "function SoulRepulseUsed takes nothing returns nothing\n"
+            "local item filled=null\ncall TriggerSleepAction(0.10)\n"
+            "set filled=UnitAddItemById(GetManipulatingUnit(),'soul')\n"
+            "call SetItemDroppable(filled,false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger used=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(used,Player(0),EVENT_PLAYER_UNIT_USE_ITEM,null)\n"
+            "call TriggerAddAction(used,function SoulRepulseUsed)\nendfunction\n"));
+        edict_t *carrier=make_item_test_inventory_unit(64,64);
+        carrier->s.player=0;carrier->svflags|=SVF_MONSTER;
+        edict_t *target=alloc_test_unit(MAKEFOURCC('H','p','a','l'),96,64);
+        edict_t *neighbor=alloc_test_unit(MAKEFOURCC('H','p','a','l'),96,64);
+        /* Preserve the real Hero stats used by AIso's authored hero mask. */
+        UnitBalance_t balance=*target->data.UnitBalance;
+        balance.repulse=1;balance.repulseParam=balance.repulseGroup=balance.repulsePrio=0;
+        FOR_LOOP(i,2) {
+            edict_t *unit=i ? neighbor : target;
+            unit->data.UnitBalance=&balance;unit->s.player=1;unit->svflags|=SVF_MONSTER;
+            unit->s.model=1;unit->targtype=TARG_GROUND;unit->movetype=MOVETYPE_STEP;unit->stand=unit_stand;
+            unit_stand(unit);CAbilityMove(unit,A_UNIT_INIT,NULL);gi.LinkEntity(unit);
+            T_ASSERT(G_UnitIsHero(unit));T_ASSERT(unit->movement.repulse.active);T_EQ(unit->movement.repulse.disable_depth,0);
+        }
+        G_AddUnitForcedVisibility(target,0);
+        edict_t *gem=make_item_test_world_item(MAKEFOURCC('g','s','o','u'),64,64);
+        gem->data.ItemData=G_ItemData(MAKEFOURCC('g','s','o','u'));
+        if(!gem->item) {gem->item=G_AllocItem();}
+        gem->item->charges=1;
+        T_ASSERT(G_AddItemToSlot(carrier,gem,0));
+        edict_t *clent=G_GetPlayerEntityByNumber(0);G_SelectEntity(clent->client,carrier);
+        G_UseItem(carrier,0);T_NOT_NULL(clent->client->menu.on_entity_selected);
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(clent,2,select);
+        T_ASSERT(target->aiflags&AI_SOUL_TRAPPED);T_ASSERT(!G_UnitIsWorldActive(target));
+        T_ASSERT(!target->movement.repulse.active);T_EQ(target->movement.repulse.disable_depth,0);
+        vec2_t captured=target->s.origin2;
+        bool started=level.started,configured=level.scriptsConfigured,scripts=level.scriptsStarted;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        FOR_LOOP(frame,12) {level.time+=35;globals.RunFrame();}
+        T_EQ(wc3_float_bits(target->s.origin2.x),wc3_float_bits(captured.x));
+        T_EQ(wc3_float_bits(target->s.origin2.y),wc3_float_bits(captured.y));
+        if(paused_release)S_SetUnitPaused(target,true);
+        int32_t const pause_depth=target->movement.repulse.disable_depth;
+        if(paused_release) {T_ASSERT(pause_depth>0);}
+        else {T_EQ(pause_depth,0);}
+        T_ASSERT(!target->movement.repulse.active);
+        G_SetHealth(carrier,0);unit_die(carrier,NULL);
+        T_ASSERT(!(target->aiflags&AI_SOUL_TRAPPED));T_ASSERT(G_UnitIsWorldActive(target));
+        T_EQ(target->movement.repulse.active,!paused_release);
+        T_EQ(target->movement.repulse.disable_depth,pause_depth);
+        if(paused_release) {
+            T_ASSERT(target->paused);S_SetUnitPaused(target,false);
+            /* Resume releases its own physical hold at the scheduler boundary. */
+            FOR_LOOP(frame,12) {level.time+=35;globals.RunFrame();}
+            T_ASSERT(!target->paused);
+            T_ASSERT(target->movement.repulse.active);T_EQ(target->movement.repulse.disable_depth,0);
+        }
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        level.started=started;level.scriptsConfigured=configured;level.scriptsStarted=scripts;
+        reset_entities();
+    }
+}
+
 #endif /* BZ_TESTS */

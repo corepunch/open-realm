@@ -227,7 +227,7 @@ Couple's two-ready handshake or infer permanent waiting from the bounded trace.
 
 The common producer `40a7a0` creates `d0174` with authored Rng for a far approach
 or FLT_MAX for facing-only work. A separate map changes only both aliases'
-rank-one Rng to 333, retaining opposite DataB values and Area900. Far requests
+rank-one Rng to 333, retaining opposite DataB values and Area 900. Far requests
 from both roles then publish raw 333; near-away requests publish FLT_MAX and
 turn without translation. With Hippo/Archer radii 8/32, actual center distances
 373,373.25,372.75 classify inside/outside/inside and publish
@@ -801,13 +801,132 @@ zero failures. Final verification also passes all 120 focused Python tests in
 42.506 seconds and directly loads the corpus manifest: 614 entries and 3,316
 pins. The five native gates retain the composite253/254 provenance above.
 
-Native251 (`coupling-cantpath251-v1`) separately accepts 478 public markers,
-727 scoped rows and 38 typed records with 20 negative controls. A real blocking
-wall causes the Archer's terminal cannot-path inverse: explicit approach releases
-its reservation without peer Stop; auto approach releases both reservations and
-publishes one Hippo Stop. Fresh-actor eligibility and a later merge show retry
-remains possible. Native observer tick labels are not callback clocks. The
-portable projector preserves that scope; its engine port remains a draft, not a
-verified producer case. Unrelated availability/channel combinations remain
-ORDER-01.13.
+### Terminal cannot-path inverse: native251 and engine261–264
+
+Native251 (`coupling-cantpath251-v1`) accepts two observations and a fresh
+unhooked control: 478 identical public markers, 727 repeated scoped rows and 38
+typed records, with 20 negative controls. The authored wall spans four fine cells
+at x20–23 and uses mask 0xce to block ground and flight. Aco2/Aco3 retain rank 1
+range 37 and Area 900. Three scenes cover explicit Archer approach, auto Archer
+approach and fresh-Archer eligibility without a previous order. No scripted
+Stop or removal causes the initial failure.
+
+Both original approaches execute blocked `170dc0` with partial=0, then terminal
+cannot-path `603110`. The captured task identity matches the original Archer's
+target-task owner. Explicit approach releases one ATrg reservation and runs its
+inverse without peer Stop. Auto approach releases both actors' reservations and
+runs their inverses, then publishes one Hippo Stop. That callback still observes
+Archer head 852508 and Hippo head 851972; both heads are 0 at the next sampled
+marker. The evidence does not claim two independent actor failures: the Archer
+fails first and cancels its paired Hippo. No successful spell phases or merge
+precede this failure.
+
+At scene age 700, both failed pairs have zero heads and the same-owner fresh
+Archer's target order succeeds. The independent third scene establishes that
+actor's eligibility. Hippo's target order at age 750 also succeeds, followed by
+a native merge terminal. This demonstrates reservation release and ordinary
+retry rather than permanent poisoning of the pair. These are terminal inverse
+and eligibility observations, not a complete numeric movement oracle.
+
+Native clock counters 1102/1769 identify the explicit/auto failures. The observer's
+`tick` is the last public marker; public tick 1117 at peer Stop is not a substitute
+for either callback clock. The [portable projector](../../../tools/ghidra/research/coupling_instant251_cantpath_projection.py)
+checks frozen sources, both observations/control, identity attribution, full
+public equality and literal fixture data.
+
+Engine256 initially failed 18 assertions in each edition, including the peer
+Stop callback: it exposed Archer head 0 instead of native 852508. The narrow
+`S_SpellTargetApproachComplete` correction invokes the opted-in command owner's
+inverse before `unit_stand` retires the public head, with actor incarnation and
+movement-revision guards across the callback. Engine257 now matches that head
+and all 38 event clocks. Its 17 remaining failures concern only the life 0
+Hippogryph's post-merge position. Giving the fixture the actual stock repulse=1
+setting did not resolve those positions.
+
+Native257 (`coupling-cantpath257-separation-v1`) is now accepted: the 478 public
+and 727 scoped baseline rows remain unchanged, and 1,397 additional separation
+rows repeat exactly with 16 negative controls. It attributes 87 position commits
+to the dead Hippogryph's persistent separation owner, without an admission
+refresh at death. This is neither residual physical coasting nor animation.
+The engine owner-loop correction retains registered units until registration
+counts or storage teardown release them, rather than filtering them again by
+world presence or hollow state each visit.
+
+Native258 (`coupling-cantpath258-rng-v1`) accepts 1,390 RNG/phase rows. Authored
+seed 77617233 followed by 12 startup draws produces state
+`[3057455189, 3092019416]`; the separation constructor starts at phase 0.
+Engine258's initial motion mismatch used the wrong RNG state. Fixture259 uses
+the actual initialization and matches all scene0 positions, leaving 12 later
+position assertions unresolved.
+
+Diagnostic260 matches 253 separation updates until the new Rider is born.
+`SP_NoBirth` skips `S_InitUnitPosition` and fine-pose initialization: the native
+fine-grid coordinate is 32/16 while C retains 0/0, even though its fallback world
+coordinate initially looks identical. In scene1 the native Rider begins at
+quantized 893/522.5, rather than the old Hippogryph's 893.116/522.615. C's raw spawn
+produces an extra overlap RNG draw.
+
+Original factory confirmation is now retained in
+`coupling-spawn260-static/{exports.json,findings.md}`. The result path is
+`4ca180 -> 677870(placement=1) -> v1ac=68a060 -> 652620 -> vD8=653510 ->
+vDC=67f490 -> 6515f0 -> 058cd0 -> 05c200`, followed by a second canonical
+`05c200` write in 68a060. Mover activation `16ea70 -> 15ed40` seeds XY from
+`ce4584`, the scalar sentinel -128000.5. The observed low-bit loss follows the
+existing constructor's subtraction/addition cancellation; it is not evidence
+for a new `floor(world*8)/8` rule. The result factory therefore needs the normal
+placement/fine-pose initializer, even though birth presentation is skipped.
+The candidate calls existing `S_InitUnitPosition(rider, &origin)` after
+`SP_NoBirth` and before Stand, adding no new rounding formula. Checkpoint261
+matches all 478 public records and 38 event clocks in both editions. Checkpoint263
+also matches the complete saved suffix while the retired separation owner is
+still registered. Its fixture primes the handle high-water state through actual
+`CreateGroup`/`DestroyGroup` calls; this is not a save-format migration.
+
+The current evidence ledger keeps the datasets and comparison scopes separate:
+
+| Evidence | Native dataset | Verified engine scope |
+| --- | --- | --- |
+| Terminal inverse, eligibility and retry | Native251: 478 public records and 38 typed event clocks | All records match in both editions; full normal and saved suffixes remain unfiltered. |
+| Physical firing polls and velocity commits | Native251: 160 globally ordered rows, 80 arrivals and 80 velocity commits | Checkpoint264 matches all 160 during normal execution and the complete saved suffix in both editions. Selected phase 0/2 words use the existing 193 schema. |
+| Retired separation updates | Native257: 1,397 raw rows, with 1,150 selected owner-update rows | The bounded comparison matches 1,149 selected updates. The single excluded counter 1690 update is the final explicit removal of the old Rider, retained under existing MAP-04.2/SEP-01.2 scope. This is not all 1,397-row C parity. |
+| Random stream and separation phase | Native258: 1,390 repeated RNG/phase rows | The fixture uses the proven seed/startup state and phase; saved continuation retains RNG, owner-list order, separation vector, canonical pose and deferred-release lifetime. No separate claim of all 1,390-row C equality is made. |
+
+The native raw separation archive is preserved in full. The bounded owner-update
+exception does not filter the 478 public records or 160 physical rows. Saved
+retiring-owner replay covers the linked-list membership and its continuation
+until ordinary deferred teardown, rather than rebuilding admission from current
+world visibility.
+
+Checkpoint263's expanded 28 processes pass 2,456 tests and 2,010,768 assertions,
+including all `wc3_repulsion*` and movement-repulsion checks. Checkpoint264's
+new complete-poll normal/saved test passes in both editions (0.77/0.82 seconds).
+Checkpoint264's broader 28 processes pass 2,456 tests and 2,023,226 assertions,
+with zero failures. Both test and normal production builds are warning-free.
+All five fresh 264 native gates passed. The resulting retained-owner loop exposed
+a separate Soul Trap dependency: capture had relied on the removed per-visit
+world-presence filter. Checkpoint267 explicitly refreshes separation ownership
+at capture and world restoration through the existing predicate. Its 48-assertion
+regression passes in each edition, including independent Pause depth and actual
+scheduled resume. No fields, new counts or save-version change were needed;
+Save231 remains current. See [Soul Gem ownership](inventory-and-items.md#soul-gem-gsou--soul-aiso--asou).
+
+Checkpoint267's broader 28 processes pass 2,458 tests and 2,023,322 assertions with
+zero failures; test and normal builds exit 0 without warnings. Itemdrop legitimately expands to
+137 tests/11,543 assertions per edition for the 48-assertion Soul Trap case,
+retaining all prior required cases. All five fresh 267 native gates pass against
+the same current source and binary. Twelve guard/corpus files are refreshed;
+original evidence is unchanged. The Python unit process passes all 120 tests in
+49.120 seconds with exit 0. Its wrapper's final manifest step detected only the
+concurrently updated documentation hashes. A separate final doc-only pin refresh
+and direct manifest recheck pass all 614 entries and 3,316 pins. The original
+wrapper exit remains recorded; it is not reported as exit 0. All 1,146 C source pins and the five native gates remain valid.
+
+The bounded Acoi producer parameter/firing matrix is **verified** within this
+ledger's scope, including the unfiltered 160 blocked physical rows and saved
+continuation. Following integration, the next producer is **Patrol within the
+same TARGET-01.2 leaf**. The explicit counter 1690 old-Rider removal update
+remains in MAP-04.2/SEP-01.2; the raw 1,397-row separation archive is preserved
+without claiming complete C parity. This producer verification does not close
+TARGET-01.2 or any other whole leaf.
+Unrelated availability/channel combinations remain ORDER-01.13.
 **TARGET-01.2 remains open: 25 open leaves, zero whole leaves closed.**

@@ -2136,6 +2136,11 @@ static void move_repulse_init(edict_t *self) {
      * configuration boundary. Broader suppression producers remain SEP-01.2. */
 }
 
+/* World-presence producers refresh membership without owning a count. */
+void S_RefreshUnitSeparation(edict_t *self) {
+    if (self && self->inuse) move_repulse_init(self);
+}
+
 /* Native688d90/6785c0 count independent owners. Signed INC/DEC wrap; only
  * positive depth suppresses configuration. Refresh at each transition. */
 void S_AcquireUnitSeparationSuppression(edict_t *self) {
@@ -2398,7 +2403,10 @@ static void move_repulse_owner_update(void) {
     unsigned skip = level.repulse_phase;
     for (edict_t *self = level.repulse_head, *next; self; self = next) {
         next = self->movement.repulse.next;
-        if (!G_UnitIsWorldActive(self) || IS_HOLLOW(self)) { move_repulse_unlink(self); continue; }
+        /* Membership, not visibility or life, owns this update. Native257
+         * retains the original repulsor after coupling retires its unit;
+         * counted configuration and storage teardown own its eventual unlink. */
+        if (!self->inuse) { move_repulse_unlink(self); continue; }
         if (skip) { skip--; continue; }
 #ifdef BZ_TESTS
         moveRepulseTrace_t before={.state=self->movement.repulse.state,.point=self->movement.fine_pose,.owner=level.pathing_random};

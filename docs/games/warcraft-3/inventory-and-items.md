@@ -259,6 +259,16 @@ check keeps trapped units out of selection, control, spell targeting, and
 region-touch processing. The target remains alive with its original health and
 JASS handle.
 
+Checkpoint267 verifies explicit `S_RefreshUnitSeparation` calls at capture and
+world restoration (48 assertions per edition). The nonstock-profile regression
+preserves stock Hero metadata and the campaign filled-item trigger; it adds no
+native Soul Trap parity claim. Independent Pause depth survives capture/release
+and resumes through the actual scheduler. No new fields or counts are added;
+Save231 is unchanged. All five fresh 267 native gates pass on the same current
+source/binary, including Itemdrop 137 tests/11,543 assertions per edition; the
+120-test Python unit process also passes. A separate final documentation-pin
+refresh/direct manifest check verifies 614 entries and 3,316 pins.
+
 The carrier receives the `Asou` lifecycle ability. Its death releases every
 bound target at the carrier's death coordinates, removes the corresponding
 filled `soul` item, and clears the forced reveal. Removing `Asou` from the

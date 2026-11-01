@@ -14,7 +14,7 @@ typedef struct {
     edict_t *archer,*hippo;
 } coupleInstantFixture_t;
 static cstring_t const couple_instant_tables[]={"UnitBalance","UnitData","UnitAbilities","UnitUI","AbilityData"};
-typedef struct {float archer_x;bool range333,empty,retail_profile,preparation_profile;cstring_t peer_type;} coupleInstantSetup_t;
+typedef struct {float archer_x;bool range333,empty,retail_profile,preparation_profile,repulsion_profile;cstring_t peer_type;} coupleInstantSetup_t;
 static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSetup_t const *setup) {
     float archer_x=setup->archer_x;bool range333=setup->range333;cstring_t peer_type=setup->peer_type;
     reset_entities();setup_test_world();memset(f,0,sizeof(*f));f->old_info=level.mapinfo;
@@ -53,6 +53,13 @@ static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSet
         char *death=strstr(retail_data,"X7;K0.4");if(death)memcpy(death,"X7;K3.0",7);
         death=strstr(retail_data,"X7;K1.2");if(death)memcpy(death,"X7;K3.0",7);
         text[0]=retail_balance;text[1]=retail_data;
+    }
+    char repulsion_balance[2048];
+    if(setup->repulsion_profile) {
+        snprintf(repulsion_balance,sizeof(repulsion_balance),"%.*s%s",(int)strlen(text[0])-2,text[0],
+            "C;Y1;X5;K\"repulse\"\nC;X6;K\"repulseParam\"\nC;X7;K\"repulseGroup\"\nC;X8;K\"repulsePrio\"\n"
+            "C;Y2;X5;K0\nC;Y3;X5;K1\nC;Y4;X5;K1\nE\n");
+        text[0]=repulsion_balance;
     }
     char preparation_balance[2048],preparation_data[2048],preparation_abilities[1024],preparation_ui[1024];
     if(setup->preparation_profile) {
@@ -2728,6 +2735,310 @@ TEST(wc3_couple_instant_orders, preparatory_move_later_orders_and_invalid_saved_
 
 TEST(wc3_couple_instant_orders, direct_preparatory_cast_does_not_orphan_move_staging) {
     CouplePreparationRun(7);
+}
+
+/* Append inside t_couple_instant_orders.c's test conditional. Native251 full
+ * public replay; no sampled position injection and no shortened timer phases. */
+#include "fixtures/retail_couple_instant251_cantpath.h"
+#include "fixtures/retail_couple_instant258_rng.h"
+static jassCFunction_t couple_cantpath_assert_original;
+static struct { unsigned prefix, rows, events, accepted; bool complete; } couple_cantpath;
+static void CoupleCantPathSeparationTrace(edict_t *unit,moveRepulseTrace_t const *before) {
+    if(!getenv("WC3_COUPLE_SEPARATION_TRACE"))return;
+    fprintf(stderr,"CSEP %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u\n",level.pathing_counter,wc3_float_bits(level.pathing_clock.time),unit->class_id,unit->user_data,wc3_float_bits(before->point.x),wc3_float_bits(before->point.y),wc3_float_bits(before->state.vector[0]),wc3_float_bits(before->state.vector[1]),before->state.packed,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(unit->movement.repulse.state.vector[0]),wc3_float_bits(unit->movement.repulse.state.vector[1]),unit->movement.repulse.state.packed,before->owner.sum,before->owner.index);
+}
+
+static char couple_cantpath_script[16000];
+static void CoupleCantPathReplace(cstring_t from,cstring_t to) {
+    char *p=couple_cantpath_script;size_t a=strlen(from),b=strlen(to);
+    while((p=strstr(p,from))) {
+        size_t needed=strlen(couple_cantpath_script)-a+b+1;
+        T_ASSERT(needed<=sizeof(couple_cantpath_script));
+        if(needed>sizeof(couple_cantpath_script))return;
+        memmove(p+b,p+a,strlen(p+a)+1);memcpy(p,to,b);p+=b;
+    }
+}
+static void CoupleCantPathFourCC(char *text,cstring_t key) {
+    char *p=strstr(text,key);if(!p)return;
+    p+=strlen(key);char *end;uint32_t raw=(uint32_t)strtoul(p,&end,10);
+    uint32_t native=((raw&255u)<<24)|((raw&0xff00u)<<8)|((raw>>8)&0xff00u)|(raw>>24);
+    char value[32];snprintf(value,sizeof(value),"%u",native);
+    size_t n=strlen(value);memmove(p+n,end,strlen(end)+1);memcpy(p,value,n);
+}
+static uint32_t CoupleCantPathAssert(jass_t *j) {
+    cstring_t message=jass_checkstring(j,2);
+    if(message && !strncmp(message,"CPF ",4)) {
+        char canonical[512];snprintf(canonical,sizeof(canonical),"%s",message);
+        /* Only typed unit/ability FourCCs differ in host integer encoding. */
+        CoupleCantPathFourCC(canonical," type=");
+        CoupleCantPathFourCC(canonical," ability=");
+        unsigned tick=0,scene=0;T_EQ(sscanf(canonical,"CPF tick=%u scene=%u",&tick,&scene),2);
+        couple_poll_trace.scene=scene;
+        if(strstr(canonical,"label=setup ")) {
+            memset(couple_poll_trace.roles,0,sizeof(couple_poll_trace.roles));
+            FILTER_EDICTS(e,e->inuse && e->user_data>=1 && e->user_data<=3)
+                couple_poll_trace.roles[e->user_data-1]=e;
+            FOR_LOOP(role,3)T_NOT_NULL(couple_poll_trace.roles[role]);
+        }
+        cstring_t expected=NULL;
+        if(tick==0) {
+            unsigned n=sizeof(couple_native_prefix251)/sizeof(couple_native_prefix251[0]);
+            T_ASSERT(couple_cantpath.prefix<n);
+            if(couple_cantpath.prefix<n)expected=couple_native_prefix251[couple_cantpath.prefix++];
+        } else {
+            unsigned n=sizeof(couple_native_public251)/sizeof(couple_native_public251[0]);
+            T_ASSERT(couple_cantpath.rows<n);
+            if(couple_cantpath.rows<n)expected=couple_native_public251[couple_cantpath.rows++];
+        }
+        if(expected) {
+            if(strcmp(canonical,expected))fprintf(stderr,"ACOICANTPATH251 expected:%s actual:%s\n",expected,canonical);
+            T_ASSERT(!strcmp(canonical,expected));
+        }
+        unsigned code=0,actor=0,target=0,ability=0,kind=0;bool event=false;
+        char const *label=strstr(canonical,"label=");
+        if(label && sscanf(label,"label=issued id=%u actor=%u target=%u",&code,&actor,&target)==3)event=true;
+        else if(label && sscanf(label,"label=spell event=%u actor=%u ability=%u",&code,&actor,&ability)==3){event=true;kind=1;}
+        if(event) {
+            unsigned n=sizeof(couple_native_events251)/sizeof(couple_native_events251[0]);
+            T_ASSERT(couple_cantpath.events<n);
+            if(couple_cantpath.events<n) {
+                coupleNativeEvent251_t const *e=&couple_native_events251[couple_cantpath.events++];
+                T_EQ(scene,e->scene);T_EQ(tick,e->tick);T_EQ(kind,e->kind);T_EQ(code,e->code);
+                T_EQ(actor,e->actor);T_EQ(target,e->target);T_EQ(ability,e->ability);
+                T_EQ(wc3_float_bits(level.pathing_clock.time),e->clock_word);
+            }
+        }
+        if(strstr(canonical,"-return accepted=")) {
+            T_ASSERT(strstr(canonical,"accepted=1")!=NULL);couple_cantpath.accepted++;
+        }
+        if(strstr(canonical,"label=complete "))couple_cantpath.complete=true;
+    }
+    return couple_cantpath_assert_original(j);
+}
+static void CoupleCantPathCheckPolls(void) {
+    unsigned const arrival[]={2,3,4,5,6,7,8,18,10,11};
+    unsigned const committed[]={2,13,14,15,16,7};
+    unsigned count=sizeof(couple_native_polls251)/sizeof(couple_native_polls251[0]);
+    T_EQ(count,160);T_EQ(couple_poll_trace.count,count);
+    FOR_LOOP(i,MIN(count,couple_poll_trace.count)) {
+        couplePollRow_t const *actual=&couple_poll_trace.rows[i];
+        coupleNativePoll251_t const *expected=&couple_native_polls251[i];
+        T_EQ(actual->scene,expected->scene);T_EQ(actual->words[0],expected->phase);
+        T_EQ(actual->words[1],expected->role);
+        unsigned n=expected->phase==0 ? 10 : 6;
+        unsigned const *indices=expected->phase==0 ? arrival : committed;
+        T_EQ(expected->count,n);
+        FOR_LOOP(j,n)T_EQ(actual->words[indices[j]],expected->words[j]);
+    }
+}
+static void CoupleCantPathRun(bool replay) {
+    memset(&couple_cantpath,0,sizeof(couple_cantpath));
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+        couple_cantpath_assert_original=p->func;p->func=CoupleCantPathAssert;break;
+    }
+    coupleInstantFixture_t f;
+    CoupleInstantBeginProfile(&f,&(coupleInstantSetup_t){.empty=true,.retail_profile=true,.repulsion_profile=true,.range333=true,.peer_type="earc"});
+    /* Native flat17x17 W3E,64x64 WPM: full-height NOFLY+ground wall.
+     * The ground Archer and flying Hippo must both meet a true route barrier. */
+    memset(f.cells,0x40,sizeof(f.cells));
+    for(unsigned y=0;y<64;y++)for(unsigned x=20;x<=23;x++)f.cells[y*64+x]=0xce;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,f.cells);G_InitWaypoints();G_FinishMovePathingInitialization();
+    float ranges[2]={37,37};unitModification_t mods[2];unitData_t originals[2];
+    memset(mods,0,sizeof(mods));memset(originals,0,sizeof(originals));
+    for(unsigned i=0;i<2;i++) {
+        mods[i]=(unitModification_t){.modID=MAKEFOURCC('a','r','a','n'),.type=mod_unreal,.level=1,.data=&ranges[i]};
+        originals[i]=(unitData_t){.originalUnitID=i?MAKEFOURCC('A','c','o','3'):MAKEFOURCC('A','c','o','2'),.numbeOfModifications=1,.modifications=&mods[i]};
+    }
+    f.info.num_originalAbilities=2;f.info.originalAbilities=originals;G_SetMapAbilityOverrides(&f.info);
+    /* Native258 observes map reseeding and twelve startup owner draws before
+     * the first scene. Reproduce those inputs, never inject sampled poses. */
+    wc3_random_seed(&level.pathing_random,couple_native_owner_seed258);
+    FOR_LOOP(startup_draw,couple_native_startup_draws258)wc3_random_next(&level.pathing_random);
+    T_EQ(level.pathing_random.sum,couple_native_initial_rng258[0]);T_EQ(level.pathing_random.index,couple_native_initial_rng258[1]);
+    level.repulse_phase=couple_native_constructor_phase258;
+    T_ASSERT(CoupleInstantCompile(
+        "function CoupleCantPathObserve takes string value returns nothing\ncall BJassAssert(true,value)\nendfunction\n"
+        "function CoupleCantPathPrimeGroups takes nothing returns nothing\n"
+        "local group g=CreateGroup()\ncall DestroyGroup(g)\nset g=null\nendfunction\n"
+        "function CpModulo takes integer a,integer b returns integer\nreturn a-(a/b)*b\nendfunction\n"
+        "function CpRegister takes playerunitevent e,code f returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),e,null)\ncall TriggerAddAction(t,f)\nendfunction\n"));
+    snprintf(couple_cantpath_script,sizeof(couple_cantpath_script),"%s",couple_native_probe251);
+    CoupleCantPathReplace("ModuloInteger(","CpModulo(");
+    CoupleCantPathReplace("function CpSpell takes nothing returns nothing","function CpSpell takes integer observedEvent returns nothing");
+    CoupleCantPathReplace("GetHandleId(GetTriggerEventId())","observedEvent");
+    CoupleCantPathReplace("function PathProbeInit takes nothing returns nothing",
+        "function CpChannel takes nothing returns nothing\ncall CpSpell(272)\nendfunction\n"
+        "function CpCast takes nothing returns nothing\ncall CpSpell(273)\nendfunction\n"
+        "function CpEffect takes nothing returns nothing\ncall CpSpell(274)\nendfunction\n"
+        "function CpFinish takes nothing returns nothing\ncall CpSpell(275)\nendfunction\n"
+        "function CpEnd takes nothing returns nothing\ncall CpSpell(276)\nendfunction\n"
+        "function PathProbeInit takes nothing returns nothing");
+    CoupleCantPathReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(0),EVENT_PLAYER_UNIT_SPELL_CHANNEL,null)","call CpRegister(ConvertPlayerUnitEvent(272),function CpChannel)");
+    CoupleCantPathReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(0),EVENT_PLAYER_UNIT_SPELL_CAST,null)","call CpRegister(ConvertPlayerUnitEvent(273),function CpCast)");
+    CoupleCantPathReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(0),EVENT_PLAYER_UNIT_SPELL_EFFECT,null)","call CpRegister(ConvertPlayerUnitEvent(274),function CpEffect)");
+    CoupleCantPathReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(0),EVENT_PLAYER_UNIT_SPELL_ENDCAST,null)","call CpRegister(ConvertPlayerUnitEvent(276),function CpEnd)");
+    CoupleCantPathReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(0),EVENT_PLAYER_UNIT_SPELL_FINISH,null)","call CpRegister(ConvertPlayerUnitEvent(275),function CpFinish)");
+    CoupleCantPathReplace("call TriggerAddAction(ts,function CpSpell)","");
+    memset(&couple_poll_trace,0,sizeof(couple_poll_trace));
+    couple_poll_trace.print=getenv("WC3_COUPLE_POLL_TRACE")!=NULL;
+    move_test_group_arrival=CouplePollArrival;move_test_group_committed=CouplePollCommitted;
+    move_test_repulse=CoupleCantPathSeparationTrace;
+    T_ASSERT(CoupleInstantCompile(couple_cantpath_script));
+    /* The native cleanup later allocates a group. Prime that public registry
+     * before the early snapshot so path-cleared ReadGame restores the same
+     * high-water baseline; no save-format or registry guard is bypassed. */
+    CoupleInstantCall("CoupleCantPathPrimeGroups");CoupleInstantCall("PathProbeInit");
+    unsigned steps=0;
+    if(replay) {
+        edict_t *retired=NULL;uint32_t retired_spawn=0;
+        vec2_t death_pose={0};bool displaced=false;
+        /* Observe after complete frames: no snapshot is made from a native
+         * event callback or while the separation owner is visiting a node. */
+        while(!displaced && !couple_cantpath.complete && steps++<12500) {
+            CoupleInstantStep();
+            if(!retired) {
+                FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('e','h','i','p') &&
+                    e->health.value==0 && e->couple_instant && e->couple_instant->retiring &&
+                    e->movement.repulse.active && !e->movement.group_id) {
+                    retired=e;retired_spawn=e->spawn_time;death_pose=e->s.origin2;break;
+                }
+            } else if(retired->inuse && retired->spawn_time==retired_spawn) {
+                wc3Repulse_t const *state=&retired->movement.repulse.state;
+                displaced=(state->vector[0]!=0 || state->vector[1]!=0) &&
+                    (retired->s.origin2.x!=death_pose.x || retired->s.origin2.y!=death_pose.y);
+            } else {T_ASSERT(false);break;}
+        }
+        T_ASSERT(displaced);T_NOT_NULL(retired);
+        if(displaced && retired) {
+            T_EQ(retired->health.value,0);T_ASSERT(retired->movement.repulse.active);
+            T_EQ(retired->movement.group_id,0);T_ASSERT(!G_UnitHasWorldPresence(retired));
+            wc3Repulse_t saved_repulse=retired->movement.repulse.state;
+            vec2_t saved_pose=retired->s.origin2,saved_fine=retired->movement.fine_pose;
+            wc3Random_t saved_random=level.pathing_random;uint32_t saved_phase=level.repulse_phase;
+            unsigned links[MAX_ENTITIES],link_count=0;
+            for(edict_t *e=level.repulse_head;e && link_count<MAX_ENTITIES;e=e->movement.repulse.next)
+                links[link_count++]=(unsigned)(e-g_edicts);
+            T_ASSERT(link_count<MAX_ENTITIES);
+            typeof(couple_cantpath) checkpoint=couple_cantpath;
+            typeof(couple_poll_trace) *poll_checkpoint=malloc(sizeof(couple_poll_trace));
+            T_NOT_NULL(poll_checkpoint);if(poll_checkpoint)*poll_checkpoint=couple_poll_trace;
+            unsigned saved_steps=steps;
+            cstring_t path=Test_TempPath("couple-retired-separation231.bin");
+            T_ASSERT(WriteGame(path));
+            while(!couple_cantpath.complete && steps++<12500)CoupleInstantStep();
+            T_ASSERT(couple_cantpath.complete);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(couple_cantpath.rows,478);T_EQ(couple_cantpath.events,38);T_EQ(couple_cantpath.accepted,8);
+            unsigned final_steps=steps;CoupleCantPathCheckPolls();
+            S_ClearMoveGroups();T_ASSERT(ReadGame(path));
+            couple_cantpath=checkpoint;steps=saved_steps;
+            if(poll_checkpoint)couple_poll_trace=*poll_checkpoint;
+            T_ASSERT(retired->inuse);T_EQ(retired->spawn_time,retired_spawn);
+            T_EQ(retired->health.value,0);T_EQ(retired->movement.group_id,0);
+            T_ASSERT(retired->couple_instant && retired->couple_instant->retiring);
+            T_ASSERT(retired->movement.repulse.active);T_ASSERT(!G_UnitHasWorldPresence(retired));
+            T_EQ(wc3_float_bits(retired->s.origin2.x),wc3_float_bits(saved_pose.x));
+            T_EQ(wc3_float_bits(retired->s.origin2.y),wc3_float_bits(saved_pose.y));
+            T_EQ(wc3_float_bits(retired->movement.fine_pose.x),wc3_float_bits(saved_fine.x));
+            T_EQ(wc3_float_bits(retired->movement.fine_pose.y),wc3_float_bits(saved_fine.y));
+            T_EQ(wc3_float_bits(retired->movement.repulse.state.vector[0]),wc3_float_bits(saved_repulse.vector[0]));
+            T_EQ(wc3_float_bits(retired->movement.repulse.state.vector[1]),wc3_float_bits(saved_repulse.vector[1]));
+            T_EQ(retired->movement.repulse.state.packed,saved_repulse.packed);
+            T_EQ(level.pathing_random.sum,saved_random.sum);T_EQ(level.pathing_random.index,saved_random.index);
+            T_EQ(level.repulse_phase,saved_phase);
+            unsigned restored_links=0;
+            for(edict_t *e=level.repulse_head;e && restored_links<MAX_ENTITIES;e=e->movement.repulse.next) {
+                T_ASSERT(restored_links<link_count);
+                if(restored_links<link_count)T_EQ((unsigned)(e-g_edicts),links[restored_links]);
+                restored_links++;
+            }
+            T_EQ(restored_links,link_count);
+            while(!couple_cantpath.complete && steps++<12500)CoupleInstantStep();
+            T_EQ(steps,final_steps);free(poll_checkpoint);remove(path);
+        }
+    } else while(!couple_cantpath.complete && steps++<12500)CoupleInstantStep();
+    T_ASSERT(couple_cantpath.complete);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(couple_cantpath.prefix,3);T_EQ(couple_cantpath.rows,478);T_EQ(couple_cantpath.events,38);T_EQ(couple_cantpath.accepted,8);
+    CoupleCantPathCheckPolls();
+    move_test_group_arrival=NULL;move_test_group_committed=NULL;move_test_repulse=NULL;
+    G_SetMapAbilityOverrides(NULL);CoupleInstantEnd(&f);
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_cantpath_assert_original;break;}
+}
+
+TEST(wc3_couple_instant_orders, native_cannot_path_releases_pair_and_allows_fresh_retry) {
+    CoupleCantPathRun(false);
+}
+TEST(wc3_couple_instant_orders, native_retired_separation_saved_suffix) {
+    CoupleCantPathRun(true);
+}
+
+/* Engine-only reentrancy guards at the native251 terminal-failure frontier.
+ * No claim that these extra callback mutations were executed in retail. */
+TEST(wc3_couple_instant_orders, cannot_path_inverse_preserves_callback_move_and_removal) {
+    FOR_LOOP(removing,2) {
+        coupleInstantFixture_t f;
+        CoupleInstantBeginProfile(&f,&(coupleInstantSetup_t){.empty=true,.retail_profile=true,.repulsion_profile=true,.range333=true,.peer_type="earc"});
+        memset(f.cells,0x40,sizeof(f.cells));
+        for(unsigned y=0;y<64;y++)for(unsigned x=20;x<=23;x++)f.cells[y*64+x]=0xce;
+        CM_SetupTestPathmap(64,64,f.cells);G_InitWaypoints();G_FinishMovePathingInitialization();
+        float ranges[2]={37,37};unitModification_t mods[2];unitData_t originals[2];
+        memset(mods,0,sizeof(mods));memset(originals,0,sizeof(originals));
+        FOR_LOOP(i,2) {
+            mods[i]=(unitModification_t){.modID=MAKEFOURCC('a','r','a','n'),.type=mod_unreal,.level=1,.data=&ranges[i]};
+            originals[i]=(unitData_t){.originalUnitID=i?MAKEFOURCC('A','c','o','3'):MAKEFOURCC('A','c','o','2'),.numbeOfModifications=1,.modifications=&mods[i]};
+        }
+        f.info.num_originalAbilities=2;f.info.originalAbilities=originals;G_SetMapAbilityOverrides(&f.info);
+        char script[5000];snprintf(script,sizeof(script),
+            "globals\nunit cgA=null\nunit cgH=null\nboolean cgFired=false\ninteger cgMoves=0\nendglobals\n"
+            "function CgEvent takes nothing returns nothing\n"
+            "if GetTriggerUnit()==cgA and GetIssuedOrderId()==851986 then\nset cgMoves=cgMoves+1\nendif\n"
+            "if GetTriggerUnit()==cgH and GetIssuedOrderId()==851972 and not cgFired then\n"
+            "set cgFired=true\ncall BJassAssert(GetUnitCurrentOrder(cgA)==852508,\"failed owner head survives peer inverse\")\n"
+            "%s\nendif\nendfunction\n"
+            "function CgInit takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set cgA=CreateUnit(Player(0),'earc',512.0,512.0,0.0)\nset cgH=CreateUnit(Player(0),'ehip',1024.0,512.0,180.0)\n"
+            "call SetUnitUserData(cgA,41)\ncall SetUnitUserData(cgH,42)\n"
+            "call SetUnitAcquireRange(cgA,0.0)\ncall SetUnitAcquireRange(cgH,0.0)\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+            "call TriggerAddAction(t,function CgEvent)\n"
+            "call BJassAssert(IssueImmediateOrder(cgA,\"coupleinstant\"),\"wall pair admitted\")\nendfunction\n"
+            "function CgCheck takes nothing returns nothing\ncall BJassAssert(cgFired,\"actual wall failure invoked peer Stop\")\n"
+            "call BJassAssert(cgMoves==%u,\"callback Move is not republished\")\n"
+            "%s\nendfunction\n",
+            removing ? "call RemoveUnit(cgA)" : "call BJassAssert(IssuePointOrder(cgA,\"move\",256.0,512.0),\"inverse callback Move admitted\")",
+            removing ? 0u : 1u,
+            removing ? "call BJassAssert(GetUnitTypeId(cgA)==0,\"removed actor eventually released\")" :
+                "call BJassAssert(GetUnitX(cgA)<384.0,\"callback successor physically continues\")");
+        T_ASSERT(CoupleInstantCompile(script));CoupleInstantCall("CgInit");
+        edict_t *source=NULL,*peer=NULL;
+        FILTER_EDICTS(e,e->inuse && e->user_data==41)source=e;
+        FILTER_EDICTS(e,e->inuse && e->user_data==42)peer=e;
+        T_NOT_NULL(source);T_NOT_NULL(peer);
+        uint32_t spawn=source->spawn_time;unsigned steps=0;
+        while(source->inuse && source->spawn_time==spawn && source->couple_instant && source->couple_instant->active && steps++<600)CoupleInstantStep();
+        T_ASSERT(steps<600);T_ASSERT(!peer->couple_instant || !peer->couple_instant->active);
+        if(!removing) {
+            T_EQ(source->current_order_id,G_OrderId("move"));
+            T_NOT_NULL(source->goalentity);
+            if(source->goalentity)T_EQ(wc3_float_bits(source->goalentity->s.origin2.x),wc3_float_bits(256.0f));
+            cstring_t path=Test_TempPath("cantpath-callback-move231.bin");
+            T_ASSERT(WriteGame(path));
+            FOR_LOOP(frame,400) {CoupleInstantStep();}
+            CoupleInstantCall("CgCheck");vec2_t final=source->s.origin2;
+            S_ClearMoveGroups();T_ASSERT(ReadGame(path));
+            FOR_LOOP(frame,400) {CoupleInstantStep();}
+            CoupleInstantCall("CgCheck");
+            T_EQ(wc3_float_bits(source->s.origin2.x),wc3_float_bits(final.x));
+            T_EQ(wc3_float_bits(source->s.origin2.y),wc3_float_bits(final.y));remove(path);
+        } else {
+            FOR_LOOP(frame,400) {CoupleInstantStep();}
+            CoupleInstantCall("CgCheck");
+        }
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        G_SetMapAbilityOverrides(NULL);CoupleInstantEnd(&f);
+    }
 }
 
 #endif
