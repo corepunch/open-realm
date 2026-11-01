@@ -3058,6 +3058,135 @@ TEST(wc3_spell, simple_ability_summons_record_owner_ability_and_timed_life) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, far_seer_feral_spirit_summons_two_ranked_wolf_types_with_authored_lifetimes) {
+    enum {
+        FERAL_SPIRIT_LIFETIME_MS = 60000, // milliseconds; verifies the authored 60-second summon duration
+        SHADOW_WOLF_INVISIBILITY_TRANSITION_MS = 2000 // milliseconds; synthetic Apiv transition used by this fixture
+    };
+    char const slk[] =
+        "ID;PWXL;N;EBB;Y4;X13\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"UnitID1\"\nC;Y1;X5;K\"UnitID2\"\nC;Y1;X6;K\"UnitID3\"\n"
+        "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"DataB2\"\nC;Y1;X9;K\"DataB3\"\n"
+        "C;Y1;X10;K\"Dur1\"\nC;Y1;X11;K\"Dur2\"\nC;Y1;X12;K\"Dur3\"\n"
+        "C;Y1;X13;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AOsf\"\nC;Y2;X2;K\"AOsf\"\nC;Y2;X3;K3\n"
+        "C;Y2;X4;K\"osw1\"\nC;Y2;X5;K\"osw2\"\nC;Y2;X6;K\"osw3\"\n"
+        "C;Y2;X7;K2\nC;Y2;X8;K2\nC;Y2;X9;K2\n"
+        "C;Y2;X10;K60\nC;Y2;X11;K60\nC;Y2;X12;K60\n"
+        "C;Y3;X1;K\"ACct\"\nC;Y3;X2;K\"ACct\"\nC;Y3;X3;K1\n"
+        "C;Y3;X7;K2\nC;Y3;X13;K100\n"
+        "C;Y4;X1;K\"Apiv\"\nC;Y4;X2;K\"Apiv\"\nC;Y4;X3;K1\nC;Y4;X10;K2\nE\n";
+    char const unit_abilities_slk[] =
+        "ID;PWXL;N;EBB;Y4;X2\n"
+        "C;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"osw1\"\nC;Y2;X2;K\"\"\n"
+        "C;Y3;X1;K\"osw2\"\nC;Y3;X2;K\"ACct\"\n"
+        "C;Y4;X1;K\"osw3\"\nC;Y4;X2;K\"ACct,Apiv\"\nE\n";
+    char const unit_ui_slk[] =
+        "ID;PWXL;N;EBB;Y4;X3\n"
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"modelScale\"\n"
+        "C;Y2;X1;K\"osw1\"\nC;Y2;X2;K\"Units\\Creeps\\Spiritwolf\\Spiritwolf.mdx\"\nC;Y2;X3;K1\n"
+        "C;Y3;X1;K\"osw2\"\nC;Y3;X2;K\"Units\\Creeps\\Spiritwolf\\Spiritwolf.mdx\"\nC;Y3;X3;K1\n"
+        "C;Y4;X1;K\"osw3\"\nC;Y4;X2;K\"Units\\Creeps\\Spiritwolf\\Spiritwolf.mdx\"\nC;Y4;X3;K1\nE\n";
+    char const unit_balance_slk[] =
+        "ID;PWXL;N;EBB;Y4;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"realHP\"\n"
+        "C;Y2;X1;K\"osw1\"\nC;Y2;X2;K100\n"
+        "C;Y3;X1;K\"osw2\"\nC;Y3;X2;K100\n"
+        "C;Y4;X1;K\"osw3\"\nC;Y4;X2;K100\nE\n";
+    char const unit_data_slk[] =
+        "ID;PWXL;N;EBB;Y4;X3\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"targType\"\nC;Y1;X3;K\"movetp\"\n"
+        "C;Y2;X1;K\"osw1\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\n"
+        "C;Y3;X1;K\"osw2\"\nC;Y3;X2;K\"ground\"\nC;Y3;X3;K\"foot\"\n"
+        "C;Y4;X1;K\"osw3\"\nC;Y4;X2;K\"ground\"\nC;Y4;X3;K\"foot\"\nE\n";
+    static uint32_t const wolf_ids[] = {
+        MAKEFOURCC('o','s','w','1'), MAKEFOURCC('o','s','w','2'), MAKEFOURCC('o','s','w','3')
+    };
+    uint32_t const feral_spirit = MAKEFOURCC('A','O','s','f');
+    UnitAbilities_t caster_abilities = { .abilList = "AOsf" };
+    slkTestData_t *rows, *old;
+    slkTestData_t *abilities_rows, *old_abilities;
+    slkTestData_t *ui_rows, *old_ui;
+    slkTestData_t *balance_rows, *old_balance;
+    slkTestData_t *unit_data_rows, *old_unit_data;
+    edict_t *caster;
+
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    abilities_rows = parse_slk_string(unit_abilities_slk);
+    old_abilities = G_SetSLKRows("UnitAbilities", abilities_rows);
+    ui_rows = parse_slk_string(unit_ui_slk);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    balance_rows = parse_slk_string(unit_balance_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    unit_data_rows = parse_slk_string(unit_data_slk);
+    old_unit_data = G_SetSLKRows("UnitData", unit_data_rows);
+    caster = make_hero(MAKEFOURCC('O','s','h','d'), 500.0f, 300.0f, 0.0f, 0.0f);
+    caster->s.player = 0;
+    caster->data.UnitAbilities = &caster_abilities;
+    for (uint32_t rank = 1; rank <= 3; rank++) {
+        T_EQ(S_SpellUnitId(feral_spirit, rank), wolf_ids[rank - 1]);
+        T_FEQ(S_SpellData(feral_spirit, rank, 2), 2.0f, 0.001f);
+        T_FEQ(S_SpellDuration(feral_spirit, rank, false), 60.0f, 0.001f);
+    }
+
+    for (uint32_t rank = 1; rank <= 3; rank++) {
+        uint32_t living = 0;
+        caster->unit_state->ranks[0] = MAKE(heroability_t, .code = feral_spirit, .level = rank);
+        S_SpellResetCooldowns(caster);
+        T_ASSERT(S_CastNoTargetSpell(caster, feral_spirit));
+        FILTER_EDICTS(wolf, wolf->inuse && wolf->owner == caster &&
+                      wolf->summon_ability == feral_spirit && !M_IsDead(wolf)) {
+            heroabilitystatus_t *timed_life;
+            T_EQ(wolf->class_id, wolf_ids[rank - 1]);
+            T_EQ(wolf->owner, caster);
+            T_EQ(wolf->summon_ability, feral_spirit);
+            timed_life = unit_findstatus(wolf, MAKEFOURCC('B','T','L','F'));
+            T_NOT_NULL(timed_life);
+            if (timed_life) T_EQ(timed_life->duration_ms, FERAL_SPIRIT_LIFETIME_MS);
+            if (rank >= 2) {
+                T_EQ(G_UnitAbilityLevel(wolf, MAKEFOURCC('A','C','c','t')), 1);
+                T_EQ(S_CriticalStrikeDamage(wolf, 10), 20);
+            }
+            if (rank == 3) {
+                T_EQ(G_UnitAbilityLevel(wolf, MAKEFOURCC('A','p','i','v')), 1);
+                wolf->s.player = 0;
+                wolf->unit_state->attack1.type = ATK_NORMAL;
+                wolf->unit_state->attack1.weapon = WPN_NORMAL;
+                wolf->unit_state->attack1.cooldown = 1.0f; // seconds; fixture attack speed for attack-start reveal
+                wolf->unit_state->attack1.damagePoint = 0.3f; // seconds; fixture swing hit point
+                S_UnitAbilityEvent(wolf, A_UNIT_INIT);
+                level.time += SHADOW_WOLF_INVISIBILITY_TRANSITION_MS;
+                T_ASSERT(S_PermanentInvisibilityActive(wolf));
+                T_ASSERT(S_UnitIsInvisibleToPlayer(wolf, 1));
+                attack_melee(wolf);
+                T_ASSERT(!S_PermanentInvisibilityActive(wolf));
+                T_ASSERT(!S_UnitIsInvisibleToPlayer(wolf, 1));
+                T_ASSERT(wolf->vision && wolf->vision->reveal_until > level.time);
+            }
+            living++;
+        }
+        T_EQ(living, 2);
+    }
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+    G_SetSLKRows("UnitAbilities", old_abilities);
+    G_SetSLKRows("UnitUI", old_ui);
+    G_SetSLKRows("UnitBalance", old_balance);
+    G_SetSLKRows("UnitData", old_unit_data);
+    free_slk_rows(abilities_rows);
+    free_slk_rows(ui_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(unit_data_rows);
+}
+
 /* OrcX01 issues the inherited "spiritwolf" order after removing the
  * preplaced Misha. Arsg must resolve to its authored Misha data, then retire
  * that Misha when the ability is cast again. */
