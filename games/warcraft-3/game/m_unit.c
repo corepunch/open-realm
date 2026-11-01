@@ -2539,6 +2539,10 @@ uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
         return hero_level;
     }
     if (!ent || !abilcode) return 0;
+    /* Robo-Goblin's Nrob UnitAbilities row omits Demolish even though the
+     * transformed form owns the passive and uses its authored ANd1..3 data. */
+    if (ent->class_id == MAKEFOURCC('N','r','o','b') &&
+        abilcode == MAKEFOURCC('A','N','d','e')) return 1;
     /* The TFT Bear Form unit row omits Roar even though Mark of the Claw
      * exposes it as a command. Treat the synthesized command as level one;
      * G_UnitAbilityResearchAvailable remains the authoritative cast gate. */
