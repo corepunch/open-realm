@@ -385,6 +385,7 @@ static void attack_acquire_enable(edict_t *unit) {
     if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
        !attack_owner_present(unit) || !CAbilityAttack(unit,A_UNIT_OWNED,NULL) ||
        S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))return;
+    if((int32_t)unit->attack_invisibility_suppression>0)return;
     unit->attack_scan_enabled=true;
     if(!unit->attack_scan_initial_pending)
         attack_acquire_arm(unit,G_TimerQueryClock(NULL),.01f);
@@ -400,6 +401,7 @@ static void attack_acquire_ensure(edict_t *unit,bool attachment) {
      * later Stand/Move refreshes retain their ordinary live-unit guard. */
     if(unit && attack_target_identity(unit) && unit->inuse &&
        (attachment ? !(unit->svflags&SVF_DEADMONSTER) : !M_IsDead(unit)) && !G_IsDeferredFree(unit) &&
+       (int32_t)unit->attack_invisibility_suppression<1 &&
        !unit->attack_scan.active && (attachment || (!unit->paused &&
        !S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))) && attack_owner_present(unit) && CAbilityAttack(unit,A_UNIT_OWNED,NULL)) {
         unit->attack_scan_enabled=true;
@@ -1995,6 +1997,28 @@ static umove_t attack_move_walk = { .animation="walk", .think=ai_attack_walk, .p
 static umove_t attack_move_recovery = { .animation="walk", .proc=CAbilityAttack,
     .sample_pose=S_PublishMovement, .leave=attack_chase_leave };
 
+/* 628a10 calls495740 before forced recovery;495750 owns the inverse. */
+uint32_t S_AttackInvisibilityAcquire(edict_t *unit) {
+    if(!unit || !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))return false;
+    if(!unit->attack_invisibility_generation)unit->attack_invisibility_generation=1;
+    uint32_t generation=unit->attack_invisibility_generation;
+    unit->attack_invisibility_suppression++;
+    attack_acquire_disable(unit);
+    /*628a10 uses the pending-user-successor query, as Harvest's687f60
+     * continuation does. Internal task phases are not queued user orders. */
+    bool capture=G_UnitQueuedOrderCount(unit)==0;
+    attack_recover_target_task(unit,unit->attack_target,true,capture,"invisibility_activated");
+    return generation;
+}
+void S_AttackInvisibilityRelease(edict_t *unit,uint32_t generation) {
+    if(!unit || !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))return;
+    if(!generation || unit->attack_invisibility_generation!=generation)return;
+    unit->attack_invisibility_suppression--;
+    if((int32_t)unit->attack_invisibility_suppression<1 &&
+       !unit->attack_acquisition_suppressed && !S_UnitExecutionPaused(unit))
+        attack_acquire_enable(unit);
+}
+
 void S_AttackRecoveryComplete(edict_t *receiver,edict_t *unit,bool arrived) {
     if(receiver==unit && unit->currentmove==&attack_move_recovery)
         attack_finish_after_combat(unit,unit->goalentity,arrived ? "recovery_arrival" : "recovery_unreachable");
@@ -3206,6 +3230,8 @@ BZ_ABILITY_PROC(CAbilityAttack) {
             ent->attack_cooldown_end_time=0;
             attack_set_alternative(ent,NULL);
             attack_cap_cancel(ent);
+            ent->attack_invisibility_suppression=0;
+            if(!++ent->attack_invisibility_generation)++ent->attack_invisibility_generation;
             if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
                 sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));
             /*3f4c70 ->497ba0 ->49d280 forced retirement releases the owned

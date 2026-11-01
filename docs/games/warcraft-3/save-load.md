@@ -1,4 +1,14 @@
-Save233 adds `attack_recovery_pending`, the independent Attack loss-intent bit
+Save234 stores the shared Apiv/Binv fade owner: first-contribution clock and
+request, temporary contribution count, permanent ownership and published state.
+Each temporary status retains contribution ownership, pending notification,
+held Attack suppression and its Attack incarnation. The independent suppression
+count is not the task-owned acquisition permission. Load validates live status
+classes, contribution/count agreement, canonical booleans and finite active
+timer clocks/sequences before rebuilding the derived queue. Save233 and older
+layouts are rejected. Saving/loading during synchronous invisibility publication
+is rejected rather than persisting a half-delivered notification.
+
+The prior Save233 change adds `attack_recovery_pending`, the independent Attack loss-intent bit
 corresponding to original flag40000. Invalid target loss sets it; current-target
 owner change does not. New explicit/automatic target admission clears it. Active
 recovery consumes it; inactive recovery preserves it, even without a retained

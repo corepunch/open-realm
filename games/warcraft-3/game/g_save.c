@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 233; /* Independent Attack target-loss recovery intent. */
+static uint32_t const save_version = 234; /* Shared invisibility fade and Binv suppression ownership. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1253,6 +1253,10 @@ static field_t const status_fields[] = {
     TF(heroabilitystatus_t, class_timer.deadline.epoch, F_INT),
     TF(heroabilitystatus_t, class_timer.deadline.span, F_FLOAT),
     TF(heroabilitystatus_t, class_timer.sequence, F_INT),
+    TF(heroabilitystatus_t, invisibility_attack_generation, F_INT),
+    TF(heroabilitystatus_t, invisibility_owned, F_INT),
+    TF(heroabilitystatus_t, invisibility_pending, F_INT),
+    TF(heroabilitystatus_t, invisibility_suppression_held, F_INT),
     TF(heroabilitystatus_t, class_timer_remaining, F_FLOAT),
     TF(heroabilitystatus_t, class_clock_depth, F_INT),
     TF(heroabilitystatus_t, instance_id, F_INT),
@@ -1378,6 +1382,11 @@ field_t edict_fields[] = {
     F(edict_s, permanent_invisibility_fade.request.sequence, F_INT),
     F(edict_s, permanent_invisibility_fade.request.active, F_INT),
     F(edict_s, permanent_invisibility_fade.slope, F_FLOAT),
+    F(edict_s, permanent_invisibility_fade.temporary_contributions, F_INT),
+    F(edict_s, permanent_invisibility_fade.permanent_owned, F_INT),
+    F(edict_s, permanent_invisibility_fade.published, F_INT),
+    F(edict_s, attack_invisibility_generation, F_INT),
+    F(edict_s, attack_invisibility_suppression, F_INT),
     F(edict_s, aura_effect_role, F_INT),
     F(edict_s, wander_next_time, F_INT),
     F(edict_s, wander_random_state, F_INT),
@@ -3573,7 +3582,8 @@ static FILE *G_OpenSaveTemporary(cstring_t filename, PATHSTR temporary) {
 bool WriteGame(cstring_t filename) {
     /* Public JASS saves/loads are deferred until command callbacks unwind.
      * A direct caller cannot persist or replace a partially published task. */
-    if(S_TargetApproachPublicationPending() || S_SpellPreparationPending())return false;
+    if(S_TargetApproachPublicationPending() || S_SpellPreparationPending() ||
+       S_InvisibilityPublicationPending())return false;
     PATHSTR temporary = { 0 };
     FILE *f = NULL;
     saveHeader_t header = {
@@ -3606,6 +3616,7 @@ bool WriteGame(cstring_t filename) {
     if (!S_ValidateBuildMines()) { fprintf(stderr,"WC3 SaveGame: invalid Build completion references\n"); goto done; }
     if (!S_ValidateMoveFollows()) { fprintf(stderr,"WC3 SaveGame: invalid Follow subscriptions\n"); goto done; }
     if (!S_ValidateAttackTargets()) { fprintf(stderr,"WC3 SaveGame: invalid Attack subscriptions\n"); goto done; }
+    if (!S_ValidateInvisibilityOwners()) { fprintf(stderr,"WC3 SaveGame: invalid invisibility owners\n"); goto done; }
     if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
     if (!S_ValidateMoveCoarseRequests()) { fprintf(stderr,"WC3 SaveGame: invalid coarse-request FIFOs\n"); goto done; }
@@ -3708,7 +3719,8 @@ static void RebindEntityModels(edict_t *ent) {
 bool ReadGame(cstring_t filename) {
     /* Public JASS saves/loads are deferred until command callbacks unwind.
      * A direct caller cannot persist or replace a partially published task. */
-    if(S_TargetApproachPublicationPending() || S_SpellPreparationPending())return false;
+    if(S_TargetApproachPublicationPending() || S_SpellPreparationPending() ||
+       S_InvisibilityPublicationPending())return false;
     FILE *f = fopen(filename, "rb");
     if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = { 0 };
@@ -3896,6 +3908,7 @@ bool ReadGame(cstring_t filename) {
     if (!S_ValidateBuildMines()) { fprintf(stderr,"WC3 LoadGame: invalid Build completion references\n"); fclose(f); return false; }
     if (!S_ValidateMoveFollows()) { fprintf(stderr,"WC3 LoadGame: invalid Follow subscriptions\n"); fclose(f); return false; }
     if (!S_ValidateAttackTargets()) { fprintf(stderr,"WC3 LoadGame: invalid Attack subscriptions\n"); fclose(f); return false; }
+    if (!S_ValidateInvisibilityOwners()) { fprintf(stderr,"WC3 LoadGame: invalid invisibility owners\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveShared(f)) { fprintf(stderr,"WC3 LoadGame: failed at shared Move parameters\n"); fclose(f); return false; }
@@ -5676,7 +5689,7 @@ TEST(wc3_save, rejects_version_232_before_attack_recovery_intent) {
     setup_test_world();reset_entities();T_ASSERT(WriteGame(current));
     FILE *file=fopen(current,"rb");T_NOT_NULL(file);if(!file)return;
     T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
-    T_EQ(header.version,233u);
+    T_EQ(header.version,save_version);
     T_ASSERT(write_save_fixture_header(current,previous,232,header.edict_size));
     T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));T_ASSERT(!ReadGame(previous));
     remove(current);remove(previous);

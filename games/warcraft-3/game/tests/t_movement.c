@@ -30482,4 +30482,240 @@ TEST(wc3_movement, rooted_selected_order_keeps_travel_absent) {
     T_EQ(unit->movement.velocity.x, 0);
     T_EQ(unit->movement.velocity.y, 0);
 }
+
+/*307 producer integration: actual public spell/order admission and the shared
+ * primary scheduler. This is not an oracle for all later native299 motion. */
+static edict_t *target307_source,*target307_watcher;
+static unsigned target307_publications;
+static wc3Clock_t target307_publication_clock;
+static void target307_observe_publication(edict_t *subscriber) {
+    if(subscriber!=target307_watcher)return;
+    target307_publications++;
+    T_ASSERT(target307_source->permanent_invisibility_fade.published);
+    T_ASSERT(S_UnitHasTemporaryInvisibility(target307_source,NULL));
+    T_EQ(target307_source->attack_invisibility_suppression,0);
+    T_ASSERT(S_UnitTargetChaseActive(target307_source,CAbilityAttack));
+    heroabilitystatus_t *status=unit_findstatus(target307_source,MAKEFOURCC('B','i','n','v'));
+    T_ASSERT(status && status->invisibility_pending);
+    T_ASSERT(!status || !status->invisibility_suppression_held);
+    T_ASSERT(S_InvisibilityPublicationPending());
+    T_ASSERT(!WriteGame(Test_TempPath("invisibility307-mid-publication.bin")));
+    target307_publication_clock=G_TimerQueryClock(NULL);
+}
+static slkTestData_t *target307_rows(float fade) {
+    static char slk[2048];bool expansion=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    snprintf(slk,sizeof(slk),
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"Cost1\"\nC;X5;K\"Cool1\"\nC;X6;K\"Rng1\"\n"
+        "C;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\nC;X9;K\"BuffID1\"\n"
+        "C;X10;K\"%s\"\nC;X11;K\"%s\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0\nC;X5;K0\nC;X6;K600\n"
+        "C;X7;K10\nC;X8;K10\nC;X9;K\"Binv\"\nC;X10;K\"air,ground,friend\"\nC;X11;K%.9g\n"
+        "C;Y3;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X7;K0.75\nE\n",
+        expansion ? "targs1" : "targs",expansion ? "DataA1" : "Data11",fade);
+    return parse_slk_string(slk);
+}
+static edict_t *target307_caster(void) {
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','s','o','r'),128,256);
+    caster->s.player=0;caster->health.value=caster->health.max_value=100;
+    caster->mana.value=caster->mana.max_value=1000;
+    caster->svflags=SVF_MONSTER;caster->stand=unit_stand;unit_stand(caster);
+    T_ASSERT(G_ActorAddSkill(caster,MAKEFOURCC('A','i','v','s')));
+    return caster;
+}
+static void target307_step(void) {
+    target166_tick();target168_run_timers();
+}
+static void target307_public_remove_script(void) {
+    T_ASSERT(run_test_jass("globals\nunit fadeSource\nendglobals\n"
+        "function removeFade takes nothing returns nothing\ncall UnitRemoveAbility(fadeSource,'Binv')\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,256,256,1,null)\nset fadeSource=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+}
+static void target307_chase_case(float fade,bool save,bool queued) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    unit->targtype=TARG_GROUND;
+    /* Cold load rebinds authored slot admission; the generic test allocator's
+     * temporary UnitWeapons pointer is deliberately not serialized. */
+    slkTestData_t *weapons=parse_slk_string("ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;X2;K\"weapsOn\"\nC;X3;K\"minRange\"\n"
+        "C;Y2;X1;K\"hRTE\"\nC;X2;K1\nC;X3;K0\nE\n");
+    slkTestData_t *old_weapons=G_SetSLKRows("UnitWeapons",weapons);
+    unit->data.UnitWeapons=G_UnitWeapons(unit->class_id);
+    slkTestData_t *rows=target307_rows(fade),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *caster=target307_caster();target307_public_remove_script();
+    target307_watcher=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128,1024);
+    target307_watcher->s.player=0;target307_watcher->health.value=100;
+    target307_watcher->svflags=SVF_MONSTER;target307_watcher->movetype=MOVETYPE_STEP;
+    target307_watcher->stand=unit_stand;unit_stand(target307_watcher);
+    S_SetUnitMoveSpeed(target307_watcher,270);
+    T_ASSERT(unit_issuetargetorder(target307_watcher,"move",unit));
+    S_SetUnitMoveSpeed(unit,150);
+    T_ASSERT(unit_issueorder(target,"move",&(vec2_t){672,1856}));
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    vec2_t successor={1280,1536};
+    if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&successor,true,0,0));
+    T_ASSERT(unit_issuetargetorder(caster,"invisibility",unit));
+    heroabilitystatus_t *status=NULL;
+    FOR_LOOP(i,30) {
+        status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+        if(status)break;
+        target307_step();
+    }
+    T_NOT_NULL(status);
+    if(!status)goto done;
+    T_ASSERT(status->invisibility_pending);T_ASSERT(!status->invisibility_suppression_held);
+    T_EQ(unit->attack_invisibility_suppression,0);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    abilityPrimaryTimer_t request=unit->permanent_invisibility_fade.request;
+    T_ASSERT(request.active);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.slope),wc3_float_bits(wc3_recip(fade)));
+    target307_source=unit;target307_publications=0;
+    move_test_target_lost=target307_observe_publication;
+    if(save) {
+        float half=wc3_add(unit->permanent_invisibility_fade.origin.time,wc3_mul(fade,.5f));
+        FOR_LOOP(i,30) {if(level.pathing_clock.time>=half)break;target307_step();}
+        T_EQ(target307_publications,0);T_ASSERT(status->invisibility_pending);
+        uint16_t source_id=waypoint_identity(unit),target_id=waypoint_identity(target);
+        uint16_t watcher_id=waypoint_identity(target307_watcher);
+        uint32_t instance=status->instance_id;
+        cstring_t file=Test_TempPath("invisibility307-chase-halfway.bin");
+        T_ASSERT(WriteGame(file));
+        T_ASSERT(status->invisibility_pending);T_ASSERT(!unit->permanent_invisibility_fade.published);
+        /* ReadGame drains the retiring world's primary requests before it
+         * installs the snapshot. Observe the resumed world, as the other
+         * cold replay runners do, without counting disposal-side delivery. */
+        move_test_target_lost=NULL;
+        T_ASSERT(ReadGame(file));remove(file);
+        unit=g_edicts+source_id-1;target=g_edicts+target_id-1;
+        target307_source=unit;target307_watcher=g_edicts+watcher_id-1;
+        move_test_target_lost=target307_observe_publication;
+        status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+        T_ASSERT(status && status->instance_id==instance && status->invisibility_pending);
+        T_EQ(unit->permanent_invisibility_fade.request.sequence,request.sequence);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(request.deadline.time));
+    }
+    FOR_LOOP(i,50) {if(unit->permanent_invisibility_fade.published)break;target307_step();}
+    move_test_target_lost=NULL;
+    T_EQ(target307_publications,1);
+    T_EQ(wc3_float_bits(target307_publication_clock.time),wc3_float_bits(request.deadline.time));
+    status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    T_ASSERT(status && !status->invisibility_pending && status->invisibility_suppression_held);
+    T_EQ(unit->attack_invisibility_suppression,1);T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+    if(queued) {
+        T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),0);
+        T_ASSERT(unit->currentmove!=&attack_move_recovery);
+        T_NOT_NULL(unit->goalentity);
+        if(unit->goalentity) {T_EQ(unit->goalentity->s.origin2.x,successor.x);T_EQ(unit->goalentity->s.origin2.y,successor.y);}
+    } else {
+        T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->currentmove,&attack_move_recovery);
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {T_NULL(group->target);T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(137,target->collision),50)));}
+    }
+    target168_run_timers();T_EQ(unit->attack_invisibility_suppression,1);T_EQ(target307_publications,1);
+    jass_callbyname(level.vm,"removeFade",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(unit_findstatus(unit,MAKEFOURCC('B','i','n','v')));
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    T_EQ(unit->attack_invisibility_suppression,0);
+    /*495750 resumes only when task permission allows it. Stop supplies the
+     * ordinary idle permission after a retained explicit recovery point. */
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_ASSERT(unit->attack_scan_enabled);
+    T_ASSERT(S_ValidateInvisibilityOwners());
+done:
+    move_test_target_lost=NULL;target307_source=target307_watcher=NULL;
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+    G_SetSLKRows("UnitWeapons",old_weapons);free_slk_rows(weapons);
+}
+TEST(wc3_movement,invisibility307_public_chase_positive_fade_and_recovery) {
+    target307_chase_case(.375f,false,false);target307_chase_case(.5f,false,false);
+}
+TEST(wc3_movement,invisibility307_public_chase_halfway_save_and_recovery) {
+    target307_chase_case(.375f,true,false);target307_chase_case(.5f,true,false);
+}
+TEST(wc3_movement,invisibility307_public_chase_queued_successor_bypasses_capture) {
+    target307_chase_case(.5f,false,true);target307_chase_case(.375f,true,true);
+}
+
+TEST(wc3_movement,invisibility307_pending_apiv_and_public_binv_share_first_fade) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    unit->targtype=TARG_GROUND;
+    slkTestData_t *rows=target307_rows(.375f),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *caster=target307_caster();target307_public_remove_script();
+    T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t request=unit->permanent_invisibility_fade.request;
+    T_ASSERT(request.active);T_ASSERT(!S_PermanentInvisibilityActive(unit));
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_ASSERT(unit_issuetargetorder(caster,"invisibility",unit));
+    heroabilitystatus_t *status=NULL;
+    FOR_LOOP(i,20) {status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));if(status)break;target307_step();}
+    T_NOT_NULL(status);
+    if(status) {
+        /* Native6696e0 non-first contribution notifies immediately, without
+         * restarting or completing the first owner's scalar listener. */
+        T_ASSERT(!status->invisibility_pending);T_ASSERT(status->invisibility_suppression_held);
+        T_EQ(unit->attack_invisibility_suppression,1);
+        T_ASSERT(!unit->permanent_invisibility_fade.published);
+        T_EQ(unit->permanent_invisibility_fade.request.sequence,request.sequence);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(request.deadline.time));
+        jass_callbyname(level.vm,"removeFade",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_NULL(unit_findstatus(unit,MAKEFOURCC('B','i','n','v')));
+        T_EQ(unit->attack_invisibility_suppression,0);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+        T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+        T_EQ(unit->permanent_invisibility_fade.request.sequence,request.sequence);
+        FOR_LOOP(i,50) {if(S_PermanentInvisibilityActive(unit))break;target307_step();}
+        T_ASSERT(S_PermanentInvisibilityActive(unit));T_EQ(unit->attack_invisibility_suppression,0);
+        T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','p','i','v')));
+        T_ASSERT(!S_PermanentInvisibilityActive(unit));T_ASSERT(S_ValidateInvisibilityOwners());
+    }
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement,invisibility307_published_overlap_preserves_visibility_and_world_presence) {
+    FOR_LOOP(permanent_first,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        unit->targtype=TARG_GROUND;
+        slkTestData_t *rows=target307_rows(.375f),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *caster=target307_caster();target307_public_remove_script();
+        if(permanent_first) {
+            T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','p','i','v')));
+            FOR_LOOP(i,50) {if(S_PermanentInvisibilityActive(unit))break;target307_step();}
+            T_ASSERT(S_PermanentInvisibilityActive(unit));
+        }
+        T_ASSERT(unit_issuetargetorder(caster,"invisibility",unit));
+        FOR_LOOP(i,50) {
+            if(unit->permanent_invisibility_fade.temporary_contributions &&
+               unit->permanent_invisibility_fade.published)break;
+            target307_step();
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        T_ASSERT(S_UnitHasInvisibilityState(unit));T_ASSERT(unit->s.renderfx&RF_HIDDEN);
+        if(permanent_first) {
+            T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','p','i','v')));
+            T_ASSERT(!S_PermanentInvisibilityActive(unit));
+            T_ASSERT(S_UnitHasInvisibilityState(unit));T_ASSERT(G_UnitHasWorldPresence(unit));
+        } else {
+            T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','p','i','v')));
+            T_ASSERT(S_PermanentInvisibilityActive(unit));
+        }
+        jass_callbyname(level.vm,"removeFade",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+        T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));T_ASSERT(G_UnitHasWorldPresence(unit));
+        if(!permanent_first) {
+            T_ASSERT(S_PermanentInvisibilityActive(unit));
+            T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','p','i','v')));
+        }
+        T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(S_ValidateInvisibilityOwners());
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
 #endif

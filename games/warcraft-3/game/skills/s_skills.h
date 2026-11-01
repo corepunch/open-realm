@@ -503,6 +503,12 @@ void S_InitializeConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *
 void S_CompleteConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
 void S_DetachConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
 void S_PermanentInvisibilityReveal(edict_t *unit);
+void S_TemporaryInvisibilityAcquire(edict_t *, heroabilitystatus_t *, float);
+void S_TemporaryInvisibilityRelease(edict_t *, heroabilitystatus_t *);
+uint32_t S_AttackInvisibilityAcquire(edict_t *);
+void S_AttackInvisibilityRelease(edict_t *, uint32_t);
+bool S_ValidateInvisibilityOwners(void);
+bool S_InvisibilityPublicationPending(void);
 void S_InfernoLand(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point);
 bool S_HoldPosition(edict_t *unit);
 bool S_HoldPositionQueued(edict_t *unit);

@@ -121,7 +121,7 @@ The original [fade export](../../../games/warcraft-3/game/tests/fixtures/retail_
 4. `68b780` cancels the scalar owner, publishes the nonzero-count invisible bit, delivers TargetLost, then emits d01de through `679db0`. Preserve this order.
 5. Buff dispatcher `642dd0` calls `628a10` only while buff100 is pending. It increments Attack suppression through `495740`, disables the scan owner without deleting the Attack ability, then calls `49d280` with forced1 and capture requested only when no pending user successor exists. It then clears buff100.
 6. Detach `6314d0` removes the invisibility contribution and unregisters d01de. It decrements Attack suppression through `495750` only after the buff has activated and cleared100. Removing a pending fade must not decrement a suppression contribution it never held.
-7. Replace the temporary-Invisibility engine's immediate hidden-flag shortcut with a shared Unit contribution/fade owner and per-buff pending/held ownership. The existing `s_wards.c` scalar/primary timer machinery supplies clock arithmetic and save/heap patterns, but its permanent-only flag and suspension inverse cannot be reused unchanged. Add saved deadline/sequence and contribution identities with exact detach/refresh inverses. Keep this in the WC3 game module.
+7. The C Apiv/Binv implementation now replaces the temporary-Invisibility immediate hidden-flag shortcut with a shared contribution/fade owner and per-buff pending/held ownership, saved in format234. The existing `s_wards.c` scalar/primary timer machinery supplies the clock arithmetic and heap. This does not establish shared contribution ownership for `AIvi` Item Invisibility, `AOwk` Wind Walk, `Agho` Ghost, `Abur` Burrow or `Ahid` Shadow Meld, or their Pause/Sleep compositions; those concrete overlap dispositions remain required.
 8. Drive the real configured Aivs cast in C, with a nonstock DataA value as well as the captured stock profile. Compare all native299 public callbacks and complete arrival/velocity rows through uninterrupted and saved replay. Preserve the same-target refresh, overlap, pending removal, active removal and queued-successor distinctions above; internal direct recovery-helper tests alone do not satisfy this public producer.
 
 ## Common C recovery and Save233
@@ -177,6 +177,38 @@ this change does not require a new save version.
 
 The native predicate's adjusted retained-target state at Attack offsets
 `2bc/2c0` remains a separate reachability limit. The current target is not used
-as a substitute. Temporary Invisibility's shared fade/contribution/suppression
-producer and the complete normal/saved C299 replay remain unfinished. B01 and
+as a substitute. The five remaining invisibility-consumer overlap dispositions
+and the complete normal/saved C299 replay remain unfinished. B01 and
 TARGET-01.2 remain open.
+
+## Configured temporary Invisibility and Save234
+
+The public `invisibility` order now resolves to Aivs; previously its name/ID was
+registered without an ability owner and JASS target orders fell through.
+Configured DataA (RoC Data1) starts the first contribution's primary-clock fade.
+New Binv owners retain pending state until notification. Refresh extends the
+existing status duration without replacing its incarnation or restarting the
+fade. An additional contribution emits the native immediate notification while
+retaining the first scalar deadline.
+
+At the scalar threshold the game publishes invisibility, delivers TargetLost,
+then activates pending Binv owners. Activation holds the separate Attack220
+suppression count, disables scanning and requests forced recovery. The existing
+pending-user-order query determines whether recovery captures a point. Pending
+removal acquires no inverse suppression; active removal releases its own held
+contribution. An Attack incarnation token prevents an old buff from decrementing
+a detached and replaced Attack owner.
+
+Apiv and Binv retain visibility and world presence when either one leaves first.
+The temporary render flag follows the temporary contribution rather than being
+left on a permanent-only unit. Shared publication has a save/load barrier, and
+notification tracks in-flight status incarnations so nested delivery cannot
+acquire the same buff twice. Save234 validates the stored counts, status classes
+and active clock/sequence state before rebuilding queues.
+
+The bounded producer tests use public cast/order admission, the actual primary
+scheduler, two positive fade values, halfway save/load, queued Move bypass and
+both published overlap orders. The saved test detaches its observation hook
+during ReadGame's old-world disposal, then requires the restored pending status,
+unchanged deadline/sequence and exactly one resumed publication. These checks
+do not replace the complete six-scene native299 public and motion comparison.

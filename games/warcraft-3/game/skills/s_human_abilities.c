@@ -323,6 +323,14 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
     level = S_SpellLevel(caster, spell->code);
     buff = human_buff(spell, level);
     if (!buff || strlen(buff) != 4) return;
+    status=unit_findstatus(st.entity,*((uint32_t const *)buff));
+    if(status && status->invisibility_owned) {
+        float duration=S_SpellHeroDuration(spell->code,level,st.entity);
+        status->duration_ms=duration>0 ? (uint32_t)(duration*1000.0f) : 0;
+        status->timestamp=status->duration_ms ? G_Time()+status->duration_ms : 0;
+        G_InvalidateUnitInfoPanel(st.entity);
+        return; /* Native531a80 refreshes the retained owner only. */
+    }
     status = human_status_execute(caster, st, spell);
     if (!status) {
         fprintf(stderr, "WC3 Invisibility: authored status %.4s missing after cast on unit %u\n",
@@ -330,7 +338,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
         return;
     }
     status->data = spell->code;
-    G_SetEntityHidden(st.entity,true);
+    S_TemporaryInvisibilityAcquire(st.entity,status,S_SpellData(spell->code,level,1));
 }
 
 /* Record presence is the authoritative Polymorph state for orders and JASS. */
@@ -955,7 +963,10 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
     case A_EXECUTE:
         invisibility_execute(ent, target, call ? call->item : NULL);
         return true;
-    case A_STATUS_REMOVE:
+    case A_STATUS_REPLACE: case A_STATUS_REMOVE:
+        if(ent && call && call->status.slot && call->status.slot->invisibility_owned) {
+            S_TemporaryInvisibilityRelease(ent,call->status.slot);return true;
+        }
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
             G_SetEntityHidden(ent,false);
@@ -1189,9 +1200,13 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         G_AddUnitAnimationProperties(unit, "defend", false);
         S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
     }
-    if (code == MAKEFOURCC('B','i','n','v') &&
-        !S_UnitHasTemporaryInvisibility(unit, unit_findstatusclass(unit, code)))
-        G_SetEntityHidden(unit,false);
+    if (code == MAKEFOURCC('B','i','n','v')) {
+        heroabilitystatus_t const *status=unit_findstatusclass(unit,code);
+        /* Counted owners release visibility in A_STATUS_REMOVE, after the
+         * pending/active suppression distinction has been preserved. */
+        if((!status || !status->invisibility_owned) &&
+           !S_UnitHasTemporaryInvisibility(unit,status))G_SetEntityHidden(unit,false);
+    }
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
 }

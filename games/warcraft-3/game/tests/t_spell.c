@@ -9921,3 +9921,198 @@ static void power349_custom_lifecycle(bool roc) {
 TEST(wc3_spell,power349_custom_roc_lifecycle){power349_custom_lifecycle(true);}
 TEST(wc3_spell,power349_custom_tft_lifecycle){power349_custom_lifecycle(false);}
 #endif
+
+#ifdef BZ_TESTS
+/*307 candidate owner tests: direct acquisition intentionally isolates the
+ * saved scalar/status lifecycle; it is not a replacement for public299 replay. */
+TEST(wc3_spell, temporary_invisibility307_pending_release_has_no_suppression_inverse) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    unit->health.value=unit->health.max_value=100;
+    T_ASSERT(unit_addtimedstatus(unit,"Binv",1,10));
+    heroabilitystatus_t *status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)return;
+    S_TemporaryInvisibilityAcquire(unit,status,.5f);
+    T_ASSERT(status->invisibility_owned);T_ASSERT(status->invisibility_pending);
+    T_ASSERT(!status->invisibility_suppression_held);
+    T_ASSERT(!S_UnitHasTemporaryInvisibility(unit,NULL));
+    T_ASSERT(unit->permanent_invisibility_fade.request.active);
+    uint32_t before=unit->attack_invisibility_suppression;
+    S_TemporaryInvisibilityRelease(unit,status);
+    T_EQ(unit->attack_invisibility_suppression,before);
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+}
+
+TEST(wc3_save, temporary_invisibility307_pending_scalar_roundtrip_and_publish) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    unit->health.value=unit->health.max_value=100;
+    T_ASSERT(unit_addtimedstatus(unit,"Binv",1,10));
+    heroabilitystatus_t *status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)return;
+    S_TemporaryInvisibilityAcquire(unit,status,.5f);
+    uint32_t index=unit->s.number,instance=status->instance_id;
+    wc3Clock_t deadline=unit->permanent_invisibility_fade.request.deadline;
+    cstring_t file=Test_TempPath("invisibility307-pending.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    unit=g_edicts+index;status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)return;
+    T_EQ(status->instance_id,instance);T_ASSERT(status->invisibility_pending);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+    T_ASSERT(CAbilityPermanentInvisibility(NULL,A_PRIMARY_TIMER_FIRE,NULL));
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    T_ASSERT(!status->invisibility_pending);
+    T_ASSERT(S_UnitHasTemporaryInvisibility(unit,NULL));
+    S_TemporaryInvisibilityRelease(unit,status);
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+}
+
+TEST(wc3_spell, invisibility307_authored_positive_fade_refresh_retains_instance) {
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    cstring_t data_column=atoi(gi.CvarString("fs_expansion","0")) ? "DataA1" : "Data11";
+    snprintf(slk, sizeof(slk),
+        "ID;PWXL;N;EBB;Y2;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\nC;Y1;X11;K\"%s\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"9\"\nC;Y2;X8;K\"9\"\nC;Y2;X9;K\"Bixx\"\n"
+        "C;Y2;X10;K\"air,ground,friend\"\nC;Y2;X11;K\"0.5\"\nE\n", targs_column,data_column);
+    UnitAbilities_t abilities = { .abilList = "Aivs" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *target, *enemy;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 0;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    target->svflags |= SVF_MONSTER;
+    enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND;
+    enemy->health.value = enemy->health.max_value = 100.0f;
+    enemy->svflags |= SVF_MONSTER;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
+    status = unit_findstatus(target, MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(status);
+    if (status) T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+    T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
+    T_ASSERT(status && status->invisibility_pending);
+    uint32_t instance=status ? status->instance_id : 0;
+    wc3Clock_t deadline=target->permanent_invisibility_fade.request.deadline;
+    T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('A','i','v','s'),target));
+    status=unit_findstatus(target,MAKEFOURCC('B','i','x','x'));
+    T_ASSERT(status && status->instance_id==instance);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+    T_ASSERT(CAbilityPermanentInvisibility(NULL,A_PRIMARY_TIMER_FIRE,NULL));
+    T_ASSERT(target->s.renderfx & RF_HIDDEN);
+    T_ASSERT(status && !status->invisibility_pending);
+    S_ResolveAttackHit(target,enemy,10);
+    T_NULL(unit_findstatus(target,MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+
+TEST(wc3_spell, invisibility307_overlap_notifies_immediately_and_active_release_is_counted) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    unit->health.value=unit->health.max_value=100;
+    T_ASSERT(unit_addtimedstatus(unit,"Binv",1,10));
+    T_ASSERT(unit_addtimedstatus(unit,"Bixx",1,10));
+    heroabilitystatus_t *first=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    heroabilitystatus_t *second=unit_findstatus(unit,MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(first);T_NOT_NULL(second);if(!first || !second)return;
+    second->data=MAKEFOURCC('A','i','v','s');
+    S_TemporaryInvisibilityAcquire(unit,first,.5f);
+    wc3Clock_t deadline=unit->permanent_invisibility_fade.request.deadline;
+    S_TemporaryInvisibilityAcquire(unit,second,.75f);
+    first=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    second=unit_findstatus(unit,MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(first);T_NOT_NULL(second);if(!first || !second)return;
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,2);
+    T_ASSERT(!first->invisibility_pending);T_ASSERT(!second->invisibility_pending);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+    T_ASSERT(CAbilityPermanentInvisibility(NULL,A_PRIMARY_TIMER_FIRE,NULL));
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    S_TemporaryInvisibilityRelease(unit,first);
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    /* Remove the manually authored first legacy slot before checking last
+     * contribution visibility: it intentionally remains a legacy status. */
+    unit_removestatus(unit,first,STATUS_REMOVE_SCRIPT);
+    S_TemporaryInvisibilityRelease(unit,second);
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    T_EQ(unit->attack_invisibility_suppression,0);
+}
+
+TEST(wc3_spell, invisibility307_old_held_token_does_not_decrement_replacement_attack) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    unit->health.value=unit->health.max_value=100;
+    UnitWeapons_t weapons={.attacksEnabled=1};unit->data.UnitWeapons=&weapons;
+    G_ActorAddSkill(unit,MAKEFOURCC('A','a','t','k'));
+    T_ASSERT(unit_addtimedstatus(unit,"Binv",1,10));
+    heroabilitystatus_t *status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)return;
+    S_TemporaryInvisibilityAcquire(unit,status,0);
+    T_ASSERT(status->invisibility_suppression_held);
+    uint32_t old=status->invisibility_attack_generation;
+    T_ASSERT(old!=0);T_EQ(unit->attack_invisibility_suppression,1);
+    /* Actual owner inverse and reattachment, without altering status lifetime. */
+    CAbilityAttack(unit,A_DISABLE,NULL);CAbilityAttack(unit,A_UNIT_INIT,NULL);
+    T_ASSERT(unit->attack_invisibility_generation!=old);
+    T_EQ(unit->attack_invisibility_suppression,0);
+    S_TemporaryInvisibilityRelease(unit,status);
+    T_EQ(unit->attack_invisibility_suppression,0);
+}
+
+TEST(wc3_save, invisibility307_rejects_invalid_clock_sequence_and_owner_counts) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    unit->health.value=unit->health.max_value=100;
+    T_ASSERT(unit_addtimedstatus(unit,"Binv",1,10));
+    heroabilitystatus_t *status=unit_findstatus(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)return;
+    S_TemporaryInvisibilityAcquire(unit,status,.5f);
+    cstring_t file=Test_TempPath("invisibility307-invalid.bin");
+    T_ASSERT(S_ValidateInvisibilityOwners());
+    abilityPrimaryTimer_t saved=unit->permanent_invisibility_fade.request;
+    unit->permanent_invisibility_fade.request.sequence=0;
+    T_ASSERT(!S_ValidateInvisibilityOwners());T_ASSERT(!WriteGame(file));
+    unit->permanent_invisibility_fade.request=saved;
+    unit->permanent_invisibility_fade.request.deadline.time=wc3_float(0x7fc00000);
+    T_ASSERT(!S_ValidateInvisibilityOwners());T_ASSERT(!WriteGame(file));
+    unit->permanent_invisibility_fade.request=saved;
+    unit->permanent_invisibility_fade.temporary_contributions++;
+    T_ASSERT(!S_ValidateInvisibilityOwners());T_ASSERT(!WriteGame(file));
+    unit->permanent_invisibility_fade.temporary_contributions--;
+    uint32_t code=status->code;
+    status->code=MAKEFOURCC('B','i','n','f');
+    T_ASSERT(!S_ValidateInvisibilityOwners());T_ASSERT(!WriteGame(file));
+    status->code=code;
+    unit->permanent_invisibility_fade.request.active=false;
+    unit->permanent_invisibility_fade.published=true;
+    T_ASSERT(!S_ValidateInvisibilityOwners());T_ASSERT(!WriteGame(file));
+    unit->permanent_invisibility_fade.published=false;
+    unit->permanent_invisibility_fade.request=saved;
+    T_ASSERT(S_ValidateInvisibilityOwners());
+    S_TemporaryInvisibilityRelease(unit,status);remove(file);
+}
+
+#endif /* BZ_TESTS: invisibility307 candidate */

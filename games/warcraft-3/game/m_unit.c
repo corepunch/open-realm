@@ -732,6 +732,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "undefend", 852056, 0 },
 
     { "innerfire", 852066, MAKEFOURCC('A','i','n','f') },
+    { "invisibility", 852069, MAKEFOURCC('A','i','v','s') },
     { "slow", 852075, MAKEFOURCC('A','s','l','o') },
     { "slowon", 852076, 0 },
     { "slowoff", 852077, 0 },

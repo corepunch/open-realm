@@ -1964,6 +1964,8 @@ typedef struct heroabilitystatus_s {
     uint32_t sleep_kind;
     bool sleep_clock_paused;
     abilityPrimaryTimer_t class_timer; /* ConcreteBEme owns an independent primary expiry. */
+    bool invisibility_owned, invisibility_pending, invisibility_suppression_held;
+    uint32_t invisibility_attack_generation;
     float class_timer_remaining;
     int32_t class_clock_depth; /* Ability48, independent of execution/order counters. */
 } heroabilitystatus_t;
@@ -2490,7 +2492,11 @@ struct edict_s {
         wc3Clock_t origin;
         abilityPrimaryTimer_t request;
         float slope;
+        uint32_t temporary_contributions;
+        bool permanent_owned, published;
     } permanent_invisibility_fade;
+    uint32_t attack_invisibility_generation; /* Incarnation advanced on Aatk detach. */
+    uint32_t attack_invisibility_suppression; /* Native Attack220, independent of task permission. */
     /* Awan owns autonomous decisions, but ordinary Move owns the actual route. */
     uint32_t wander_next_time;
     uint32_t wander_random_state;

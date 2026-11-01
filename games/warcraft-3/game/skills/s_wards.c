@@ -455,13 +455,20 @@ bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t con
 	if (!unit) return false;
 	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus + i != except &&
-		    S_UnitStatusIsTemporaryInvisibility(unit->abilstatus + i)) return true;
+            S_UnitStatusIsTemporaryInvisibility(unit->abilstatus + i) &&
+            (!unit->abilstatus[i].invisibility_owned || unit->permanent_invisibility_fade.published)) return true;
 	return false;
 }
 
 bool S_UnitHasInvisibilityState(edict_t const *unit) {
 	return S_UnitIsBurrowed(unit) || S_PermanentInvisibilityActive(unit) || S_GhostActive(unit) ||
 	       S_ShadowMeldActive(unit) || S_UnitUsesInvisibilityRenderFlag(unit);
+}
+
+static bool invisibility_intrinsic_render_owner(edict_t const *unit) {
+    uint32_t summon=G_AbilityCode(unit->summon_ability);
+    return S_UnitIsSubmerged(unit) || G_UnitAbilityClassLevel(unit,ID_AMIN) ||
+        summon==ID_AEYE || summon==ID_ASTA;
 }
 
 /* Derived membership contains only pending fades. Ordinary lookup is O(1),
@@ -529,13 +536,86 @@ static void invisibility_schedule(edict_t *unit, wc3Clock_t const *clock) {
     request->sequence=++level.timer_sequence;request->active=true;
     invisibility_insert(unit);
 }
-static void invisibility_clear(edict_t *unit) {
+static bool invisibility_live(edict_t const *unit,uint32_t birth) {
+    return unit->inuse && !G_IsDeferredFree(unit) && unit->spawn_time==birth;
+}
+typedef struct invisibility_notice_s {
+    edict_t *unit;
+    uint32_t birth,instance;
+    struct invisibility_notice_s *previous;
+} invisibility_notice_t;
+static invisibility_notice_t *invisibility_notices;
+static uint32_t invisibility_publication_depth;
+bool S_InvisibilityPublicationPending(void) { return invisibility_publication_depth!=0; }
+static void invisibility_notify(edict_t *unit) {
+    uint32_t birth=unit->spawn_time;
+    invisibility_publication_depth++;
+    /* Each status incarnation subscribes once. Reacquire storage after the
+     * synchronous Attack recovery, which may grow or remove status slots. */
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *status=unit->abilstatus+i;
+        if(!status->level || !status->invisibility_owned || !status->invisibility_pending)continue;
+        uint32_t instance=status->instance_id;
+        bool nested=false;
+        for(invisibility_notice_t *notice=invisibility_notices;notice;notice=notice->previous)
+            if(notice->unit==unit && notice->birth==birth && notice->instance==instance)nested=true;
+        if(nested)continue;
+        invisibility_notice_t notice={unit,birth,instance,invisibility_notices};
+        invisibility_notices=&notice;
+        uint32_t generation=S_AttackInvisibilityAcquire(unit);
+        invisibility_notices=notice.previous;
+        if(!invisibility_live(unit,birth))goto done;
+        if(!unit->abilstatus || i>=G_UnitStatusSlotCount(unit)) {
+            if(generation)S_AttackInvisibilityRelease(unit,generation);
+            goto done;
+        }
+        status=unit->abilstatus+i;
+        if(status->instance_id!=instance || !status->level || !status->invisibility_owned) {
+            if(generation)S_AttackInvisibilityRelease(unit,generation);
+            if(!invisibility_live(unit,birth))goto done;
+            continue;
+        }
+        status->invisibility_pending=false;
+        status->invisibility_attack_generation=generation;
+        status->invisibility_suppression_held=generation!=0 &&
+            generation==unit->attack_invisibility_generation;
+    }
+done:
+    invisibility_publication_depth--;
+}
+static void invisibility_publish(edict_t *unit) {
+    uint32_t birth=unit->spawn_time;
+    invisibility_publication_depth++;
+    unit->permanent_invisibility_fade.published=true;
+    if(unit->permanent_invisibility_fade.permanent_owned)
+        unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
+    if(unit->permanent_invisibility_fade.temporary_contributions)G_SetEntityHidden(unit,true);
+    /* Visibility is published before synchronous TargetLost subscribers. */
+    S_UnitTargetLost(unit);
+    if(invisibility_live(unit,birth))invisibility_notify(unit);
+    invisibility_publication_depth--;
+}
+static void invisibility_last_release(edict_t *unit) {
     invisibility_remove(unit);
     memset(&unit->permanent_invisibility_fade,0,sizeof(unit->permanent_invisibility_fade));
     unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    S_UnitTargetAvailable(unit);
+}
+static void invisibility_clear(edict_t *unit) {
+
+    unit->permanent_invisibility_fade.permanent_owned=false;
+    unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    if(!unit->permanent_invisibility_fade.temporary_contributions)invisibility_last_release(unit);
 }
 static void invisibility_begin(edict_t *unit, float transition) {
     bool invisible=S_UnitHasInvisibilityState(unit);
+    unit->permanent_invisibility_fade.permanent_owned=true;
+    if(unit->permanent_invisibility_fade.temporary_contributions) {
+        if(unit->permanent_invisibility_fade.published)
+            unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
+        invisibility_notify(unit);return;
+    }
+    unit->permanent_invisibility_fade.published=transition==0;
     invisibility_remove(unit);
     if(transition==0)unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
     else unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
@@ -544,6 +624,90 @@ static void invisibility_begin(edict_t *unit, float transition) {
     if(transition>0)invisibility_schedule(unit,&unit->permanent_invisibility_fade.origin);
     else if(!invisible)S_UnitTargetLost(unit); /* Publish before synchronous subscribers. */
 }
+void S_TemporaryInvisibilityAcquire(edict_t *unit,heroabilitystatus_t *status,float transition) {
+    if(!unit || !status || status->invisibility_owned)return;
+    bool first=!unit->permanent_invisibility_fade.permanent_owned &&
+        !unit->permanent_invisibility_fade.temporary_contributions;
+    status->invisibility_owned=true;status->invisibility_pending=true;
+    unit->permanent_invisibility_fade.temporary_contributions++;
+    if(!first) {
+        if(unit->permanent_invisibility_fade.published)G_SetEntityHidden(unit,true);
+        invisibility_notify(unit);return;
+    }
+    unit->permanent_invisibility_fade.origin=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    unit->permanent_invisibility_fade.slope=transition ? wc3_recip(transition) : 0;
+    if(transition>0)invisibility_schedule(unit,&unit->permanent_invisibility_fade.origin);
+    else if(transition==0)invisibility_publish(unit);
+    /* Negative/nonfinite authored transitions are not covered by299; no
+     * invented immediate completion or permanent-passive suspend policy. */
+}
+void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
+    if(!unit || !status || !status->invisibility_owned)return;
+    uint32_t birth=unit->spawn_time;
+    /* Inspect presence while this contribution still explains RF_HIDDEN.
+     * Loaded, mined, trained, reviving and world-retired units keep their
+     * independent hiding owner when the temporary contribution leaves. */
+    bool unhide=G_UnitHasWorldPresence(unit) && !unit->training && !G_HeroIsReviving(unit);
+    bool held=status->invisibility_suppression_held;
+    uint32_t generation=status->invisibility_attack_generation;
+    status->invisibility_attack_generation=0;
+    status->invisibility_owned=false;status->invisibility_pending=false;
+    status->invisibility_suppression_held=false;
+    if(unit->permanent_invisibility_fade.temporary_contributions)
+        unit->permanent_invisibility_fade.temporary_contributions--;
+    if(!unit->permanent_invisibility_fade.temporary_contributions && unhide &&
+       !S_UnitHasTemporaryInvisibility(unit,status) && !invisibility_intrinsic_render_owner(unit))
+        G_SetEntityHidden(unit,false);
+    if(!unit->permanent_invisibility_fade.temporary_contributions &&
+       !unit->permanent_invisibility_fade.permanent_owned)invisibility_last_release(unit);
+    if(held && invisibility_live(unit,birth))S_AttackInvisibilityRelease(unit,generation);
+}
+
+bool S_ValidateInvisibilityOwners(void) {
+    if(S_InvisibilityPublicationPending())return false;
+    FOR_LOOP(n,globals.num_edicts) {
+        edict_t const *unit=g_edicts+n;
+        if(!unit->inuse)continue;
+        uint32_t contributions=0,held=0;
+        FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+            if(!unit->abilstatus)return false;
+            heroabilitystatus_t const *status=unit->abilstatus+i;
+            if(*(uint8_t const *)&status->invisibility_owned>1 ||
+               *(uint8_t const *)&status->invisibility_pending>1 ||
+               *(uint8_t const *)&status->invisibility_suppression_held>1)return false;
+            if(status->invisibility_owned) {
+                if(!status->level || !status->instance_id ||
+                   !S_UnitStatusIsTemporaryInvisibility(status) ||
+                   (unit->permanent_invisibility_fade.published && status->invisibility_pending))return false;
+                contributions++;
+            } else if(status->invisibility_pending || status->invisibility_suppression_held ||
+                      status->invisibility_attack_generation)return false;
+            if(status->invisibility_suppression_held) {
+                if(status->invisibility_pending || !status->invisibility_attack_generation)return false;
+                if(status->invisibility_attack_generation==unit->attack_invisibility_generation)held++;
+            }
+        }
+        if(contributions!=unit->permanent_invisibility_fade.temporary_contributions ||
+           held!=unit->attack_invisibility_suppression)return false;
+        if(*(uint8_t const *)&unit->permanent_invisibility_fade.permanent_owned>1 ||
+           *(uint8_t const *)&unit->permanent_invisibility_fade.published>1 ||
+           *(uint8_t const *)&unit->permanent_invisibility_fade.request.active>1)return false;
+        bool owned=contributions || unit->permanent_invisibility_fade.permanent_owned;
+        abilityPrimaryTimer_t const *request=&unit->permanent_invisibility_fade.request;
+        if((request->active || unit->permanent_invisibility_fade.published) && !owned)return false;
+        if(owned && (!isfinite(unit->permanent_invisibility_fade.slope) ||
+           !isfinite(unit->permanent_invisibility_fade.origin.time) ||
+           !isfinite(unit->permanent_invisibility_fade.origin.span) ||
+           unit->permanent_invisibility_fade.origin.span<=0))return false;
+        if(request->active && (!isfinite(request->deadline.time) ||
+           !isfinite(request->deadline.span) || request->deadline.span<=0 ||
+           !request->sequence || request->sequence>level.timer_sequence ||
+           unit->permanent_invisibility_fade.slope<=0 ||
+           unit->permanent_invisibility_fade.published))return false;
+    }
+    return true;
+}
+
 void S_PermanentInvisibilityInitialize(edict_t *unit) {
     if(!unit)return;
     float transition=permanent_invisibility_transition(unit);
@@ -596,7 +760,7 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
         float value=invisibility_value(unit,&clock);
         /* 162250 accepts strict proximity, not equality or integer duration. */
         if(fabsf(wc3_sub(value,1))<wc3_float(0x3ba3d70a)) {
-            unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;S_UnitTargetLost(unit);
+            invisibility_publish(unit);
         } else invisibility_schedule(unit,&clock);
         return true;
     }
@@ -621,13 +785,9 @@ void S_PermanentInvisibilityReveal(edict_t *unit) {
  * predicate identifies only states that true sight is allowed to reveal in a
  * per-client snapshot. */
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit) {
-	uint32_t summon;
 	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
 	if (S_UnitHasTemporaryInvisibility(unit, NULL)) return true;
-	if (S_UnitIsSubmerged(unit)) return true;
-	if (G_UnitAbilityClassLevel(unit, ID_AMIN)) return true;
-	summon = G_AbilityCode(unit->summon_ability);
-	return summon == ID_AEYE || summon == ID_ASTA;
+	return invisibility_intrinsic_render_owner(unit);
 }
 
 static bool detector_shared_with_player(edict_t const *detector, uint32_t player) {
