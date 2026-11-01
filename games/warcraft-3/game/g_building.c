@@ -88,6 +88,7 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
 #define ID_UPGRADE_EFFECT_HIT_POINTS    MAKEFOURCC('r', 'h', 'p', 'x')
 #define ID_UPGRADE_EFFECT_HEALTH_REGEN  MAKEFOURCC('r', 'h', 'p', 'r')
+#define ID_UPGRADE_EFFECT_UNIT_TRANSFORM MAKEFOURCC('r', 't', 'm', 'a')
 #define ID_UPGRADE_EFFECT_SPELL_LEVEL   MAKEFOURCC('r', 'l', 'e', 'v')
 #define ID_UPGRADE_EFFECT_MANA_REGEN    MAKEFOURCC('r', 'm', 'n', 'r') // fourcc; mana-regeneration upgrade effect
 
@@ -663,6 +664,24 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
     upgrade = G_UpgradeData(techid);
     if (!upgrade || upgrade->id != techid) return;
     player = client->ps.number;
+    /* Stock rtmA upgrade rows pair a positive source-unit count with a
+     * negative destination-unit count. On completion, replace existing
+     * eligible source units in place using that authored pair. */
+    if (old_level <= 0 && new_level > 0) {
+        uint32_t source_id = 0, target_id = 0;
+        FOR_LOOP(i, 4) {
+            float const value = G_UpgradeEffectValue(upgrade, i, new_level);
+            if (upgrade->effect[i] != ID_UPGRADE_EFFECT_UNIT_TRANSFORM || !upgrade->effectCode[i]) continue;
+            if (value > 0.0f) source_id = upgrade->effectCode[i];
+            else if (value < 0.0f) target_id = upgrade->effectCode[i];
+        }
+        if (source_id && target_id) {
+            FILTER_EDICTS(unit, unit->inuse && unit->s.player == player &&
+                          unit->class_id == source_id && G_UnitUsesUpgrade(unit, techid)) {
+                G_TransformUnitType(unit, target_id);
+            }
+        }
+    }
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {
         G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
         if (techid == magic_sentry_upgrade && G_UnitAbilityLevel(unit, magic_sentry_ability))

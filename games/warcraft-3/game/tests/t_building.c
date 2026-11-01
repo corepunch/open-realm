@@ -2895,6 +2895,50 @@ TEST(wc3_building, orc_caster_training_gates_shaman_and_witch_doctor_spells) {
     building_restore_caster_data(caster_rows);
 }
 
+TEST(wc3_building, troll_berserker_research_transforms_existing_headhunters) {
+    static char const upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X11;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"used\"\nC;X3;K\"maxlevel\"\n"
+        "C;X4;K\"effect1\"\nC;X5;K\"base1\"\nC;X6;K\"mod1\"\nC;X7;K\"code1\"\n"
+        "C;X8;K\"effect2\"\nC;X9;K\"base2\"\nC;X10;K\"mod2\"\nC;X11;K\"code2\"\n"
+        "C;X1;Y2;K\"Robk\"\nC;X2;K1\nC;X3;K1\n"
+        "C;X4;K\"rtma\"\nC;X5;K1\nC;X7;K\"ohun\"\n"
+        "C;X8;K\"rtma\"\nC;X9;K-1\nC;X11;K\"otbk\"\nE\n";
+    slkTestData_t *upgrade_rows, *old_upgrades;
+    UnitBalance_t headhunter_balance = { .upgrades = "Robk" };
+    UnitBalance_t ordinary_balance = { .upgrades = "" };
+    gameClient_t *owner;
+    edict_t *headhunter, *ordinary_headhunter;
+    uint32_t const berserker_research = MAKEFOURCC('R','o','b','k');
+
+    reset_entities();
+    setup_test_world();
+    upgrade_rows = parse_slk_string(upgrade_slk);
+    old_upgrades = G_SetSLKRows("UpgradeData", upgrade_rows);
+    owner = &game.clients[0];
+    memset(owner->tech, 0, sizeof(owner->tech));
+    owner->ps.number = 0;
+    headhunter = alloc_test_unit(MAKEFOURCC('o','h','u','n'), 0, 0);
+    headhunter->s.player = owner->ps.number;
+    headhunter->data.UnitBalance = &headhunter_balance;
+    ordinary_headhunter = alloc_test_unit(MAKEFOURCC('o','h','u','n'), 64, 0);
+    ordinary_headhunter->s.player = owner->ps.number;
+    ordinary_headhunter->data.UnitBalance = &ordinary_balance;
+
+    T_EQ(headhunter->class_id, MAKEFOURCC('o','h','u','n'));
+    T_EQ(ordinary_headhunter->class_id, MAKEFOURCC('o','h','u','n'));
+
+    G_SetPlayerTechResearched(owner, berserker_research, 1);
+
+    T_EQ(headhunter->class_id, MAKEFOURCC('o','t','b','k'));
+    T_EQ(ordinary_headhunter->class_id, MAKEFOURCC('o','h','u','n'));
+    T_ASSERT(headhunter->inuse);
+
+    G_SetPlayerTechResearched(owner, berserker_research, 0);
+    G_SetSLKRows("UpgradeData", old_upgrades);
+    free_slk_rows(upgrade_rows);
+}
+
 TEST(wc3_building, night_elf_caster_training_gates_druid_and_dryad_spells) {
     buildingCasterRows_t caster_rows;
     gameClient_t *client;
