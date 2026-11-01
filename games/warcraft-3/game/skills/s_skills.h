@@ -482,6 +482,12 @@ float S_ThornsDamageReturn(edict_t const *target, edict_t const *attacker, float
 float S_ThornsMeleeDamageReturn(edict_t const *target, float damage);
 typedef struct { uint32_t alias; uint32_t level; } abilityAliasRef_t;
 abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code);
+bool S_BrewmasterHazeMiss(edict_t const *victim);
+void S_BrewmasterBreathOfFire(edict_t *caster, vec2_t const *point, uint32_t code);
+void S_BrewmasterDrunkenHaze(edict_t *caster, edict_t *target, uint32_t code);
+void brewmaster_burn_think(edict_t *burn);
+void brewmaster_split_think(edict_t *controller);
+void S_BrewmasterOnUnitRemoved(edict_t *hero);
 bool S_EvasionRoll(edict_t *target);
 int S_CriticalStrikeDamage(edict_t *attacker, int damage);
 float S_SpikedArmorBonus(edict_t const *unit);

@@ -14,6 +14,7 @@
 #define ID_THORNS_AURA MAKEFOURCC('A', 'E', 'a', 'h')
 #define ID_MANA_SHIELD MAKEFOURCC('A', 'N', 'm', 's')
 #define ID_DRUNKEN_BRAWLER MAKEFOURCC('A', 'N', 'd', 'b')
+#define ID_DRUNKEN_BRAWLER_CAMPAIGN MAKEFOURCC('A','c','d','b')
 #define ID_SEARING_ARROWS MAKEFOURCC('A', 'H', 'f', 'a')
 #define ID_DESTROYER_ORB MAKEFOURCC('A', 'f', 'a', 'k')
 #define ID_COLD_ARROWS MAKEFOURCC('A', 'H', 'c', 'a')
@@ -1509,7 +1510,9 @@ bool S_EvasionRoll(edict_t *target) {
     uint32_t level;
     if (ev.alias && ev.level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
     level = G_UnitAbilityLevel(target, ID_DRUNKEN_BRAWLER);
-    return level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
+    uint32_t code = ID_DRUNKEN_BRAWLER;
+    if (!level) { code = ID_DRUNKEN_BRAWLER_CAMPAIGN; level = G_UnitAbilityLevel(target, code); }
+    return level && (float)(rand() % 10000) / 10000.0f < S_SpellData(code, level, 4);
 }
 
 int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
@@ -1517,6 +1520,7 @@ int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
     uint32_t code = ID_CRITICAL_STRIKE;
     if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
     if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
+    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER_CAMPAIGN); code = ID_DRUNKEN_BRAWLER_CAMPAIGN; }
     if (!level || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
     return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
 }

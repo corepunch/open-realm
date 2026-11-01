@@ -1764,7 +1764,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
-    case MAKEFOURCC('B','H','t','c'): case MAKEFOURCC('B','N','h','t'):
+    case MAKEFOURCC('B','H','t','c'): case MAKEFOURCC('B','N','d','h'): case MAKEFOURCC('B','N','h','t'):
         break;
     default: return;
     }
@@ -1832,6 +1832,11 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         if (!ability) ability = MAKEFOURCC('A','H','t','c');
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 4));
+        break;
+    case MAKEFOURCC('B','N','d','h'):
+        if (!ability) ability = MAKEFOURCC('A','N','d','h');
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT,
+                                -S_SpellData(ability, rank, 3)); /* DataC */
         break;
     case MAKEFOURCC('B','N','h','t'):
         if (!ability) ability = MAKEFOURCC('A','N','h','t');

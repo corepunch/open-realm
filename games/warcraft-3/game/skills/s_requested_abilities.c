@@ -1489,9 +1489,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityResurrection, resurrection_validate, resurrection
  * Ubertip="Breathes a cone of fire at enemy units, dealing <ANcf,DataA1> initial damage."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFire) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    S_SpellDamageEnemiesInRadius(caster, &st.point, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level),
-                                 (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
+    S_BrewmasterBreathOfFire(caster, &st.point, spell->code);
 }
 /* Name=Howl of Terror
  * Ubertip="Reduces the attack damage of nearby enemy units."
@@ -1515,7 +1513,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze) { target_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze) {
+    S_BrewmasterDrunkenHaze(caster, st.entity, spell->code);
+}
 /* Doom is permanent until the victim dies. A_STATUS_TICK advances an authored
  * one-second damage clock even when status->timestamp == 0; this keeps damage,
  * spell locking, targeting and art owned by the victim's serialized status.

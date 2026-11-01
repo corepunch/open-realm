@@ -62,6 +62,7 @@ void G_FreeEdict(edict_t *ent) {
     cargo_t *hold = G_GetCargo(ent);
     mineOverlay_t *ovl = G_GetMineOverlay(ent);
     if (!ent) return;
+    S_BrewmasterOnUnitRemoved(ent);
     S_LavaSpawnRelease(ent);
     S_DevourUnitExit(ent);
     G_ClearUnitResponses(ent);
