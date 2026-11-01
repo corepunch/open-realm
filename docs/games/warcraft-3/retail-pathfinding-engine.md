@@ -950,6 +950,20 @@ existing Follow target-removal checkpoint failure remain open.
 
 ### Patrol producer candidate: native265/272/274, Save232
 
+Checkpoint 294 extends the detach inverse: cancel all six Attack controls,
+retire active target combat and committed Ground, then continue the retained
+parent without rearming removed Attack acquisition. Unit-owned help suppression
+keeps its identity and deadline. All 18 focused processes pass across both
+editions: 1,226 test executions and 309,146 assertions, including post-detach
+cold-save replay. Checkpoint 291 reproduces the missing controls; 292 demonstrates
+why cancelling timers alone is insufficient. The fixture explicitly disables
+regeneration in its installed SLK, so unchanged target health proves no new hit.
+Public addition of intrinsic Aatk is rejected; internal owner reattachment is a
+separate engine control. Original instructions and the precise pre-arrival Ground
+and captured-point recovery limits are in the
+[detach provenance](../../../games/warcraft-3/game/tests/fixtures/retail_attack_detach_293.provenance.json)
+and [P8 checklist](target-01.2-closure.md#p8-attack-owned-timer-and-active-task-retirement).
+
 Checkpoint 290 resolves the Patrol candidate's numerical and ownership failures.
 All 18 focused processes pass across Classic and TFT: 1,226 test executions and
 309,036 assertions. The unchanged original comparisons match all 1,084 public

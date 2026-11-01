@@ -1425,5 +1425,342 @@
     "passed": true,
     "refreshed_source_guards": 25,
     "original_evidence_changed": false
+  },
+  "attack_detach_followup": {
+    "checkpoint": 294,
+    "scope": "Six Attack controls, retained target-combat parent and committed Ground retirement; Unit help remains independent. Pre-arrival Ground and native40000 captured-point recovery remain unproved by this block.",
+    "counts": {
+      "processes": 18,
+      "test_executions": 1226,
+      "assertions": 309146
+    },
+    "focused": [
+      {
+        "edition": "roc",
+        "pattern": "wc3_attack_failed_targets.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_attack_failed_targets_all",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "128"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_patrol_lifetime.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_patrol_lifetime_all",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "362"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_patrol_public.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_patrol_public_all",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "226"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_combat.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_combat_all",
+          "tests": "223",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "4896"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_save.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_save_all",
+          "tests": "248",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "68557"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_order_lifecycle.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_order_lifecycle_all",
+          "tests": "101",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "19752"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_random_streams.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_random_streams_all",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "5527"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_patrol_orders.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_patrol_orders_all",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "641"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_patrol_motion.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_patrol_motion_all",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "54484"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_attack_failed_targets.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_attack_failed_targets_all",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "128"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_patrol_lifetime.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_patrol_lifetime_all",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "362"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_patrol_public.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_patrol_public_all",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "226"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_combat.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_combat_all",
+          "tests": "223",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "4896"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_save.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_save_all",
+          "tests": "248",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "68557"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_order_lifecycle.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_order_lifecycle_all",
+          "tests": "101",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "19752"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_random_streams.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_random_streams_all",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "5527"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_patrol_orders.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_patrol_orders_all",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "641"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_patrol_motion.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_patrol_motion_all",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "54484"
+        }
+      }
+    ],
+    "engine_test_binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+    "engine_test_library_sha256": "a7482287ac8818099d13d3068db10cd6aa1c3c12e1a045b59d1e573112458519",
+    "production_library_sha256": "922bdd568eb8fe3f32923a688102a65eea4c2b9a0ce4c99fcbf7170b433aa21e",
+    "source_changes_from_checkpoint290": {
+      "games/warcraft-3/game/skills/s_attack.c": "2f48bdf268a3f9f7d9da12940867776ab956c511212f9bbdf7f3ac6dd57ede3e",
+      "games/warcraft-3/game/tests/t_patrol_lifetime.c": "667faa8a439f3af5ae03f2d17edf4d6bb4ff391311d1ff9dc001e95a444cfe52"
+    },
+    "native_provenance_sha256": "064705374f94ccb900e21c3dc85cb5e2d7c3365f2d2b41ac649fb3f978adf129",
+    "original_control_call_instructions_verified": 6,
+    "native_gates": {
+      "captain473": {
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        },
+        "report_sha256": "dd4d19ac38dee48803bd44bfca3bceda7b2d25ea162b765d446d17552ed0fb18"
+      },
+      "group012": {
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        },
+        "report_sha256": "2a5f10e73589e61904b4f97e74380666f151f1b828575432bfceaed381280274"
+      },
+      "itemdrop": {
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 137,
+            "assertions": 11543
+          },
+          "tft": {
+            "tests": 137,
+            "assertions": 11543
+          }
+        },
+        "report_sha256": "9477bdaebe80badc603a048452f4bad3d2dc4fdab1b4106b2fb2a2767762046e"
+      },
+      "waygate377": {
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        },
+        "report_sha256": "e11eb828c476175c1d3afa4dc6cf731b4ce58e4f2e510e505ceec819300f334e"
+      },
+      "supportgoal": {
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 483,
+            "assertions": 2001000
+          },
+          "tft": {
+            "tests": 483,
+            "assertions": 2001000
+          }
+        },
+        "report_sha256": "75141ca16d237b8f1f037b9f9249c31c6944074472c4b0965c5bb23d7778eb0a"
+      }
+    },
+    "full_suite_run": false,
+    "python_focused": {
+      "tests": 139,
+      "passed": true,
+      "log_sha256": "b50889a2ee6907e4e58d7413205254d882b743b31fbd6d36d5549cd191ed3b91"
+    },
+    "corpus_inventory": {
+      "entries": 614,
+      "fixture_guards": 3317,
+      "passed": true
+    }
   }
 }

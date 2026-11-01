@@ -304,9 +304,13 @@ static void attack_failed_target_remember(edict_t *unit,edict_t *target) {
     attack_cap_insert(unit,ATTACK_TIMER_FAILED_FIRST+selected);
 }
 
-static bool attack_cap_present(edict_t const *unit) {
+static bool attack_owner_present(edict_t const *unit) {
     FOR_LOOP(i,ARRAY_COUNT(unit->abilities.removed))
         if(unit->abilities.removed[i]==MAKEFOURCC('A','a','t','k'))return false;
+    return true;
+}
+static bool attack_cap_present(edict_t const *unit) {
+    if(!attack_owner_present(unit))return false;
     float range;
     return S_UnitAttackApproachRange(unit,&range);
 }
@@ -372,7 +376,7 @@ static void attack_acquire_arm(edict_t *unit,wc3Clock_t now,float delay) {
 }
 static void attack_acquire_enable(edict_t *unit) {
     if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
-       !CAbilityAttack(unit,A_UNIT_OWNED,NULL) ||
+       !attack_owner_present(unit) || !CAbilityAttack(unit,A_UNIT_OWNED,NULL) ||
        S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))return;
     unit->attack_scan_enabled=true;
     if(!unit->attack_scan_initial_pending)
@@ -390,7 +394,7 @@ static void attack_acquire_ensure(edict_t *unit,bool attachment) {
     if(unit && attack_target_identity(unit) && unit->inuse &&
        (attachment ? !(unit->svflags&SVF_DEADMONSTER) : !M_IsDead(unit)) && !G_IsDeferredFree(unit) &&
        !unit->attack_scan.active && (attachment || (!unit->paused &&
-       !S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))) && CAbilityAttack(unit,A_UNIT_OWNED,NULL)) {
+       !S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))) && attack_owner_present(unit) && CAbilityAttack(unit,A_UNIT_OWNED,NULL)) {
         unit->attack_scan_enabled=true;
         float delay=unit->attack_target ? 1 : .5f;
         /*4993b0 consumes one purpose-stream2 real only on attachment. */
@@ -3085,14 +3089,28 @@ BZ_ABILITY_PROC(CAbilityAttack) {
     case A_DISABLE:
         if(ent) {
             attack_failed_targets_clear(ent);
-            /*493530 detach cancels both controls unconditionally; the initial
-             *2000 exemption belongs only to suspension/death, not removal. */
+            /*493530 cancels six Attack controls: swing200, cooldown1d8,
+             *reaction1c4, damage1ec, scan294 and guard280. Initial2000 only
+             *survives suspension/death. Unit-owned help d01b3 is independent. */
             ent->attack_scan_enabled=false;ent->attack_scan_initial_pending=false;
             attack_acquire_cancel(ent);attack_reaction_cancel(ent);attack_damage_cancel(ent);
+            attack_swing_cancel(ent);attack_guard_cancel(ent);
+            ent->attack_cooldown_active=false;ent->attack_cooldown_remaining=0.0f;
+            ent->attack_cooldown_end_time=0;
             attack_set_alternative(ent,NULL);
             attack_cap_cancel(ent);
             if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
                 sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));
+            /*3f4c70 ->497ba0 ->49d280 forced retirement releases the owned
+             *target task and continues its parent. Cancelling +200 first
+             *prevents ordinary recovery from retaining a detached thinker.
+             *Parent completion may run callbacks: do not write afterward. */
+            if(ent->currentmove==&attack_ground_move_ranged ||
+               ent->currentmove==&attack_ground_move_cooldown ||
+               ent->currentmove==&attack_ground_move_hold)
+                attack_ground_stop(ent); /*497190 pops committed Ground d0169. */
+            else if(ent->attack_target)
+                attack_finish_after_combat(ent,ent->goalentity,"ability_detached");
         }
         return false;
     case A_TARGET_OWNER_CHANGED:

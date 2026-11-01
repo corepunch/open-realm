@@ -334,11 +334,21 @@ TEST(wc3_patrol_lifetime, pending_reaction_save_and_owner_inverse) {
     cstring_t texts[]={tft?patrol_tft_UnitData:patrol_roc_UnitData,
         tft?patrol_tft_UnitBalance:patrol_roc_UnitBalance,
         tft?patrol_tft_UnitWeapons:patrol_roc_UnitWeapons};
+    /* Engine inverse fixture: disable natural healing in the installed SLK,
+     * so both normal execution and ReadGame resolve the same persistent row. */
+    char *balance_text=strdup(texts[1]);T_NOT_NULL(balance_text);
+    char *regen=balance_text ? strstr(balance_text,"C;X20;Y2;K\"0.25\"") : NULL;
+    T_NOT_NULL(regen);
+    if(regen)memcpy(strstr(regen,"0.25"),"0.00",4);
+    texts[1]=balance_text;
     slkTestData_t *rows[3],*old[3];
     FOR_LOOP(i,3){rows[i]=parse_slk_string(texts[i]);old[i]=G_SetSLKRows(names[i],rows[i]);}
     T_ASSERT(run_test_jass(
         "globals\nunit reactionSource=null\nunit reactionTarget=null\nendglobals\n"
         "function detach takes nothing returns nothing\ncall BJassAssert(UnitRemoveAbility(reactionSource,'Aatk'),\"detach Attack\")\nendfunction\n"
+        "function reattach takes nothing returns nothing\ncall BJassAssert(not UnitAddAbility(reactionSource,'Aatk'),\"intrinsic Attack has no public factory\")\nendfunction\n"
+        "function reattack takes nothing returns nothing\ncall IssueTargetOrder(reactionSource,\"attack\",reactionTarget)\nendfunction\n"
+        "function neutral_guard takes nothing returns nothing\nset reactionSource=CreateUnit(Player(12),'hfoo',1280.0,1280.0,0.0)\ncall IssueImmediateOrder(reactionSource,\"stop\")\nendfunction\n"
         "function stop takes nothing returns nothing\ncall IssueImmediateOrder(reactionSource,\"stop\")\nendfunction\n"
         "function move takes nothing returns nothing\ncall IssuePointOrder(reactionSource,\"move\",512.0,1024.0)\nendfunction\n"
         "function kill takes nothing returns nothing\ncall KillUnit(reactionTarget)\nendfunction\n"
@@ -409,6 +419,64 @@ TEST(wc3_patrol_lifetime, pending_reaction_save_and_owner_inverse) {
             if(mode==2 || mode==6)T_EQ(unit->current_order_id,G_OrderId("move"));
             if(mode>=3 && mode!=7)T_ASSERT(unit->attack_target!=target);
         }
+        /* Engine inverse regression: reach actual committed-hit owners, then
+         * remove their ability through the public API. No synthetic timers. */
+        S_ClearMoveGroups();T_ASSERT(ReadGame(save));
+        unit=g_edicts+index;target=g_edicts+target_index;
+        FOR_LOOP(i,800) {if(unit->attack_swing.active)break;PatrolLifetimeStep();}
+        T_ASSERT(unit->attack_swing.active);T_ASSERT(unit->attack_cooldown_active);
+        T_ASSERT(target->health.value<target->health.max_value);
+        float detached_health=target->health.value;
+        /* Unit-owned d01b3 survives removal of the independent Attack owner. */
+        T_Damage(unit,target,0);T_ASSERT(unit->combat_help.active);
+        abilityPrimaryTimer_t help=unit->combat_help;
+        jass_callbyname(level.vm,"detach",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(!unit->attack_swing.active);T_ASSERT(!unit->attack_cooldown_active);
+        T_EQ(unit->attack_cooldown_remaining,0.0f);
+        T_ASSERT(unit->combat_help.active);T_EQ(unit->combat_help.sequence,help.sequence);
+        T_EQ(wc3_float_bits(unit->combat_help.deadline.time),wc3_float_bits(help.deadline.time));
+        T_EQ(unit->current_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);
+        T_ASSERT(unit->currentmove && unit->currentmove->proc!=CAbilityAttack);
+        cstring_t detached_save=Test_TempPath("patrol-detached-parent.bin");
+        T_ASSERT(WriteGame(detached_save));
+        FOR_LOOP(replay,2) {
+            if(replay) {
+                S_ClearMoveGroups();T_ASSERT(ReadGame(detached_save));
+                unit=g_edicts+index;target=g_edicts+target_index;
+            }
+            FOR_LOOP(i,800){PatrolLifetimeStep();}
+            T_ASSERT(!unit->attack_swing.active);T_ASSERT(!unit->attack_damage.active);
+            T_ASSERT(!unit->attack_reaction.active);T_ASSERT(!unit->attack_scan.active);
+            T_ASSERT(!unit->combat_help.active);
+            T_ASSERT(unit->currentmove && unit->currentmove->proc!=CAbilityAttack);
+            T_EQ(unit->current_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);
+            T_EQ(target->health.value,detached_health);
+        }
+        remove(detached_save);
+        jass_callbyname(level.vm,"reattach",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(!G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')));
+        /* Engine attachment-owner control, not public UnitAddAbility parity:
+         * the native public factory cannot instantiate intrinsic Aatk. */
+        T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','a','t','k')));
+        T_ASSERT(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')));
+        T_ASSERT(!unit->attack_cooldown_active);T_EQ(unit->attack_cooldown_remaining,0.0f);
+        jass_callbyname(level.vm,"reattack",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        FOR_LOOP(i,1600){if(unit->attack_damage.active)break;PatrolLifetimeStep();}
+        T_ASSERT(unit->attack_damage.active);T_ASSERT(unit->attack_cooldown_active);
+        /* Neutral guard uses its genuine Stand producer; detach cancels the
+         * Attack-owned poll even though the unit remains alive and idle. */
+        jass_callbyname(level.vm,"neutral_guard",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *guard=NULL;
+        FILTER_EDICTS(u,u->inuse && u->class_id==MAKEFOURCC('h','f','o','o') &&
+            u->s.player==PLAYER_NEUTRAL_AGGRESSIVE){guard=u;break;}
+        T_NOT_NULL(guard);
+        if(guard) {
+            T_ASSERT(guard->attack_guard.timer.active);
+            jass_callbyname(level.vm,"detach",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!guard->attack_guard.timer.active);
+            FOR_LOOP(i,600){PatrolLifetimeStep();}
+            T_ASSERT(!guard->attack_guard.timer.active);
+        }
         remove(save);
     }
     attack_test_target_lost=NULL;
@@ -417,6 +485,7 @@ TEST(wc3_patrol_lifetime, pending_reaction_save_and_owner_inverse) {
     level.started=false;reset_entities();setup_test_world();
     level.setup.map_flags=old_flags;level.setup.random_seed=old_seed;
     FOR_LOOP(i,3){G_SetSLKRows(names[i],old[i]);free_slk_rows(rows[i]);}
+    free(balance_text);
 }
 static unsigned patrol_damage_commits;
 static wc3Clock_t patrol_damage_clock;
@@ -513,6 +582,7 @@ TEST(wc3_patrol_lifetime, ground_damage_owner_resumes_after_public_pause) {
     FOR_LOOP(i,4){rows[i]=parse_slk_string(texts[i]);old[i]=G_SetSLKRows(names[i],rows[i]);}
     T_ASSERT(run_test_jass(
         "globals\nunit groundSource=null\nendglobals\n"
+        "function detach_ground takes nothing returns nothing\ncall BJassAssert(UnitRemoveAbility(groundSource,'Aatk'),\"detach Ground owner\")\nendfunction\n"
         "function pause takes nothing returns nothing\ncall PauseUnit(groundSource,true)\nendfunction\n"
         "function resume takes nothing returns nothing\ncall PauseUnit(groundSource,false)\nendfunction\n"
         "function main takes nothing returns nothing\n"
@@ -533,6 +603,12 @@ TEST(wc3_patrol_lifetime, ground_damage_owner_resumes_after_public_pause) {
         bool resumed=false;
         FOR_LOOP(i,400){PatrolLifetimeStep();if(unit->attack_damage.active){resumed=true;break;}}
         T_ASSERT(resumed);T_EQ(unit->current_order_id,G_OrderId("attackground"));
+        jass_callbyname(level.vm,"detach_ground",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(!unit->attack_damage.active);
+        T_ASSERT(!unit->currentmove || unit->currentmove->proc!=CAbilityAttackGround);
+        FOR_LOOP(i,600){PatrolLifetimeStep();}
+        T_ASSERT(!unit->attack_damage.active);T_ASSERT(!unit->attack_cooldown_active);
+        T_ASSERT(!unit->currentmove || unit->currentmove->proc!=CAbilityAttackGround);
     }
     level.started=false;reset_entities();setup_test_world();
     FOR_LOOP(i,4){G_SetSLKRows(names[i],old[i]);free_slk_rows(rows[i]);}

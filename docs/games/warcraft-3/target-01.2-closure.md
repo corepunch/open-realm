@@ -92,17 +92,21 @@ Checkpoint 287 passes all 18 focused processes in Classic and TFT: 1,224 test ex
 
 **P7 result:** checkpoint 289 reproduces invalid metadata acceptance by both the validator and `WriteGame`. Checkpoint 290 rejects each malformed active request, accepts restored valid owners and passes all 248 Save232 tests per edition, including prior-version rejection.
 
-### P8. Finish the remaining Attack timer detach checks
+### P8. Attack-owned timer and active-task retirement
 
-**Status:** open follow-up to the verified Patrol producer block. Original `0x493530` cancels six controls. P6 fixes the newly introduced reaction/acquisition gap; the existing C detach path still needs swing control `+0x200`, cooldown control `+0x1d8` and guard control `+0x280` reconciled. The C owners are `attack_swing_cancel`, the `attack_cooldown_active`/end-time/remaining state, and `attack_guard_cancel` in `s_attack.c`. Unit-owned help suppression is excluded: original `0x66e700` arms the Unit’s `+0x7c` control independently of Attack, so removing `Aatk` must preserve it.
+**Status:** bounded contract verified in checkpoint 294: all 18 focused processes pass across Classic and TFT, 1,226 test executions and 309,146 assertions. Checkpoint 291 reproduces surviving swing/cooldown/guard requests; checkpoint 292 shows that timer cancellation alone still lets the old combat thinker damage the target.
 
-**Action:** obtain the corresponding live requests through actual combat/guard entry points, remove `Aatk`, and verify cancellation before their old deadlines. Include a control that Unit-owned help suppression survives. In particular, a retained swing request must not activate `attack_swing_complete` after ability removal. Keep this distinct from pause/death behavior. Cancel the proven matching requests in `CAbilityAttack(A_DISABLE)` and retain the public order/target semantics supported by the original owner; do not infer those semantics from timer cancellation alone.
+**Original instructions:** `0x493540`, `0x49354b`, `0x493556`, `0x493561`, `0x49356c` and `0x49357e` call cancellation function `0x0606c0` for Attack controls at offsets `0x200`, `0x1d8`, `0x1c4`, `0x1ec`, `0x294` and `0x280`. The original DLL bytes verify all six calls. `0x060ad0` returns zero once cancellation clears the request. These are swing, cooldown, reaction, damage, acquisition and guard ownership.
 
-**Close P8:** show the detach regression failing before its fix and passing afterward, including saved ownership, without changing the accepted Patrol records. This follow-up is not claimed by checkpoint 290.
+**Implemented C inverse:** `CAbilityAttack(A_DISABLE)` cancels the six matching owners and clears cooldown active/end-time/remaining state. Retirement also releases the active target combat task through the existing completion path and resumes its retained Patrol parent. It retires committed Ground ranged/cooldown/hold behavior, while leaving ordinary point movement alone. Raw Aatk removal prevents `attack_acquire_enable` and `attack_acquire_ensure` from rearming through later Move/Stand events. Callback-producing parent completion is last, so cleanup does not overwrite a callback successor.
+
+**Preserved independent owner:** original `0x66e700` schedules Unit help suppression on `Unit+0x7c`; Attack detach does not cancel it. The tests require its unchanged deadline/sequence, normal expiry and cold-save continuation. They also check natural neutral guard admission, post-detach parent movement, public intrinsic-factory rejection and a separately labelled internal attachment-owner control. Public `UnitAddAbility(...,'Aatk')` is not claimed to recreate an intrinsic class.
+
+**Exact limits still open:** pre-arrival Ground removal before committed `d0169` remains under F18/D050. Captured-point recovery when native flag `0x40000` reaches `0x49d280` remains under F19/D051. These branches are not closed by the six-control correction. [Original functions, instructions and task policy](../../../games/warcraft-3/game/tests/fixtures/retail_attack_detach_293.provenance.json).
 
 ### Patrol delivery checkpoint
 
-P1–P7 and the coordinated native/corpus checks pass; the production module builds without warnings. Commit this verified Patrol producer block, then finish P8 as the next owner-teardown block. Run the batched full suite at the user-requested cadence after a few implementation commits; the focused result is not a full-suite result. Commit the Patrol implementation, fixtures and documentation on the primary `open-realm` branch. Do not wait for AttackMove before delivering this completed block. The implementation currently uses candidate Save232; its final serializer, rejection and saved-owner checks must pass before delivery.
+P1–P7 and the coordinated native/corpus checks pass; the production module builds without warnings. Commit this verified Patrol producer block, P8 now also passes its bounded retirement checks. The next unresolved recovery branch is F19/D051, including native flag `0x40000`. Run the batched full suite at the user-requested cadence after a few implementation commits; the focused result is not a full-suite result. Commit the Patrol implementation, fixtures and documentation on the primary `open-realm` branch. Do not wait for AttackMove before delivering this completed block. The implementation currently uses candidate Save232; its final serializer, rejection and saved-owner checks must pass before delivery.
 
 ## 3. Exact checks to attach to each listed call
 
@@ -1597,7 +1601,7 @@ No row below is claimed to be a proven missing producer solely because its desti
 2. D001–D136 each identify an accepted test/fixture row or a specific existing owner exclusion. F rows are not closed by mentioning a related checkpoint.
 3. V01–V06 each have their receiver-specific disposition; the Morph slot collision remains excluded.
 4. I001–I210 each have a recorded receiver/callee classification. The classifier must identify a new real factory path as a concrete row rather than silently dropping it.
-5. P8, AttackMove, the spell branches identified under F02/F03/F13, and the occupied/blocked/forced branches attached to D rows have the required range, heading, force and stop boundary evidence.
+5. The remaining F18/D050 and F19/D051 recovery branches, AttackMove, and the spell branches identified under F02/F03/F13, and the occupied/blocked/forced branches attached to D rows have the required range, heading, force and stop boundary evidence.
 6. The new implementation passes the final coordinated native/corpus gates, current Save232 checks, both-edition regression runs and the batched full suite.
 7. Code, executable fixtures, exact evidence and this checklist are committed on the primary `open-realm` branch. Only then mark the existing TARGET-01.2 checkbox complete.
 

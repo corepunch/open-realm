@@ -1,0 +1,714 @@
+{
+  "schema": 1,
+  "status": "Original-binary static proof for P8 Attack detach. No claim of a new native capture or engine test pass.",
+  "binary": {
+    "program": "game.dll",
+    "image_base": "0x6f000000",
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+  },
+  "address_convention": "All *_rva fields are relative to image_base. Operands and recovered decompiler symbol suffixes retain absolute virtual addresses. Function RVAs are not asserted to be CALL instruction sites.",
+  "six_control_cancellations": [
+    {
+      "ability_offset": "0x200",
+      "call_instruction_rva": "0x493540",
+      "callee_function_rva": "0x0606c0"
+    },
+    {
+      "ability_offset": "0x1d8",
+      "call_instruction_rva": "0x49354b",
+      "callee_function_rva": "0x0606c0"
+    },
+    {
+      "ability_offset": "0x1c4",
+      "call_instruction_rva": "0x493556",
+      "callee_function_rva": "0x0606c0"
+    },
+    {
+      "ability_offset": "0x1ec",
+      "call_instruction_rva": "0x493561",
+      "callee_function_rva": "0x0606c0"
+    },
+    {
+      "ability_offset": "0x294",
+      "call_instruction_rva": "0x49356c",
+      "callee_function_rva": "0x0606c0"
+    },
+    {
+      "ability_offset": "0x280",
+      "call_instruction_rva": "0x49357e",
+      "callee_function_rva": "0x0606c0"
+    }
+  ],
+  "semantics": {
+    "cancel": "0606c0 marks the pending request with 0x10000, nulls control+0xc, releases receiver control+8, clears control flags 2 and 4. It does not preserve remaining time as a paused request.",
+    "remaining": "060ad0 returns Math_RuntimeZero when control.request is NULL. Thus detach cancels cooldown+1d8 and guard+280 rather than freezing them for reattachment.",
+    "help": "Unit_CallForHelp66e700 uses LEA ECX,[ESI+0x7c] at66e7ac and CALL0608d0 at66e7b5, eventd01b3, receiverUnit. This Unit-owned request is distinct from the six Attack-owned controls and is not cancelled by493530.",
+    "retirement": "493535 calls3f5080, which first calls3f4c70. Retirement invokes virtuale0 as required by availability state; Attack e0 is497ba0. Its forced49d280(ability,1,NULL) recovery precedes final six timer cancellations. The later virtual2f4(0) is49b750 subscription removal, not the forced recovery function."
+  },
+  "vtable": {
+    "base_va": "0x6fadb5a4",
+    "entries": [
+      {
+        "slot": "0xe0",
+        "entry_va": "0x6fadb684",
+        "function_rva": "0x497ba0"
+      },
+      {
+        "slot": "0x2f4",
+        "entry_va": "0x6fadb898",
+        "little_endian_hex": "50b7496f",
+        "function_rva": "0x49b750"
+      }
+    ]
+  },
+  "task_policy": {
+    "active_gate": "49d280 returns immediately unless Attack.flags&4.",
+    "forced": "forced=1 clears the alternative target identity. It does not disable the independent flags40000 target-position recovery branch.",
+    "ground": "49e730 sets flag4 for admitted in-range Ground polling.497190 pops currentd0169 and returns false;49d280 therefore neither inserts a recoverypoint nor directly dispatches the successor in that branch.",
+    "target": "497190 optionally pops d0168, then d0163 with completion cancellation, then d016f. Only popping d016f returns true and permits49d280 optionald016c recovery-point insertion followed by queue dispatch.",
+    "swing_wait": "Currentd016a is not popped by497190.497ba0 separately handles flags800 queued wait by clearing the flag, popping and dispatching;493530 subsequently cancels swing+200.",
+    "plain_point": "497190 does not pop ordinary shared pointd016b. This is not evidence for a blanket Stop that discards an unrelated Move, Patrol, or AttackMove parent.",
+    "prearrival_ground_limit": "Pre-arrival Ground shared d016b teardown is not established by49d280 alone because flag4 may not yet be set. No claim that this proof closes that case."
+  },
+  "original_function_exports": [
+    {
+      "function_rva": "0x493530",
+      "name": "FUN_6f493530",
+      "decompiled_code_without_annotation_comments": "void __fastcall FUN_6f493530(void *param_1)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  void *agent;\n  int *piVar3;\n  int iVar4;\n  \n  Ability_DetachAvailability();\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)((int)param_1 + 0x200));\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)((int)param_1 + 0x1d8));\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)((int)param_1 + 0x1c4));\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)((int)param_1 + 0x1ec));\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)((int)param_1 + 0x294));\n  Attack_CancelSpeedCapExemption(param_1);\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)((int)param_1 + 0x280));\n  FUN_6f49bbe0();\n  piVar3 = (int *)((int)param_1 + 0x238);\n  iVar4 = 2;\n  do {\n    if ((int *)*piVar3 != (int *)0x0) {\n      (**(code **)(*(int *)*piVar3 + 0x5c))();\n      puVar2 = (undefined4 *)*piVar3;\n      if (puVar2 != (undefined4 *)0x0) {\n        piVar1 = puVar2 + 1;\n        *piVar1 = *piVar1 + -1;\n        if (*piVar1 == 0) {\n          (**(code **)*puVar2)();\n        }\n        *piVar3 = 0;\n      }\n    }\n    piVar3 = piVar3 + 1;\n    iVar4 = iVar4 + -1;\n  } while (iVar4 != 0);\n  agent = *(void **)((int)param_1 + 0x30);\n  if (agent == (void *)0x0) {\n    agent = (void *)FUN_6f055cc0();\n  }\n  Agent_UnregisterEventSubscriber(agent,0xd0166,param_1);\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "40de4691c1ed4f96c15b31ac29ad36dc3eac6d07a1a49e022b81d0dd42d550ae",
+      "exported_instruction_stream_sha256": "3bad0686d1b781c215f1b06a721ced282c2b98479225a17ca622c8ce24e1b999",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x493535",
+          "mnemonic": "CALL",
+          "operands": "0x6f3f5080"
+        },
+        {
+          "instruction_rva": "0x493540",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        },
+        {
+          "instruction_rva": "0x49354b",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        },
+        {
+          "instruction_rva": "0x493556",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        },
+        {
+          "instruction_rva": "0x493561",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        },
+        {
+          "instruction_rva": "0x49356c",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        },
+        {
+          "instruction_rva": "0x493573",
+          "mnemonic": "CALL",
+          "operands": "0x6f499820"
+        },
+        {
+          "instruction_rva": "0x49357e",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        },
+        {
+          "instruction_rva": "0x493585",
+          "mnemonic": "CALL",
+          "operands": "0x6f49bbe0"
+        },
+        {
+          "instruction_rva": "0x49359d",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x5c]"
+        },
+        {
+          "instruction_rva": "0x4935ad",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX]"
+        },
+        {
+          "instruction_rva": "0x4935c4",
+          "mnemonic": "CALL",
+          "operands": "0x6f055cc0"
+        },
+        {
+          "instruction_rva": "0x4935d1",
+          "mnemonic": "CALL",
+          "operands": "0x6f0728c0"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x606c0",
+      "name": "EventClock_CancelRequest",
+      "decompiled_code_without_annotation_comments": "void __thiscall EventClock_CancelRequest(WC3EventClockControlPrefix *control)\n\n{\n  int *piVar1;\n  WC3TimerRequestPrefix *pWVar2;\n  undefined4 *puVar3;\n  \n  pWVar2 = control->request;\n  if ((pWVar2 != (WC3TimerRequestPrefix *)0x0) && ((pWVar2->flags & 0x10000) == 0)) {\n    pWVar2->flags = pWVar2->flags | 0x10000;\n  }\n  control->request = (WC3TimerRequestPrefix *)0x0;\n  puVar3 = control->receiver;\n  if (puVar3 != (undefined4 *)0x0) {\n    piVar1 = puVar3 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*puVar3)();\n    }\n    control->receiver = (void *)0x0;\n  }\n  control->flags = control->flags & 0xfffffff9;\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "aab013841e877c50a28917ecc845e18f95cbb0471c76ac558810b4d1514d620f",
+      "exported_instruction_stream_sha256": "c6a75dcdcb1d48da6c734588ec9790cc8d3d00c166a926381f84077022645d5c",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x606c0",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "instruction_rva": "0x606c1",
+          "mnemonic": "MOV",
+          "operands": "ESI, ECX"
+        },
+        {
+          "instruction_rva": "0x606c3",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI + 0xc]"
+        },
+        {
+          "instruction_rva": "0x606c6",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "instruction_rva": "0x606c8",
+          "mnemonic": "JZ",
+          "operands": "0x6f0606d7"
+        },
+        {
+          "instruction_rva": "0x606ca",
+          "mnemonic": "TEST",
+          "operands": "byte ptr [EAX + 0x12], 0x1"
+        },
+        {
+          "instruction_rva": "0x606ce",
+          "mnemonic": "JNZ",
+          "operands": "0x6f0606d7"
+        },
+        {
+          "instruction_rva": "0x606d0",
+          "mnemonic": "OR",
+          "operands": "dword ptr [EAX + 0x10], 0x10000"
+        },
+        {
+          "instruction_rva": "0x606d7",
+          "mnemonic": "MOV",
+          "operands": "dword ptr [ESI + 0xc], 0x0"
+        },
+        {
+          "instruction_rva": "0x606de",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [ESI + 0x8]"
+        },
+        {
+          "instruction_rva": "0x606e1",
+          "mnemonic": "TEST",
+          "operands": "ECX, ECX"
+        },
+        {
+          "instruction_rva": "0x606e3",
+          "mnemonic": "JZ",
+          "operands": "0x6f0606f5"
+        },
+        {
+          "instruction_rva": "0x606e5",
+          "mnemonic": "DEC",
+          "operands": "dword ptr [ECX + 0x4]"
+        },
+        {
+          "instruction_rva": "0x606e8",
+          "mnemonic": "JNZ",
+          "operands": "0x6f0606ee"
+        },
+        {
+          "instruction_rva": "0x606ea",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ECX]"
+        },
+        {
+          "instruction_rva": "0x606ec",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX]"
+        },
+        {
+          "instruction_rva": "0x606ee",
+          "mnemonic": "MOV",
+          "operands": "dword ptr [ESI + 0x8], 0x0"
+        },
+        {
+          "instruction_rva": "0x606f5",
+          "mnemonic": "AND",
+          "operands": "dword ptr [ESI + 0x10], 0xfffffff9"
+        },
+        {
+          "instruction_rva": "0x606f9",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "instruction_rva": "0x606fa",
+          "mnemonic": "RET",
+          "operands": ""
+        }
+      ]
+    },
+    {
+      "function_rva": "0x60ad0",
+      "name": "EventClock_GetRemaining",
+      "decompiled_code_without_annotation_comments": "WC3PathScalar * __thiscall\nEventClock_GetRemaining(WC3EventClockControlPrefix *control,WC3PathScalar *output)\n\n{\n  WC3PathScalar *pWVar1;\n  WC3PathScalar *right;\n  WC3PathScalar local_14;\n  WC3PathScalar local_10;\n  WC3PathScalar local_c;\n  WC3PathScalar local_8;\n  \n  if (control->request == (WC3TimerRequestPrefix *)0x0) {\n    *output = Math_RuntimeZero;\n    return output;\n  }\n  if (control->segment_count == 0) {\n    EventClock_GetRequestRemaining(control,output);\n    return output;\n  }\n  local_8 = Math_RuntimeZero;\n  if (1 < control->remaining_segments) {\n    right = &Timer_SegmentQuantum;\n    pWVar1 = Math_FromIntegerTruncated(&local_c,control->remaining_segments - 1);\n    pWVar1 = Math_Multiply(&local_10,pWVar1,right);\n    pWVar1 = Math_Add(&local_14,&local_8,pWVar1);\n    local_8 = *pWVar1;\n  }\n  Math_Subtract(&local_c,&control->request->deadline,&control->request->clock->time);\n  pWVar1 = Math_Add(&local_14,&local_8,&local_c);\n  local_8 = *pWVar1;\n  if (control->remaining_segments != 0) {\n    pWVar1 = Math_Add(&local_14,&local_8,&control->residual);\n    local_8 = *pWVar1;\n  }\n  *output = local_8;\n  return output;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "3aa83e2fee78f35dd8bcac6de25ab8de7eb539bdf73bc308aa2aee0126159b09",
+      "exported_instruction_stream_sha256": "25cfa10d5ead82c9f9c3a040aa7825e906bf4c85ce05503339a473a96de2fd18",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x60ad0",
+          "mnemonic": "PUSH",
+          "operands": "EBP"
+        },
+        {
+          "instruction_rva": "0x60ad1",
+          "mnemonic": "MOV",
+          "operands": "EBP, ESP"
+        },
+        {
+          "instruction_rva": "0x60ad3",
+          "mnemonic": "SUB",
+          "operands": "ESP, 0x10"
+        },
+        {
+          "instruction_rva": "0x60ad6",
+          "mnemonic": "PUSH",
+          "operands": "EDI"
+        },
+        {
+          "instruction_rva": "0x60ad7",
+          "mnemonic": "MOV",
+          "operands": "EDI, ECX"
+        },
+        {
+          "instruction_rva": "0x60ad9",
+          "mnemonic": "CMP",
+          "operands": "dword ptr [EDI + 0xc], 0x0"
+        },
+        {
+          "instruction_rva": "0x60add",
+          "mnemonic": "JNZ",
+          "operands": "0x6f060af1"
+        },
+        {
+          "instruction_rva": "0x60adf",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [EBP + 0x8]"
+        },
+        {
+          "instruction_rva": "0x60ae2",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [0x6fd3c744]"
+        },
+        {
+          "instruction_rva": "0x60ae8",
+          "mnemonic": "POP",
+          "operands": "EDI"
+        },
+        {
+          "instruction_rva": "0x60ae9",
+          "mnemonic": "MOV",
+          "operands": "dword ptr [EAX], ECX"
+        },
+        {
+          "instruction_rva": "0x60aeb",
+          "mnemonic": "MOV",
+          "operands": "ESP, EBP"
+        },
+        {
+          "instruction_rva": "0x60aed",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "instruction_rva": "0x60aee",
+          "mnemonic": "RET",
+          "operands": "0x4"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x66e700",
+      "name": "Unit_CallForHelp",
+      "decompiled_code_without_annotation_comments": "void __thiscall Unit_CallForHelp(uint self,uint arg_04,uint arg_08)\n\n{\n  WC3UnitMoverBridge *bridge;\n  undefined4 *puVar1;\n  undefined4 uVar2;\n  WC3PathScalar *pWVar3;\n  WC3PathScalar local_1c;\n  undefined4 local_18;\n  uint local_10;\n  uint local_c;\n  uint local_8;\n  \n  if (((arg_04 != 0) && ((*(byte *)(self + 0x5c) & 0x40) == 0)) &&\n     ((*(byte *)(self + 0x20) & 1) == 0)) {\n    local_8 = arg_08;\n    pWVar3 = &local_1c;\n    local_10 = arg_04;\n    local_c = self;\n    bridge = (WC3UnitMoverBridge *)(**(code **)(*(int *)self + 0xb8))();\n    UnitMover_QueryWorldPosition(bridge,pWVar3);\n    puVar1 = (undefined4 *)Unit_GetCallForHelpRadius((uint)&arg_04,self);\n    uVar2 = (**(code **)(*(int *)self + 0xec))(0xb,*puVar1,local_1c,local_18,0x1f);\n    uVar2 = (**(code **)(*(int *)self + 0xec))(0x17,uVar2);\n    WidgetQuery_VisitWithSelectors(Unit_VisitHelpRecipient,&local_10,0x16,uVar2);\n    FUN_6f69c810();\n    *(uint *)(self + 0x5c) = *(uint *)(self + 0x5c) | 0x40;\n    pWVar3 = &Math_RoundHalf;\n    if ((*(byte *)(self + 0x5c) & 4) == 0) {\n      pWVar3 = &DAT_6fd3c750;\n    }\n    FUN_6f0608d0(pWVar3,0xd01b3,self,0,0);\n  }\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "fea6b87b8c3e4d0aa4889884382ad4ca2b5d77237e03ad7129623f41e7a48f32",
+      "exported_instruction_stream_sha256": "5a3cd011ecca030cf5c609408349ea946a1831750d0d992c22a34c77531da901",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x66e792",
+          "mnemonic": "OR",
+          "operands": "dword ptr [ESI + 0x5c], 0x40"
+        },
+        {
+          "instruction_rva": "0x66e796",
+          "mnemonic": "MOV",
+          "operands": "ECX, 0x6fd3c750"
+        },
+        {
+          "instruction_rva": "0x66e79b",
+          "mnemonic": "TEST",
+          "operands": "byte ptr [ESI + 0x5c], 0x4"
+        },
+        {
+          "instruction_rva": "0x66e79f",
+          "mnemonic": "MOV",
+          "operands": "EAX, 0x6fcd53f4"
+        },
+        {
+          "instruction_rva": "0x66e7a4",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "instruction_rva": "0x66e7a6",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "instruction_rva": "0x66e7a8",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "instruction_rva": "0x66e7a9",
+          "mnemonic": "CMOVZ",
+          "operands": "EAX, ECX"
+        },
+        {
+          "instruction_rva": "0x66e7ac",
+          "mnemonic": "LEA",
+          "operands": "ECX, [ESI + 0x7c]"
+        },
+        {
+          "instruction_rva": "0x66e7af",
+          "mnemonic": "PUSH",
+          "operands": "0xd01b3"
+        },
+        {
+          "instruction_rva": "0x66e7b4",
+          "mnemonic": "PUSH",
+          "operands": "EAX"
+        },
+        {
+          "instruction_rva": "0x66e7b5",
+          "mnemonic": "CALL",
+          "operands": "0x6f0608d0"
+        },
+        {
+          "instruction_rva": "0x66e7ba",
+          "mnemonic": "POP",
+          "operands": "EDI"
+        },
+        {
+          "instruction_rva": "0x66e7bb",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "instruction_rva": "0x66e7bc",
+          "mnemonic": "MOV",
+          "operands": "ESP, EBP"
+        },
+        {
+          "instruction_rva": "0x66e7be",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "instruction_rva": "0x66e7bf",
+          "mnemonic": "RET",
+          "operands": "0x8"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x3f5080",
+      "name": "Ability_DetachAvailability",
+      "decompiled_code_without_annotation_comments": "void __fastcall Ability_DetachAvailability(int *param_1)\n\n{\n  Ability_RetireAvailability();\n  (**(code **)(*param_1 + 0x2f4))(0);\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "4c80fc3d4394f1a1081661b5d9d08de668801abbcd6cc151472885714c604c37",
+      "exported_instruction_stream_sha256": "7d80de22fd85377b10628a9746bb842a32d3284422b82a08320695228e0542cd",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x3f5083",
+          "mnemonic": "CALL",
+          "operands": "0x6f3f4c70"
+        },
+        {
+          "instruction_rva": "0x3f508e",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x2f4]"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x3f4c70",
+      "name": "Ability_RetireAvailability",
+      "decompiled_code_without_annotation_comments": "void __fastcall Ability_RetireAvailability(int *param_1)\n\n{\n  int iVar1;\n  \n  Ability_AddDisableContribution(0,1);\n  iVar1 = (**(code **)(*param_1 + 0xcc))();\n  if (iVar1 == 0) {\n    (**(code **)(*param_1 + 0xe0))();\n  }\n  param_1[8] = param_1[8] & 0xfffffffd;\n  (**(code **)(*param_1 + 0xc4))();\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)(param_1 + 0x16));\n  param_1[8] = param_1[8] | 0x40;\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "b79ebdc10b3f36166c7a81eb4fd75a2824be8626a17961667a523ae1d1457b84",
+      "exported_instruction_stream_sha256": "13508b9526055bad34599ed20fe567d5dcb35bf409a201cf0383abf31bf1968c",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x3f4c77",
+          "mnemonic": "CALL",
+          "operands": "0x6f4076e0"
+        },
+        {
+          "instruction_rva": "0x3f4c80",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0xcc]"
+        },
+        {
+          "instruction_rva": "0x3f4c8e",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0xe0]"
+        },
+        {
+          "instruction_rva": "0x3f4c9c",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0xc4]"
+        },
+        {
+          "instruction_rva": "0x3f4ca5",
+          "mnemonic": "CALL",
+          "operands": "0x6f0606c0"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x497ba0",
+      "name": "FUN_6f497ba0",
+      "decompiled_code_without_annotation_comments": "void __fastcall FUN_6f497ba0(WC3AttackRangePrefix *param_1)\n\n{\n  WC3UnitOrdersPrefix *self;\n  \n  Attack_RecoverTargetTask(param_1,1,(undefined *)0x0);\n  Ability_ClearActiveOwnership();\n  Ability_DisableStateChanged();\n  self = param_1->unit;\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  if ((param_1->flags & 0x800) != 0) {\n    param_1->flags = param_1->flags & 0xfffff7ff;\n    Unit_PopInternalTaskHead();\n    Unit_DispatchInternalTaskQueue(self);\n  }\n  FUN_6f49a350(0);\n  Attack_CancelGuardEvaluation();\n  Unit_SetOwnerChangeSubscription(self,param_1,0);\n  FUN_6f690110(param_1,0);\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "7ce2e09e3b5d59bddece610698c5df41876afb3e9b8c35adfbdb93dd069cc16a",
+      "exported_instruction_stream_sha256": "1443f516e742d156bfd554fd7b099a56d93c5066a76a54784de3e31bc5880ced",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x497ba8",
+          "mnemonic": "CALL",
+          "operands": "0x6f49d280"
+        },
+        {
+          "instruction_rva": "0x497baf",
+          "mnemonic": "CALL",
+          "operands": "0x6f405510"
+        },
+        {
+          "instruction_rva": "0x497bb6",
+          "mnemonic": "CALL",
+          "operands": "0x6f407470"
+        },
+        {
+          "instruction_rva": "0x497bc4",
+          "mnemonic": "CALL",
+          "operands": "0x6f055cc0"
+        },
+        {
+          "instruction_rva": "0x497bdd",
+          "mnemonic": "CALL",
+          "operands": "0x6f691260"
+        },
+        {
+          "instruction_rva": "0x497be4",
+          "mnemonic": "CALL",
+          "operands": "0x6f67df00"
+        },
+        {
+          "instruction_rva": "0x497bed",
+          "mnemonic": "CALL",
+          "operands": "0x6f49a350"
+        },
+        {
+          "instruction_rva": "0x497bf4",
+          "mnemonic": "CALL",
+          "operands": "0x6f49a330"
+        },
+        {
+          "instruction_rva": "0x497bfe",
+          "mnemonic": "CALL",
+          "operands": "0x6f6901c0"
+        },
+        {
+          "instruction_rva": "0x497c08",
+          "mnemonic": "CALL",
+          "operands": "0x6f690110"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x49d280",
+      "name": "Attack_RecoverTargetTask",
+      "decompiled_code_without_annotation_comments": "void __thiscall\nAttack_RecoverTargetTask(WC3AttackRangePrefix *ability,int forced,undefined *target_event)\n\n{\n  uchar uVar1;\n  WC3UnitOrdersPrefix *unit;\n  int iVar2;\n  WC3UnitMoverBridge *pWVar3;\n  WC3PathScalar *pWVar4;\n  WC3PathScalar *left;\n  undefined *target;\n  undefined3 extraout_var;\n  int *piVar5;\n  WC3PathScalar *right;\n  WC3PathScalar local_3c;\n  undefined4 local_38;\n  undefined4 local_34;\n  undefined8 local_30;\n  undefined4 local_28;\n  WC3PathScalar local_24;\n  WC3PathScalar local_20;\n  WC3PathScalar local_1c;\n  WC3PathScalar local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa233e8;\n  local_10 = ExceptionList;\n  if ((ability->flags & 4) == 0) {\n    return;\n  }\n  unit = ability->unit;\n  ExceptionList = &local_10;\n  if (unit == (WC3UnitOrdersPrefix *)0x0) {\n    unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0(DAT_6fce689c ^ (int)register0x00000010 - 4U);\n  }\n  iVar2 = (**(code **)((int)unit->vtable + 0xec))();\n  if ((0xb < iVar2) || ((unit->separation_category_flags & 4) != 0)) {\n    Attack_StartGuardEvaluation(0);\n  }\n  local_14 = 0;\n  local_28 = 0;\n  local_30 = 0;\n  if ((target_event != (undefined *)0x0) ||\n     (((ability->flags & 0x40000) != 0 && ((unit->widget_state_flags & 0x200) == 0)))) {\n    if (((ability->task_target).generation & (ability->task_target).slot) == 0xffffffff) {\n      piVar5 = (int *)0x0;\n    }\n    else {\n      piVar5 = AgentIdentity_ResolvePayload(&ability->task_target);\n    }\n    FUN_6f1d73b0(piVar5);\n    local_8 = 0;\n    if ((piVar5 != (int *)0x0) &&\n       ((target_event == (undefined *)0x0 || ((*(uint *)(target_event + 0x20) & 0x800000) == 0)))) {\n      pWVar3 = (WC3UnitMoverBridge *)(**(code **)(*piVar5 + 0xb8))();\n      right = &Math_RuntimeFifty;\n      pWVar4 = MoveBridge_QueryCollisionRadius(pWVar3,&local_14);\n      left = Attack_GetMaximumEnabledRange(ability,&local_1c);\n      pWVar4 = Math_Add(&local_20,left,pWVar4);\n      pWVar4 = Math_Add(&local_24,pWVar4,right);\n      local_18 = *pWVar4;\n      pWVar4 = &local_3c;\n      pWVar3 = (WC3UnitMoverBridge *)(**(code **)(*piVar5 + 0xb8))();\n      UnitMover_QueryWorldPosition(pWVar3,pWVar4);\n      local_30 = CONCAT44(local_38,local_3c);\n      local_28 = local_34;\n      local_14 = 1;\n    }\n    local_8 = 0xffffffff;\n    if (target_event != (undefined *)0x0) {\n      piVar5 = (int *)(target_event + 4);\n      *piVar5 = *piVar5 + -1;\n      if (*piVar5 == 0) {\n        (*(code *)**(undefined4 **)target_event)();\n      }\n    }\n  }\n  ability->flags = ability->flags & 0xfffbffff;\n  Ability_ClearActiveOwnership();\n  Attack_ReleaseTargetAndWindup(ability);\n  FUN_6f497110(unit,1);\n  ability->flags = ability->flags & 0xffffefff;\n  if ((forced != 0) ||\n     ((((*(uint *)&ability->field_0x7c & *(uint *)&ability->field_0x78) != 0xffffffff &&\n       (target = AgentIdentity_ResolvePayload((WC3PathIdentity *)&ability->field_0x78),\n       target != (undefined *)0x0)) &&\n      (iVar2 = Attack_ValidateTargetForTask(ability,target,1,(uint *)0x0), iVar2 != 0)))) {\n    *(undefined4 *)&ability->field_0x78 = 0xffffffff;\n    *(undefined4 *)&ability->field_0x7c = 0xffffffff;\n  }\n  FUN_6f694620(2);\n  Unit_StopWithRecoveryAndSupport(unit);\n  if ((ability->flags & 4) != 0) {\n    uVar1 = Attack_PopRecoveryTaskChain(ability);\n    ability->flags = ability->flags & 0xfffffffb;\n    if (CONCAT31(extraout_var,uVar1) != 0) {\n      if (local_14 != 0) {\n        Unit_CreatePointTask\n                  (unit,0xd016c,(uint *)&local_30,(uint *)((int)&local_30 + 4),&local_18,(void *)0x0\n                  );\n      }\n      Unit_DispatchInternalTaskQueue(unit);\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "4a33a8b8a5a508024f86aa500e6be0fe41aebaff03db54fde2df6da117bb3b89",
+      "exported_instruction_stream_sha256": "94a7adc60d7ad2ce64348065ade3afc9a4dbaf5ecb2a16090f8324e95ca4518a",
+      "selected_instructions": []
+    },
+    {
+      "function_rva": "0x497190",
+      "name": "Attack_PopRecoveryTaskChain",
+      "decompiled_code_without_annotation_comments": "uchar __thiscall Attack_PopRecoveryTaskChain(WC3AttackRangePrefix *ability)\n\n{\n  int iVar1;\n  WC3UnitOrdersPrefix *unit;\n  void *pvVar2;\n  bool bVar3;\n  \n  unit = ability->unit;\n  if (unit == (WC3UnitOrdersPrefix *)0x0) {\n    unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  pvVar2 = Unit_GetInternalTaskHead(unit);\n  iVar1 = *(int *)((int)pvVar2 + 0x30);\n  if (iVar1 != 0xd016a) {\n    if (iVar1 != 0xd0169) {\n      if (iVar1 == 0xd0168) {\n        Unit_PopInternalTaskHead();\n        pvVar2 = Unit_GetInternalTaskHead(unit);\n      }\n      if (*(int *)((int)pvVar2 + 0x30) == 0xd0163) {\n        Unit_CancelInternalTaskCompletion();\n        Unit_PopInternalTaskHead();\n        pvVar2 = Unit_GetInternalTaskHead(unit);\n      }\n      bVar3 = *(int *)((int)pvVar2 + 0x30) == 0xd016f;\n      if (bVar3) {\n        Unit_PopInternalTaskHead();\n        Unit_GetInternalTaskHead(unit);\n      }\n      return bVar3;\n    }\n    Unit_PopInternalTaskHead();\n  }\n  return '\\0';\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "4022f0233152bee4dd9e6cdd2af30c30b7844d9bf90a0f7a8110ac650c44a039",
+      "exported_instruction_stream_sha256": "f180cff85f97e7775f21db8e857fce7168a54b3895f5a2ac328174bb999f6e4f",
+      "selected_instructions": [
+        {
+          "instruction_rva": "0x49719b",
+          "mnemonic": "CALL",
+          "operands": "0x6f055cc0"
+        },
+        {
+          "instruction_rva": "0x4971a4",
+          "mnemonic": "CALL",
+          "operands": "0x6f69c6a0"
+        },
+        {
+          "instruction_rva": "0x4971be",
+          "mnemonic": "CALL",
+          "operands": "0x6f691260"
+        },
+        {
+          "instruction_rva": "0x4971d2",
+          "mnemonic": "CALL",
+          "operands": "0x6f691260"
+        },
+        {
+          "instruction_rva": "0x4971d9",
+          "mnemonic": "CALL",
+          "operands": "0x6f69c6a0"
+        },
+        {
+          "instruction_rva": "0x4971e9",
+          "mnemonic": "CALL",
+          "operands": "0x6f67e130"
+        },
+        {
+          "instruction_rva": "0x4971f0",
+          "mnemonic": "CALL",
+          "operands": "0x6f691260"
+        },
+        {
+          "instruction_rva": "0x4971f7",
+          "mnemonic": "CALL",
+          "operands": "0x6f69c6a0"
+        },
+        {
+          "instruction_rva": "0x49720c",
+          "mnemonic": "CALL",
+          "operands": "0x6f691260"
+        },
+        {
+          "instruction_rva": "0x497213",
+          "mnemonic": "CALL",
+          "operands": "0x6f69c6a0"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x49e730",
+      "name": "Attack_HandleGroundPointTask",
+      "decompiled_code_without_annotation_comments": "void __thiscall Attack_HandleGroundPointTask(WC3AttackRangePrefix *ability,void *event)\n\n{\n  WC3UnitOrdersPrefix *pWVar1;\n  uint uVar2;\n  float *pfVar3;\n  uint uVar4;\n  undefined4 uVar5;\n  undefined4 uVar6;\n  undefined4 local_10;\n  undefined4 local_c;\n  float local_8;\n  \n  Attack_ReleaseTargetAndWindup(ability);\n  pWVar1 = ability->unit;\n  local_10 = *(undefined4 *)(*(int *)((int)event + 0xc) + 0x38);\n  local_c = *(undefined4 *)(*(int *)((int)event + 0xc) + 0x40);\n  if (pWVar1 == (WC3UnitOrdersPrefix *)0x0) {\n    pWVar1 = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  if ((pWVar1->move_ability == (WC3MoveSpeedPrefix *)0x0) ||\n     (0 < *(int *)&pWVar1->move_ability->field_0x3c)) {\n    uVar6 = 0x40000001;\n    uVar5 = 1;\n    event = (void *)0x74757272;\n    FUN_6f6be210(1,0x40000001);\n    FUN_6f1a4a90(uVar5,uVar6);\n    FUN_6f699a40(0,&local_10,&local_c,&Math_RuntimeZero);\n    ability->flags = ability->flags | 0x4000000;\n  }\n  uVar2 = Attack_SelectGroundWeaponSlot(ability);\n  ability->damage_weapon = uVar2;\n  Attack_GetEffectiveSlotRange(ability,(WC3PathScalar *)&local_8,uVar2);\n  pfVar3 = &DAT_6fd6bf64;\n  if (DAT_6fd6bf64 <= local_8) {\n    pfVar3 = &local_8;\n  }\n  local_8 = *pfVar3;\n  uVar2 = FUN_6f498460();\n  uVar4 = MoveBridge_IsPointInCollisionRange(uVar2,(uint)&local_8,(uint)&local_10,(uint)&local_c,1);\n  if (uVar4 != 0) {\n    if ((ability->flags & 0x8000) != 0) {\n      event = *(void **)&ability->field_0x24c;\n      uVar2 = MoveBridge_IsPointInCollisionRange\n                        (uVar2,(uint)&event,(uint)&local_10,(uint)&local_c,1);\n      if (uVar2 != 0) {\n        return;\n      }\n    }\n    ability->flags = ability->flags | 0x200;\n    Attack_ArmCooldownAndSpeedCapExemption(ability,0x6fcd53c4,0);\n    pWVar1 = ability->unit;\n    if (pWVar1 == (WC3UnitOrdersPrefix *)0x0) {\n      pWVar1 = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n    }\n    pWVar1->order_admission_flags = pWVar1->order_admission_flags & 0xfffffffe;\n    ability->flags = ability->flags | 4;\n  }\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "07927abbac9305847626396b24492be4e3e8296925cedafb866d296208b45b27",
+      "exported_instruction_stream_sha256": "ed3bd14b4128076ff7d80a63d2ba3a33d8cff3308fde663774aba97f159f214b",
+      "selected_instructions": []
+    },
+    {
+      "function_rva": "0x49b750",
+      "name": "Attack_SetAcquisitionNotifications",
+      "decompiled_code_without_annotation_comments": "void __thiscall Attack_SetAcquisitionNotifications(void *param_1,int param_2)\n\n{\n  int *piVar1;\n  void *pvVar2;\n  \n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (param_2 == 0) {\n    if (piVar1 == (int *)0x0) {\n      piVar1 = (int *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(piVar1,0xd0168,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0169,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd016a,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0161,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0163,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0144,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0148,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd014c,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0149,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd014d,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd014f,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd014a,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd014e,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd014b,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd0165,param_1);\n    pvVar2 = *(void **)((int)param_1 + 0x30);\n    if (pvVar2 == (void *)0x0) {\n      pvVar2 = (void *)FUN_6f055cc0();\n    }\n    Agent_UnregisterEventSubscriber(pvVar2,0xd01a5,param_1);\n    FUN_6f401fa0();\n    return;\n  }\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0168,0xd0168,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0169,0xd0169,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd016a,0xd016a,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0161,0xd0161,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0163,0xd0163,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0144,0xd0144,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0148,0xd0148,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd014c,0xd014c,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0149,0xd0149,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd014d,0xd014d,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd014f,0xd014f,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd014a,0xd014a,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd014e,0xd014e,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd014b,0xd014b,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd0165,0xd0165,param_1);\n  piVar1 = *(int **)((int)param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  (**(code **)(*piVar1 + 8))(0xd01a5,0xd01a5,param_1);\n  FUN_6f401fa0();\n  return;\n}",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "decompiled_body_sha256": "be165ff32c6ecc143c583a83547cc143fd9aee06ecc3c1f6eb1391b61a99ba5c",
+      "exported_instruction_stream_sha256": "52e308d2d382ede247ad100a7958dc80f382255ee5ad1f5b6812be7706f98e0a",
+      "selected_instructions": []
+    }
+  ]
+}

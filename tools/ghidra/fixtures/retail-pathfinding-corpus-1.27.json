@@ -60611,7 +60611,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "3826f591a0481b6ba55d5cd1dc52764bbf1bc125bced427e00700999fe332dde"
+      "sha256": "ca98675d28cf42079f4ac2a1d9f6b57d53773d240553dc6552ac83c60db4a979"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
@@ -60623,7 +60623,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "a931a4e3975b3cb0cd53e53a9d7989ac259b1507ea7385cf6307e526e483d414"
+      "sha256": "2f48bdf268a3f9f7d9da12940867776ab956c511212f9bbdf7f3ac6dd57ede3e"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -71176,6 +71176,10 @@
     {
       "path": "tools/ghidra/fixtures/research/coupling-instant-retirement/static-exports.json",
       "sha256": "70100eaf5e5b02aa12668a956a515a7cbb3883a7b2e0fd92d65fceb571d97c76"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_attack_detach_293.provenance.json",
+      "sha256": "064705374f94ccb900e21c3dc85cb5e2d7c3365f2d2b41ac649fb3f978adf129"
     }
   ]
 }
