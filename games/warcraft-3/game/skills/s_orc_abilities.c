@@ -64,14 +64,12 @@ BZ_ABILITY_PROC(CAbilitySpiritWalkerForm) {
     case A_EXECUTE: {
         uint32_t const target = active_code == SPIRIT_WALKER_CORPOREAL_SPELL ?
             SPIRIT_WALKER_CORPOREAL : SPIRIT_WALKER_ETHEREAL;
-        uint32_t const reverse = active_code == SPIRIT_WALKER_CORPOREAL_SPELL ?
-            SPIRIT_WALKER_ETHEREAL_SPELL : SPIRIT_WALKER_CORPOREAL_SPELL;
         if (!active_code || !call || !call->item || call->item->code != active_code ||
             !G_TransformUnitType(ent, target)) return false;
-        /* The outgoing form's spell cooldown is captured by spell_commit.
-         * The reciprocal command must display the same lockout after morph. */
-        S_SpellStartCooldownDuration(ent, reverse,
-            S_SpellNumber(active_code, ABILITY_NUMBER_COOLDOWN, 1));
+        /* Entering Ethereal uses Aetf's authored cooldown. Returning to
+         * Corporeal is immediate; clear Acpf's ordinary spell cooldown. */
+        if (active_code == SPIRIT_WALKER_CORPOREAL_SPELL)
+            S_SpellEndCooldown(ent, active_code);
         G_SpawnAbilityEffectTarget(active_code, WC3_EFFECT_CASTER, 0, ent, "chest", true);
         G_PlayAbilityEffectSound(active_code, &ent->s.origin2);
         ent->goalentity = NULL;
@@ -123,7 +121,9 @@ static void ancestral_spirit_execute(edict_t *caster, spellTarget_t st, abilityi
      * Do not change generic G_ReviveCorpse, which other spells also use. */
     target->mana.value = target->mana.max_value * MAX(0.0f, MIN(1.0f,
         S_SpellData(spell->code, level, 2)));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    /* Aast's target art is the Reincarnation return model; play its authored
+     * Death flare sequence just as the passive Reincarnation lifecycle does. */
+    S_SpawnReincarnationReturnEffect(target, spell->code, WC3_EFFECT_TARGET);
 }
 
 BZ_VALIDATED_SPELL_PROC(AbilityAncestralSpirit, ancestral_spirit_validate, ancestral_spirit_execute)

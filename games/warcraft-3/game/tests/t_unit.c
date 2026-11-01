@@ -1977,9 +1977,9 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
 }
 
 
-/* Both stock Spirit Walker rows list Acpf, yet their command cards and direct
- * orders must select the reciprocal ability for the current form. */
-TEST(wc3_unit, spirit_walker_form_uses_reciprocal_code_and_intrinsic_ethereal_state) {
+/* Each authored Spirit Walker form starts in the state its unit row names.
+ * Acpf returns immediately; Aetf enters Ethereal with its authored cooldown. */
+TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_cooldown) {
     static cstring_t const units_slk =
         "ID;PWXL;N;EBB;Y3;X2\n"
         "C;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\n"
@@ -2006,7 +2006,7 @@ TEST(wc3_unit, spirit_walker_form_uses_reciprocal_code_and_intrinsic_ethereal_st
     static UnitData_t const data = { .targetType = "ground", .moveTypeName = "foot" };
     static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
     slkTestData_t *ui_rows, *old_ui, *ability_rows, *old_ability, *units_rows, *old_units;
-    edict_t *walker;
+    edict_t *walker, *corporeal_walker;
     abilityitem_t corporeal = S_AbilityItem(MAKEFOURCC('A','c','p','f'));
     abilityitem_t ethereal = S_AbilityItem(MAKEFOURCC('A','e','t','f'));
     abilityCall_t corporeal_call = MAKE(abilityCall_t, .item = &corporeal);
@@ -2024,21 +2024,38 @@ TEST(wc3_unit, spirit_walker_form_uses_reciprocal_code_and_intrinsic_ethereal_st
     walker->data.UnitBalance = &balance;
     walker->data.UnitData = &data;
     walker->data.UnitWeapons = &weapons;
+    T_EQ(walker->class_id, MAKEFOURCC('o','s','p','m'));
     T_ASSERT(unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
     T_ASSERT(CAbilitySpiritWalkerForm(walker, A_VALIDATE, &corporeal_call));
     T_ASSERT(!CAbilitySpiritWalkerForm(walker, A_VALIDATE, &ethereal_call));
+    S_SpellStartCooldownDuration(walker, MAKEFOURCC('A','c','p','f'),
+        S_SpellNumber(MAKEFOURCC('A','c','p','f'), ABILITY_NUMBER_COOLDOWN, 1));
     T_ASSERT(CAbilitySpiritWalkerForm(walker, A_EXECUTE, &corporeal_call));
     T_EQ(walker->class_id, MAKEFOURCC('o','s','p','w'));
     T_ASSERT(!unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
-    T_EQ(G_UnitAbilityLevel(walker, MAKEFOURCC('A','e','t','f')), 1u);
-    T_ASSERT(!CAbilitySpiritWalkerForm(walker, A_VALIDATE, &corporeal_call));
+    T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+    T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
     T_ASSERT(CAbilitySpiritWalkerForm(walker, A_VALIDATE, &ethereal_call));
-    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
-    S_SpellEndCooldown(walker, MAKEFOURCC('A','e','t','f'));
+    T_ASSERT(!CAbilitySpiritWalkerForm(walker, A_VALIDATE, &corporeal_call));
+    S_SpellStartCooldownDuration(walker, MAKEFOURCC('A','e','t','f'),
+        S_SpellNumber(MAKEFOURCC('A','e','t','f'), ABILITY_NUMBER_COOLDOWN, 1));
     T_ASSERT(CAbilitySpiritWalkerForm(walker, A_EXECUTE, &ethereal_call));
     T_EQ(walker->class_id, MAKEFOURCC('o','s','p','m'));
     T_ASSERT(unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
-    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
+    T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+
+    /* A producer/map authored to create ospw must retain that starting form;
+     * runtime must not force every newly created Spirit Walker to ospm. */
+    corporeal_walker = alloc_test_unit(MAKEFOURCC('o','s','p','w'), 96.0f, 64.0f);
+    corporeal_walker->s.player = 0;
+    corporeal_walker->data.UnitBalance = &balance;
+    corporeal_walker->data.UnitData = &data;
+    corporeal_walker->data.UnitWeapons = &weapons;
+    T_EQ(corporeal_walker->class_id, MAKEFOURCC('o','s','p','w'));
+    T_ASSERT(!unit_hasstatusstate(corporeal_walker, WC3_STATUS_STATE_ETHEREAL));
+    T_ASSERT(CAbilitySpiritWalkerForm(corporeal_walker, A_VALIDATE, &ethereal_call));
+
     G_SetSLKRows("UnitAbilities", old_units); free_slk_rows(units_rows);
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
     G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
