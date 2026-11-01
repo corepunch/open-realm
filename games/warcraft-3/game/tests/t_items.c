@@ -2617,7 +2617,7 @@ TEST(wc3_items, selected_neutral_shop_shows_and_clears_authored_patron_arrow) {
     gameClient_t *client;
     edict_t *player, *patron, *shop, *arrow = NULL;
     bool lingering = false;
-    uint32_t const effect_tag = MAKEFOURCC('S','h','o','p');
+    float const southeast_yaw = -0.78539816339f;
 
     reset_entities();
     setup_test_world();
@@ -2631,7 +2631,8 @@ TEST(wc3_items, selected_neutral_shop_shows_and_clears_authored_patron_arrow) {
     G_SelectEntity(client, shop);
     G_UpdateShopPatronEffect(client);
 
-    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == effect_tag) {
+    FILTER_EDICTS(effect, effect->inuse &&
+                  effect->status_effect_code == WC3_EFFECT_SHOP_PATRON_ARROW) {
         arrow = effect;
         break;
     }
@@ -2641,13 +2642,18 @@ TEST(wc3_items, selected_neutral_shop_shows_and_clears_authored_patron_arrow) {
         T_EQ(arrow->owner, player);
         T_EQ(arrow->s.model, G_RegisterModel("TestUI\\Models\\anim_projectile.mdx"));
         T_FEQ(arrow->wait, 120.0f, 0.001f);
+        T_FEQ(arrow->s.angle, southeast_yaw, 0.001f);
         T_ASSERT(arrow->s.flags & EF_NOT_SELECTABLE);
+        patron->s.angle = 1.25f;
+        G_RunEntity(arrow);
+        T_FEQ(arrow->s.angle, southeast_yaw, 0.001f);
     }
 
     G_DeselectEntity(client, shop);
     G_UpdateShopPatronEffect(client);
     T_ASSERT(!arrow || !arrow->inuse);
-    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == effect_tag)
+    FILTER_EDICTS(effect, effect->inuse &&
+                  effect->status_effect_code == WC3_EFFECT_SHOP_PATRON_ARROW)
         lingering = true;
     T_ASSERT(!lingering);
     G_TestPopAbilityConfig();

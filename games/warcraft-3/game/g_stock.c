@@ -360,7 +360,7 @@ edict_t *G_FindUnitShopPatron(gameClient_t *client, edict_t *shop) {
  * currently focused shop. The effect is presentation-only; patron choice and
  * purchase validation remain derived from the authoritative shop rules. */
 void G_UpdateShopPatronEffect(gameClient_t *client) {
-    static uint32_t const effect_tag = MAKEFOURCC('S','h','o','p');
+    static float const patron_arrow_yaw = -0.78539816339f; // radians; southeast-facing authored arrow orientation
     edict_t *client_entity, *shop, *patron = NULL, *existing = NULL;
     cstring_t art;
 
@@ -373,7 +373,7 @@ void G_UpdateShopPatronEffect(gameClient_t *client) {
     else if (G_CanUseUnitShop(client, shop))
         patron = G_FindUnitShopPatron(client, shop);
 
-    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == effect_tag &&
+    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == WC3_EFFECT_SHOP_PATRON_ARROW &&
                   effect->owner == client_entity) {
         existing = effect;
         break;
@@ -390,8 +390,9 @@ void G_UpdateShopPatronEffect(gameClient_t *client) {
         art = "Abilities\\Spells\\Other\\Aneu\\AneuTarget.mdx";
     existing = G_SpawnModelEffect(art, NULL, patron, "overhead", false);
     if (existing) {
-        existing->status_effect_code = effect_tag;
+        existing->status_effect_code = WC3_EFFECT_SHOP_PATRON_ARROW;
         existing->owner = client_entity;
+        existing->s.angle = patron_arrow_yaw;
     }
 }
 
