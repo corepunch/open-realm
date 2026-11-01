@@ -65,7 +65,7 @@ static ability_t abilitylist[] = {
     { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
     { "Arsq", CAbilitySummonQuilbeastCampaign, AB_SPELL },  /* Summon Quilbeast */
     { "Arsg", CAbilitySummonMisha, AB_SPELL },  /* Summon Misha */
-    { "Arsp", CAbilityStampedeCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Stampede */
+    { "Arsp", CAbilityStampede, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Stampede */
     { "ANbr", CAbilityBattleRoar, AB_SPELL },  /* Battle Roar */
     { "ANsb", CAbilityStormBoltCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Storm Bolt */
     { "ANcf", CAbilityBreathOfFireCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire */

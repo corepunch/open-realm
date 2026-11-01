@@ -4324,6 +4324,162 @@ TEST(wc3_spell, carrion_swarm_spends_authored_maximum_damage_in_travel_order) {
     free_slk_rows(rows);
 }
 
+/* Stampede must not reuse Whirlwind's one-second radial damage pulses. */
+TEST(wc3_spell, stampede_channel_emits_by_data_a_and_cleans_up_after_cancel) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X5;K\"DataC1\"\n"
+        "C;X6;K\"DataD1\"\nC;X7;K\"DataE1\"\nC;X8;K\"Area1\"\n"
+        "C;Y2;X1;K\"ANst\"\nC;X2;K\"ANst\"\n"
+        "C;X3;K2\nC;X4;K55\nC;X5;K60\nC;X6;K275\nC;X7;K0.2\nC;X8;K1000\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster = make_hero(MAKEFOURCC('N','b','s','t'), 500, 300, 0, 0);
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    edict_t *thinker;
+    uint32_t const code = MAKEFOURCC('A','N','s','t');
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster->s.player = 0; enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND; enemy->svflags |= SVF_MONSTER;
+    enemy->health.value = enemy->health.max_value = 500;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    caster->unit_state->ranks[0].code = code;
+    caster->unit_state->ranks[0].level = 1;
+    G_AddChannel(caster);
+    G_GetChannel(caster)->code = code;
+    G_GetChannel(caster)->serial = 8;
+    thinker = S_SpellChannelThinker(caster, code);
+    T_NOT_NULL(thinker);
+    if (thinker) {
+        thinker->resources = 1;
+        thinker->collision = 1000;
+        thinker->wait = 500;
+        thinker->freetime = 0;
+        thinker->spawn_time = 30000;
+        thinker->think = stampede_channel_think;
+        stampede_channel_think(thinker);
+        T_EQ(thinker->freetime, 500u);
+        T_FEQ(enemy->health.value, 500.0f, 0.001f);
+        level.time = 500;
+        stampede_channel_think(thinker);
+        T_EQ(thinker->freetime, 1000u);
+        T_FEQ(enemy->health.value, 500.0f, 0.001f);
+        G_GetChannel(caster)->code = 0;
+        stampede_channel_think(thinker);
+        T_ASSERT(!thinker->inuse);
+    }
+    level.time = 0;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, stampede_each_beast_explodes_once_at_its_saved_impact) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"targs\"\n"
+        "C;Y2;X1;K\"Arsp\"\nC;X2;K\"ANst\"\n"
+        "C;X3;K\"ground,structure,enemy,neutral\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster = make_hero(MAKEFOURCC('N','b','s','t'), 500, 300, 0, 0);
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 110, 0);
+    edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 85, 0);
+    edict_t *air = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 95, 0);
+    edict_t *far = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 400, 0);
+    edict_t *beast;
+    uint32_t const code = MAKEFOURCC('A','r','s','p');
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster->s.player = ally->s.player = 0;
+    enemy->s.player = air->s.player = far->s.player = 1;
+    enemy->targtype = ally->targtype = far->targtype = TARG_GROUND;
+    air->targtype = TARG_AIR;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    edict_t *units[] = { enemy, ally, air, far };
+    FOR_LOOP(i, 4) {
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->health.value = units[i]->health.max_value = 500;
+    }
+    caster->unit_state->ranks[0].code = code;
+    caster->unit_state->ranks[0].level = 1;
+    beast = S_SpellIdentityThinker(caster, code, NULL);
+    T_NOT_NULL(beast);
+    if (beast) {
+        beast->resources = 1;
+        beast->damage = 80; /* Rexxar rank 1 DataC, not rank 1 DataB (55). */
+        beast->wait = 275;
+        beast->freetime = G_Time();
+        beast->s.origin2 = MAKE(vec2_t, 100, 0);
+        stampede_blast_think(beast);
+        T_ASSERT(!beast->inuse);
+        T_FEQ(enemy->health.value, 420.0f, 0.001f);
+        T_FEQ(ally->health.value, 500.0f, 0.001f);
+        T_FEQ(air->health.value, 500.0f, 0.001f);
+        T_FEQ(far->health.value, 500.0f, 0.001f);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_save, stampede_collision_delay_and_explosion_resume_from_save) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"targs\"\n"
+        "C;Y2;X1;K\"ANst\"\nC;X2;K\"ANst\"\n"
+        "C;X3;K\"ground,structure,debris,enemy,neutral\"\nE\n";
+    cstring_t filename = Test_TempPath("wc3-save-stampede-blast.bin");
+    slkTestData_t *rows, *old;
+    edict_t *caster = make_hero(MAKEFOURCC('N','b','s','t'), 500, 300, 0, 0);
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    edict_t *beast;
+    uint32_t const code = MAKEFOURCC('A','N','s','t');
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster->s.player = 0; enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND;
+    enemy->svflags |= SVF_MONSTER;
+    enemy->health.value = enemy->health.max_value = 500;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    beast = S_SpellIdentityThinker(caster, code, NULL);
+    T_NOT_NULL(beast);
+    if (beast) {
+        beast->s.origin2 = MAKE(vec2_t, 80, 0);
+        beast->s.origin = MAKE(vec3_t, 80, 0, 0);
+        beast->collision = 55;
+        beast->velocity = .5f; /* 500 world units per second */
+        beast->wait = 275;
+        beast->damage = 60;
+        beast->resources = 1;
+        beast->variation = 200; /* DataE */
+        beast->movetype = MOVETYPE_FLYMISSILE;
+        beast->prethink = stampede_beast_prethink;
+        G_GetChannel(beast)->origin = MAKE(vec2_t, 1080, 0);
+        stampede_beast_prethink(beast);
+        T_ASSERT(beast->inuse && beast->movetype == MOVETYPE_NONE);
+        T_ASSERT(beast->think == stampede_blast_think);
+        T_FEQ(enemy->health.value, 500.0f, 0.001f);
+        T_ASSERT(WriteGame(filename));
+        beast->think = NULL;
+        beast->damage = 0;
+        beast->freetime = 0;
+        T_ASSERT(ReadGame(filename));
+        T_ASSERT(beast->think == stampede_blast_think);
+        T_EQ(beast->damage, 60u);
+        T_EQ(beast->freetime, 200u);
+        level.time = 199;
+        stampede_blast_think(beast);
+        T_FEQ(enemy->health.value, 500.0f, 0.001f);
+        level.time = 200;
+        stampede_blast_think(beast);
+        T_ASSERT(!beast->inuse);
+        T_FEQ(enemy->health.value, 440.0f, 0.001f);
+    }
+    remove(filename);
+    level.time = 0;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, bladestorm_deals_110_damage_to_nearby_enemy_ground_units) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X4\n"

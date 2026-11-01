@@ -166,7 +166,6 @@ void whirlwind_think(edict_t *ent) {
         return;
     }
     abilityitem_t item = S_AbilityItem(ent->class_id);
-    uint32_t data = item.ability && item.ability->proc == CAbilityStampede ? 2 : 1;
     if (G_Time() >= ent->spawn_time) {
         edict_t *caster = S_SpellChannelOwner(ent);
         if (caster && !M_IsDead(caster) && ent->class_id == MAKEFOURCC('A','O','w','w') &&
@@ -178,7 +177,7 @@ void whirlwind_think(edict_t *ent) {
     if (ent->freetime && G_Time() < ent->freetime) return;
     if (item.ability && item.ability->proc == CAbilityWhirlwind)
         ent->s.origin2 = ent->owner->s.origin2;
-    radial_damage_status(ent->owner, ent->s.origin2, &item, data,
+    radial_damage_status(ent->owner, ent->s.origin2, &item, 1,
                          item.ability && item.ability->proc == CAbilityWhirlwind);
     ent->freetime = G_Time() + 1000;
 }
@@ -773,15 +772,6 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         return true;
     }
     return CAbilitySimpleSpell(ent, msg, call);
-}
-/* Name=Stampede
- * Ubertip="Calls down hordes of rampaging thunder lizards to explode upon the Beastmaster's enemies."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityStampede) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    edict_t *thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
-    thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
-    thinker->freetime = G_Time(); thinker->think = whirlwind_think;
 }
 /* Name=Bladestorm
  * Ubertip="Causes a Blademaster to spin violently, damaging nearby enemy units."

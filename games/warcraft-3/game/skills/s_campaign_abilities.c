@@ -483,7 +483,6 @@ BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha) {
                 (unsigned)caster->s.number, caster->mana.value, retired);
     S_SummonAbilityUnits(caster, spell->code, &st);
 }
-BZ_SIMPLE_SPELL_PROC(AbilityStampedeCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
     uint32_t level = S_SpellLevel(caster, spell->code); cstring_t buff = S_SpellBuffId(spell->code, level);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
