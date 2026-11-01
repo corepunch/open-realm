@@ -520,6 +520,7 @@ void S_ResolveArtilleryPointHitWithArrow(edict_t *attacker, edict_t *primary, ve
                                          struct artillery_s const *profile, uint32_t arrow_code, uint32_t arrow_level);
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point);
 void S_ReincarnationOnDeath(edict_t *unit);
+void S_SpawnReincarnationReturnEffect(edict_t *unit, uint32_t ability_id, wc3EffectType_t effect_type);
 bool S_HumanCanAttack(edict_t const *unit);
 float S_HumanMoveFactor(edict_t const *unit);
 float S_DefendAttackReduction(edict_t const *unit);
