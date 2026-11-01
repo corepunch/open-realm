@@ -1528,7 +1528,7 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
                     }
                     /* A direct path is already authoritative; Theme_String returns it unchanged when no skin key
                      * applies. */
-                    art = Theme_String(art, art);
+                    art = G_UIArtPath(art);
                     if (!art || !*art) {
                         fprintf(stderr, "UI_WC3: unresolved cargo art key for unit %s\n",
                                 GetClassName(occupant->class_id));
@@ -1593,7 +1593,8 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     multi->numitems = count;
     FOR_LOOP(i, count) {
         multi->items[i].entity = ents[i]->s.number;
-        multi->items[i].image = gi.ImageIndex(FindConfigValue(GetClassName(ents[i]->class_id), STR_ART));
+        multi->items[i].image = gi.ImageIndex(
+            G_UIArtPath(FindConfigValue(GetClassName(ents[i]->class_id), STR_ART)));
         /* Warsmash highlights the whole selected subgroup: units group by
          * unit type, even though clicking one icon chooses a concrete focus. */
         if (focused && ents[i]->class_id == focused->class_id)

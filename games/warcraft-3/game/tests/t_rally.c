@@ -2,6 +2,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "../hud/hud_local.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -87,6 +88,11 @@ TEST(wc3_rally, command_handler_is_registered) {
 }
 
 TEST(wc3_rally, command_button_art_matches_unit_race) {
+    static cstring_t const authored_rally_art =
+        "ReplaceableTextures\\CommandButtons\\BTNRallyPoint.blp,"
+        "ReplaceableTextures\\CommandButtons\\BTNOrcRallyPoint.blp,"
+        "ReplaceableTextures\\CommandButtons\\BTNRallyPointUndead.blp,"
+        "ReplaceableTextures\\CommandButtons\\BTNRallyPointNightElf.blp";
     static UnitData_t const human = { .race = STR_HUMAN };
     static UnitData_t const orc = { .race = STR_ORC };
     static UnitData_t const night_elf = { .race = STR_NIGHTELF };
@@ -112,6 +118,7 @@ TEST(wc3_rally, command_button_art_matches_unit_race) {
         T_STREQ(button.art, cases[i].art);
     }
     {
+        gameClient_t *previous_ui_client = ui_current_client;
         static struct {
             playerRace_t race;
             cstring_t art;
@@ -127,9 +134,12 @@ TEST(wc3_rally, command_button_art_matches_unit_race) {
             gameCommandButton_t button;
             game.clients[0].ps.number = 0;
             game.clients[0].ps.race = owner_cases[i].race;
+            ui_current_client = &game.clients[0];
             T_ASSERT(G_BuildCommandButton(producer, STR_CmdRally, false, 0, &button));
             T_STREQ(button.art, owner_cases[i].art);
+            T_STREQ(G_UIArtPath(authored_rally_art), owner_cases[i].art);
         }
+        ui_current_client = previous_ui_client;
     }
 }
 
