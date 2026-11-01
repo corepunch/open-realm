@@ -14,7 +14,7 @@ typedef struct {
     edict_t *archer,*hippo;
 } coupleInstantFixture_t;
 static cstring_t const couple_instant_tables[]={"UnitBalance","UnitData","UnitAbilities","UnitUI","AbilityData"};
-typedef struct {float archer_x;bool range333,empty;cstring_t peer_type;} coupleInstantSetup_t;
+typedef struct {float archer_x;bool range333,empty,retail_profile;cstring_t peer_type;} coupleInstantSetup_t;
 static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSetup_t const *setup) {
     float archer_x=setup->archer_x;bool range333=setup->range333;cstring_t peer_type=setup->peer_type;
     reset_entities();setup_test_world();memset(f,0,sizeof(*f));f->old_info=level.mapinfo;
@@ -25,7 +25,7 @@ static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSet
         "C;X1;Y2;K\"Aco2\"\nC;X2;K\"Acoi\"\nC;X3;K\"ehip\"\nC;X4;K\"ehpr\"\nC;X5;K%g\nC;X6;K1\nC;X7;K\"vuln,invu\"\nC;X8;K0\nC;X9;K900\n"
         "C;X1;Y3;K\"Aco3\"\nC;X2;K\"Acoi\"\nC;X3;K\"%s\"\nC;X4;K\"ehpr\"\nC;X5;K%g\nC;X6;K1\nC;X7;K\"vuln,invu\"\nC;X8;K1\nC;X9;K900\nE\n",
         tft ? "DataA1" : "Data11",tft ? "DataB1" : "Data12",range333 ? 333.0 : 99999.0,peer_type,range333 ? 333.0 : 0.0);
-    cstring_t const text[]={
+    cstring_t text[]={
         "ID;PWXL;N;E\nC;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"realHP\"\nC;X3;K\"spd\"\nC;X4;K\"collision\"\n"
         "C;X1;Y2;K\"earc\"\nC;X2;K245\nC;X3;K270\nC;X4;K32\n"
         "C;X1;Y3;K\"ehip\"\nC;X2;K525\nC;X3;K400\nC;X4;K8\n"
@@ -40,6 +40,20 @@ static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSet
         "C;X1;Y2;K\"earc\"\nC;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
         "C;X1;Y3;K\"ehip\"\nC;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
         "C;X1;Y4;K\"ehpr\"\nC;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\nE\n",ability};
+    /* The stock poll fixture uses the captured retail profile; other tests
+     * retain their deliberately unequal authored retirement deadlines. */
+    char retail_balance[1024],retail_data[1800];
+    if(setup->retail_profile) {
+        snprintf(retail_balance,sizeof(retail_balance),"%s",text[0]);
+        char *hp=strstr(retail_balance,"K245");if(hp)memcpy(hp,"K310",4);
+        hp=strstr(retail_balance,"K765");if(hp)memcpy(hp,"K835",4);
+        char *rider=strstr(retail_balance,"K\"ehpr\"");
+        char *speed=rider ? strstr(rider,"K400") : NULL;if(speed)memcpy(speed,"K350",4);
+        snprintf(retail_data,sizeof(retail_data),"%s",text[1]);
+        char *death=strstr(retail_data,"X7;K0.4");if(death)memcpy(death,"X7;K3.0",7);
+        death=strstr(retail_data,"X7;K1.2");if(death)memcpy(death,"X7;K3.0",7);
+        text[0]=retail_balance;text[1]=retail_data;
+    }
     FOR_LOOP(i,5){f->rows[i]=parse_slk_string(text[i]);f->old[i]=G_SetSLKRows(couple_instant_tables[i],f->rows[i]);}
     f->info.fileFormat=tft ? 25 : 24;f->info.players[0].used=true;f->info.players[0].playerType=kPlayerTypeHuman;
     level.mapinfo=&f->info;game.clients[0].mapplayer=f->info.players;
@@ -1663,6 +1677,78 @@ TEST(wc3_couple_instant_orders, continuous_native_range_boundary_polls_and_saved
     T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.scene=scene;couple_poll_trace.print=false;
     memcpy(couple_poll_trace.roles,roles,sizeof(roles));couple_boundary_spawns=1;
     FOR_LOOP(i,13936)CoupleInstantStep();T_EQ(couple_boundary_spawns,9);T_EQ(couple_poll_trace.count,total);
+    FOR_LOOP(i,total-prefix) {
+        T_EQ(couple_poll_trace.rows[prefix+i].scene,expected[prefix+i].scene);
+        FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);
+    }
+    T_ASSERT(!jass_rterror_pending(level.vm));free(expected);remove(path);
+    move_test_group_arrival=NULL;move_test_group_commit=NULL;move_test_group_committed=NULL;
+    CoupleInstantEnd(&f);
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_boundary_assert_original;break;}
+}
+
+#include "fixtures/retail_couple_instant_stock193_polls.h"
+static void CouplePollCheckNativeStock193(void) {
+    unsigned at=0;
+    unsigned const arrival[]={2,3,4,5,6,7,8,18,10,11},committed[]={2,13,14,15,16,7};
+    unsigned const count=sizeof(couple_native_stock_polls193)/sizeof(couple_native_stock_polls193[0]);
+    T_EQ(count,540);
+    FOR_LOOP(i,couple_poll_trace.count) {
+        couplePollRow_t const *row=&couple_poll_trace.rows[i];if(row->words[0]==1)continue;
+        T_ASSERT(at<count);if(at>=count)break;
+        coupleNativeStockPoll193_t const *expected=&couple_native_stock_polls193[at++];
+        T_EQ(row->scene,expected->scene);T_EQ(row->words[0],expected->phase);T_EQ(row->words[1],expected->role);
+        unsigned const *indices=row->words[0]==0 ? arrival : committed;
+        unsigned words=row->words[0]==0 ? 10 : 6;T_EQ(words,expected->count);
+        FOR_LOOP(j,words)T_EQ(row->words[indices[j]],expected->words[j]);
+    }
+    T_EQ(at,count);
+}
+TEST(wc3_couple_instant_orders, continuous_native_stock_polls_and_saved_suffix) {
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+        couple_boundary_assert_original=p->func;p->func=CoupleBoundaryAssert;break;
+    }
+    coupleInstantFixture_t f;
+    CoupleInstantBeginProfile(&f,&(coupleInstantSetup_t){.range333=false,.empty=true,.retail_profile=true,.peer_type="earc"});
+    memset(&couple_poll_trace,0,sizeof(couple_poll_trace));couple_poll_trace.print=true;couple_boundary_spawns=0;
+    T_ASSERT(CoupleInstantCompile(
+        "globals\ninteger cbTick=0\ninteger cbScene=0\ntimer cbTimer=null\nendglobals\n"
+        "function cbClock takes nothing returns nothing\nlocal integer age=cbTick-(cbTick/400)*400\n"
+        "local real ax=704.0\nlocal group g=null\nlocal unit u=null\nlocal boolean accepted=false\n"
+        "if age==0 then\n"
+        "if cbScene==0 or cbScene==2 then\nset ax=1280.0\nendif\n"
+        "set ciArcher=CreateUnit(Player(0),'earc',ax,1024.0,180.0)\n"
+        "set ciHippo=CreateUnit(Player(0),'ehip',1536.0,1024.0,0.0)\n"
+        "call SetUnitAcquireRange(ciArcher,0.0)\ncall SetUnitAcquireRange(ciHippo,0.0)\n"
+        "call BJassAssert(GetUnitAbilityLevel(ciArcher,'Aco2')==1 and GetUnitAbilityLevel(ciHippo,'Aco3')==1,\"native configured aliases\")\n"
+        /* Native CpMark creates/enumerates/destroys a rider-query group at
+         * spawn, before the save frontier. Preserve that registry lifecycle. */
+        "set g=CreateGroup()\ncall GroupEnumUnitsOfPlayer(g,Player(0),null)\ncall DestroyGroup(g)\nset g=null\n"
+        "call BJassAssert(true,\"boundary scene \"+I2S(cbScene))\n"
+        "elseif age==100 then\n"
+        "if cbScene==0 or cbScene==1 then\nset accepted=IssueImmediateOrder(ciArcher,\"coupleinstant\")\n"
+        "elseif cbScene==2 or cbScene==3 then\nset accepted=IssueImmediateOrder(ciHippo,\"coupleinstant\")\n"
+        "elseif cbScene==4 then\nset accepted=IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo)\n"
+        "else\nset accepted=IssueTargetOrder(ciHippo,\"coupletarget\",ciArcher)\nendif\n"
+        "call BJassAssert(accepted,\"native producer accepted\")\n"
+        "elseif age==399 then\nset g=CreateGroup()\ncall GroupEnumUnitsOfPlayer(g,Player(0),null)\n"
+        "loop\nset u=FirstOfGroup(g)\nexitwhen u==null\ncall GroupRemoveUnit(g,u)\ncall RemoveUnit(u)\nendloop\n"
+        "call DestroyGroup(g)\nset ciArcher=null\nset ciHippo=null\nset cbScene=cbScene+1\n"
+        "if cbScene==6 then\ncall PauseTimer(cbTimer)\nreturn\nendif\nendif\nset cbTick=cbTick+1\nendfunction\n"
+        "function cbStart takes nothing returns nothing\nset cbTimer=CreateTimer()\ncall TimerStart(cbTimer,0.02,true,function cbClock)\nendfunction\n"));
+    move_test_group_arrival=CouplePollArrival;move_test_group_commit=CouplePollCommit;move_test_group_committed=CouplePollCommitted;
+    CoupleInstantCall("cbStart");FOR_LOOP(i,464)CoupleInstantStep();
+    T_EQ(couple_boundary_spawns,1);T_ASSERT(couple_poll_trace.count>0);
+    unsigned prefix=couple_poll_trace.count,scene=couple_poll_trace.scene;
+    edict_t *roles[4];memcpy(roles,couple_poll_trace.roles,sizeof(roles));
+    cstring_t path=Test_TempPath("couple-instant232-stock-polls.bin");T_ASSERT(WriteGame(path));
+    FOR_LOOP(i,9136)CoupleInstantStep();T_EQ(couple_boundary_spawns,6);
+    T_ASSERT(!jass_rterror_pending(level.vm));CouplePollCheckNativeStock193();
+    unsigned total=couple_poll_trace.count;
+    couplePollRow_t *expected=malloc(sizeof(couple_poll_trace.rows));memcpy(expected,couple_poll_trace.rows,sizeof(couple_poll_trace.rows));
+    T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.scene=scene;couple_poll_trace.print=false;
+    memcpy(couple_poll_trace.roles,roles,sizeof(roles));couple_boundary_spawns=1;
+    FOR_LOOP(i,9136)CoupleInstantStep();T_EQ(couple_boundary_spawns,6);T_EQ(couple_poll_trace.count,total);
     FOR_LOOP(i,total-prefix) {
         T_EQ(couple_poll_trace.rows[prefix+i].scene,expected[prefix+i].scene);
         FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);

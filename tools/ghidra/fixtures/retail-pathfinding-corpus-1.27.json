@@ -60615,7 +60615,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "34f4262d3cfacc2cb504bd34965d09857098a0e7887824a32f645fd53d22023a"
+      "sha256": "5c85e291b969b171a1c39ab1f7e2ad4fd0e03666b7570b8867a001ccfa1bb12e"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -70883,7 +70883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/hippogryph-couple.md",
-      "sha256": "79ede9b0ca358f51257a1cdca76906959f7836525d6c02233cbf14f101bc53ba"
+      "sha256": "2bf50b3c10fd519049a693f7b62202f956facee2d120cbad09cddddfc1a1ff52"
     },
     {
       "path": "games/warcraft-3/game/skills/s_couple.c",

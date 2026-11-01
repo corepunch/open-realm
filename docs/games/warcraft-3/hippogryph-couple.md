@@ -589,10 +589,26 @@ test-fixture correction; production behavior is unchanged. Saved continuation
 uses ReadGame from a file after clearing the path state; it does not establish
 an SV_Map cold restart. No new full-suite or five-gate run is claimed.
 
-The remaining Coupling comparison is finite: replay the existing stock-v3 six
-scenes (540 ordered rows, stock ranges 0/99999), then cover in-range,
-already-facing admission for both roles and literal adjacent/equality range and
-heading boundaries. The accepted193 distances 373, 373.25 and 372.75 are
+Checkpoint232 adds the six stock-v3 scenes with ranges 0/99999: all 540
+ordered native rows match ordinary engine execution and the literal header in
+both editions, with fresh native/control verification. All 23 Couple Instant
+tests pass per edition (46 tests and 160,440 assertions combined). Production
+behavior is unchanged. The stock 540, authored-range333 532 and moving-pair214 400
+are separate datasets, totaling 1,472 projected rows; they are not one continuous
+capture. Saved suffixes use path-state-cleared ReadGame, not an SV_Map cold
+restart. No full-suite or five-gate rerun is claimed for this fixture addition.
+
+The remaining Coupling comparison is finite: in-range, already-facing admission
+for both roles and literal adjacent/equality range and heading boundaries.
+Native233 now has accepted repeats and an unhooked control across 11 scenes,
+with 2,150 identical public markers per capture. Runtime `coupling-public233`
+retains the audited sources, raw streams and ready chronology. Its literal
+range and angular branches are established, but engine comparison remains
+pending. Ready automatic orders expose a chronology difference: synthetic
+coordination precedes CHANNEL, and ready Archer automatic pairing publishes
+only the Hippogryph CHANNEL. The next implementation/test work covers these
+ready, float-range and angular branches; native acceptance is not engine parity.
+This stock232 documentation checkpoint makes no production change. The accepted193 distances 373, 373.25 and 372.75 are
 quarter-world offsets, not adjacent IEEE754 values. Moving-partner214 coverage
 remains the verified 400-row checkpoint227/228 contract. Shared producer
 force/stop branches still require reachable-caller accounting; unrelated generic
