@@ -1297,6 +1297,55 @@ TEST(wc3_combat, runentity_hp_regen_always) {
           (FRAMETIME / 1000.0f), 0.0001f);
 }
 
+TEST(wc3_combat, troll_regeneration_research_speeds_up_troll_hp_regen) {
+    static char const upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;X1;Y1;K\"\"\nC;X2;K\"effect1\"\nC;X3;K\"base1\"\nC;X4;K\"mod1\"\n"
+        "C;X1;Y2;K\"Rotr\"\nC;X2;K\"rhpr\"\nC;X3;K0.8\nC;X4;K1\nE\n";
+    static UnitBalance_t troll_balance = {
+        .healthRegen = 0.5f, .healthRegenType = "always", .upgrades = "Rotr"
+    };
+    static UnitBalance_t grunt_balance = {
+        .healthRegen = 0.5f, .healthRegenType = "always", .upgrades = ""
+    };
+    slkTestData_t *rows, *old;
+    gameClient_t *owner;
+    edict_t *troll, *grunt;
+    float base_health, base_grunt;
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(upgrade_slk);
+    old = G_SetSLKRows("UpgradeData", rows);
+    owner = &game.clients[0];
+    owner->ps.number = 0;
+    troll = alloc_test_unit(MAKEFOURCC('o','h','u','n'), 0, 0);
+    grunt = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    troll->data.UnitBalance = &troll_balance;
+    grunt->data.UnitBalance = &grunt_balance;
+    troll->s.player = grunt->s.player = owner->ps.number;
+    troll->movetype = grunt->movetype = MOVETYPE_NONE;
+    troll->health.max_value = grunt->health.max_value = 500.0f;
+    troll->health.value = grunt->health.value = 100.0f;
+
+    G_RunEntity(troll);
+    G_RunEntity(grunt);
+    base_health = troll->health.value;
+    base_grunt = grunt->health.value;
+    T_FEQ(base_health, base_grunt, 0.0001f);
+
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','t','r'), 1);
+    troll->health.value = grunt->health.value = 100.0f;
+    G_RunEntity(troll);
+    G_RunEntity(grunt);
+    T_FEQ(troll->health.value, 100.0f + (0.5f + 0.8f) * (FRAMETIME / 1000.0f), 0.0001f);
+    T_FEQ(grunt->health.value, 100.0f + 0.5f * (FRAMETIME / 1000.0f), 0.0001f);
+    T_ASSERT(troll->health.value > grunt->health.value);
+
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_combat, runentity_hp_regen_caps_at_max) {
     edict_t *ent           = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     ent->health.max_value = 420.0f;

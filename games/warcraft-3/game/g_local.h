@@ -2304,6 +2304,7 @@ typedef struct {
     float permanent_health_bonus; /* research/permanent maximum-health modifiers preserved across hero recompute */
     float temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
     float temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
+    float health_regen_bonus; /* researched/permanent HP regeneration modifiers */
     float mana_regen_bonus; /* research/permanent mana regeneration modifiers */
     doodadHero_t hero; /* authored/native Hero progression; zero for ordinary units */
     cstring_t proper_name; /* selected runtime Hero name; persists independently of the unit type's name list */
