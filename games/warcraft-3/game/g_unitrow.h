@@ -494,6 +494,7 @@ uint32_t G_AbilityCode(uint32_t id);
 uint32_t G_AbilityCodeName(cstring_t name);
 bool G_AbilityHasUnitIdOverride(uint32_t id);
 cstring_t G_AbilityDataText(cstring_t name, cstring_t column);
+cstring_t G_UnitDataText(cstring_t name, cstring_t column);
 Doodads_t const *G_Doodad(uint32_t id);
 UberSplatData_t const *G_UberSplat(uint32_t id);
 WaterData_t const *G_WaterData(uint32_t id);

@@ -2212,6 +2212,38 @@ cstring_t G_AbilityDataText(cstring_t name, cstring_t column) {
     }
     return NULL;
 }
+
+/* Tooltip markup may reference a unit rawcode such as <nlv1,realHP>. Read
+ * those fields from the same typed SLK schemas used by gameplay accessors. */
+cstring_t G_UnitDataText(cstring_t name, cstring_t column) {
+    static char text[4][32]; static uint32_t cursor;
+    uint32_t const id = FS_SLKKey(name);
+    UnitBalance_t const *balance = G_UnitBalance(id);
+    UnitWeapons_t const *weapons = G_UnitWeapons(id);
+    string_t out = text[cursor++ & 3];
+
+    for (slkField_t const *field = balance_schema; field->column; field++) {
+        uint8_t const *value;
+        if (strcasecmp(column, field->column)) continue;
+        value = (uint8_t const *)balance + field->offset;
+        if (field->type == BZ_FIELD_CSTR) return *(cstring_t const *)value;
+        if (field->type == BZ_FIELD_FLOAT) snprintf(out, 32, "%g", *(float const *)value);
+        else if (field->type == BZ_FIELD_FOURCC) snprintf(out, 32, "%.4s", (cstring_t)value);
+        else snprintf(out, 32, "%u", *(uint32_t const *)value);
+        return out;
+    }
+    for (slkField_t const *field = weapons_schema; field->column; field++) {
+        uint8_t const *value;
+        if (strcasecmp(column, field->column)) continue;
+        value = (uint8_t const *)weapons + field->offset;
+        if (field->type == BZ_FIELD_CSTR) return *(cstring_t const *)value;
+        if (field->type == BZ_FIELD_FLOAT) snprintf(out, 32, "%g", *(float const *)value);
+        else if (field->type == BZ_FIELD_FOURCC) snprintf(out, 32, "%.4s", (cstring_t)value);
+        else snprintf(out, 32, "%u", *(uint32_t const *)value);
+        return out;
+    }
+    return NULL;
+}
 Doodads_t const *G_Doodad(uint32_t id) {
     static Doodads_t zero;
     Doodads_t const *row = FindMapDoodadOverride(id);

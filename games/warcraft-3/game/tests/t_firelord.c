@@ -181,4 +181,44 @@ TEST(wc3_spell, incinerate_arrow_requires_autocast_and_pays_once_per_hit) {
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
+
+TEST(wc3_hud, learn_lava_spawn_tooltip_resolves_summoned_unit_stats) {
+    static char const config[] =
+        "[ANlm]\nResearchArt=ReplaceableTextures\\CommandButtons\\BTNFireLord.blp\n"
+        "ResearchButtonpos=0,0\nResearchTip=Learn Summon Lava Spawn\n"
+        "ResearchUbertip=\"Summons a lava spawn.|n|n|cffffcc00Level 1|r - <nlv1,realHP> hit points, <nlv1,mindmg1> - <nlv1,maxdmg1> damage.|n|cffffcc00Level 2|r - <nlv2,realHP> hit points, <nlv2,mindmg1> - <nlv2,maxdmg1> damage.|n|cffffcc00Level 3|r - <nlv3,realHP> hit points, <nlv3,mindmg1> - <nlv3,maxdmg1> damage.\"\n"
+        "[ANlm]\nArt=ReplaceableTextures\\CommandButtons\\BTNFireLord.blp\n";
+    static char const balance_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"realHP\"\n"
+        "C;Y2;X1;K\"nlv1\"\nC;Y2;X2;K500\n"
+        "C;Y3;X1;K\"nlv2\"\nC;Y3;X2;K550\n"
+        "C;Y4;X1;K\"nlv3\"\nC;Y4;X2;K600\nE\n";
+    static char const weapons_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"mindmg1\"\nC;Y1;X3;K\"maxdmg1\"\n"
+        "C;Y2;X1;K\"nlv1\"\nC;Y2;X2;K25\nC;Y2;X3;K35\n"
+        "C;Y3;X1;K\"nlv2\"\nC;Y3;X2;K30\nC;Y3;X3;K40\n"
+        "C;Y4;X1;K\"nlv3\"\nC;Y4;X2;K35\nC;Y4;X3;K45\nE\n";
+    slkTestData_t *balance = parse_slk_string(balance_slk);
+    slkTestData_t *weapons = parse_slk_string(weapons_slk);
+    slkTestData_t *old_balance = G_SetSLKRows("UnitBalance", balance);
+    slkTestData_t *old_weapons = G_SetSLKRows("UnitWeapons", weapons);
+    edict_t *unit;
+    gameCommandButton_t button;
+
+    reset_entities(); setup_test_world();
+    unit = alloc_test_unit(FS_SLKKey("Nfir"), 128, 128);
+    T_ASSERT(G_TestPushAbilityConfig(config));
+    T_ASSERT(G_BuildCommandButton(unit, "ANlm", true, 1, &button));
+    T_ASSERT(strstr(button.ubertip, "Level 1") != NULL);
+    T_ASSERT(strstr(button.ubertip, "500 hit points, 25 - 35 damage") != NULL);
+    T_ASSERT(strstr(button.ubertip, "Level 2") != NULL);
+    T_ASSERT(strstr(button.ubertip, "550 hit points, 30 - 40 damage") != NULL);
+    T_ASSERT(strstr(button.ubertip, "Level 3") != NULL);
+    T_ASSERT(strstr(button.ubertip, "600 hit points, 35 - 45 damage") != NULL);
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance);
+    G_SetSLKRows("UnitWeapons", old_weapons); free_slk_rows(weapons);
+}
 #endif /* BZ_TESTS */

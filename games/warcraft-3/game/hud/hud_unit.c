@@ -151,7 +151,8 @@ static cstring_t G_RemoveQuotes(cstring_t text) {
 }
 
 static cstring_t G_AbilityString(cstring_t classname, cstring_t field) {
-    return G_AbilityDataText(classname, field);
+    cstring_t value = G_AbilityDataText(classname, field);
+    return value ? value : G_UnitDataText(classname, field);
 }
 
 static cstring_t G_ProcessTooltipString(cstring_t input) {
