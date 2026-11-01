@@ -38,7 +38,8 @@ static void DeferredFreeInsert(uint32_t slot) {
 
 /* Trapped and inside-construction units retain identity without world presence. */
 bool G_UnitIsWorldActive(edict_t const *ent) {
-    return ent && ent->inuse && !ent->construction_held && !(ent->aiflags & AI_SOUL_TRAPPED);
+    return ent && ent->inuse && !ent->construction_held && !(ent->aiflags & AI_SOUL_TRAPPED) &&
+        !(ent->couple_instant && ent->couple_instant->retiring);
 }
 
 /* Native WidgetQuery excludes world-retired and loaded units separately from
@@ -186,14 +187,19 @@ void G_FreeEdict(edict_t *ent) {
 
 /*0557b0 is shared by units and destructables. This queue owns only physical
  * release timing; each actor must publish its own synchronous removal stages. */
-void G_QueueEdictRelease(edict_t *ent,wc3Clock_t const *clock) {
+void G_QueueEdictReleaseDeadline(edict_t *ent,wc3Clock_t const *clock) {
     if(!ent || !ent->inuse || G_IsDeferredFree(ent))return;
     if(deferred_free_count>=MAX_ENTITIES)gi.error("WC3: deferred entity release queue exhausted");
     uint32_t slot=ent->s.number;
     deferred_frees[slot]=(deferred_free_t){.deadline=*clock,.spawn_time=ent->spawn_time,
         .sequence=++level.timer_sequence};
-    deferred_frees[slot].deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
     DeferredFreeInsert(slot);
+}
+
+void G_QueueEdictRelease(edict_t *ent,wc3Clock_t const *clock) {
+    wc3Clock_t deadline=*clock;
+    deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
+    G_QueueEdictReleaseDeadline(ent,&deadline);
 }
 
 /* Retail RemoveUnit retires commands now, then queues a primary-clock release. */
@@ -218,6 +224,9 @@ void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);
+    uint32_t const removal_spawn=ent->spawn_time;
+    S_UnitAbilityEvent(ent,A_UNIT_REMOVE_PREPARE);
+    if(!ent->inuse || ent->spawn_time!=removal_spawn || G_IsDeferredFree(ent))return;
     G_QueueEdictRelease(ent,clock);
     /* Native694690 retires the order chain before returning from RemoveUnit;
      * deferred storage release must not keep its commands or physical task. */

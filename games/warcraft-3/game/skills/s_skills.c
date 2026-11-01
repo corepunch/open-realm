@@ -32,6 +32,7 @@ static cstring_t const patrol_orders[] = { "patrol", NULL };
 static cstring_t const attack_orders[] = { "attack", "attackonce", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
+static cstring_t const instant_couple_orders[]={"coupleinstant","coupletarget",NULL};
 static cstring_t const archer_couple_orders[]={"mounthippogryph",NULL};
 static cstring_t const hippo_couple_orders[]={"loadarcher",NULL};
 static cstring_t const militia_orders[] = { "militiaconvert", "militiaunconvert", NULL };
@@ -332,7 +333,7 @@ static ability_t abilitylist[] = {
     { "AUin", CAbilityDreadLordInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
 
     /* No AbilityStrings source file */
-    { "Acoi", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant */
+    { "Acoi", CAbilityCoupleInstant, AB_COMMAND | AB_TARGET_APPROACH, SPELL_TARGET_UNIT, instant_couple_orders },  /* Couple Instant */
 
     /* Concrete AbilityData entries without a generated AbilityStrings entry. */
     { "AAns", CAbilityPassive, AB_PASSIVE },  /* AAns */
@@ -702,8 +703,8 @@ static ability_t abilitylist[] = {
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
     { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Chen - Drunken Brawler */
-    { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
-    { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
+    { "Aco2", CAbilityCoupleInstant, AB_COMMAND | AB_TARGET_APPROACH, SPELL_TARGET_UNIT, instant_couple_orders },  /* Couple Instant (Archer) */
+    { "Aco3", CAbilityCoupleInstant, AB_COMMAND | AB_TARGET_APPROACH, SPELL_TARGET_UNIT, instant_couple_orders },  /* Couple Instant (Hippogryph) */
     { "Adt1", CAbilityDetector, AB_PASSIVE },  /* Detect (Sentry Ward) */
     { "Adtg", CAbilityTrueSight, AB_PASSIVE },  /* Detect (general) */
     { "Afa2", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
@@ -1503,6 +1504,27 @@ static intptr_t unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t 
     return handled;
 }
 
+/* Only commands explicitly opting into the shared target approach receive
+ * these logical-owner frontiers; ordinary spell/legacy owners keep theirs. */
+static bool unit_dispatch_approach_command(edict_t *ent,abilityMsg_t msg,abilityCall_t const *payload) {
+    uint32_t codes[UNIT_EVENT_CAPACITY],count=0,authored_count,spawn=ent->spawn_time;
+    uint32_t const *authored=G_UnitAbilityCodes(ent->data.UnitAbilities,&authored_count);
+    FOR_LOOP(i,authored_count)if(count<UNIT_EVENT_CAPACITY)codes[count++]=authored[i];
+    FOR_LOOP(i,ARRAY_COUNT(ent->abilities.added))if(count<UNIT_EVENT_CAPACITY && ent->abilities.added[i])codes[count++]=ent->abilities.added[i];
+    FOR_LOOP(i,MAX_HERO_ABILITIES)if(count<UNIT_EVENT_CAPACITY && ent->heroabilities[i].level)codes[count++]=ent->heroabilities[i].code;
+    bool handled=false;
+    FOR_LOOP(i,count) {
+        bool seen=false;for(uint32_t j=0;j<i;j++)if(codes[j]==codes[i])seen=true;
+        if(seen || !G_ActorHasAbilityCode(ent,codes[i]))continue;
+        abilityitem_t item=S_AbilityItem(codes[i]);
+        if(!item.ability || !(item.ability->flags&AB_TARGET_APPROACH))continue;
+        abilityCall_t call=payload ? *payload : (abilityCall_t){0};call.item=&item;
+        handled|=S_AbilityMessage(ent,msg,&call)!=0;
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent))break;
+    }
+    return handled;
+}
+
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle, acquisition, and ability queries stop when an owner consumes the decision. */
 bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
@@ -1521,6 +1543,8 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
         unit_dispatch_engine_event_abilities(ent,msg,payload);
         S_AcquireScriptedAbilityDisables(ent);return true;
     }
+    if (msg == A_UNIT_REMOVE_PREPARE || msg == A_COMMAND_OWNER_LEAVE || msg == A_UNIT_SUSPEND_PREPARE || msg == A_ORDER_RESUME)
+        return unit_dispatch_approach_command(ent,msg,payload);
     if (msg == A_REQUIREMENTS_CHANGED)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;
     if (msg == A_UNIT_INIT)

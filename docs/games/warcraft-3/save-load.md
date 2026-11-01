@@ -1,3 +1,14 @@
+Save226 adds the game-owned Couple Instant `coupleInstant_t` pool. The edict's
+`couple_instant` pointer is runtime-excluded from the raw record and restored by
+the typed pool; the partner uses `F_EDICT`, with its incarnation and configured
+ability/order retained. Active, waiting, linked, resume and retiring state persist;
+`constructing` is a runtime-only callback guard. Shared spell/movement persistence
+retains approach ownership, while the existing deferred-release registry saves
+the absolute deadlines derived from each input's authored `UnitData.death`.
+Save225 and prior layouts are rejected. Private checkpoint204 passed its focused
+11-test, 15,338-assertion suite in each edition; merged-branch validation remains
+pending. See [Couple Instant ownership and limits](hippogryph-couple.md#couple-instant-implementation-and-validation).
+
 Save224 adds game-owned reciprocal target-coupling state in a sparse `couple_t`
 pool. The edict pointer is `F_IGNORE` with `FIELD_RUNTIME`; the pool descriptor
 allocates it on load and translates its partner through `F_EDICT`. Partner

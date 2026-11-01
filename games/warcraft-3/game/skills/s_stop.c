@@ -80,8 +80,8 @@ void order_stop(edict_t *ent) {
 /*673fe0 retires the old task before notification.690b80 constructs a separate
  * Stop cleanup after both synchronous event families. A callback can change
  * terrain between the two recovery scopes or replace the pending task. */
-bool S_IssueStopOrder(edict_t *ent) {
-    if(S_UnitOrderExecutionHeld(ent))
+static bool issue_stop_order(edict_t *ent,bool retain_suspended) {
+    if(retain_suspended && S_UnitOrderExecutionHeld(ent))
         return G_RetainSuspendedUnitOrder(ent,"stop",UNIT_ORDER_TARGET_NONE,NULL,NULL,false,ent->s.player,0);
     uint32_t const order_id = G_OrderId("stop"), spawn_time = ent->spawn_time;
     G_ClearUnitOrderQueue(ent);
@@ -117,6 +117,12 @@ bool S_IssueStopOrder(edict_t *ent) {
     stop_finish(ent, false, true);
     return true;
 }
+
+bool S_IssueStopOrder(edict_t *ent) {return issue_stop_order(ent,true);}
+
+/* Ability inverses deliver Stop synchronously even while the actor is being
+ * suspended; they do not create a new suspended user packet. */
+bool S_IssueOwnerStopOrder(edict_t *ent) {return issue_stop_order(ent,false);}
 
 void order_stop_cleanup(edict_t *ent) {
     G_ClearUnitOrderQueue(ent);

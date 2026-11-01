@@ -1,4 +1,4 @@
-# Hippogryph target coupling and dismount
+# Hippogryph target coupling, Couple Instant and dismount
 
 ## Scope and data
 
@@ -16,7 +16,7 @@ Alliance alone does not satisfy ownership.
 | Reciprocal continuation | Internal, no public name asserted | 852141 |
 
 Patched stock `Aco2`/`Aco3` use `code=Acoi` (Couple Instant), a separate family
-outside this implementation. Accepted native probes add legacy `Acoa`/`Acoh`
+with its own implementation described below. Accepted native probes add legacy `Acoa`/`Acoh`
 explicitly. Base RoC blank DataA/UnitID rows do not describe effective patched
 archive data; archive precedence and rejected stock setup are detailed below.
 
@@ -197,8 +197,8 @@ See [producer inventory](retail-pathfinding-engine.md#coupling-target-command-pr
 
 ## Couple Instant native producer
 
-The `Acoi` family remains a command stub in the engine. Accepted native producer
-witnesses now establish the stock aliases and their distinct public entries:
+Accepted native producer witnesses establish the stock aliases and their distinct
+public entries. The game-owned implementation is described separately below:
 
 | Alias | Actor | DataA partner | DataB | Rng | Area | UnitID |
 | --- | --- | --- | ---: | ---: | ---: | --- |
@@ -246,8 +246,8 @@ stock-v1, unrun stock-v2 and failed range observation remain excluded.
 
 Runtime alias attribution combines stock rows, public ability levels and cache
 fields; no direct runtime alias field was exported. These producer corpora keep
-`engine_parity:false`; callback interleavings and saved continuation remain
-open. The separate lifecycle witness below covers interruptions. See
+`engine_parity:false`; these captures alone do not certify engine execution or
+saved continuation. The separate lifecycle witness below covers interruptions. See
 [the ongoing producer inventory](retail-pathfinding-engine.md#couple-instant-area-range-and-order-production).
 
 
@@ -272,8 +272,8 @@ Merged originals retain their rawcodes with zero life before later handle
 retirement. Immediate `G_FreeEdict` would contradict these public observations.
 The retained types in the late paused-Hippo sample do not establish a different
 retirement policy: that scene has a shorter post-merge observation window.
-This evidence remains native-only; it does not certify the engine stub or saved
-continuation. Run the portable checks with:
+This evidence remains native-only; implementation and saved-continuation checks
+are separate. Run the portable checks with:
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_coupling_instant_lifecycle.py'
@@ -334,4 +334,38 @@ streams, sequential death observations and semantic mutations. Run:
 python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_coupling_instant_callback.py'
 ```
 
-Engine implementation and saved retirement remain pending validation.
+### Couple Instant implementation and validation
+
+`CAbilityCoupleInstant` owns the stock aliases through `AB_TARGET_APPROACH`.
+The shared spell path constructs the physical unit-target approach; the concrete
+owner handles automatic selection, admission, synthetic and reciprocal events,
+DataB-zero waiting, completion and role-specific inverses. It does not reuse the
+legacy two-ready handshake. Command publication preserves the callback ordering
+above, including continuation after the synthetic selected-target callback.
+Removal preparation runs before generic head retirement, preserving the native
+peer-head observations and selected-target replay. Pause/resume remains asymmetric.
+
+Merge first marks both inputs absent from world queries and publishes target loss,
+then creates the configured rider. On success it applies life zero, internal
+ability death and synchronous public death in the merging-actor/partner order.
+Original identities remain readable until each raw type's authored `UnitData.death`
+deadline. The existing seven-flag buff removal call includes classified positive,
+negative and aura buffs while excluding timed life; it adds no protected-buff
+policy override. Save226 retains the sparse owner, approach/wait continuation and
+absolute deferred-release deadlines; see [save/load](save-load.md).
+
+Private checkpoint204 passed 11 tests and 15,338 assertions in each edition,
+covering public/UI admission, range and Area boundaries, selection, interruption,
+callbacks, retirement and saved continuation. Its source hashes and results are
+in `couple-instant204-checkpoint.json` under the TARGET-01.2 runtime. Merged checkpoint205 passes 2,030 tests and 284,102 assertions across 14
+RoC/TFT invocations, covering Acoi, legacy Couple, Entangle, order lifecycle,
+ability dispatch, save/load and ordinary spells. Its source and binary hashes
+remain unchanged after execution; see `couple-instant205-checkpoint.json`.
+These are focused checks. Current-source corpus guard replay/refresh and the
+next full-suite run are deferred to the next commit batch.
+
+The native corpora retain their own provenance and `engine_parity:false` scope.
+No full trajectory, arbitrary alias configuration, universal tie ordering or
+unmeasured callback mutation parity is claimed. TARGET-01.2 remains open with
+25 leaves; this implementation does not close the broader producer inventory or
+complete firing-poll requirement.

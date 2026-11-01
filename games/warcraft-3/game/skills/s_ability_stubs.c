@@ -275,6 +275,3 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
 /* Name=Invulnerable
  * Ubertip="This unit cannot be damaged."
  */
-
-/* Couple Instant remains a non-spell ability with a stub command handler. */
-BZ_COMMAND_PROC(AbilityCoupleInstant) { UI_AddCancelButton(clent); }

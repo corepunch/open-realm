@@ -1960,6 +1960,7 @@ void S_RunMoveTimers(void) {
         S_ExecuteTransientAbilityOrders(ent);
         if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))continue;
         ent->movement.pause_order_id=0;
+        if(S_UnitAbilityEvent(ent,A_ORDER_RESUME))continue;
         if(!order && G_UnitQueuedOrderCount(ent)) {
             unit_stand(ent);
         } else if(order && ent->goalentity && ent->currentmove==&move_move_walk) {
@@ -2510,6 +2511,8 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         S_StopUnitMovementWithRecovery(self);
         if(point)move_reset_progress(self);
         self->movement.pause_order_id=order;
+        S_UnitAbilityEvent(self,A_UNIT_SUSPEND_PREPARE);
+        if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
         self->movement.pause_phase=UNIT_PAUSE_ADMITTING;
         self->paused=true;self->current_order_id=MOVE_ORDER_SUSPENDED;
         uint32_t const revision=G_UnitMoveRevision(self);
@@ -5772,6 +5775,8 @@ bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
     uint32_t const order_id=move_group_admission.unit==self && move_group_admission.order_id ?
         move_group_admission.order_id : G_OrderId(order);
     S_StopUnitMovementWithRecovery(self);
+    S_UnitAbilityEvent(self,A_COMMAND_OWNER_LEAVE);
+    if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return true;
     unitOrder_t active={.target_type=UNIT_ORDER_TARGET_POINT,.point=requested,
         .issuer_player=issuer,.order_id=order_id,.group_speed=speed};
     snprintf(active.order,sizeof(active.order),"%s",order);

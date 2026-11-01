@@ -2245,6 +2245,13 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (ability) {
         abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
+        abilityOrderResult_t const admission=(abilityOrderResult_t)S_AbilityMessage(self,A_IMMEDIATE_ORDER_ADMIT,&call);
+        if(admission==ABILITY_ORDER_REJECTED)return false;
+        if(admission==ABILITY_ORDER_ACCEPTED) {
+            unitOrder_t packet={.target_type=UNIT_ORDER_TARGET_NONE,.order_id=G_OrderId(order),.issuer_player=self->s.player};
+            snprintf(packet.order,sizeof(packet.order),"%s",order);
+            return G_AdmitUnitOrder(self,&packet,true);
+        }
         bool const accepted = S_AbilityMessage(self, A_ORDER, &call);
         if (accepted) {
             G_CreepGuardExplicitOrder(self);

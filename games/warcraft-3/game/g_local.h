@@ -1019,6 +1019,7 @@ typedef enum {
 #define AB_TYPE_INIT (1u << 19) // explicit per-type initialization contract; direct init remains available
 #define AB_TYPE_UPDATE (1u << 20) // procedure declares type/state requirements for persistent updates
 #define AB_MOVE_TARGET_NO_WARP (1u << 21) // target ability excludes Way Gates from new group routes
+#define AB_TARGET_APPROACH (1u << 23) // command owner shares target spell movement, with its own terminal policy
 #define AB_INTRINSIC (1u << 22) // owner can expose an instance independently of the authored ability list
 #define AB_MOVE_SPEED_BONUS (1u << 18) // bit 18; receives the maximum move-speed bonus query
 
@@ -1214,6 +1215,11 @@ typedef enum {
     A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
     A_UNIT_RESUME, /* Execution contribution returned to nonpositive; owner restarts its policy. */
     A_PLAYER_ORDER_WORK, /* Pure query on the active cast owner: native Unit20 channel-work state. */
+    A_IMMEDIATE_ORDER_ADMIT, /* Opt-in owner validates before ordinary FIFO publication/construction. */
+    A_UNIT_REMOVE_PREPARE, /* Opt-in logical target invalidation before removal clears public heads. */
+    A_COMMAND_OWNER_LEAVE, /* Opt-in logical command inverse before replacement publication. */
+    A_UNIT_SUSPEND_PREPARE, /* Logical owner inverse before suspension head publication. */
+    A_SPELL_TARGET_COMPLETE, /* Opt-in owner consumes target approach completion before generic stand/commit. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -2181,6 +2187,13 @@ typedef struct {
     bool active, reciprocal, ready, suspended;
 } couple_t;
 
+/* Stock/configured Acoi uses the ordinary spell approach and a one-actor wait. */
+typedef struct {
+    edict_t *partner;
+    uint32_t partner_spawn_time, ability, order_id, serial;
+    bool active, waiting, constructing, linked, retiring, resume;
+} coupleInstant_t;
+
 typedef struct {
     uint32_t ability;          /* Aply-derived ability that owns the active morph */
     uint32_t buff;             /* configured timed buff; stock Sorceress uses Bply */
@@ -2454,6 +2467,7 @@ struct edict_s {
     uint32_t harvested_gold;
     militia_t *militia;
     couple_t *couple;
+    coupleInstant_t *couple_instant;
     polymorph_t *polymorph;
     raven_t *raven;
     morph_t *morph;
@@ -4836,6 +4850,7 @@ bool G_UnitHasWorldPresence(edict_t const *);
 void G_FreeEdict(edict_t *);
 bool G_EntityHasStaticPathing(edict_t const *);
 void G_DeferFreeEdict(edict_t *);
+void G_QueueEdictReleaseDeadline(edict_t *,wc3Clock_t const *);
 void G_QueueEdictRelease(edict_t *,wc3Clock_t const *);
 void G_DeferFreeEdictAt(edict_t *,wc3Clock_t const *);
 bool G_IsDeferredFree(edict_t const *);
@@ -5447,6 +5462,7 @@ void G_FreeMilitia(edict_t *ent);
 militia_t *G_AllocMilitia(void);
 void G_FreeCouple(edict_t *ent);
 couple_t *G_AllocCouple(void);
+coupleInstant_t *G_AllocCoupleInstant(void);
 void G_FreePolymorph(edict_t *ent);
 polymorph_t *G_AllocPolymorph(void);
 healthRegen_t *G_AllocHealthRegen(void);

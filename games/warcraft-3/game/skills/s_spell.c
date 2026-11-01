@@ -122,6 +122,13 @@ ability_t const *S_SpellAbilityForCode(uint32_t code) {
     return ability && (ability->flags & AB_SPELL) && ability->proc ? ability : NULL;
 }
 
+/* Physical approach capability does not opt a command into spell effects,
+ * item casting, combat alerts, or the generic command-card cursor. */
+static ability_t const *spell_target_approach_ability(uint32_t code) {
+    ability_t const *ability=code ? FindAbilityForCommand(GetClassName(code)) : NULL;
+    return ability && ability->proc && (ability->flags&(AB_SPELL|AB_TARGET_APPROACH)) ? ability : NULL;
+}
+
 uint32_t S_SpellLevel(edict_t *caster, uint32_t code) {
     if (!caster) {
         return 1;
@@ -947,6 +954,11 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item = params->source_item,
                               .source_item_spawn_time = params->source_item_spawn_time);
 
+    /* Some non-spell command owners share the physical approach constructor,
+     * but retain their own terminal wait/retirement instead of spell commit. */
+    if((params->spell->flags & AB_TARGET_APPROACH) &&
+       S_AbilityMessage(params->caster,A_SPELL_TARGET_COMPLETE,&call))return true;
+
     abilityOrderResult_t ordered=spell_start_ordered_cast(params->caster,params->code,&st,params->source_item,
         params->source_item_spawn_time,active_approach);
     if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
@@ -1440,7 +1452,7 @@ static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
     edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
-    ability_t const *spell = S_SpellAbilityForCode(code);
+    ability_t const *spell = spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = thinker ? thinker->spell_item : NULL;
     bool const point_target = spell && target == thinker &&
@@ -1594,7 +1606,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     /* Replace the old pending cast before installing a new Move order. A unit
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
-    float range=spell_approach_range(caster,code,S_SpellLevel(caster,code),S_SpellAbilityForCode(code));
+    float range=spell_approach_range(caster,code,S_SpellLevel(caster,code),spell_target_approach_ability(code));
     bool const entity_point=target && S_SpellTargetType(caster,code)==SPELL_TARGET_POINT;
     if(target && (entity_point ? S_UnitPointInMoveRange(caster,&target->s.origin2,range) :
                    S_SpellTargetInRange(caster,target,range)))range=FLT_MAX;
@@ -1814,7 +1826,7 @@ static void spell_no_target_execute(edict_t *clent) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
-    ability_t const *spell = S_SpellAbilityForCode(code);
+    ability_t const *spell = spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -2335,7 +2347,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
     if (!caster || !unit || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = S_SpellAbilityForCode(code);
+    spell = spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
                    S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT) ||
