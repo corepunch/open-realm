@@ -978,8 +978,17 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
                 G_RepairCommandTrace(ent, ability_code, "authored-list", resolved,
                                      resolved && S_AbilityHasCommand(resolved), false);
             }
-            if (G_IsImplementedAbility(ability_code) && G_ActorHasSkill(ent, ability_code))
-                G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, ability_code);
+            if (G_IsImplementedAbility(ability_code) && G_ActorHasSkill(ent, ability_code)) {
+                /* Both stock Spirit Walker unit rows contain Acpf. Its
+                 * corporeal form instead presents the reciprocal Aetf icon. */
+                if (ent->class_id == MAKEFOURCC('o','s','p','w') &&
+                    (!strcmp(ability_code, "Acpf") || !strcmp(ability_code, "Aetf")))
+                    G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Aetf");
+                else if (ent->class_id == MAKEFOURCC('o','s','p','m') && !strcmp(ability_code, "Aetf"))
+                    G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Acpf");
+                else
+                    G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, ability_code);
+            }
         }
     }
     /* The stock Bear Form unit row omits Roar. In TFT it is still a visible

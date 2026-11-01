@@ -1,12 +1,102 @@
 #include "s_skills.h"
 
-/* Aast inherits the nearest-target contract: only the caster's dead ordinary Tauren inside authored range qualify. */
+/* Acpf and Aetf are reversible no-target unit morphs, not target Banish.
+ * The authored UnitAbilities for both endpoints contains Acpf. We keep the
+ * model change on the original edict and let the shared cast path own mana,
+ * cooldown, validation, ability effects and command errors. */
+#define SPIRIT_WALKER_ETHEREAL MAKEFOURCC('o','s','p','m')
+#define SPIRIT_WALKER_CORPOREAL MAKEFOURCC('o','s','p','w')
+#define SPIRIT_WALKER_CORPOREAL_SPELL MAKEFOURCC('A','c','p','f')
+#define SPIRIT_WALKER_ETHEREAL_SPELL MAKEFOURCC('A','e','t','f')
+
+cstring_t const spirit_walker_form_orders[] = {
+    "corporealform", "uncorporealform", "etherealform", "unetherealform", NULL
+};
+
+static uint32_t spirit_walker_form_code(edict_t const *unit) {
+    if (!unit) return 0;
+    if (unit->class_id == SPIRIT_WALKER_ETHEREAL) return SPIRIT_WALKER_CORPOREAL_SPELL;
+    if (unit->class_id == SPIRIT_WALKER_CORPOREAL) return SPIRIT_WALKER_ETHEREAL_SPELL;
+    return 0;
+}
+
+static void spirit_walker_morph_finished(edict_t *unit) {
+    if (unit) unit_stand(unit);
+}
+
+static umove_t spirit_walker_morph = {
+    "spell morph", NULL, spirit_walker_morph_finished, CAbilitySpiritWalkerForm
+};
+
+BZ_ABILITY_PROC(CAbilitySpiritWalkerForm) {
+    uint32_t const active_code = spirit_walker_form_code(ent);
+    switch (msg) {
+    case A_COMMAND: {
+        gameClient_t *client;
+        uint32_t subgroup;
+        bool any = false;
+        if (!ent || !call || !call->entity || !(client = call->entity->client) || !active_code) return false;
+        subgroup = ent->class_id;
+        FOR_CONTROLLABLE_SELECTED_UNITS(client, unit) {
+            if (unit->class_id != subgroup || !G_UnitAbilityLevel(unit, active_code)) continue;
+            if (S_CastNoTargetSpell(unit, active_code)) any = true;
+        }
+        if (any) Get_Commands_f(call->entity);
+        return any;
+    }
+    case A_ORDER: {
+        cstring_t order = call ? call->order : NULL;
+        if (!active_code || !order) return false;
+        if (active_code == SPIRIT_WALKER_CORPOREAL_SPELL &&
+            strcmp(order, "corporealform") && strcmp(order, "unetherealform")) return false;
+        if (active_code == SPIRIT_WALKER_ETHEREAL_SPELL &&
+            strcmp(order, "etherealform") && strcmp(order, "uncorporealform")) return false;
+        return S_CastNoTargetSpell(ent, active_code);
+    }
+    case A_VALIDATE: {
+        /* S_CastNoTargetSpell commits mana/cooldown before A_EXECUTE.
+         * Missing custom-map endpoints must fail before that commit. */
+        uint32_t const target = active_code == SPIRIT_WALKER_CORPOREAL_SPELL ?
+            SPIRIT_WALKER_CORPOREAL : SPIRIT_WALKER_ETHEREAL;
+        return active_code && call && call->item && call->item->code == active_code &&
+               G_UnitUI(target)->modelFile != NULL;
+    }
+    case A_EXECUTE: {
+        uint32_t const target = active_code == SPIRIT_WALKER_CORPOREAL_SPELL ?
+            SPIRIT_WALKER_CORPOREAL : SPIRIT_WALKER_ETHEREAL;
+        uint32_t const reverse = active_code == SPIRIT_WALKER_CORPOREAL_SPELL ?
+            SPIRIT_WALKER_ETHEREAL_SPELL : SPIRIT_WALKER_CORPOREAL_SPELL;
+        if (!active_code || !call || !call->item || call->item->code != active_code ||
+            !G_TransformUnitType(ent, target)) return false;
+        /* The outgoing form's spell cooldown is captured by spell_commit.
+         * The reciprocal command must display the same lockout after morph. */
+        S_SpellStartCooldownDuration(ent, reverse,
+            S_SpellNumber(active_code, ABILITY_NUMBER_COOLDOWN, 1));
+        G_SpawnAbilityEffectTarget(active_code, WC3_EFFECT_CASTER, 0, ent, "chest", true);
+        G_PlayAbilityEffectSound(active_code, &ent->s.origin2);
+        ent->goalentity = NULL;
+        if (ent->orders) ent->orders->resource_goal = NULL;
+        move_reset_progress(ent);
+        unit_setmove(ent, &spirit_walker_morph);
+        if (!ent->animation) spirit_walker_morph_finished(ent);
+        return true;
+    }
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+
+/* Ancestral Spirit raises original Tauren and both Spirit Walker forms;
+ * resurrection retains the corpse edict and hence its authored form. */
 static edict_t *ancestral_spirit_target(edict_t *caster, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float range = S_SpellRange(spell->code, level), nearest = 0.0f;
     edict_t *selected = NULL;
     FILTER_EDICTS(target, G_UnitIsRaisableCorpse(target) &&
-                  target->class_id == MAKEFOURCC('o','t','a','u') && !G_UnitIsHero(target) &&
+                  (target->class_id == MAKEFOURCC('o','t','a','u') ||
+                   target->class_id == MAKEFOURCC('o','s','p','m') ||
+                   target->class_id == MAKEFOURCC('o','s','p','w')) && !G_UnitIsHero(target) &&
                   target->s.player == caster->s.player) {
         float distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
         if ((range <= 0.0f || distance <= range) && (!selected || distance < nearest)) {
@@ -29,6 +119,10 @@ static void ancestral_spirit_execute(edict_t *caster, spellTarget_t st, abilityi
     (void)st;
     if (!target) return;
     G_ReviveCorpse(target, S_SpellData(spell->code, level, 1));
+    /* Aast DataB is the percentage of maximum mana restored by revival.
+     * Do not change generic G_ReviveCorpse, which other spells also use. */
+    target->mana.value = target->mana.max_value * MAX(0.0f, MIN(1.0f,
+        S_SpellData(spell->code, level, 2)));
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 

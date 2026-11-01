@@ -1910,6 +1910,11 @@ bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
     uint32_t const mask = (uint32_t)state;
     uint32_t occupied;
     if (!ent || !ent->unit_state || !mask || (mask & (mask - 1u))) return false;
+    /* Spirit Walker's ospm form is intrinsically ethereal, not a Banish buff.
+     * Check the current unit type before the timed status contributions so
+     * dispelling Banish cannot erase the form's immunity. */
+    if (state == WC3_STATUS_STATE_ETHEREAL &&
+        ent->class_id == MAKEFOURCC('o','s','p','m')) return true;
     occupied = unit_status_occupied_bits(ent->unit_state);
     while (occupied) {
         uint32_t const i = (uint32_t)__builtin_ctz(occupied);
@@ -2546,6 +2551,11 @@ uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
          ent->class_id == MAKEFOURCC('u','c','r','m')) &&
         abilcode == MAKEFOURCC('A','b','u','r') &&
         G_UnitAbilityResearchAvailable(ent, abilcode)) return 1;
+    /* Both standard Spirit Walker forms author Acpf. The corporeal endpoint
+     * exposes Aetf as its reciprocal command without permanently modifying
+     * UnitAbilities or giving the morph to other unit classes. */
+    if (ent->class_id == MAKEFOURCC('o','s','p','w') &&
+        abilcode == MAKEFOURCC('A','e','t','f') && G_ActorHasSkill(ent, "Acpf")) return 1;
     memcpy(id, &abilcode, 4);
     return G_ActorHasSkill(ent, id) ? 1 : 0;
 }

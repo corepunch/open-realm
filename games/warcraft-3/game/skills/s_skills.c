@@ -500,8 +500,8 @@ static ability_t abilitylist[] = {
     { "Arbr", CAbilityPassive, AB_PASSIVE },  /* Reinforced Burrows Upgrade */
     { "Aast", CAbilityAncestralSpirit, AB_SPELL, SPELL_TARGET_NONE },  /* Ancestral Spirit */
     { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */
-    { "Acpf", CAbilityBanish, AB_SPELL },  /* Corporeal Form */
-    { "Aetf", CAbilityBanish, AB_SPELL },  /* Ethereal Form */
+    { "Acpf", CAbilitySpiritWalkerForm, AB_SPELL, SPELL_TARGET_NONE, spirit_walker_form_orders },  /* Corporeal Form */
+    { "Aetf", CAbilitySpiritWalkerForm, AB_SPELL, SPELL_TARGET_NONE, spirit_walker_form_orders },  /* Ethereal Form */
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
     { "Aspp", CAbilityItemSpiritLink, AB_ITEM | AB_POWERUP }, /* Rune of Spirit Link (code=Aspl) */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */

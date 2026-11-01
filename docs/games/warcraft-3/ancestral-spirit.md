@@ -8,7 +8,7 @@ the ability selects the nearest eligible corpse instead of entering unit-target 
 
 An eligible corpse is:
 
-- the original edict for a unit that completed the authoritative death transition (`SVF_DEADMONSTER` plus zero health) with rawcode `otau` (Tauren);
+- the original edict for a unit that completed the authoritative death transition (`SVF_DEADMONSTER` plus zero health) with rawcode `otau` (Tauren), `ospm` (ethereal Spirit Walker), or `ospw` (corporeal Spirit Walker);
 - an ordinary non-Hero unit;
 - owned by the caster's player; and
 - within the authored cast range.
@@ -17,7 +17,7 @@ The `player` target token means same owner, not any passive ally. An allied play
 is therefore ineligible even when `ALLIANCE_PASSIVE` is set. A successful cast revives the original
 edict, preserving its JASS handle, owner, rawcode, and spawn identity. It clears corpse/death state,
 restores food accounting, returns the unit to its stand move, relinks it, and restores
-`DataA * maxHealth` hit points. The revived unit is no longer a corpse and cannot be selected by a
+`DataA * maxHealth` hit points and `DataB * maxMana` mana. The revived unit is no longer a corpse and cannot be selected by a
 subsequent cast.
 
 ## Authoritative Data
@@ -32,7 +32,7 @@ ability is TFT-only even though some installed ROC-local string tables also cont
 | `Cost1` | `250` | mana committed only after a corpse validates |
 | `Cool1` | `30` | cooldown committed only after validation |
 | `DataA1` | `1` | fraction of maximum health restored |
-| `DataB1` | `0.25` | authored but not needed by the confirmed visible contract |
+| `DataB1` | `0.25` | fraction of maximum mana restored to the revived unit |
 
 `Units/AbilityStrings/War3x/OrcAbilityStrings.txt` confirms the visible rule: “Raises a fallen
 non-Hero Tauren from the dead” and restores `<Aast,DataA1,%>%` of its hit points.
@@ -58,7 +58,7 @@ Altar lifecycle and are never eligible for either ordinary corpse path.
 
 The in-engine `wc3_spell.ancestral_spirit_revives_nearest_owned_nonhero_tauren` test drives
 `S_CastNoTargetSpell` with a synthetic `Aast` SLK row whose nontrivial `DataA=0.4` proves the health
-fraction is data-driven. It covers nearest selection, same-edict and owner preservation, food reactivation,
+fraction is data-driven and `DataB` mana restoration is verified. It covers nearest selection, same-edict and owner preservation, food reactivation,
 reuse prevention, and rejection of health-only pseudo-corpses, living, Hero, non-Tauren, allied, and
 out-of-range units in both ROC and TFT fixture runs:
 

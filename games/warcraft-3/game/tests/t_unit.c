@@ -1976,6 +1976,74 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+
+/* Both stock Spirit Walker rows list Acpf, yet their command cards and direct
+ * orders must select the reciprocal ability for the current form. */
+TEST(wc3_unit, spirit_walker_form_uses_reciprocal_code_and_intrinsic_ethereal_state) {
+    static cstring_t const units_slk =
+        "ID;PWXL;N;EBB;Y3;X2\n"
+        "C;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"ospm\"\nC;Y2;X2;K\"Acpf,Aspl,Adcn,Aast,Aion,ACsk\"\n"
+        "C;Y3;X1;K\"ospw\"\nC;Y3;X2;K\"Acpf,Aspl,Adcn,Aast,Aion,ACsk\"\nE\n";
+    static cstring_t const ability_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Cool1\"\nC;Y1;X4;K\"Cost1\"\n"
+        "C;Y2;X1;K\"Acpf\"\nC;Y2;X2;K\"Acpf\"\nC;Y2;X3;K30\nC;Y2;X4;K0\n"
+        "C;Y3;X1;K\"Aetf\"\nC;Y3;X2;K\"Aetf\"\nC;Y3;X3;K30\nC;Y3;X4;K0\nE\n";
+    static cstring_t const ui_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"modelScale\"\nC;Y1;X4;K\"scale\"\n"
+        "C;Y2;X1;K\"ospm\"\nC;Y2;X2;K\"Units\\Orc\\SpiritWalker\\SpiritWalker.mdx\"\n"
+        "C;Y2;X3;K1\nC;Y2;X4;K1\n"
+        "C;Y3;X1;K\"ospw\"\nC;Y3;X2;K\"Units\\Orc\\SpiritWalker\\SpiritWalker.mdx\"\n"
+        "C;Y3;X3;K1\nC;Y3;X4;K1\nE\n";
+    static UnitBalance_t const balance = {
+        .maxHealth = 500.0f, .maxMana = 300.0f, .speed = 270.0f,
+        .defenseType = "unarmored", .healthRegenType = "always"
+    };
+    static UnitData_t const data = { .targetType = "ground", .moveTypeName = "foot" };
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
+    slkTestData_t *ui_rows, *old_ui, *ability_rows, *old_ability, *units_rows, *old_units;
+    edict_t *walker;
+    abilityitem_t corporeal = S_AbilityItem(MAKEFOURCC('A','c','p','f'));
+    abilityitem_t ethereal = S_AbilityItem(MAKEFOURCC('A','e','t','f'));
+    abilityCall_t corporeal_call = MAKE(abilityCall_t, .item = &corporeal);
+    abilityCall_t ethereal_call = MAKE(abilityCall_t, .item = &ethereal);
+
+    reset_test_entities(); setup_test_world();
+    ability_rows = parse_slk_string(ability_slk);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    ui_rows = parse_slk_string(ui_slk);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    units_rows = parse_slk_string(units_slk);
+    old_units = G_SetSLKRows("UnitAbilities", units_rows);
+    walker = alloc_test_unit(MAKEFOURCC('o','s','p','m'), 64.0f, 64.0f);
+    walker->s.player = 0;
+    walker->data.UnitBalance = &balance;
+    walker->data.UnitData = &data;
+    walker->data.UnitWeapons = &weapons;
+    T_ASSERT(unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
+    T_ASSERT(CAbilitySpiritWalkerForm(walker, A_VALIDATE, &corporeal_call));
+    T_ASSERT(!CAbilitySpiritWalkerForm(walker, A_VALIDATE, &ethereal_call));
+    T_ASSERT(CAbilitySpiritWalkerForm(walker, A_EXECUTE, &corporeal_call));
+    T_EQ(walker->class_id, MAKEFOURCC('o','s','p','w'));
+    T_ASSERT(!unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
+    T_EQ(G_UnitAbilityLevel(walker, MAKEFOURCC('A','e','t','f')), 1u);
+    T_ASSERT(!CAbilitySpiritWalkerForm(walker, A_VALIDATE, &corporeal_call));
+    T_ASSERT(CAbilitySpiritWalkerForm(walker, A_VALIDATE, &ethereal_call));
+    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
+    S_SpellEndCooldown(walker, MAKEFOURCC('A','e','t','f'));
+    T_ASSERT(CAbilitySpiritWalkerForm(walker, A_EXECUTE, &ethereal_call));
+    T_EQ(walker->class_id, MAKEFOURCC('o','s','p','m'));
+    T_ASSERT(unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
+    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+    G_SetSLKRows("UnitAbilities", old_units); free_slk_rows(units_rows);
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
 static cstring_t crypt_fiend_burrow_test_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "fs_expansion") ? "1" : fallback;
 }
