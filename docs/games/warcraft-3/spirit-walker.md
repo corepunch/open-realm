@@ -4,8 +4,11 @@
 
 The standard TFT unit rows are `ospm` (ethereal) and `ospw` (corporeal), both
 using the SpiritWalker model and both listing `Acpf,Aspl,Adcn,Aast,Aion,ACsk`.
-`Acpf` turns `ospm` into `ospw`; the reciprocal `Aetf` restores `ospm`. Both
-are no-target spells with no mana cost and a 30-second cooldown. `Dur=0.7` is
+The producer's authored `Trains` rawcode determines which form a newly trained
+unit starts in; runtime preserves that rawcode. `Acpf` turns `ospm` into
+`ospw`; the reciprocal `Aetf` turns `ospw` into `ospm`. Both are no-target
+spells with no mana cost and authored 30-second cooldowns, but runtime clears
+the `Acpf` cooldown so returning to Corporeal is immediate. `Dur=0.7` is
 an authored gameplay field; the MDX `Spell Morph` clip is 1.267 seconds. The
 exact retail frame at which combat state changes remains to be measured.
 
@@ -14,8 +17,9 @@ exact retail frame at which combat state changes remains to be measured.
 `CAbilitySpiritWalkerForm` uses `G_TransformUnitType` to retain the same edict,
 JASS handle, ownership, buffs, food, control group, and upgrades. The existing
 `Acpf` unit ability becomes an `Aetf` button when the current class is `ospw`.
-Each cast starts the reciprocal cooldown so the newly presented button remains
-locked. Animation playback uses the shared-model `Spell Morph` sequence.
+Entering Ethereal starts the authored `Aetf` cooldown. Returning to Corporeal
+does not start a cooldown on `Acpf`. Animation playback uses the shared-model
+`Spell Morph` sequence.
 
 An `ospm` unit is intrinsically ethereal even without a timed status buff. The
 shared status-state query reports ethereal for this form **in addition to** any
