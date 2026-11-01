@@ -675,28 +675,91 @@ TEST(wc3_building, draenei_saboteur_liquid_fire_damages_buildings_and_slows_atta
     building_restore_liquid_fire_slk(old, rows);
 }
 
-TEST(wc3_building, liquid_fire_prevents_repairing_affected_buildings) {
-    static UnitAbilities_t const saboteur_abilities = { .abilList = "Aliq" };
+TEST(wc3_building, troll_batrider_liquid_fire_damages_and_disables_enemy_buildings) {
+    static UnitAbilities_t const batrider_abilities = { .abilList = "Aliq" };
+    slkTestData_t *rows, *old;
+    edict_t *batrider, *enemy_building, *neutral_building, *friendly_building;
+    float enemy_health;
+    uint32_t normal_interval, slowed_interval;
+
+    reset_entities();
+    setup_test_world();
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    old = building_install_liquid_fire_slk(&rows);
+    batrider = alloc_test_unit(MAKEFOURCC('o','t','b','r'), 0, 0);
+    enemy_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    neutral_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 128, 0);
+    friendly_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 192, 0);
+    batrider->data.UnitAbilities = (UnitAbilities_t *)&batrider_abilities;
+    batrider->s.player = 0;
+    enemy_building->s.player = 1;
+    neutral_building->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    friendly_building->s.player = 0;
+    enemy_building->health.value = neutral_building->health.value =
+        friendly_building->health.value = 1000.0f;
+    enemy_building->health.max_value = neutral_building->health.max_value =
+        friendly_building->health.max_value = 1000.0f;
+    enemy_building->s.flags |= EF_BUILDING;
+    neutral_building->s.flags |= EF_BUILDING;
+    friendly_building->s.flags |= EF_BUILDING;
+    enemy_building->targtype = neutral_building->targtype =
+        friendly_building->targtype = TARG_STRUCTURE;
+    enemy_building->unit_state->attack1.cooldown = 2.0f;
+    enemy_building->unit_state->attack1.damagePoint = 0.5f;
+
+    T_EQ(G_UnitAbilityLevel(batrider, MAKEFOURCC('A','l','i','q')), 1);
+    attack_melee(enemy_building);
+    normal_interval = enemy_building->unit_state->attack_cooldown_end_time - G_Time();
+    T_EQ(G_UnitAbilityLevel(batrider, MAKEFOURCC('A','l','i','q')), 1);
+    S_ResolveAttackHit(batrider, enemy_building, 1);
+    S_ResolveAttackHit(batrider, neutral_building, 1);
+    S_ResolveAttackHit(batrider, friendly_building, 1);
+
+    T_EQ(G_UnitStatusLevel(enemy_building, FS_SLKKey("Bliq")), 1);
+    T_EQ(G_UnitStatusLevel(neutral_building, FS_SLKKey("Bliq")), 1);
+    T_EQ(G_UnitStatusLevel(friendly_building, FS_SLKKey("Bliq")), 0);
+    T_FEQ(S_CreepAttackSpeedReduction(enemy_building), 0.8f, 0.001f);
+    attack_melee(enemy_building);
+    slowed_interval = enemy_building->unit_state->attack_cooldown_end_time - G_Time();
+    T_EQ(normal_interval, 2000);
+    T_ASSERT(slowed_interval >= 10000 && slowed_interval <= 10001);
+
+    enemy_health = enemy_building->health.value;
+    level.time += 1000;
+    unit_updatestatuses(enemy_building);
+    T_FEQ(enemy_building->health.value, enemy_health - 8.0f, 0.01f);
+    level.time += 2000;
+    unit_updatestatuses(enemy_building);
+    T_EQ(G_UnitStatusLevel(enemy_building, FS_SLKKey("Bliq")), 0);
+    T_FEQ(S_CreepAttackSpeedReduction(enemy_building), 0.0f, 0.001f);
+
+    building_restore_liquid_fire_slk(old, rows);
+}
+
+TEST(wc3_building, troll_batrider_liquid_fire_prevents_repairing_affected_buildings) {
+    static UnitAbilities_t const batrider_abilities = { .abilList = "Aliq" };
     static UnitAbilities_t const worker_abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old;
-    edict_t *saboteur, *worker, *building;
+    edict_t *batrider, *worker, *building;
 
     reset_entities();
     setup_test_world();
     old = building_install_liquid_fire_slk(&rows);
-    saboteur = alloc_test_unit(MAKEFOURCC('n','d','s','a'), 0, 0);
+    batrider = alloc_test_unit(MAKEFOURCC('o','t','b','r'), 0, 0);
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    saboteur->data.UnitAbilities = (UnitAbilities_t *)&saboteur_abilities;
+    batrider->data.UnitAbilities = (UnitAbilities_t *)&batrider_abilities;
     worker->data.UnitAbilities = (UnitAbilities_t *)&worker_abilities;
-    saboteur->s.player = 0;
+    batrider->s.player = 0;
     worker->s.player = building->s.player = 1;
-    saboteur->unit_state->attack1.type = ATK_CHAOS;
+    batrider->unit_state->attack1.type = ATK_CHAOS;
     building->health.max_value = 1000.0f;
     building->health.value = 900.0f;
 
     building->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    S_CreepAttackOnHit(saboteur, building);
+    S_CreepAttackOnHit(batrider, building);
     building->s.player = worker->s.player;
 
     T_EQ(G_UnitStatusLevel(building, FS_SLKKey("Bliq")), 1);
