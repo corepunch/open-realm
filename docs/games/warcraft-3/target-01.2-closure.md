@@ -1,6 +1,6 @@
 # TARGET-01.2: exact remaining work and original caller inventory
 
-This checklist names the original functions and call instructions that must be accounted for. It also records the five current Patrol failures, the files to change, and the tests that must pass.
+This checklist names the original functions and call instructions that must be accounted for. It also records the five Patrol corrections, their evidence and tests, and the remaining caller-by-caller acceptance work.
 
 Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`. Addresses below are RVAs: add image base `0x6f000000` to obtain the preferred-image virtual address. A running process may use a different image base. For example, RVA `0x49a980` has preferred-image virtual address `0x6f49a980`.
 
@@ -24,15 +24,17 @@ Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19
 | `0x05a5c0` | start physical target movement | 5 |
 | `0x692570` | forward through the additional target-task wrapper | 1 |
 
-## 2. Fix these Patrol failures first
+## 2. Patrol corrections verified in checkpoint 287
+
+Checkpoint 287 passes all 18 focused processes in Classic and TFT: 1,224 test executions and 308,850 assertions. Its sources remained unchanged throughout the run. P1–P5 below are completed corrections. The additional review checks P6 and P7 also pass checkpoint 290: 18 focused processes, 1,226 test executions and 309,036 assertions across both editions. The larger caller inventory in sections 4–7 remains open. Checkpoint 288 only restores a test-local data pointer before fixture return; final Combat and corpus rechecks are recorded separately.
 
 ### P1. Replacement-unit acquisition RNG
 
-**Original functions:** `0x4993b0` creates the initial Attack scan; it obtains a stream-2 real through `0x6936a0`. The missing stream-2 consumer between the twelfth and thirteenth attachments has not been identified. Do not claim that damage dice are the cause until the original caller is proved.
+**Original functions:** `0x4993b0` creates the initial Attack scan; it obtains a stream-2 real through `0x6936a0`. Damage function `0x498960` calls dice helper `0x695c70` at instruction `0x4989af`, explicitly selecting stream 2. Its ordinary dice loop reaches generator `0x1b7130` through `0x1ec180`. Seven actual one-die Footman hits between the twelfth and thirteenth attachments advance that stream to the captured replacement state exactly.
 
 **Observed failure:** all first 12 attachments match. Native stream 2 is `[1212630550, 605037672]` after attachment 12 and `[924375265, 143681688]` before attachment 13. Native replacement delay is word `0x3d86d950`; C produces `0x3d1fc6e0`. The first acquisition mismatch is record 123.
 
-**Action:** find the original instruction that consumes stream 2 between those two observations; connect that real gameplay operation to the corresponding C owner. Do not insert dummy draws, skip draws, or inject the captured state. Preserve the already-correct attachment formula.
+**Action:** replace the libc RNG in `ai_rolldamage1` with the proved stream-2 damage draws. Verify the seven-hit state transition, damage results, isolation from the other streams and saved continuation. Preserve the already-correct attachment formula. This correction does not establish the separate greater-than-16-dice Gaussian branch or native invalid-zero-dice behavior.
 
 **C file:** `games/warcraft-3/game/skills/s_attack.c`; the actual missing consumer may require its owning function once identified. **Test:** `wc3_patrol_lifetime.*`. **Close P1:** all 356 attachment/scan records match in uninterrupted and saved replay; the 7,124 movement rows remain exact.
 
@@ -42,7 +44,7 @@ Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19
 
 **Observed failure:** the ability counter has been released when the resume notification is delivered, but the actor still reports physical execution pause until the enclosing release finishes. The public activation guard rejects a legitimate owner resume.
 
-**Action:** use the released Attack-owner counter for its resume notification, retain the physical-pause guard for public activation, and preserve independent disable contributions. The split helper fix is present in primary but has not been rebuilt.
+**Action:** use the released Attack-owner counter for its resume notification, retain the physical-pause guard for public activation, and preserve independent disable contributions. The split helper fix passed both editions in checkpoint 285; the complete six-test lifetime suite still fails its two native acquisition comparisons in the earlier checkpoint because P1 was not yet corrected. Checkpoint 287 passes the complete lifetime suite, including both native acquisition comparisons.
 
 **Tests:** the existing paused-initial-request and cold-save assertions in `t_patrol_lifetime.c`. **Close P2:** an unfired initial deadline is preserved; an already-fired scan restarts with the required 0.01-second request; another disable owner still prevents activation.
 
@@ -50,9 +52,9 @@ Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19
 
 **Original functions involved:** `0x4943f0` admits automatic targets; `0x495c00` remembers failed targets; `0x499640` rejects a cached target; `0x49bbe0` clears the failed-target set after an empty scan; `0x5fdff0` creates Patrol legs; `0x5fff70` appends the return continuation. The direct calls from 0x4943f0, 0x49a980 and 0x5fdff0 are listed by instruction address in section 4.
 
-**Observed failure:** at clock word `0x41ba377d`, C visits peer role 1 before source role 0; native visits source first. C emits 1,634 polls rather than 1,632. First public mismatch is marker 534: tick 1165, scene 5, source facing `359.243` instead of `358.936`; its position and life still match. Only three of the 1,084 public records differ. The cause of this remaining ordering difference is not established.
+**Observed failure:** at clock word `0x41ba377d`, C visits peer role 1 before source role 0; native visits source first. C emits 1,634 polls rather than 1,632. First public mismatch is marker 534: tick 1165, scene 5, source facing `359.243` instead of `358.936`; its position and life still match. Only three of the 1,084 public records differ. The peer’s complete 242-row scene matches. The source starts one 30 ms physical-owner period late; its first differing row initially differs only in the clock. Original reaction handler `0x49b3d0` pops the reaction and synchronously dispatches `0x67df00` → Move task handler `0x5fda10` → retained target task `0x5ff8b0` → physical request `0x5fc640`. C instead deferred the chase activation to the ordinary entity think after that frame’s physical update.
 
-**Action:** compare the two physical-owner publications immediately preceding clock `0x41ba377d`; correct the owner creation/retirement order or extra request that actually differs. Do not alter steering arithmetic or sort recorded rows to conceal the difference.
+**Action:** activate the retained chase synchronously when the reaction expires, preserving incarnation, move-revision and target-lifetime guards. Keep the reaction deadline and physical steering arithmetic unchanged. Verify this correction against the complete ordered public/poll streams and the existing reaction cancellation, nested-mutation and saved-owner tests. Checkpoint 286 matched all public records but retained one unnecessary home-return request. The second correction applies the original `d016c` distance-only admission gate: `0x5fda10` calls `0x5ffb60` with both admission flags zero, so `0x05b440` completes an already-close return before creating movement. `S_UnitPointInMoveRange` supplies that gate at `start_guard_return`; spell task `d016b` keeps its different flags and behavior. Checkpoint 287 matches all 1,084 public records and all 1,632 ordered polls, including the saved suffix, with no filtering or rewritten expectations.
 
 **C files:** `s_attack.c`, `s_patrol.c`, `s_stop.c`, and the physical publication functions in `s_move.c`, limited to the demonstrated owner path. **Tests:** `wc3_patrol_public.complete_native265_public_and_polls` and `wc3_patrol_public.path_cleared_saved_native265_suffix`. **Close P3:** all 1,084 public records and all 1,632 ordered polls match, including the saved suffix.
 
@@ -62,19 +64,45 @@ Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19
 
 **Action:** inspect the allocator used by `unit_create`; construct a test sequence that demonstrably reuses the intended freed slot under its real reuse rules. Then require the new incarnation to be allowed, the old cached birth to survive save/load, and Attack removal to cancel the cache. Keep the identity assertions.
 
-**Already passing in checkpoint 284b:** eight-slot selection/refresh/eviction and independent timer expiry with cold saved heap. **Close P4:** all three `wc3_attack_failed_targets.*` tests pass in both editions with positive JUnit counts.
+**Checkpoint 285 result:** all three tests pass in Classic and TFT, 128 assertions per edition. The fixture crosses the strict reuse cooldown with 1,005 ms and uses ordinary unit creation to occupy earlier eligible holes before asserting the exact freed slot was reused. No actor pointer or birth identifier is forged. **Close P4:** all three `wc3_attack_failed_targets.*` tests pass in both editions with positive JUnit counts.
 
 ### P5. Combat scheduler fixture must have a JASS VM
 
 **Exact failing test:** `wc3_combat.entangling_roots_pauses_existing_attack_without_cancelling_order`. **Backtrace:** `globals.RunFrame` reaches `jass_runevents` with `level.vm == NULL`, then crashes in `jass_root`.
 
-**Action:** initialize an empty real JASS program before this fixture runs full frames. That fixture fix is in primary `t_combat.c` but unbuilt. Retain the assertions that Roots prevents damage, preserves the order and allows the expected damage after expiry.
+**Action:** initialize an empty real JASS program before this fixture runs full frames. The empty-VM fix was built in checkpoint 285 and eliminated the crash. That run exposed a second fixture defect: its synthetic attacker had no `monster_think` callback. GDB confirmed health 200, a retained `attack_move_walk`, no damage request and a null entity think callback after the expiry frames. The callback setup and a copied target profile with zero authored regeneration make the fixture exercise exactly one 25-point hit. Checkpoint 287 passes all 223 Combat tests per edition; the exact 175-health assertion and order-preservation checks remain. The original target profile pointer is restored before the fixture returns. Retain the assertions that Roots prevents damage, preserves the order and allows the expected damage after expiry.
 
 **Close P5:** the complete `wc3_combat.*` processes finish successfully in Classic and TFT and produce nonempty JUnit reports. Absence of assertion failures before a crash is not a pass.
 
+### P6. Cancel Attack requests on actual ability removal
+
+**Original function:** `0x493530` unconditionally cancels its reaction control at offset `0x1c4` and acquisition control at `0x294` during detach. Its target-identity clearing is not established by this function alone and is not assumed here.
+
+**C functions:** `CAbilityAttack(A_DISABLE)`, `attack_reaction_cancel`, `attack_acquire_cancel`. The current detach path uses the suspension helper, which deliberately retains an unfired initial scan, and does not cancel a pending reaction. That is the wrong lifetime for a removed ability.
+
+**Action:** cancel those two requests unconditionally at true detach; retain the existing suspension/death treatment. Add actual `UnitRemoveAbility(...,'Aatk')` cases before the initial scan and during a saved pending reaction in `wc3_patrol_lifetime.pending_reaction_save_and_owner_inverse`. After the old deadlines, require no scan, reaction, chase or damage from the removed owner. Do not invent a target-clear or public Stand expectation without its owning evidence.
+
+**P6 result:** checkpoint 289 reproduces the surviving initial scan, surviving reaction and post-detach damage request in both editions. Checkpoint 290 passes the extended regression and unchanged native streams in both editions.
+
+### P7. Reject malformed new timer fields in Save232
+
+**C functions:** `S_ValidateAttackTargets`, `WriteGame`, `ReadGame`. The new active damage/reaction timers need finite positive clock spans and nonzero registration sequences bounded by `level.timer_sequence`. The new failed-target timers also need the sequence upper bound. This is save-input validation, not another native gameplay claim.
+
+**Action:** add rejection cases for zero/future sequence, zero/negative/nonfinite span and nonfinite time; verify normal timer owners still round-trip. Apply the checks to these three new timer kinds before rebuilding their derived queues.
+
+**P7 result:** checkpoint 289 reproduces invalid metadata acceptance by both the validator and `WriteGame`. Checkpoint 290 rejects each malformed active request, accepts restored valid owners and passes all 248 Save232 tests per edition, including prior-version rejection.
+
+### P8. Finish the remaining Attack timer detach checks
+
+**Status:** open follow-up to the verified Patrol producer block. Original `0x493530` cancels six controls. P6 fixes the newly introduced reaction/acquisition gap; the existing C detach path still needs swing control `+0x200`, cooldown control `+0x1d8` and guard control `+0x280` reconciled. The C owners are `attack_swing_cancel`, the `attack_cooldown_active`/end-time/remaining state, and `attack_guard_cancel` in `s_attack.c`. Unit-owned help suppression is excluded: original `0x66e700` arms the Unit’s `+0x7c` control independently of Attack, so removing `Aatk` must preserve it.
+
+**Action:** obtain the corresponding live requests through actual combat/guard entry points, remove `Aatk`, and verify cancellation before their old deadlines. Include a control that Unit-owned help suppression survives. In particular, a retained swing request must not activate `attack_swing_complete` after ability removal. Keep this distinct from pause/death behavior. Cancel the proven matching requests in `CAbilityAttack(A_DISABLE)` and retain the public order/target semantics supported by the original owner; do not infer those semantics from timer cancellation alone.
+
+**Close P8:** show the detach regression failing before its fix and passing afterward, including saved ownership, without changing the accepted Patrol records. This follow-up is not claimed by checkpoint 290.
+
 ### Patrol delivery checkpoint
 
-After P1–P5 pass, run the required coordinated native/corpus checks, build checks and the batched full suite. Commit the Patrol implementation, fixtures and documentation on the primary `open-realm` branch. Do not wait for AttackMove before delivering this completed block. The implementation currently uses candidate Save232; its final serializer, rejection and saved-owner checks must pass before delivery.
+P1–P7 and the coordinated native/corpus checks pass; the production module builds without warnings. Commit this verified Patrol producer block, then finish P8 as the next owner-teardown block. Run the batched full suite at the user-requested cadence after a few implementation commits; the focused result is not a full-suite result. Commit the Patrol implementation, fixtures and documentation on the primary `open-realm` branch. Do not wait for AttackMove before delivering this completed block. The implementation currently uses candidate Save232; its final serializer, rejection and saved-owner checks must pass before delivery.
 
 ## 3. Exact checks to attach to each listed call
 
@@ -940,17 +968,19 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 ### F37. `0x5fdff0` — Patrol tasks
 
-**Status:** proof incomplete. **Recorded owner:** TARGET-01.2.
+**Status:** covered bounded contract. **Recorded owner:** TARGET-01.2.
 
-**Existing evidence:** Historical176/276 ownership; complete7124 lifetime movement normal/saved now exact.
+**Existing evidence:** Native265 records 27 D113 calls (observed return PC `0x5fe134`), each with `d016b`, the first endpoint X/Y, raw range 0 and null association; 27 two-point constructions and 22 return continuations are retained. Both editions match all 1,084 public records and 1,632 ordered firing polls, including the path-cleared saved suffix. Checkpoint290 passes 18 processes, 1,226 tests and 309,036 assertions.
 
-**Action for this function:** Finish current public265 full stream, acquisition chronology and saved suffix, preserving literal world and initial/return parameter/boundary evidence.
+**Scope retained:** The public threshold triplet is 611.99993896484375 / 612 / 612.00006103515625. Move attachment/availability, runtime-zero speed clamping, authored-zero speed rejection and target-to-point admission are covered by the order and full-public fixtures. Historical176 FIFO rotation, blocked-leg continuation and saved ownership remain accepted. The queued non-Patrol-successor branch rotates the retained user order without executing D113. No uncovered D113 parameter branch is identified; other caller rows and the computed-call classification remain open.
 
 **Task identifiers present in the frozen body:** `0xd0012`, `0xd0017`, `0xd0144`, `0xd0148`, `0xd014a`, `0xd014e`, `0xd0166`, `0xd016b`, `0xd0175`, `0xd0178`.
 
 **Evidence locations:** [retail-pathfinding-engine.md, line 691](retail-pathfinding-engine.md), [retail-pathfinding-engine.md, line 799](retail-pathfinding-engine.md), [retail-pathfinding-engine.md, line 860](retail-pathfinding-engine.md), [retail-pathfinding-engine.md, line 919](retail-pathfinding-engine.md), [retail-pathfinding-engine.md, line 1086](retail-pathfinding-engine.md), [HANDOFF.md, line 8](retail-pathfinding-handoffs/ORDER-01.18/HANDOFF.md).
 
-- [ ] **D113: `0x5fe12f` → `0x692120`**, create a point task. Point-task check.
+- [x] **D113: `0x5fe12f` → `0x692120`**, create a point task. Point-task check.
+
+  Evidence: [complete public and saved replay](../../../games/warcraft-3/game/tests/t_patrol_public.c), [admission and FIFO regressions](../../../games/warcraft-3/game/tests/t_patrol_orders.c), and [native265 fixture](../../../games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json).
 
   Recorded arguments: `Unit_CreatePointTask(unit,0xd016b,&local_18,&local_14,&Math_RuntimeZero,(void *)0x0)`.
 
@@ -1567,7 +1597,7 @@ No row below is claimed to be a proven missing producer solely because its desti
 2. D001–D136 each identify an accepted test/fixture row or a specific existing owner exclusion. F rows are not closed by mentioning a related checkpoint.
 3. V01–V06 each have their receiver-specific disposition; the Morph slot collision remains excluded.
 4. I001–I210 each have a recorded receiver/callee classification. The classifier must identify a new real factory path as a concrete row rather than silently dropping it.
-5. AttackMove, the spell branches identified under F02/F03/F13, and the occupied/blocked/forced branches attached to D rows have the required range, heading, force and stop boundary evidence.
+5. P8, AttackMove, the spell branches identified under F02/F03/F13, and the occupied/blocked/forced branches attached to D rows have the required range, heading, force and stop boundary evidence.
 6. The new implementation passes the final coordinated native/corpus gates, current Save232 checks, both-edition regression runs and the batched full suite.
 7. Code, executable fixtures, exact evidence and this checklist are committed on the primary `open-realm` branch. Only then mark the existing TARGET-01.2 checkbox complete.
 

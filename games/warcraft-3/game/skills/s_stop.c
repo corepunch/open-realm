@@ -1,6 +1,6 @@
 #include "s_skills.h"
 
-#define GUARD_RETURN_EPSILON 1.0f // world units; avoids starting a return when the unit is already at its Stop anchor
+#define GUARD_RETURN_RANGE 50.0f /* d016c's authored world-space arrival range. */
 
 /* Record the point Stop must restore after its automatic-combat detour. */
 void G_SetUnitGuardPosition(edict_t *ent) {
@@ -15,7 +15,16 @@ void G_ClearUnitGuardPosition(edict_t *ent) {
     ent->movement.guard_state = GUARD_NONE;
 }
 
-/* Resume ordinary Move toward the saved Stop point after idle combat ends. */
+void S_GuardReturnComplete(edict_t *receiver, edict_t *unit, bool arrived) {
+    (void)arrived;
+    if (receiver != unit || unit->movement.guard_state != GUARD_RETURNING) return;
+    unit->movement.guard_state = GUARD_IDLE;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
+    unit_stand(unit);
+}
+
+/* The idle acquisition chain retains a private d016c behind combat. Its
+ * point/range belong to the continuation, without another public Move. */
 static bool start_guard_return(edict_t *ent) {
     edict_t *waypoint;
 
@@ -23,14 +32,20 @@ static bool start_guard_return(edict_t *ent) {
         (ent->aiflags & AI_IMMOBILE) || G_UnitQueuedOrderCount(ent)) {
         return false;
     }
-    if (Vector2_distance(&ent->s.origin2, &ent->movement.guard_position) <= GUARD_RETURN_EPSILON) {
+    /* d016c dispatches 5ffb60 with both admission flags zero: 05b440
+     * completes a close point before creating a physical owner. Unlike
+     * d016b, this continuation has no independent facing requirement. */
+    if (S_UnitPointInMoveRange(ent, &ent->movement.guard_position, GUARD_RETURN_RANGE))
+        return false;
+    waypoint = Waypoint_add(&ent->movement.guard_position);
+    if (!waypoint) return false;
+    ent->movement.guard_state = GUARD_RETURNING;
+    if (!S_BeginUnitPointTargetApproach(ent, waypoint, GUARD_RETURN_RANGE,
+                                      ent, S_GuardReturnComplete)) {
         ent->movement.guard_state = GUARD_IDLE;
         return false;
     }
-    waypoint = Waypoint_add(&ent->movement.guard_position);
-    if (!waypoint) return false;
-    order_move(ent, waypoint);
-    ent->movement.guard_state = GUARD_RETURNING;
+    S_AttackEnableAcquisition(ent);
     return true;
 }
 
@@ -58,10 +73,17 @@ void S_ClearUnitOrderReferences(edict_t *ent) {
 
 /* Finish only after the new Stop task has admitted its position. */
 static void stop_finish(edict_t *ent, bool preserve_queue, bool record_guard) {
+    uint32_t const birth=ent->spawn_time;
     if (record_guard) G_SetUnitGuardPosition(ent);
     ent->current_order_id = 0;
     if (preserve_queue) unit_stand_no_queue(ent);
     else if (ent->stand) ent->stand(ent);
+    /* Stop's new idle task executes d0148 even when the previous scan was
+     * already enabled. A callback's replacement owns its own activation. */
+    if(record_guard && ent->inuse && ent->spawn_time==birth &&
+       !G_IsDeferredFree(ent) && ent->current_order_id==0 && ent->currentmove &&
+       ent->currentmove->think==ai_stand)
+        S_AttackEnableAcquisition(ent);
 }
 
 /* Internal cleanup already owns its task; it does not issue a new Stop. */
@@ -150,9 +172,17 @@ BZ_ABILITY_PROC(CAbilityStop) {
         return true;
     }
     if (msg == A_AUTO_COMBAT_START) {
-        if (ent && ent->movement.guard_state == GUARD_IDLE && ent->currentmove &&
-            ent->currentmove->think == ai_stand)
+        /*4943f0 captures the current point only for a fresh idle acquisition;
+         * target replacement must retain the existing continuation. */
+        if (ent && ent->currentmove && ent->currentmove->think == ai_stand &&
+            ent->movement.guard_state != GUARD_COMBAT) {
+            G_SetUnitGuardPosition(ent);
             ent->movement.guard_state = GUARD_COMBAT;
+        } else if (ent && ent->movement.guard_state == GUARD_RETURNING) {
+            /* A scan can interrupt d016c with another target. Retain the
+             * original idle point beneath that second combat detour. */
+            ent->movement.guard_state = GUARD_COMBAT;
+        }
     } else if (msg == A_AUTO_COMBAT_END) {
         if (!ent || ent->movement.guard_state != GUARD_COMBAT) return false;
         if (start_guard_return(ent)) return true;

@@ -6,6 +6,14 @@
 #define WC3_PATROL_MINIMUM_DISTANCE_SQUARED 10000.0f
 #define PATROL_QUEUE_TWO_POINTS 1u // owner-local queue payload kind; not a retail order ID
 
+/*5fb040 queries the attached Move owner, independently of its current speed.
+ * SetUnitMoveSpeed(0) retains it; authored zero and Amov removal do not. */
+static bool patrol_can_issue(edict_t const *ent) {
+    uint32_t const move=MAKEFOURCC('A','m','o','v');
+    return ent && S_UnitCanTranslate(ent) && G_ActorHasAbilityCode(ent,move) &&
+        !M_UnitMoveDisabled(ent) && G_IsUnitAbilityAvailable(ent,move);
+}
+
 static void patrol_clear(edict_t *ent) {
     S_SetMoveGoal(ent,&ent->movement.patrol_target,NULL);
     S_SetMoveGoal(ent,&ent->movement.patrol_b,NULL);
@@ -63,6 +71,10 @@ static bool patrol_leg_active(edict_t const *ent) {
 void order_patrol_resume(edict_t *self) {
     if (S_GoldMineWorkerIsInside(self)) return;
     S_IssueMoveOrder(self,self->movement.patrol_target,WC3_ORDER_ID_PATROL_TWO_POINTS);
+    S_EnsurePointMoveOwner(self);
+    if(self->movement.patrol_target && self->goalentity==self->movement.patrol_target &&
+       self->currentmove==&move_move_walk)
+        S_AttackEnableAcquisition(self);
 }
 
 /* d0175 runs at the point task's arrival (5fa7a0), which the generic can't-path
@@ -115,17 +127,34 @@ static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
 
 BZ_ABILITY_PROC(CAbilityPatrol) {
     switch(msg) {
+    case A_POINT_ORDER_ADMIT:
+        return patrol_can_issue(ent) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    case A_POINT_ORDER: {
+        if(!call || !call->point_order.point || !patrol_can_issue(ent))return ABILITY_ORDER_REJECTED;
+        edict_t *point=Waypoint_add(call->point_order.point);
+        return point && S_IssuePatrolOrder(ent,point) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    }
+    case A_TARGET_ORDER_ADMIT: {
+        if(!call || !call->issued_target_order.order || strcmp(call->issued_target_order.order,"patrol"))
+            return ABILITY_ORDER_UNHANDLED;
+        if(!patrol_can_issue(ent))return ABILITY_ORDER_REJECTED;
+        edict_t *target=call->issued_target_order.target;
+        /*5fb110 retains friendly mobile targets. Enemy, structure, self and
+         * unavailable target forms publish the packet's point instead. */
+        if(target && target!=ent && !G_UnitIsStructure(target) &&
+           G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v')) &&
+           S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID &&
+           G_PlayerTreatsPlayerAsAlly(ent->s.player,target->s.player) && !S_WaygateIsActive(target))
+            return ABILITY_ORDER_ACCEPTED;
+        return call->issued_target_order.point ? ABILITY_ORDER_POINT : ABILITY_ORDER_REJECTED;
+    }
+    case A_ISSUED_TARGET_ORDER:
+        if(!call || !call->issued_target_order.order || strcmp(call->issued_target_order.order,"patrol"))
+            return ABILITY_ORDER_UNHANDLED;
+        return patrol_can_issue(ent) && S_IssueFollowOrder(ent,call->issued_target_order.target,G_OrderId("patrol"))
+            ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_UNIT_TYPE_UPDATE:
         return UNIT_UPDATE_POINTER(movement.patrol_target);
-    case A_UPDATE:
-        /* Routing runs on Move's owner clock. Keep automatic acquisition on
-         * the existing once-per-frame ability pass without an unsaved stamp. */
-        if (ent && !ent->paused && !ent->stunned && patrol_leg_active(ent) &&
-            G_ShouldAcquireThisFrame(ent)) {
-            edict_t *enemy=G_FindNearestEnemy(ent,G_AcquisitionRange(ent));
-            if (enemy) order_attack(ent,enemy);
-        }
-        return true;
     case A_QUEUE_ORDER_START:
         if (!call || !call->queued_order || call->queued_order->owner_context!=PATROL_QUEUE_TWO_POINTS ||
             !ent || !ent->inuse || M_IsDead(ent) || S_GoldMineWorkerIsInside(ent)) return false;

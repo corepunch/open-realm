@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "jass/jass.h"
+#include "fixtures/retail_patrol_hfoo_profile.h"
 
 bool run_test_jass(cstring_t);
 void reset_entities(void);
@@ -10,6 +11,137 @@ slkTestData_t *parse_slk_string(char const *);
 void free_slk_rows(slkTestData_t *);
 void CM_SetupTestPathmap(unsigned, unsigned, uint8_t const *);
 void CM_SetupTestWorldBounds(box2_t const *);
+
+/* Patrol265 uses unmodified stock Footmen and one speed-zero map alias.
+ * Install the authored rows before creation, including collision31. */
+static void patrol_public_case_callback(cstring_t body,cstring_t callback) {
+    reset_entities();setup_test_world();
+    bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    slkTestData_t *rows[]={parse_slk_string(tft?patrol_tft_UnitData:patrol_roc_UnitData),
+        parse_slk_string(tft?patrol_tft_UnitBalance:patrol_roc_UnitBalance)};
+    slkTestData_t *old[]={G_SetSLKRows("UnitData",rows[0]),G_SetSLKRows("UnitBalance",rows[1])};
+    mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+    int32_t zero=0;
+    unitModification_t mod={.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&zero};
+    unitData_t alias={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('P','z','0','0'),
+        .numbeOfModifications=1,.modifications=&mod};
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&alias;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    float minimum=game.constants.minUnitSpeed,maximum=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    char script[8192];
+    snprintf(script,sizeof(script),"globals\nunit actor=null\nunit peer=null\ninteger points=0\ninteger targets=0\n"
+        "integer eventHead=0\nunit eventTarget=null\nreal eventX=0.\nendglobals\n"
+        "function observed takes boolean isPoint returns nothing\n"
+        " if GetIssuedOrderId()==851990 then\n"
+        "  set eventHead=GetUnitCurrentOrder(actor)\n  set eventTarget=GetOrderTargetUnit()\n"
+        "  set eventX=GetOrderPointX()\n"
+        "  if isPoint then\nset points=points+1\n"
+        "  else\nset targets=targets+1\nendif\n%s\n endif\nendfunction\n"
+        "function observedPoint takes nothing returns nothing\ncall observed(true)\nendfunction\n"
+        "function observedTarget takes nothing returns nothing\ncall observed(false)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\nlocal trigger u=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerRegisterPlayerUnitEvent(u,Player(0),EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,null)\n"
+        "call TriggerAddAction(t,function observedPoint)\ncall TriggerAddAction(u,function observedTarget)\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call SetPlayerAlliance(Player(0),Player(1),ALLIANCE_PASSIVE,false)\n"
+        "call SetPlayerAlliance(Player(1),Player(0),ALLIANCE_PASSIVE,false)\n%s\nendfunction\n",callback,body);
+    T_ASSERT(run_test_jass(script));
+    FILTER_EDICTS(e,e->inuse && G_IsDeferredFree(e)) {
+        T_NULL(e->movement.patrol_target);T_EQ(e->movement.group_id,0);
+    }
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
+    G_SetSLKRows("UnitData",old[0]);G_SetSLKRows("UnitBalance",old[1]);
+    FOR_LOOP(i,2)free_slk_rows(rows[i]);
+    game.constants.minUnitSpeed=minimum;game.constants.maxUnitSpeed=maximum;
+    setup_test_world();
+}
+static void patrol_public_case(cstring_t body) {patrol_public_case_callback(body,"");}
+
+TEST(wc3_patrol_orders, native_adjacent_threshold_publishes_before_expansion) {
+    FOR_LOOP(i,3) {
+        char body[1600];snprintf(body,sizeof(body),
+            "set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\ncall SetUnitAcquireRange(actor,0.)\n"
+            "call BJassAssert(IssuePointOrder(actor,\"patrol\",I2R(%u)/16384.,512.),\"adjacent point accepted\")\n"
+            "call BJassAssert(points==1 and targets==0,\"point publication\")\n"
+            "call BJassAssert(eventHead==851990,\"issued head precedes expansion\")\n"
+            "call BJassAssert(eventX==I2R(%u)/16384.,\"unmodified adjacent click\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(actor)==%u,\"threshold result\")\n",
+            10027007+(unsigned)i,10027007+(unsigned)i,i?851991:0);
+        patrol_public_case(body);
+    }
+}
+
+TEST(wc3_patrol_orders, native_move_attachment_and_availability_gate_patrol) {
+    char const *setup[]={
+        "call BJassAssert(UnitRemoveAbility(actor,'Amov'),\"remove Move\")\n",
+        "call SetPlayerAbilityAvailable(Player(0),'Amov',false)\n",
+        ""};
+    FOR_LOOP(i,3) {
+        char body[1500];snprintf(body,sizeof(body),
+            "set actor=CreateUnit(Player(0),'%s',512.,512.,180.)\n%s"
+            "call BJassAssert(not IssuePointOrder(actor,\"patrol\",768.,512.),\"unavailable Move rejects Patrol\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(actor)==0 and points==0 and targets==0,\"rejection has no publication\")\n"
+            "call SetPlayerAbilityAvailable(Player(0),'Amov',true)\n",i==2?"Pz00":"hfoo",setup[i]);
+        patrol_public_case(body);
+    }
+}
+
+TEST(wc3_patrol_orders, native_runtime_zero_speed_retains_patrol_owner) {
+    patrol_public_case("set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\n"
+        "call SetUnitMoveSpeed(actor,0.)\n"
+        "call BJassAssert(GetUnitMoveSpeed(actor)==150. and GetUnitAbilityLevel(actor,'Amov')==1,\"runtime zero clamps with attached Move\")\n"
+        "call BJassAssert(IssuePointOrder(actor,\"patrol\",768.,512.),\"runtime zero Patrol accepted\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(actor)==851991,\"runtime zero expands Patrol\")\n");
+}
+
+TEST(wc3_patrol_orders, native_friendly_target_patrol_keeps_target_head) {
+    patrol_public_case("set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\n"
+        "set peer=CreateUnit(Player(0),'hfoo',1024.,512.,0.)\n"
+        "call BJassAssert(IssueTargetOrder(actor,\"patrol\",peer),\"friendly target Patrol accepted\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(actor)==851990,\"friendly Patrol retains target head\")\n"
+        "call BJassAssert(targets==1 and points==0 and eventTarget==peer and eventHead==851990,\"target publication\")\n");
+}
+
+TEST(wc3_patrol_orders, native_enemy_and_structure_patrol_convert_to_point) {
+    FOR_LOOP(i,2) {
+        char body[1400];snprintf(body,sizeof(body),
+            "set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\n"
+            "set peer=CreateUnit(Player(%u),'%s',1024.,512.,0.)\n"
+            "call BJassAssert(IssueTargetOrder(actor,\"patrol\",peer),\"target converted to point\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(actor)==851991,\"converted Patrol expands\")\n"
+            "call BJassAssert(points==1 and targets==0 and eventTarget==null and eventX==1024. and eventHead==851990,\"converted point publication\")\n",
+            i?0:1,i?"hbar":"hfoo");
+        patrol_public_case(body);
+    }
+}
+
+TEST(wc3_patrol_orders, native_self_target_patrol_completes_short_point) {
+    patrol_public_case("set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\n"
+        "call BJassAssert(IssueTargetOrder(actor,\"patrol\",actor),\"self Patrol accepted\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(actor)==0,\"self short completion\")\n"
+        "call BJassAssert(points==1 and targets==0 and eventTarget==null and eventHead==851990,\"self point publication\")\n");
+}
+
+/* Engine reentrancy guards for publication before the Patrol constructor;
+ * these callback mutations are not additional retail265 scenes. */
+TEST(wc3_patrol_orders, issued_callback_move_replaces_patrol_before_construction) {
+    patrol_public_case_callback("set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\n"
+        "call BJassAssert(IssuePointOrder(actor,\"patrol\",1024.,512.),\"outer Patrol admitted\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(actor)==851986,\"callback Move survives outer Patrol\")\n"
+        "call BJassAssert(points==1,\"Patrol published once\")\n",
+        "call BJassAssert(IssuePointOrder(actor,\"move\",256.,512.),\"callback Move admitted\")\n"
+        "call BJassAssert(GetIssuedOrderId()==851990,\"outer callback retains its packet\")\n");
+}
+
+TEST(wc3_patrol_orders, issued_callback_removal_prevents_patrol_construction) {
+    patrol_public_case_callback("set actor=CreateUnit(Player(0),'hfoo',512.,512.,180.)\n"
+        "call BJassAssert(IssuePointOrder(actor,\"patrol\",1024.,512.),\"outer Patrol admitted\")\n"
+        "call BJassAssert(points==1,\"removed Patrol published once\")\n",
+        "call RemoveUnit(actor)\n");
+}
 
 static edict_t *patrol_orders_setup(void) {
     reset_entities();setup_test_world();

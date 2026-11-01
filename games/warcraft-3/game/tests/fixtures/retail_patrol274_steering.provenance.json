@@ -1,0 +1,22 @@
+{
+  "captures": {
+    "frozen-sources.json": "ee83ede4123a3a8356bc6252486a30995c506ed63e413ce1050da0454f6a9e30",
+    "abi-static.json": "5ee80a4d33cfc1084e15690ed3eb6573177285e47082df790473b4fb918f3351",
+    "itemdrop_probe.j": "3ba500abb7a1f6ab606bd9c363ca6e43ae66366b98d0be8e87f9db97b484fe02",
+    "itemdrop_observer.js": "c1f82ee00b6da2432f98432f9880a4abefd3daea6ecc080d2423c7344cb355bf",
+    "itemdrop_capture.py": "6514508c66612624e23ed556234e6c6477af062fcaf337ec3cc1ee6faf255b30",
+    "itemdrop_make_map.py": "053e8c2d5d4b22f274d0db29b49b570b7a076b8204bf63506fa57e9242fb3069",
+    "RS-TARGET265-patrol-public-v2.w3m": "61398ccf04ec20791b04e94173583b0a32a4ebd05a4827a9f570c374f1a360cf",
+    "observe1.jsonl": "71bc2e9a54b80824233b1a5d4ae0aa900933a3c48d1699670c1f8154bf7f344b",
+    "observe2.jsonl": "fe9aaec583cfcf789e47f93fa5d14a5a4c5bf3065f5d8d10104c75914bc3713c",
+    "control1.jsonl": "d1c4ec10b9ca0961de29ef3ebd7a4f0b0f8c05027613edf92f9ed776d0d3e3b7",
+    "control1-preload.txt": "fdeecafbe51f942f45059808a4dbe69722d73e1dda42acd30439a37bde5fc1e4",
+    "runs.json": "d768e53594acdb1aa0f45cdc9ec4db5cf0c4a0cbfa747250b2b8f8c53a5f350a"
+  },
+  "repository_files": {
+    "tools/ghidra/research/patrol274_steering_projection.py": "3a8600a6faba8480edc5646ff26625e3b74daac433e46a0c1c0cde01deb95f68",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol274_steering.json": "03e319b39acf4ab4473c55f0f6d2a92762b09b637661adf9f1f99b401eb41b80",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json": "ab5a28b4426d67fc1bc54688ec3593bc13732aaa89d33cc8b792c062c9ee3af5",
+    "tools/ghidra/research/patrol265_public_projection.py": "fbbe5665804b3c326658600e4a2068e1f6eda2505cf76037c8098850053eb706"
+  }
+}

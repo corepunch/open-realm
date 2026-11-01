@@ -1454,7 +1454,10 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
         abilityitem_t item={.ability=owner};
         abilityCall_t call={.item=&item,.point_order={point,order}};
         abilityOrderResult_t result=S_AbilityMessage(self,A_POINT_ORDER,&call);
-        if(result!=ABILITY_ORDER_UNHANDLED)return result==ABILITY_ORDER_ACCEPTED;
+        if(result!=ABILITY_ORDER_UNHANDLED) {
+            if(result==ABILITY_ORDER_ACCEPTED && owner_head)*owner_head=self->current_order_id;
+            return result==ABILITY_ORDER_ACCEPTED;
+        }
     }
     /* The Attack owner keeps the exact clicked point, including range-hold
      * orders on ordinary weapons and in-range immobile artillery. */
@@ -1473,18 +1476,6 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
         S_IssueMoveOrder(self, waypoint, G_OrderId(order));
         self->movement.group_speed = group_speed;
         return true;
-    }
-    if (!strcmp(order, "patrol")) {
-        /* Original5fe1a0 keeps the clicked point48/50 and runs each leg as an
-         * ordinary point task; Move's endpoint retry owns unreachable clicks. */
-        waypoint = Waypoint_add(point);
-        if (!waypoint) return false;
-        self->movement.holding_position = false;
-        bool accepted=S_IssuePatrolOrder(self,waypoint);
-        /* This owner expands the issued point into a two-point order, or
-         * retires a short leg. Report its actual head to queued activation. */
-        if(accepted && owner_head)*owner_head=self->current_order_id;
-        return accepted;
     }
     if (strcmp(order,"attack")) return false;
     /*49a980 retains the clicked point; blocked goals reach Move's own
@@ -1693,6 +1684,12 @@ static bool unit_issue_point_order(edict_t *self, cstring_t order, vec2_t const 
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
                                                issuer_player, group_speed, 0);
         return accepted;
+    }
+    if(owned) {
+        unitOrder_t packet;
+        if(!unit_prepare_order_packet(&packet,order,UNIT_ORDER_TARGET_POINT,point,NULL,
+                                      issuer_player,group_speed,G_OrderId(order)))return false;
+        return G_AdmitUnitOrder(self,&packet,!queue);
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     if (!owned && (!owner || owner->proc==CAbilityMove) &&

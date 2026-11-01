@@ -1,0 +1,160 @@
+{
+  "native_projection": "patrol272-lifetime124c-startup-v1/native-projection.json (external frozen archive)",
+  "sha256": "142aa07768dd100e6316ad540f800b0b3c151f805c82263d142f1e7a3bfa3a95",
+  "call_rva": "4989af",
+  "callee": "695c70",
+  "purpose": 2,
+  "missing_draws": [
+    {
+      "before": [
+        1212630550,
+        605037672
+      ],
+      "after": [
+        1317665902,
+        537136204
+      ],
+      "word": 1317665902
+    },
+    {
+      "before": [
+        1317665902,
+        537136204
+      ],
+      "after": [
+        796207874,
+        483188784
+      ],
+      "word": 796207874
+    },
+    {
+      "before": [
+        796207874,
+        483188784
+      ],
+      "after": [
+        322405141,
+        415287316
+      ],
+      "word": 322405141
+    },
+    {
+      "before": [
+        322405141,
+        415287316
+      ],
+      "after": [
+        1583082947,
+        347386092
+      ],
+      "word": 1583082947
+    },
+    {
+      "before": [
+        1583082947,
+        347386092
+      ],
+      "after": [
+        1310631477,
+        279484624
+      ],
+      "word": 1310631477
+    },
+    {
+      "before": [
+        1310631477,
+        279484624
+      ],
+      "after": [
+        3578718265,
+        211583156
+      ],
+      "word": 3578718265
+    },
+    {
+      "before": [
+        3578718265,
+        211583156
+      ],
+      "after": [
+        924375265,
+        143681688
+      ],
+      "word": 924375265
+    }
+  ],
+  "public_declines": [
+    {
+      "tick": 19,
+      "actor": 3,
+      "before": 420.0,
+      "after": 0.0,
+      "note": "role3 zero follows synchronous damage callback removal"
+    },
+    {
+      "tick": 19,
+      "actor": 4,
+      "before": 420.0,
+      "after": 409.290679904,
+      "note": "damage decrease despite regeneration"
+    },
+    {
+      "tick": 20,
+      "actor": 2,
+      "before": 420.0,
+      "after": 409.300689696,
+      "note": "damage decrease despite regeneration"
+    },
+    {
+      "tick": 22,
+      "actor": 1,
+      "before": 420.0,
+      "after": 409.30569456,
+      "note": "damage decrease despite regeneration"
+    },
+    {
+      "tick": 33,
+      "actor": 2,
+      "before": 409.60067744,
+      "after": 398.018493652,
+      "note": "damage decrease despite regeneration"
+    },
+    {
+      "tick": 33,
+      "actor": 4,
+      "before": 409.615692096,
+      "after": 398.926361024,
+      "note": "damage decrease despite regeneration"
+    },
+    {
+      "tick": 35,
+      "actor": 1,
+      "before": 409.605682368,
+      "after": 398.916351296,
+      "note": "damage decrease despite regeneration"
+    }
+  ],
+  "scope": "Seven public hit/decrease episodes plus original one-die Attack algorithm reconcile state exactly; no per-hit RNG hook in272, no claim of per-hit draw observation.",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scope_limit": "Ordinary1..16 authored dice ownership only; zero-dice native returns0 while existing engine constant-damage behavior remains; >16 native Gaussian remains unimplemented by this change.",
+  "static": {
+    "decompile": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"program\":\"game.dll\",\"functions\":{\"6f498960\":{\"name\":\"AbilityAttack_GetDamageAmount\",\"size\":120,\"address\":\"6f498960\",\"language_id\":\"x86:LE:32:default\",\"variant\":\"default\",\"decompiled_code\":\"\\n// CAbilityAttack::GetDamageAmount (debug string at the call to 32d100). RandData_RollDice(out,\\n// stream 2, dice, sides, base+bonus, 1.0); result clamped at 0. NUM-04.6 live: draws at 6f1ec1a8 on\\n// stream 2 per hit, model-exact.\\n//    [NUM-04.6] Recovered descriptive name, not an original debug symbol. SHA256\\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\\n// [NUM-04.6] CAbilityAttack::GetDamageAmount (debug string at the call to 32d100).\\n// RandData_RollDice(out, stream 2, dice, sides, base+bonus, 1.0); result clamped at 0. NUM-04.6\\n// live: draws at 6f1ec1a8 on stream 2 per hit, model-exact.\\n// Recovered descriptive name, not an original debug symbol. See\\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\\n\\nWC3PathScalar * __thiscall\\nAbilityAttack_GetDamageAmount(WC3AttackRangePrefix *ability,WC3PathScalar *output)\\n\\n{\\n  uint uVar1;\\n  WC3AttackRangePrefix *pWVar2;\\n  WC3AttackRangePrefix *local_8;\\n  \\n  uVar1 = ability->damage_weapon;\\n  local_8 = ability;\\n  FUN_6f32d100(\\\"CAbilityAttack.cpp\\\",0xfd1,\\\"CAbilityAttack::GetDamageAmount\\\");\\n  RandData_RollDice((WC3PathScalar *)&local_8,2,(&ability->damage_dice0)[uVar1],\\n                    (&ability->damage_sides0)[uVar1],\\n                    (&ability->damage_bonus0)[uVar1] + (&ability->damage_base0)[uVar1],\\n                    &Math_RuntimeOne);\\n  pWVar2 = (WC3AttackRangePrefix *)Math_RuntimeZero;\\n  if ((float)Math_RuntimeZero <= (float)local_8) {\\n    pWVar2 = local_8;\\n  }\\n  *output = (WC3PathScalar)pWVar2;\\n  return output;\\n}\\n\\n\",\"revision\":{\"token\":\"1793548212865:095422a7:3\",\"epoch\":\"095422a7\",\"modification_number\":3,\"saved_time\":1793548212865,\"unsaved_changes\":false,\"decompiled\":true}},\"6f695c70\":{\"name\":\"RandData_RollDice\",\"size\":115,\"address\":\"6f695c70\",\"language_id\":\"x86:LE:32:default\",\"variant\":\"default\",\"decompiled_code\":\"\\n// CRandData dice roll: ECX out scalar*, EDX stream index, stack4 dice, stack8 sides, stack0xc\\n// bonus, stack0x10 scale*, RET 0x10. dice<1 -> out=0 with 'Bogus request to roll 0 dice'. Else\\n// out=Math_Multiply(scale, int(dice + PathRandom_RollDiceSum(sides,dice,stream) + bonus)).\\n// CAbilityAttack::GetDamageAmount 498960 uses stream 2. Other indices:\\n// 0,12,13,17,19,23,24,25,26,31,44.\\n//    [NUM-04.6] Recovered descriptive name, not an original debug symbol. SHA256\\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\\n// [NUM-04.6] CRandData dice roll: ECX out scalar*, EDX stream index, stack4 dice, stack8 sides,\\n// stack0xc bonus, stack0x10 scale*, RET 0x10. dice<1 -> out=0 with 'Bogus request to roll 0 dice'.\\n// Else out=Math_Multiply(scale, int(dice + PathRandom_RollDiceSum(sides,dice,stream) + bonus)).\\n// CAbilityAttack::GetDamageAmount 498960 uses stream 2. Other indices:\\n// 0,12,13,17,19,23,24,25,26,31,44.\\n// Recovered descriptive name, not an original debug symbol. See\\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\\n\\nWC3PathScalar * __fastcall\\nRandData_RollDice(WC3PathScalar *output,uint index,int dice,uint sides,int bonus,\\n                 WC3PathScalar *scale)\\n\\n{\\n  int iVar1;\\n  void *pvVar2;\\n  uint uVar3;\\n  WC3PathScalar *right;\\n  \\n  pvVar2 = TlsSlots_Get(0xd);\\n  iVar1 = dice;\\n  if (dice < 1) {\\n    FUN_6f1aab30(5,\\\"Bogus request to roll 0 dice\\\\n\\\");\\n    *output = Math_RuntimeZero;\\n    return output;\\n  }\\n  uVar3 = PathRandom_RollDiceSum\\n                    (sides,dice,\\n                     (WC3PathRandomState *)\\n                     (*(int *)(*(int *)((int)pvVar2 + 0x10) + 0xc) + index * 8 + 4));\\n  right = Math_FromIntegerTruncated((WC3PathScalar *)&dice,iVar1 + uVar3 + bonus);\\n  Math_Multiply(output,scale,right);\\n  return output;\\n}\\n\\n\",\"revision\":{\"token\":\"1793548212865:095422a7:3\",\"epoch\":\"095422a7\",\"modification_number\":3,\"saved_time\":1793548212865,\"unsaved_changes\":false,\"decompiled\":true}},\"6f1ec180\":{\"name\":\"PathRandom_RollDiceSum\",\"size\":187,\"address\":\"6f1ec180\",\"language_id\":\"x86:LE:32:default\",\"variant\":\"default\",\"decompiled_code\":\"\\n// Dice sum: ECX sides, EDX dice, stack4 PathRandom state, RET4, EAX u32. dice<=16: sum of\\n// mulhi(Next,sides) (each die 0..sides-1). dice>16: one Gaussian sample 1d12e0(mean\\n// ((sides-1)*dice)*0.5, sd from sqrt) +0.5, truncated and clamped to (sides-1)*dice.\\n//    [NUM-04.6] Recovered descriptive name, not an original debug symbol. SHA256\\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\\n// [NUM-04.6] Dice sum: ECX sides, EDX dice, stack4 PathRandom state, RET4, EAX u32. dice<=16: sum\\n// of mulhi(Next,sides) (each die 0..sides-1). dice>16: one Gaussian sample 1d12e0(mean\\n// ((sides-1)*dice)*0.5, sd from sqrt) +0.5, truncated and clamped to (sides-1)*dice.\\n// Recovered descriptive name, not an original debug symbol. See\\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\\n\\nuint __fastcall PathRandom_RollDiceSum(uint sides,uint dice,WC3PathRandomState *state)\\n\\n{\\n  double dVar1;\\n  uint uVar2;\\n  int extraout_EDX;\\n  uint uVar3;\\n  float10 fVar4;\\n  double dVar5;\\n  \\n  if (0x10 < dice) {\\n    uVar2 = (sides - 1) * dice;\\n    dVar1 = (double)(&DAT_6fbe39b0)[-((int)uVar2 >> 0x1f)];\\n    dVar5 = (double)(float)((double)(int)uVar2 + dVar1);\\n    libm_sse2_sqrt_precise();\\n    fVar4 = (float10)FUN_6f1d12e0((float)((double)(int)uVar2 + dVar1) * 0.5,(float)dVar5);\\n    uVar3 = (uint)(fVar4 + (float10)0.5);\\n    if (uVar2 < uVar3) {\\n      uVar3 = ~((int)uVar3 >> 0x1f) & uVar2;\\n    }\\n    return uVar3;\\n  }\\n  uVar3 = 0;\\n  for (; dice != 0; dice = dice - 1) {\\n    uVar2 = PathRandom_Next(state);\\n    __allmul(uVar2,0,sides,0);\\n    uVar3 = uVar3 + extraout_EDX;\\n  }\\n  return uVar3;\\n}\\n\\n\",\"revision\":{\"token\":\"1793548212865:095422a7:3\",\"epoch\":\"095422a7\",\"modification_number\":3,\"saved_time\":1793548212865,\"unsaved_changes\":false,\"decompiled\":true}}},\"count\":3,\"requested\":3}"
+        }
+      ],
+      "isError": false
+    },
+    "assembly": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"program\":\"game.dll\",\"instructions\":[{\"address\":\"6f498960\",\"instruction\":\"PUSH EBP\"},{\"address\":\"6f498961\",\"instruction\":\"MOV EBP,ESP\"},{\"address\":\"6f498963\",\"instruction\":\"PUSH ECX\"},{\"address\":\"6f498964\",\"instruction\":\"PUSH ESI\"},{\"address\":\"6f498965\",\"instruction\":\"PUSH EDI\"},{\"address\":\"6f498966\",\"instruction\":\"MOV EDI,ECX\"},{\"address\":\"6f498968\",\"instruction\":\"PUSH 0x6fadb950\"},{\"address\":\"6f49896d\",\"instruction\":\"PUSH 0xfd1\"},{\"address\":\"6f498972\",\"instruction\":\"PUSH 0x6fadb93c\"},{\"address\":\"6f498977\",\"instruction\":\"MOV ESI,dword ptr [EDI + 0x2b8]\"},{\"address\":\"6f49897d\",\"instruction\":\"CALL 0x6f32d100\"},{\"address\":\"6f498982\",\"instruction\":\"MOV EAX,dword ptr [EDI + ESI*0x4 + 0xac]\"},{\"address\":\"6f498989\",\"instruction\":\"LEA ECX,[EBP + -0x4]\"},{\"address\":\"6f49898c\",\"instruction\":\"ADD EAX,dword ptr [EDI + ESI*0x4 + 0xa0]\"},{\"address\":\"6f498993\",\"instruction\":\"ADD ESP,0xc\"},{\"address\":\"6f498996\",\"instruction\":\"MOV EDX,0x2\"},{\"address\":\"6f49899b\",\"instruction\":\"PUSH 0x6fd3c748\"},{\"address\":\"6f4989a0\",\"instruction\":\"PUSH EAX\"},{\"address\":\"6f4989a1\",\"instruction\":\"PUSH dword ptr [EDI + ESI*0x4 + 0x94]\"},{\"address\":\"6f4989a8\",\"instruction\":\"PUSH dword ptr [EDI + ESI*0x4 + 0x88]\"},{\"address\":\"6f4989af\",\"instruction\":\"CALL 0x6f695c70\"},{\"address\":\"6f4989b4\",\"instruction\":\"MOVSS XMM0,dword ptr [0x6fd3c744]\"},{\"address\":\"6f4989bc\",\"instruction\":\"COMISS XMM0,dword ptr [EBP + -0x4]\"},{\"address\":\"6f4989c0\",\"instruction\":\"MOV EAX,dword ptr [EBP + 0x8]\"},{\"address\":\"6f4989c3\",\"instruction\":\"MOV ECX,dword ptr [0x6fd3c744]\"},{\"address\":\"6f4989c9\",\"instruction\":\"POP EDI\"},{\"address\":\"6f4989ca\",\"instruction\":\"POP ESI\"},{\"address\":\"6f4989cb\",\"instruction\":\"JA 0x6f4989d0\"},{\"address\":\"6f4989cd\",\"instruction\":\"MOV ECX,dword ptr [EBP + -0x4]\"},{\"address\":\"6f4989d0\",\"instruction\":\"MOV dword ptr [EAX],ECX\"},{\"address\":\"6f4989d2\",\"instruction\":\"MOV ESP,EBP\"},{\"address\":\"6f4989d4\",\"instruction\":\"POP EBP\"},{\"address\":\"6f4989d5\",\"instruction\":\"RET 0x4\"}],\"count\":33,\"resolved_function\":{\"name\":\"AbilityAttack_GetDamageAmount\",\"address\":\"6f498960\"}}"
+        }
+      ],
+      "isError": false
+    }
+  }
+}

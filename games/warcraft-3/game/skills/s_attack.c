@@ -40,6 +40,13 @@ static void attack_set_backswing_deadline(edict_t *ent);
 static float attack_backswing_remaining(edict_t const *ent);
 static umove_t attack_move_melee_cooldown;
 static umove_t attack_move_ranged_cooldown;
+static umove_t attack_move_reaction = { "stand ready", NULL, NULL, CAbilityAttack };
+static void attack_reaction_cancel(edict_t *unit);
+static void attack_damage_cancel(edict_t *unit);
+static void attack_damage_fire(edict_t *unit);
+static void attack_swing_complete(edict_t *unit);
+static bool attack_damage_owner(edict_t const *unit);
+static void attack_reaction_fire(edict_t *unit);
 static umove_t attack_move_finish = { "stand ready", NULL, NULL, CAbilityAttack };
 static void attack_resume_after_combat(edict_t *attacker);
 static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason);
@@ -56,6 +63,8 @@ static attackTargetList_t attack_target_lists[MAX_ENTITIES];
 #ifdef BZ_TESTS
 static uint32_t attack_target_visits;
 static void (*attack_test_target_lost)(edict_t *);
+static void (*attack_test_acquire)(edict_t const *,bool,float);
+static void (*attack_test_damage)(edict_t const *);
 #endif
 
 static uint16_t attack_target_identity(edict_t const *unit) {
@@ -89,6 +98,7 @@ static void attack_set_alternative(edict_t *unit,edict_t *target) {
 }
 
 static void attack_set_target(edict_t *unit,edict_t *target) {
+    attack_reaction_cancel(unit);attack_damage_cancel(unit);
     uint16_t id=attack_target_identity(unit),other=attack_target_identity(target);
     if(id)attack_target_unlink(id);
     unit->attack_target=target;unit->attack_target_spawn_time=target ? target->spawn_time : 0;
@@ -104,11 +114,28 @@ static int attack_target_compare(void const *a,void const *b) {
         (x->attack_target_sequence<y->attack_target_sequence);
 }
 
+static bool attack_saved_timer_valid(abilityPrimaryTimer_t const *timer) {
+    return timer->sequence && timer->sequence<=level.timer_sequence &&
+        isfinite(timer->deadline.time) && isfinite(timer->deadline.span) &&
+        timer->deadline.span>0;
+}
+
 bool S_ValidateAttackTargets(void) {
     uint16_t units[MAX_ENTITIES];uint32_t count=0;
     FOR_LOOP(i,globals.num_edicts) {
         edict_t const *unit=g_edicts+i,*target=unit->attack_target;
         if(!unit->inuse)continue;
+        FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
+            attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
+            if(slot->target) {
+                if(!attack_target_identity(slot->target) || !slot->timer.active ||
+                   !attack_saved_timer_valid(&slot->timer))return false;
+            } else if(slot->target_spawn_time || slot->timer.active)return false;
+        }
+        if(unit->attack_damage.active && (!attack_damage_owner(unit) ||
+           !attack_saved_timer_valid(&unit->attack_damage)))return false;
+        if(unit->attack_reaction.active && (!target || unit->currentmove!=&attack_move_reaction ||
+           M_IsDead((edict_t *)unit) || !attack_saved_timer_valid(&unit->attack_reaction)))return false;
         if(unit->attack_alternative && !attack_target_identity(unit->attack_alternative))return false;
         if(!unit->attack_alternative && unit->attack_alternative_spawn_time)return false;
         if(!target) {if(unit->attack_target_sequence)return false;continue;}
@@ -191,17 +218,21 @@ void S_DeliverAttackTargetEvent(edict_t *unit,edict_t *target,abilityMsg_t messa
 #define ATTACK_HELP_SUPPRESSION 3.0f
 #define ATTACK_AI_HELP_SUPPRESSION 0.5f
 
-enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_SWING, ATTACK_TIMER_GUARD, ATTACK_TIMER_SCAN, ATTACK_TIMER_COUNT };
+enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_SWING, ATTACK_TIMER_GUARD, ATTACK_TIMER_SCAN, ATTACK_TIMER_REACTION, ATTACK_TIMER_DAMAGE, ATTACK_TIMER_FAILED_FIRST, ATTACK_TIMER_COUNT=ATTACK_TIMER_FAILED_FIRST+ATTACK_FAILED_TARGET_SLOTS };
 static uint32_t attack_cap_heap[MAX_ENTITIES*ATTACK_TIMER_COUNT], attack_cap_positions[MAX_ENTITIES*ATTACK_TIMER_COUNT];
 static uint32_t attack_cap_count;
 
 static abilityPrimaryTimer_t *attack_primary_timer(uint32_t key) {
     edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
-    switch (key%ATTACK_TIMER_COUNT) {
+    unsigned kind=key%ATTACK_TIMER_COUNT;
+    if(kind>=ATTACK_TIMER_FAILED_FIRST)return &unit->attack_failed_targets[kind-ATTACK_TIMER_FAILED_FIRST].timer;
+    switch (kind) {
     case ATTACK_TIMER_HELP: return &unit->combat_help;
     case ATTACK_TIMER_SWING: return &unit->attack_swing;
     case ATTACK_TIMER_GUARD: return &unit->attack_guard.timer;
     case ATTACK_TIMER_SCAN: return &unit->attack_scan;
+    case ATTACK_TIMER_REACTION: return &unit->attack_reaction;
+    case ATTACK_TIMER_DAMAGE: return &unit->attack_damage;
     default: return &unit->attack_speed_cap;
     }
 }
@@ -237,6 +268,42 @@ static void attack_cap_insert(edict_t *unit,unsigned kind) {
     }
     attack_cap_put(position,slot);
 }
+static void attack_failed_target_expire(edict_t *unit,unsigned slot) {
+    attack_cap_remove(unit,ATTACK_TIMER_FAILED_FIRST+slot);
+    unit->attack_failed_targets[slot]=(attackFailedTarget_t){0};
+}
+static void attack_failed_targets_clear(edict_t *unit) {
+    FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS)attack_failed_target_expire(unit,i);
+}
+static bool attack_failed_target_allowed(edict_t const *unit,edict_t const *target) {
+    FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
+        attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
+        if(slot->target==target && slot->target_spawn_time==target->spawn_time)return false;
+    }
+    return true;
+}
+/*495c00: same weak identity refreshes its slot; otherwise the last empty
+ * slot wins, or the earliest remaining timer (strict comparison keeps ties). */
+static void attack_failed_target_remember(edict_t *unit,edict_t *target) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) ||
+       !S_AttackCanTarget(unit,target))return;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    unsigned selected=UINT32_MAX;float least=0;
+    FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
+        attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
+        if(slot->target==target && slot->target_spawn_time==target->spawn_time){selected=i;break;}
+        if(!slot->target) {selected=i;least=0;continue;}
+        float remaining=slot->timer.active ? MAX(0,wc3_sub(slot->timer.deadline.time,now.time)) : 0;
+        if(selected==UINT32_MAX || remaining<least){selected=i;least=remaining;}
+    }
+    attack_failed_target_expire(unit,selected);
+    attackFailedTarget_t *slot=unit->attack_failed_targets+selected;
+    *slot=(attackFailedTarget_t){.target=target,.target_spawn_time=target->spawn_time,
+        .timer={.active=true,.deadline=now,.sequence=++level.timer_sequence}};
+    slot->timer.deadline.time=wc3_add(now.time,10.0f);
+    attack_cap_insert(unit,ATTACK_TIMER_FAILED_FIRST+selected);
+}
+
 static bool attack_cap_present(edict_t const *unit) {
     FOR_LOOP(i,ARRAY_COUNT(unit->abilities.removed))
         if(unit->abilities.removed[i]==MAKEFOURCC('A','a','t','k'))return false;
@@ -268,21 +335,80 @@ static void attack_swing_cancel(edict_t *unit) {
 }
 /*493ff0 selects idle0.5 and retained-target1.0, measured from d6bf40/44.
  * The request belongs to Attack even while Move owns the active unit task. */
+static void attack_reaction_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_REACTION);unit->attack_reaction.active=false;
+}
+static void attack_damage_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_DAMAGE);unit->attack_damage.active=false;
+}
+static void attack_damage_arm(edict_t *unit,unitAttack_t const *profile,float divisor) {
+    attack_damage_cancel(unit);
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    /*49d130 clamps the authored damage point below the cooldown by the
+     * native Chaos commit quantum;060190 admits a minimum0.0001 request. */
+    float delay=MIN(wc3_div(profile->damagePoint,divisor),
+        wc3_sub(wc3_div(profile->cooldown,divisor),.01f));
+    delay=MAX(delay,wc3_float(0x38d1b717));
+    unit->attack_damage=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    unit->attack_damage.deadline.time=wc3_add(now.time,delay);
+    unit->wait=0;
+    attack_cap_insert(unit,ATTACK_TIMER_DAMAGE);
+}
 static void attack_acquire_cancel(edict_t *unit) {
     attack_cap_remove(unit,ATTACK_TIMER_SCAN);unit->attack_scan.active=false;
 }
-static void attack_acquire_arm(edict_t *unit,wc3Clock_t now) {
+static void attack_acquire_disable(edict_t *unit) {
+    unit->attack_scan_enabled=false;
+    /*49d260 leaves the initial2000 request alive;493ff0 consumes it once. */
+    if(!unit->attack_scan_initial_pending)attack_acquire_cancel(unit);
+}
+static void attack_acquire_arm(edict_t *unit,wc3Clock_t now,float delay) {
     attack_acquire_cancel(unit);
     unit->attack_scan=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
     /* Primary queues retain outgoing-span scalar deadlines. Normalizing a
      * future request here makes it due again inside the old-span drain. */
-    unit->attack_scan.deadline.time=wc3_add(now.time,unit->attack_target ? 1 : .5f);
+    unit->attack_scan.deadline.time=wc3_add(now.time,delay);
     attack_cap_insert(unit,ATTACK_TIMER_SCAN);
 }
-static void attack_acquire_ensure(edict_t *unit) {
-    if(unit && attack_target_identity(unit) && unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit) &&
-       !unit->attack_scan.active && CAbilityAttack(unit,A_UNIT_OWNED,NULL))
-        attack_acquire_arm(unit,G_TimerQueryClock(NULL));
+static void attack_acquire_enable(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       !CAbilityAttack(unit,A_UNIT_OWNED,NULL) ||
+       S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))return;
+    unit->attack_scan_enabled=true;
+    if(!unit->attack_scan_initial_pending)
+        attack_acquire_arm(unit,G_TimerQueryClock(NULL),.01f);
+}
+void S_AttackEnableAcquisition(edict_t *unit) {
+    if(S_UnitExecutionPaused(unit))return;
+    attack_acquire_enable(unit);
+}
+
+static void attack_acquire_ensure(edict_t *unit,bool attachment) {
+    /* Spawn attaches abilities before publishing authored health. A fresh
+     * attachment is not a corpse merely because that scalar is still zero;
+     * later Stand/Move refreshes retain their ordinary live-unit guard. */
+    if(unit && attack_target_identity(unit) && unit->inuse &&
+       (attachment ? !(unit->svflags&SVF_DEADMONSTER) : !M_IsDead(unit)) && !G_IsDeferredFree(unit) &&
+       !unit->attack_scan.active && (attachment || (!unit->paused &&
+       !S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))) && CAbilityAttack(unit,A_UNIT_OWNED,NULL)) {
+        unit->attack_scan_enabled=true;
+        float delay=unit->attack_target ? 1 : .5f;
+        /*4993b0 consumes one purpose-stream2 real only on attachment. */
+        if(attachment) {
+            delay=wc3_mul(delay,wc3_random_unit(level.purpose_random+2));
+            unit->attack_scan_initial_pending=true;
+        }
+        attack_acquire_arm(unit,G_TimerQueryClock(NULL),delay);
+#ifdef BZ_TESTS
+        if(attachment && attack_test_acquire)attack_test_acquire(unit,true,delay);
+#endif
+    }
+}
+
+static bool attack_acquire_patrol(edict_t const *unit) {
+    return unit->current_order_id==WC3_ORDER_ID_PATROL_TWO_POINTS &&
+        unit->movement.patrol_target && unit->goalentity==unit->movement.patrol_target &&
+        move_is_active_order_walk(unit);
 }
 
 /* Native00b570 initializes the guard poll period independently of map tuning.
@@ -349,16 +475,22 @@ static void attack_acquire_fire(edict_t *);
 static void attack_primary_fire(void) {
     uint32_t key=attack_cap_heap[0];
     edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
-    switch (key%ATTACK_TIMER_COUNT) {
+    unsigned kind=key%ATTACK_TIMER_COUNT;
+    if(kind>=ATTACK_TIMER_FAILED_FIRST){attack_failed_target_expire(unit,kind-ATTACK_TIMER_FAILED_FIRST);return;}
+    switch (kind) {
     case ATTACK_TIMER_HELP: attack_help_cancel(unit); break;
     case ATTACK_TIMER_GUARD: attack_guard_fire(unit); break;
     case ATTACK_TIMER_SCAN: attack_acquire_fire(unit); break;
+    case ATTACK_TIMER_REACTION: attack_reaction_fire(unit); break;
+    case ATTACK_TIMER_DAMAGE: attack_damage_fire(unit); break;
     case ATTACK_TIMER_SWING:
         attack_swing_cancel(unit);
         /* Replacement orders, death and slot reuse cannot inherit completion. */
-        if (unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit) &&
-            unit->currentmove==&attack_move_finish)
-            attack_finish_after_combat(unit,unit->goalentity,"swing_complete");
+        if (unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit)) {
+            if(unit->currentmove==&attack_move_finish)
+                attack_finish_after_combat(unit,unit->goalentity,"swing_complete");
+            else attack_swing_complete(unit);
+        }
         break;
     default: attack_cap_cancel(unit); break;
     }
@@ -797,11 +929,15 @@ static float ai_rolldamage1(edict_t *self, int weapon) {
     float damageBase = atk->damageBase;
     (void)weapon;
     FOR_LOOP(i, atk->numberOfDice) {
-        /* Warsmash treats a malformed zero-sided die as contributing +1
-         * instead of taking modulo zero. Normal Warcraft data has S > 0. */
-        damageBase += atk->sidesPerDie
-                    ? (float)(rand() % atk->sidesPerDie + 1)
-                    : 1.0f;
+        /*4989af ->695c70 ->1ec180: ordinary authored dice consume purpose2,
+         * one unsigned mulhi draw per die (also for sides0/1). This shares
+         * the stream with attachment jitter. The >16 Gaussian branch and
+         * native zero-dice rejection remain separate numeric parity work;
+         * preserve their preexisting behavior in this bounded owner fix. */
+        if(atk->numberOfDice<=16)
+            damageBase+=(float)(wc3_random_range(level.purpose_random+2,atk->sidesPerDie)+1);
+        else
+            damageBase+=atk->sidesPerDie ? (float)(rand()%atk->sidesPerDie+1) : 1.0f;
     }
     return damageBase + atk->temporaryDamageBonus;
 }
@@ -1401,8 +1537,8 @@ static void ai_melee(edict_t *ent) {
         attack_walk(ent);
         return;
     }
-    unit_changeangle(ent);
-    unit_runwait(ent, damage_target);
+    /* The physical facing task has completed. The d01b1 wait must not
+     * run generic route steering again while waiting for damage. */
 }
 
 static void ai_ranged(edict_t *ent) {
@@ -1418,8 +1554,7 @@ static void ai_ranged(edict_t *ent) {
         attack_walk(ent);
         return;
     }
-    unit_changeangle(ent);
-    unit_runwait(ent, throw_missile);
+    /* Facing is complete; projectile commit belongs to d01b1. */
 }
 
 static float attack_minimum_range(edict_t const *ent) {
@@ -1707,6 +1842,7 @@ static bool attack_failure_alternative(edict_t *unit) {
 void S_AttackTargetChaseComplete(edict_t *receiver,edict_t *unit,bool arrived) {
     if(receiver!=unit || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack)return;
     if(!arrived) {
+        attack_failed_target_remember(unit,unit->attack_target);
         if(attack_failure_alternative(unit))return;
         /*603110/5fb190 retire the failed Attack approach before Town idle
          * dispatch. A failed physical owner must not restart the same chase. */
@@ -1773,9 +1909,9 @@ static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed)
 }
 
 static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, CAbilityAttack };
-static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, CAbilityAttack };
+static umove_t attack_move_melee = { .animation="attack", .think=ai_melee, .endfunc=attack_melee_cooldown, .proc=CAbilityAttack, .leave=attack_damage_cancel };
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };
-static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, CAbilityAttack };
+static umove_t attack_move_ranged = { .animation="attack range", .think=ai_ranged, .endfunc=attack_ranged_cooldown, .proc=CAbilityAttack, .leave=attack_damage_cancel };
 
 /* Native497da0: counters belong to the current Attack object; missing Attack
  * skips both directions. Unsigned arithmetic retains the signed32 word wrap. */
@@ -1796,6 +1932,7 @@ void S_AttackAdjustPrevention(edict_t *unit, uint32_t mask, bool release) {
 }
 
 void attack_walk(edict_t *self) {
+    attack_damage_cancel(self);
     unit_setmove(self, &attack_move_walk);
 }
 
@@ -1915,7 +2052,7 @@ void attack_melee(edict_t *self) {
     attack_cap_begin(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_melee);
-    self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
+    attack_damage_arm(self,ACTIVE_ATTACK(self),divisor);
 }
 
 void attack_ranged_cooldown(edict_t *self) {
@@ -1938,7 +2075,7 @@ void attack_ranged(edict_t *self) {
     attack_cap_begin(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_ranged);
-    self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
+    attack_damage_arm(self,ACTIVE_ATTACK(self),divisor);
 }
 
 /* Original494350 prefers the first enabled artillery/line slot and falls
@@ -2024,8 +2161,7 @@ static void throw_artillery_ground(edict_t *ent) {
 static void ai_attack_ground_ranged(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    unit_changeangle(ent);
-    unit_runwait(ent, throw_artillery_ground);
+    /* Facing is complete; ground projectile commit belongs to d01b1. */
 }
 
 static void ai_attack_ground_cooldown(edict_t *ent) {
@@ -2079,7 +2215,65 @@ static void attack_ground_leave(edict_t *ent) {
 static umove_t attack_ground_move_walk = {.animation="walk",.think=ai_attack_ground_walk,.proc=CAbilityAttackGround,
     .sample_pose=S_PublishMovement,.leave=attack_ground_leave};
 static umove_t attack_ground_move_cooldown = { "stand ready", ai_attack_ground_cooldown, NULL, CAbilityAttackGround };
-static umove_t attack_ground_move_ranged = { "attack range", ai_attack_ground_ranged, attack_ground_cooldown, CAbilityAttackGround };
+static umove_t attack_ground_move_ranged = { .animation="attack range", .think=ai_attack_ground_ranged,
+    .endfunc=attack_ground_cooldown, .proc=CAbilityAttackGround, .leave=attack_damage_cancel };
+
+/*49a390: ordinary d01b2 completion requests another physical facing task
+ * even when already in range and aligned. It is independent of weapon-ready
+ * time; arrival rechecks readiness through the existing Attack owner. */
+static void attack_swing_complete(edict_t *unit) {
+    if(S_UnitExecutionPaused(unit) || !S_UnitCanTranslate(unit) ||
+       unit->attack_damage.active ||
+       (unit->currentmove!=&attack_move_melee && unit->currentmove!=&attack_move_ranged &&
+        unit->currentmove!=&attack_move_melee_cooldown && unit->currentmove!=&attack_move_ranged_cooldown))return;
+    if(attack_stop_if_target_invalid(unit))return;
+    edict_t *target=unit->goalentity;
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(unit);
+    float range=attack_target_out_of_base_range(unit) ?
+        MAX(ATTACK_MINIMUM_CHASE_RANGE,ACTIVE_ATTACK(unit)->range) : FLT_MAX;
+    attack_walk(unit);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       G_UnitMoveRevision(unit)!=revision+1 || unit->currentmove!=&attack_move_walk ||
+       unit->goalentity!=target || !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    S_BeginUnitTargetChase(unit,target,range,CAbilityAttack,S_AttackTargetChaseComplete);
+}
+
+static bool attack_damage_owner(edict_t const *unit) {
+    return !M_IsDead((edict_t *)unit) &&
+        (unit->currentmove==&attack_move_melee || unit->currentmove==&attack_move_ranged ||
+         unit->currentmove==&attack_ground_move_ranged);
+}
+
+/* d01b1 is a clock callback, not an animation/frame countdown. Revalidate
+ * retained targets at the actual commit frontier; callbacks may replace the
+ * owner, and the existing delivery functions already preserve successors. */
+static void attack_damage_fire(edict_t *unit) {
+    attack_damage_cancel(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) || S_UnitExecutionPaused(unit))return;
+    if(S_UnitIsEntanglingRooted(unit)) {
+        /* Roots prevent commitment without discarding the logical attack.
+         * The consumed timer cannot leave an assetless windup stranded: its
+         * approach think waits for the independent status owner to release. */
+        if(unit->currentmove==&attack_ground_move_ranged)attack_ground_walk(unit);
+        else if(unit->currentmove==&attack_move_melee || unit->currentmove==&attack_move_ranged)
+            attack_walk(unit);
+        return;
+    }
+    if(unit->currentmove==&attack_ground_move_ranged) {
+        throw_artillery_ground(unit);return;
+    }
+    bool melee=unit->currentmove==&attack_move_melee;
+    if(!melee && unit->currentmove!=&attack_move_ranged)return;
+    if(attack_stop_if_target_invalid(unit))return;
+    if(attack_target_out_of_base_range(unit) || attack_target_too_close(unit)) {
+        attack_walk(unit);return;
+    }
+#ifdef BZ_TESTS
+    if(attack_test_damage)attack_test_damage(unit);
+#endif
+    if(melee)damage_target(unit);else throw_missile(unit);
+}
 static umove_t attack_ground_move_hold = { "stand ready", ai_attack_ground_hold, NULL, CAbilityAttackGround };
 static umove_t attack_ground_move_failed = { "stand ready", ai_attack_ground_failed, NULL, CAbilityAttackGround };
 
@@ -2120,7 +2314,7 @@ static void attack_ground_ranged(edict_t *ent) {
      * the non-firing ground hold above must not acquire an exemption. */
     attack_cap_begin(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
-    ent->wait = attack_ground_profile(ent)->damagePoint / divisor;
+    attack_damage_arm(ent,attack_ground_profile(ent),divisor);
     if (G_UnitSoundProfile(ent)->attack) G_PlaySound(NULL, ent, CHAN_WEAPON, G_UnitSoundProfile(ent)->attack, 1.0f, 1.0f, 0.0f);
 }
 
@@ -2520,6 +2714,7 @@ static edict_t *attack_scan_point_target(edict_t *unit) {
            target==unit || target==best || !(target->svflags&SVF_MONSTER) ||
            G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
            G_UnitIsInvulnerable(target) || !G_FowPlayerCanTrackUnit(unit->s.player,target) ||
+           !attack_failed_target_allowed(unit,target) ||
            !S_AttackCanAutoAcquire(unit,target) || !S_UnitTargetInCommittedMoveRange(unit,target,range))continue;
         float minimum=attack_minimum_range(unit),selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
         if(minimum>0 && minimum<selected && fabsf(wc3_sub(minimum,selected))>=wc3_float(0x3a83126f) &&
@@ -2536,14 +2731,69 @@ static edict_t *attack_scan_point_target(edict_t *unit) {
         best->spawn_time==selected_birth ? best : NULL;
 }
 
+/*49ea80 owns d01af independently of the acquisition poll. The retained
+ * Attack target subscription supplies identity and inverse cancellation. */
+static void attack_reaction_fire(edict_t *unit) {
+    attack_reaction_cancel(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       unit->currentmove!=&attack_move_reaction)return;
+    edict_t *target=unit->attack_target;
+    if(!target || !target->inuse || G_IsDeferredFree(target) ||
+       target->spawn_time!=unit->attack_target_spawn_time || !S_AttackCanTarget(unit,target)) {
+        attack_finish_after_combat(unit,target,"reaction_target_lost");return;
+    }
+    /*49b3d0 pops reaction then67df00 executes the next task synchronously.
+     * Its d016f constructs the chase before the next physical-owner visit. */
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(unit);
+    attack_walk(unit);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       G_UnitMoveRevision(unit)!=revision+1 || unit->currentmove!=&attack_move_walk ||
+       unit->goalentity!=target || !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    ai_attack_walk(unit);
+}
+static void attack_begin_reaction(edict_t *unit,edict_t *target) {
+    if(!S_AttackCanTarget(unit,target))return;
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    S_ShadowMeldBreak(unit);
+    unit->movement.explicit_allied_attack=false;
+    unit_entercombat(unit,target);
+    S_EndUnitTargetChase(unit,CAbilityAttack);
+    unit_setmove(unit,&attack_move_reaction);
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       unit->currentmove!=&attack_move_reaction || !target->inuse ||
+       G_IsDeferredFree(target) || target->spawn_time!=target_birth)return;
+    S_SetMoveGoal(unit,&unit->goalentity,target);
+    attack_set_target(unit,target);
+    unit->wait=0;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    float delay=wc3_mul(wc3_random_unit(level.purpose_random+9),game.constants.reactionDelay);
+    unit->attack_reaction=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    unit->attack_reaction.deadline.time=wc3_add(now.time,delay);
+    attack_cap_insert(unit,ATTACK_TIMER_REACTION);
+    S_StopUnitMovementWithRecovery(unit);
+}
+
 static void attack_acquire_fire(edict_t *unit) {
+#ifdef BZ_TESTS
+    if(attack_test_acquire)attack_test_acquire(unit,false,0);
+#endif
+    bool initial=unit->attack_scan_initial_pending;
+    unit->attack_scan_initial_pending=false;
     attack_acquire_cancel(unit);
+    if(initial && !unit->attack_scan_enabled)return;
     if(!unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit))return;
-    attack_acquire_arm(unit,G_TimerQueryClock(NULL));
-    /* Idle, Patrol, Follow and active Attack still have their existing scan
-     * producers. This adds the missing d0014 owner without double-publishing
-     * those paths; their complete timer migration remains separate evidence. */
-    if(!S_UnitUsesAIPointMove(unit) || unit->paused || unit->attack_acquisition_suppressed ||
+    attack_acquire_arm(unit,G_TimerQueryClock(NULL),unit->attack_target ? 1 : .5f);
+    /* Point Patrol, the private idle-combat return, AI point tasks and idle
+     * Stand use this Attack-owned timer. Follow and active Attack retain their
+     * independent paths until their owner transitions are verified. */
+    bool patrol=attack_acquire_patrol(unit);
+    bool idle=unit->currentmove && unit->currentmove->think==ai_stand;
+    bool returning=unit->movement.guard_state==GUARD_RETURNING &&
+        unit->currentmove && unit->currentmove->proc==CAbilityMove;
+    if(idle && (!(unit->svflags&SVF_MONSTER) || G_BuildingUpgradeActive(unit) ||
+       unit->movement.creep_guard_phase==CREEP_GUARD_RETURNING || (unit->aiflags&AI_SLEEPING)))return;
+    if((!S_UnitUsesAIPointMove(unit) && !patrol && !idle && !returning) || unit->paused || unit->attack_acquisition_suppressed ||
        !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')) ||
        S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')) ||
        !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
@@ -2551,12 +2801,13 @@ static void attack_acquire_fire(edict_t *unit) {
     uint32_t birth=unit->spawn_time;
     bool fresh=!unit->attack_target;
     edict_t *target=attack_scan_point_target(unit);
-    if(!target)return;
-    uint32_t target_birth=target->spawn_time;
+    if(!target){if(!unit->attack_target)attack_failed_targets_clear(unit);return;}
+    uint32_t target_birth=target->spawn_time,revision=G_UnitMoveRevision(unit);
     S_UnitAbilityEvent(unit,A_AUTO_COMBAT_START);
     if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       G_UnitMoveRevision(unit)!=revision ||
        !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
-    order_attack(unit,target);
+    if(fresh)attack_begin_reaction(unit,target);else order_attack(unit,target);
     if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
        !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
     if(unit->goalentity==target && unit->currentmove && unit->currentmove->proc==CAbilityAttack)
@@ -2681,7 +2932,7 @@ BZ_ABILITY_PROC(CAbilityAttackScan) {
     switch(msg) {
     case A_UNIT_EVENT_MASK: return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT);
     case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
-    case A_UNIT_INIT: attack_acquire_ensure(ent);return false;
+    case A_UNIT_INIT: attack_acquire_ensure(ent,true);return false;
     default: return false;
     }
 }
@@ -2690,14 +2941,14 @@ BZ_ABILITY_PROC(CAbilityAttack) {
     switch (msg) {
     case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
     case A_UNIT_INIT:
-        attack_acquire_ensure(ent);return false;
+        attack_acquire_ensure(ent,true);return false;
     case A_UNIT_OWNED:
         if (!ent) return false;
         if (ent->data.UnitWeapons && ent->data.UnitWeapons->attacksEnabled) return true;
         FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
         return false;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_TARGET_OWNER_CHANGED,A_UNIT_TYPE_CHANGED,A_UNIT_INIT);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_TARGET_OWNER_CHANGED,A_UNIT_TYPE_CHANGED,A_UNIT_INIT);
     case A_TARGET_AVAILABLE:
         if(!ent && call)attack_target_available(call->lost_target);
         return false;
@@ -2723,20 +2974,41 @@ BZ_ABILITY_PROC(CAbilityAttack) {
             return ABILITY_ORDER_UNHANDLED;
         return S_OrderAttack(ent,call->issued_target_order.target) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_UNIT_TYPE_CHANGED:
-        attack_acquire_ensure(ent);return false;
+        attack_acquire_ensure(ent,false);return false;
     case A_UNIT_STAND:
-        attack_acquire_ensure(ent);
+        /* Completed Move executes the scan-enable task before idle Stand.
+         * Do not restart an already-enabled periodic owner or an independent
+         * pause/ability disable; the initial2000 request keeps its deadline. */
+        if(ent && !ent->attack_scan_enabled && !S_UnitExecutionPaused(ent) &&
+           !S_AbilityExecutionDisabled(ent,MAKEFOURCC('A','a','t','k')))
+            S_AttackEnableAcquisition(ent);
+        else attack_acquire_ensure(ent,false);
         if(ent)ent->attack_acquisition_suppressed=false;
         attack_guard_stand(ent);return false;
     case A_UNIT_OWNER_CHANGING:
         if(ent){attack_set_alternative(ent,NULL);attack_guard_cancel(ent);ent->attack_guard.initialized=false;}return false;
     case A_UNIT_SUSPEND:
-        if(ent)attack_set_alternative(ent,NULL);
+        if(ent){attack_set_alternative(ent,NULL);attack_acquire_disable(ent);attack_damage_cancel(ent);}
+        return false;
+    case A_UNIT_RESUME:
+        if(ent && ent->inuse && !G_IsDeferredFree(ent) && !M_IsDead(ent)) {
+            /*40bb00 has released this ability's counter before notification.
+             * The unit's physical pause flag is cleared later by its owner. */
+            attack_acquire_enable(ent);
+            if(ent->currentmove==&attack_move_melee || ent->currentmove==&attack_move_ranged)
+                attack_walk(ent);
+            else if(ent->currentmove==&attack_ground_move_ranged)
+                attack_ground_walk(ent);
+        }
         return false;
     case A_ORDER_ACCEPTED:
         /* Public identity belongs to the accepted user head. Acquisition and
          * retaliation call order_attack directly and retain the existing head. */
         if (!ent || !call || !call->order || !ent->currentmove) return false;
+        /* The ordinary Move task executes d014c ->49e980 ->49d260.
+         * A callback replacement must not retain the old periodic scan. */
+        if(!strcmp(call->order,"move") && ent->currentmove->proc==CAbilityMove)
+            attack_acquire_disable(ent);
         if(!strcmp(call->order,"stop") || !strcmp(call->order,"move") ||
            !strcmp(call->order,"patrol") || !strcmp(call->order,"holdposition") ||
            !strcmp(call->order,"attack") || !strcmp(call->order,"attackonce") ||
@@ -2759,7 +3031,11 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         attack_targets_rebuild();
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));
         FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse) {
+            FOR_LOOP(j,ATTACK_FAILED_TARGET_SLOTS)if(g_edicts[i].attack_failed_targets[j].timer.active)
+                attack_cap_insert(g_edicts+i,ATTACK_TIMER_FAILED_FIRST+j);
             if(g_edicts[i].attack_scan.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SCAN);
+            if(g_edicts[i].attack_reaction.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_REACTION);
+            if(g_edicts[i].attack_damage.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_DAMAGE);
             if(g_edicts[i].attack_speed_cap.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_CAP);
             if(g_edicts[i].combat_help.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_HELP);
             if(g_edicts[i].attack_swing.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SWING);
@@ -2808,6 +3084,11 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         attack_cap_begin(ent);return false;
     case A_DISABLE:
         if(ent) {
+            attack_failed_targets_clear(ent);
+            /*493530 detach cancels both controls unconditionally; the initial
+             *2000 exemption belongs only to suspension/death, not removal. */
+            ent->attack_scan_enabled=false;ent->attack_scan_initial_pending=false;
+            attack_acquire_cancel(ent);attack_reaction_cancel(ent);attack_damage_cancel(ent);
             attack_set_alternative(ent,NULL);
             attack_cap_cancel(ent);
             if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
@@ -2822,7 +3103,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         }
         return false;
     case A_MOVE_LEAVE:
-        attack_acquire_ensure(ent);
+        attack_acquire_ensure(ent,false);
         if(ent && call && call->next_move_proc!=CAbilityAttack) {
             ent->attack_acquisition_suppressed=false;
             /* Internal target loss releases current before returning to its
@@ -2832,12 +3113,28 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         }
         return false;
     case A_DEATH:
+        if(ent) {
+            attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);
+            /* Native124c's killed eighth unit retains its unfired attach
+             * request.493ff0 clears2000, observes cleared4000, and retires it
+             * without rearming or querying. Final removal still cancels. */
+            attack_acquire_disable(ent);
+        }
+        return false;
     case A_UNIT_RETIRE:
-        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);attack_acquire_cancel(ent);}
+        if(ent) {
+            attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);
+            /* unit_die retires world ownership before A_DEATH. Preserve the
+             * same unfired dead request across that notification; destroying
+             * storage or live retirement still cancels it. */
+            ent->attack_scan_enabled=false;
+            if(!ent->attack_scan_initial_pending || !M_IsDead(ent) || (call && call->retirement.destroying))
+                attack_acquire_cancel(ent);
+        }
         return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_guard_cancel(ent);attack_acquire_cancel(ent);}
+        if(ent){attack_failed_targets_clear(ent);attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_guard_cancel(ent);attack_acquire_cancel(ent);}
         return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;

@@ -1,0 +1,494 @@
+{
+  "schema": 1,
+  "status": "Pre-fix284b diagnostic comparison; does not declare a corrected engine pass.",
+  "binary": {
+    "program": "game.dll",
+    "image_base": "0x6f000000",
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+  },
+  "sources": [
+    {
+      "path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol265-evidence-audit/reaction-delay-static.json",
+      "sha256": "54e79af59f7fb5240e627390d2e8a78ceb0ee5cd53561ab4db435d753941a0ea"
+    },
+    {
+      "path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol279-public-startup-v6/observe1.jsonl",
+      "sha256": "52edb2317de8e847625ea8a32099a6daaaa5595cb866f5a77309513b175196ee"
+    },
+    {
+      "path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol284b-focused/roc-wc3_patrol_public_all.log",
+      "sha256": "f68fef3df99ada4da47e20bf450355fabdfc6f67a537249002d5cb09d34d4757"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json",
+      "sha256": "ab5a28b4426d67fc1bc54688ec3593bc13732aaa89d33cc8b792c062c9ee3af5"
+    }
+  ],
+  "original_function_exports": [
+    {
+      "function_rva": "0x49b3d0",
+      "name": "FUN_6f49b3d0",
+      "decompiled_code_without_annotation_comments": "void __fastcall FUN_6f49b3d0(int param_1)\n\n{\n  WC3UnitOrdersPrefix *self;\n  \n  *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xfffdffff;\n  self = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  Unit_PopInternalTaskHead();\n  Unit_DispatchInternalTaskQueue(self);\n  return;\n}",
+      "source_path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol265-evidence-audit/reaction-delay-static.json",
+      "source_sha256": "54e79af59f7fb5240e627390d2e8a78ceb0ee5cd53561ab4db435d753941a0ea"
+    },
+    {
+      "function_rva": "0x67df00",
+      "name": "Unit_DispatchInternalTaskQueue",
+      "decompiled_code_without_annotation_comments": "void __thiscall Unit_DispatchInternalTaskQueue(WC3UnitOrdersPrefix *self)\n\n{\n  uint uVar1;\n  void *pvVar2;\n  undefined **local_20;\n  undefined4 local_1c;\n  undefined4 local_18;\n  void *local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  puStack_c = &LAB_6fa56448;\n  local_10 = ExceptionList;\n  uVar1 = DAT_6fce689c ^ (int)register0x00000010 - 4U;\n  ExceptionList = &local_10;\n  while ((local_8 = 0xffffffff,\n         ((self->internal_head).generation & (self->internal_head).slot) != 0xffffffff &&\n         (pvVar2 = AgentIdentity_ResolvePayload(&self->internal_head), pvVar2 != (void *)0x0))) {\n    local_18 = *(undefined4 *)((int)pvVar2 + 0x30);\n    local_1c = 0;\n    local_20 = CEvent::vftable;\n    self->order_admission_flags = self->order_admission_flags | 1;\n    local_8 = 0;\n    local_14 = pvVar2;\n    (**(code **)((int)self->vtable + 0x10))(&local_20);\n    if ((self->order_admission_flags & 1) == 0) {\n      ExceptionList = local_10;\n      return;\n    }\n    if ((self->order_admission_flags & 2) == 0) {\n      Unit_PopInternalTaskHead();\n      local_20 = TRefCnt::vftable;\n    }\n    else {\n      self->order_admission_flags = self->order_admission_flags & 0xfffffffd;\n      local_20 = TRefCnt::vftable;\n    }\n  }\n  Unit_AdvanceUserOrderHead(uVar1);\n  ExceptionList = local_10;\n  return;\n}",
+      "full_decompiled_code_sha256": "08229ca22695137cdcf1bcdba2a2bc0e6ee7fdf08e09c844c4b1b3321e044a2f",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    {
+      "function_rva": "0x49a5f0",
+      "name": "CAbilityAttack_Dispatch",
+      "decompiled_code_without_annotation_comments": "uint __thiscall CAbilityAttack_Dispatch(WC3AttackRangePrefix *ability,void *event)\n\n{\n  uint uVar1;\n  \n  uVar1 = *(uint *)((int)event + 8);\n  if (uVar1 < 0xd0145) {\n    if (uVar1 == 0xd0144) {\n      Attack_HandleCleanupTask(ability,event);\n      return 1;\n    }\n    switch(uVar1) {\n    case 0xd0002:\n    case 0xd0003:\n    case 0xd000f:\n      Attack_CreateTasksFromOrder(ability,event);\n      return 1;\n    case 0xd0010:\n      Attack_CreateAttackGroundTasks(ability,event);\n      return 1;\n    case 0xd0011:\n      Attack_CreateAttackOnceTasks(ability,event);\n      return 1;\n    case 0xd0013:\nswitchD_6f49a617_caseD_d0013:\n      Attack_HandleGuardSleepContinuation();\n      return 1;\n    }\n  }\n  else if (uVar1 < 0xd02a4) {\n    if (uVar1 == 0xd02a3) {\n      FUN_6f497f90();\n      return 1;\n    }\n    switch(uVar1) {\n    case 0xd0148:\n      FUN_6f49ed20(0);\n      return 1;\n    case 0xd0149:\n      FUN_6f49ed20(1);\n      return 1;\n    case 0xd014a:\n      Attack_HandleGuardTask();\n      return 1;\n    case 0xd014b:\n      goto switchD_6f49a617_caseD_d0013;\n    case 0xd014c:\n      FUN_6f49e980(0);\n      return 1;\n    case 0xd014d:\n      FUN_6f49e980(1);\n      return 1;\n    case 0xd014e:\n      FUN_6f49e940();\n      return 1;\n    case 0xd014f:\n      FUN_6f49e870();\n      return 1;\n    case 0xd0161:\n      FUN_6f49eb00(event);\n      return 1;\n    case 0xd0163:\n      Attack_HandleReactionDelayTask(ability);\n      return 1;\n    case 0xd0165:\n      FUN_6f49bd40();\n      return 1;\n    case 0xd0166:\n      Attack_HandleOrderCompleteTask(ability,event);\n      return 1;\n    case 0xd0168:\n      Attack_HandleTargetTask(ability,event);\n      return 1;\n    case 0xd0169:\n      Attack_HandleGroundPointTask(ability,event);\n      return 1;\n    case 0xd016a:\n      Attack_HandleTimerWaitTask(ability);\n      return 1;\n    case 0xd0196:\n      Attack_OnTargetArrival(ability,1);\n      return 1;\n    case 0xd01a2:\n      Attack_TargetOwnerChanged(event);\n      return 1;\n    case 0xd01a4:\n      Attack_OnTargetLost(ability);\n      return 1;\n    case 0xd01a5:\n      Attack_HandleTargetAvailable(ability,event);\n      return 1;\n    case 0xd01a6:\n      FUN_6f494290();\n      return 1;\n    case 0xd01ad:\n      Attack_OnGuardPoll();\n      return 1;\n    case 0xd01ae:\n      Attack_OnGuardReturn();\n      return 1;\n    case 0xd01af:\n      FUN_6f49b3d0();\n      return 1;\n    case 0xd01b0:\n      Attack_TryBeginGroundSwing(ability);\n      return 1;\n    case 0xd01b1:\n      FUN_6f49a5b0();\n      return 1;\n    case 0xd01b2:\n      Attack_OnSwingComplete(ability);\n      return 1;\n    case 0xd01bd:\n      Attack_EndSpeedCapExemption(ability);\n      return 1;\n    case 0xd01c1:\n      Attack_OnAcquireScanTimer(ability);\n      return 1;\n    case 0xd01c4:\n      FUN_6f495e40(event);\n      return 1;\n    }\n  }\n  else if (uVar1 == 0xd02a4) {\n    FUN_6f4980f0();\n    return 1;\n  }\n  return 0;\n}",
+      "full_decompiled_code_sha256": "91dda4abe7fe080dd0ba4a33206585091196beb1747a0a34c6f21c0fa9a5e39c",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    {
+      "function_rva": "0x49a240",
+      "name": "Attack_BeginTargetChase",
+      "decompiled_code_without_annotation_comments": "void __thiscall\nAttack_BeginTargetChase(WC3AttackRangePrefix *ability,undefined *target_bridge,int turn_only)\n\n{\n  WC3MoveSpeedPrefix *self;\n  WC3UnitOrdersPrefix *self_00;\n  float *pfVar1;\n  WC3PathScalar *pWVar2;\n  WC3PathScalar local_10;\n  WC3PathScalar local_c;\n  int local_8;\n  \n  self_00 = ability->unit;\n  if (self_00 == (WC3UnitOrdersPrefix *)0x0) {\n    self_00 = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  self = self_00->move_ability;\n  if (turn_only == 0) {\n    pfVar1 = (float *)Attack_GetEffectiveSlotRange(ability,&local_c,ability->damage_weapon);\n    if (DAT_6fd6bf64 < *pfVar1 || DAT_6fd6bf64 == *pfVar1) {\n      pWVar2 = Attack_GetEffectiveSlotRange(ability,&local_10,ability->damage_weapon);\n    }\n    else {\n      turn_only = (int)DAT_6fd6bf64;\n      pWVar2 = (WC3PathScalar *)&turn_only;\n    }\n    turn_only = *pWVar2;\n  }\n  else {\n    turn_only = DAT_6fcd5480;\n  }\n  local_8 = turn_only;\n  Move_BeginTargetTaskRequest(self,(uint)target_bridge,(uint)&local_8,0,0);\n  Agent_SubscribeArrival((uint)self_00,0xd0196,(uint)ability);\n  return;\n}",
+      "full_decompiled_code_sha256": "dc47ca66b7e069c3aae3396529777876132f7423f3a116d73a170b864aceb5bc",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    {
+      "function_rva": "0x5fda10",
+      "name": "CAbilityMove_Dispatch",
+      "decompiled_code_without_annotation_comments": "uint __thiscall CAbilityMove_Dispatch(WC3MoveSpeedPrefix *self,uint arg_04)\n\n{\n  uint uVar1;\n  \n  uVar1 = *(uint *)(arg_04 + 8);\n  if (uVar1 < 0xd0145) {\n    if (uVar1 == 0xd0144) {\n      Move_HandleCleanupTask(self);\n      return 1;\n    }\n    switch(uVar1) {\n    case 0xd0002:\n      Move_DispatchSmartTarget((uint)self,arg_04,0,1);\n      return 1;\n    case 0xd0003:\n      Move_DispatchSmartTarget((uint)self,arg_04,0,0);\n      return 1;\n    case 0xd000d:\n      Move_DispatchSmartTarget((uint)self,arg_04,1,0);\n      return 1;\n    case 0xd000f:\n    case 0xd0014:\n      Move_CreateTasksFromOrder((uint)self,arg_04,1,0);\n      return 1;\n    case 0xd0012:\n      Move_CreateTasksFromOrder((uint)self,arg_04,0,0);\n      return 1;\n    case 0xd0016:\n      Move_ExpandIssuedPatrol(self,(void *)arg_04);\n      return 1;\n    case 0xd0017:\n      Move_CreatePatrolTasks(self,(void *)arg_04);\n      return 1;\n    case 0xd0019:\n      Move_CreateHoldTasks(self);\n      return 1;\n    case 0xd004b:\n      Move_CreateBoardTasks(arg_04);\n      return 1;\n    }\n  }\n  else if (uVar1 < 0xd029e) {\n    if (uVar1 == 0xd029d) {\n      FUN_6f600460(arg_04);\n      return 1;\n    }\n    switch(uVar1) {\n    case 0xd0161:\n      Move_AdvanceTaskContinuation(arg_04);\n      return 1;\n    case 0xd0166:\n      FUN_6f5ffeb0(arg_04);\n      return 1;\n    case 0xd016b:\n      Move_HandlePointTask((uint)self,arg_04,0,1);\n      return 1;\n    case 0xd016c:\n      Move_HandlePointTask((uint)self,arg_04,0,0);\n      return 1;\n    case 0xd016d:\n      Move_HandlePointTask((uint)self,arg_04,1,1);\n      return 1;\n    case 0xd016e:\n      Move_HandlePointTask((uint)self,arg_04,1,0);\n      return 1;\n    case 0xd016f:\n      Move_HandleTargetTask((uint)self,arg_04,0,0,0);\n      return 1;\n    case 0xd0170:\n      Move_HandleTargetTask((uint)self,arg_04,1,1,0);\n      return 1;\n    case 0xd0171:\n      Move_HandleTargetTask((uint)self,arg_04,1,0,0);\n      return 1;\n    case 0xd0172:\n      Move_HandleTargetTask((uint)self,arg_04,0,0,1);\n      return 1;\n    case 0xd0173:\n      Move_HandleTargetTask((uint)self,arg_04,1,1,1);\n      return 1;\n    case 0xd0174:\n      Move_HandleTargetTask((uint)self,arg_04,1,0,1);\n      return 1;\n    case 0xd0175:\n      Move_AppendPatrolContinuation(self,(void *)arg_04);\n      return 1;\n    case 0xd0176:\n      Move_HandleInternalFacingTask((uint)self,arg_04);\n      return 1;\n    case 0xd0177:\n      Move_EnterHoldState(self);\n      return 1;\n    case 0xd0178:\n      Move_LeaveHoldState(self);\n      return 1;\n    case 0xd017f:\n      Move_CompleteStaticBoard(arg_04);\n      return 1;\n    case 0xd018e:\n      FUN_6f600000(arg_04);\n      return 1;\n    case 0xd0193:\n      FUN_6f5ffb30(arg_04);\n      return 1;\n    case 0xd0196:\n      CAbilityMove_OnArrival(self);\n      return 1;\n    case 0xd0198:\n      CAbilityMove_OnCantPath((uint)self);\n      return 1;\n    case 0xd0199:\n      FUN_6f5fc280();\n      return 1;\n    case 0xd019a:\n      FUN_6f5fc320();\n      return 1;\n    case 0xd019b:\n      FUN_6f5fc300();\n      return 1;\n    case 0xd01a2:\n      CAbilityMove_OnTargetOwnerChanged(self,(void *)arg_04);\n      return 1;\n    case 0xd01a4:\n      CAbilityMove_OnTargetLost((uint)self,arg_04);\n      return 1;\n    case 0xd01c3:\n      FUN_6f600530();\n      return 1;\n    case 0xd01c5:\n      Move_RetryStaticBoard();\n      return 1;\n    case 0xd01ec:\n      FUN_6f5fe3e0(arg_04);\n      return 1;\n    }\n  }\n  else {\n    if (uVar1 == 0xd02a1) {\n      FUN_6f5fceb0();\n      return 1;\n    }\n    if (uVar1 == 0xd02a2) {\n      FUN_6f5fcf00();\n      return 1;\n    }\n  }\n  return 0;\n}",
+      "full_decompiled_code_sha256": "99f0fab1d5b13b9837619693a16f4b3879ce39d85e8329bfb4ad59cd31620293",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    {
+      "function_rva": "0x5ff8b0",
+      "name": "Move_HandleTargetTask",
+      "decompiled_code_without_annotation_comments": "void __thiscall Move_HandleTargetTask(uint self,uint arg_04,uint arg_08,uint arg_0c,uint arg_10)\n\n{\n  uint *puVar1;\n  int *piVar2;\n  uint uVar3;\n  uint uVar4;\n  WC3CanonicalPrefix *pWVar5;\n  int iVar6;\n  WC3UnitOrdersPrefix *target;\n  int local_1c;\n  int *local_18;\n  uint local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa49e18;\n  local_10 = ExceptionList;\n  uVar3 = DAT_6fce689c ^ (int)register0x00000010 - 4U;\n  ExceptionList = &local_10;\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)(self + 0x90));\n  local_14 = *(uint *)(self + 0x30);\n  if (local_14 == 0) {\n    local_14 = FUN_6f055cc0(uVar3);\n  }\n  uVar3 = arg_0c;\n  if (((arg_08 != 0) && (arg_0c == 0)) && ((*(uint *)(self + 0x20) & 0x200) != 0)) {\n    ExceptionList = local_10;\n    return;\n  }\n  local_18 = *(int **)(arg_04 + 0xc);\n  if ((local_18[0xe] & ((WC3PathIdentity *)(local_18 + 0xd))->slot) == 0xffffffff) {\n    arg_04 = 0;\n  }\n  else {\n    arg_04 = (uint)AgentIdentity_ResolvePayload((WC3PathIdentity *)(local_18 + 0xd));\n  }\n  local_8 = 0;\n  target = (WC3UnitOrdersPrefix *)0x0;\n  if ((void *)arg_04 != (void *)0x0) {\n    uVar3 = FUN_6f652500();\n    uVar4 = (**(code **)(*(int *)arg_04 + 0x1c))();\n    uVar4 = AgentClass_IsDerived(uVar4,uVar3);\n    uVar3 = arg_0c;\n    if (uVar4 != 0) {\n      *(int *)(arg_04 + 4) = *(int *)(arg_04 + 4) + 1;\n      target = (WC3UnitOrdersPrefix *)arg_04;\n    }\n  }\n  local_8 = 1;\n  if ((target != (WC3UnitOrdersPrefix *)0x0) &&\n     (((arg_10 == 0 || (uVar3 == 0)) ||\n      (uVar3 = CAbilityMove_ValidateTarget((void *)self,target), uVar3 == 0)))) {\n    uVar3 = local_14;\n    if (arg_08 == 0) {\n      FUN_6f0566c0(self);\n    }\n    else {\n      Agent_SubscribeArrival(local_14,0xd0196,self);\n    }\n    arg_08 = uVar3 + 0x164;\n    FUN_6f05c0a0();\n    arg_04 = 0;\n    local_8 = CONCAT31(local_8._1_3_,2);\n    local_1c = local_18[0x11];\n    if ((((*(uint *)(self + 0x20) & 0x2000) == 0) && (*(int *)(self + 0x80) < 1)) &&\n       ((uVar3 = Move_IsEnabledForQuery((WC3MoveSpeedPrefix *)self,0,1), uVar3 != 0 &&\n        (((iVar6 = local_18[0x12], iVar6 != 0 &&\n          (pWVar5 = PathRegistry_ResolveCanonical(*(int *)(iVar6 + 8),*(uint *)(iVar6 + 0xc)),\n          pWVar5 != (WC3CanonicalPrefix *)0x0)) || (iVar6 = FUN_6f5faae0(&arg_04), iVar6 != 0))))))\n    {\n      uVar3 = arg_08;\n      MoveBridge_SetArrivalRange(arg_08,(uint)&local_1c);\n      iVar6 = *(int *)uVar3;\n      uVar3 = CAbilityMove_GetCurrentSpeed((WC3MoveSpeedPrefix *)self,(uint)&arg_10);\n      (**(code **)(iVar6 + 0x18))(uVar3);\n      piVar2 = local_18;\n      iVar6 = local_18[0x12];\n      if ((iVar6 == 0) ||\n         (pWVar5 = PathRegistry_ResolveCanonical(*(int *)(iVar6 + 8),*(uint *)(iVar6 + 0xc)),\n         pWVar5 == (WC3CanonicalPrefix *)0x0)) {\n        FUN_6f89cce0(arg_08);\n      }\n      else {\n        (**(code **)(*piVar2 + 0x80))(local_14,arg_0c);\n      }\n    }\n    else {\n      Move_BeginTargetTaskRequest\n                ((WC3MoveSpeedPrefix *)self,(uint)target,(uint)&local_1c,arg_0c,arg_10);\n    }\n    *(uint *)(local_14 + 0x5c) = *(uint *)(local_14 + 0x5c) & 0xfffffffe;\n    *(uint *)(self + 0x20) = *(uint *)(self + 0x20) | 4;\n  }\n  local_8 = 0xffffffff;\n  if (target != (WC3UnitOrdersPrefix *)0x0) {\n    puVar1 = &target->references;\n    *puVar1 = *puVar1 - 1;\n    if (*puVar1 == 0) {\n      (**(code **)target->vtable)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}",
+      "full_decompiled_code_sha256": "995a1172c1017d853e5c7ea8c744e73952a9746ecf109067e415a2bed558f3bd",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    {
+      "function_rva": "0x5ffb60",
+      "name": "Move_HandlePointTask",
+      "source_path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/target-parameter-producers53-decompilation.json",
+      "source_sha256": "33c2e7f646da53e875710ccb93e269824bb4bd1539ae47a11a698a26b5a7b655",
+      "source_key": "6f5ffb60",
+      "decompiled_code_without_annotation_comments": "void __thiscall Move_HandlePointTask(uint self,uint arg_04,uint arg_08,uint arg_0c)\n\n{\n  uint uVar1;\n  WC3UnitMoveRequestHistory *unit;\n  int iVar2;\n  void *pvVar3;\n  undefined4 *puVar4;\n  uint arg_1c;\n  int *piVar5;\n  WC3PathScalar local_38;\n  WC3PathScalar local_34;\n  WC3PathScalar local_30;\n  undefined4 *local_2c;\n  WC3UnitMoveRequestHistory *local_28;\n  int *local_24;\n  int local_20;\n  int *local_1c;\n  WC3PathScalar local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  uint local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa49e50;\n  local_10 = ExceptionList;\n  uVar1 = DAT_6fce689c ^ (uint)&stack0xfffffffc;\n  ExceptionList = &local_10;\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)(self + 0x90));\n  if ((*(uint *)(self + 0x20) & 0x200) != 0) {\n    ExceptionList = local_10;\n    return;\n  }\n  unit = *(WC3UnitMoveRequestHistory **)(self + 0x30);\n  local_1c = *(int **)(arg_04 + 0xc);\n  local_14 = local_1c[0xe];\n  local_18 = local_1c[0x10];\n  local_20 = local_1c[0x12];\n  if (unit == (WC3UnitMoveRequestHistory *)0x0) {\n    local_28 = unit;\n    unit = (WC3UnitMoveRequestHistory *)FUN_6f055cc0(uVar1);\n  }\n  local_24 = (int *)&unit->field_0x164;\n  local_28 = unit;\n  if ((arg_0c == 0) &&\n     (uVar1 = MoveBridge_IsPointInCollisionRange\n                        ((uint)local_24,(uint)&local_20,(uint)&local_14,(uint)&local_18,1),\n     uVar1 != 0)) {\n    if (arg_08 == 0) {\n      ExceptionList = local_10;\n      return;\n    }\n    local_38 = local_14;\n    local_34 = local_18;\n    local_30 = Math_RuntimeZero;\n    iVar2 = FUN_6f66fd50(&local_38,0,4);\n    if (iVar2 == 0) {\n      ExceptionList = local_10;\n      return;\n    }\n  }\n  if ((((*(uint *)&unit->field_0x20 & 0x200) == 0) && ((*(byte *)(self + 0x20) & 0x80) != 0)) &&\n     (iVar2 = (**(code **)(*(int *)unit + 0xec))(), iVar2 < 0xc)) {\n    FUN_6f69b2e0();\n    *(uint *)(self + 0x20) = *(uint *)(self + 0x20) | 0x800;\n  }\n  FUN_6f05c0a0();\n  FUN_6f694610(2);\n  arg_0c = 0;\n  local_8 = 0;\n  if ((((*(uint *)(self + 0x20) & 0x2000) == 0) && (*(int *)(self + 0x80) < 1)) &&\n     (uVar1 = Move_IsEnabledForQuery((WC3MoveSpeedPrefix *)self,0,1), uVar1 != 0)) {\n    arg_04 = 1;\n  }\n  else {\n    arg_04 = 0;\n  }\n  if ((*(uint *)&unit->field_0x19c & *(uint *)&unit->field_0x1a0) == 0xffffffff) {\n    pvVar3 = (void *)0x0;\n  }\n  else {\n    pvVar3 = AgentIdentity_ResolvePayload((WC3PathIdentity *)&unit->field_0x19c);\n  }\n  FUN_6f37bb30(pvVar3);\n  local_8 = CONCAT31(local_8._1_3_,1);\n  uVar1 = arg_04;\n  if ((local_2c != (undefined4 *)0x0) && (local_2c[9] == 0xd0050)) {\n    uVar1 = 0;\n  }\n  *(uint *)(self + 0x20) = *(uint *)(self + 0x20) & 0xfffffbff;\n  puVar4 = (undefined4 *)0x0;\n  if ((uVar1 == 0) ||\n     ((iVar2 = (**(code **)(*local_1c + 0x80))(), iVar2 == 0 &&\n      (uVar1 = Move_FindPreviousRequestCohort\n                         (unit,&local_14,&local_18,(WC3MoveRequestWrapper **)&arg_0c),\n      puVar4 = (undefined4 *)arg_0c, uVar1 == 0)))) {\n    piVar5 = &local_20;\n    arg_1c = 1;\n    uVar1 = CAbilityMove_GetCurrentSpeed((WC3MoveSpeedPrefix *)self,(uint)&arg_04);\n    MoveBridge_StartPoint\n              ((uint)&unit->field_0x164,(uint)&local_14,(uint)&local_18,0xd0196,0xd0198,self,uVar1,\n               arg_1c,(uint)piVar5);\n  }\n  else {\n    piVar5 = local_24;\n    MoveBridge_SetArrivalRange((uint)local_24,(uint)&local_20);\n    iVar2 = *piVar5;\n    uVar1 = CAbilityMove_GetCurrentSpeed((WC3MoveSpeedPrefix *)self,(uint)&arg_04);\n    (**(code **)(iVar2 + 0x18))(uVar1);\n    unit = local_28;\n    Agent_SubscribeArrival((uint)local_28,0xd0196,self);\n    Agent_SubscribeCantPath((uint)unit,0xd0198,self);\n    iVar2 = (**(code **)(*local_1c + 0x80))();\n    if (iVar2 == 0) {\n      FUN_6f89cce0(&unit->field_0x164);\n    }\n    else {\n      (**(code **)(*local_1c + 0x84))(unit);\n    }\n  }\n  *(uint *)&unit->field_0x5c = *(uint *)&unit->field_0x5c & 0xfffffffe;\n  *(uint *)(self + 0x20) = *(uint *)(self + 0x20) | 4;\n  if (arg_08 != 0) {\n    (*(code *)**(undefined4 **)(self + 0xb8))(&local_14,1);\n    (*(code *)**(undefined4 **)(self + 0xc0))(&local_18,1);\n    FUN_6f0608d0(&DAT_6fd6fb3c,0xd01c3,self,1,0);\n  }\n  local_8 = local_8 & 0xffffff00;\n  if (local_2c != (undefined4 *)0x0) {\n    piVar5 = local_2c + 1;\n    *piVar5 = *piVar5 + -1;\n    if (*piVar5 == 0) {\n      (**(code **)*local_2c)();\n    }\n  }\n  local_8 = 0xffffffff;\n  if (puVar4 != (undefined4 *)0x0) {\n    piVar5 = puVar4 + 1;\n    *piVar5 = *piVar5 + -1;\n    if (*piVar5 == 0) {\n      (**(code **)*puVar4)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}"
+    }
+  ],
+  "original_chain": [
+    {
+      "from_rva": "0x49a5f0",
+      "event": "0xd01af",
+      "to_rva": "0x49b3d0",
+      "meaning": "Reaction-expiry dispatch."
+    },
+    {
+      "from_rva": "0x49b3d0",
+      "to_rvas_in_order": [
+        "0x691260",
+        "0x67df00"
+      ],
+      "meaning": "Clear reaction flag, pop current internal task, synchronously dispatch remaining queue."
+    },
+    {
+      "from_rva": "0x67df00",
+      "dispatch": "Unit virtual0x10 with retained task.code at+0x30",
+      "meaning": "Synchronous task loop until handler clears admission bit0; no new timer between handlers."
+    },
+    {
+      "from_rva": "0x5fda10",
+      "event": "0xd016f",
+      "to_rva": "0x5ff8b0",
+      "arguments": [
+        "Move ability",
+        "packet",
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "from_rva": "0x5ff8b0",
+      "to_rva": "0x5fc640",
+      "meaning": "Retained task world range+0x44, target identity, persistent0/subscription0; existing shared-owner branch is retained in original body."
+    }
+  ],
+  "callsite_limit": "Chain entries above name verified functions and dispatch cases, not invented CALL instruction RVAs. Exact instruction association is not asserted for edges lacking saved disassembly.",
+  "observed_native_publication": [
+    {
+      "zero_based_jsonl_row": 13299,
+      "record": {
+        "event": "range-publication",
+        "tick": 1160,
+        "scene": 5,
+        "value": 1083703296,
+        "before": {
+          "mover": "0x11a30098",
+          "pose": [
+            1102722941,
+            0,
+            1100573262,
+            1099159931,
+            0,
+            0,
+            1090977792,
+            999663656
+          ],
+          "heading": 999663656,
+          "radius": 1064828928,
+          "range": 1083703296,
+          "motion_parameters": [
+            1090977792,
+            1058642330,
+            1065749137
+          ],
+          "flags": 16777216,
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "request": [
+            0,
+            0
+          ]
+        },
+        "caller": 370548,
+        "clock": {
+          "counter": 1799,
+          "primary": [
+            1102722941,
+            0,
+            1133903872,
+            4096
+          ]
+        },
+        "after": {
+          "mover": "0x11a30098",
+          "pose": [
+            1102722941,
+            0,
+            1100573262,
+            1099159931,
+            0,
+            0,
+            1090977792,
+            999663656
+          ],
+          "heading": 999663656,
+          "radius": 1064828928,
+          "range": 1083703296,
+          "motion_parameters": [
+            1090977792,
+            1058642330,
+            1065749137
+          ],
+          "flags": 16777216,
+          "group": [
+            4294967295,
+            4294967295
+          ],
+          "request": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "zero_based_jsonl_row": 13301,
+      "record": {
+        "event": "arrival",
+        "tick": 1160,
+        "scene": 5,
+        "source": [
+          1100573262,
+          1099159931
+        ],
+        "heading": 999663656,
+        "threshold": 1083703296,
+        "destination": [
+          1105613341,
+          1099039103
+        ],
+        "before": {
+          "mover": "0x11a30098",
+          "pose": [
+            1102722941,
+            0,
+            1100573262,
+            1099159931,
+            0,
+            0,
+            1090977792,
+            999663656
+          ],
+          "heading": 999663656,
+          "radius": 1064828928,
+          "range": 1083703296,
+          "motion_parameters": [
+            1090977792,
+            1058642330,
+            1065749137
+          ],
+          "flags": 16777216,
+          "group": [
+            901,
+            1629
+          ],
+          "request": [
+            0,
+            0
+          ]
+        },
+        "clock": {
+          "counter": 1800,
+          "primary": [
+            1102722941,
+            0,
+            1133903872,
+            4096
+          ]
+        },
+        "result": 0,
+        "angle": 3169602560,
+        "inside": 0
+      }
+    }
+  ],
+  "comparison": {
+    "normal_C_poll_count": 1634,
+    "native_poll_count": 1632,
+    "exact_global_prefix_rows": 1188,
+    "first_native_row": {
+      "scene": 5,
+      "phase": 0,
+      "role": 0,
+      "words": [
+        1102722941,
+        1100573262,
+        1099159931,
+        1105613341,
+        1099039103,
+        999663656,
+        1083703296,
+        3169602560,
+        0,
+        0
+      ]
+    },
+    "first_C_row": {
+      "scene": 5,
+      "phase": 0,
+      "role": 1,
+      "words": [
+        1102722941,
+        1105613341,
+        1099039103,
+        1100573262,
+        1099159931,
+        1071408056,
+        1083703296,
+        1068671094,
+        0,
+        0
+      ]
+    },
+    "source_scene5_C_rows": 180,
+    "source_scene5_native_rows": 178,
+    "source_first_different_per_role_row": 154,
+    "source_first_native_arrival": {
+      "scene": 5,
+      "phase": 0,
+      "role": 0,
+      "words": [
+        1102722941,
+        1100573262,
+        1099159931,
+        1105613341,
+        1099039103,
+        999663656,
+        1083703296,
+        3169602560,
+        0,
+        0
+      ]
+    },
+    "source_first_C_arrival": {
+      "scene": 5,
+      "phase": 0,
+      "role": 0,
+      "words": [
+        1102738667,
+        1100573262,
+        1099159931,
+        1105613341,
+        1099039103,
+        999663656,
+        1083703296,
+        3169602560,
+        0,
+        0
+      ]
+    },
+    "source_first_arrival_nine_nonclock_words_equal": true,
+    "source_first_commit_five_nonclock_words_equal": true,
+    "native_first_source_counter": 1800,
+    "native_first_source_clock_word": "0x41ba377d",
+    "C_first_source_clock_word": "0x41ba74eb",
+    "C_first_source_counter": 1801,
+    "C_counter_derivation": "Adjacent existing path-owner clocks, not a separate C counter field in the20-word trace.",
+    "peer_scene5_rows_all_exact": 242,
+    "conclusion": "Source is absent for one physical owner visit. It is not merely a permutation of simultaneous source/peer rows."
+  },
+  "C_owner_explanation": {
+    "source": "games/warcraft-3/game/skills/s_attack.c",
+    "before_fix": "attack_reaction_fire calls attack_walk, which installs attack_move_walk without invoking ai_attack_walk. The move has no scheduled_think flag. monster_think invokes its thinker during G_RunEntities, after G_RunPathOwner in the same frame.",
+    "candidate": "Activate the retained Attack continuation synchronously after reaction expiry with existing incarnation, current-owner and replacement checks. Do not shift deadline or sort expected rows.",
+    "verification_required": "Rebuilt complete public replay and saved suffix plus pending_reaction_save_and_owner_inverse and weapon damage-clock inverse tests."
+  },
+  "limits": [
+    "Native capture clocks are observed primary-clock fields, not necessarily the borrowed raw timer-request deadline; do not infer an earlier deadline.",
+    "Peer role is1, source role0 in typed fixture; pointer values shown only identify the pinned native capture.",
+    "C counter1801 is derived from adjacent owner cadence; raw C log records clock words, not this integer counter.",
+    "Static synchronous task dispatch plus observed one-visit delay establishes a concrete candidate mechanism, but a rebuilt corrected run must verify causality.",
+    "No new native capture, no receiver forcing, no edited expected values, no whole-Patrol or TARGET-01.2 closure claim."
+  ],
+  "guard_return_admission_followup286": {
+    "status": "Diagnostic localization of remaining mismatch after synchronous reaction activation; corrected production result still requires a fresh unchanged-oracle run.",
+    "source_log": "build/tests/patrol286/focused/roc-wc3_patrol_public_all.log",
+    "source_log_sha256": "1b14218bc20361e8826d2b99c06debb18459cc7cbfe883a6d7076d0f381d23f3",
+    "native_expected_rows": 1632,
+    "C_actual_rows": 1634,
+    "exact_global_prefix": 1236,
+    "extra_C_zero_based_row_indices": [
+      1236,
+      1237
+    ],
+    "extra_C_rows": [
+      {
+        "scene": 5,
+        "phase": 0,
+        "role": 0,
+        "words": [
+          1102911653,
+          1100573262,
+          1099159931,
+          1100573262,
+          1099159931,
+          1086867705,
+          1070071808,
+          1019666944,
+          1,
+          1
+        ]
+      },
+      {
+        "scene": 5,
+        "phase": 2,
+        "role": 0,
+        "words": [
+          1102911653,
+          1100573262,
+          1099159931,
+          0,
+          0,
+          1086867705
+        ]
+      }
+    ],
+    "native_next_rows": [
+      {
+        "scene": 5,
+        "phase": 0,
+        "role": 1,
+        "words": [
+          1102911653,
+          1104163972,
+          1099163301,
+          1100573262,
+          1099159931,
+          1078428962,
+          1083703296,
+          1020615936,
+          0,
+          0
+        ]
+      },
+      {
+        "scene": 5,
+        "phase": 2,
+        "role": 1,
+        "words": [
+          1102911653,
+          1104163972,
+          1099163301,
+          3238458690,
+          1045565183,
+          1078426357
+        ]
+      }
+    ],
+    "all_other_rows_exact_in_original_order": true,
+    "diagnostic_only": "Deleting these two rows proves localization only; no expected-row changes or comparator filtering are authorized.",
+    "original_dispatch": {
+      "function_rva": "0x5fda10",
+      "task": "0xd016c",
+      "callee_rva": "0x5ffb60",
+      "arguments": [
+        "Move ability",
+        "event",
+        0,
+        0
+      ]
+    },
+    "original_gate": {
+      "function_rva": "0x5ffb60",
+      "predicate_rva": "0x05b440",
+      "condition": "arg_0c==0 and MoveBridge_IsPointInCollisionRange(source,captured world range,point,predict=1) returns nonzero; arg_08==0 then returns before creating or joining a physical owner.",
+      "geometry": "Predicted source, authored world range plus source collision radius, squared-distance predicate. No facing condition.",
+      "range_world": 50,
+      "physical_range_if_admitted_word": "0x3fc80000",
+      "physical_range_if_admitted_fine": 1.5625
+    },
+    "existing_C_primitive": "S_UnitPointInMoveRange(ent,&ent->movement.guard_position,50.0f)",
+    "required_owner_behavior": "Already-close d016c completes without a physical point owner. CAbilityStop AUTO_COMBAT_END fallthrough resets guard toIDLE and resumes normal stand.",
+    "shared_API_limit": "Do not add an unconditional gate to S_BeginUnitPointTargetApproach: its ordinary point-spell caller maps d016b to5ffb60(arg_08=0,arg_0c=1), which bypasses this early distance check.",
+    "native_observation": "Source cant-path atcounter1811 has no following point-request; peer cant-path at1815 does emit a50-world-range point request to1024,512. Existing native trace is unchanged."
+  }
+}

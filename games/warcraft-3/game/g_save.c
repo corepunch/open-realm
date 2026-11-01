@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 231; /* Ordinary target spell packets retain pre-construction publication. */
+static uint32_t const save_version = 232; /* Attack attachment scan and Patrol activation restart ownership. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -194,6 +194,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_AttackRecoveryComplete),
     SAVE_CFUNCTION(S_AttackMoveComplete),
     SAVE_CFUNCTION(S_AttackGroundComplete),
+    SAVE_CFUNCTION(S_GuardReturnComplete),
     SAVE_CFUNCTION(S_CargoBoardComplete),
     SAVE_CFUNCTION(S_CargoLoadComplete),
     SAVE_CFUNCTION(S_CargoDropComplete),
@@ -1294,6 +1295,17 @@ static field_t const stock_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const attack_failed_target_fields[] = {
+    F(attackFailedTarget_s, target, F_EDICT, 0, FIELD_NONE),
+    F(attackFailedTarget_s, target_spawn_time, F_INT),
+    F(attackFailedTarget_s, timer.deadline.time, F_FLOAT),
+    F(attackFailedTarget_s, timer.deadline.epoch, F_INT),
+    F(attackFailedTarget_s, timer.deadline.span, F_FLOAT),
+    F(attackFailedTarget_s, timer.sequence, F_INT),
+    F(attackFailedTarget_s, timer.active, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
     F(edict_s, order_queue.entries, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1400,11 +1412,24 @@ field_t edict_fields[] = {
     F(edict_s, build_summon_wait.deadline.span, F_FLOAT),
     F(edict_s, build_summon_wait.sequence, F_INT),
     F(edict_s, build_summon_wait.active, F_INT),
+    F(edict_s, attack_failed_targets, F_STRUCT, ATTACK_FAILED_TARGET_SLOTS, attack_failed_target_fields),
     F(edict_s, attack_scan.deadline.time, F_FLOAT),
     F(edict_s, attack_scan.deadline.epoch, F_INT),
     F(edict_s, attack_scan.deadline.span, F_FLOAT),
     F(edict_s, attack_scan.sequence, F_INT),
     F(edict_s, attack_scan.active, F_INT),
+    F(edict_s, attack_scan_initial_pending, F_INT),
+    F(edict_s, attack_scan_enabled, F_INT),
+    F(edict_s, attack_damage.deadline.time, F_FLOAT),
+    F(edict_s, attack_damage.deadline.epoch, F_INT),
+    F(edict_s, attack_damage.deadline.span, F_FLOAT),
+    F(edict_s, attack_damage.sequence, F_INT),
+    F(edict_s, attack_damage.active, F_INT),
+    F(edict_s, attack_reaction.deadline.time, F_FLOAT),
+    F(edict_s, attack_reaction.deadline.epoch, F_INT),
+    F(edict_s, attack_reaction.deadline.span, F_FLOAT),
+    F(edict_s, attack_reaction.sequence, F_INT),
+    F(edict_s, attack_reaction.active, F_INT),
     F(edict_s, attack_speed_cap.deadline.time, F_FLOAT),
     F(edict_s, attack_speed_cap.deadline.epoch, F_INT),
     F(edict_s, attack_speed_cap.deadline.span, F_FLOAT),
@@ -5609,6 +5634,20 @@ TEST(wc3_save, rejects_version_204_before_independent_attack_scan) {
     T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
     T_EQ(header.version,save_version);
     T_ASSERT(write_save_fixture_header(current,previous,204,header.edict_size));
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));
+    T_ASSERT(!ReadGame(previous));
+    remove(current);remove(previous);
+}
+TEST(wc3_save, rejects_version_231_before_attack_attachment_pending) {
+    cstring_t current=Test_TempPath("save-attack-pending-current.bin");
+    cstring_t previous=Test_TempPath("save-attack-pending-v231.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    T_ASSERT(WriteGame(current));
+    FILE *file=fopen(current,"rb");T_NOT_NULL(file);if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,232u);
+    T_ASSERT(write_save_fixture_header(current,previous,231,header.edict_size));
     T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));
     T_ASSERT(!ReadGame(previous));
     remove(current);remove(previous);

@@ -1,0 +1,8 @@
+{
+  "repository_files": {
+    "tools/ghidra/research/patrol265_map_projection.py": "e93e4c867fc907b0ddbf0c734949755f9f0e60f7f4f60ebec6886114b3f73793",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_map.json": "f9805591a81806e5ae5bc950bcd26b6f2f7586ff695b4208b49fe365f56d0ee5",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_map.h": "4144845897da08226eea7ac2ed3fe6588a7cb3e5ed61577a4469ede8e2ef109f"
+  },
+  "originalmap_sha256": "61398ccf04ec20791b04e94173583b0a32a4ebd05a4827a9f570c374f1a360cf"
+}

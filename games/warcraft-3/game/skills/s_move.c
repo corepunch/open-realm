@@ -5566,6 +5566,17 @@ static struct {
     uint32_t queued_context,order_id;
 } move_group_admission;
 
+/* Retained parents resume a point task without publishing another user order.
+ * Share physical admission with the normal accepted-packet path. */
+void S_EnsurePointMoveOwner(edict_t *ent) {
+    if(ent && ent->currentmove==&move_move_walk && ent->goalentity &&
+       (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent) &&
+       (ent->movement.group_isolation || !(move_group_admission.unit==ent &&
+         move_group_admission.point.x==ent->goalentity->s.origin2.x &&
+         move_group_admission.point.y==ent->goalentity->s.origin2.y)))
+        move_start_point_group(ent,&ent->goalentity->s.origin2,0);
+}
+
 /* Native Shift preserves the common point and publishes the latest submitted
  * request identity independently of queued activation. Each completion can
  * start alone;5faaf0 rebuilds a matching
@@ -7535,14 +7546,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
          * newest-first owner list rather than entity allocation order. A
          * prepared packet installs its own owner after admission; independent
          * nested point orders must still receive their physical singleton. */
-        if (ent->currentmove==&move_move_walk && ent->goalentity &&
-            (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent) &&
-            (ent->movement.group_isolation || !(move_group_admission.unit==ent &&
-              move_group_admission.point.x==ent->goalentity->s.origin2.x &&
-              move_group_admission.point.y==ent->goalentity->s.origin2.y)))
-        {
-            move_start_point_group(ent,&ent->goalentity->s.origin2,0);
-        }
+        S_EnsurePointMoveOwner(ent);
         return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); MOVE_OWNER_PHASE(MOVE_PHASE_SCHEDULER,0); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_visual_update(); move_repulse_owner_update(); return true;

@@ -583,13 +583,15 @@ TEST(wc3_bot, captain_ai_point_acquisition_returns_home_before_any_damage) {
     limit=level.time+500;
     while(level.time<limit) {level.time+=5;globals.RunFrame();}
     T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
-    T_ASSERT(units[0]->attack_scan.active);
+    T_ASSERT(!units[0]->attack_scan.active);
+    T_ASSERT(!units[0]->attack_scan_enabled);
     wc3Clock_t deadline=units[0]->attack_scan.deadline;
     uint32_t sequence=units[0]->attack_scan.sequence;
     cstring_t file=Test_TempPath("wc3-captain-independent-acquire.bin");
     T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
     T_ASSERT(S_AbilityExecutionDisabled(units[0],MAKEFOURCC('A','a','t','k')));
-    T_ASSERT(units[0]->attack_scan.active);
+    T_ASSERT(!units[0]->attack_scan.active);
+    T_ASSERT(!units[0]->attack_scan_enabled);
     T_EQ(units[0]->attack_scan.sequence,sequence);
     T_EQ(wc3_float_bits(units[0]->attack_scan.deadline.time),wc3_float_bits(deadline.time));
     T_EQ(units[0]->attack_scan.deadline.epoch,deadline.epoch);

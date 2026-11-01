@@ -111,4 +111,41 @@ TEST(wc3_random_streams, public_item_choices_only_advance_their_owned_stream) {
     T_EQ(level.purpose_random[35].sum,after.sum);T_EQ(level.purpose_random[35].index,after.index);
     reset_entities();setup_test_world();G_ClearHashtableRegistry();
 }
+/* Native4989af uses purpose2 for the Footman's one two-sided die. The
+ * seven damage episodes in controlled272 bridge attachment12's after-state
+ * to attachment13's before-state exactly; these are owner calls, not burns. */
+TEST(wc3_random_streams, attack_damage_owns_stream2_and_saved_replacement_jitter) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,256},0);
+    T_NOT_NULL(unit);if(!unit)return;
+    unsigned index=unit-g_edicts;
+    unitAttack_t *attack=S_AttackProfileWrite(unit,0);
+    attack->numberOfDice=1;attack->sidesPerDie=2;attack->damageBase=11;attack->temporaryDamageBonus=0;
+    memcpy(level.purpose_random,retail_streams172[0].streams,sizeof(level.purpose_random));
+    level.purpose_random[2]=(wc3Random_t){1212630550u,605037672u};
+    wc3Random_t owner=level.pathing_random;
+    static unsigned const damage[]={12,12,12,12,12,13,12};
+    FOR_LOOP(i,3)T_EQ(ai_rolldamage1(unit,1),(float)damage[i]);
+    T_EQ(level.purpose_random[2].sum,322405141u);
+    T_EQ(level.purpose_random[2].index,415287316u);
+    cstring_t save=Test_TempPath("attack-purpose2-dice.bin");T_ASSERT(WriteGame(save));
+    FOR_LOOP(replay,2) {
+        if(replay){S_ClearMoveGroups();T_ASSERT(ReadGame(save));unit=g_edicts+index;}
+        srand(9173);int libc_next=rand();srand(9173);
+        for(unsigned i=3;i<7;i++)T_EQ(ai_rolldamage1(unit,1),(float)damage[i]);
+        T_EQ(rand(),libc_next);
+        T_EQ(level.purpose_random[2].sum,924375265u);
+        T_EQ(level.purpose_random[2].index,143681688u);
+        T_EQ(wc3_float_bits(wc3_mul(.5f,wc3_random_unit(level.purpose_random+2))),0x3d86d950u);
+        T_EQ(level.purpose_random[2].sum,3113278250u);
+        T_EQ(level.purpose_random[2].index,75780220u);
+        FOR_LOOP(i,45)if(i!=2) {
+            T_EQ(level.purpose_random[i].sum,retail_streams172[0].streams[i].sum);
+            T_EQ(level.purpose_random[i].index,retail_streams172[0].streams[i].index);
+        }
+        T_EQ(level.pathing_random.sum,owner.sum);T_EQ(level.pathing_random.index,owner.index);
+    }
+    remove(save);reset_entities();setup_test_world();
+}
 #endif

@@ -1271,6 +1271,13 @@ typedef struct {
     bool active;
 } abilityPrimaryTimer_t;
 
+#define ATTACK_FAILED_TARGET_SLOTS 8
+typedef struct attackFailedTarget_s {
+    edict_t *target; /* Weak identity: no target-event subscription or ownership. */
+    uint32_t target_spawn_time;
+    abilityPrimaryTimer_t timer;
+} attackFailedTarget_t;
+
 typedef struct {
     wc3Clock_t deadline;
     uint32_t sequence;
@@ -2764,7 +2771,12 @@ struct edict_s {
     edict_t *build_mine; /* Undead Build retained completion target, independent of the work wait. */
     uint32_t build_mine_spawn_time;
     abilityPrimaryTimer_t build_summon_wait; /* Unit-owned d019d work completion. */
+    attackFailedTarget_t attack_failed_targets[ATTACK_FAILED_TARGET_SLOTS];
     abilityPrimaryTimer_t attack_scan; /* Attack d01c1, independent of the current Move/task owner. */
+    bool attack_scan_enabled; /* Native4000 activation, distinct from initial2000. */
+    abilityPrimaryTimer_t attack_damage; /* d01b1 weapon damage-point request. */
+    abilityPrimaryTimer_t attack_reaction; /*49ea80 d01af; retained identity is attack_target. */
+    bool attack_scan_initial_pending; /* Native Attack2000: first attachment request has not fired. */
     abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
     abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */
     abilityPrimaryTimer_t attack_swing; /* Attack d01b2: completion independent of weapon cooldown. */
@@ -2880,7 +2892,7 @@ struct game_locals {
         float rootAngle;
         /* Unit-target Move/Smart follows use WC3 Misc distances, not attack
          * acquisition range. war3mapMisc.txt may override either value. */
-        float guardDistance, guardReturnTime;
+        float guardDistance, guardReturnTime, reactionDelay;
         float followRange;
         float structureFollowRange;
         float minUnitSpeed, maxUnitSpeed;
@@ -5133,6 +5145,7 @@ edict_t *S_AttackAlternativeTarget(edict_t *);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
+void S_EnsurePointMoveOwner(edict_t *);
 bool S_IssuePointMoveOrder(edict_t *, cstring_t, vec2_t const *, uint32_t, float);
 bool S_IssueCaptainHomeMove(edict_t *, botCaptain_t const *);
 bool S_AdmitTemporaryCaptainUnit(edict_t *, botCaptain_t const *, edict_t *);
@@ -5267,6 +5280,8 @@ bool S_CargoOrderDrop(edict_t *, vec2_t const *);
 bool S_CargoTryFailedMove(edict_t *, vec2_t const *);
 void S_AttackMoveComplete(edict_t *, edict_t *, bool);
 void S_AttackGroundComplete(edict_t *, edict_t *, bool);
+void S_GuardReturnComplete(edict_t *, edict_t *, bool);
+void S_AttackEnableAcquisition(edict_t *);
 void S_CargoBoardComplete(edict_t *, edict_t *, bool);
 void S_CargoLoadComplete(edict_t *, edict_t *, bool);
 void S_CargoDropComplete(edict_t *, edict_t *, bool);

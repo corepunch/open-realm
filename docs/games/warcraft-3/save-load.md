@@ -1,3 +1,26 @@
+Save232 stores Attack's initial-acquisition state, independent damage-point
+request, and eight failed-target weak identities with per-slot primary timers.
+Each timer retains deadline time/epoch/span, registration sequence and active
+state. Load rebuilds queue membership and rebases clocks; runtime list pointers
+are never serialized. Save231 and earlier versions are rejected without migration.
+
+An unfired initial acquisition request retains its deadline through pause,
+death and save/load. Later Patrol activation uses the measured 0.01-second
+restart. Actual Attack removal cancels the initial scan and pending reaction,
+unlike suspension. Private idle-combat return retains the saved guard point,
+state and registered `S_GuardReturnComplete` callback. A failed-target reference
+stores its captured birth separately from the current actor in that edict slot;
+a replacement incarnation must not inherit the old rejection.
+
+Active damage, reaction and failed-target requests require finite deadlines,
+finite positive clock spans, and nonzero sequences no greater than the saved
+registration sequence. Checkpoint 289 reproduced acceptance of invalid new timer
+metadata before the validation fix; checkpoint 290 passes the new rejection test
+and all 248 save tests in each edition. Its unchanged native Patrol comparisons
+also pass uninterrupted and cold saved replay. These checks establish the engine
+save contract; they do not establish a retail UI save/load contract.
+See [Patrol ownership and evidence](retail-pathfinding-engine.md#patrol-producer-candidate-native265272274-save232).
+
 Save231 adds preparatory item-ability identities and a spell-owned Move
 continuation. `moveContinuation_t` contains only destination point, speed and
 public order ID; it borrows no waypoint, group or client order pointer. The

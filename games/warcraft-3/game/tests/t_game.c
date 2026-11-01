@@ -5677,8 +5677,11 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
 
     setup_test_world();
     reset_entities();
-    unit_index = globals.num_edicts;
-    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 200, 0);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    /* A physical return requires the real spawn's mover/profile ownership. */
+    unit = unit_create(0,MAKEFOURCC('h', 'p', 'e', 'a'),&(vec2_t){200,0},0);
+    unit_index=(int)(unit-g_edicts);
     unit->stand = unit_stand;
     unit->die = unit_die;
     unit_stand(unit);
@@ -5702,11 +5705,12 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
         T_FEQ(unit->goalentity->s.origin2.x, 200, 0.001f);
         T_FEQ(unit->goalentity->s.origin2.y, 0, 0.001f);
     }
-    unit->s.origin2 = unit->movement.guard_position;
-    unit->s.origin.x = unit->s.origin2.x;
-    unit->s.origin.y = unit->s.origin2.y;
-    gi.LinkEntity(unit);
-    unit->currentmove->think(unit);
+    /* Return owns a saved physical point task; complete it through the real
+     * scheduler rather than teleporting around its retained mover state. */
+    FOR_LOOP(i,2000) {
+        if(unit->movement.guard_state==GUARD_IDLE)break;
+        level.time+=5;globals.RunFrame();
+    }
     T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_ASSERT(unit->currentmove->think == ai_stand);
     remove(filename);
@@ -8097,6 +8101,98 @@ TEST(wc3_save, unit_flags_and_overlapping_stuns_restore_without_a_cache) {
     T_ASSERT(!unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
     T_ASSERT(unit->paused && unit->no_pathing);
     remove(path);
+}
+
+/* These profiles are the same authored inputs as the owner continuation tests. */
+#include "fixtures/retail_patrol_hfoo_profile.h"
+#include "fixtures/retail_patrol_hfoo_weapons.h"
+slkTestData_t *parse_slk_string(cstring_t);
+void free_slk_rows(slkTestData_t *);
+
+static void Save232RejectBadTimer(abilityPrimaryTimer_t *timer) {
+    abilityPrimaryTimer_t original=*timer;
+    cstring_t rejected=Test_TempPath("save232-invalid-attack-timer.bin");
+    T_ASSERT(original.active);
+    T_ASSERT(S_ValidateAttackTargets());
+    FOR_LOOP(mode,6) {
+        *timer=original;
+        switch(mode) {
+        case 0: timer->sequence=0;break;
+        case 1: timer->sequence=level.timer_sequence+1;break;
+        case 2: timer->deadline.span=0;break;
+        case 3: timer->deadline.span=-1;break;
+        case 4: timer->deadline.span=NAN;break;
+        case 5: timer->deadline.span=INFINITY;break;
+        }
+        T_ASSERT(!S_ValidateAttackTargets());
+        T_ASSERT(!WriteGame(rejected));
+        *timer=original;
+        T_ASSERT(S_ValidateAttackTargets());
+    }
+    remove(rejected);
+}
+
+TEST(wc3_save, rejects_invalid_save232_attack_timer_metadata) {
+    reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    uint32_t old_flags=level.setup.map_flags,old_seed=level.setup.random_seed;
+    float old_reaction=game.constants.reactionDelay;
+    level.setup.map_flags=0;level.setup.random_seed=0x77617233u;G_InitMapRandom();
+    game.constants.reactionDelay=.75f;
+    bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    cstring_t names[]={"UnitData","UnitBalance","UnitWeapons"};
+    cstring_t texts[]={tft?patrol_tft_UnitData:patrol_roc_UnitData,
+        tft?patrol_tft_UnitBalance:patrol_roc_UnitBalance,
+        tft?patrol_tft_UnitWeapons:patrol_roc_UnitWeapons};
+    slkTestData_t *rows[3],*old[3];
+    FOR_LOOP(i,3){rows[i]=parse_slk_string(texts[i]);old[i]=G_SetSLKRows(names[i],rows[i]);}
+    bool ready=run_test_jass(
+        "function main takes nothing returns nothing\nlocal unit a=CreateUnit(Player(0),'hfoo',512.0,512.0,0.0)\n"
+        "local unit b=CreateUnit(Player(1),'hfoo',640.0,512.0,180.0)\n"
+        "call PauseUnit(b,true)\ncall SetUnitAcquireRange(a,137.25)\n"
+        "call IssuePointOrder(a,\"patrol\",1024.0,512.0)\nendfunction\n");
+    T_ASSERT(ready);
+    edict_t *unit=NULL,*target=NULL;
+    FILTER_EDICTS(u,u->inuse && u->class_id==MAKEFOURCC('h','f','o','o')) {
+        if(u->s.player==0)unit=u;else if(u->s.player==1)target=u;
+    }
+    T_NOT_NULL(unit);T_NOT_NULL(target);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t valid=Test_TempPath("save232-valid-attack-timer.bin");
+    if(ready && unit && target) {
+        unsigned index=unit-g_edicts,target_index=target-g_edicts;
+        /* Obtain both timers from actual acquisition and damage scheduling. */
+        FOR_LOOP(i,200){if(unit->attack_reaction.active)break;level.time+=5;globals.RunFrame();}
+        T_ASSERT(unit->attack_reaction.active);
+        if(unit->attack_reaction.active)Save232RejectBadTimer(&unit->attack_reaction);
+        FOR_LOOP(i,400){if(unit->attack_damage.active)break;level.time+=5;globals.RunFrame();}
+        T_ASSERT(unit->attack_damage.active);
+        if(unit->attack_damage.active)Save232RejectBadTimer(&unit->attack_damage);
+        /* Exercise the real failed-arrival inverse, not a manufactured cache. */
+        T_ASSERT(S_OrderAttack(unit,target));
+        S_AttackTargetChaseComplete(unit,unit,false);
+        abilityPrimaryTimer_t *failed=NULL;
+        FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS)
+            if(unit->attack_failed_targets[i].target==target && unit->attack_failed_targets[i].timer.active)
+                failed=&unit->attack_failed_targets[i].timer;
+        T_NOT_NULL(failed);
+        if(failed)Save232RejectBadTimer(failed);
+        T_ASSERT(WriteGame(valid));
+        bool loaded=ReadGame(valid);T_ASSERT(loaded);
+        if(loaded){unit=g_edicts+index;target=g_edicts+target_index;
+            T_ASSERT(S_ValidateAttackTargets());
+            unsigned retained=0;
+            FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS)
+                retained+=unit->attack_failed_targets[i].timer.active && unit->attack_failed_targets[i].target==target;
+            T_EQ(retained,1);
+        }
+    }
+    remove(valid);
+    level.started=false;reset_entities();setup_test_world();
+    FOR_LOOP(i,3){G_SetSLKRows(names[i],old[i]);free_slk_rows(rows[i]);}
+    level.setup.map_flags=old_flags;level.setup.random_seed=old_seed;
+    game.constants.reactionDelay=old_reaction;
 }
 
 #endif

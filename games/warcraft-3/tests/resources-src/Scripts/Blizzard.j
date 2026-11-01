@@ -10,6 +10,14 @@ globals
     boolean array bj_stockAllowedArtifact
 endglobals
 
+function ModuloInteger takes integer dividend, integer divisor returns integer
+    local integer modulus = dividend - (dividend / divisor) * divisor
+    if (modulus < 0) then
+        set modulus = modulus + divisor
+    endif
+    return modulus
+endfunction
+
 // The campaign-progress tests do not inspect the selected race; retain the call
 // boundary used by stock SetCampaignAvailableBJ without duplicating race globals.
 function SetCampaignMenuRaceBJ takes integer campaignNumber returns nothing

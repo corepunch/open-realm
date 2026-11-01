@@ -1,0 +1,294 @@
+{
+  "schema": 1,
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "initializer": {
+    "entry": 1862278352,
+    "output_address": 1876150188,
+    "poison_before": 3735928559,
+    "actual_after": 1112014848
+  },
+  "rows": [
+    {
+      "case": "negative",
+      "input_word": 3212836864,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative-zero",
+      "input_word": 2147483648,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "zero",
+      "input_word": 0,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "below50",
+      "input_word": 1112014847,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "equal50",
+      "input_word": 1112014848,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "above50",
+      "input_word": 1112014849,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "137.25",
+      "input_word": 1124679680,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "positive-infinity",
+      "input_word": 2139095040,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative-infinity",
+      "input_word": 4286578688,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "quiet-NaN",
+      "input_word": 2143289345,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "signaling-NaN",
+      "input_word": 2139095041,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative-quiet-NaN",
+      "input_word": 4290772993,
+      "attack_attached": false,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative",
+      "input_word": 3212836864,
+      "attack_attached": true,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative-zero",
+      "input_word": 2147483648,
+      "attack_attached": true,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "zero",
+      "input_word": 0,
+      "attack_attached": true,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "below50",
+      "input_word": 1112014847,
+      "attack_attached": true,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "equal50",
+      "input_word": 1112014848,
+      "attack_attached": true,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "above50",
+      "input_word": 1112014849,
+      "attack_attached": true,
+      "dispatched": true,
+      "calls": [
+        {
+          "attack_matches": true,
+          "argument_matches": true,
+          "raw": 1112014849
+        }
+      ],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "137.25",
+      "input_word": 1124679680,
+      "attack_attached": true,
+      "dispatched": true,
+      "calls": [
+        {
+          "attack_matches": true,
+          "argument_matches": true,
+          "raw": 1124679680
+        }
+      ],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "positive-infinity",
+      "input_word": 2139095040,
+      "attack_attached": true,
+      "dispatched": true,
+      "calls": [
+        {
+          "attack_matches": true,
+          "argument_matches": true,
+          "raw": 2139095040
+        }
+      ],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative-infinity",
+      "input_word": 4286578688,
+      "attack_attached": true,
+      "dispatched": false,
+      "calls": [],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "quiet-NaN",
+      "input_word": 2143289345,
+      "attack_attached": true,
+      "dispatched": true,
+      "calls": [
+        {
+          "attack_matches": true,
+          "argument_matches": true,
+          "raw": 2143289345
+        }
+      ],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "signaling-NaN",
+      "input_word": 2139095041,
+      "attack_attached": true,
+      "dispatched": true,
+      "calls": [
+        {
+          "attack_matches": true,
+          "argument_matches": true,
+          "raw": 2139095041
+        }
+      ],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    },
+    {
+      "case": "negative-quiet-NaN",
+      "input_word": 4290772993,
+      "attack_attached": true,
+      "dispatched": true,
+      "calls": [
+        {
+          "attack_matches": true,
+          "argument_matches": true,
+          "raw": 4290772993
+        }
+      ],
+      "input_unchanged": true,
+      "stack_delta": 8,
+      "mxcsr_after": 8064
+    }
+  ],
+  "scope": [
+    "Unmodified original001cd0 integer initializer and697ea0 body executed in Unicorn.",
+    "Syntheticunit+Attack pointers;49c3d0 replaced by argument recorder returning RET4.",
+    "Only dispatch/no-dispatch and untouched argument/stack are proven. Downstream property behavior, unmasked floating exceptions and public NaN parser reachability are excluded.",
+    "COMISS unordered sets CF and dispatches NaN under maskedMXCSR; ordinary <=50 skips."
+  ]
+}

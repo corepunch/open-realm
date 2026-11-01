@@ -1,0 +1,25 @@
+{
+  "captures": {
+    "frozen-sources.json": "816efdaac44e46f7cae9a0943d911b8ab80d96ce23974a0619464daefbf61081",
+    "abi-static.json": "7bc736ec4fc565228a7164920117c9dccf4197cb7bf6ac61e1b2ce688a09f433",
+    "itemdrop_probe.j": "3ba500abb7a1f6ab606bd9c363ca6e43ae66366b98d0be8e87f9db97b484fe02",
+    "itemdrop_observer.js": "e75cd3fb64122394550563370b33b4cc030c48cc0d2dade64c614fda922e762a",
+    "itemdrop_capture.py": "6514508c66612624e23ed556234e6c6477af062fcaf337ec3cc1ee6faf255b30",
+    "itemdrop_make_map.py": "053e8c2d5d4b22f274d0db29b49b570b7a076b8204bf63506fa57e9242fb3069",
+    "RS-TARGET265-patrol-public-v2.w3m": "61398ccf04ec20791b04e94173583b0a32a4ebd05a4827a9f570c374f1a360cf",
+    "observe1.jsonl": "b79d873dd2d6ad60dcf275eca6ce7d8e702e538876634fd958c0e7cdbe27cc91",
+    "observe2.jsonl": "adab2238827243a4f55e192ccf2ef4a7c61a077a01bd28ba9767ba6dc17101a2",
+    "control1.jsonl": "ee86f39ea2ecaaabc342b9e219db4655387037d2b4e901d6ca1a80f2d0075c07",
+    "control1-preload.txt": "0a5aa212eff1224b79635b2ab6d16e799216e4ce6c42593a97957c9d488ae6a1",
+    "runs.json": "dce0307ffb28a3a00edb1756f89799362e268557e1438ad7025f17dd0ccf4654",
+    "repeat-raw-differences.json": "9eb4902168747fea97d5d399d8b68e55ced25558d7197333c73f54cd9fc216cf"
+  },
+  "repository_files": {
+    "tools/ghidra/research/patrol275_fine_projection.py": "e3b8a431543c476931c0825620896b7348a0e121346c056469efa938db9cfed1",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol275_fine.json": "b82c05f6be79bc52e614cdfd88f326d444ec5f90cd70a1b66d95920e40e3119e",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol274_steering.json": "03e319b39acf4ab4473c55f0f6d2a92762b09b637661adf9f1f99b401eb41b80",
+    "tools/ghidra/research/patrol274_steering_projection.py": "3a8600a6faba8480edc5646ff26625e3b74daac433e46a0c1c0cde01deb95f68",
+    "tools/ghidra/research/patrol265_public_projection.py": "fbbe5665804b3c326658600e4a2068e1f6eda2505cf76037c8098850053eb706",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_map.json": "f9805591a81806e5ae5bc950bcd26b6f2f7586ff695b4208b49fe365f56d0ee5"
+  }
+}

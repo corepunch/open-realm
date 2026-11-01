@@ -40,6 +40,7 @@ void free_slk_rows(slkTestData_t *rows);
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t src);
 void G_RunEntities(void);
 void ui_selectskill(gameClient_t *client);
 
@@ -59,6 +60,39 @@ void  M_MoveFrame(edict_t *self);
 void  G_RunEntity(edict_t *ent);
 void  unit_add_build_queue(edict_t *self, edict_t *item);
 void  order_move(edict_t *self, edict_t *target);
+
+/* Damage-point effects now belong to the primary timer queue, not wait or
+ * repeated animation thinks. Advance that real queue without advancing the
+ * model animation: the animation-end tests intentionally control that separate
+ * presentation boundary themselves. */
+static void combat_primary_step(void) {
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    level.time+=5;
+    level.pathing_msec+=5;
+    bool const scheduled=level.scheduled_frame;
+    level.scheduled_frame=true;
+    G_RunTimers();
+    level.scheduled_frame=scheduled;
+}
+
+static float combat_damage_remaining(edict_t const *unit) {
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    T_ASSERT(unit->attack_damage.active);
+    return wc3_sub(unit->attack_damage.deadline.time,now.time);
+}
+
+static void combat_finish_damage_request(edict_t *unit) {
+    uint32_t const spawn=unit->spawn_time;
+    uint64_t const sequence=unit->attack_damage.sequence;
+    T_ASSERT(unit->attack_damage.active);
+    FOR_LOOP(i,4000) {
+        if(!unit->inuse || unit->spawn_time!=spawn || !unit->attack_damage.active ||
+           unit->attack_damage.sequence!=sequence)break;
+        combat_primary_step();
+    }
+    T_ASSERT(!unit->inuse || unit->spawn_time!=spawn || !unit->attack_damage.active ||
+             unit->attack_damage.sequence!=sequence);
+}
 
 static animation_t _replacement_anim = {
     .name = "stand alternate",
@@ -730,7 +764,7 @@ TEST(wc3_combat, undead_campaign_arthas_can_attack_a_ground_unit) {
     T_ASSERT(arthas->goalentity == target);
     arthas->currentmove->think(arthas);
     T_STREQ(arthas->currentmove->animation, "attack");
-    arthas->currentmove->think(arthas);
+    combat_finish_damage_request(arthas);
 
     T_ASSERT(target->health.value < target->health.max_value);
 }
@@ -1090,7 +1124,7 @@ TEST(wc3_combat, unreachable_attack_keeps_target_geometry) {
              * thinks alone cannot advance their physical path requests. */
             FOR_LOOP(owner_tick,3) {
                 wc3_clock_advance(&level.pathing_clock,.03f,0);level.pathing_counter++;
-                M_RunScheduledThinks();CM_ProcessPathJobs(4096);M_SamplePoses();
+                S_RunAbilityTimers();M_RunScheduledThinks();CM_ProcessPathJobs(4096);M_SamplePoses();
             }
             fallback |= attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED ||
                 attacker->movement.fine_route.partial;
@@ -1188,8 +1222,7 @@ TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
 
     T_ASSERT(S_OrderAttack(attacker, target));
     attack_ranged(attacker);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
     if (!missile) return;
@@ -2467,7 +2500,7 @@ TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
     attack_ranged_cooldown(u);
 
     T_STREQ(u->currentmove->animation, "attack range");
-    T_FEQ(u->wait, 0.4f, 0.001f);
+    T_FEQ(combat_damage_remaining(u), 0.24f, 0.001f); /* min(damage point, cooldown - .01) */
 }
 
 TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
@@ -2523,8 +2556,7 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     /* Commit a real hit at damage point while a finite animation remains
      * active. The weapon cooldown began at swing start. */
     attach_stub_anim(attacker);
-    attacker->wait = FRAMETIME / 1000.0f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     T_ASSERT(target->health.value < target->health.max_value);
     T_EQ(attacker->movement.group_id,0);
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
@@ -2532,7 +2564,7 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     /* The attack animation's end callback happens later than damage point.
      * It must preserve the existing swing deadline rather than start a second
      * cooldown from animation completion. */
-    level.time += 600;
+    level.time = swing_cooldown_end - 400;
     target->s.origin2.x = 130.0f;
     attacker->currentmove->endfunc(attacker);
     T_STREQ(attacker->currentmove->animation, "stand ready");
@@ -2574,8 +2606,7 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_expired_swing_cooldown) {
     attacker->currentmove->think(attacker);
     swing_cooldown_end = attacker->attack_cooldown_end_time;
     attach_stub_anim(attacker);
-    attacker->wait = FRAMETIME / 1000.0f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     T_ASSERT(target->health.value < target->health.max_value);
 
     /* Ability think observes the expired cooldown before the attack animation
@@ -2589,7 +2620,11 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_expired_swing_cooldown) {
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
     T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) <= 0);
     T_STREQ(attacker->currentmove->animation, "stand ready");
-    T_FEQ(attacker->wait, 0.2f, 0.01f);
+    /* The shorter cooldown has expired, but the real damage commit's
+     * authored backswing is still pending. Recovery retains that deadline. */
+    int32_t const remaining = (int32_t)(attacker->attack_backswing_end_time-G_Time());
+    T_ASSERT(remaining > 0);
+    T_FEQ(attacker->wait, remaining / 1000.0f, 0.001f);
 }
 
 TEST(wc3_combat, backswing_recovery_uses_damage_point_deadline) {
@@ -2611,13 +2646,12 @@ TEST(wc3_combat, backswing_recovery_uses_damage_point_deadline) {
     attacker->currentmove->think(attacker);
     swing_cooldown_end = attacker->attack_cooldown_end_time;
     attach_stub_anim(attacker);
-    attacker->wait = FRAMETIME / 1000.0f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     T_ASSERT(target->health.value < target->health.max_value);
 
     /* Damage point is at 30 ms; by animation end at 600 ms, only 230 ms of
      * the authored 800 ms backswing remains. Cooldown still has 400 ms. */
-    level.time += 600;
+    level.time = swing_cooldown_end - 400;
     attacker->currentmove->endfunc(attacker);
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
     T_FEQ(attacker->wait, 0.4f, 0.01f);
@@ -2760,7 +2794,7 @@ TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
     order_attack(attacker, target);
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "attack");
-    T_ASSERT(attacker->wait > 0.0f);
+    T_ASSERT(combat_damage_remaining(attacker) > 0.0f);
 
     target->s.origin2.x = 180.0f;
     attacker->currentmove->think(attacker);
@@ -2948,8 +2982,7 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
      * fallback resolves. The damage-point callback must still move the unit
      * into recovery so it can attack again. */
     u->animation = NULL;
-    u->wait = 0.01f;
-    u->currentmove->think(u);
+    combat_finish_damage_request(u);
 
     edict_t *missile = NULL;
     FILTER_EDICTS(ent, ent->owner == u && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
@@ -3065,8 +3098,7 @@ TEST(wc3_combat, missile_splash_launches_homing_projectile_and_snapshots_damage_
     target->armor_value = bystander->armor_value = 0.0f;
 
     attack_ranged(attacker);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
         missile = ent; break;
     }
@@ -3154,8 +3186,7 @@ TEST(wc3_combat, plain_missile_still_uses_direct_hit_without_splash_component) {
     S_AttackProfileWrite(attacker, 0)->projectile.speed = 900.0f;
     target->targtype = TARG_GROUND;
     attack_ranged(attacker);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
         missile = ent; break;
     }
@@ -3315,8 +3346,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     bystander->defense_type = 1; /* normal launch attack is 150%; current siege profile differs */
 
     attack_ranged(attacker);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
         missile = ent; break;
     }
@@ -3369,8 +3399,7 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     /* Intrinsic immobility consumes the in-range point during admission. */
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttackGround);
     T_STREQ(attacker->currentmove->animation, "attack range");
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
 
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
         missile = ent; break;
@@ -3469,6 +3498,8 @@ TEST(wc3_combat, aline_impaling_bolt_snapshots_spill_at_launch_not_attack_ground
     vec2_t point = { 200.0f, 0.0f };
 
     setup_test_world(); reset_entities();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    if(!level.vm)return;
     attacker = make_combat_unit(MAKEFOURCC('e','b','a','l'), 400.0f, 0.0f, 0.0f);
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
     attacker->data.UnitBalance = &balance;
@@ -3486,8 +3517,7 @@ TEST(wc3_combat, aline_impaling_bolt_snapshots_spill_at_launch_not_attack_ground
     G_SetPlayerTechResearched(&game.clients[0], tech, 1);
     attacker->goalentity = target;
     attack_ranged(attacker);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    combat_finish_damage_request(attacker);
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
         missile = ent; break;
     }
@@ -3505,16 +3535,35 @@ TEST(wc3_combat, aline_impaling_bolt_snapshots_spill_at_launch_not_attack_ground
         T_FEQ(missile->artillery->spill_distance, 250.0f, 0.001f);
     }
     G_SetPlayerTechResearched(&game.clients[0], tech, 1);
+    /* ALINE is a target-only weapon. Author a distinct enabled artillery
+     * slot for genuine Ground delivery; its projectile must not inherit the
+     * target shot's researched line-spill snapshot. */
+    *S_AttackProfileWrite(attacker,1)=*S_AttackProfileRead(attacker,0);
+    S_AttackProfileWrite(attacker,1)->weapon=WPN_ARTILLERY;
+    attacker->collision=16.0f;
+    attacker->s.model=1;
+    vec2_t ground_origin=attacker->s.origin2;
+    S_InitUnitPosition(attacker,&ground_origin);
+    G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
     T_ASSERT(S_OrderAttackGround(attacker, &point));
     /* Attack Ground uses the same art and splash, but never the line bonus. */
-    attacker->currentmove->think(attacker);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    /* The prior real launch retains its cooldown. Wait for the accepted
+     * Ground order to enter its next windup, rather than overwriting wait. */
+    FOR_LOOP(i,2000) {
+        if(attacker->attack_damage.active)break;
+        level.time+=5;
+        globals.RunFrame();
+    }
+    combat_finish_damage_request(attacker);
+    edict_t *ground_missile=NULL;
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE && ent != missile) {
+        ground_missile=ent;
         artillery_t const *profile = ent->artillery;
         T_NOT_NULL(profile);
         if (profile) T_FEQ(profile->spill_distance, 0.0f, 0.001f);
     }
+    T_NOT_NULL(ground_missile);
     G_SetPlayerTechResearched(&game.clients[0], tech, 0);
 }
 
@@ -3588,7 +3637,7 @@ TEST(wc3_combat, attack_speed_scales_with_agility) {
     T_FEQ(h->wait, (1.5f - 0.3f) / 1.4f, 0.001f);   /* recovery scaled */
 
     attack_melee(h);
-    T_FEQ(h->wait, 0.3f / 1.4f, 0.001f);            /* windup scaled */
+    T_FEQ(combat_damage_remaining(h), 0.3f / 1.4f, 0.001f);            /* windup scaled */
 }
 
 TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
@@ -3730,7 +3779,7 @@ TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
     attack_melee_cooldown(h);
     T_FEQ(h->wait, (1.5f - 0.3f) / 5.0f, 0.001f);
     attack_melee(h);
-    T_FEQ(h->wait, 0.3f / 5.0f, 0.001f);
+    T_FEQ(combat_damage_remaining(h), 0.3f / 5.0f, 0.001f);
 }
 
 /* Defend DataD is a fractional attack-speed reduction.  Use a non-stock 25%
@@ -3755,7 +3804,7 @@ TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
     T_FEQ(footman->wait, 1.2f / 0.75f, 0.001f);
 
     attack_melee(footman);
-    T_FEQ(footman->wait, 0.3f / 0.75f, 0.001f);
+    T_FEQ(combat_damage_remaining(footman), 0.3f / 0.75f, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -5081,9 +5130,7 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
     T_ASSERT(S_OrderAttackGround(unit, &point));
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
     unit->currentmove->think(unit);
-    unit->wait = 0.01f;
-    level.time += FRAMETIME;
-    unit->currentmove->think(unit);
+    combat_finish_damage_request(unit);
     FILTER_EDICTS(ent, ent->owner == unit && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
     if (missile) T_FEQ(missile->channel->origin.x, point.x, 0.001f);
@@ -5141,8 +5188,17 @@ TEST(wc3_combat, entangling_roots_pauses_existing_attack_without_cancelling_orde
     edict_t *attacker, *target;
     heroabilitystatus_t *roots;
     setup_test_world(); reset_entities(); level.time = 1000;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    if(!level.vm)return;
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    attacker->think = monster_think; /* Full frames must drive the retained attack owner. */
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    /* Isolate the exact weapon hit from hfoo's authored health regeneration
+     * now that this test advances complete simulation frames. */
+    UnitBalance_t const *original_balance=target->data.UnitBalance;
+    UnitBalance_t target_balance=*original_balance;
+    target_balance.healthRegen=0;
+    target->data.UnitBalance=&target_balance;
     attacker->s.player = 0; target->s.player = 1;
     S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
     S_AttackProfileWrite(attacker, 0)->range = 100.0f; S_AttackProfileWrite(attacker, 0)->damageBase = 25.0f;
@@ -5157,16 +5213,22 @@ TEST(wc3_combat, entangling_roots_pauses_existing_attack_without_cancelling_orde
     unit_addtimedstatus(attacker, "BEer", 1, 12.0f);
     roots = unit_findstatus(attacker, MAKEFOURCC('B','E','e','r'));
     T_NOT_NULL(roots);
-    attacker->wait = 0.01f;
+    FOR_LOOP(i,40)combat_primary_step();
     attacker->currentmove->think(attacker);
     T_FEQ(target->health.value, 200.0f, 0.001f);
     T_EQ(attacker->goalentity, target);
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
 
     unit_expirestatus(attacker, roots);
-    attacker->wait = 0.01f;
-    attacker->currentmove->think(attacker);
+    /* Expiry must reactivate the retained attack through normal frames;
+     * setting wait cannot recreate a canceled damage-point request. */
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,1000) {
+        if(target->health.value<200.0f)break;
+        level.time+=5;globals.RunFrame();
+    }
     T_FEQ(target->health.value, 175.0f, 0.001f);
+    target->data.UnitBalance=original_balance;
 }
 
 /* Roots are a disarm as well as a movement lock; ordinary immobile artillery
@@ -5193,9 +5255,7 @@ TEST(wc3_combat, attack_ground_roots_disarm_but_immobile_artillery_fires) {
     tower->targtype = TARG_GROUND;
     T_ASSERT(S_OrderAttackGround(tower, &near));
     tower->currentmove->think(tower);
-    tower->wait = 0.01f;
-    level.time += FRAMETIME;
-    tower->currentmove->think(tower);
+    combat_finish_damage_request(tower);
     FILTER_EDICTS(ent, ent->owner == tower && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
 }

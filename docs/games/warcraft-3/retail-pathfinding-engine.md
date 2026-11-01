@@ -948,6 +948,202 @@ prototypes, instruction bodies and xrefs are exported by
 This closes no further checkbox: full crowd/trajectory fidelity and the separate
 existing Follow target-removal checkpoint failure remain open.
 
+### Patrol producer candidate: native265/272/274, Save232
+
+Checkpoint 290 resolves the Patrol candidate's numerical and ownership failures.
+All 18 focused processes pass across Classic and TFT: 1,226 test executions and
+309,036 assertions. The unchanged original comparisons match all 1,084 public
+records, 1,632 ordered public polls, 7,124 lifetime movement rows and the complete
+acquisition stream, including cold saved replay. This supersedes the pending
+replay statements in the earlier investigation notes below.
+
+The two gameplay corrections are specific. Original `0x4989af` rolls weapon
+damage on purpose stream 2; seven actual Footman hits account exactly for the
+previous replacement-jitter gap. Original reaction completion `0x49b3d0` dispatches
+the retained chase synchronously, before the next physical-owner visit. C now
+preserves that timing. The private home-return task `d016c` also uses the original
+`0x5ffb60`/`0x05b440` distance-only admission gate, so a unit already home creates
+no extra physical request. Spell `d016b` retains its different admission policy.
+
+True Attack removal cancels pending reaction and acquisition requests, including
+an unfired initial scan; pause/death retain their separate measured treatment.
+Checkpoint 289 reproduces those missing cancellations before the fix and invalid
+Save232 timer metadata acceptance. Checkpoint 290 passes the extended detach/save
+regressions. It also builds the production game module without warnings. Ordinary
+one-to-sixteen damage dice now use the proved stream; native zero-dice rejection
+and the greater-than-sixteen Gaussian branch remain separate numeric work.
+
+The [exact closure checklist](target-01.2-closure.md) distinguishes this completed
+Patrol correction block from the remaining TARGET-01.2 caller inventory. No whole
+backlog leaf is closed by these focused results. The full suite remains subject
+to the user's requested batching after a few implementation commits.
+
+The current candidate moves point and unit-target Patrol admission/activation
+into the Patrol ability. Friendly mobile targets retain submitted head851990 and
+Follow ownership; enemy/building targets convert to point publication before
+expansion to851991, and self-target becomes accepted short point completion.
+Removed/disabled Amov and authored zero movement reject; runtime
+SetUnitMoveSpeed(0) retains the Move owner and its clamped speed. Checkpoint270
+passes 17 Patrol order tests/637 assertions per edition, including the six new
+public cases. This is admission/publication evidence, not complete firing-poll
+acceptance for the pending candidate.
+
+Accepted native265 uses the actual stock hfoo authored collision31 established
+before creation. Its terrain is the literal captured WPM, including the wall;
+the earlier flat-fixture assumption is retracted. Accepted native274
+(`patrol274-public-steering-v4`) preserves all 2,986 native265 core rows and adds
+steering/path evidence: 7,542 ordered records, 1,084 public markers and 816
+arrival/velocity pairs, with 14 negative controls. Those pairs include peer Move
+and enemy combat responses; they are not all Patrol-only polls. The literal
+world/profile must be reproduced before treating a trajectory difference as a
+movement defect.
+
+Accepted native272 (`patrol272-lifetime124c-startup-v1`) is a new controlled124c
+capture, not an observer-free control for historical124b. Two observations and
+its fresh control agree on 7,072 public markers; the observations retain all
+15,356 ordered core records, 343 scan enter/leave pairs, 13 attachment draws and
+429 timer requests. Seed `0x77617233` and all 45 stream states are retained.
+All 7,124 historical B/C arrival/velocity words match this new capture. The
+portable `patrol_startup272_projection.py` verifies those full datasets and
+renders the complete 13-attachment/343-fire seam; that seam does not claim C
+comparison of all 429 timer requests. Historical B/C still lacks its own
+same-map unhooked control.
+
+The pending production candidate retains Attack's unfired attachment request,
+its RNG-derived initial deadline and pending-initial state. Later point-Patrol
+activation restarts the Attack-owned acquisition timer with the measured .01
+primary-clock delay; the live acquisition-range update and saved continuation
+must preserve the same owner. The enabled flag is independent of an unfired
+initial request: suspension disables acquisition but retains that first request;
+an already-fired scan is cancelled. Save232 serializes both flags and the
+independent weapon damage-point timer alongside existing timer/clock ownership.
+Windup damage is scheduled once, rather than subtracting FRAMETIME on every
+entity think; repeated route steering during that wait also changed facing
+without a physical Move owner. The timer's ground-attack suspension inverse
+must restart the retained approach, including when an assetless unit has no
+animation end callback.
+
+Native279 observes the public265 map's actual setup seed `0x77617233` and all
+purpose states. The engine fixture sets that map input before `G_InitMapRandom`
+and ability attachment; per-unit seed injection is unnecessary. Native275 also
+retains the actual wall/path queries rather than treating the map as flat.
+`S_EnsurePointMoveOwner` shares Move's physical admission with retained Patrol
+resume, which installs no new public order. A logical walk with group_id0 alone
+cannot resume scheduled movement.
+
+The public265 enemy scene includes an idle peer's automatic combat. Original
+4943f0 captures the current mover position when a fresh target is admitted from
+idle (action0), constructing a retained d016c with raw range50 before combat.
+Target replacement preserves that continuation. At failed chase completion the
+peer privately returns to this point with fine range1.5625 and public head0.
+The candidate uses existing guard point/state storage and Move's point-approach
+scheduler; `idle_combat_private_home_return_survives_cold_save` checks physical
+arrival, saved callback identity and absence of a public point-order event.
+The return is still acquisition-enabled: native279 interrupts it with a second
+target while retaining the original home point. Resumed Patrol legs likewise
+execute d0148's .01 scan restart after target loss, even though they publish no
+new public user order. Starting the logical walk alone omits both physical and
+acquisition ownership.
+
+Checkpoint282 compares all 7,124 lifetime arrival/velocity rows exactly in
+both normal execution and saved continuation. This completes that movement
+stream comparison without selecting a passing prefix or changing expected
+numeric words. The separate acquisition chronology still first differs at
+row98 during Move-to-Stand ownership; it is not covered by movement equality.
+The public265 comparison also remains incomplete: the first difference at
+row922 traces to missing failed-target retention across original `495c00`,
+`499640` and `49bbe0`. That cache/owner correction is now implemented in the unverified checkpoint284
+candidate, not an accepted reinterpretation of the native oracle. Earlier checkpoint281
+prefix counts remain historical diagnostics, superseded by these full-stream
+and first-difference results. Checkpoint283 still failed the full acceptance checks; checkpoint284 validation
+is pending.
+
+The next candidate adds Attack-owned failed-target retention from original
+`495c00`, `499640` and `49bbe0`: eight weak target identities, each with a
+10-second timer. Repeating an identity refreshes its slot; a new identity uses
+the last empty slot, otherwise the strictly earliest remaining deadline, with
+equal minima retaining the first selected slot. An empty acquisition result
+with no retained target clears the slots, as does owner disable/detach. Pause,
+Move, death and target-owner change are not blanket cache-clear operations.
+Save232 stores target/incarnation plus each slot's deadline, sequence and active
+state; restore rebuilds runtime membership and rebases the retained clocks.
+
+The portable `patrol283_failed_cache_oracle.py` executes original `495c00` with
+explicit synthetic identity, validation and timer-service boundaries. Its eight
+cases and eight negative checks prove bounded slot selection and refresh,
+not live multi-target acquisition or actual timer expiry. The original binary
+identity and oracle fixture provenance remain separate from candidate C source
+state and engine tests. `wc3_attack_failed_targets.*` and unchanged complete
+public/poll replay are pending checkpoint284; no passing engine or broader
+lifecycle claim follows from this instruction-level oracle alone.
+
+Full public265 replay and acquisition chronology remain pending; the complete
+lifetime movement saved suffix alone does not close the producer. No closure
+follows from native acceptance or the earlier admission tests. Patrol remains
+active inside TARGET-01.2, with 25 whole leaves open and zero whole leaves closed.
+
+### Remaining Patrol producer verification within TARGET-01.2
+
+After the bounded Acoi producer integration, Patrol is the next producer within
+TARGET-01.2. This checklist adds no new leaf: **25 whole leaves remain open and
+zero whole leaves close**. It does not reopen the ordinary point Move numerical
+contract or authorize an Attack Move implementation.
+
+The existing evidence has distinct scopes. [Payoff176](#patrol-leg-completion-admits-queued-successors-payoff176)
+proves the 60/99.99/100 distance cases, public combat ownership, same-leg resume,
+return append and queued rotation. Its threshold/combat scene has repeated
+observations and an unhooked control; its queued-input scenes are distinct single
+witnesses. The original classifier replay covers `5fccc0`, not the entire task
+graph. Unit-target Patrol, disabled Move admission and exact leg timing were
+explicitly excluded from that ownership composition. E2E210 reuses those child
+contracts and exclusions; it supplies no new retail UI save/load witness.
+
+Payoff276 supplies the archived motion and group evidence described above. The
+frozen `retail-patrol276-1.27.json` scope prose describes the earlier tolerance
+contract and excludes full facing/trajectory parity. The current
+`t_patrol_motion.c` test `every_subject_matches_original_public_samples` is
+stronger: it compares all 3,000 captured public samples exactly (head, facing,
+X and Y), with a separate server-cadence replay comparison. This is stronger
+engine validation against the existing literal fixture, not a new native capture
+or a rewrite of frozen provenance. Public sample equality does not by itself
+prove equality of every intervening firing poll.
+
+The remaining bounded checks are:
+
+1. **Initial and return producers:** complete the raw range, heading, force,
+   stop and association map through `5fe1a0`, `5fdff0` and `5fff70`, then compare
+   complete ordered firing polls and saved continuation for initial travel,
+   reversal, occupied/blocked endpoints and queued handoff. Reuse the existing
+   zero-range/null-association task and singleton-binding evidence and archived
+   traces where complete; do not substitute periodic public samples for missing
+   polls or claim an SV_Map cold restart from a ReadGame suffix.
+2. **Actual float-adjacent expansion boundary:** test representable public inputs
+   on both sides of, and at, the effective scalar squared-distance 10,000 gate.
+   The accepted 99.99/100 cases establish below/equality behavior, not literal
+   adjacent float values. Account for actual submitted coordinates and scalar
+   subtract/multiply/add rounding before selecting the inputs.
+3. **Unit-target Patrol admission:** establish the native reachable caller and
+   resulting producer or rejection, then compare the corresponding public engine
+   behavior. Its exclusion from Payoff176 is not proof of unreachability.
+4. **Disabled Move admission:** establish the native admission/retirement result
+   and any reachable producer differences, then compare the engine boundary.
+   Do not infer this gate from ordinary mobile point-Patrol success.
+
+Native265 now establishes public unit-target dispatch from `5fe1a0` to
+`5fd270`; its nonenemy mobile branch constructs d0193 plus FollowRange
+d0174/d0173 tasks. The candidate ability handles this boundary, including
+disabled/removed Amov and adjacent point expansion, with focused order tests.
+UI speed gating remains a distinct check. Historical lifetime B/C identity
+mapping is now audited for the full declared 7,124-row interval; their differing
+post-completion tails remain archived and do not justify truncating that
+interval. The historical capture's missing unhooked control remains explicit,
+with the newer controlled124c evidence kept separate.
+
+Complete native/C poll and saved-suffix validation remains pending. Broader route/crowd
+fidelity, generic ORDER-01.13 callback compositions and retail UI save/load are
+not silently absorbed into this producer checklist; their existing ownership and
+limits remain unchanged.
+
 ## Current Follow and Hold ownership
 
 **S/L plus engine regression:** the `order_lifecycle` probe uses actual public

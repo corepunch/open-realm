@@ -1,0 +1,8 @@
+{
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "repository_files": {
+    "tools/ghidra/research/patrol277_acquire_gate_oracle.py": "55369cfae7bb6b118890f8be1b4a8ee0b05ec7b43ba8ffbcaf0269048cfbba8f",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol277_acquire_gate.json": "66ed9a02bdb75e2835e0f36bb164c17b3a63b63030ebb0df2aeb44c99ac20026",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3"
+  }
+}

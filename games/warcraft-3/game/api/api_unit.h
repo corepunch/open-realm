@@ -127,7 +127,24 @@ uint32_t GetUnitPropWindow(jass_t *j) {
     edict_t *unit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, unit ? unit_propwindow(unit) : 0);
 }
-UNITINFO_ACCESS(AcquireRange);
+uint32_t SetUnitAcquireRange(jass_t *j) {
+    edict_t *unit=jass_checkhandle(j,1,"unit");
+    float range=jass_checknumber(j,2);
+    /* Registered214ea0 ->697ea0 accepts only values strictly above50.
+     * Zero does not disable the attached Attack owner's acquisition radius. */
+    if(unit && G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')) && !(range<=50.0f)) {
+        unit->unitinfo.AcquireRange=range;
+        /* Acquisition queries consume the live cached value, not only the
+         * public query scalar. Both are saved with the unit. */
+        unit->runtime.acquisition_range=range;
+    }
+    return 0;
+}
+uint32_t GetUnitAcquireRange(jass_t *j) {
+    edict_t *unit=jass_checkhandle(j,1,"unit");
+    /*2039a0 ->684150 reads the attached Attack owner's live scalar. */
+    return jass_pushnumber(j,unit && G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')) ? G_AcquisitionRange(unit) : 0);
+}
 
 uint32_t GetUnitFacing(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

@@ -10257,7 +10257,7 @@
         "address": "0x6f5fdff0",
         "rva": "0x5fdff0",
         "name": "Patrol tasks",
-        "classification": "missing",
+        "classification": "covered_bounded",
         "owner": "TARGET-01.2",
         "historical_signature": "void __thiscall Move_CreatePatrolTasks(WC3MoveSpeedPrefix *move,void *event)",
         "task_ids_observed_in_frozen_body": [
@@ -10272,8 +10272,8 @@
           "0xd0175",
           "0xd0178"
         ],
-        "bounded_existing_evidence": "Historical176/276 ownership; complete7124 lifetime movement normal/saved now exact.",
-        "exact_remaining_requirement": "Finish current public265 full stream, acquisition chronology and saved suffix, preserving literal world and initial/return parameter/boundary evidence.",
+        "bounded_existing_evidence": "D113 CALL5fe12f to692120 supplies d016b, first endpoint X/Y, raw range0 and NULLassociation. Native265 captures27 calls (returnPC5fe134),27 d0175 two-point constructions and22 returns. Both-edition complete1084 public records and1632 ordered firing polls match, including path-cleared saved suffix. Threshold611.99993896484375/612/612.00006103515625, Move attachment/availability, runtime speed0 clamping and authored speed0 cases are covered; historical176 FIFO/rotation and saved continuation evidence is retained. Checkpoint290:18 processes,1226 tests,309036 assertions passed.",
+        "exact_remaining_requirement": "None for this bounded direct producer parameter contract. Preserve D113 coverage; this does not close TARGET-01.2 or resolve the separately enumerated computed-call receiver inventory.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -10302,20 +10302,41 @@
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.18/HANDOFF.md",
             "line": 31
+          },
+          {
+            "path": "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json"
+          },
+          {
+            "path": "games/warcraft-3/game/tests/t_patrol_public.c"
+          },
+          {
+            "path": "games/warcraft-3/game/tests/t_patrol_orders.c"
           }
         ],
-        "frozen_body_key": "6f5fdff0"
+        "frozen_body_key": "6f5fdff0",
+        "bounded_checkpoint": {
+          "checkpoint": 290,
+          "processes": 18,
+          "tests": 1226,
+          "assertions": 309036,
+          "direct_call_instruction_rva": "0x5fe12f",
+          "native_recorded_return_pc_rva": "0x5fe134",
+          "native_direct_calls": 27,
+          "native_two_point_constructions": 27,
+          "native_return_continuations": 22,
+          "public_records": 1084,
+          "ordered_poll_rows": 1632,
+          "both_editions": true,
+          "path_cleared_saved_suffix": true,
+          "scope": "D113 actual-command parameters and assigned admission/continuation cases only"
+        }
       },
       "frozen_decompiled_function": "\n/* d0017 dispatch. Retain order, read both endpoints48/50 and5c/64; generate d0175 and ordinary\n   point chain, or alternate690fa0 order. Payoff124 two complete240-tick public captures\n   retain851991 through automatic actual combat, enemy loss and nested replacement;40 constructions\n   and33 d0175 continuations repeat. Prepending reverses task creation order: point d016b executes\n   BEFORE d0175. Complete physical engine composition remains ORDER-01.18.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Payoff176: engine reproduces queued two-point rotation when any non-Patrol successor exists. New\n   point Patrol captures activation origin before rotating; internally appended routes retain their\n   saved other endpoint. Native/frame full-FIFO and saved alternating-route regressions, plus\n   complete ORDER-01.18 reconstruction4 captures/one control9672 records, retain public851991. Queue\n   input witnesses are distinct single runs, not claimed repeats.\n   Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Payoff276: physical engine Patrol legs now use the ordinary scheduled point task, preserving\n   endpoint retry, fine routing, arrival and d0175 FIFO continuation. Two archived300-tick10-unit\n   original captures agree on all3000 public samples; open Move/Patrol pairs agree for58 samples,\n   walled16 and enclosed33. Fresh group Patrol repeats/control agree on405 public markers; all11 leg\n   constructions in each observed run use692120(d016b,range0,NULLassociation) for three distinct\n   units. Singleton legs replace the legacy ai_patrol_walk. Head-on avoidance, facing words and full\n   wall trajectories remain explicitly uncertified. */\n\nvoid __thiscall Move_CreatePatrolTasks(WC3MoveSpeedPrefix *move,void *event)\n\n{\n  int *piVar1;\n  uint uVar2;\n  uint uVar3;\n  WC3UnitOrdersPrefix *unit;\n  WC3PatrolEndpointsPrefix *order;\n  void *target;\n  WC3PathScalar *x;\n  WC3PathScalar *y;\n  WC3PathScalar *continuation_x;\n  WC3PathScalar *continuation_y;\n  void *association;\n  WC3PathScalar local_24;\n  WC3PathScalar local_20;\n  undefined4 *local_1c;\n  WC3PathScalar local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa49cd8;\n  local_10 = ExceptionList;\n  uVar2 = DAT_6fce689c ^ (uint)&stack0xfffffffc;\n  ExceptionList = &local_10;\n  uVar3 = Move_IsEnabledForQuery(move,0,1);\n  if (uVar3 != 0) {\n    FUN_6f5f9e50(*(undefined4 *)((int)event + 0xc));\n    local_8 = 0;\n    if (local_1c != (undefined4 *)0x0) {\n      local_18 = local_1c[0x12];\n      unit = move->unit;\n      local_14 = local_1c[0x14];\n      local_24 = local_1c[0x17];\n      local_20 = local_1c[0x19];\n      if (unit == (WC3UnitOrdersPrefix *)0x0) {\n        unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0(uVar2);\n      }\n      uVar2 = Move_HasQueuedNonPatrolOrder(unit);\n      if (uVar2 == 0) {\n        FUN_6f5fa5e0();\n        Unit_CreateActionTask(unit,0);\n        FUN_6f692380(0xd0166,0xd0012);\n        Unit_CreateEventTask(unit,0xd0148);\n        Unit_CreateEventTask(unit,0xd014a);\n        Unit_PrependTwoPointTask\n                  (unit,0xd0175,&local_24,&local_20,&local_18,&local_14,&Math_RuntimeZero,\n                   (void *)0x0);\n        Unit_CreatePointTask(unit,0xd016b,&local_18,&local_14,&Math_RuntimeZero,(void *)0x0);\n        Unit_CreateEventTask(unit,0xd0148);\n        Unit_CreateEventTask(unit,0xd014e);\n        Unit_CreateEventTask(unit,0xd0178);\n        Unit_CreateEventTask(unit,0xd0144);\n        Unit_CreateActionTask(unit,7);\n      }\n      else {\n        Unit_CreateActionTask(unit,0);\n        association = (void *)0x0;\n        continuation_y = &local_20;\n        continuation_x = &local_24;\n        y = &local_14;\n        x = &local_18;\n        target = (void *)0x0;\n        uVar2 = (**(code **)((int)unit->vtable + 0xec))();\n        order = OrderPoint_CreateWithContinuation\n                          (0xd0017,uVar2,target,x,y,continuation_x,continuation_y,association);\n        Unit_AppendUserOrder(unit,(WC3OrderPrefix *)order);\n      }\n    }\n    local_8 = 0xffffffff;\n    if (local_1c != (undefined4 *)0x0) {\n      piVar1 = local_1c + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*local_1c)();\n      }\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
       "path_conditions_status": "Full frozen function and exact instruction-associated argument expressions supplied; coverage is bounded, not all-branch parity.",
       "closure_assignment": {
-        "blocks": [
-          2,
-          3,
-          4,
-          5
-        ],
-        "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+        "blocks": [],
+        "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
+        "state": "covered bounded D113 producer parameter contract atcheckpoint290; separate computed-call classification remains unchanged"
       }
     },
     {
@@ -16696,6 +16717,6 @@
   },
   "coverage_status_source": {
     "path": "docs/games/warcraft-3/target-01.2-caller-status.json",
-    "sha256": "f7e08fc2e9329adef8ea7e7b5126976490971ebe09c5bf114bf440c0c4502a67"
+    "sha256": "65f2b3e07d92d9e76275529215e55f1cdbeb7276740de80a9f0ba001d6e10ff9"
   }
 }

@@ -2,6 +2,10 @@
 #include "test.h"
 #include "../g_local.h"
 #include "retail_patrol_motion.h"
+#include "fixtures/retail_patrol_hfoo_profile.h"
+
+slkTestData_t *parse_slk_string(cstring_t);
+void free_slk_rows(slkTestData_t *);
 
 bool run_test_jass(cstring_t);
 extern void (*test_preload_marker)(cstring_t);
@@ -42,6 +46,11 @@ static void patrol_motion_run(patrolMotionRun_t *run, unsigned step) {
     run->ran = true;
     FOR_LOOP(i, level.num_timers) G_TimerDestroy(level.timers + i);
     reset_entities(); setup_test_world();
+    bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    slkTestData_t *data=parse_slk_string(tft ? patrol_tft_UnitData : patrol_roc_UnitData);
+    slkTestData_t *balance=parse_slk_string(tft ? patrol_tft_UnitBalance : patrol_roc_UnitBalance);
+    slkTestData_t *old_data=G_SetSLKRows("UnitData",data);
+    slkTestData_t *old_balance=G_SetSLKRows("UnitBalance",balance);
     uint8_t cells[64*64] = {0}; CM_SetupTestPathmap(64, 64, cells);
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
     level.waypoints = (typeof(level.waypoints)){0}; level.pathing_clock = (wc3Clock_t){0,0,300};
@@ -52,14 +61,16 @@ static void patrol_motion_run(patrolMotionRun_t *run, unsigned step) {
              patrol_motion_probe);
     T_ASSERT(run_test_jass(script));
     G_FinishMovePathingInitialization();
-    /* TODO: the fixture MPQ's hfoo row lacks the authored Footman collision16. */
-    FILTER_EDICTS(u, u->inuse && u->class_id == MAKEFOURCC('h','f','o','o')) if (!u->collision) u->collision = 16;
+    /* The old post-spawn collision16 fallback had no native map provenance. */
+    FILTER_EDICTS(u, u->inuse && u->class_id == MAKEFOURCC('h','f','o','o')) T_FEQ(u->collision,31,0);
     level.started = level.scriptsConfigured = level.scriptsStarted = true;
     while (level.time < 31000 && !run->samples[300][9].order) { level.time += step; globals.RunFrame(); }
     T_ASSERT(!jass_rterror_pending(level.vm));
     test_preload_marker = NULL; patrol_motion_active = NULL;
     FOR_LOOP(i, level.num_timers) G_TimerDestroy(level.timers + i);
     level.started = false; reset_entities(); setup_test_world();
+    G_SetSLKRows("UnitData",old_data);G_SetSLKRows("UnitBalance",old_balance);
+    free_slk_rows(data);free_slk_rows(balance);
 }
 
 static patrolMotionRun_t patrol_motion;

@@ -391,19 +391,7 @@ void ai_stand(edict_t *self) {
     if (G_TryUnitAutocast(self))
         return;
 
-    /* Idle units auto-engage the nearest enemy within acquisition range — for
-     * the player's own units too. Units with no attack (workers/critters) and
-     * units already chasing/attacking stay as they are. */
-    if (!unit_has_attack(self))
-        return;
-
-    edict_t *best = G_FindNearestEnemy(self, G_AcquisitionRange(self));
-    if (best) {
-        S_UnitAbilityEvent(self, A_AUTO_COMBAT_START);
-        order_attack(self, best);
-        if (self->goalentity == best && self->currentmove && self->currentmove->proc == CAbilityAttack)
-            G_CreepGuardAutoCombat(self);
-    }
+    /* Ordinary Attack acquisition is scheduled by its attached owner. */
 }
 
 void ai_birth(edict_t *self) {

@@ -19,6 +19,42 @@ void ai_train_build(edict_t *self);
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
 static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
 
+/* Acquisition/reaction and damage are real primary requests. These owner
+ * tests advance the production timer drain without synthesizing modulo-frame
+ * eligibility or directly invoking the timer callback. */
+static void lifecycle_primary_step(void) {
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    level.time+=5;level.pathing_msec+=5;
+    bool const scheduled=level.scheduled_frame;
+    level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+
+static void lifecycle_publish_acquisition_world(edict_t *unit,edict_t *target) {
+    /* The Attack selector queries Move's spatial owner, unlike the former
+     * frame-local nearest-enemy helper. Supply actual map and actor geometry. */
+    edict_t *actors[]={unit,target};
+    FOR_LOOP(i,2) {
+        /* Allocator-only units have bounds but no published collision/model.
+         * Author a nonstock 16-unit body before spatial registration. */
+        actors[i]->collision=16.0f;
+        actors[i]->s.model=1;
+        vec2_t origin=actors[i]->s.origin2;
+        S_InitUnitPosition(actors[i],&origin);
+        gi.LinkEntity(actors[i]);
+    }
+    G_FinishMovePathingInitialization();
+    S_PublishMoveProximity(unit);S_PublishMoveProximity(target);
+}
+
+static void lifecycle_wait_for_auto_target(edict_t *unit,edict_t *target) {
+    T_ASSERT(unit->attack_scan.active);
+    FOR_LOOP(i,1000) {
+        if(unit->goalentity==target)break;
+        lifecycle_primary_step();
+    }
+    T_EQ(unit->goalentity,target);
+}
+
 static bool lifecycle_stop_frame_seen, lifecycle_hold_frame_seen;
 static bool lifecycle_move_frame_seen;
 static uint32_t lifecycle_stop_frame_flags, lifecycle_hold_frame_flags, lifecycle_move_frame_flags;
@@ -1067,7 +1103,8 @@ TEST(wc3_order_lifecycle, swing199_explicit_weapons_publish_exemption_before_dam
         }
         T_ASSERT(unit->attack_speed_cap.active);
         T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
-        T_ASSERT(unit->wait>0);T_FEQ(target->health.value,target->health.max_value,0);
+        T_ASSERT(unit->attack_damage.active);
+        T_ASSERT(unit->attack_damage.deadline.time>G_TimerQueryClock(NULL).time);T_FEQ(target->health.value,target->health.max_value,0);
         uint32_t sequence=unit->attack_speed_cap.sequence;
         T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){600,64},false,0,0));
         T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_speed_cap.sequence,sequence);
@@ -1387,7 +1424,11 @@ TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     G_SetHealth(enemy, 1);
     order_attack(unit, enemy);
     unit->currentmove->think(unit);
-    unit->currentmove->think(unit);
+    T_ASSERT(unit->attack_damage.active);
+    FOR_LOOP(i,1000) {
+        if(M_IsDead(enemy))break;
+        lifecycle_primary_step();
+    }
     T_ASSERT(M_IsDead(enemy));
     /* The committed hit retains Follow through its independent swing wait;
      * no animation-end callback is required to resume it. */
@@ -1439,9 +1480,10 @@ TEST(wc3_order_lifecycle, finishing_repair_preserves_production_queue) {
 TEST(wc3_order_lifecycle, stop_auto_acquires_and_chases_after_returning_to_idle) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+    lifecycle_publish_acquisition_world(unit,enemy);
     order_stop(unit);
-    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
-    unit->currentmove->think(unit);
+    lifecycle_wait_for_auto_target(unit,enemy);
+    if(unit->goalentity!=enemy)return;
     T_ASSERT(unit->goalentity == enemy);
     T_ASSERT(!unit->movement.holding_position);
     T_ASSERT(unit->currentmove->proc == CAbilityAttack);
@@ -1625,13 +1667,14 @@ TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_com
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
 
+    lifecycle_publish_acquisition_world(unit,enemy);
     order_stop(unit);
     T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_FEQ(unit->movement.guard_position.x, 0, 0.001f);
     T_FEQ(unit->movement.guard_position.y, 0, 0.001f);
 
-    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
-    unit->currentmove->think(unit);
+    lifecycle_wait_for_auto_target(unit,enemy);
+    if(unit->goalentity!=enemy)return;
     T_ASSERT(unit->goalentity == enemy);
     T_ASSERT(unit->movement.guard_state == GUARD_COMBAT);
 
@@ -1642,6 +1685,7 @@ TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_com
     T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
     T_NOT_NULL(unit->goalentity);
+    if(!unit->goalentity)return;
     T_FEQ(unit->goalentity->s.origin2.x, 0, 0.001f);
     T_FEQ(unit->goalentity->s.origin2.y, 0, 0.001f);
 }
@@ -1657,21 +1701,28 @@ TEST(wc3_order_lifecycle, internal_stop_cleanup_does_not_create_guard_position) 
 
 TEST(wc3_order_lifecycle, guard_return_completion_restores_stopped_idle) {
     setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    if(!level.vm)return;
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
 
+    lifecycle_publish_acquisition_world(unit,enemy);
     order_stop(unit);
-    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
-    unit->currentmove->think(unit);
+    lifecycle_wait_for_auto_target(unit,enemy);
+    if(unit->goalentity!=enemy)return;
     unit->s.origin2.x = unit->s.origin.x = 120;
     gi.LinkEntity(unit);
     T_Damage(enemy, unit, (int)enemy->health.value);
     T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
 
-    unit->s.origin2 = unit->movement.guard_position;
-    unit->s.origin.x = unit->s.origin2.x;
-    unit->s.origin.y = unit->s.origin2.y;
-    gi.LinkEntity(unit);
-    unit->currentmove->think(unit);
+    /* The retained guard return now owns an ordinary physical point
+     * approach. Let its scheduler reach arrival instead of teleporting the
+     * public pose and directly thinking an unsynchronized Move owner. */
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    G_FinishMovePathingInitialization();
+    FOR_LOOP(i,2000) {
+        if(unit->movement.guard_state==GUARD_IDLE)break;
+        level.time+=5;globals.RunFrame();
+    }
 
     T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_ASSERT(unit->currentmove->think == ai_stand);
@@ -1710,9 +1761,10 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
     vec2_t point = {700, 0};
 
+    lifecycle_publish_acquisition_world(unit,enemy);
     order_stop(unit);
-    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
-    unit->currentmove->think(unit);
+    lifecycle_wait_for_auto_target(unit,enemy);
+    if(unit->goalentity!=enemy)return;
     T_ASSERT(unit->movement.guard_state == GUARD_COMBAT);
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &point, true, 0, 0.0f));
     T_EQ(G_UnitQueuedOrderCount(unit), 1);
@@ -2772,9 +2824,10 @@ TEST(wc3_order_lifecycle, creep_guard_soft_leash_times_out_through_scheduler) {
     creep_guard_setup_frame_world();
     edict_t *creep = scheduled_creep(-800, -100, 0);
     edict_t *enemy = review_order_unit(-70, 0);
+    lifecycle_publish_acquisition_world(creep,enemy);
     uint32_t combat_ms;
     int frame;
-    for (frame = 0; frame < 4 && creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT; frame++)
+    for (frame = 0; frame < 30 && creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT; frame++)
         creep_guard_run_frames(1);
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
     T_ASSERT(creep_guard_attacking(creep) && creep->goalentity == enemy);

@@ -1090,7 +1090,7 @@
       "address": "0x6f5fdff0",
       "rva": "0x5fdff0",
       "name": "Patrol tasks",
-      "classification": "missing",
+      "classification": "covered_bounded",
       "owner": "TARGET-01.2",
       "historical_signature": "void __thiscall Move_CreatePatrolTasks(WC3MoveSpeedPrefix *move,void *event)",
       "task_ids_observed_in_frozen_body": [
@@ -1105,8 +1105,8 @@
         "0xd0175",
         "0xd0178"
       ],
-      "bounded_existing_evidence": "Historical176/276 ownership; complete7124 lifetime movement normal/saved now exact.",
-      "exact_remaining_requirement": "Finish current public265 full stream, acquisition chronology and saved suffix, preserving literal world and initial/return parameter/boundary evidence.",
+      "bounded_existing_evidence": "D113 CALL5fe12f to692120 supplies d016b, first endpoint X/Y, raw range0 and NULLassociation. Native265 captures27 calls (returnPC5fe134),27 d0175 two-point constructions and22 returns. Both-edition complete1084 public records and1632 ordered firing polls match, including path-cleared saved suffix. Threshold611.99993896484375/612/612.00006103515625, Move attachment/availability, runtime speed0 clamping and authored speed0 cases are covered; historical176 FIFO/rotation and saved continuation evidence is retained. Checkpoint290:18 processes,1226 tests,309036 assertions passed.",
+      "exact_remaining_requirement": "None for this bounded direct producer parameter contract. Preserve D113 coverage; this does not close TARGET-01.2 or resolve the separately enumerated computed-call receiver inventory.",
       "repository_evidence": [
         {
           "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -1135,9 +1135,34 @@
         {
           "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.18/HANDOFF.md",
           "line": 31
+        },
+        {
+          "path": "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json"
+        },
+        {
+          "path": "games/warcraft-3/game/tests/t_patrol_public.c"
+        },
+        {
+          "path": "games/warcraft-3/game/tests/t_patrol_orders.c"
         }
       ],
-      "frozen_body_key": "6f5fdff0"
+      "frozen_body_key": "6f5fdff0",
+      "bounded_checkpoint": {
+        "checkpoint": 290,
+        "processes": 18,
+        "tests": 1226,
+        "assertions": 309036,
+        "direct_call_instruction_rva": "0x5fe12f",
+        "native_recorded_return_pc_rva": "0x5fe134",
+        "native_direct_calls": 27,
+        "native_two_point_constructions": 27,
+        "native_return_continuations": 22,
+        "public_records": 1084,
+        "ordered_poll_rows": 1632,
+        "both_editions": true,
+        "path_cleared_saved_suffix": true,
+        "scope": "D113 actual-command parameters and assigned admission/continuation cases only"
+      }
     },
     {
       "address": "0x6f5fe3e0",
