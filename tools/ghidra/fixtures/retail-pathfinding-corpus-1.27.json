@@ -61567,7 +61567,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
-      "sha256": "5e33c1699f385e46ede1c12cbaa7a5b56545b8538532afde801f843ff0d108a5"
+      "sha256": "70f2669a40dc1db3cdef4a34a2ea617e84441fe58f10cd1a97b1180d04491ce4"
     },
     {
       "path": "tools/ghidra/research/verify_attack173_orders.py",
@@ -61691,7 +61691,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_patrol.c",
-      "sha256": "7cc4e02e2edc0b2e0401ad580b132c8724d054ad064a9bcb1b7e0e40d24f4ae4"
+      "sha256": "9bf10c8a42c14e5e2dadc0aa4c14c55376697c39cc84f6a0186537a94e430641"
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",

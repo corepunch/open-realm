@@ -1842,5 +1842,96 @@
     "tests": 1616,
     "assertions": 45128,
     "changed_sources_during_run": []
+  },
+  "full308_followup": {
+    "full_command": "make BUILD=debug test TEST_JOBS=8",
+    "full_source_commit": "a1a10fff9",
+    "full_exit": 2,
+    "full_green": false,
+    "archived_junit_reports": 27,
+    "python_tests": 3359,
+    "python_passed": true,
+    "failures": [
+      "Patrol omitted A_UNIT_EVENT_MASK and therefore subscribed to unhandled Stand events.",
+      "Ground delivery fixture changed wait instead of consuming the actual primary damage timer.",
+      "Pre-damage target-loss fixture expected immediate Stand despite native captured-point recovery."
+    ],
+    "fixes": [
+      "Advertise only the seven messages handled by CAbilityPatrol; retain the exact two-owner Stand dispatch assertion.",
+      "Drive actual primary damage requests and retain missile damage, speed, target and geometry assertions.",
+      "Require cleared target subscription, captured waypoint travel with no swing, and the original final null goal/head."
+    ],
+    "focused": [
+      {
+        "edition": "roc",
+        "pattern": "wc3_ability_dispatch.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_ability_dispatch_all",
+          "tests": "31",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "15841"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_attack_orders.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_attack_orders_all",
+          "tests": "22",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "10966"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_ability_dispatch.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_ability_dispatch_all",
+          "tests": "31",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "15841"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_attack_orders.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_attack_orders_all",
+          "tests": "22",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "10966"
+        }
+      }
+    ],
+    "patrol": {
+      "roc": {
+        "name": "OpenRealm",
+        "tests": "32",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "assertions": "55623"
+      },
+      "tft": {
+        "name": "OpenRealm",
+        "tests": "32",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "assertions": "55623"
+      }
+    }
   }
 }

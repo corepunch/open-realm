@@ -287,7 +287,25 @@ TEST(wc3_attack_orders, loss_before_damage_point_has_no_swing_wait) {
     S_AttackProfileWrite(actor,0)->targetsAllowed |= WC3_TARGET_FLAG_AIR;
     attack_orders_call("attack");
     T_ASSERT(!actor->attack_swing.active);
-    G_DeferFreeEdict(enemy); T_NULL(actor->goalentity); T_EQ(actor->current_order_id,0);
+    vec2_t const captured=enemy->s.origin2;
+    G_DeferFreeEdict(enemy);
+    T_NULL(actor->attack_target);T_EQ(actor->attack_target_sequence,0);
+    T_ASSERT(!actor->attack_damage.active);T_ASSERT(!actor->attack_swing.active);
+    T_EQ(actor->current_order_id,G_OrderId("attack"));
+    T_NOT_NULL(actor->goalentity);
+    if(actor->goalentity) {
+        T_ASSERT(actor->goalentity->svflags&SVF_MOVE_WAYPOINT);
+        T_FEQ(actor->goalentity->s.origin2.x,captured.x,0);
+        T_FEQ(actor->goalentity->s.origin2.y,captured.y,0);
+    }
+    /* Native223/299 captured d016c travels before completing the head;
+     * losing before damage must not manufacture an independent swing wait. */
+    FOR_LOOP(i,100) {
+        if(!actor->current_order_id)break;
+        attack_orders_frames(1);
+        T_ASSERT(!actor->attack_swing.active);
+    }
+    T_NULL(actor->goalentity);T_EQ(actor->current_order_id,0);
 }
 
 static edict_t *attack_orders_once(void) {
@@ -414,7 +432,17 @@ TEST(wc3_attack_orders, ground_uses_second_weapon_geometry_damage_and_delivery) 
     T_NULL(move_unit_group(actor));
     T_FEQ(actor->s.origin2.x,64,0);T_FEQ(actor->s.origin2.y,64,0);
     T_STREQ(actor->currentmove->animation,"attack range");
-    actor->wait=.01f;actor->currentmove->think(actor);
+    T_ASSERT(actor->attack_damage.active);
+    /* d01b1 owns delivery. Drain real primary requests through the authored
+     * damage point without advancing the new missile's physical movement. */
+    FOR_LOOP(i,200) {
+        if(!actor->attack_damage.active)break;
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        level.time+=5;level.pathing_msec+=5;
+        bool const scheduled=level.scheduled_frame;
+        level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+    }
+    T_ASSERT(!actor->attack_damage.active);
     edict_t *missile=NULL;
     FILTER_EDICTS(unit,unit->owner==actor && unit->movetype==MOVETYPE_FLYMISSILE) missile=unit;
     T_NOT_NULL(missile);

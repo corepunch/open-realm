@@ -127,6 +127,10 @@ static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
 
 BZ_ABILITY_PROC(CAbilityPatrol) {
     switch(msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_POINT_ORDER_ADMIT,A_POINT_ORDER,
+            A_TARGET_ORDER_ADMIT,A_ISSUED_TARGET_ORDER,A_UNIT_TYPE_UPDATE,
+            A_QUEUE_ORDER_START,A_COMMAND);
     case A_POINT_ORDER_ADMIT:
         return patrol_can_issue(ent) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_POINT_ORDER: {
