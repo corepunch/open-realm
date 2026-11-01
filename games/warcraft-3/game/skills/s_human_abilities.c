@@ -705,10 +705,16 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
     float data_e = S_SpellData(code, level, 5);
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
+    bool const disenchant = G_AbilityCode(code) == MAKEFOURCC('A','d','c','n') ||
+                            G_AbilityCode(code) == MAKEFOURCC('A','d','c','h');
     if (!caster || !point || !(area >= 0.0f)) return;
     S_SentinelDispelAt(point, area);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
                   Vector2_distance(&target->s.origin2, point) <= area) {
+        /* The older Adch row is enemy-only whereas TFT Adcn is not.
+         * Respect the authored area target mask instead of dispelling every
+         * entity within range; other shared dispels keep their existing rules. */
+        if (disenchant && !S_SpellAllowsAreaTarget(code, caster, target)) continue;
         uint32_t const target_removed = S_DispelUnitMagic(target);
         bool affected = target_removed > 0;
         /* Devour Magic refunds per enemy unit affected, not per status:
@@ -797,6 +803,13 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
         return;
     }
     S_DispelMagicArea(caster, spell->code, S_SpellLevel(caster, spell->code), &st.point);
+    /* The authored Disenchant special effect is point-based; the shared
+     * dispel helper already handles per-recipient target art and damage. */
+    if (G_AbilityCode(spell->code) == MAKEFOURCC('A','d','c','n') ||
+        G_AbilityCode(spell->code) == MAKEFOURCC('A','d','c','h')) {
+        G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_SPECIAL, 0, &st.point, true);
+        G_PlayAbilityEffectSound(spell->code, &st.point);
+    }
 }
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilityHeal, heal_validate(ent, target, call ? call->item : NULL), heal_execute, true, true)

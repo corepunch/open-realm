@@ -64,6 +64,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Pit Lord Howl/Cleave art, Rain of Fire waves/burns and Doom persistent damage/death summon | [docs/games/warcraft-3/pit-lord.md](docs/games/warcraft-3/pit-lord.md) |
 | WC3 Wisp Detonate point cast, area dispel/mana/summons, Blight protection and remaining parity gaps | [docs/games/warcraft-3/detonate.md](docs/games/warcraft-3/detonate.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
+| WC3 Spirit Walker forms, Rowt training, revival and remaining parity | [docs/games/warcraft-3/spirit-walker.md](docs/games/warcraft-3/spirit-walker.md) |
 | WC3 Pillage research, primary-hit salvage, per-player fractional rewards and persistence | [docs/games/warcraft-3/pillage.md](docs/games/warcraft-3/pillage.md) |
 | WC3 Night Elf Moon Glaive (`Remg`), mbounce weapon dispatch, damage-loss chain, research ownership, remaining FX gaps | [docs/games/warcraft-3/moon-glaive.md](docs/games/warcraft-3/moon-glaive.md) |
 | WC3 Crypt Fiend Burrow (`Abur`/`Rubu`), `ucry`/`ucrm` transform and verification gaps | [docs/games/warcraft-3/crypt-fiend-burrow.md](docs/games/warcraft-3/crypt-fiend-burrow.md) |

@@ -10543,14 +10543,14 @@ TEST(wc3_spell, raise_dead_unitid_limit_check_retires_oldest_summon) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-/* Aast's `player,dead` target contract selects the nearest owned ordinary Tauren and restores its original edict. */
+/* Aast selects the nearest owned eligible Tauren-class corpse and revives its original edict. */
 TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y2;X7\n"
+		"ID;PWXL;N;EBB;Y2;X8\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
-		"C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+		"C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
 		"C;Y2;X1;K\"Aast\"\nC;Y2;X2;K\"Aast\"\nC;Y2;X3;K\"ground,player,dead\"\n"
-		"C;Y2;X4;K\"250\"\nC;Y2;X5;K\"30\"\nC;Y2;X6;K\"350\"\nC;Y2;X7;K\"0.4\"\nE\n";
+		"C;Y2;X4;K\"250\"\nC;Y2;X5;K\"30\"\nC;Y2;X6;K\"350\"\nC;Y2;X7;K\"0.4\"\nC;Y2;X8;K\"0.25\"\nE\n";
 	static UnitBalance_t const tauren = { .foodUsed = 5 }, hero = { .strength = 1 };
 	UnitData_t corpse_data = { .deathType = 3 };
 	UnitAbilities_t abilities = { .abilList = "Aast" };
@@ -10563,19 +10563,23 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	edict_t *allied_corpse = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 50, 0);
 	edict_t *nearest = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 100, 0);
 	edict_t *next = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 200, 0);
+    edict_t *ether_corpse = alloc_test_unit(MAKEFOURCC('o','s','p','m'), 240, 0);
+    edict_t *solid_corpse = alloc_test_unit(MAKEFOURCC('o','s','p','w'), 270, 0);
 	edict_t *distant = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 351, 0);
 	uint32_t nearest_spawn = nearest->spawn_time;
+    int32_t previous_rowt = G_GetPlayerTechResearchedLevel(&game.clients[0], MAKEFOURCC('R','o','w','t'));
 
 	old = G_SetSLKRows("AbilityData", rows);
 	caster->data.UnitAbilities = &abilities; caster->s.player = 0;
 	zero_health->data.UnitBalance = &tauren; zero_health->s.player = 0;
 	zero_health->svflags |= SVF_MONSTER; zero_health->health.value = 0; zero_health->health.max_value = 400;
 	living->data.UnitBalance = nearest->data.UnitBalance = next->data.UnitBalance = distant->data.UnitBalance = &tauren;
+    ether_corpse->data.UnitBalance = solid_corpse->data.UnitBalance = &tauren;
 	living->s.player = 0; living->svflags |= SVF_MONSTER;
 	living->health.value = living->health.max_value = 400;
 	hero_corpse->data.UnitBalance = &hero; other_corpse->data.UnitBalance = &tauren;
 	allied_corpse->data.UnitBalance = &tauren;
-	edict_t *corpses[] = { hero_corpse, other_corpse, allied_corpse, nearest, next, distant };
+	edict_t *corpses[] = { hero_corpse, other_corpse, allied_corpse, nearest, next, ether_corpse, solid_corpse, distant };
 	FOR_LOOP(i, sizeof(corpses) / sizeof(*corpses)) {
 		corpses[i]->data.UnitData = &corpse_data;
 		corpses[i]->s.player = corpses[i] == allied_corpse ? 1 : 0;
@@ -10586,16 +10590,31 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','o','w','t'), 2);
+    nearest->mana.max_value = 200.0f;
+    nearest->mana.value = 0.0f;
 
 	T_EQ(S_AbilityItem(MAKEFOURCC('A','a','s','t')).ability->proc, CAbilityAncestralSpirit);
 	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t')));
 	T_EQ(nearest->spawn_time, nearest_spawn); T_EQ(nearest->s.player, 0);
 	T_FEQ(nearest->health.value, 160.0f, .001f);
+    T_FEQ(nearest->mana.value, 50.0f, .001f);
 	T_ASSERT(!(nearest->svflags & SVF_DEADMONSTER)); T_ASSERT(!(nearest->s.flags & EF_NOT_SELECTABLE));
 	T_EQ(G_GetFood(nearest)->used, 5); T_ASSERT(M_IsDead(next)); T_ASSERT(M_IsDead(allied_corpse));
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
 	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_ASSERT(!M_IsDead(next));
+    S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
+    T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t')));
+    T_ASSERT(!M_IsDead(ether_corpse));
+    T_EQ(ether_corpse->class_id, MAKEFOURCC('o','s','p','m'));
+    T_ASSERT(unit_hasstatusstate(ether_corpse, WC3_STATUS_STATE_ETHEREAL));
+    S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
+    T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t')));
+    T_ASSERT(!M_IsDead(solid_corpse));
+    T_EQ(solid_corpse->class_id, MAKEFOURCC('o','s','p','w'));
+    T_ASSERT(!unit_hasstatusstate(solid_corpse, WC3_STATUS_STATE_ETHEREAL));
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
+	caster->mana.value = caster->mana.max_value;
 	float mana = caster->mana.value;
 	T_ASSERT(!S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_FEQ(caster->mana.value, mana, .001f);
 	level.alliances[0][1] &= ~(1 << ALLIANCE_PASSIVE);
@@ -10603,7 +10622,8 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	T_ASSERT(M_IsDead(zero_health)); T_ASSERT(!(zero_health->svflags & SVF_DEADMONSTER));
 	T_ASSERT(!M_IsDead(living)); T_ASSERT(M_IsDead(hero_corpse)); T_ASSERT(M_IsDead(other_corpse));
 	T_ASSERT(M_IsDead(allied_corpse)); T_ASSERT(M_IsDead(distant));
-	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+	G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','o','w','t'), previous_rowt);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 TEST(wc3_spell, chain_lightning_bounces_respect_authored_target_mask) {

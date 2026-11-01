@@ -474,6 +474,26 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
         return researchable && G_GetPlayerTechResearchedLevel(
             fiend_owner, MAKEFOURCC('R','u','b','u')) >= 1;
     }
+    /* Stock TFT Spirit Walkers author both rank-locked spells on their unit
+     * lists. Rowt (Adept/Master) owns command admission even when a map's
+     * UnitBalance upgrades list does not contain the caster upgrade. */
+    if (unit && (unit->class_id == MAKEFOURCC('o','s','p','m') ||
+                 unit->class_id == MAKEFOURCC('o','s','p','w')) &&
+        (ability_id == MAKEFOURCC('A','d','c','n') ||
+         ability_id == MAKEFOURCC('A','d','c','h') ||
+         ability_id == MAKEFOURCC('A','a','s','t'))) {
+        uint32_t const upgrade = MAKEFOURCC('R','o','w','t');
+        int32_t const rank = ability_id == MAKEFOURCC('A','a','s','t') ? 2 : 1;
+        int32_t maximum;
+        if (research_id) *research_id = upgrade;
+        if (required_level) *required_level = rank;
+        owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (!owner || owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(owner, upgrade);
+        researchable = maximum < 0 || maximum >= rank;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(owner, upgrade) >= rank;
+    }
     /* Exhume Corpses is a Meat Wagon passive unlocked by Ruex. The stock
      * Wagon upgrade list does not include Ruex, so resolve this research
      * directly instead of letting the passive run as soon as Aexh is present. */
