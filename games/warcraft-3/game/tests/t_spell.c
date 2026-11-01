@@ -1378,7 +1378,8 @@ TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_peons_in_fire) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     gameClient_t *owner;
     edict_t *demolisher, *primary, *passing, *outside, *fire = NULL;
-    edict_t *ground_effect = NULL, *status_effect = NULL;
+    edict_t *ground_effects[12] = { NULL }, *ground_effect = NULL, *status_effect = NULL;
+    uint32_t ground_effect_count = 0;
     uint32_t ground_effect_model;
     playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
     vec2_t impact = { 300.0f, 300.0f };
@@ -1412,11 +1413,20 @@ TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_peons_in_fire) {
     }
     T_NOT_NULL(fire);
     FILTER_EDICTS(ent, ent->inuse && ent->s.model == ground_effect_model &&
-                  Vector2_distance(&ent->s.origin2, &impact) < 0.01f) {
-        ground_effect = ent; break;
+                  ent->owner == fire && !ent->goalentity) {
+        T_ASSERT(ground_effect_count < 12u);
+        if (ground_effect_count < 12u)
+            ground_effects[ground_effect_count++] = ent;
     }
+    if (ground_effect_count) ground_effect = ground_effects[0];
+    T_EQ(ground_effect_count, 12u);
     T_NOT_NULL(ground_effect);
-    if (ground_effect) T_EQ(ground_effect->owner, fire);
+    FOR_LOOP(i, ground_effect_count) {
+        T_EQ(ground_effects[i]->owner, fire);
+        T_ASSERT(Vector2_distance(&ground_effects[i]->s.origin2, &impact) <= 100.0f);
+        FOR_LOOP(j, i) T_ASSERT(Vector2_distance(&ground_effects[i]->s.origin2,
+                                                &ground_effects[j]->s.origin2) >= 35.0f);
+    }
     T_EQ(G_UnitStatusLevel(passing, MAKEFOURCC('B','b','o','f')), 1);
     FILTER_EDICTS(ent, ent->inuse && ent->status_effect_code == MAKEFOURCC('B','b','o','f') &&
                   ent->goalentity == passing) { status_effect = ent; break; }
@@ -1435,7 +1445,7 @@ TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_peons_in_fire) {
         level.time = fire->freetime;
         fire->think(fire);
         T_ASSERT(!fire->inuse);
-        if (ground_effect) T_ASSERT(ground_effect->owner == NULL);
+        FOR_LOOP(i, ground_effect_count) T_ASSERT(ground_effects[i]->owner == NULL);
     }
     memcpy(owner->tech, old_tech, sizeof(old_tech));
     gi.CvarString = old_cvar;

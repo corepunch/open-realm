@@ -15,7 +15,46 @@
 #define ID_BURNING_OIL MAKEFOURCC('A','b','o','f')
 #define ID_BURNING_OIL_RESEARCH MAKEFOURCC('R','o','b','f')
 #define BURNING_OIL_TICK_MS 1000u /* milliseconds; ground fire reacquisition and Burning Oil damage cadence */
+#define BURNING_OIL_GROUND_EFFECT_COUNT 12u /* patches per impact; matches retail's scattered ground fire presentation */
+#define BURNING_OIL_GROUND_EFFECT_ATTEMPTS 192u /* placement tries per impact; bounds deterministic non-overlap sampling */
 #define LIQUID_FIRE_TICK_MS 1000
+
+static uint32_t burning_oil_random(uint32_t *seed) {
+    *seed = *seed * 1664525u + 1013904223u;
+    return *seed;
+}
+
+static float burning_oil_random_unit(uint32_t *seed) {
+    return (float)(burning_oil_random(seed) >> 8) * (1.0f / 16777216.0f);
+}
+
+static void burning_oil_spawn_ground_effects(edict_t *fire, uint32_t effect_code,
+                                             vec2_t const *center, float radius) {
+    vec2_t placed[BURNING_OIL_GROUND_EFFECT_COUNT];
+    uint32_t seed, placed_count = 0, attempts = 0;
+    float const min_spacing = MAX(12.0f, radius * 0.35f);
+    if (!fire || !center || radius <= 0.0f) return;
+    seed = fire->spawn_time ^ (fire->s.number * 2654435761u) ^ 0xB04F1A5Du;
+    if (!seed) seed = 1;
+    while (placed_count < BURNING_OIL_GROUND_EFFECT_COUNT &&
+           attempts++ < BURNING_OIL_GROUND_EFFECT_ATTEMPTS) {
+        float const angle = burning_oil_random_unit(&seed) * (2.0f * (float)M_PI);
+        float const distance = sqrtf(burning_oil_random_unit(&seed)) * radius;
+        vec2_t point = { center->x + cosf(angle) * distance,
+                         center->y + sinf(angle) * distance };
+        bool separated = true;
+        FOR_LOOP(i, placed_count) {
+            if (Vector2_distance(&placed[i], &point) < min_spacing) {
+                separated = false;
+                break;
+            }
+        }
+        if (!separated) continue;
+        if (!G_SpawnOwnedAbilityEffectAtPoint(fire, effect_code, WC3_EFFECT_EFFECT, 0, &point))
+            continue;
+        placed[placed_count++] = point;
+    }
+}
 
 bool S_BurningOilEnabled(edict_t const *attacker) {
     gameClient_t *owner;
@@ -88,9 +127,9 @@ void S_BurningOilImpact(edict_t *attacker, vec2_t const *impact) {
     fire->think = burning_oil_ground_think;
     effect_code = G_AbilityEffectCode(ID_BURNING_OIL, level);
     if (!effect_code) effect_code = ID_BURNING_OIL;
-    /* The ground patch must remain visible for the same lifetime as its
-     * damaging area; the fire thinker retires this owned presentation effect. */
-    G_SpawnOwnedAbilityEffectAtPoint(fire, effect_code, WC3_EFFECT_EFFECT, 0, impact);
+    /* Retail scatters multiple non-overlapping fire patches across the area.
+     * Keep them owned by the gameplay area so expiry retires them together. */
+    burning_oil_spawn_ground_effects(fire, effect_code, impact, radius);
     /* Artillery resolves at the end of an entity frame; apply the first fire
      * sample now so units already standing in the blast cannot be skipped. */
     burning_oil_ground_think(fire);
