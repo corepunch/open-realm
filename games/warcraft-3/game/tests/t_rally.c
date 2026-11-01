@@ -86,6 +86,32 @@ TEST(wc3_rally, command_handler_is_registered) {
     T_EQ(ability->proc, CAbilityRally);
 }
 
+TEST(wc3_rally, command_button_art_matches_unit_race) {
+    static UnitData_t const human = { .race = STR_HUMAN };
+    static UnitData_t const orc = { .race = STR_ORC };
+    static UnitData_t const night_elf = { .race = STR_NIGHTELF };
+    static UnitData_t const undead = { .race = STR_UNDEAD };
+    static struct {
+        UnitData_t const *data;
+        cstring_t art;
+    } const cases[] = {
+        { &human, "ReplaceableTextures\\CommandButtons\\BTNRallyPoint.blp" },
+        { &orc, "ReplaceableTextures\\CommandButtons\\BTNOrcRallyPoint.blp" },
+        { &night_elf, "ReplaceableTextures\\CommandButtons\\BTNRallyPointNightElf.blp" },
+        { &undead, "ReplaceableTextures\\CommandButtons\\BTNRallyPointUndead.blp" },
+    };
+    edict_t *producer;
+
+    reset_entities();
+    producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    FOR_LOOP(i, sizeof(cases) / sizeof(*cases)) {
+        gameCommandButton_t button;
+        producer->data.UnitData = cases[i].data;
+        T_ASSERT(G_BuildCommandButton(producer, STR_CmdRally, false, 0, &button));
+        T_STREQ(button.art, cases[i].art);
+    }
+}
+
 TEST(wc3_rally, default_target_is_producer_itself) {
     edict_t *producer;
     edict_t *target = NULL;

@@ -102,6 +102,18 @@ static cstring_t G_CommandArtCode(edict_t *ent, cstring_t code) {
     return code;
 }
 
+static cstring_t G_RallyCommandArt(edict_t const *ent) {
+    unitRace_t const race = ent && ent->data.UnitData ?
+        WC3_RaceFromString(ent->data.UnitData->race) : RACE_UNKNOWN;
+
+    switch (race) {
+        case RACE_ORC: return "ReplaceableTextures\\CommandButtons\\BTNOrcRallyPoint.blp";
+        case RACE_NIGHTELF: return "ReplaceableTextures\\CommandButtons\\BTNRallyPointNightElf.blp";
+        case RACE_UNDEAD: return "ReplaceableTextures\\CommandButtons\\BTNRallyPointUndead.blp";
+        default: return "ReplaceableTextures\\CommandButtons\\BTNRallyPoint.blp";
+    }
+}
+
 static cstring_t G_RemoveQuotes(cstring_t text) {
     static char buffers[4][1024];
     static uint32_t cursor;
@@ -301,6 +313,8 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     art = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNART) : NULL, toggle_on);
+    /* Rally is an engine command whose stock button art is race-specific. */
+    if (!research && !strcmp(code, STR_CmdRally)) art = G_RallyCommandArt(ent);
     buttonpos = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNBUTTONPOS) : NULL, toggle_on);
