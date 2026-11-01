@@ -236,6 +236,7 @@ enum {
     AI_PROJECTILE_DEATH_PRESENTATION = 1 << 15, /* projectile is playing its authored impact/death sequence */
     AI_DEVOURING = 1 << 16, /* owns an active Devour digestion thinker */
     AI_DEVOURED = 1 << 17, /* swallowed living unit: off-world until release or digestion */
+    AI_TRANSMUTE_NO_BOUNTY = 1 << 18, /* transient death-policy bit set only during Transmute conversion */
 };
 
 /* Authored damage category indexing combat armor multipliers; values match WC3 table order. */

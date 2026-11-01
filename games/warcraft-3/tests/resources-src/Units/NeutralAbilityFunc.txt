@@ -50,3 +50,16 @@ TargetArt=TestUI\Models\anim_pulse.mdx
 
 [Bdtl]
 TargetArt=TestUI\Models\anim_pulse.mdx
+
+// Goblin Alchemist projectile and buff art test fixtures.
+[ANhs]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=700
+
+[ANab]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=700
+
+[BNab]
+TargetArt=TestUI\Models\anim_pulse.mdx
+Targetattach=chest

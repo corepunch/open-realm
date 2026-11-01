@@ -66,6 +66,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 Spirit Walker forms, Rowt training, revival and remaining parity | [docs/games/warcraft-3/spirit-walker.md](docs/games/warcraft-3/spirit-walker.md) |
 | WC3 Beastmaster Stampede (`ANst`/`Arsp`), channelled lizard missiles, delayed blasts, save callbacks | [docs/games/warcraft-3/stampede.md](docs/games/warcraft-3/stampede.md) |
+| WC3 Goblin Alchemist Healing Spray bottles, Chemical Rage forms, Acid Bomb DOT and Transmute bounty/impact | [docs/games/warcraft-3/goblin-alchemist.md](docs/games/warcraft-3/goblin-alchemist.md) |
 | WC3 Goblin Tinker Engineering (`ANeg`), Cluster Rockets (`ANcs`), Robo-Goblin (`ANrg`), Demolish (`ANde`) | [docs/games/warcraft-3/goblin-tinker.md](docs/games/warcraft-3/goblin-tinker.md) |
 | WC3 Pillage research, primary-hit salvage, per-player fractional rewards and persistence | [docs/games/warcraft-3/pillage.md](docs/games/warcraft-3/pillage.md) |
 | WC3 Night Elf Moon Glaive (`Remg`), mbounce weapon dispatch, damage-loss chain, research ownership, remaining FX gaps | [docs/games/warcraft-3/moon-glaive.md](docs/games/warcraft-3/moon-glaive.md) |

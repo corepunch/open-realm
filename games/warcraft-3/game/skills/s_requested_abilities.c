@@ -199,6 +199,21 @@ static void whirlwind_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     thinker->think = whirlwind_think; whirlwind_think(thinker);
 }
 
+/* Chemical Rage uses the same Alchemist model in both forms.  Keep the
+ * authored Morph / Morph Alternate clips live until their end callbacks,
+ * rather than displaying an unanimated instant model switch. */
+static void chemical_rage_enter_end(edict_t *unit) {
+    G_AddUnitAnimationProperties(unit, "alternate", true);
+    unit_stand(unit);
+}
+static void chemical_rage_leave_end(edict_t *unit) { unit_stand(unit); }
+static umove_t chemical_rage_enter_move = {
+    "morph", NULL, chemical_rage_enter_end, CAbilityMetamorphosis
+};
+static umove_t chemical_rage_leave_move = {
+    "morph alternate", NULL, chemical_rage_leave_end, CAbilityMetamorphosis
+};
+
 void morph_end(edict_t *thinker) {
     edict_t *owner = S_SpellChannelOwner(thinker);
     if (G_Time() < thinker->spawn_time) return;
@@ -209,6 +224,10 @@ void morph_end(edict_t *thinker) {
     if (owner && G_TransformUnitType(owner, thinker->resources) &&
         G_AbilityCode(thinker->class_id) == MAKEFOURCC('A','E','m','e') && thinker->velocity > 0.0f)
         G_ApplyTemporaryMaxHealthBonus(owner, -thinker->velocity);
+    if (owner && thinker->class_id == MAKEFOURCC('A','N','c','r')) {
+        G_AddUnitAnimationProperties(owner, "alternate", false);
+        if (!M_IsDead(owner)) unit_setmove(owner, &chemical_rage_leave_move);
+    }
     G_FreeEdict(thinker);
 }
 
@@ -618,15 +637,6 @@ void S_ReincarnationOnDeath(edict_t *unit) {
     G_GetChannel(thinker)->owner_spawn_time = unit->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellData(code, level, 1) * 1000.0f);
     thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
-}
-
-void acid_bomb_think(edict_t *thinker) {
-    edict_t *owner = S_SpellChannelOwner(thinker);
-    edict_t *target = S_SpellChannelTarget(thinker);
-    if (G_Time() >= thinker->spawn_time || !owner || !target || M_IsDead(target)) { G_FreeEdict(thinker); return; }
-    if (!thinker->freetime || G_Time() >= thinker->freetime) {
-        S_SpellDamage(target, owner, thinker->damage); thinker->freetime = G_Time() + 1000;
-    }
 }
 
 /* Mass Teleport keeps its channel-owned area effects on the thinker so cancel,
@@ -1275,9 +1285,17 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
          * attack/walk sequences are selected by the Required Animation Name. */
         G_AddUnitAnimationProperties(caster, "alternate", true);
     }
+    if (spell->code == MAKEFOURCC('A','N','c','r')) {
+        /* The three authored Nalm/Nal2/Nal3 forms already encode the
+         * movement and weapon-rate bonuses.  Do not multiply them again by
+         * DataE/DataF.  Alternate model sequences belong to this form. */
+        G_AddUnitAnimationProperties(caster, "alternate", false);
+        unit_setmove(caster, &chemical_rage_enter_move);
+    }
     if (bonus_health > 0.0f) G_ApplyTemporaryMaxHealthBonus(caster, bonus_health);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->resources = original;
+    if (spell->code == MAKEFOURCC('A','N','c','r')) thinker->class_id = spell->code;
     if (bonus_health > 0.0f) {
         thinker->class_id = G_AbilityCode(spell->code);
         thinker->velocity = bonus_health;
@@ -1731,20 +1749,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityVoodoo) {
             status->state_mask |= WC3_STATUS_STATE_INVULNERABLE;
     }
 }
-BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t buff = spell_buff(spell, level);
-    edict_t *thinker;
-    if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
-    if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
-    channel_t *cast = G_AddChannel(thinker);
-    cast->owner_spawn_time = caster->spawn_time;
-    cast->target_spawn_time = st.entity->spawn_time;
-    thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
-    thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
-}
-
 BZ_ABILITY_PROC(CAbilityFlamingArrows) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
