@@ -89,17 +89,22 @@ TEST(wc3_spell, spirit_link_links_datab_nearest_in_area) {
 /* Aspl's zap is cast presentation; Bspl's authored target art is the lasting
  * chest overlay on every linked unit. */
 TEST(wc3_spell, spirit_link_renders_cast_zap_and_persistent_buff_target_art) {
+	static char const presentation_config[] =
+		"[Aspl]\nCasterArt=TestUI\\Models\\anim_pulse.mdx\n"
+		"TargetArt=TestUI\\Models\\anim_pulse.mdx\nLightningEffect=SPLK\n"
+		"[Bspl]\nTargetArt=TestUI\\Models\\anim_pulse.mdx\nTargetattach=chest\n";
 	splFix_t fix;
 	uint32_t zap_model, buff_model, buff_art_count = 0;
 	bool caster_zap = false, target_zap = false, lightning = false;
 	spl_setup(&fix);
+	T_ASSERT(G_TestPushAbilityConfig(presentation_config));
 	memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
-	zap_model = G_RegisterModel("Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkZapTarget.mdl");
-	buff_model = G_RegisterModel("Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkTarget.mdl");
+	zap_model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+	buff_model = zap_model;
 	T_STREQ(G_AbilityEffectArt(BZ_ASPL, WC3_EFFECT_CASTER, 0),
-	        "Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkZapTarget.mdl");
+	        "TestUI\\Models\\anim_pulse.mdx");
 	T_STREQ(G_AbilityEffectArt(BZ_BSPL, WC3_EFFECT_TARGET, 0),
-	        "Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkTarget.mdl");
+	        "TestUI\\Models\\anim_pulse.mdx");
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
 		gLightning_t const *beam = level.lightning_effects + i;
@@ -121,6 +126,7 @@ TEST(wc3_spell, spirit_link_renders_cast_zap_and_persistent_buff_target_art) {
 			buff_art_count++;
 	}
 	T_EQ(buff_art_count, 3u);
+	G_TestPopAbilityConfig();
 	spl_done(&fix);
 }
 

@@ -2374,7 +2374,7 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     old_balance = G_SetSLKRows("UnitBalance", balance_rows);
     old_ui = G_SetSLKRows("UnitUI", ui_rows);
     old_data = G_SetSLKRows("UnitData", data_rows);
-    old_profile = G_SetSLKRows("UnitProfile", profile_rows);
+    old_profile = G_SetProfileRows(profile_rows);
     player = &g_edicts[0];
     client = player->client;
     client->ps.number = 0;
@@ -2413,7 +2413,7 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 0);
 
     G_SetSLKRows("UnitData", old_data); free_slk_rows(data_rows);
-    G_SetSLKRows("UnitProfile", old_profile); free_slk_rows(profile_rows);
+    G_SetProfileRows(old_profile); free_slk_rows(profile_rows);
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
     G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
     G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
