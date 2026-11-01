@@ -1773,12 +1773,34 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
 
     // Determine if file is compressed
     if (!(block->dwFlags & MPQ_FILE_COMPRESS)) {
+        if (mpqfile->flags & MPQ_FILE_ENCRYPTED) {
+            /* Raw files still use independently keyed sectors. Always decrypt
+             * a complete sector before slicing an unaligned caller read. */
+            uint32_t unit_size = (block->dwFlags & MPQ_FILE_SINGLE_UNIT)
+                ? mpqfile->file_size : mpq->sector_size;
+            uint8_t *scratch = malloc(unit_size);
+            if (!scratch) { if (bytesRead) *bytesRead = 0; return false; }
+            while (read_so_far < toRead) {
+                uint32_t pos = file_offset + read_so_far;
+                uint32_t sector = pos / unit_size;
+                uint32_t start = sector * unit_size;
+                uint32_t length = MIN(unit_size, mpqfile->file_size - start);
+                uint32_t offset = pos - start;
+                uint32_t count = MIN(toRead - read_so_far, length - offset);
+                MpqSeek(mpq, block->dwBlockOffset + start);
+                if (MpqRead(mpq, scratch, length) != length) break;
+                DecryptBlock(scratch, length, mpqfile->file_key + sector);
+                memcpy(dest + read_so_far, scratch + offset, count);
+                read_so_far += count;
+            }
+            free(scratch);
+            mpqfile->current_pos += read_so_far;
+            if (bytesRead) *bytesRead = read_so_far;
+            return read_so_far == toRead;
+        }
         // Uncompressed file
         MpqSeek(mpq, block->dwBlockOffset + file_offset);
         uint32_t actually_read = (uint32_t)MpqRead(mpq, dest, toRead);
-        if (actually_read > 0 && (mpqfile->flags & MPQ_FILE_ENCRYPTED)) {
-            DecryptBlock(dest, actually_read, mpqfile->file_key);
-        }
         mpqfile->current_pos += actually_read;
         if (bytesRead) *bytesRead = actually_read;
         return actually_read > 0;

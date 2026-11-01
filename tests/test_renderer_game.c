@@ -1,6 +1,7 @@
 /* Compile the WC3 game renderer into the headless renderer test. Function
  * sections let the linker retain R_RegisterMap and its dependencies without
  * requiring a GL context for unrelated draw paths. */
+#define WC3_GROUND_CONFORM_TESTS
 #define R_RegisterMap R_TestProductionRegisterMap
 #define R_BlightTexture R_TestProductionBlightTexture
 #define R_LoadModel R_TestProductionLoadModel
@@ -14,7 +15,12 @@
 #define _W3M_DrawAlphaSurfaces R_TestWaterAlphaSurfacePass
 #define R_LightningDraw R_TestLightningDraw
 #define R_WeatherEmit R_TestWeatherEmit
+#define R_BeginSplatBatch R_TestEventBeginSplatBatch
+#define R_AddRectSplat R_TestEventAddRectSplat
+#define R_AddRectSplatUV R_TestEventAddRectSplatUV
+#define R_EndSplatBatch R_TestEventEndSplatBatch
 #include "../games/warcraft-3/renderer/r_game.c"
+#undef WC3_GROUND_CONFORM_TESTS
 #undef MDLX_TraceWalkableSurface
 #undef MDLX_SetEntityAnimationFrame
 #undef _W3M_DrawAlphaSurfaces
@@ -27,6 +33,10 @@
 #define R_GetEntityMatrix R_TestEntityMatrixFromEnts
 #include "../renderer/r_ents.c"
 #undef R_GetEntityMatrix
+#undef R_BeginSplatBatch
+#undef R_AddRectSplat
+#undef R_AddRectSplatUV
+#undef R_EndSplatBatch
 
 #include "test.h"
 
@@ -41,6 +51,7 @@ static char test_sound_path[512];
 static vec3_t test_sound_origin;
 static uint32_t test_sound_count;
 static uint32_t test_splat_count;
+static uint32_t test_splat_batch_begins, test_splat_batch_ends, test_splat_batch_adds;
 static vec2_t test_splat_origin;
 static float test_splat_radius;
 static uint32_t test_flat_splat_count;
@@ -51,6 +62,9 @@ static texture_t test_splat_texture;
 static float test_walkable_hit_z;
 static unsigned ground_trace_count;
 static bool test_walkable_origin;
+static bool test_walkable_hit_from_origin;
+static bool test_walkable_accept_hits = true;
+static uint32_t test_walkable_trace_calls;
 static uint32_t test_alpha_draw_order, test_water_alpha_order, test_unit_alpha_order;
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
@@ -104,6 +118,76 @@ TEST(renderer_game, zero_lifetime_event_splats_are_one_frame_and_marked_unverifi
     T_EQ(test_splat_count, 2);
     T_ASSERT(!R_W3RenderEventSplat(&uber));
     R_W3ClearEventWarnings(); tr.viewDef.time = saved_time;
+}
+
+TEST(renderer_game, retained_splat_pass_batches_in_slot_order_without_changing_immediate_emission) {
+    wc3SplatData_t row = { .name = "BatchSplat", .rows = 1, .columns = 1,
+        .scale = 12.0f, .lifespan = 2.0f, .texture = &test_splat_texture };
+    wc3EventSplat_t first = { .kind = WC3_EVENT_SPLAT_SPLAT, .splat_row = &row,
+        .origin = {12, 28}, .start_time = 100, .active = true };
+    wc3EventSplat_t second = first;
+    uint32_t saved_time = tr.viewDef.time;
+    render_phase_t saved_phase = tr.render_phase;
+    second.origin = MAKE(vec2_t, 30, 44);
+    R_W3ClearEventSplats();
+    test_splat_count = test_splat_batch_adds = test_splat_batch_begins = test_splat_batch_ends = 0;
+    tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 200;
+    /* Outside the retained pass an event still draws immediately. */
+    T_ASSERT(R_W3RenderEventSplat(&first));
+    T_EQ(test_splat_count, 1); T_EQ(test_splat_batch_adds, 0);
+    event_splats[0] = first; event_splats[1] = second;
+    R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 3);
+    T_EQ(test_splat_batch_adds, 2);
+    T_EQ(test_splat_batch_begins, 1); T_EQ(test_splat_batch_ends, 1);
+    T_FEQ(test_splat_origin.x, 30.0f, 0.001f);
+    T_FEQ(test_splat_origin.y, 44.0f, 0.001f);
+    R_W3ClearEventSplats();
+    tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+}
+
+/* Sprite/cursor views omit terrain but used to traverse the global event-splat
+ * array and submit ground decals anyway. The world view must still advance
+ * the same effects and preserve their authored lifetime. */
+TEST(renderer_game, no_world_subviews_do_not_replay_event_splats) {
+    wc3SplatData_t row = { .name = "SubviewSplat", .rows = 2, .columns = 1,
+        .scale = 10.0f, .lifespan = 2.0f, .texture = &test_splat_texture };
+    viewDef_t saved_view = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+
+    R_W3ClearEventSplats();
+    event_splats[0] = (wc3EventSplat_t){ .kind = WC3_EVENT_SPLAT_SPLAT,
+        .splat_row = &row, .start_time = 100, .active = true };
+    test_splat_count = test_splat_batch_adds = 0;
+    test_splat_batch_begins = test_splat_batch_ends = 0;
+    tr.render_phase = RENDER_PHASE_SOLID;
+    tr.viewDef.time = 500;
+    tr.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_UI_SPRITE;
+    R_W3DrawEventSplats(); /* HUD or cursor MDX sprite */
+    tr.viewDef.rdflags = RDF_NOWORLDMODEL;
+    R_W3DrawEventSplats(); /* Other no-world camera/view */
+    T_EQ(test_splat_batch_begins, 0); T_EQ(test_splat_batch_ends, 0);
+    T_EQ(test_splat_count, 0); T_EQ(test_splat_batch_adds, 0);
+    T_ASSERT(event_splats[0].active);
+
+    tr.viewDef.rdflags = 0;
+    R_W3DrawEventSplats(); /* Normal world pass at the same animation time */
+    T_EQ(test_splat_batch_begins, 1); T_EQ(test_splat_batch_ends, 1);
+    T_EQ(test_splat_count, 1); T_EQ(test_splat_batch_adds, 1);
+    T_ASSERT(event_splats[0].active);
+
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 1); /* No duplicate splat draw in alpha. */
+    tr.render_phase = RENDER_PHASE_SOLID;
+    tr.viewDef.time = 2500;
+    R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 1); /* Its lifetime still expires in the world. */
+    T_ASSERT(!event_splats[0].active);
+
+    R_W3ClearEventSplats();
+    tr.viewDef = saved_view;
+    tr.render_phase = saved_phase;
 }
 
 TEST(renderer_game, reused_entity_generation_seeds_mdx_event_clock) {
@@ -249,6 +333,26 @@ void R_TestWaterAlphaSurfacePass(void) {
 void R_TestLightningDraw(void) {}
 void R_TestWeatherEmit(void) {}
 
+void R_TestEventBeginSplatBatch(splat_shader_t *shader) {
+    (void)shader;
+    test_splat_batch_begins++;
+}
+void R_TestEventEndSplatBatch(void) { test_splat_batch_ends++; }
+void R_TestEventAddRectSplatUV(rectSplatParams_t const *params) {
+    test_splat_batch_adds++;
+    R_RenderRectSplatUV(params);
+}
+void R_TestEventAddRectSplat(vec2_t const *mins, vec2_t const *maxs,
+                            texture_t const *texture, color32_t color) {
+    vec2_t center = { (mins->x + maxs->x) * 0.5f, (mins->y + maxs->y) * 0.5f };
+    (void)texture;
+    test_splat_batch_adds++;
+    test_splat_count++;
+    test_splat_origin = center;
+    test_splat_radius = (maxs->x - mins->x) * 0.5f;
+    test_splat_color = color;
+}
+
 void R_RenderRectSplatUV(rectSplatParams_t const *params) {
     test_splat_count++;
     test_splat_origin = MAKE(vec2_t, (params->mins->x + params->maxs->x) * 0.5f,
@@ -276,11 +380,12 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
 
 bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *line, vec3_t *hit) {
     ground_trace_count++;
-    if (!surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
+    test_walkable_trace_calls++;
+    if (!test_walkable_accept_hits || !surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
     if (test_walkable_origin) {
         if (line->a.x != surface->origin.x) return false;
         *hit = surface->origin;
-    } else hit->z = test_walkable_hit_z;
+    } else hit->z = test_walkable_hit_from_origin ? surface->origin.z : test_walkable_hit_z;
     return true;
 }
 
@@ -391,10 +496,164 @@ TEST(renderer_game, elevator_render_support_cannot_lower_authoritative_unit_heig
     T_FEQ(entities[1].origin.z, 85.0f, 0.001f);
 }
 
+/* Classification is once per view, not once per conforming unit. Even
+ * model-less or hidden surfaces must be excluded from exact mesh traces. */
+TEST(renderer_game, ground_surface_index_preserves_no_hit_and_hidden_contracts) {
+    model_t model = { 0 };
+    renderEntity_t entities[] = {
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 1, 2, 17 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_HIDDEN | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 1, 2, 34 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE | RF_HIDDEN, .origin = { 1, 2, 80 } },
+        { .flags = RF_GROUND_SURFACE, .origin = { 1, 2, 90 } },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 4 };
+
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 6u); /* 4 classifications + 2 candidates */
+    T_EQ(w3_ground_surface_traces, 0u);
+    T_EQ(test_walkable_trace_calls, 0u); /* no hidden/model-less MDX calls */
+    T_ASSERT(!(entities[0].flags & RF_GROUND_SURFACE_SUPPORT));
+    T_ASSERT(!(entities[1].flags & RF_GROUND_SURFACE_SUPPORT));
+    T_FEQ(entities[0].origin.z, 17.0f, 0.001f);
+
+    entities[2].flags &= ~RF_HIDDEN;
+    entities[3].model = &model;
+    test_walkable_accept_hits = false;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 6u);
+    T_EQ(w3_ground_surface_traces, 2u);
+    T_EQ(test_walkable_trace_calls, 2u);
+    T_ASSERT(!(entities[0].flags & RF_GROUND_SURFACE_SUPPORT));
+    test_walkable_accept_hits = true;
+
+    entities[0].flags |= RF_GROUND_SURFACE_SUPPORT;
+    view.rdflags = RDF_NOWORLDMODEL;
+    w3_ground_surface_visits = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 0u);
+    T_ASSERT(entities[0].flags & RF_GROUND_SURFACE_SUPPORT); /* early exit unchanged */
+}
+
+TEST(renderer_game, ground_surface_index_empty_view_still_clears_support_flags) {
+    model_t model = { 0 };
+    renderEntity_t entities[] = {
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 8, 8, 42 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM | RF_GROUND_SURFACE_SUPPORT,
+          .origin = { 8, 8, 66 } },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 2 };
+
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 2u);
+    T_EQ(w3_ground_surface_traces, 0u);
+    T_EQ(test_walkable_trace_calls, 0u);
+    FOR_LOOP(i, 2) {
+        T_ASSERT(!(entities[i].flags & RF_GROUND_SURFACE_SUPPORT));
+        T_FEQ(entities[i].origin.z, i ? 66.0f : 42.0f, 0.001f);
+    }
+}
+
+TEST(renderer_game, ground_surface_index_picks_highest_hit_and_preserves_altitude) {
+    model_t model = { 0 };
+    renderEntity_t entities[] = {
+        { .model = &model, .flags = RF_GROUND_SURFACE, .origin = { 0, 0, 90 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE, .origin = { 0, 0, 120 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE, .origin = { 0, 0, 85 } },
+        { .model = &model, .flags = RF_GROUND_SURFACE | RF_HIDDEN, .origin = { 0, 0, 200 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM, .ground_offset = 7,
+          .ground_snapshot_valid = true, .ground_snapshot_z = 132, .origin = { 0, 0, 25 } },
+        { .model = &model, .flags = RF_GROUND_CONFORM, .ground_offset = 7,
+          .ground_snapshot_valid = true, .ground_snapshot_z = 155,
+          .origin = { 0, 0, 155 } },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 6 };
+
+    test_walkable_hit_from_origin = true;
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 14u); /* 6 + 2 * 4 */
+    T_EQ(w3_ground_surface_traces, 6u);
+    T_EQ(test_walkable_trace_calls, 6u); /* hidden surface never traced */
+    T_ASSERT(entities[4].flags & RF_GROUND_SURFACE_SUPPORT);
+    T_FEQ(entities[4].origin.z, 132.0f, 0.001f);
+    T_FEQ(entities[5].origin.z, 155.0f, 0.001f); /* never lower server position */
+
+    entities[4].ground_snapshot_valid = false;
+    entities[4].origin.z = 25;
+    entities[1].origin.z = 100;
+    R_ConformGroundSurfaces(&view);
+    T_FEQ(entities[4].origin.z, 107.0f, 0.001f); /* live surface animation */
+    test_walkable_hit_from_origin = false;
+}
+
+TEST(renderer_game, ground_surface_index_bounds_classification_in_sparse_view) {
+    model_t model = { 0 };
+    renderEntity_t entities[96] = { 0 };
+    viewDef_t view = { .entities = entities, .num_entities = 96 };
+
+    FOR_LOOP(i, 96) entities[i].model = &model;
+    entities[3].flags = entities[86].flags = RF_GROUND_SURFACE;
+    FOR_LOOP(i, 6) entities[20 + i].flags = RF_GROUND_CONFORM;
+    test_walkable_hit_z = 67;
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 108u); /* 96 + 6 * 2, not 96 * 6 */
+    T_EQ(w3_ground_surface_traces, 12u);
+    T_EQ(test_walkable_trace_calls, 12u);
+    FOR_LOOP(i, 6) {
+        T_ASSERT(entities[20 + i].flags & RF_GROUND_SURFACE_SUPPORT);
+        T_FEQ(entities[20 + i].origin.z, 67.0f, 0.001f);
+    }
+}
+
+TEST(renderer_game, ground_surface_dynamic_index_still_traces_all_surfaces) {
+    refImport_t saved = ri;
+    ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+    static renderEntity_t entities[131];
+    model_t model = { 0 };
+    viewDef_t view = { .entities = entities, .num_entities = 131 };
+
+    memset(entities, 0, sizeof(entities));
+    FOR_LOOP(i, 129) {
+        entities[i].model = &model;
+        entities[i].flags = RF_GROUND_SURFACE;
+        entities[i].origin.z = i + 1;
+    }
+    FOR_LOOP(i, 2) {
+        entities[129 + i].model = &model;
+        entities[129 + i].flags = RF_GROUND_CONFORM;
+    }
+    test_walkable_hit_from_origin = true;
+    test_walkable_trace_calls = 0;
+    w3_ground_surface_visits = w3_ground_surface_traces = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(w3_ground_surface_visits, 389u); /* 131 classifications + 2 * 129 providers */
+    T_EQ(w3_ground_surface_traces, 258u);
+    T_EQ(test_walkable_trace_calls, 258u);
+    FOR_LOOP(i, 2) {
+        T_ASSERT(entities[129 + i].flags & RF_GROUND_SURFACE_SUPPORT);
+        T_FEQ(entities[129 + i].origin.z, 129.0f, 0.001f);
+    }
+    test_walkable_hit_from_origin = false;
+    ri = saved;
+}
+
+
 TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
     mdxModel_t mdx = { 0 };
     model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
-    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model };
+    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model,
+                              .effect_flags = EFX_MODEL, .effect_model = &model };
     renderEntity_t *saved_entities = tr.viewDef.entities;
     uint32_t saved_num_entities = tr.viewDef.num_entities;
     render_phase_t saved_phase = tr.render_phase;
@@ -622,7 +881,11 @@ TEST(renderer_model, production_spl_dispatch_uses_splat_atlas_and_event_transfor
     T_FEQ(test_splat_uv_mins.x, 0.0f, 0.001f); T_FEQ(test_splat_uv_mins.y, 0.0f, 0.001f);
     T_FEQ(test_splat_uv_maxs.x, 0.5f, 0.001f); T_FEQ(test_splat_uv_maxs.y, 0.5f, 0.001f);
 
+    test_splat_batch_begins = test_splat_batch_ends = test_splat_batch_adds = 0;
     tr.viewDef.time = 1150; R_W3DrawEventSplats();
+    T_EQ(test_splat_batch_begins, 1);
+    T_EQ(test_splat_batch_ends, 1);
+    T_EQ(test_splat_batch_adds, 1);
     T_EQ(test_splat_count, 2);
     T_FEQ(test_splat_uv_mins.x, 0.0f, 0.001f); T_FEQ(test_splat_uv_mins.y, 0.5f, 0.001f);
     T_EQ(test_splat_color.r, 0); T_EQ(test_splat_color.g, 255); T_EQ(test_splat_color.b, 0);
@@ -683,7 +946,11 @@ TEST(renderer_model, production_ubr_dispatch_uses_data_lifetime_and_event_transf
     T_FEQ(test_splat_radius, 64.0f, 0.001f);
     T_EQ(test_splat_color.r, 255); T_EQ(test_splat_color.g, 0); T_EQ(test_splat_color.b, 0);
 
+    test_splat_batch_begins = test_splat_batch_ends = test_splat_batch_adds = 0;
     tr.viewDef.time = 1650; R_W3DrawEventSplats();
+    T_EQ(test_splat_batch_begins, 1);
+    T_EQ(test_splat_batch_ends, 1);
+    T_EQ(test_splat_batch_adds, 1);
     T_EQ(test_splat_count, 2);
     T_EQ(test_splat_color.r, 0); T_EQ(test_splat_color.g, 255); T_EQ(test_splat_color.b, 0);
     tr.viewDef.time = 3150; R_W3DrawEventSplats();
@@ -1094,4 +1361,306 @@ TEST(renderer_game, ground_support_compacts_providers_and_preserves_highest_hit)
     T_EQ(entities[257].origin.z, -10);
     T_EQ(entities[258].origin.z, -5);
     test_walkable_origin = false;
+}
+
+TEST(renderer_game, wc3_alpha_model_filter_preserves_attachments_ribbons_and_transparency) {
+    mdxMaterialLayer_t layer = { .blendMode = BLEND_MODE_NONE };
+    mdxMaterial_t material = { .num_layers = 1, .layers = &layer };
+    mdxModel_t mdx = { .materials = &material };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .model = &model, .scale = 1.0f };
+    mdxAttachment_t attachment = {0};
+    mdxRibbonEmitter_t ribbon = {0};
+    mdxEvent_t event = {0};
+    mdxGeoset_t geoset = {0};
+    mdxTexture_t texture = { .replaceableID = 11 };
+
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, -1));
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 0));
+    uint32_t const saved_rdflags = tr.viewDef.rdflags;
+    tr.viewDef.rdflags |= RDF_USE_ENTITY_CAMERA;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    tr.viewDef.rdflags = saved_rdflags;
+    layer.blendMode = BLEND_MODE_BLEND;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1));
+    /* When the solid pass rejects a bare model, the alpha pass can skip it. */
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 0));
+    layer.blendMode = BLEND_MODE_NONE;
+    mdx.geosets = &geoset;
+    entity.tint = (color32_t){255,255,255,120}; entity.tint_valid = true;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1));
+    entity.tint_valid = false; entity.tint = (color32_t){0};
+    mdx.geosets = NULL;
+    mdx.attachments = &attachment;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    mdx.attachments = NULL;
+    mdx.ribbons = &ribbon;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    mdx.ribbons = NULL;
+    mdx.events = &event;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    mdx.events = NULL;
+    entity.effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS;
+    entity.effect_model = &model;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 0));
+    entity.effect_flags = 0; entity.effect_model = NULL;
+    mdx.textures = &texture; mdx.num_textures = 1;
+    T_ASSERT(R_W3AlphaEntityNeedsDraw(&entity, 1)); /* fitted cliffs */
+    texture.replaceableID = 0;
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
+    entity.flags = RF_HIDDEN;
+    T_ASSERT(!R_W3AlphaEntityNeedsDraw(&entity, 1));
+}
+
+TEST(renderer_game, solid_culling_handoff_is_view_local_and_uses_scene_positions) {
+    renderEntity_t scene[3] = {{ .number = 7 }, { .number = 7 }, { .number = 8 }};
+    viewDef_t saved = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+    tr.viewDef.entities = scene;
+    tr.viewDef.num_entities = 3;
+    tr.viewDef.time = 100;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_SolidVisibilityBegin();
+    T_ASSERT(R_SolidVisibilityMatchesView());
+    T_EQ(R_SolidVisibilityAt(0), -1); /* not yet traversed */
+    R_SolidVisibilityRecord(0, false);
+    R_SolidVisibilityRecord(1, true);
+    T_EQ(R_SolidVisibilityAt(0), 0);
+    T_EQ(R_SolidVisibilityAt(1), 1);
+    T_EQ(R_SolidVisibilityAt(2), -1);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_SolidVisibilityRecord(2, true); /* alpha must not write */
+    T_EQ(R_SolidVisibilityAt(2), -1);
+    tr.viewDef.time++;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.time--;
+    tr.viewDef.viewProjectionMatrix.v[0] += 1.0f;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.viewProjectionMatrix.v[0] -= 1.0f;
+    tr.viewDef.frustum.planes[0].distance += 1.0f;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.frustum.planes[0].distance -= 1.0f;
+    tr.viewDef.rdflags ^= RDF_NOFRUSTUMCULL;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.rdflags ^= RDF_NOFRUSTUMCULL;
+    tr.viewDef.entities = scene + 1;
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    tr.viewDef.entities = scene;
+    R_SolidVisibilityEnd();
+    T_ASSERT(!R_SolidVisibilityMatchesView());
+    R_SolidVisibilityBegin();
+    T_EQ(R_SolidVisibilityAt(0), -1); /* new view invalidates all slots */
+    R_SolidVisibilityEnd();
+    tr.viewDef = saved; tr.render_phase = saved_phase;
+}
+
+TEST(renderer_game, wc3_alpha_filter_skips_opaque_scene_without_building_matrices) {
+    mdxMaterialLayer_t layer = { .blendMode = BLEND_MODE_ALPHAKEY };
+    mdxMaterial_t material = { .num_layers = 1, .layers = &layer };
+    mdxModel_t mdx = { .materials = &material };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entities[2] = {
+        { .model = &model, .scale = 1.0f },
+        { .model = &model, .scale = 1.0f },
+    };
+    viewDef_t saved = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 2;
+    tr.viewDef.rdflags = RDF_NOWORLDMODEL;
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_W3ViewMatricesResetBuildCount();
+    test_wc3_alpha_model_draws = test_wc3_alpha_model_skips = 0;
+    R_DrawAlphaSurfaces();
+    T_EQ(test_wc3_alpha_model_draws, 0);
+    T_EQ(test_wc3_alpha_model_skips, 2);
+    T_EQ(R_W3ViewMatricesBuildCount(), 0);
+    tr.viewDef = saved; tr.render_phase = saved_phase;
+}
+
+TEST(renderer_game, wc3_view_matrices_reuse_cull_solid_alpha_and_invalidate_mutations) {
+    renderEntity_t scene[3] = {
+        { .origin = { 10.0f, 20.0f, 30.0f }, .angle = 40.0f, .scale = 1.0f },
+        { .origin = { -20.0f, 4.0f, 60.0f }, .angle = 5.0f, .scale = 2.0f },
+    };
+    mdxModel_t mdx = { .bounds.box = {
+        .min = { -1.0f, -1.0f, -1.0f }, .max = { 1.0f, 1.0f, 1.0f },
+    } };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t *saved_scene = tr.viewDef.entities;
+    uint32_t saved_count = tr.viewDef.num_entities;
+    render_phase_t saved_phase = tr.render_phase;
+    box3_t bounds;
+    mat4_t first, cached, expected;
+    renderEntity_t copy;
+
+    scene[0].model = scene[1].model = &model;
+    scene[0].number = scene[1].number = 7; /* numbers aren't cache identities */
+    tr.viewDef.entities = scene; tr.viewDef.num_entities = 3;
+    R_W3ViewMatricesResetBuildCount();
+    R_W3ViewMatricesBegin();
+    T_ASSERT(R_GetEntityBoundsAndMatrix(&scene[0], &bounds, &first));
+    T_EQ(R_W3ViewMatricesBuildCount(), 1);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_RenderModel(&scene[0]);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_RenderModel(&scene[0]);
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 1);
+    T_ASSERT(!memcmp(&first, &cached, sizeof(first)));
+
+    R_W3GetViewEntityMatrix(&scene[1], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 2);
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 2);
+
+    /* The underlying W3 placement basis doesn't depend on animation time or
+     * model pointer; those are re-evaluated by the normal MDX render path. */
+    scene[0].frame = 17;
+    scene[0].model = &model;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 2);
+
+    scene[0].origin.x += 2.0f;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 3);
+    R_GetEntityMatrix(&scene[0], &expected);
+    T_ASSERT(!memcmp(&cached, &expected, sizeof(expected)));
+    scene[0].angle = -100.0f;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 4);
+    scene[0].scale = 0.5f;
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 5);
+    R_GetEntityMatrix(&scene[0], &expected);
+    T_ASSERT(!memcmp(&cached, &expected, sizeof(expected)));
+
+    copy = scene[0]; /* temporary children must never share a cached slot */
+    R_W3GetViewEntityMatrix(&copy, &cached);
+    R_W3GetViewEntityMatrix(&copy, &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 7);
+    R_W3ViewMatricesEnd();
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 8);
+    R_W3ViewMatricesBegin();
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 9);
+    scene[0].pose_offset = (orientation_t){.yaw=0.02f,.pitch=0.05f,.roll=-0.08f};
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 10);
+    R_GetEntityMatrix(&scene[0], &expected);
+    T_ASSERT(!memcmp(&cached, &expected, sizeof(expected)));
+    R_W3ViewMatricesEnd();
+    tr.viewDef.entities = saved_scene; tr.viewDef.num_entities = saved_count;
+    tr.render_phase = saved_phase;
+}
+
+TEST(renderer_game, wc3_view_matrix_cache_bounds_and_scene_identity) {
+    static renderEntity_t scene[WC3_VIEW_MATRIX_ENTRIES + 2];
+    renderEntity_t *saved_scene = tr.viewDef.entities;
+    uint32_t saved_count = tr.viewDef.num_entities;
+    mat4_t matrix;
+    renderEntity_t copied;
+
+    memset(scene, 0, sizeof(scene));
+    FOR_LOOP(i, WC3_VIEW_MATRIX_ENTRIES + 2) {
+        scene[i].origin.x = (float)i;
+        scene[i].scale = 1.0f;
+        scene[i].number = 5;
+    }
+    tr.viewDef.entities = scene;
+    tr.viewDef.num_entities = WC3_VIEW_MATRIX_ENTRIES + 2;
+    R_W3ViewMatricesResetBuildCount();
+    R_W3ViewMatricesBegin();
+    /* Indexing is by scene position: deliberately skip indices at the start. */
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES], &matrix);
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), 1);
+    FOR_LOOP(i, WC3_VIEW_MATRIX_ENTRIES - 1)
+        R_W3GetViewEntityMatrix(&scene[i], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES);
+    /* Capacity reached: existing entries remain valid, overflow recomputes. */
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES + 1], &matrix);
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES + 1], &matrix);
+    R_W3GetViewEntityMatrix(&scene[WC3_VIEW_MATRIX_ENTRIES], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 2);
+
+    copied = scene[0];
+    R_W3GetViewEntityMatrix(&copied, &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 3);
+    tr.viewDef.num_entities--; /* view mutation rejects all cached entries */
+    R_W3GetViewEntityMatrix(&scene[0], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 4);
+    tr.viewDef.num_entities++;
+    tr.viewDef.entities = scene + 1; /* different scene base is also a miss */
+    R_W3GetViewEntityMatrix(&scene[1], &matrix);
+    T_EQ(R_W3ViewMatricesBuildCount(), WC3_VIEW_MATRIX_ENTRIES + 5);
+    R_W3ViewMatricesEnd();
+    tr.viewDef.entities = saved_scene; tr.viewDef.num_entities = saved_count;
+}
+
+/* Warcraft III's fixed identity basis previously went through the generic
+ * 4x4 matrix multiply for every uncached cull. Compare the fast path with
+ * that exact legacy composition and its frustum decision, rather than testing
+ * only visually familiar angles or only the model translation. */
+TEST(renderer_game, wc3_identity_basis_matrix_matches_legacy_culling_composition) {
+    renderEntity_t const entities[] = {
+        { .origin = { 0, 0, 0 }, .scale = 1.0f, .angle = 0.0f },
+        { .origin = { 23, -14, 8 }, .scale = 1.35f, .angle = 0.73f },
+        { .origin = { -42, 38, -20 }, .scale = 0.5f, .angle = -1.75f },
+        { .origin = { 12, 23, 0 }, .scale = 0.0f, .angle = 3.14159f },
+        { .origin = { 90, -12, 5 }, .scale = -1.25f, .angle = -3.25f },
+        { .origin = { 0.01f, -0.02f, 100 }, .scale = 10.0f, .angle = 1.5707963f },
+    };
+    box3_t const bounds = {
+        .min = { -4, -8, -11 }, .max = { 7, 17, 30 },
+    };
+    mat4_t camera;
+    frustum3_t frustum;
+    mat4_t basis;
+    Matrix4_identity(&basis);
+    Matrix4_ortho(&camera, -50.0f, 50.0f, -50.0f, 50.0f, -200.0f, 200.0f);
+    Frustum_Calculate(&camera, &frustum);
+    FOR_LOOP(i, sizeof(entities) / sizeof(*entities)) {
+        renderEntity_t const *entity = &entities[i];
+        modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle,
+                             .scale = entity->scale };
+        mat4_t placement, legacy, actual;
+        quaternion_t const rotation = Quaternion_fromOrientation(&pose.angles);
+        Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
+            &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
+        Matrix4_multiply(&placement, &basis, &legacy);
+        R_TestEntityMatrixFromEnts(entity, &actual);
+        FOR_LOOP(j, 16) T_FEQ(actual.v[j], legacy.v[j], 0.0001f);
+        T_EQ(Frustum_ContainsBox(&frustum, &bounds, &actual),
+             Frustum_ContainsBox(&frustum, &bounds, &legacy));
+    }
+}
+
+TEST(renderer_game, wc3_entity_bounds_share_the_exact_culling_matrix) {
+    mdxModel_t mdx = { .bounds.box = {
+        .min = { -24.0f, -8.0f, -12.0f }, .max = { 32.0f, 18.0f, 120.0f },
+    } };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = {
+        .model = &model, .origin = { 123.0f, -456.0f, 10.0f },
+        .angle = 33.0f, .scale = 1.35f,
+    };
+    box3_t bounds, legacy_bounds;
+    mat4_t matrix, expected;
+
+    T_ASSERT(R_GetEntityBoundsAndMatrix(&entity, &bounds, &matrix));
+    T_ASSERT(R_GetEntityBounds(&entity, &legacy_bounds));
+    R_GetEntityMatrix(&entity, &expected);
+    FOR_LOOP(i, 16) T_FEQ(matrix.v[i], expected.v[i], 0.0001f);
+    T_FEQ(bounds.min.x, legacy_bounds.min.x, 0.0001f);
+    T_FEQ(bounds.max.y, legacy_bounds.max.y, 0.0001f);
+    T_FEQ(bounds.max.z, legacy_bounds.max.z, 0.0001f);
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(NULL, &bounds, &matrix));
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(&entity, NULL, &matrix));
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(&entity, &bounds, NULL));
+    model.modeltype = 0;
+    T_ASSERT(!R_GetEntityBoundsAndMatrix(&entity, &bounds, &matrix));
 }

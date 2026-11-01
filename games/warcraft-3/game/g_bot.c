@@ -4,6 +4,7 @@
 #include "wc3_pathing_coordinates.h"
 #include "wc3_ai_regions.h"
 #include <stdarg.h>
+#include <math.h>
 
 #define BOT_GROUP_FLEE_HOME_RADIUS 128.0f // world units; upstream compatibility tolerance for logical Captain queries without a physical actor
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
@@ -377,48 +378,61 @@ static edict_t *G_BotCreepSearchOrigin(player_t *player) {
     return NULL;
 }
 
+/* Only creeps can join a camp. Compact the eligible edicts once per query so the
+ * breadth-first search does not recheck every unrelated unit/effect for every
+ * member of a camp. Candidate order remains increasing edict number. */
+typedef struct botCreepCandidate_s {
+    uint32_t edict_index;
+    bool visited;
+} botCreepCandidate_t;
+
 edict_t *G_BotGetCreepCamp(player_t *player, int32_t min_power, int32_t max_power, bool flyers_ok) {
     edict_t *origin, *best = NULL;
     float best_dist = 0.0f;
-    uint32_t count, *queue;
-    uint8_t *visited;
+    uint32_t count, candidate_count = 0, *queue;
+    botCreepCandidate_t *candidates;
 
     if (!player || min_power > max_power) return NULL;
     origin = G_BotCreepSearchOrigin(player);
     if (!origin) return NULL;
 
     count = globals.num_edicts;
-    visited = gi.MemAlloc(count ? count : 1);
+    candidates = gi.MemAlloc((count ? count : 1) * sizeof(*candidates));
     queue = gi.MemAlloc((count ? count : 1) * sizeof(*queue));
-    memset(visited, 0, count ? count : 1);
+    for (uint32_t i = 0; i < count; i++) {
+        if (!G_BotCreepCandidate(globals.edicts + i)) continue;
+        candidates[candidate_count++] = (botCreepCandidate_t){ .edict_index = i };
+    }
 
-    for (uint32_t seed_index = 0; seed_index < count; seed_index++) {
-        edict_t *seed = globals.edicts + seed_index;
+    for (uint32_t seed_index = 0; seed_index < candidate_count; seed_index++) {
         uint32_t head = 0, tail = 0;
         int32_t power = 0;
         bool has_flyer = false;
         edict_t *representative = NULL;
         float representative_dist = 0.0f;
 
-        if (visited[seed_index] || !G_BotCreepCandidate(seed)) continue;
-        visited[seed_index] = 1;
+        if (candidates[seed_index].visited) continue;
+        candidates[seed_index].visited = true;
         queue[tail++] = seed_index;
 
         while (head < tail) {
-            edict_t *creep = globals.edicts + queue[head++];
+            edict_t *creep = globals.edicts + candidates[queue[head++]].edict_index;
             int32_t level = creep->data.UnitBalance ? creep->data.UnitBalance->level : 0;
             float dist = Vector2_distance(&origin->s.origin2, &creep->s.origin2);
             power += level;
             has_flyer |= G_BotCreepFlyer(creep);
             if (!representative || dist < representative_dist) { representative = creep; representative_dist = dist; }
 
-            for (uint32_t other_index = 0; other_index < count; other_index++) {
+            for (uint32_t other_index = 0; other_index < candidate_count; other_index++) {
                 edict_t *other;
-                if (visited[other_index]) continue;
-                other = globals.edicts + other_index;
-                if (!G_BotCreepCandidate(other)) continue;
+                if (candidates[other_index].visited) continue;
+                other = globals.edicts + candidates[other_index].edict_index;
+                /* Most camps are spatially separate: reject them without a square root,
+                 * but keep the original exact distance comparison at the boundary. */
+                if (fabsf(creep->s.origin2.x - other->s.origin2.x) > BOT_CREEP_CAMP_RADIUS ||
+                    fabsf(creep->s.origin2.y - other->s.origin2.y) > BOT_CREEP_CAMP_RADIUS) continue;
                 if (Vector2_distance(&creep->s.origin2, &other->s.origin2) > BOT_CREEP_CAMP_RADIUS) continue;
-                visited[other_index] = 1;
+                candidates[other_index].visited = true;
                 queue[tail++] = other_index;
             }
         }
@@ -428,7 +442,7 @@ edict_t *G_BotGetCreepCamp(player_t *player, int32_t min_power, int32_t max_powe
     }
 
     gi.MemFree(queue);
-    gi.MemFree(visited);
+    gi.MemFree(candidates);
     return best;
 }
 
@@ -639,10 +653,10 @@ int32_t G_BotTownUnitCount(player_t *player, uint32_t class_id, int32_t town_id,
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && ent->class_id == class_id &&
                          ent->s.player == PLAYER_NUM(player) && !(ent->svflags & SVF_DEADMONSTER) &&
                          G_BotUnitAtTown(player, ent, town_id)) {
-        if (!done || (!ent->construction && !ent->training)) count++;
+        if (!done || (!ent->construction && !(ent && ent->training))) count++;
     }
     if (!done) FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == PLAYER_NUM(player) &&
-                                      builder->build_project == class_id && G_BotUnitAtTown(player, builder, town_id)) count++;
+                                      (builder->build_project) == class_id && G_BotUnitAtTown(player, builder, town_id)) count++;
     return count;
 }
 
@@ -730,7 +744,7 @@ int32_t G_BotNextExpansion(player_t *player) {
         edict_t *builder = NULL;
         if (!bot->expansion.build_accepted) return 0;
         FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
-                            unit->build_project == bot->expansion.hall_id) { builder = unit; break; }
+                            (unit->build_project) == bot->expansion.hall_id) { builder = unit; break; }
         if (builder) return 0;
         bot->expansion.valid = false;
         bot->expansion.build_accepted = false;
@@ -781,7 +795,7 @@ edict_t *G_BotExpansionPeon(player_t *player) {
     float best_dist = 0;
     if (!mine || !player) return NULL;
     FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
-        !worker->construction && !worker->training && !worker->build_project &&
+        !worker->construction && !(worker && worker->training) && !(worker->build_project) &&
         !S_GoldMineWorkerIsInside(worker) && !G_BuildingUpgradeActive(worker) &&
         G_ActorHasAbilityCode(worker, MAKEFOURCC('A','h','a','r')) && worker->data.UnitProfile && worker->data.UnitProfile->builds) {
         float dist = Vector2_distance(&mine->s.origin2, &worker->s.origin2);
@@ -865,10 +879,10 @@ static bool G_BotBuildNearTown(player_t *player, uint32_t class_id, int32_t town
     if (!bot || !town) return false;
     center = bot->town_spot_valid ? &bot->town_spot : &town->s.origin2;
     /* Pending footprints are not baked yet, so serialize them to keep later orders from invalidating earlier placement. */
-    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && unit->build_project)
+    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && (unit->build_project))
         return false;
     FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
-        !worker->construction && !worker->training && !worker->build_project &&
+        !worker->construction && !(worker && worker->training) && !(worker->build_project) &&
         (!worker->currentmove || worker->currentmove->proc != CAbilityRepair) && G_WorkerCanBuild(worker, class_id)) {
         for (int32_t ring = 1; ring <= BOT_BUILD_SEARCH_RINGS; ring++) {
             for (int32_t x = -ring; x <= ring; x++) for (int32_t y = -ring; y <= ring; y++) {
@@ -911,7 +925,7 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
             /* Prefer empty queues. Once every eligible producer is occupied,
              * balance new orders onto the producer with the most free slots. */
             FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
-                !ent->construction && !ent->training &&
+                !ent->construction && !(ent && ent->training) &&
                 G_BotUnitAtTown(player, ent, town_id) &&
                 G_GetTrainCommandState(G_GetPlayerClientByNumber(ent->s.player), ent, class_id, NULL, 0) ==
                     BUILD_COMMAND_AVAILABLE) {
@@ -949,7 +963,7 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
             FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
                 G_UnitIsBuilding(ent->class_id)) {
                 owned_producers++;
-                if (ent->construction || ent->training) {
+                if (ent->construction || (ent && ent->training)) {
                     busy_producers++;
                 } else if (!G_BotUnitAtTown(player, ent, town_id)) {
                     wrong_town++;
@@ -992,7 +1006,7 @@ bool G_BotUpgrade(player_t *player, uint32_t upgrade_id) {
     gameClient_t *client;
     if (!player || !upgrade_id || !(client = PLAYER_CLIENT(player))) return false;
     FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
-        !ent->construction && !ent->training &&
+        !ent->construction && !(ent && ent->training) &&
         G_GetResearchCommandState(client, ent, upgrade_id, NULL, NULL, 0) == BUILD_COMMAND_AVAILABLE)
         if (G_QueueResearch(ent, upgrade_id)) return true;
     return false;
@@ -1018,8 +1032,8 @@ void G_BotHarvest(player_t *player, int32_t town_id, int32_t peons, bool gold) {
         edict_t *best = NULL;
         float best_dist = 0;
         /* Preserve accepted construction orders; harvest reassignment used to strand their pending footprints. */
-        FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && !unit->training &&
-            !unit->construction && !unit->build_project &&
+        FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && !(unit && unit->training) &&
+            !unit->construction && !(unit->build_project) &&
             (!unit->currentmove || (unit->currentmove->proc != CAbilityGoldMine &&
              unit->currentmove->proc != CAbilityHarvest && unit->currentmove->proc != CAbilityRepair)) && unit->data.UnitAbilities &&
             G_ActorHasAbilityCode(unit, MAKEFOURCC('A','h','a','r')) && !G_BotHarvesterReserved(bot, unit)) {
@@ -1028,8 +1042,8 @@ void G_BotHarvest(player_t *player, int32_t town_id, int32_t peons, bool gold) {
         }
         if (!best) return;
         G_BotReserveHarvester(bot, best);
-        if (best->harvested_gold) harvest_gold_return_to(best, town);
-        else if (best->harvested_lumber) harvest_lumber_return_to(best, town);
+        if ((best->harvested_gold)) harvest_gold_return_to(best, town);
+        else if ((best->harvested_lumber)) harvest_lumber_return_to(best, town);
         else if (resource == RETURN_RESOURCE_GOLD) harvest_gold_start(best, target);
         else harvest_start(best, target);
     }
@@ -2138,7 +2152,7 @@ static bool G_BotGuardHasUnit(bot_t *bot, edict_t *unit) {
 static bool G_BotGuardReplacementTraining(player_t *player, uint32_t class_id) {
     if (!player || !class_id) return false;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == PLAYER_NUM(player) &&
-        unit->class_id == class_id && unit->training) return true;
+        unit->class_id == class_id && (unit && unit->training)) return true;
     return false;
 }
 
@@ -2692,7 +2706,7 @@ bool G_BotMergeUnits(player_t *player, int32_t qty, uint32_t a, uint32_t b, uint
     (void)a; (void)b;
     if (!player || qty <= 0 || !make) return qty <= 0;
     FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
-        ent->class_id == make && !ent->construction && !ent->training) have++;
+        ent->class_id == make && !ent->construction && !(ent && ent->training)) have++;
     return have >= qty;
 }
 
@@ -2726,7 +2740,7 @@ static uint32_t G_BotConversionAbility(edict_t *unit, uint32_t *target_type) {
             TRY_CONVERSION_ABILITY(alias);
         }
     }
-    FOR_LOOP(i, ARRAY_COUNT(unit->abilities.added)) {
+    FOR_LOOP(i, (ARRAY_COUNT(unit->abilities.added))) {
         uint32_t const alias = unit->abilities.added[i];
         if (alias) TRY_CONVERSION_ABILITY(alias);
     }
@@ -2760,7 +2774,7 @@ bool G_BotConvertUnits(player_t *player, int32_t qty, uint32_t source_type) {
     if (!ability || !target_type) return false;
 
     FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == player_num &&
-        ent->class_id == target_type && !ent->construction && !ent->training) have++;
+        ent->class_id == target_type && !ent->construction && !(ent && ent->training)) have++;
     if (have >= qty) return true;
     needed = qty - have;
 
@@ -2881,7 +2895,9 @@ static edict_t *G_BotNearestGroundItem(edict_t *hero) {
     edict_t *best = NULL;
     int32_t best_priority = INT32_MIN;
     float best_distance = 0.0f;
-    FILTER_EDICTS(item, G_IsItem(item) && item->item->in_world) {
+    FILTER_EDICTS(item, item->inuse) {
+        item_t const *rec = G_ItemState(item);
+        if (!rec || !rec->in_world) continue;
         ItemData_t const *data = G_ItemData(item->class_id);
         float distance = Vector2_distance(&hero->s.origin2, &item->s.origin2);
         if (!data || distance > BOT_HERO_ITEM_RADIUS || !G_CanPickupItem(hero, item)) continue;
@@ -2911,10 +2927,11 @@ static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
     FILTER_EDICTS(shop, shop->inuse && G_CanUseItemShop(client, shop) && G_BotHeroNearShop(hero, shop)) {
         if (G_FindShopPatron(client, shop) != hero) continue;
         FOR_LOOP(i, G_UpdateShopItemStock(shop)) {
-            uint32_t item_id = shop->stock->items[i].id;
+            stock_t const *wares = shop ? shop->stock : NULL;
+            uint32_t item_id = wares->items[i].id;
             ItemData_t const *data = G_ItemData(item_id);
             float distance;
-            if (shop->stock->items[i].current <= 0 || !data || !data->file ||
+            if (wares->items[i].current <= 0 || !data || !data->file ||
                 !G_ShopItemRequirementsSatisfied(client, item_id, NULL, 0)) continue;
             if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, data->goldcost) ||
                 client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < (uint32_t)MAX(0, data->lumbercost)) continue;

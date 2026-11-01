@@ -6,6 +6,16 @@
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
 
+static bool raise_dead_missing_rawcode(uint32_t code) {
+    return !code || code == '-' || code == '_' ||
+           code == MAKEFOURCC('-', '-', '-', '-') || code == MAKEFOURCC('_', '_', '_', '_');
+}
+
+static bool raise_dead_missing_buff(cstring_t buff) {
+    return !buff || !strcmp(buff, "-") || !strcmp(buff, "_") ||
+           !strcmp(buff, "----") || !strcmp(buff, "____");
+}
+
 /* The unit target and buff identity are known during cast validation. Reject
  * a full status array before resource commitment, including item/creep aliases.
  * Keep ROC's missing BuffID fallback identical to the execute path. */
@@ -37,9 +47,22 @@ static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityi
     cstring_t buff = anti_magic_shell_buff(spell, level);
     heroabilitystatus_t *slot;
     if (!st.entity) return;
+    /* Anti-Magic Shell removes existing dispellable spell effects before
+     * installing its barrier. Aura presentation is virtual source state, not
+     * a timed magic status, so it remains active on the recipient. */
+    FOR_LOOP(i, G_UnitStatusSlotCount(st.entity))
+        if (unit_status_can_magic_dispel(st.entity->abilstatus + i))
+            unit_removestatus_deferred(st.entity, st.entity->abilstatus + i, STATUS_REMOVE_DISPEL);
+    unit_refreshstatusflags(st.entity);
+    G_InvalidateUnitInfoPanel(st.entity);
     slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                          S_SpellResistantDuration(spell->code, level, st.entity));
-    if (absorb > 0.0f && slot) slot->data = (uint32_t)absorb;
+    if (slot) {
+        if (absorb > 0.0f) slot->data = (uint32_t)absorb;
+        /* The model and overhead attachment are authored on Bams/Bam2,
+         * not on the ability's TargetArt. Let the status own its lifetime. */
+        unit_status_enabletargetart(st.entity, slot, "overhead");
+    }
 }
 
 /* Name=Anti-magic Shell
@@ -393,8 +416,7 @@ static bool cannibalize_command(edict_t *caster, edict_t *clent, abilityitem_t c
     thinker->owner = caster;
     S_SetMoveGoal(thinker, &thinker->goalentity, corpse);
     thinker->class_id = spell->code;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
+    (thinker->channel ? thinker->channel : (thinker->channel=G_AllocChannel()));
     thinker->channel->target_spawn_time = corpse->spawn_time;
     thinker->think = cannibalize_approach_think;
     return true;
@@ -562,6 +584,15 @@ static void raise_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     duration = S_SpellDuration(spell->code, level, false) +
         G_UnitUpgradeEffectBonus(caster, BZ_UPGRADE_RAISE_DEAD_LIFE);
     buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 authors only Arai.DataA=2 and Dur1=40; its summon UnitID,
+     * DataC and BuffID fields are absent. The stock result is two warriors. */
+    if (raise_dead_missing_rawcode(unit_a) && (spell->code == MAKEFOURCC('A','r','a','i') ||
+                                               spell->code == MAKEFOURCC('A','C','r','d'))) {
+        unit_a = MAKEFOURCC('u','s','k','e');
+        if (raise_dead_missing_buff(buff)) buff = "Brai";
+    }
+#endif
 
     raise_dead_spawn_group(caster, spell, corpse, level, unit_a, count_a, duration, buff);
     raise_dead_spawn_group(caster, spell, corpse, level, unit_b, count_b, duration, buff);
@@ -609,6 +640,15 @@ static bool possession_validate(edict_t *caster, spellTarget_t st, abilityitem_t
     return true;
 }
 
+static float possession_missile_speed(uint32_t code) {
+    cstring_t value = S_SpellString(code, "Missilespeed", 0);
+    float speed;
+    if (!value && G_AbilityCode(code) != code)
+        value = S_SpellString(G_AbilityCode(code), "Missilespeed", 0);
+    speed = value ? (float)atof(value) : 0.0f;
+    return speed > 0.0f ? speed : 1500.0f;
+}
+
 static void possession_clear_status(edict_t *ent, uint32_t code) {
     if (!ent) return;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent))
@@ -628,7 +668,12 @@ static void possession_refresh_stun(edict_t *ent) {
     }
 }
 
+static void possession_select_target(edict_t *target);
+
 static void possession_takeover(edict_t *caster, edict_t *target) {
+    /* Apos/ACps do not apply the Bpos/Bpoc channel statuses. Retail still
+     * plays their authored one-shot models at both endpoints on completion. */
+    G_SpawnAbilityEffectTarget(BZ_BPOC, WC3_EFFECT_TARGET, 0, caster, "overhead", true);
     G_SetUnitPlayer(target, caster->s.player);
     target->owner = NULL;
     target->combatentity = NULL;
@@ -636,20 +681,81 @@ static void possession_takeover(edict_t *caster, edict_t *target) {
     G_SetHealth(caster, 0);
     if (caster->die) caster->die(caster, caster);
     else unit_die(caster, caster);
+    /* Spawn after the ownership and caster-death transitions so neither can
+     * replace the target's presentation state before this one-shot is queued. */
+    G_SpawnAbilityEffectTarget(BZ_BPOS, WC3_EFFECT_TARGET, 0, target, "overhead", true);
+    possession_select_target(target);
+}
+
+/* Persist this callback while the impact animation is still playing. */
+void possession_projectile_death_think(edict_t *missile) {
+    M_MoveFrame(missile);
+}
+
+static umove_t possession_projectile_death_move = { "death", NULL, G_FreeEdict, CAbilityPossession };
+
+static void possession_projectile_hit(edict_t *missile) {
+    edict_t *caster = S_SpellProjectileOwner(missile);
+    edict_t *target = S_SpellProjectileTarget(missile);
+    abilityitem_t spell = S_AbilityItem(missile->class_id);
+    if (caster && !M_IsDead(caster) && target &&
+        possession_validate(caster, (spellTarget_t){ .type = SPELL_TARGET_UNIT, .entity = target }, &spell))
+        possession_takeover(caster, target);
+    if (G_GetAnimation(missile->s.model, "Death")) {
+        missile->goalentity = NULL;
+        missile->movetype = MOVETYPE_NONE;
+        missile->think = possession_projectile_death_think;
+        missile->animation_speed = 1.0f;
+        unit_setmove(missile, &possession_projectile_death_move);
+    } else {
+        G_FreeEdict(missile);
+    }
+}
+
+static umove_t possession_projectile_move = { "stand", NULL, possession_projectile_hit, CAbilityPossession };
+
+static void possession_select_target(edict_t *target) {
+    gameClient_t *client;
+    uint32_t const player = target ? target->s.player : MAX_PLAYERS;
+    uint32_t const bit = player < MAX_PLAYERS ? 1u << player : 0;
+    if (!bit || !(client = G_GetPlayerClientByNumber(player)) ||
+        !client->connected || client->ps.number != player) return;
+    FILTER_EDICTS(selected, selected->inuse && (selected->selected & bit))
+        G_DeselectEntity(client, selected);
+    G_SelectEntity(client, target);
+    G_FocusSelectedUnit(client, target);
+    G_SyncClientSelection(client);
+}
+
+static bool possession_is_neutral(edict_t const *target) {
+    return target && target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
 }
 
 static void possession_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
+    edict_t *missile;
     if (!st.entity) return;
-    possession_takeover(caster, st.entity);
+    missile = S_SpawnUnitTargetSpellMissile(caster, spell->code, st.entity,
+                                            possession_missile_speed(spell->code),
+                                            &possession_projectile_move);
+    if (!missile) {
+        possession_takeover(caster, st.entity);
+        return;
+    }
+    /* The authored missile has a short Birth sequence before its Stand travel
+     * loop. The projectile physics advances it and transitions to Stand. */
+    animation_t const *birth = G_GetAnimation(missile->s.model, "Birth");
+    if (birth) {
+        missile->animation = birth;
+        missile->s.frame = birth->interval[0];
+    }
 }
 
 static void possession_strip_channel(edict_t *thinker) {
     edict_t *caster = S_SpellChannelOwner(thinker), *target = S_SpellChannelTarget(thinker);
     if (target) {
         possession_clear_status(target, BZ_BPOS);
-        possession_refresh_stun(target);
-        if (thinker->damage) target->invulnerable = thinker->invulnerable;
+        if (thinker->damage) target->invulnerable = (thinker && thinker->invulnerable);
     }
     if (caster) possession_clear_status(caster, BZ_BPOC);
 }
@@ -719,7 +825,7 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
     thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->damage = invuln > 0.0f ? 1 : 0;
-    thinker->invulnerable = st.entity->invulnerable;
+    thinker->invulnerable = (st.entity && st.entity->invulnerable);
     thinker->think = possession_two_think;
     if (invuln > 0.0f) st.entity->invulnerable = true;
 }

@@ -196,13 +196,87 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     ent->targtype = TARG_DEBRIS;
     ent->health.value = life;
     ent->health.max_value = life;
-    if (!ent->destructable) ent->destructable = G_AllocDestructable();
-    assert(ent->destructable);
+    (ent->destructable ? ent->destructable : (ent->destructable=G_AllocDestructable()));
     ent->destructable->placement_solid = true;
     ent->destructable->alive_collision = 1.0f;
     ent->destructable->pathing_active = true;
     ent->collision = 1.0f;
     return ent;
+}
+
+/* Blight rasterization must only sweep existing destructables when cells
+ * change. A new destructable is initialized separately by SP_CallSpawn. */
+static edict_t *make_blight_test_probe(float x, float y) {
+    edict_t *ent = make_test_destructable(100.0f, x, y);
+    ent->s.origin2 = (vec2_t){ x, y };
+    return ent;
+}
+
+TEST(wc3_destructable, blight_point_noop_skips_destructable_rescan) {
+    vec2_t const point = { 32.0f, 32.0f };
+    edict_t *late, *after_clear;
+
+    reset_entities();
+    setup_test_world();
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    late = make_blight_test_probe(point.x, point.y);
+    T_ASSERT(!late->destructable->blighted);
+
+    /* No new cells: the existing-world scan must not visit this uninitialized
+     * probe. Real spawns call G_BlightInitializeDestructable instead. */
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(!late->destructable->blighted);
+    G_BlightInitializeDestructable(late);
+    T_ASSERT(late->destructable->blighted);
+
+    G_SetBlightPoint(&point, false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    T_ASSERT(late->destructable->blighted); /* one-way tint */
+    after_clear = make_blight_test_probe(point.x, point.y);
+    G_SetBlightPoint(&point, false);
+    T_ASSERT(!after_clear->destructable->blighted);
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(after_clear->destructable->blighted);
+}
+
+TEST(wc3_destructable, blight_radius_noop_skips_destructable_rescan) {
+    vec2_t const point = { 32.0f, 32.0f };
+    edict_t *probe;
+
+    reset_entities();
+    setup_test_world();
+    G_SetBlightRadius(&point, 96.0f, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    probe = make_blight_test_probe(point.x, point.y);
+    G_SetBlightRadius(&point, 96.0f, true);
+    T_ASSERT(!probe->destructable->blighted);
+
+    G_SetBlightRadius(&point, 96.0f, false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    G_SetBlightRadius(&point, 96.0f, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    T_ASSERT(probe->destructable->blighted);
+}
+
+TEST(wc3_destructable, blight_rect_noop_skips_destructable_rescan) {
+    box2_t const rect = { { 0.0f, 0.0f }, { 128.0f, 128.0f } };
+    vec2_t const point = { 32.0f, 32.0f };
+    edict_t *probe;
+
+    reset_entities();
+    setup_test_world();
+    G_SetBlightRect(&rect, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    probe = make_blight_test_probe(point.x, point.y);
+    G_SetBlightRect(&rect, true);
+    T_ASSERT(!probe->destructable->blighted);
+
+    G_SetBlightRect(&rect, false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    G_SetBlightRect(&rect, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    T_ASSERT(probe->destructable->blighted);
 }
 
 static uint32_t blight_image_index_calls;
@@ -233,7 +307,7 @@ TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
     G_BlightInitializeDestructable(tree);
     gi.ImageIndex = old_image_index;
     T_ASSERT(tree->destructable->blighted);
-    T_ASSERT(tree->vertex_color_set);
+    T_ASSERT((tree && tree->vertex_color_set));
     T_EQ(tree->vertex_color.r, 120);
     T_EQ(tree->vertex_color.g, 185);
     T_EQ(tree->vertex_color.b, 72);
@@ -256,6 +330,8 @@ static edict_t *make_destructable_test_attacker(float x, float y) {
     ent->s.origin = (vec3_t){ x, y, 0.0f };
     ent->health.value = 100.0f;
     ent->health.max_value = 100.0f;
+
+
     ent->svflags |= SVF_MONSTER;
     S_AttackProfileWrite(ent, 0)->type = ATK_NORMAL;
     S_AttackProfileWrite(ent, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
@@ -559,8 +635,7 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
 
     setup_test_pathmap(8, 8, cells);
     dest = make_test_destructable(10.0f, center.x, center.y);
-    if (!dest->destructable) dest->destructable = G_AllocDestructable();
-    assert(dest->destructable);
+    (dest->destructable ? dest->destructable : (dest->destructable=G_AllocDestructable()));
     dest->destructable->death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
 
     G_KillDestructable(dest, NULL);
@@ -804,8 +879,7 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_blocked_terrain_until_dea
     setup_test_pathmap(8, 8, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-    assert(bridge->destructable);
+    (bridge->destructable ? bridge->destructable : (bridge->destructable=G_AllocDestructable()));
     bridge->destructable->alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
     bridge->destructable->death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
     bridge->pathtex = bridge->destructable->alive_pathtex;
@@ -842,8 +916,7 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rai
     setup_test_pathmap(9, 7, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-    assert(bridge->destructable);
+    (bridge->destructable ? bridge->destructable : (bridge->destructable=G_AllocDestructable()));
     bridge->destructable->alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
     bridge->pathtex = bridge->destructable->alive_pathtex;
     bridge->targtype = TARG_BRIDGE;
@@ -884,8 +957,7 @@ TEST(wc3_destructable, human06_bridge_fixtures_cross_from_both_sides) {
         bridge->s.class_id = fixture->id;
         bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f };
         bridge->data.DestructableData = &bridge_data;
-        if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-        assert(bridge->destructable);
+        (bridge->destructable ? bridge->destructable : (bridge->destructable=G_AllocDestructable()));
         bridge->destructable->alive_pathtex = (pathTex_t *)&pathtex;
         bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE;
@@ -925,8 +997,7 @@ TEST(wc3_destructable, human06_yt20_runtime_bridge_crosses_north_to_south) {
     bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
     bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
     bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f }; bridge->data.DestructableData = &bridge_data;
-    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-    assert(bridge->destructable);
+    (bridge->destructable ? bridge->destructable : (bridge->destructable=G_AllocDestructable()));
     bridge->destructable->alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
     bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
 
@@ -953,8 +1024,7 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
         bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f }; bridge->s.angle = angle * (float)M_PI / 2.0f;
         bridge->data.DestructableData = &bridge_data;
-        if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
-        assert(bridge->destructable);
+        (bridge->destructable ? bridge->destructable : (bridge->destructable=G_AllocDestructable()));
         bridge->destructable->alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
         transform = CM_GetPathTexTransform(bridge);
@@ -981,8 +1051,7 @@ TEST(wc3_destructable, gate_path_texture_rotation_covers_all_quarter_turns) {
         gate->class_id = MAKEFOURCC('D', 'T', 'g', '3');
         gate->s.class_id = gate->class_id;
         gate->s.angle = angle * (float)M_PI / 2.0f;
-        if (!gate->destructable) gate->destructable = G_AllocDestructable();
-        assert(gate->destructable);
+        (gate->destructable ? gate->destructable : (gate->destructable=G_AllocDestructable()));
         gate->destructable->alive_pathtex = (pathTex_t *)&pathtex;
         gate->pathtex = (pathTex_t *)&pathtex;
 
@@ -1021,8 +1090,7 @@ TEST(wc3_destructable, non_gate_path_texture_orientation_follows_facing_in_pathi
         elevator->s.class_id = elevator->class_id;
         elevator->s.origin2 = center;
         elevator->s.angle = angle * (float)M_PI / 2.0f;
-        if (!elevator->destructable) elevator->destructable = G_AllocDestructable();
-        assert(elevator->destructable);
+        (elevator->destructable ? elevator->destructable : (elevator->destructable=G_AllocDestructable()));
         elevator->destructable->alive_pathtex = (pathTex_t *)&pathtex;
         elevator->pathtex = (pathTex_t *)&pathtex;
 
@@ -1048,6 +1116,7 @@ TEST(wc3_destructable, non_destructable_path_texture_keeps_axis_aligned_contract
     building = G_Spawn();
     building->class_id = MAKEFOURCC('h', 't', 'o', 'w');
     building->s.class_id = building->class_id;
+
     building->svflags |= SVF_MONSTER;
     building->s.angle = (float)M_PI / 2.0f;
     building->pathtex = (pathTex_t *)&pathtex;
@@ -1593,13 +1662,13 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         T_FEQ(valid->destructable->occluder_height, 256.0f, 0.001f);
         T_STREQ(G_UnitAnimationRequest(missing), "death alternate");
         T_NULL(missing->animation);
-        T_ASSERT(!missing->animation_override);
+        T_ASSERT(!(missing && missing->animation_override));
         T_NOT_NULL(valid->animation);
         T_NOT_NULL(fast->animation);
         if (valid->animation) {
             T_STREQ(valid->animation->name, "Stand Alternate");
             T_EQ(valid->s.frame, valid->animation->interval[0]);
-            T_ASSERT(valid->animation_override);
+            T_ASSERT((valid && valid->animation_override));
             /* A frozen clip must remain in place through the real scheduler. */
             G_RunEntities();
             T_EQ(valid->s.frame, valid->animation->interval[0]);

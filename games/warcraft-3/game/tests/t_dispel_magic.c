@@ -6,6 +6,7 @@
 #define BZ_ADIS MAKEFOURCC('A', 'd', 'i', 's') // rawcode; Priest Dispel Magic
 #define BZ_ADCH MAKEFOURCC('A', 'd', 'c', 'h') // rawcode; TFT Disenchant(old)
 #define BZ_ADVM MAKEFOURCC('A', 'd', 'v', 'm') // rawcode; Destroyer Devour Magic
+#define BZ_AADM MAKEFOURCC('A', 'a', 'd', 'm') // rawcode; Dryad Abolish Magic
 #define BZ_AENS MAKEFOURCC('A', 'e', 'n', 's') // rawcode; Raider Ensnare
 #define BZ_BSLO MAKEFOURCC('B', 's', 'l', 'o') // rawcode; Slow timed status probe
 #define BZ_BINF MAKEFOURCC('B', 'i', 'n', 'f') // rawcode; Inner Fire timed status probe
@@ -147,6 +148,57 @@ TEST(wc3_spell, dispel_preserves_timed_life_status) {
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BTLF));
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BSLO));
+	dispel_done(fix);
+}
+
+/* Abolish Magic clears a hostile buff and an allied debuff in its area, hurts
+ * hostile summons, and leaves the Dryad's own buffs intact. */
+TEST(wc3_spell, dryad_abolish_magic_dispels_buffs_and_debuffs_and_damages_summons) {
+	static cstring_t slk =
+		"ID;PWXL;N;EBB;Y2;X12\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+		"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+		"C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataB1\"\n"
+		"C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"Dur1\"\nC;Y1;X12;K\"HeroDur1\"\n"
+		"C;Y2;X1;K\"Aadm\"\nC;Y2;X2;K\"Aadm\"\nC;Y2;X3;K1\n"
+		"C;Y2;X4;K\"air,ground,friend,enemy\"\nC;Y2;X5;K0\nC;Y2;X6;K500\n"
+		"C;Y2;X7;K250\nC;Y2;X8;K10\nC;Y2;X9;K123\n"
+		"C;Y2;X10;K\"Binf\"\nC;Y2;X11;K0\nC;Y2;X12;K0\nE\n";
+	dispelFix_t fix = dispel_setup(BZ_AADM);
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+	vec2_t point = fix.caster->s.origin2;
+	heroabilitystatus_t *status;
+	ally->s.player = 0;
+	ally->svflags |= SVF_MONSTER;
+	ally->targtype = TARG_GROUND;
+	ally->health.value = ally->health.max_value = 500;
+	unit_addtimedstatus(fix.enemy, "Binf", 1, 30.0f); /* hostile positive buff */
+	status = unit_findstatus(fix.enemy, MAKEFOURCC('B','i','n','f'));
+	status->buff_flags |= WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_POSITIVE;
+	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f); /* hostile negative debuff */
+	status = unit_findstatus(fix.enemy, BZ_BSLO);
+	status->buff_flags |= WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_NEGATIVE;
+	unit_addtimedstatus(ally, "Bslo", 1, 30.0f);
+	status = unit_findstatus(ally, BZ_BSLO);
+	status->buff_flags |= WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_NEGATIVE;
+	unit_addtimedstatus(ally, "Binf", 1, 30.0f);
+	status = unit_findstatus(ally, MAKEFOURCC('B','i','n','f'));
+	status->buff_flags |= WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_POSITIVE;
+	unit_addtimedstatus(fix.caster, "Binf", 1, 30.0f);
+	status = unit_findstatus(fix.caster, MAKEFOURCC('B','i','n','f'));
+	status->buff_flags |= WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_POSITIVE;
+
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AADM, &point));
+	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BINF));
+	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BSLO));
+	T_ASSERT(S_UnitHasStatus(fix.caster, BZ_BINF));
+	T_ASSERT(!S_UnitHasStatus(ally, BZ_BSLO));
+	T_ASSERT(!S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f')));
+	T_FEQ(fix.summon->health.value, 377, 0.001f); /* hostile summon takes DataB=123 */
+	T_FEQ(fix.enemy->health.value, 500, 0.001f);
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
 	dispel_done(fix);
 }
 

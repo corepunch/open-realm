@@ -27,6 +27,14 @@ the page*. Initial navigation cannot rely on a not-yet-installed worker.
    `crossOriginIsolated === true` before the threaded engine starts. Ordinary
    `file://` URLs do not work.
 
+The browser build additionally ships `manifest.webmanifest` and OpenRealm PNG
+icons for iPhone/iPad Home Screen installation. The publisher admits the
+`.webmanifest` extension, with all links scoped relatively to the game path.
+Safari's **Share → Add to Home Screen** action is a manual install path, not
+an automatic fullscreen API. The installed app may have separate OPFS storage,
+so users may need to import their archives again. It still requires the
+existing COOP/COEP Service Worker isolation and a compatible browser engine.
+
 A repository project site has a path prefix; avoid root-absolute URLs such
 as `/index.wasm` or `/sw.js`. Relative URLs resolve within that project's
 Pages origin and path. Emscripten-generated asset paths must follow the same
@@ -60,6 +68,13 @@ SDK 4.0.21 can emit `-Wpthreads-mem-growth` with this supported memory-growth
 path. It warns about JavaScript performance, not a failed link; the engine
 still needs pthreads and memory growth. Do not enable an experimental memory
 feature merely to suppress that diagnostic.
+
+The same SDK's static link currently needs about 183 MiB before runtime
+allocations (`wasm-ld: initial memory too small, 191116464 bytes needed`). Keep
+`INITIAL_MEMORY` at 256 MiB so the linked data, stack and static allocations fit;
+`ALLOW_MEMORY_GROWTH` still lets the engine expand for map and asset data. If
+static data grows again, use the byte count from `wasm-ld` to raise the initial
+memory to the next suitable page-aligned budget.
 
 To verify the full artifact locally with Emscripten 4.0.21 active:
 

@@ -231,7 +231,7 @@ fallback and item lifecycle.
 
 For a live allied unit target that is not consumed by a higher-priority Smart
 interaction such as Repair, Smart uses a persistent unit-target Move/follow
-order rather than copying the target's current coordinates. `movement.follow_target`
+order rather than copying the target's current coordinates. `orders->follow_target`
 remains the authoritative default movement goal. Follow stopping distance comes
 from `Misc.FollowRange` for units and `Misc.StructureFollowRange` for targets
 carrying `EF_BUILDING`. Buildings with an authored `pathTex` measure that range

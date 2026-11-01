@@ -223,7 +223,12 @@ static double Test_NowMs(void) {
 #else
     struct timespec ts;
 
+#ifdef __ANDROID__
+    /* Bionic exposes timespec_get only from API 29; elapsed test timing needs no wall clock. */
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+#else
     timespec_get(&ts, TIME_UTC);
+#endif
     return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1.0e6;
 #endif
 }

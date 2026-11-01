@@ -1156,6 +1156,72 @@ TEST(wc3_order_lifecycle, pool192_lost_target_fallback_and_replacement_release_s
     reset_entities(); setup_test_world();
 }
 
+/* Physical owners retire while the embedded native movement clock survives. */
+TEST(wc3_order_lifecycle, persistent_movement_stop_pause_arrival_and_reuse) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    unit->think = monster_think;
+    T_EQ(unit->movement.group_id,0);
+    T_EQ(G_UnitQueuedOrderCount(unit),0);
+    T_ASSERT(!(move_unit_group(unit) != NULL));
+    vec2_t const point = { 300, 0 };
+    T_ASSERT(unit_issueorder(unit, "move", &point));
+    T_NE(unit->movement.group_id,0);
+    T_ASSERT((move_unit_group(unit) != NULL));
+    edictMovement_s *first = &unit->movement;
+    vec2_t const origin = unit->s.origin2;
+    unit->paused = true;
+    level.time += FRAMETIME;
+    G_RunEntities();
+    T_ASSERT(&unit->movement == first);
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    unit->paused = false;
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_EQ(unit->movement.group_id,0);
+    T_EQ(unit->movement.guard_state, GUARD_IDLE);
+    T_ASSERT(unit_issueorder(unit, "move", &point));
+    T_NE(unit->movement.group_id,0);
+    T_EQ(unit->movement.flow_generation, 0);
+    /* Let the native physical clock reach the destination; mutating only
+     * the published pose does not teleport its retained predicted pose. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsStarted = true;
+    for (unsigned frame = 0; frame < 1000 && unit->movement.group_id; ++frame) {
+        level.time += 5;
+        globals.RunFrame();
+    }
+    T_FEQ(unit->s.origin2.x, point.x, 16.0f);
+    T_EQ(unit->movement.group_id,0);
+    T_EQ(G_UnitQueuedOrderCount(unit),0);
+    T_ASSERT(unit_issueorder(unit, "move", &origin));
+    T_NE(unit->movement.group_id,0);
+    unit_die(unit, NULL);
+    T_EQ(unit->movement.group_id,0);
+    G_FreeEdict(unit);
+    T_NULL(unit->order_queue.entries);
+    T_NULL(unit->movement.fine_route.points);
+    T_NULL(unit->wander_goal);
+}
+
+TEST(wc3_order_lifecycle, stationary_follow_retains_target_physical_owner) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *ally = review_order_unit(40, 0);
+    T_ASSERT(unit_issuetargetorder(unit, "move", ally));
+    T_NE(unit->movement.group_id,0);
+    uint32_t const group = unit->movement.group_id;
+    unit->currentmove->think(unit);
+    T_EQ(unit->movement.group_id,group);
+    T_ASSERT(unit->movement.follow_target == ally);
+    ally->s.origin2.x = 600;
+    unit->currentmove->think(unit);
+    T_NE(unit->movement.group_id,0);
+    T_ASSERT(unit->movement.follow_target == ally);
+    order_stop(unit);
+    T_EQ(unit->movement.group_id,0);
+}
+
 TEST(wc3_order_lifecycle, hold_position_does_not_chase_acquired_enemy) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
@@ -1191,10 +1257,13 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     vec2_t point = {600, 0};
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     edict_t *missile = G_Spawn();
+
     missile->owner = unit;
     S_SetMoveGoal(missile, &missile->goalentity, enemy);
     missile->velocity = 10000;
     missile->damage = 10000;
+    missile->projectile_attack_type = ATK_NORMAL;
+    missile->projectile_owner_spawn_time = unit->spawn_time;
     T_ASSERT(unit_issueorder(unit, "move", &point));
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &MAKE(vec2_t, .x = 800), true, 0, 0));
     umove_t const *move = unit->currentmove;
@@ -1203,6 +1272,28 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     T_ASSERT(M_IsDead(enemy));
     T_ASSERT(unit->currentmove == move);
     T_EQ(G_UnitQueuedOrderCount(unit), 1);
+}
+
+TEST(wc3_order_lifecycle, projectile_from_removed_attacker_is_discarded) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+    edict_t *missile = G_Spawn();
+    float const health = enemy->health.value;
+
+
+    missile->owner = unit;
+    missile->goalentity = enemy;
+    missile->velocity = 10000;
+    missile->damage = 10000;
+    missile->projectile_attack_type = ATK_NORMAL;
+    missile->projectile_owner_spawn_time = unit->spawn_time;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    G_FreeEdict(unit);
+
+    SV_Physics_Toss(missile);
+
+    T_ASSERT(!missile->inuse);
+    T_FEQ(enemy->health.value, health, 0.001f);
 }
 
 TEST(wc3_order_lifecycle, explicit_attack_replaces_persistent_follow) {
@@ -1399,8 +1490,7 @@ TEST(wc3_order_lifecycle, queued_hold_preserves_later_fifo_work) {
 TEST(wc3_order_lifecycle, hold_position_interrupts_active_channel) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0);
-    if (!unit->channel) unit->channel = G_AllocChannel();
-    assert(unit->channel);
+    (unit->channel ? unit->channel : (unit->channel=G_AllocChannel()));
     unit->channel->code = MAKEFOURCC('A','x','x','x');
 
     T_ASSERT(S_HoldPosition(unit));
@@ -2473,6 +2563,12 @@ TEST(wc3_order_lifecycle, disable_creep_guard_preserves_explicit_move) {
     T_ASSERT(creep->goalentity == goal);
 }
 
+
+
+
+
+
+
 /* Exercise the production post-mitigation damage path: a lethal blow must
  * alert a surviving idle camp member before the victim is torn down. */
 TEST(wc3_order_lifecycle, lethal_creep_hit_alerts_surviving_camp_member) {
@@ -2489,6 +2585,10 @@ TEST(wc3_order_lifecycle, lethal_creep_hit_alerts_surviving_camp_member) {
     T_ASSERT(ally->goalentity == attacker);
     T_ASSERT(ally->currentmove && ally->currentmove->proc == CAbilityAttack);
 }
+
+/* Drive the actual tick through each deadline with an immobilized creep so
+ * Move never becomes active. This catches unbounded, every-frame retries. */
+
 
 /* Explicit immediate orders must cancel return ownership without changing its
  * independently stored original anchor. */
@@ -2656,6 +2756,14 @@ TEST(wc3_order_lifecycle, rooted_returning_creep_ignores_enemy_then_walks_home) 
     T_ASSERT(!creep_guard_attacking(creep));
     T_ASSERT(enemy->inuse);
 }
+
+/* A live Attack reaching a returning creep (Taunt, bot AI) is leashed combat,
+ * never a failed return Move whose exhausted budget strands an unleashed fight. */
+
+
+/* Hard leash through the real scheduler: idle acquisition, then the tick turns
+ * the live Attack beyond MaxGuardDistance into a return Move that walks home. */
+
 
 /* Soft leash through the real scheduler: between GuardDistance and
  * MaxGuardDistance the creep keeps fighting until GuardReturnTime passes
@@ -3027,5 +3135,10 @@ TEST(wc3_order_lifecycle, captain376_public_worker_type_changes_initial_town) {
 TEST(wc3_order_lifecycle, captain376_public_worker_removal_restores_oldest_town) {
     captain376_public_worker_town_selection(true);
 }
+
+/* A Shift-queued order only takes ownership once it starts. Until then the
+ * auto-acquired Attack stays leashed, and the leash hands control to the
+ * queued order instead of walking home. */
+
 
 #endif

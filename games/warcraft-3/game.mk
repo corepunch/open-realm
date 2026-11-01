@@ -369,8 +369,8 @@ TEST_JOBS ?= 16
  test: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
-		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
+	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound test-music-mp3 \
+		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-wc3-power-lifetime test-pathfinding-tools test-render-harness test-mpq-compression
 
@@ -384,13 +384,15 @@ $(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMP
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-sound,$(LIB_DIR) $(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
+$(eval $(call test_schema,test-music-mp3,$(LIB_DIR) client/cl_music.c vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(TEST_CFLAGS) -DBZ_TESTS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_music_mp3$(EXE_EXT),tests/test_runner.c tests/test_music_mp3.c sound/s_mp3.c shared/test.c,$(TEST_GC_SECTIONS) $(LIBS) -lm,))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c client/cl_canvas.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
 $(eval $(call test_schema,test-mdx-geoset,$(SHARED_LIB) $(WC3_DIR)/renderer/mdx/r_mdx_geoset.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_mdx_geoset$(EXE_EXT),tests/test_runner.c tests/test_mdx_geoset.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-texture,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_mdx_texture$(EXE_EXT),tests/test_runner.c tests/test_mdx_texture.c,-lrenderer -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-ui-canvas,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_ui_canvas$(EXE_EXT),tests/test_runner.c tests/test_ui_canvas.c,-lrenderer -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-ui,$(SHARED_LIB) client/tr_public.h $(WC3_DIR)/renderer/mdx/r_mdx.h games/warcraft-3/renderer/mdx/r_mdx_render.c games/warcraft-3/renderer/r_weather.c games/warcraft-3/common/weather.h renderer/r_particles.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable,$(BIN_DIR)/test_mdx_ui$(EXE_EXT),tests/test_runner.c tests/test_mdx_ui.c,-lshared -lm $(LIBS),))
-$(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_trace.c renderer/r_camera_height.h renderer/r_local.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c tests/test_renderer_trace.c renderer/r_trace.c renderer/r_camera_height.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_trace.c renderer/r_camera_height.h renderer/r_local.h renderer/r_profile.c renderer/r_profile.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c tests/test_renderer_trace.c tests/test_renderer_profile.c renderer/r_trace.c renderer/r_camera_height.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-frame,$(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(wildcard renderer/*.h) renderer/r_main.c common/main.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_frame$(EXE_EXT),tests/test_runner.c tests/test_renderer_frame.c renderer/r_shader.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DUSE_SHADOWMAPS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
 $(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) $(WC3_DIR)/common/campaign_progress.c common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))
@@ -432,6 +434,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		"panel_sprite TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx" \
 		"ui_panel TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx" \
 		"anim_pulse TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx" \
+		"anim_projectile TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_projectile.mdx" \
 		"anim_oneshot TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_oneshot.mdx" \
 		"unit_death TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/unit_death.mdx" \
 		"doodad_birth TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuildingRuined2/ElvenFishVillageBuildingRuined2.mdx" \
@@ -520,7 +523,7 @@ $(ZIP_FILE):
 
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass wc3-sc2api-proto \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
-	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
+	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine test-pathfinding-tools download
 
 .PHONY: test-menu-boundary

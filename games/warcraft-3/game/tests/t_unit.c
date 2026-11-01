@@ -511,6 +511,52 @@ TEST(wc3_unit, identical_units_share_sound_resources_without_repeated_file_probe
     gi = old;
 }
 
+/* Retain the branch unit-request bound while copying and sharing caller text.
+ * Direct model selection has a separate full-text contract. */
+TEST(wc3_unit, animation_names_are_shared_owned_with_unit_request_bound) {
+    edict_t first={0},second={0};char name[160];
+    memset(name,'a',sizeof(name)-1);name[sizeof(name)-1]=0;
+    G_StoreUnitAnimationRequest(&first,name);
+    cstring_t saved=G_UnitAnimationRequest(&first);
+    T_ASSERT(saved!=name);T_EQ(strlen(saved),WC3_ANIMATION_REQUEST_SIZE-1);
+    G_StoreUnitAnimationRequest(&second,name);T_EQ(G_UnitAnimationRequest(&second),saved);
+    name[0]='b';T_EQ(saved[0],'a');
+    G_StoreUnitAnimationRequest(&second,name);T_NE(G_UnitAnimationRequest(&second),saved);
+    G_StoreUnitAnimationRequest(&second,NULL);T_STREQ(G_UnitAnimationRequest(&second),"");
+}
+
+/* Effects/waypoints must not acquire fixed unit ability buffers through queries. */
+TEST(wc3_unit, unrelated_entities_have_no_unit_state) {
+    reset_entities();
+    edict_t *effect = G_Spawn();
+    T_NULL(effect->abilstatus); T_NULL(effect->attack_overrides[0]); T_NULL(effect->attack_overrides[1]);
+    T_ASSERT(!G_ActorHasSkill(effect, "Ahar"));
+    T_ASSERT(!unit_hasstatusstate(effect, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(S_SpellCooldownReady(effect, MAKEFOURCC('A','H','t','c')));
+    T_NULL(effect->abilstatus); T_NULL(effect->attack_overrides[0]); T_NULL(effect->attack_overrides[1]);
+    T_EQ(G_AttackDamage(effect, effect, 10), G_AttackDamageWithType(effect, effect, 10, 0));
+    T_FEQ(G_UnitArmorValue(effect), 0.0f, 0.001f);
+    T_ASSERT(!S_AttackCanTarget(effect, effect));
+    T_ASSERT(!G_UnitSharesVisionWith(effect, 0));
+    T_ASSERT(!G_UnitIsForcedVisibleToPlayer(effect, 0));
+    T_ASSERT(!G_UnitAutocastIsOn(effect, MAKEFOURCC('A','h','a','r')));
+    T_NULL(effect->abilstatus); T_NULL(effect->attack_overrides[0]); T_NULL(effect->attack_overrides[1]);
+    T_NULL(G_InventoryItem(effect, 0));
+    FOR_LOOP(i,MAX_INVENTORY) T_NULL(effect->inventory[i]);
+    T_EQ(effect->harvested_gold,0); T_EQ(effect->harvested_lumber,0);
+    T_EQ(effect->shared_vision,0);
+    T_EQ(effect->projectile_attack_type,0);
+    T_NULL(effect->sound_profile);
+}
+
+TEST(wc3_unit, movement_queries_do_not_allocate_physical_owners) {
+    reset_entities();edict_t *effect=G_Spawn();
+    T_EQ(effect->movement.group_id,0);T_NULL(effect->movement.fine_route.points);
+    T_EQ(G_UnitQueuedOrderCount(effect),0);G_ClearUnitOrderQueue(effect);
+    T_NULL(effect->order_queue.entries);T_EQ(effect->movement.group_id,0);
+    G_FreeEdict(effect);
+}
+
 TEST(wc3_unit, death_sound_uses_existing_numbered_asset) {
     struct game_import old = gi;
     UnitUI_t ui = { .soundLabel = "Test", .modelFile = "Units\\Human\\Test\\Test" };
@@ -758,6 +804,7 @@ static void reset_test_entities(void) {
 static edict_t *make_unit(float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     edict_t *ent = G_Spawn();
+
     ent->class_id       = MAKEFOURCC('h','p','e','a');
     G_BindEntityData(ent);
     ent->data.UnitWeapons = &test_weapons;
@@ -794,8 +841,7 @@ static edict_t *make_world_item(uint32_t class_id) {
     G_BindEntityData(item);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
+    (item->item ? item->item : (item->item=G_AllocItem()));
     item->item->in_world = true;
     item->item->inventory_slot = -1;
     return item;
@@ -922,7 +968,7 @@ TEST(wc3_unit, selecting_owned_unit_queues_one_ack_sound) {
 TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_QueueSelectionSound(ent, true);
-    T_EQ(ent->sound.pending, 0);
+    T_EQ(ent->sound.pending,0);
 }
 
 TEST(wc3_unit, queued_response_does_not_start_portrait_before_playback_feedback) {
@@ -943,6 +989,7 @@ void test_sound_event(edict_t *ent, uint32_t request, uint32_t event);
 
 static void response_test_finish(edict_t *ent) {
     uint32_t request = G_UnitResponseRequest(ent, ent->sound.pending);
+
     ent->sound.pending = 0;
     test_sound_event(ent, request, SOUND_ACCEPTED);
     test_sound_event(ent, request, SOUND_ACCEPTED); /* duplicate cannot advance twice */
@@ -955,6 +1002,7 @@ TEST(wc3_unit, response_feedback_owns_portrait_lifetime_and_rejection) {
     G_ResetSelectionSoundState();
     T_ASSERT(G_QueueUnitResponseSound(ent, 11));
     uint32_t first = G_UnitResponseRequest(ent, 11);
+
     ent->sound.pending = 0; /* packet sent */
     T_ASSERT(!G_UnitResponseTalking(ent));
     T_ASSERT(!G_QueueUnitResponseSound(ent, 12)); /* only one unanswered request */
@@ -1006,6 +1054,7 @@ TEST(wc3_unit, overlapping_response_feedback_keeps_portrait_until_last_voice_end
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_ResetSelectionSoundState();
     T_ASSERT(G_QueueUnitResponseSound(ent, 11)); uint32_t a = G_UnitResponseRequest(ent, 11);
+
     ent->sound.pending = 0;
     test_sound_event(ent, a, SOUND_ACCEPTED); test_sound_event(ent, a, SOUND_STARTED);
     T_ASSERT(G_QueueUnitResponseSound(ent, 12)); uint32_t b = G_UnitResponseRequest(ent, 12);
@@ -1106,6 +1155,7 @@ TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines)
     G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 11);
     /* Rejected responses leave the three-What threshold untouched. */
     uint32_t rejected = G_UnitResponseRequest(ent, 11);
+
     ent->sound.pending = 0; test_sound_event(ent, rejected, SOUND_REJECTED);
     FOR_LOOP(i, 3) {
         G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
@@ -1300,7 +1350,7 @@ TEST(wc3_unit, paused_death_animation_advances_after_kill) {
     ent->paused = true;
 
     unit_die(ent, NULL);
-    T_ASSERT(ent->animation_override);
+    T_ASSERT((ent && ent->animation_override));
     T_ASSERT(ent->currentmove && !strcmp(ent->currentmove->animation, "death"));
     ent->animation = &death;
     ent->s.frame = 50;
@@ -1393,7 +1443,9 @@ TEST(wc3_unit, die_is_one_shot_after_dead_monster_flag) {
 
     /* A second lethal resolution must not replay death-side effects such as
      * sounds/events/loot-trigger publication. */
+
     ent->sound.world_pending = 0;
+
     ent->sound.world_pending_event = 0;
     unit_die(ent, NULL);
 
@@ -1646,7 +1698,9 @@ TEST(wc3_unit, smart_on_passive_ally_starts_persistent_follow) {
     reset_test_entities();
     edict_t *follower = make_unit(0, 0);
     edict_t *leader = make_unit(256, 0);
+
     follower->svflags |= SVF_MONSTER;
+
     leader->svflags |= SVF_MONSTER;
     follower->s.player = 0;
     leader->s.player = 1;
@@ -1665,7 +1719,9 @@ TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
     reset_test_entities();
     edict_t *follower = make_unit(0, 0);
     edict_t *leader = make_unit(256, 0);
+
     follower->svflags |= SVF_MONSTER;
+
     leader->svflags |= SVF_MONSTER;
     follower->s.player = leader->s.player = 0;
 
@@ -1717,7 +1773,9 @@ TEST(wc3_unit, smart_follow_building_uses_zero_range_physical_task) {
     setup_test_world();
     follower = make_unit(200.0f, 0.0f);
     building = make_unit(0.0f, 0.0f);
+
     follower->svflags |= SVF_MONSTER;
+
     building->svflags |= SVF_MONSTER;
     follower->s.player = building->s.player = 0;
     building->s.flags |= EF_BUILDING;
@@ -1763,7 +1821,9 @@ TEST(wc3_unit, queued_smart_on_passive_ally_revalidates_to_follow) {
     edict_t *follower = make_unit(0, 0);
     edict_t *leader = make_unit(256, 0);
     vec2_t first = { 96.0f, 0.0f };
+
     follower->svflags |= SVF_MONSTER;
+
     leader->svflags |= SVF_MONSTER;
     follower->s.player = 0;
     leader->s.player = 1;
@@ -1834,11 +1894,11 @@ TEST(wc3_unit, no_creep_sleep_player_state_blocks_new_natural_sleep) {
     edict_t *creep = make_unit(0, 0);
     uint16_t *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
 
+
+
     creep->svflags |= SVF_MONSTER;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!creep->sleep) creep->sleep = G_AllocSleep();
-    assert(creep->sleep);
-    creep->sleep->can_sleep = true;
+    ((sleep_t *)(creep->sleep ? creep->sleep : (creep->sleep=G_AllocSleep())))->can_sleep = true;
     *no_creep_sleep = 1;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -1857,16 +1917,15 @@ TEST(wc3_unit, unit_add_sleep_policy_is_neutral_only_and_wakes_when_disabled) {
     edict_t *neutral = make_unit(0, 0);
     edict_t *player_unit = make_unit(64, 0);
 
+
+
     neutral->svflags |= SVF_MONSTER;
     neutral->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!neutral->sleep) neutral->sleep = G_AllocSleep();
-    assert(neutral->sleep);
-    neutral->sleep->can_sleep = false;
+    ((sleep_t *)(neutral->sleep ? neutral->sleep : (neutral->sleep=G_AllocSleep())))->can_sleep = false;
+
     player_unit->svflags |= SVF_MONSTER;
     player_unit->s.player = 0;
-    if (!player_unit->sleep) player_unit->sleep = G_AllocSleep();
-    assert(player_unit->sleep);
-    player_unit->sleep->can_sleep = false;
+    ((sleep_t *)(player_unit->sleep ? player_unit->sleep : (player_unit->sleep=G_AllocSleep())))->can_sleep = false;
 
     G_UnitSetCanSleep(neutral, true);
     G_UnitSetCanSleep(player_unit, true);
@@ -1891,7 +1950,9 @@ TEST(wc3_unit, smart_on_neutral_aggressive_attacks_not_follows) {
     reset_test_entities();
     edict_t *unit = make_unit(0, 0);
     edict_t *target = make_unit(128, 0);
+
     unit->svflags |= SVF_MONSTER;
+
     target->svflags |= SVF_MONSTER;
     unit->s.player = 0;
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -1907,7 +1968,9 @@ TEST(wc3_unit, smart_on_neutral_aggressive_follows_after_passive_alliance) {
     reset_test_entities();
     edict_t *unit = make_unit(0, 0);
     edict_t *target = make_unit(128, 0);
+
     unit->svflags |= SVF_MONSTER;
+
     target->svflags |= SVF_MONSTER;
     unit->s.player = 0;
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -1926,7 +1989,9 @@ TEST(wc3_unit, smart_on_neutral_passive_uses_persistent_follow) {
     reset_test_entities();
     edict_t *unit = make_unit(0, 0);
     edict_t *target = make_unit(128, 0);
+
     unit->svflags |= SVF_MONSTER;
+
     target->svflags |= SVF_MONSTER;
     unit->s.player = 0;
     target->s.player = PLAYER_NEUTRAL_PASSIVE;
@@ -1942,7 +2007,9 @@ TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
     reset_test_entities();
     edict_t *unit = make_unit(0, 0);
     edict_t *target = make_unit(128, 0);
+
     unit->svflags |= SVF_MONSTER;
+
     target->svflags |= SVF_MONSTER;
     unit->s.player = 0;
     target->s.player = 1;
@@ -2053,9 +2120,45 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
+/* Untinted heroes also need fade entries while dissipating. A candidate
+ * filter that looks only at the authored colour flag would make them pop. */
+TEST(wc3_unit, untinted_hero_dissipation_publishes_white_fade) {
+    edict_t *hero, *clent;
+    color32_t color;
+
+    reset_test_entities();
+    setup_test_world();
+    game.constants.dissipateTime = 1.0f;
+    hero = make_inventory_unit(0, 0);
+    hero->s.player = 0;
+    hero->health.value = 0.0f;
+    hero->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    hero->think = monster_think;
+    hero->vertex_color_set = false;
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+
+    level.time = 1000;
+    unit_begin_decay(hero);
+    FOR_LOOP(i, 5) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.5f, 0.001f);
+    T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_ASSERT(color.a >= 127 && color.a <= 128); /* uint8 quantization of the composed fade */
+    T_ASSERT(!(hero && hero->vertex_color_set));
+}
+
 TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     reset_test_entities();
+    setup_test_world();
+    game.clients[0].ps.number = 0;
     edict_t *hero = make_inventory_unit(0, 0);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
     hero->health.value = hero->health.max_value = 500.0f;
 
     unit_die(hero, NULL);
@@ -2071,6 +2174,21 @@ TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     T_ASSERT(hero->inuse);
     T_ASSERT(hero->revival->awaiting);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
+    T_ASSERT(G_UnitShowsHeroShortcut(&game.clients[0], hero));
+}
+
+TEST(wc3_unit, hero_death_invalidates_owner_shortcut_roster) {
+    reset_test_entities();
+    setup_test_world();
+    game.clients[0].ps.number = 0;
+    game.clients[0].shortcuts.dirty = false;
+    edict_t *hero = make_inventory_unit(0, 0);
+    hero->s.player = 0;
+    hero->svflags |= SVF_MONSTER;
+
+    unit_die(hero, NULL);
+
+    T_ASSERT(game.clients[0].shortcuts.dirty);
 }
 
 TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
@@ -2079,6 +2197,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     edict_t *altar = make_unit(0, 0);
     edict_t *hero = make_inventory_unit(0, 0);
     altar->s.player = hero->s.player = client->ps.number;
+    hero->svflags |= SVF_MONSTER;
     altar->build = hero;
     hero->health.max_value = 500.0f;
     hero->health.value = 0.0f;
@@ -2086,16 +2205,16 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     hero->svflags |= SVF_DEADMONSTER;
     hero->s.flags |= EF_NOT_SELECTABLE;
     hero->s.renderfx |= RF_HIDDEN;
-    if (!hero->revival) hero->revival = G_AllocRevival();
-    assert(hero->revival);
-    hero->revival->awaiting = true;
-    hero->revival->reviving = true;
-    hero->revival->producer = altar;
-    hero->revival->player = client->ps.number;
-    hero->revival->gold = 100;
-    hero->revival->lumber = 50;
+    revival_t *revival = (hero->revival ? hero->revival : (hero->revival=G_AllocRevival()));
+    revival->awaiting = true;
+    revival->reviving = true;
+    revival->producer = altar;
+    revival->player = client->ps.number;
+    revival->gold = 100;
+    revival->lumber = 50;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    client->shortcuts.dirty = false;
 
     T_ASSERT(G_ReviveHero(hero, 64.0f, 96.0f));
 
@@ -2114,6 +2233,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     T_FEQ(hero->s.origin.x, 64.0f, 0.001f);
     T_FEQ(hero->s.origin.y, 96.0f, 0.001f);
     T_ASSERT(hero->health.value > 0.0f);
+    T_ASSERT(client->shortcuts.dirty);
     G_SelectEntity(client, hero);
     T_ASSERT(G_IsEntitySelected(client, hero));
 }
@@ -2131,15 +2251,14 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
     altar->data.UnitProfile = &revive_profile;
     altar->build = hero;
-    if (!hero->revival) hero->revival = G_AllocRevival();
-    assert(hero->revival);
-    hero->revival->awaiting = true;
-    hero->revival->reviving = true;
-    hero->revival->producer = altar;
-    hero->revival->queue_next = trainee;
-    hero->revival->player = client->ps.number;
-    hero->revival->gold = 100;
-    hero->revival->lumber = 50;
+    revival_t *revival = (hero->revival ? hero->revival : (hero->revival=G_AllocRevival()));
+    revival->awaiting = true;
+    revival->reviving = true;
+    revival->producer = altar;
+    revival->queue_next = trainee;
+    revival->player = client->ps.number;
+    revival->gold = 100;
+    revival->lumber = 50;
     trainee->training = true;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
@@ -2160,8 +2279,7 @@ TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queu
     edict_t *worker = make_unit(0, 0);
     edict_t *building = make_unit(0, 0);
 
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->build = building;
     worker->build = building;
 
@@ -2181,8 +2299,7 @@ TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
 
     altar->data.UnitProfile = &revive_profile;
     altar->s.player = old_client->ps.number;
-    if (!altar->construction) altar->construction = G_AllocConstruction();
-    assert(altar->construction);
+    (altar->construction ? altar->construction : (altar->construction=G_AllocConstruction()));
     altar->build = altar;
 
     G_SetUnitPlayer(altar, new_client->ps.number);
@@ -2218,7 +2335,7 @@ TEST(wc3_unit, hero_revive_cleanup_stops_on_cyclic_production_queue) {
 
     altar->data.UnitProfile = &revive_profile;
     altar->build = first;
-    first->training = second->training = true;
+    first->training = true; second->training = true;
     first->build = second;
     second->build = first;
 
@@ -2875,7 +2992,7 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     mapInfo_t const *saved_map=install_raven_flight_endpoint();
     ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     G_InitializeUnitVertexColor(ent);
-    T_ASSERT(ent->vertex_color_set);
+    T_ASSERT((ent && ent->vertex_color_set));
     T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
     T_ASSERT(G_ActorAddSkill(ent, MAKEFOURCC('A','m','r','f')));
@@ -3247,10 +3364,9 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     mapInfo_t const *saved_map=install_raven_flight_endpoint();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    if (!ent->raven) ent->raven = G_AllocRaven();
-    assert(ent->raven);
-    ent->raven->fly_height = 100;
-    ent->raven->rise_duration = 2;
+    raven_t *raven = (ent->raven ? ent->raven : (ent->raven=G_AllocRaven()));
+    raven->fly_height = 100;
+    raven->rise_duration = 2;
     T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
     if(ent->animation)ent->s.frame = ent->animation->interval[1] - 1;
     level.time = 1000;
@@ -3284,11 +3400,10 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     mapInfo_t const *saved_map=install_raven_flight_endpoint();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    if (!ent->raven) ent->raven = G_AllocRaven();
-    assert(ent->raven);
-    ent->raven->fly_height = 100;
-    ent->raven->rise_duration = 2;
-    T_EQ(ent->raven->rise_state, RAVEN_RISE_AFTER_MORPH);
+    raven_t *raven = (ent->raven ? ent->raven : (ent->raven=G_AllocRaven()));
+    raven->fly_height = 100;
+    raven->rise_duration = 2;
+    T_EQ(raven->rise_state, RAVEN_RISE_AFTER_MORPH);
     T_ASSERT(unit_issueorder(ent, "move", &point));
     T_EQ(ent->current_order_id,852155);
     T_EQ(ent->raven->rise_state,RAVEN_RISE_AFTER_MORPH);
@@ -3297,7 +3412,7 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     T_EQ(ent->current_order_id,851986);
     umove_t const *walk=ent->currentmove;
     S_RunAbilityUpdates(ent);
-    T_EQ(ent->raven->rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(raven->rise_state, RAVEN_RISE_ACTIVE);
     T_ASSERT(ent->currentmove == walk);
     level.time = 2000;
     S_RunAbilityUpdates(ent);
@@ -3322,20 +3437,19 @@ TEST(wc3_unit, ravenForm_takeoff_interpolates_from_ground_to_authored_height) {
 
     reset_test_entities(); setup_test_world();
     ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
-    if (!ent->raven) ent->raven = G_AllocRaven();
-    assert(ent->raven);
-    ent->raven->fly_height = 100.0f;
-    ent->raven->rise_start = 1000;
-    ent->raven->rise_duration = 2.0f;
-    ent->raven->rise_state = RAVEN_RISE_ACTIVE;
+    raven_t *raven = (ent->raven ? ent->raven : (ent->raven=G_AllocRaven()));
+    raven->fly_height = 100.0f;
+    raven->rise_start = 1000;
+    raven->rise_duration = 2.0f;
+    raven->rise_state = RAVEN_RISE_ACTIVE;
     level.time = 2000;
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 50.0f, 0.001f);
-    T_EQ(ent->raven->rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(raven->rise_state, RAVEN_RISE_ACTIVE);
     level.time = 3000;
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 100.0f, 0.001f);
-    T_EQ(ent->raven->rise_state, RAVEN_RISE_NONE);
+    T_EQ(raven->rise_state, RAVEN_RISE_NONE);
 }
 
 TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
@@ -3402,7 +3516,7 @@ TEST(wc3_unit, additemtoslot_fills_empty_slot) {
     edict_t *item = make_world_item(MAKEFOURCC('r','a','t','f'));
     bool ok = unit_additemtoslot(ent, item, 0);
     T_ASSERT(ok);
-    T_ASSERT(ent->inventory[0] == item);
+    T_ASSERT(G_InventoryItem(ent, 0) == item);
 }
 
 TEST(wc3_unit, additemtoslot_rejects_occupied_slot) {
@@ -3416,14 +3530,24 @@ TEST(wc3_unit, additemtoslot_rejects_occupied_slot) {
 }
 
 TEST(wc3_unit, additem_fills_first_free_slot) {
-    reset_test_entities();
+    reset_entities(); setup_test_world();
+    cstring_t data =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X3;K\"DataA1\"\nC;X4;K\"Data11\"\n"
+        "C;X1;Y2;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K6\nC;X4;K6\nE\n";
+    slkTestData_t *rows = parse_slk_string(data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     edict_t *ent   = make_inventory_unit(0, 0);
     edict_t *item1 = make_world_item(MAKEFOURCC('r','a','t','f'));
     edict_t *item2 = make_world_item(MAKEFOURCC('r','d','e','2'));
-    unit_additemtoslot(ent, item1, 0);
+    T_EQ(G_InventoryCapacity(ent), 6);
+    T_ASSERT(unit_additemtoslot(ent, item1, 0));
+    T_ASSERT(G_InventoryItem(ent, 0) == item1);
     bool ok = unit_additem(ent, item2);
     T_ASSERT(ok);
-    T_ASSERT(ent->inventory[1] == item2);
+    T_ASSERT(G_InventoryItem(ent, 1) == item2);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_unit, additem_fails_when_inventory_full) {
@@ -3516,13 +3640,13 @@ TEST(wc3_unit, animation_text_serializes_logical_values_without_sharing_mutation
     G_StoreUnitAnimationProperties(second, long_text);
     T_EQ(strlen(G_UnitAnimationRequest(first)), WC3_ANIMATION_REQUEST_SIZE - 1);
     T_EQ(strlen(G_UnitAnimationProperties(first)), WC3_ANIMATION_PROPERTIES_SIZE - 1);
-    T_ASSERT(first->animation_request == second->animation_request);
-    T_ASSERT(first->animation_props == second->animation_props);
+    T_ASSERT(G_UnitAnimationRequest(first) == G_UnitAnimationRequest(second));
+    T_ASSERT(G_UnitAnimationProperties(first) == G_UnitAnimationProperties(second));
     cstring_t file = Test_TempPath("wc3-animation-text-save.bin");
     T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
     first = g_edicts + a; second = g_edicts + b;
-    T_ASSERT(first->animation_request == second->animation_request);
-    T_ASSERT(first->animation_props == second->animation_props);
+    T_ASSERT(G_UnitAnimationRequest(first) == G_UnitAnimationRequest(second));
+    T_ASSERT(G_UnitAnimationProperties(first) == G_UnitAnimationProperties(second));
     T_EQ(strlen(G_UnitAnimationRequest(first)), WC3_ANIMATION_REQUEST_SIZE - 1);
     T_EQ(strlen(G_UnitAnimationProperties(first)), WC3_ANIMATION_PROPERTIES_SIZE - 1);
     G_StoreUnitAnimationRequest(first, "stand");

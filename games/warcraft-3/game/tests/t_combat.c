@@ -77,6 +77,22 @@ static PATHSTR _fire_model;
 static char _hero_menu_clicks[8][64];
 static uint32_t _hero_menu_click_count;
 static uint32_t _hero_menu_command_button_count;
+static bool _attack_ground_splat_seen;
+static float _attack_ground_splat_radius;
+
+static int attack_ground_test_image_index(cstring_t path) {
+    (void)path;
+    return 77;
+}
+
+static void attack_ground_test_capture_write(pfWriteType_t type, void const *value) {
+    if (type == PF_BYTE) {
+        _attack_ground_splat_seen = *(int32_t const *)value == svc_cursor_splat;
+    } else if (_attack_ground_splat_seen && type == PF_FLOAT) {
+        _attack_ground_splat_radius = *(float const *)value;
+        _attack_ground_splat_seen = false;
+    }
+}
 
 static void hero_menu_capture_write(pfWriteType_t type, void const *value) {
     uiFrame_t const *frame;
@@ -133,7 +149,7 @@ static void attach_stub_anim(edict_t *ent) {
  * Ability presentation effects
  * ========================================================================== */
 
-TEST(wc3_combat, projectile_presentation_selects_stand_sequence) {
+TEST(wc3_combat, projectile_presentation_plays_birth_then_stand_sequence) {
     edict_t *missile;
 
     setup_test_world();
@@ -144,10 +160,19 @@ TEST(wc3_combat, projectile_presentation_selects_stand_sequence) {
     G_StartProjectilePresentation(missile);
 
     T_NOT_NULL(missile->animation);
-    T_STREQ(missile->animation->name, "Stand");
+    T_STREQ(missile->animation->name, "Birth");
     T_EQ(missile->s.frame, missile->animation->interval[0]);
     T_ASSERT(missile->s.flags & EF_NOT_SELECTABLE);
     T_ASSERT(missile->s.renderfx & RF_NO_SHADOW);
+
+    /* The launch sequence runs once, then the missile enters its travel loop. */
+    missile->goalentity = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 0.0f);
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->velocity = 0.1f;
+    missile->s.frame = missile->animation->interval[1] - 1;
+    SV_Physics_Toss(missile);
+    T_STREQ(missile->animation->name, "Stand");
+    T_EQ(missile->s.frame, missile->animation->interval[0]);
 }
 
 TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
@@ -313,9 +338,7 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!target->sleep) target->sleep = G_AllocSleep();
-    assert(target->sleep);
-    target->sleep->can_sleep = true;
+    ((sleep_t *)(target->sleep ? target->sleep : (target->sleep=G_AllocSleep())))->can_sleep = true;
     target->s.radius = 32.0f;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -364,9 +387,7 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    if (!target->sleep) target->sleep = G_AllocSleep();
-    assert(target->sleep);
-    target->sleep->can_sleep = true;
+    ((sleep_t *)(target->sleep ? target->sleep : (target->sleep=G_AllocSleep())))->can_sleep = true;
     attacker->s.player = 0;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -966,8 +987,7 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gate->targtype = TARG_DEBRIS;
     gate->health.value = gate->health.max_value = 500.0f;
     gate->collision = 50.0f;
-    if (!gate->destructable) gate->destructable = G_AllocDestructable();
-    assert(gate->destructable);
+    (gate->destructable ? gate->destructable : (gate->destructable=G_AllocDestructable()));
     gate->destructable->placement_solid = true;
     gate->destructable->pathing_active = true;
     attacker->s.player = 0;
@@ -2472,9 +2492,7 @@ TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
     T_STREQ(attacker->currentmove->animation, "stand ready");
 
     attacker->wait = FRAMETIME / 1000.0f;
-    attacker->attack_cooldown_remaining = FRAMETIME / 1000.0f;
     attacker->attack_cooldown_end_time = G_Time();
-    attacker->attack_cooldown_active = true;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "walk");
 }
@@ -2498,7 +2516,8 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     order_attack(attacker, target);
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "attack");
-    T_ASSERT(attacker->attack_cooldown_active);
+    T_EQ(attacker->movement.group_id,0);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
     swing_cooldown_end = attacker->attack_cooldown_end_time;
 
     /* Commit a real hit at damage point while a finite animation remains
@@ -2507,6 +2526,7 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     attacker->wait = FRAMETIME / 1000.0f;
     attacker->currentmove->think(attacker);
     T_ASSERT(target->health.value < target->health.max_value);
+    T_EQ(attacker->movement.group_id,0);
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
 
     /* The attack animation's end callback happens later than damage point.
@@ -2518,8 +2538,8 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     T_STREQ(attacker->currentmove->animation, "stand ready");
     T_FEQ(attacker->s.origin2.x, origin.x, 0.001f);
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
-    T_ASSERT(attacker->attack_cooldown_active);
-    T_ASSERT(attacker->attack_cooldown_remaining < 0.5f);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) < 500);
 
     /* The same target becomes too far for the buffer, so chase begins. */
     target->s.origin2.x = 150.0f;
@@ -2531,8 +2551,7 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     target->s.origin2.x = 130.0f;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "stand ready");
-    T_ASSERT(attacker->attack_cooldown_active);
-    T_ASSERT(attacker->attack_cooldown_remaining > 0.0f);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
 }
 
@@ -2563,12 +2582,12 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_expired_swing_cooldown) {
      * ends. Recovery must still recognize the move as an existing swing. */
     level.time = swing_cooldown_end + 100;
     attacker->currentmove->think(attacker);
-    T_ASSERT(!attacker->attack_cooldown_active);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) <= 0);
     level.time = swing_cooldown_end + 200;
     attacker->currentmove->endfunc(attacker);
 
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
-    T_ASSERT(!attacker->attack_cooldown_active);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) <= 0);
     T_STREQ(attacker->currentmove->animation, "stand ready");
     T_FEQ(attacker->wait, 0.2f, 0.01f);
 }
@@ -2746,13 +2765,13 @@ TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
     target->s.origin2.x = 180.0f;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "walk");
-    T_ASSERT(attacker->attack_cooldown_remaining > 0.0f);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
 
     target->s.origin2.x = 80.0f;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "stand ready");
     T_ASSERT(attacker->wait > 0.0f);
-    T_ASSERT(attacker->attack_cooldown_active);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
 }
 
 TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replaced) {
@@ -2772,16 +2791,33 @@ TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replace
     target->s.origin2.x = 180.0f;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "walk");
-    T_ASSERT(attacker->attack_cooldown_active);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
 
     vec2_t const replacement = { 240.0f, 0.0f };
     T_ASSERT(unit_issueorder(attacker, "move", &replacement));
     T_ASSERT(attacker->currentmove->proc != CAbilityAttack);
-    level.time += 1100;
+    uint32_t const deadline = attacker->attack_cooldown_end_time;
+    level.time = deadline - 1;
+    target->s.origin2.x = 80.0f;
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_EQ(attacker->attack_cooldown_end_time, deadline);
+    /* Reissuing at expiry clears the replaced move's wait, as ordinary orders do. */
+    level.time = deadline;
+    target->s.origin2.x = 180.0f;
     order_attack(attacker, target);
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "walk");
-    T_ASSERT(!attacker->attack_cooldown_active);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) <= 0);
+    target->s.origin2.x = 80.0f;
+    /* The preceding out-of-range order installed a cached physical chase.
+     * Reissue at the new target pose: the new order retires that approach,
+     * while the expired weapon deadline permits a fresh windup. */
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "attack");
+    T_ASSERT(attacker->attack_cooldown_end_time > deadline);
 }
 
 TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
@@ -2813,7 +2849,6 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     cstring_t filename = Test_TempPath("attack-chase-cooldown.bin");
     edict_t *attacker;
     edict_t *target;
-    float const cooldown_remaining = 0.73f;
 
     setup_test_world();
     reset_entities();
@@ -2830,8 +2865,6 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     target->targtype = TARG_GROUND;
     T_ASSERT(S_OrderAttack(attacker, target));
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
-    attacker->attack_cooldown_active = true;
-    attacker->attack_cooldown_remaining = cooldown_remaining;
     attacker->attack_cooldown_end_time = G_Time() + 730;
 
     T_ASSERT(WriteGame(filename));
@@ -2851,8 +2884,8 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
     T_ASSERT(attacker->currentmove != NULL);
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
-    T_ASSERT(attacker->attack_cooldown_active);
-    T_FEQ(attacker->attack_cooldown_remaining, cooldown_remaining, 0.001f);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
+    T_EQ(attacker->attack_cooldown_end_time - G_Time(), 730);
     remove(filename);
 }
 
@@ -2874,6 +2907,8 @@ TEST(wc3_combat, direct_attack_rejects_reused_target_edict) {
     target = G_Spawn();
     T_EQ((uint32_t)(target - g_edicts), target_number);
     target->spawn_time = level.time;
+
+
     target->svflags |= SVF_MONSTER;
     target->health.value = target->health.max_value = 420.0f;
     target->targtype = TARG_GROUND;
@@ -2967,6 +3002,167 @@ TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
     T_STREQ(attacker->currentmove->animation, "walk");
 }
 
+TEST(wc3_combat, missile_splash_attack_order_selects_ranged_windup) {
+    UnitWeapons_t weapons = { .attacksEnabled = 1 };
+    edict_t *attacker, *target;
+    setup_test_world(); reset_entities();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    attacker = make_combat_unit(MAKEFOURCC('E','d','e','m'), 750.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    attacker->data.UnitWeapons = &weapons;
+    attacker->s.player = 0;
+    target->s.player = 1;
+    target->targtype = TARG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_CHAOS;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_MSPLASH;
+    S_AttackProfileWrite(attacker, 0)->range = 600.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    order_attack(attacker, target);
+    T_NOT_NULL(attacker->currentmove);
+    if (!attacker->currentmove) return;
+    attacker->currentmove->think(attacker); /* attack_walk picks ranged, not melee */
+    T_STREQ(attacker->currentmove->animation, "attack range");
+}
+
+/* Metamorphosis uses the generic WPN_MSPLASH delivery path. This test
+ * uses custom profile values rather than stock Edmm data, so the same route
+ * also works for custom units and other Missile Splash attacks. */
+TEST(wc3_combat, missile_splash_launches_homing_projectile_and_snapshots_damage_bands) {
+    UnitWeapons_t weapons = { .attacksEnabled = 1, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    edict_t *attacker, *target, *bystander, *ally, *missile = NULL;
+
+    setup_test_world(); reset_entities();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    attacker = make_combat_unit(MAKEFOURCC('E','d','e','m'), 750.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 300.0f, 75.0f);
+    ally = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 300.0f, 90.0f);
+    attacker->s.player = ally->s.player = 0;
+    target->s.player = bystander->s.player = 1;
+    attacker->data.UnitWeapons = &weapons;
+    attacker->goalentity = target;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_MSPLASH;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_CHAOS;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 100;
+    S_AttackProfileWrite(attacker, 0)->numberOfDice = 0;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 600.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->areaFull = 50.0f;
+    S_AttackProfileWrite(attacker, 0)->areaMedium = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->areaSmall = 150.0f;
+    S_AttackProfileWrite(attacker, 0)->factorMedium = 0.5f;
+    S_AttackProfileWrite(attacker, 0)->factorSmall = 0.25f;
+    S_AttackProfileWrite(attacker, 0)->projectile.speed = 900.0f;
+    S_AttackProfileWrite(attacker, 0)->projectile.model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+    target->targtype = bystander->targtype = ally->targtype = TARG_GROUND;
+    target->defense_type = bystander->defense_type = 7;
+    target->armor_value = bystander->armor_value = 0.0f;
+
+    attack_ranged(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent; break;
+    }
+    T_NOT_NULL(missile);
+    if (!missile) return;
+    T_ASSERT(!(missile->aiflags & AI_PROJECTILE_FIXED_TARGET));
+    T_ASSERT(missile->goalentity == target);
+    T_EQ(missile->s.model, S_AttackProfileRead(attacker, 0)->projectile.model);
+    T_FEQ(missile->velocity, 0.9f, 0.001f);
+    T_NOT_NULL(missile->artillery);
+    if (!missile->artillery) return;
+    T_EQ(missile->artillery->attack_type, ATK_CHAOS);
+    T_EQ(missile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(missile->artillery->area_medium, 100.0f, 0.001f);
+    T_FEQ(target->health.value, 500.0f, 0.001f); /* no damage at launch */
+
+    /* The missile travels on each simulation tick and homes to the target. */
+    {
+        uint32_t const missile_index = missile->s.number;
+        bool moved = false;
+        for (int tick = 0; tick < 20 && g_edicts[missile_index].inuse; ++tick) {
+            vec3_t const before = g_edicts[missile_index].s.origin;
+            SV_Physics_Toss(&g_edicts[missile_index]);
+            if (!g_edicts[missile_index].inuse) break;
+            vec3_t const current = g_edicts[missile_index].s.origin;
+            if (Vector3_len(&(vec3_t){ current.x - before.x, current.y - before.y, current.z - before.z }) > 0.0f)
+                moved = true;
+            if (tick == 1) {
+                /* A moving target should redirect the next homing step. */
+                target->s.origin2.y = target->s.origin.y = 50.0f;
+            }
+        }
+        T_ASSERT(moved);
+        T_ASSERT(!g_edicts[missile_index].inuse);
+    }
+    T_ASSERT(target->health.value < 500.0f);
+    T_ASSERT(bystander->health.value < 500.0f);
+    T_FEQ(ally->health.value, 500.0f, 0.001f);
+}
+
+TEST(wc3_combat, missile_splash_falls_back_to_direct_hit_when_splash_mask_excludes_primary) {
+    struct artillery_s profile = { 0 };
+    edict_t *attacker, *primary, *bystander;
+    vec2_t impact;
+
+    setup_test_world(); reset_entities();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    attacker = make_combat_unit(MAKEFOURCC('E','d','e','m'), 750.0f, 0.0f, 0.0f);
+    primary = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 220.0f, 0.0f);
+    attacker->s.player = 0;
+    primary->s.player = bystander->s.player = 1;
+    primary->targtype = bystander->targtype = TARG_GROUND;
+    primary->defense_type = 7;
+    primary->armor_value = 0.0f;
+    profile.attack_type = ATK_CHAOS;
+    profile.area_targets = WC3_TARGET_FLAG_AIR; /* neither ground target participates in the splash enumeration */
+    profile.targets_allowed = WC3_TARGET_FLAG_GROUND;
+    profile.area_full = 50.0f;
+    profile.area_medium = 100.0f;
+    profile.area_small = 150.0f;
+    profile.factor_medium = 0.5f;
+    profile.factor_small = 0.25f;
+    impact = primary->s.origin2;
+
+    S_ResolveMissileSplashHit(attacker, primary, &impact, 100, &profile);
+    T_FEQ(primary->health.value, 400.0f, 0.001f);
+    T_FEQ(bystander->health.value, 500.0f, 0.001f);
+}
+
+TEST(wc3_combat, plain_missile_still_uses_direct_hit_without_splash_component) {
+    edict_t *attacker, *target, *missile = NULL;
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    attacker->goalentity = target;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 100;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->projectile.speed = 900.0f;
+    target->targtype = TARG_GROUND;
+    attack_ranged(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent; break;
+    }
+    T_NOT_NULL(missile);
+    if (missile) T_NULL(missile->artillery);
+}
+
 TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
     edict_t *attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, -300.0f, 0.0f);
@@ -2997,6 +3193,81 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
     T_FEQ(medium->health.value, 450.0f, 0.001f);
     T_FEQ(small->health.value, 475.0f, 0.001f);
     T_FEQ(outside->health.value, 500.0f, 0.001f);
+}
+
+TEST(wc3_combat, researched_meat_wagon_spawns_ten_second_plague_cloud_at_impact) {
+    static UnitAbilities_t const abilities = { .abilList = "Apts" };
+    static UnitWeapons_t const weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    static UnitProfile_t const wagon_profile = { .attack = { { .art = "TestUI\\Models\\anim_oneshot.mdx" } } };
+    static char const ward_ui_slk[] =
+        "C;Y1;X1;K\"unitUIID\"\nC;X2;K\"modelScale\"\nC;X3;K\"scale\"\n"
+        "C;Y2;X1;K\"uplg\"\nC;X2;K1.4\nC;X3;K96\n";
+    slkTestData_t *ward_ui_rows = parse_slk_string(ward_ui_slk);
+    slkTestData_t *old_ward_ui_rows;
+    edict_t *wagon;
+    edict_t *target;
+    edict_t *cloud = NULL;
+    edict_t *impact_effect = NULL;
+    artillery_t profile = { .area_targets = WC3_TARGET_FLAG_GROUND,
+                            .targets_allowed = WC3_TARGET_FLAG_GROUND,
+                            .area_full = 50.0f, .area_medium = 100.0f,
+                            .area_small = 150.0f, .factor_medium = 0.5f,
+                            .factor_small = 0.25f };
+    vec2_t impact = { 240.0f, 80.0f };
+
+    setup_test_world(); reset_entities();
+    wagon = make_combat_unit(MAKEFOURCC('u','m','t','w'), 500.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, impact.x, impact.y);
+    wagon->data.UnitAbilities = &abilities;
+    wagon->data.UnitWeapons = &weapons;
+    wagon->data.UnitProfile = &wagon_profile;
+    wagon->s.player = 0;
+    target->targtype = TARG_GROUND;
+    target->defense_type = 7;
+    target->armor_value = 0.0f;
+
+    S_ResolveArtilleryPointHit(wagon, target, &impact, 100, &profile);
+    FILTER_EDICTS(effect, effect->inuse && effect->summon_ability == MAKEFOURCC('u','m','t','i')) {
+        impact_effect = effect; break;
+    }
+    T_NOT_NULL(impact_effect);
+    if (impact_effect) {
+        T_FEQ(impact_effect->s.origin.x, impact.x, 0.001f);
+        T_FEQ(impact_effect->s.origin.y, impact.y, 0.001f);
+    }
+    FILTER_EDICTS(effect, effect->inuse && effect->s.model && effect != wagon && effect != target) {
+        if (effect->spawn_time == G_Time() + 10000u) cloud = effect;
+    }
+    T_NULL(cloud);
+
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','p','c'), 1);
+    old_ward_ui_rows = G_SetSLKRows("UnitUI", ward_ui_rows);
+    S_ResolveArtilleryPointHit(wagon, target, &impact, 100, &profile);
+    {
+        uint32_t impact_effect_count = 0;
+        FILTER_EDICTS(effect, effect->inuse && effect->summon_ability == MAKEFOURCC('u','m','t','i'))
+            impact_effect_count++;
+        T_EQ(impact_effect_count, 2u);
+    }
+    cloud = NULL;
+    FILTER_EDICTS(effect, effect->inuse && effect->s.model && effect != wagon && effect != target) {
+        if (effect->spawn_time == G_Time() + 10000u) { cloud = effect; break; }
+    }
+    T_NOT_NULL(cloud);
+    if (cloud) {
+        T_FEQ(cloud->s.origin.x, impact.x, 0.001f);
+        T_FEQ(cloud->s.origin.y, impact.y, 0.001f);
+        T_EQ(cloud->spawn_time, G_Time() + 10000u);
+        T_EQ(cloud->summon_ability, MAKEFOURCC('A','p','t','s'));
+        T_FEQ(cloud->s.scale, 1.4f, 0.001f);
+        T_FEQ(cloud->s.radius, 96.0f * SEL_SCALE / 2.0f, 0.001f);
+    }
+    if (cloud && cloud->inuse) {
+        level.time = cloud->spawn_time;
+        G_EffectThink(cloud);
+        T_ASSERT(!cloud->inuse);
+    }
+    free_slk_rows(G_SetSLKRows("UnitUI", old_ward_ui_rows));
 }
 
 /* Warsmash snapshots an ARTILLERY unit target to a point at the damage point.
@@ -3056,6 +3327,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
         T_EQ(missile->channel->target_spawn_time, target->spawn_time);
         T_FEQ(missile->channel->origin.x, 200.0f, 0.001f);
         T_FEQ(missile->channel->origin.y, 0.0f, 0.001f);
+        T_NOT_NULL(missile->artillery);
         T_EQ(missile->artillery->attack_type, ATK_NORMAL);
         T_EQ(missile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
 
@@ -3111,6 +3383,199 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     }
 }
 
+TEST(wc3_combat, attack_ground_shows_artillery_splash_cursor_overlay) {
+    UnitWeapons_t weapons = { .attacksEnabled = 1 };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int32_t (*old_image_index)(cstring_t) = gi.ImageIndex;
+    gameClient_t *client;
+    edict_t *clent, *artillery;
+    abilityCall_t call;
+
+    setup_test_world(); reset_entities();
+    client = &game.clients[0];
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    artillery = make_combat_unit(MAKEFOURCC('e','b','a','l'), 400.0f, 0.0f, 0.0f);
+    artillery->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(artillery, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(artillery, 0)->weapon = WPN_ALINE;
+    S_AttackProfileWrite(artillery, 0)->areaFull = 50.0f;
+    S_AttackProfileWrite(artillery, 0)->areaMedium = 100.0f;
+    S_AttackProfileWrite(artillery, 0)->areaSmall = 175.0f;
+    G_SelectEntity(client, artillery);
+    call = MAKE(abilityCall_t, .client = clent);
+    _attack_ground_splat_seen = false;
+    _attack_ground_splat_radius = 0.0f;
+    gi.Write = attack_ground_test_capture_write;
+    gi.ImageIndex = attack_ground_test_image_index;
+
+    T_ASSERT(CAbilityAttackGround(artillery, A_COMMAND, &call));
+    T_NOT_NULL(client->menu.on_location_selected);
+    T_FEQ(_attack_ground_splat_radius, 175.0f, 0.001f);
+    T_ASSERT(G_CancelTargetMode(clent));
+    T_FEQ(_attack_ground_splat_radius, 0.0f, 0.001f);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+/* Impaling Bolt / Vorpal Blades: the authoring upgrade is player tech,
+ * while Aline always launches a ranged siege projectile. These tests use
+ * synthetic UnitBalance and weapon fields, not the developer's MPQ. */
+TEST(wc3_combat, impaling_bolt_research_unlocks_tree_attacks_and_reverts) {
+    uint32_t const tech = MAKEFOURCC('R','e','p','b');
+    UnitBalance_t balance = { .upgrades = "Repb" };
+    UnitWeapons_t weapons = { .attacksEnabled = 1 };
+    edict_t *ballista, *other, *tree;
+
+    setup_test_world(); reset_entities();
+    ballista = make_combat_unit(MAKEFOURCC('e','b','a','l'), 300.0f, 0.0f, 0.0f);
+    other = make_combat_unit(MAKEFOURCC('h','f','o','o'), 300.0f, 0.0f, 20.0f);
+    tree = G_Spawn();
+    tree->class_id = MAKEFOURCC('B','0','0','X');
+    G_BindEntityData(tree);
+    tree->health.value = tree->health.max_value = 200.0f;
+    tree->targtype = TARG_TREE;
+    (tree->destructable ? tree->destructable : (tree->destructable=G_AllocDestructable()));
+    ballista->data.UnitBalance = &balance;
+    ballista->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(ballista, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(ballista, 0)->weapon = WPN_ALINE;
+    S_AttackProfileWrite(other, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(other, 0)->weapon = WPN_NORMAL;
+    other->data.UnitWeapons = &weapons;
+    G_SetPlayerTechResearched(&game.clients[0], tech, 0);
+
+    T_EQ(G_ImpalingBoltResearchLevel(ballista), 0);
+    T_ASSERT(!G_DestructableCanBeAttackedBy(ballista, tree));
+    T_ASSERT(G_DestructableCanBeAttackedBy(other, tree));
+    G_SetPlayerTechResearched(&game.clients[0], tech, 1);
+    T_EQ(G_ImpalingBoltResearchLevel(ballista), 1);
+    T_ASSERT(G_DestructableCanBeAttackedBy(ballista, tree));
+    G_SetPlayerTechResearched(&game.clients[0], tech, 0);
+    T_ASSERT(!G_DestructableCanBeAttackedBy(ballista, tree));
+}
+
+TEST(wc3_combat, aline_impaling_bolt_snapshots_spill_at_launch_not_attack_ground) {
+    uint32_t const tech = MAKEFOURCC('R','e','p','b');
+    UnitBalance_t balance = { .upgrades = "Repb" };
+    UnitWeapons_t weapons = { .attacksEnabled = 3,
+        .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND,
+                     .spillDistance = 250.0f, .spillRadius = 45.0f } };
+    edict_t *attacker, *target, *missile = NULL;
+    vec2_t point = { 200.0f, 0.0f };
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('e','b','a','l'), 400.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    attacker->data.UnitBalance = &balance;
+    attacker->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ALINE;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 70;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 3.5f;
+    S_AttackProfileWrite(attacker, 0)->projectile.speed = 900;
+    target->targtype = TARG_GROUND;
+
+    G_SetPlayerTechResearched(&game.clients[0], tech, 1);
+    attacker->goalentity = target;
+    attack_ranged(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent; break;
+    }
+    T_NOT_NULL(missile);
+    if (missile) {
+        artillery_t const *profile = missile->artillery;
+        T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
+        T_NOT_NULL(profile);
+        if (profile) {
+            T_FEQ(profile->spill_distance, 250.0f, 0.001f);
+            T_FEQ(profile->spill_radius, 45.0f, 0.001f);
+            T_FEQ(profile->line_origin.x, 0.0f, 0.001f);
+        }
+        G_SetPlayerTechResearched(&game.clients[0], tech, 0);
+        T_FEQ(missile->artillery->spill_distance, 250.0f, 0.001f);
+    }
+    G_SetPlayerTechResearched(&game.clients[0], tech, 1);
+    T_ASSERT(S_OrderAttackGround(attacker, &point));
+    /* Attack Ground uses the same art and splash, but never the line bonus. */
+    attacker->currentmove->think(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE && ent != missile) {
+        artillery_t const *profile = ent->artillery;
+        T_NOT_NULL(profile);
+        if (profile) T_FEQ(profile->spill_distance, 0.0f, 0.001f);
+    }
+    G_SetPlayerTechResearched(&game.clients[0], tech, 0);
+}
+
+TEST(wc3_combat, impaling_bolt_direct_tree_impact_survives_research_revocation) {
+    edict_t *attacker, *tree;
+    artillery_t profile = { .attack_type = ATK_SIEGE,
+        .area_targets = WC3_TARGET_FLAG_GROUND, .targets_allowed = WC3_TARGET_FLAG_GROUND,
+        .tree_attack_allowed = true };
+    vec2_t impact = {200.0f, 0.0f};
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('e','b','a','l'), 400.0f, 0.0f, 0.0f);
+    tree = G_Spawn();
+    tree->class_id = MAKEFOURCC('B','0','0','X');
+    G_BindEntityData(tree);
+    tree->health.value = tree->health.max_value = 500.0f;
+    tree->targtype = TARG_TREE;
+    tree->s.origin2 = impact;
+    (tree->destructable ? tree->destructable : (tree->destructable=G_AllocDestructable()));
+    S_AttackProfileWrite(attacker, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ALINE;
+    S_ResolveArtilleryPointHit(attacker, tree, &impact, 100, &profile);
+    T_ASSERT(tree->health.value < 500.0f);
+}
+
+TEST(wc3_combat, impaling_bolt_hits_behind_primary_only_once_without_tree_followthrough) {
+    edict_t *attacker, *primary, *splash, *behind, *off_line, *ahead, *tree;
+    artillery_t profile = { .attack_type = ATK_NORMAL, .area_targets = WC3_TARGET_FLAG_GROUND,
+        .targets_allowed = WC3_TARGET_FLAG_GROUND, .area_full = 35.0f,
+        .spill_distance = 250.0f, .spill_radius = 40.0f,
+        .line_origin = {0.0f, 0.0f} };
+    vec2_t impact = {200.0f, 0.0f};
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('e','b','a','l'), 500.0f, 0.0f, 0.0f);
+    primary = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    splash = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 225.0f, 0.0f);
+    behind = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 360.0f, 0.0f);
+    off_line = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 360.0f, 90.0f);
+    ahead = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 90.0f, 0.0f);
+    tree = G_Spawn(); tree->targtype = TARG_TREE; tree->s.origin2 = (vec2_t){340, 0};
+    tree->health.value = tree->health.max_value = 500.0f;
+    (tree->destructable ? tree->destructable : (tree->destructable=G_AllocDestructable()));
+    edict_t *units[] = {primary, splash, behind, off_line, ahead};
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
+        units[i]->targtype = TARG_GROUND;
+        units[i]->defense_type = 7;
+        units[i]->armor_value = 0.0f;
+    }
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ALINE;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_ResolveArtilleryPointHit(attacker, primary, &impact, 100, &profile);
+    T_FEQ(primary->health.value, 400.0f, 0.001f);
+    T_FEQ(splash->health.value, 400.0f, 0.001f); /* not also pierced */
+    T_FEQ(behind->health.value, 400.0f, 0.001f);
+    T_FEQ(off_line->health.value, 500.0f, 0.001f);
+    T_FEQ(ahead->health.value, 500.0f, 0.001f);
+    T_FEQ(tree->health.value, 500.0f, 0.001f);
+}
+
 /* A hero's Agility increases attack speed (+2%/point), dividing the windup and
  * recovery so the whole cycle speeds up. */
 TEST(wc3_combat, attack_speed_scales_with_agility) {
@@ -3128,7 +3593,7 @@ TEST(wc3_combat, attack_speed_scales_with_agility) {
 
 TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X6\n"
+        "ID;PWXL;N;EBB;Y3;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
         "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
@@ -3153,11 +3618,15 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     T_FEQ(target->wait, 0.8f / 1.2f, 0.001f);
 
     source->s.renderfx |= RF_HIDDEN;
+    S_UpdateHeroAuraEffects(target);
+    T_EQ(S_EnduranceAuraBuff(target), 0);
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f, 0.001f);
     source->s.renderfx &= ~RF_HIDDEN;
 
     target->s.renderfx |= RF_HIDDEN;
+    S_UpdateHeroAuraEffects(target);
+    T_EQ(S_EnduranceAuraBuff(target), 0);
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f, 0.001f);
     target->s.renderfx &= ~RF_HIDDEN;
@@ -3319,6 +3788,65 @@ TEST(wc3_combat, attack_damage_pierce_vs_small) {
     edict_t *a = make_attacker(ATK_PIERCE);
     edict_t *t = make_target(0 /* small */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 200);
+}
+
+TEST(wc3_combat, blademaster_critical_strike_doubles_full_attack_hit_damage) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"levels\"\n"
+        "C;Y2;X1;K\"AOcr\"\nC;Y2;X2;K\"AOcr\"\n"
+        "C;Y2;X3;K\"100\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"3\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "AOcr" };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *blademaster, *target;
+
+    reset_entities();
+    setup_test_world();
+    blademaster = make_combat_unit(MAKEFOURCC('O','b','l','m'), 1000.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 50.0f, 0.0f);
+    blademaster->data.UnitAbilities = &abilities;
+    S_AttackProfileWrite(blademaster, 0)->type = ATK_CHAOS;
+    blademaster->s.player = 0;
+    target->s.player = 1;
+
+    S_ResolveAttackHit(blademaster, target, 100);
+
+    T_FEQ(target->health.value, 800.0f, 0.01f);
+    T_ASSERT(blademaster->combatentity == target);
+    T_ASSERT(target->combatentity == blademaster);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_combat, demon_hunter_evasion_prevents_attack_damage_at_authored_100_percent) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEev\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"1.0\"\nE\n";
+    static UnitAbilities_t const evasion = { .abilList = "AEev" };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *attacker, *demon_hunter;
+
+    reset_entities();
+    setup_test_world();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 0.0f, 0.0f);
+    demon_hunter = make_combat_unit(MAKEFOURCC('E','d','e','m'), 1000.0f, 50.0f, 0.0f);
+    demon_hunter->data.UnitAbilities = &evasion;
+    attacker->s.player = 0;
+    demon_hunter->s.player = 1;
+
+    S_ResolveAttackHit(attacker, demon_hunter, 100);
+
+    T_FEQ(demon_hunter->health.value, 1000.0f, 0.01f);
+    T_NULL(attacker->combatentity);
+    T_NULL(demon_hunter->combatentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 /* Normal vs medium = 1.5× (footmen effective vs soldiers). */
@@ -3785,12 +4313,12 @@ TEST(wc3_combat, timed_stun_status_expires_without_touching_pause) {
 
     unit_addtimedstatus(ent, "Bstu", 1, 0.05f);
 
-    T_ASSERT(ent->stunned);
-    T_ASSERT(ent->paused);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT((ent && ent->paused));
     level.time = 151;
     unit_updatestatuses(ent);
-    T_ASSERT(!ent->stunned);
-    T_ASSERT(ent->paused);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT((ent && ent->paused));
 }
 
 TEST(wc3_combat, status_replace_reinitializes_existing_slot) {
@@ -3809,7 +4337,7 @@ TEST(wc3_combat, status_replace_reinitializes_existing_slot) {
     T_EQ(slot->data, 0);
     T_EQ(slot->rank, 0);
     T_EQ(slot->next_tick, 0);
-    T_ASSERT(ent->stunned);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
 }
 
 TEST(wc3_combat, scripted_status_removal_preserves_independent_stun) {
@@ -3822,9 +4350,296 @@ TEST(wc3_combat, scripted_status_removal_preserves_independent_stun) {
     T_NOT_NULL(slot);
     unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
     unit_refreshstatusflags(ent);
-    T_ASSERT(ent->stunned);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
     T_NOT_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
     T_ASSERT(!unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
+}
+
+/* Regression: the initial empty fast path must not hide subsequently applied
+ * timed slots, and expired/removed slots must be reflected in the index. */
+TEST(wc3_combat, timed_status_index_handles_empty_apply_and_remove) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    unit_updatestatuses(ent); /* Populate the empty index. */
+    unit_addstatus(ent, "Bstu", 1); /* Persistent status is not ticked. */
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    slot = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(slot);
+    T_EQ(slot->timestamp, 0);
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    level.time = 1051;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    unit_updatestatuses(ent); /* Expired last slot: empty fast path again. */
+
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    level.time = 1102;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+}
+
+/* Expiry of one status must not suppress a later occupied status slot. */
+TEST(wc3_combat, timed_status_index_handles_sparse_expiration) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_addtimedstatus(ent, "Beng", 1, 0.15f));
+    level.time = 1051;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    T_NOT_NULL(unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
+    level.time = 1151;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
+}
+
+/* Explicit direct edits, as in synthetic test fixtures, invalidate the index. */
+TEST(wc3_combat, timed_status_index_rebuilds_after_direct_edit) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    G_EnsureUnitStatusSlots(ent);
+    ent->abilstatus[8] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','u'), .level = 1, .timestamp = 1050
+    };
+    level.time = 1051;
+    unit_updatestatuses(ent);
+    T_EQ(ent->abilstatus[8].level, 0);
+}
+
+/* Exercise the production frame caller, not just the private status-mask
+ * predicate. Permanent-only and empty units must stop entering the updater;
+ * invalid or newly populated timed indexes must continue to enter it. */
+TEST(wc3_combat, status_frame_skips_valid_empty_and_permanent_indexes) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *status;
+    ent->movetype = MOVETYPE_NONE;
+    level.time = 1000;
+
+    G_RunEntity(ent); /* Newly allocated unit: build the initially invalid index. */
+    G_RunEntity(ent);
+
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    G_RunEntity(ent);
+    status = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(status);
+    unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
+
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    G_RunEntity(ent);
+    level.time = 1051;
+    G_RunEntity(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    G_RunEntity(ent);
+}
+
+TEST(wc3_combat, status_frame_rebuilds_invalid_mask_after_direct_edit) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    ent->movetype = MOVETYPE_NONE;
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    G_EnsureUnitStatusSlots(ent);
+    ent->abilstatus[13] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','u'), .level = 1, .timestamp = 1050
+    };
+    level.time = 1051;
+    G_RunEntity(ent);
+    T_EQ(ent->abilstatus[13].level, 0u);
+}
+
+/* Pulse-owning statuses carry a next_tick deadline, unlike other statuses.
+ * Their owner callbacks do not need to run until the scheduled pulse, but
+ * expiration remains authoritative even if next_tick is beyond lifetime. */
+TEST(wc3_combat, status_update_skips_future_pulses_but_not_due_or_expired) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *status;
+    level.time = 1000;
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 3.0f));
+    status = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(status);
+    /* A nonzero origin counts dispatch attempts before ability lookup; the
+     * test does not depend on retail ability data or executing spell effects. */
+    status->source_ability = MAKEFOURCC('X','x','x','x');
+    status->source = ent;
+    status->source_spawn_time = ent->spawn_time;
+    status->next_tick = 2000;
+
+    level.time = 1999;
+    unit_updatestatuses(ent);
+    level.time = 2000;
+    unit_updatestatuses(ent);
+    /* Disease Cloud must be able to retire an orphaned source immediately,
+     * even when a future pulse is still scheduled. */
+    status->next_tick = 3500;
+    status->source = NULL;
+    level.time = 2500;
+    unit_updatestatuses(ent);
+    /* Expiry also takes precedence over a future pulse. */
+    status->next_tick = 5000;
+    level.time = 4001;
+    unit_updatestatuses(ent);
+    T_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+}
+
+/* The hot status-level query must use an empty occupied mask instead of
+ * reading all 16 status records, but still see newly applied permanent buffs. */
+TEST(wc3_combat, occupied_status_index_empty_and_persistent) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    uint32_t const stun = MAKEFOURCC('B','s','t','u');
+    heroabilitystatus_t *status;
+    level.time = 1000;
+    T_EQ(G_UnitStatusLevel(ent, stun), 0u); /* Invalid-index fallback. */
+    unit_updatestatuses(ent);
+    T_EQ(G_UnitStatusLevel(ent, stun), 0u);
+
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    status = unit_findstatus(ent, stun);
+    T_NOT_NULL(status);
+    T_EQ(G_UnitStatusLevel(ent, stun), 1u);
+    unit_updatestatuses(ent); /* Permanent status survives the timed update. */
+    T_EQ(G_UnitStatusLevel(ent, stun), 1u);
+    unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
+    T_EQ(G_UnitStatusLevel(ent, stun), 0u);
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    T_EQ(G_UnitStatusLevel(ent, stun), 1u); /* Reused free slot. */
+}
+
+/* Expired slots are excluded by the existing timestamp predicate even before
+ * their deferred removal, while other occupied slots remain discoverable. */
+TEST(wc3_combat, occupied_status_index_handles_sparse_timed_expiration) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    uint32_t const short_buff = MAKEFOURCC('B','s','t','u');
+    uint32_t const long_buff = MAKEFOURCC('B','e','n','g');
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_addtimedstatus(ent, "Beng", 2, 0.15f));
+    T_EQ(G_UnitStatusLevel(ent, short_buff), 1u);
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 2u);
+    level.time = 1051;
+    T_EQ(G_UnitStatusLevel(ent, short_buff), 0u); /* Not yet swept. */
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 2u);
+    unit_updatestatuses(ent);
+    T_EQ(G_UnitStatusLevel(ent, short_buff), 0u);
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 2u);
+    level.time = 1151;
+    unit_updatestatuses(ent);
+    T_EQ(G_UnitStatusLevel(ent, long_buff), 0u);
+}
+
+/* Raw fixture modifications require one shared invalidation. Queries remain
+ * correct before rebuilding, even if an earlier matching slot has expired. */
+TEST(wc3_combat, occupied_status_index_falls_back_and_rebuilds) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    uint32_t const code = MAKEFOURCC('B','s','t','u');
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    G_EnsureUnitStatusSlots(ent);
+    ent->abilstatus[4] = (heroabilitystatus_t){ .code = code, .level = 1, .timestamp = 1050 };
+    G_EnsureUnitStatusSlots(ent);
+    ent->abilstatus[9] = (heroabilitystatus_t){ .code = code, .level = 2 };
+    T_EQ(G_UnitStatusLevel(ent, code), 1u); /* Pre-rebuild fallback. */
+    level.time = 1051;
+    T_EQ(G_UnitStatusLevel(ent, code), 2u); /* Expired first match. */
+    unit_updatestatuses(ent);
+    T_EQ(G_UnitStatusLevel(ent, code), 2u);
+    unit_removestatus(ent, ent->abilstatus + 9, STATUS_REMOVE_SCRIPT);
+    T_EQ(G_UnitStatusLevel(ent, code), 0u);
+}
+
+/* The common monster_think stun query must skip the 16 sparse status
+ * records after an empty mask is built, while seeing subsequent mutations. */
+TEST(wc3_combat, status_state_index_empty_apply_and_remove) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    T_ASSERT(!unit_hasstatusstate(NULL, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(!unit_hasstatusstate(ent, (wc3_status_state_t)0));
+    T_ASSERT(!unit_hasstatusstate(ent, (wc3_status_state_t)(WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_ROOTED)));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Invalid-mask fallback. */
+    unit_updatestatuses(ent);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Cached empty. */
+
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1));
+    slot = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit_addstatus(ent, "Bstu", 1)); /* Reuse of the freed slot. */
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+}
+
+/* A custom state contribution has no built-in Bxxx classification. Persistent
+ * custom state and built-in buff mapping must both respect the same index. */
+TEST(wc3_combat, status_state_index_custom_state_mask) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    status_application_t const app = {
+        .buff = "Bzxy", .level = 1, .state_mask = WC3_STATUS_STATE_ETHEREAL
+    };
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    slot = unit_applystatus(ent, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL));
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL));
+}
+
+/* An expired early slot must not hide an independent later stun provider.
+ * The index still contains an expired-but-not-swept record until the tick. */
+TEST(wc3_combat, status_state_index_sparse_expiration_and_sources) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_addtimedstatus(ent, "Bstu", 1, 0.05f));
+    T_ASSERT(unit_addtimedstatus(ent, "Bsta", 1, 0.15f));
+    T_ASSERT(unit_addstatus(ent, "Beng", 1));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+    level.time = 1051;
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Bsta remains live. */
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    level.time = 1151;
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Bsta expired too. */
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+    unit_updatestatuses(ent);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_ROOTED));
+}
+
+/* Save/load and synthetic/direct slot edits invalidate the derived index.
+ * Fall back across all slots before rebuild; do not trust a cached zero. */
+TEST(wc3_combat, status_state_index_invalidated_fallback_and_rebuild) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    level.time = 1000;
+    unit_updatestatuses(ent);
+    G_EnsureUnitStatusSlots(ent);
+    ent->abilstatus[5] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','u'), .level = 1, .timestamp = 1050
+    };
+    G_EnsureUnitStatusSlots(ent);
+    ent->abilstatus[13] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','s','t','a'), .level = 1
+    };
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    level.time = 1051;
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED)); /* Slot 13. */
+    unit_updatestatuses(ent);
+    T_ASSERT(unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
+    unit_removestatus(ent, ent->abilstatus + 13, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(ent, WC3_STATUS_STATE_STUNNED));
 }
 
 TEST(wc3_combat, timed_life_status_kills_unit) {
@@ -4498,7 +5313,7 @@ TEST(wc3_combat, status_invulnerability_blocks_damage_without_mutating_base_flag
     status_application_t app = { .buff = "BHds", .level = 1, .duration = 5.0f,
                                  .state_mask = WC3_STATUS_STATE_INVULNERABLE };
     T_NOT_NULL(unit_applystatus(target, &app));
-    T_ASSERT(!target->invulnerable);
+    T_ASSERT(!(target && target->invulnerable));
     T_Damage(target, source, 10);
     T_FEQ(target->health.value, before, 0.001f);
 }

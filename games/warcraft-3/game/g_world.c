@@ -176,8 +176,9 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
-    return ent && ent->destructable && !ent->destructable->dead &&
-        ent->destructable->placement_solid && ent->pathtex &&
+    destructable_t *dstr = ent->destructable;
+    return ent && dstr && !dstr->dead &&
+        dstr->placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 

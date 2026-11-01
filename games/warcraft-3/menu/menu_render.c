@@ -491,7 +491,6 @@ static void UI_PlayGlueClick(void) {
 }
 
 static void UI_ButtonEventHandler(frameDef_t *frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
-    (void)fdf_x; (void)fdf_y;
     if (param != 1) {
         return;
     }

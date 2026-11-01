@@ -68,8 +68,7 @@ static edict_t *ancient_test_unit(bool rooted) {
     unit->svflags |= SVF_MONSTER;
     unit->s.player = 0;
     unit->stand = unit_stand;
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
+    (unit->ancient_root ? unit->ancient_root : (unit->ancient_root=G_AllocAncientRoot()));
     unit->ancient_root->ability = TEST_AROO;
     unit->ancient_root->unit_type = unit->class_id;
     unit->ancient_root->rooted_defense_type = FindEnumValue(unit->data.UnitBalance->defenseType, defense_type);
@@ -86,6 +85,30 @@ static edict_t *ancient_test_unit(bool rooted) {
     }
     unit_stand(unit);
     return unit;
+}
+
+/* Rooted Turning permits facing a weapon target without allocating travel. */
+TEST(wc3_ancient_root, rooted_turning_faces_target_without_travel) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = ancient_test_unit(true);
+    edict_t *target = alloc_test_unit(TEST_HBAR, 64, 164);
+    unit->ancient_root->rooted_turning = true;
+    unit->goalentity = target;
+    unit->s.angle = 0;
+    T_ASSERT(S_AncientIsRooted(unit));
+    unit_changeangle(unit);
+    T_ASSERT(unit->s.angle > 0);
+    T_EQ(unit->movement.group_id,0);
+    unit->s.angle = 0;
+    unit_changeangle_for_radius(unit, unit->collision);
+    T_ASSERT(unit->s.angle > 0);
+    T_EQ(unit->movement.group_id,0);
+    unit->ancient_root->rooted_turning = false;
+    unit->s.angle = 0;
+    unit_changeangle(unit);
+    T_FEQ(unit->s.angle, 0, 0.001f);
+    T_EQ(unit->movement.group_id,0);
 }
 
 static void ancient_update(edict_t *unit) {
@@ -111,8 +134,7 @@ static void ancient_assert_direction_durations(cstring_t slk) {
     T_FEQ(unit->wait, 2.25f, 0.001f);
     T_FEQ(unit->currentmove->animation_duration(unit), 2.25f, 0.001f);
 
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
+    (unit->ancient_root ? unit->ancient_root : (unit->ancient_root=G_AllocAncientRoot()));
     unit->ancient_root->mode = ANCIENT_ROOTED;
     start = G_Time();
     S_AncientBeginMorph(unit, false);
@@ -143,8 +165,7 @@ TEST(wc3_ancient_root, missing_ability_data_does_not_start_morph) {
     edict_t *unit;
     reset_entities(); setup_test_world(); level.time = 1000;
     unit = ancient_test_unit(false);
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
+    (unit->ancient_root ? unit->ancient_root : (unit->ancient_root=G_AllocAncientRoot()));
     unit->ancient_root->ability = MAKEFOURCC('A','r','o','2');
 
     S_AncientBeginMorph(unit, true);
@@ -167,8 +188,7 @@ TEST(wc3_ancient_root, command_button_uses_uproot_art_while_rooted) {
     T_EQ(button.alternate_active, 0);
     T_EQ(button.engaged, 0);
 
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
+    (unit->ancient_root ? unit->ancient_root : (unit->ancient_root=G_AllocAncientRoot()));
     unit->ancient_root->mode = ANCIENT_ROOTED;
     T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &button));
     T_STREQ(button.art, "TestUI\\Textures\\uproot.blp");
@@ -372,7 +392,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     T_ASSERT(unit->goalentity == target);
     T_EQ(unit->currentmove->proc, CAbilityAttack);
     unit->wait = 0.0f;
-    unit->attack_cooldown_active = false;
+    unit->attack_cooldown_end_time = G_Time();
     unit->currentmove->think(unit);
     T_STREQ(unit->currentmove->animation, "attack range");
 
@@ -552,8 +572,7 @@ TEST(wc3_ancient_root, approaching_root_remains_interruptible) {
 
     reset_entities(); setup_test_world(); level.time = 1000;
     unit = ancient_test_unit(false);
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
+    (unit->ancient_root ? unit->ancient_root : (unit->ancient_root=G_AllocAncientRoot()));
     unit->ancient_root->mode = ANCIENT_ROOTING;
     unit->ancient_root->approaching = true;
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &MAKE(vec2_t, .x = 256, .y = 256), false, 0, 0.0f));
@@ -780,8 +799,7 @@ TEST(wc3_ancient_root, ability_availability_is_enforced_by_simulation_dispatch) 
     T_ASSERT(!S_AncientAbilityAvailable(unit, eat.ability));
     T_ASSERT(!S_AbilityMessage(unit, A_VALIDATE, &call));
 
-    if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
-    assert(unit->ancient_root);
+    (unit->ancient_root ? unit->ancient_root : (unit->ancient_root=G_AllocAncientRoot()));
     unit->ancient_root->mode = ANCIENT_UPROOTED;
     unit->s.flags &= ~EF_BUILDING;
     unit->aiflags &= ~AI_IMMOBILE;
@@ -812,8 +830,7 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     T_ASSERT(!S_SpellAllowsTarget(TEST_AHHB, caster, target));
     T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','H','s','t'), caster, target));
 
-    if (!target->ancient_root) target->ancient_root = G_AllocAncientRoot();
-    assert(target->ancient_root);
+    (target->ancient_root ? target->ancient_root : (target->ancient_root=G_AllocAncientRoot()));
     target->ancient_root->mode = ANCIENT_UPROOTED;
     target->s.flags &= ~EF_BUILDING;
     target->aiflags &= ~AI_IMMOBILE;
@@ -832,8 +849,7 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     corpse_data.deathType |= UNIT_DEATH_TYPE_RAISE;
     corpse->data.UnitData = &corpse_data;
     T_ASSERT(!S_SpellAllowsCorpseTarget(MAKEFOURCC('A','H','s','t'), caster, corpse));
-    if (!corpse->ancient_root) corpse->ancient_root = G_AllocAncientRoot();
-    assert(corpse->ancient_root);
+    (corpse->ancient_root ? corpse->ancient_root : (corpse->ancient_root=G_AllocAncientRoot()));
     corpse->ancient_root->mode = ANCIENT_ROOTED;
     corpse->s.flags |= EF_BUILDING;
     T_ASSERT(S_SpellAllowsCorpseTarget(MAKEFOURCC('A','H','s','t'), caster, corpse));

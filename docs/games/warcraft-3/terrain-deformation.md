@@ -38,6 +38,23 @@ On each active Earthquake damage tick, after the authored `Oeq1` delay, the game
 
 The larger amplitude is intended to make the random height field easier to see during an in-game check. Neither the use of `TerrainDeformRandom` nor the amplitude, interval, duration, and relation to `Area` have been verified against retail Earthquake. The integration deliberately does not read or assign semantics to `Oeq4`.
 
+## Missing Ground Deformation On Other Impact Spells
+
+Thunder Clap (`AHtc`), War Stomp (`AOws`, including Cairne's `AOw2`), and
+Shockwave (`AOsh`, including Cairne's `AOs2`) currently have no terrain
+deformation presentation. Their existing model effects do not deform the
+ground: Thunder Clap uses `CasterArt` (`ThunderClapCaster.mdl`), War Stomp uses
+`CasterArt` (`WarStompCaster.mdl`), and Shockwave launches
+`MissileArt` (`ShockwaveMissile.mdl`) along its line. These effects can render
+while the terrain height field remains unchanged.
+
+This is a recorded presentation gap, not a claim that the retail spells call a
+particular terrain deformation native. The retail-shaped data and current
+implementation establish the model effects and their paths; they do not
+establish the shape, depth, duration, or even the use of terrain deformation
+for these spells. Do not reuse Earthquake's provisional random pulses as their
+visual behavior without retail evidence.
+
 ## Height Field And Limits
 
 Deformations are added together as vertical offsets over the static W3E height field. No permanent modification is written back to the map. This is renderer-owned presentation; server-side pathing and `CM_GetHeightAtPoint` remain unchanged. Maps whose vertex grids do not form complete existing renderer segments, or whose deformation buffers cannot be allocated, report one bounded warning and do not accept deformations.

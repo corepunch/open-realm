@@ -886,4 +886,25 @@ TEST(wc3_wander, lethal_hit_does_not_spawn_flee_waypoint) {
     T_EQ(wander_lethal_hit_edict_growth(true), plain);
 }
 
+TEST(wc3_wander, removal_does_not_free_replacement_of_private_waypoint) {
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    edict_t *unit = make_scheduled_critter(0, 0);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -100, 0);
+    test_wander_damage(unit, attacker);
+    edict_t *goal = unit->wander_waypoint;
+    T_NOT_NULL(goal);
+    if (!goal) return;
+    uint32_t index = (uint32_t)(goal - g_edicts);
+    G_FreeEdict(goal);
+    level.time += 1001;
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 400);
+    T_EQ((uint32_t)(replacement - g_edicts), index);
+    replacement->waypoint_generation = 1; /* a new destination can repeat the old local serial */
+    G_FreeEdict(unit);
+    T_ASSERT(replacement->inuse);
+    T_ASSERT(replacement->inuse);
+    T_EQ(replacement->waypoint_generation,1);
+}
 #endif

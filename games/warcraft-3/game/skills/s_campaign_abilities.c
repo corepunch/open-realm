@@ -37,11 +37,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
     if (buff) S_SpellApplyTimedStatus(summon, buff, level, S_SpellDuration(spell->code, level, false));
     G_FreeEdict(st.entity);
 }
-BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { S_ShockwaveExecute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && G_UnitTargetType(target) == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target) && duration > 0.0f) S_SpellApplyStun(target, duration);
@@ -52,13 +53,37 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritBeast) { S_SummonAbilityUnits(caster, spell->c
 BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCampaign) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
-    uint32_t level = S_SpellLevel(caster, spell->code), count = 0; float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FILTER_EDICTS(target, count < (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, G_UnitStatusSlotCount(target)) if (unit_status_can_magic_dispel(target->abilstatus + i))
-            unit_removestatus_deferred(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
-        unit_refreshstatusflags(target);
-        G_InvalidateUnitInfoPanel(target);
-        count++;
+    uint32_t level = S_SpellLevel(caster, spell->code), count = 0;
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    float max_targets = MAX(1.0f, S_SpellData(spell->code, level, 1));
+    float summon_damage = S_SpellData(spell->code, level, 2);
+    FILTER_EDICTS(target, target != caster && count < (uint32_t)max_targets &&
+                  S_SpellIsAliveTarget(target) &&
+                  Vector2_distance(&target->s.origin2, &st.point) <= area) {
+        bool friendly = S_SpellIsFriend(caster, target), affected = false;
+        uint32_t removed = 0;
+        FOR_LOOP(i, G_UnitStatusSlotCount(target)) {
+            heroabilitystatus_t *status = target->abilstatus + i;
+            uint32_t polarity = status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_NEGATIVE);
+            bool should_dispel = polarity == WC3_STATUS_BUFF_POSITIVE ||
+                                 (friendly && polarity == WC3_STATUS_BUFF_NEGATIVE);
+            if (should_dispel && unit_status_can_magic_dispel(status)) {
+                unit_removestatus_deferred(target, status, STATUS_REMOVE_DISPEL);
+                removed++;
+            }
+        }
+        if (removed) {
+            unit_refreshstatusflags(target);
+            G_InvalidateUnitInfoPanel(target);
+            affected = true;
+        }
+        if (!friendly && summon_damage > 0.0f && (target->owner || target->summon_ability ||
+            (target->aiflags & AI_ILLUSION)) && !S_SummonIsDispelImmune(target))
+            affected |= S_SpellDamage(target, caster, (int)summon_damage);
+        if (affected) {
+            G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+            count++;
+        }
     }
 }
 cstring_t const submerge_orders[] = { "submerge", "unsubmerge", NULL };
@@ -296,16 +321,15 @@ static void ensnare_begin_land(edict_t *unit, uint32_t spell_code, uint32_t leve
     adjust = S_SpellData(spell_code, level, 1);
     height = S_SpellData(spell_code, level, 2);
     if (height <= 0.0f) height = unit->unitinfo.FlyHeight > 0.0f ? unit->unitinfo.FlyHeight : ensnare_authored_height(unit);
-    if (!unit->ensnare) unit->ensnare = G_AllocEnsnare();
-    assert(unit->ensnare);
-    unit->ensnare->adjust = adjust;
-    unit->ensnare->height = height;
-    unit->ensnare->start = G_Time();
     if (adjust <= 0.0f) {
         unit->unitinfo.FlyHeight = 0.0f;
         G_FreeEnsnare(unit);
     } else {
-        unit->ensnare->phase = ENSNARE_HEIGHT_LAND;
+        ensnare_t *snare = (unit->ensnare ? unit->ensnare : (unit->ensnare=G_AllocEnsnare()));
+        snare->adjust = adjust;
+        snare->height = height;
+        snare->start = G_Time();
+        snare->phase = ENSNARE_HEIGHT_LAND;
         unit->unitinfo.FlyHeight = height;
     }
     M_CheckGround(unit);
@@ -321,18 +345,19 @@ static void ensnare_set_height(edict_t *unit, float height) {
 /* Advance land/rise owned by CAbilityEnsnare (AB_UPDATE). */
 static void ensnare_update(edict_t *unit) {
     float frac, target;
-    if (!unit || !unit->ensnare || unit->ensnare->phase == ENSNARE_HEIGHT_NONE || unit->ensnare->adjust <= 0.0f) return;
-    frac = ((float)G_Time() - (float)unit->ensnare->start) / (unit->ensnare->adjust * 1000.0f);
-    if (unit->ensnare->phase == ENSNARE_HEIGHT_LAND) {
+    ensnare_t *snare = unit->ensnare;
+    if (!snare || snare->phase == ENSNARE_HEIGHT_NONE || snare->adjust <= 0.0f) return;
+    frac = ((float)G_Time() - (float)snare->start) / (snare->adjust * 1000.0f);
+    if (snare->phase == ENSNARE_HEIGHT_LAND) {
         if (frac >= 1.0f) {
             ensnare_set_height(unit, 0.0f);
-            unit->ensnare->phase = ENSNARE_HEIGHT_NONE;
+            snare->phase = ENSNARE_HEIGHT_NONE;
         } else {
-            ensnare_set_height(unit, unit->ensnare->height * MAX(0.0f, 1.0f - frac));
+            ensnare_set_height(unit, snare->height * MAX(0.0f, 1.0f - frac));
         }
         return;
     }
-    target = unit->ensnare->height > 0.0f ? unit->ensnare->height : ensnare_authored_height(unit);
+    target = snare->height > 0.0f ? snare->height : ensnare_authored_height(unit);
     if (frac >= 1.0f) {
         ensnare_set_height(unit, target);
         G_FreeEnsnare(unit);
@@ -371,15 +396,17 @@ static bool ensnare_authored_flyer(edict_t const *unit) {
  * converts the stored DataA land into a rise; a snapped land restores height
  * immediately. Unrelated flight state is never touched. */
 static void ensnare_restore_flight(edict_t *unit) {
+    ensnare_t *snare;
     if (!unit || !ensnare_authored_flyer(unit) || (unit->aiflags & AI_FLYING)) return;
     unit->aiflags |= AI_FLYING;
     unit->targtype = TARG_AIR;
-    if (unit->ensnare && unit->ensnare->phase == ENSNARE_HEIGHT_LAND && unit->ensnare->adjust > 0.0f) {
-        unit->ensnare->height = unit->data.UnitData->moveHeight;
-        unit->ensnare->start = G_Time();
-        unit->ensnare->phase = ENSNARE_HEIGHT_RISE;
+    snare = unit->ensnare;
+    if (snare && snare->phase == ENSNARE_HEIGHT_LAND && snare->adjust > 0.0f) {
+        snare->height = unit->data.UnitData->moveHeight;
+        snare->start = G_Time();
+        snare->phase = ENSNARE_HEIGHT_RISE;
         unit->unitinfo.FlyHeight = 0.0f;
-    } else if ((!unit->ensnare || unit->ensnare->phase != ENSNARE_HEIGHT_RISE) && unit->unitinfo.FlyHeight <= 0.0f) {
+    } else if ((!snare || snare->phase != ENSNARE_HEIGHT_RISE) && unit->unitinfo.FlyHeight <= 0.0f) {
         unit->unitinfo.FlyHeight = unit->data.UnitData->moveHeight;
     }
     M_CheckGround(unit);
@@ -409,15 +436,15 @@ static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
         if (slot->level && slot != expiring && S_StatusIsEnsnare(G_UnitStatusClassCode(slot))) return;
     }
     if (ensnare_is_flyer(unit)) {
-        adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : (unit->ensnare ? unit->ensnare->adjust : 0.0f);
+        ensnare_t *snare = unit->ensnare;
+        adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : (snare ? snare->adjust : 0.0f);
         target = ensnare_authored_height(unit);
         if (adjust > 0.0f) {
-            if (!unit->ensnare) unit->ensnare = G_AllocEnsnare();
-            assert(unit->ensnare);
-            unit->ensnare->adjust = adjust;
-            unit->ensnare->height = target > 0.0f ? target : unit->ensnare->height;
-            unit->ensnare->start = G_Time();
-            unit->ensnare->phase = ENSNARE_HEIGHT_RISE;
+            if (!snare) snare = (unit->ensnare ? unit->ensnare : (unit->ensnare=G_AllocEnsnare()));
+            snare->adjust = adjust;
+            snare->height = target > 0.0f ? target : snare->height;
+            snare->start = G_Time();
+            snare->phase = ENSNARE_HEIGHT_RISE;
             unit->unitinfo.FlyHeight = 0.0f;
         } else G_FreeEnsnare(unit);
     }
@@ -527,7 +554,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire) { S_SummonAbilityUnits(caster, spell
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySerpentWard) { S_SummonAbilityUnits(caster, spell->code, &st); }
-BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCairne) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCairne) { S_ShockwaveExecute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityEnduranceAuraCampaign) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCairne) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityVoodooSpirits) { S_SummonAbilityUnits(caster, spell->code, &st); }

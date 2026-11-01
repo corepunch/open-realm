@@ -7,11 +7,12 @@
  * strictly-closer candidates displace the retained farthest, so equal
  * distances keep edict order (deterministic tie-break). */
 static uint32_t spirit_link_nearest_insert(edict_t * *cands, float *dists, uint32_t n, uint32_t maxn, edict_t *target, float dist) {
-	uint32_t far = 0;
+	/* Android zlib defines far as a legacy memory-model macro. */
+	uint32_t farthest = 0;
 	if (!maxn) return 0;
-	FOR_LOOP(i, n) if (dists[i] > dists[far]) far = i;
+	FOR_LOOP(i, n) if (dists[i] > dists[farthest]) farthest = i;
 	if (n < maxn) { cands[n] = target; dists[n] = dist; return n + 1; }
-	if (dist < dists[far]) { cands[far] = target; dists[far] = dist; }
+	if (dist < dists[farthest]) { cands[farthest] = target; dists[farthest] = dist; }
 	return n;
 }
 
@@ -67,8 +68,11 @@ BZ_ABILITY_PROC(CAbilityItemSpiritLink) {
     edict_t *picker;
     spellTarget_t target;
     if (msg != A_ITEM_USE || !call || !call->item) return false;
-    picker = ent && ent->inuse && ent->targtype != TARG_ITEM ? ent :
-        call->source_item && G_IsItem(call->source_item) ? call->source_item->item->carrier : NULL;
+    picker = ent && ent->inuse && ent->targtype != TARG_ITEM ? ent : NULL;
+    if (!picker) {
+        item_t const *rec = G_ItemState(call->source_item);
+        picker = rec ? rec->carrier : NULL;
+    }
     if (!picker || !S_SpellIsAliveTarget(picker) ||
         !G_AbilityLevel(call->item->code, 1)) return false;
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = picker);

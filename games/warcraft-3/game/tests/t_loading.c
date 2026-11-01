@@ -4,7 +4,7 @@
 #include "../hud/hud_local.h"
 
 typedef struct {
-    uint32_t sprites, bar, back, texts, sent, bytes, previews, names, rows;
+    uint32_t sprites, bar, back, texts, sent, bytes, previews, names, rows, ready_labels;
     uiFrame_t preview;
     int32_t opcode, layer;
     uiFrame_t progress;
@@ -30,6 +30,11 @@ static void loading_write(pfWriteType_t type, void const *data) {
             loadcap.back = frame->tex.index;
             strlcpy(loadcap.anim, frame->text, sizeof(loadcap.anim));
         }
+    }
+    if (frame->stat == UI_STAT_LOADING_STATUS_TEXT) {
+        loadcap.ready_labels++;
+        T_STREQ(frame->text, "L O A D I N G");
+        T_STREQ(frame->tooltip, "Continue playing");
     }
     if (frame->flags.type == FT_BACKDROP) loadcap.rows++;
     if (frame->flags.type == FT_MINIMAP) { loadcap.previews++; loadcap.preview = *frame; }
@@ -73,7 +78,7 @@ TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
         info.loadingScreenTitle = i == 3 ? "" : "Chapter";
         memset(&loadcap, 0, sizeof(loadcap));
         UI_WriteLoadingLayout(g_edicts, &info);
-        T_EQ(loadcap.opcode, svc_layout); T_EQ(loadcap.layer, LAYER_LOADING); T_EQ(loadcap.sent, 1);
+        T_EQ(loadcap.opcode, svc_layout); T_EQ(loadcap.layer, LAYER_LOADING); T_EQ(loadcap.sent, 1); T_EQ(loadcap.ready_labels, 1);
         T_EQ(loadcap.sprites, 2); T_NE(loadcap.bar, 0); T_NE(loadcap.back, 0); T_EQ(loadcap.texts, i == 3 ? 1 : 7);
         T_EQ(loadcap.previews, i == 3 ? 1 : 0);
         T_EQ(loadcap.names, i == 3 ? 2 : 0);

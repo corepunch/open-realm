@@ -241,6 +241,8 @@ For in-depth details on specific engine subsystems, consult the following dedica
 | WoW DBC Format & Schema Reference | [docs/games/world-of-warcraft/dbc-reference.md](docs/games/world-of-warcraft/dbc-reference.md) |
 | SC2 HUD Layout Pipeline (`.SC2Layout` $\to$ `svc_layout`) | [docs/games/starcraft-2/hud-layout-pipeline.md](docs/games/starcraft-2/hud-layout-pipeline.md) |
 | WC3 SLK Data Model, Units & Combat Formulas | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
+| WC3 Sparse Entity State: Component List, Pools & Persistence | [docs/games/warcraft-3/pooled-entity-state.md](docs/games/warcraft-3/pooled-entity-state.md) |
+| WC3 Game Save/Load Format | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | UI Authoring, FDF Conventions & ConsoleUI | [docs/ui-authoring.md](docs/ui-authoring.md) |
 
 ---
@@ -274,6 +276,14 @@ For in-depth details on specific engine subsystems, consult the following dedica
   machinery such as `g_monster.c`, `m_unit.c`, and `g_ai.c` provides lifecycle, dispatch, and shared mechanisms; it must not
   accumulate individual spell rules or direct spell update calls. Use flat callback/function-table contracts, not a new
   class hierarchy. See [WC3 ability ownership](docs/games/warcraft-3/ability-implementation.md#ability-owned-orders-and-persistent-behavior).
+- **Sparse Entity State Is Game-Owned**: `edict_t` stays a fixed, flat array entry. State that only some entities
+  carry (a construction site, a gold mine, an item, a channelled spell) lives in fixed-capacity typed pools inside the
+  game module, never in `entityState_t`, `entityShared_t` or anything the server reads. WC3 attaches these records
+  through direct typed pointers on `edict_t`; owning transitions allocate and release them explicitly. Reads never
+  allocate. Re-read optional state after callbacks that can release it, and preserve incarnation checks across
+  reentrant operations. Movement clocks and retained order lifecycle state stay embedded through stationary phases,
+  Stop and replacement; their lifetime is not equivalent to active travel. Saves relocate owned entity references
+  and serialize typed pools after entity records. See [pooled entity state](docs/games/warcraft-3/pooled-entity-state.md).
 - **Test-First Verification**: Recreate gameplay situations through production entry points in automated tests, including
   timing and callback order. Extend fixtures and harnesses before resorting to a game launch. See
   [verification workflow](CONTRIBUTING.md#test-first-behavior-verification) for the limited visual/platform exceptions.

@@ -150,11 +150,13 @@ void SV_InitGameProgs(void) {
     import.FontIndex = SV_FontIndex;
     import.MediaRevision = SV_MediaRevision;
     import.GetTime = SV_GetTime;
+    import.MonotonicMilliseconds = Com_MonotonicMilliseconds;
     import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
     import.SetSimulationRate = SV_SetSimulationRate;
     import.RequestMap = SV_RequestMap;
     import.RequestQuit = SV_RequestQuit;
+    import.FileExists = FS_FileExists;
     import.ReadFile = FS_ReadFile;
     import.OpenFile = FS_OpenFile;
     import.CloseFile = FS_CloseFile;

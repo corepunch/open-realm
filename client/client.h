@@ -69,6 +69,8 @@ struct frame {
 
 struct client_state {
     bool refresh_prepped;
+    bool loading_waiting;     /* media ready; begin waits for a fresh acknowledgement */
+    uint32_t loading_ready_time;
     sizeBuf_t loading;        /* compressed loading-screen chunks; released after decode or disconnect */
     float loading_progress;   /* client-owned normalized loading progress [0,1] */
     bool precache_ready;       /* complete media table received after the loading-only batch */
@@ -155,6 +157,7 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(cstring_t mapName);
+void CL_MapLoadDebugBegin(void);
 void CL_PrepLoading(void);
 void CL_SetLoadingProgress(float progress);
 
@@ -201,6 +204,7 @@ static inline float cl_normalize_entity_scale(float scale) { return scale > 0.0f
 void V_RenderView(void);
 void V_Shutdown(void);
 void CL_PrepRefresh(void);
+bool CL_ContinueLoading(uint32_t timestamp);
 void CL_RegisterConfigString(uint32_t index);
 void CL_UpdateConfigString(uint32_t index, cstring_t olds);
 void CL_RestartRefresh(void);

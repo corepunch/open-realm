@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 
 #define WC3_BLIGHT_PATH_CELL 32.0f // world units; authoritative Blight cell width; used by simulation and network mask
 #define WC3_BLIGHT_TERRAIN_CELL 128.0f // world units; authored terrain-corner spacing; used by Blight rasterization
@@ -49,10 +50,11 @@ static float G_SnapBlightCorner(float value, float minimum) {
 }
 
 static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
+    destructable_t *dstr = ent->destructable;
     pathTex_t const *pathtex;
 
-    if (!ent || !G_IsDestructable(ent) || ent->destructable->dead) return false;
-    pathtex = ent->destructable->alive_pathtex;
+    if (!ent || !G_IsDestructable(ent) || dstr->dead) return false;
+    pathtex = dstr->alive_pathtex;
     if (!pathtex || !pathtex->width || !pathtex->height)
         return G_IsPointBlighted(&ent->s.origin2);
     FOR_LOOP(y, pathtex->height) FOR_LOOP(x, pathtex->width) {
@@ -66,8 +68,9 @@ static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
 }
 
 void G_BlightMarkDestructable(edict_t *ent) {
-    if (!ent || !G_IsDestructable(ent) || ent->destructable->blighted) return;
-    ent->destructable->blighted = true;
+    destructable_t *dstr = ent->destructable;
+    if (!ent || !G_IsDestructable(ent) || dstr->blighted) return;
+    dstr->blighted = true;
     ent->vertex_color = MAKE(color32_t, 120, 185, 72, 255);
     ent->vertex_color_set = true;
     /* Preserve the authored replaceable texture: synthesizing a Blight
@@ -164,8 +167,8 @@ void G_SetBlightPoint(vec2_t const *point, bool add) {
     mask = G_BlightConnectedMask();
     x = G_SnapBlightCorner(point->x, level.blight.bounds.min.x);
     y = G_SnapBlightCorner(point->y, level.blight.bounds.min.y);
-    G_SetBlightCorner(x, y, add, mask);
-    if (add) {
+    uint32_t const changed = G_SetBlightCorner(x, y, add, mask);
+    if (add && changed) {
         box2_t region = { { x - WC3_BLIGHT_TERRAIN_CELL, y - WC3_BLIGHT_TERRAIN_CELL },
                         { x + WC3_BLIGHT_TERRAIN_CELL, y + WC3_BLIGHT_TERRAIN_CELL } };
         G_BlightUpdateDestructables(&region);
@@ -174,7 +177,7 @@ void G_SetBlightPoint(vec2_t const *point, bool add) {
 
 void G_SetBlightRadius(vec2_t const *point, float radius, bool add) {
     float min_x, min_y, max_x, max_y;
-    uint32_t mask;
+    uint32_t mask, changed = 0;
     if (!point || !level.blight.cells || radius < 0.0f) return;
     mask = G_BlightConnectedMask();
     min_x = G_SnapBlightCorner(point->x - radius, level.blight.bounds.min.x);
@@ -183,26 +186,64 @@ void G_SetBlightRadius(vec2_t const *point, float radius, bool add) {
     for (float y = min_y; y <= max_y; y += WC3_BLIGHT_TERRAIN_CELL)
         for (float x = min_x; x <= max_x; x += WC3_BLIGHT_TERRAIN_CELL) {
             float const dx = x - point->x, dy = y - point->y;
-            if (dx * dx + dy * dy <= radius * radius) G_SetBlightCorner(x, y, add, mask);
+            if (dx * dx + dy * dy <= radius * radius)
+                changed += G_SetBlightCorner(x, y, add, mask);
         }
-    if (add) {
+    if (add && changed) {
         box2_t region = { { point->x - radius, point->y - radius },
                         { point->x + radius, point->y + radius } };
         G_BlightUpdateDestructables(&region);
     }
 }
 
+/* Magical dispel clears loose Blight. Unlike a blind G_SetBlightRadius(false),
+ * preserve corners still maintained by a living Abli source. The raster has no
+ * source provenance, so unmaintained pre-placed Blight shares the loose-blight
+ * rule; strict Sacrificial Skull-only removal needs authored source tracking. */
+void G_DispelBlightRadius(vec2_t const *point, float radius) {
+    float min_x, min_y, max_x, max_y;
+    uint32_t mask;
+    if (!point || !level.blight.cells || !(radius >= 0.0f)) return;
+    mask = G_BlightConnectedMask();
+    min_x = G_SnapBlightCorner(point->x - radius, level.blight.bounds.min.x);
+    min_y = G_SnapBlightCorner(point->y - radius, level.blight.bounds.min.y);
+    max_x = point->x + radius; max_y = point->y + radius;
+    for (float y = min_y; y <= max_y; y += WC3_BLIGHT_TERRAIN_CELL)
+        for (float x = min_x; x <= max_x; x += WC3_BLIGHT_TERRAIN_CELL) {
+            float dx = x - point->x, dy = y - point->y;
+            bool maintained = false;
+            if (dx * dx + dy * dy > radius * radius) continue;
+            FILTER_EDICTS(source, source->inuse && !M_IsDead(source)) {
+                blightGrowth_t const *growth = source->blight_growth;
+                if (!growth || !growth->ability || growth->radius <= 0.0f ||
+                    !G_IsUnitAbilityAvailable(source, growth->ability) ||
+                    S_SpellData(growth->ability, MAX(1u, G_UnitAbilityLevel(source, growth->ability)), 1) == 0.0f)
+                    continue;
+                dx = x - source->s.origin2.x; dy = y - source->s.origin2.y;
+                /* Corner rasterisation can extend up to two pathing cells
+                 * beyond the author's radial centre. Fail closed nearby. */
+                if (dx * dx + dy * dy <= (growth->radius + WC3_BLIGHT_PATH_CELL * 2.0f) *
+                                      (growth->radius + WC3_BLIGHT_PATH_CELL * 2.0f)) {
+                    maintained = true;
+                    break;
+                }
+            }
+            if (!maintained) G_SetBlightCorner(x, y, false, mask);
+        }
+}
+
 void G_SetBlightRect(box2_t const *rect, bool add) {
     float min_x, min_y;
-    uint32_t mask;
+    uint32_t mask, changed = 0;
     if (!rect || !level.blight.cells) return;
     mask = G_BlightConnectedMask();
     min_x = G_SnapBlightCorner(rect->min.x, level.blight.bounds.min.x);
     min_y = G_SnapBlightCorner(rect->min.y, level.blight.bounds.min.y);
     for (float y = min_y; y <= rect->max.y; y += WC3_BLIGHT_TERRAIN_CELL)
         for (float x = min_x; x <= rect->max.x; x += WC3_BLIGHT_TERRAIN_CELL)
-            if (x >= rect->min.x && y >= rect->min.y) G_SetBlightCorner(x, y, add, mask);
-    if (add) G_BlightUpdateDestructables(rect);
+            if (x >= rect->min.x && y >= rect->min.y)
+                changed += G_SetBlightCorner(x, y, add, mask);
+    if (add && changed) G_BlightUpdateDestructables(rect);
 }
 
 uint32_t G_GetBlightStateSize(void) { return level.blight.cells ? G_BlightCellCount() : 0; }
@@ -257,16 +298,73 @@ static uint8_t G_BlightPackBit(uint32_t index, void *ctx) {
     return level.blight.cells[c->first_row * c->width + index] ? 1 : 0;
 }
 
-static uint32_t G_BlightPackRows(uint8_t *out, uint32_t capacity, uint32_t first_row, uint32_t row_count) {
-    blightPackCtx_t c = { first_row, level.blight.width };
-    uint32_t const bits = level.blight.width * row_count;
-    uint32_t n;
-    if (!out || !bits) return 0;
-    n = MSG_EncodeRLE(out, capacity, bits, G_BlightPackBit, &c);
-    if (n) return n;
-    /* RLE has no worst-case bound (an alternating row costs ~1 byte per bit); the bitpack escape
-     * always fits one row inside the datagram reservation, so dirty/sweep progress never stalls. */
-    return MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
+/* Select the longest row-aligned payload without retrying compression for each
+ * row removed from an oversized dirty/sweep band. We incrementally produce the
+ * same RLE bytes as MSG_EncodeRLE and remember the last complete row that
+ * leaves room for the pending final run byte. If bitpacking fits more rows,
+ * overwrite that tentative RLE with the existing bitpack escape instead.
+ * Thus row count and wire bytes match the former shrink-and-retry loop. */
+static uint32_t G_BlightPackRows(uint8_t *out, uint32_t capacity, uint32_t first_row,
+    uint32_t max_rows, uint32_t *packed_rows) {
+    uint32_t used = 0, best_used = 0, best_rows = 0, bitpack_rows;
+    uint8_t value = 0, run = 0, best_run = 0;
+    bool started = false;
+
+    *packed_rows = 0;
+    if (!out || !level.blight.cells || !level.blight.width || !max_rows || capacity < 2) return 0;
+    /* Bitpack uses one marker byte followed by LSB-first bits. Calculate in
+     * 64 bits so large synthetic maps cannot overflow the row fit limit. */
+    bitpack_rows = (uint32_t)MIN((uint64_t)max_rows,
+        ((uint64_t)(capacity - 1) * 8) / level.blight.width);
+
+    for (uint32_t row = 0; row < max_rows; row++) {
+        uint32_t const row_base = (first_row + row) * level.blight.width;
+        FOR_LOOP(x, level.blight.width) {
+            uint8_t const bit = level.blight.cells[row_base + x] ? 1 : 0;
+            if (!started) {
+                out[used++] = bit;
+                value = bit;
+                run = 1;
+                started = true;
+            } else if (bit == value) {
+                if (run == 255) {
+                    if (used >= capacity) goto select;
+                    out[used++] = 255;
+                    run = 0;
+                }
+                run++;
+            } else {
+                if (used >= capacity) goto select;
+                out[used++] = run;
+                if (run == 255) {
+                    if (used >= capacity) goto select;
+                    out[used++] = 0;
+                }
+                value = bit;
+                run = 1;
+            }
+            /* One more byte is required to terminate the current run. Once
+             * that cannot fit, no longer prefix can fit RLE either. */
+            if (used >= capacity) goto select;
+        }
+        best_rows = row + 1;
+        best_used = used;
+        best_run = run;
+    }
+select:
+    if (best_rows && best_rows >= bitpack_rows) {
+        out[best_used] = best_run;
+        *packed_rows = best_rows;
+        return best_used + 1;
+    }
+    if (bitpack_rows) {
+        blightPackCtx_t c = { first_row, level.blight.width };
+        uint32_t const bits = bitpack_rows * level.blight.width;
+        uint32_t const n = MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
+        if (n) *packed_rows = bitpack_rows;
+        return n;
+    }
+    return 0;
 }
 
 uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
@@ -281,8 +379,7 @@ uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
     while (first < level.blight.height && !(level.blight.dirty_rows[first] & (1u << player))) first++;
     if (first < level.blight.height) {
         available = size - sizeof(chunk);
-        /* Start from the whole contiguous dirty run; RLE usually compresses coherent Blight far below
-         * bitpack density, and the shrink loop below absorbs overflow one row at a time. */
+        /* Choose the largest contiguous dirty prefix that fits this packet. */
         max_rows = level.blight.height - first;
         if (!max_rows) return 0;
         rows = 1;
@@ -291,15 +388,18 @@ uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
         if (!G_BlightSweepDue(player)) return 0;
         first = level.blight.sweep_row[player] % level.blight.height;
         available = MIN(size - sizeof(chunk), BLIGHT_SWEEP_BYTES);
-        /* Same optimistic start: one coherent sweep band can now cover far more rows per BLIGHT_SWEEP_BYTES. */
+        /* Sweep bands have their own smaller payload reservation. */
         max_rows = level.blight.height - first;
         if (!max_rows) { level.blight.sweep_row[player] = 0; return 0; }
         rows = max_rows;
         sweep = true;
     }
     payload = data + sizeof(chunk);
-    while (rows && !(payload_bytes = G_BlightPackRows(payload, available, first, rows))) rows--;
-    if (!rows) return 0;
+    /* The chunk encodes a uint16_t payload length. Cap even oversized caller
+     * reservations without changing the terrain-mask wire format. */
+    available = MIN(available, (uint32_t)UINT16_MAX);
+    payload_bytes = G_BlightPackRows(payload, available, first, rows, &rows);
+    if (!payload_bytes) return 0;
     chunk = (terrainMaskChunk_t){
         .width = (uint16_t)level.blight.width, .height = (uint16_t)level.blight.height,
         .first_row = (uint16_t)first, .row_count = (uint16_t)rows,

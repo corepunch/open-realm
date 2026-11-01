@@ -24,7 +24,14 @@ Do not route background music through `svc_sound`, `S_PlaySoundFile`, unit chann
 
 ## Build Modes
 
-The default build keeps FFmpeg optional. Music commands and state still exist without FFmpeg, but no compressed music decoder is available and playback remains silent.
+The default build keeps FFmpeg optional. Without FFmpeg or the opt-in `BZ_MUSIC_MP3`
+backend, music commands and state still exist but compressed playback remains silent.
+Android enables `BZ_MUSIC_MP3`: the vendored minimp3 decoder retains compressed VFS bytes,
+decodes one frame at a time and resamples stereo PCM into the existing 44.1-kHz music ring.
+It supports mono/stereo MP3, seek by decoding/discarding from the start, pause, fades and
+playlist EOF handling. Other compressed formats still require FFmpeg. It does not enable
+the FFmpeg movie backend. `make test-music-mp3` checks stereo output, seek, pause, EOF and
+invalid/missing input using a generated fixture.
 
 The Linux GitHub release must explicitly build with `FFMPEG=1`. The v0.0.10-alpha release workflow invoked
 `make BUILD=release EOS=1 ... build` without that flag, so its `CL_MusicOpenTrack` was the stub that always returns false.
@@ -335,7 +342,7 @@ The remaining unresolved areas are:
 - codec seeking is millisecond/stream-time based rather than sample-exact; the consumed-frame snapshot identifies what the mixer heard, but FFmpeg may decode from an earlier seek boundary.
 - the continuously advancing ordinary playback head is reported when tracks are selected and when thematic music snapshots it, not every frame; a save taken during ordinary music can therefore resume from the last reported start/seek rather than the exact current millisecond. A synchronous save-time client query would require an explicit prepare/acknowledge phase and is intentionally not faked.
 - the in-game F10 Options Sound page now reuses the archived local music/SFX preferences; Ambient/Movement/Unit/Subtitles/environment/positional category controls remain disabled until their underlying routing is implemented.
-- builds without `FFMPEG=1` have no compressed **playback** decoder. `GetSoundFileDuration` does not share that limitation because it reads metadata in the game module.
+- builds without `FFMPEG=1` or `BZ_MUSIC_MP3` have no compressed **playback** decoder. `GetSoundFileDuration` does not share that limitation because it reads metadata in the game module.
 
 ## Verification
 

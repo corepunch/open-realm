@@ -11,6 +11,7 @@ static int CursorTestModelIndex(cstring_t path) {
     return 71;
 }
 static bool CursorTestTarget(edict_t *client, vec2_t const *point) { (void)client; (void)point; return false; }
+static bool CursorTestEntity(edict_t *client, edict_t *target) { (void)client; (void)target; return false; }
 
 TEST(wc3_cursor, race_map_skin_and_target_lifecycle) {
     gameClient_t client = {0};
@@ -36,6 +37,11 @@ TEST(wc3_cursor, race_map_skin_and_target_lifecycle) {
     client.menu.on_location_selected = CursorTestTarget;
     UI_UpdateCursorPresentation(&client);
     T_EQ(client.ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], WC3_POINTER_TARGETING);
+    T_EQ(client.ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], CURSOR_INPUT_LOCATION_POINT);
+    client.menu.on_entity_selected = CursorTestEntity;
+    UI_UpdateCursorPresentation(&client);
+    T_EQ(client.ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], 0);
+    client.menu.on_entity_selected = NULL;
     memset(&client.menu, 0, sizeof(client.menu));
     UI_UpdateCursorPresentation(&client);
     T_EQ(client.ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
@@ -72,12 +78,12 @@ TEST(wc3_cursor, signal_preserves_underlying_target_and_uses_skin_color) {
     T_ASSERT(client->menu.on_location_selected == CursorTestTarget);
     G_ClientCommand(ent, 1, cancel);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], WC3_POINTER_TARGETING);
-    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], 0);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], CURSOR_INPUT_LOCATION_POINT);
     T_ASSERT(client->menu.on_location_selected == CursorTestTarget);
     G_ClientCommand(ent, 1, signal);
     G_ClientCommand(ent, 3, point);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], WC3_POINTER_TARGETING);
-    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], 0);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], CURSOR_INPUT_LOCATION_POINT);
     T_ASSERT(client->menu.on_location_selected == CursorTestTarget);
     T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,
         "[TeamColorFilter]\nColorIndexPlayer=4\n"));

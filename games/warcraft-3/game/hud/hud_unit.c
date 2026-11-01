@@ -455,6 +455,105 @@ static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t coun
     return false;
 }
 
+static void G_AddMagicSentryIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                      uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A', 'd', 't', 's');
+    static uint32_t const research = MAKEFOURCC('R', 'h', 's', 'e');
+    gameClient_t *owner;
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, ability) || G_HasCommandRawcode(buttons, *count, ability)) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || G_GetPlayerTechResearchedLevel(owner, research) <= 0) return;
+
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, "Adts", false, 0);
+    if (*count > index) buttons[index].disabled = 1;
+}
+
+static void G_AddPillageIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                  uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A', 's', 'a', 'l');
+    static uint32_t const research = MAKEFOURCC('R', 'o', 'p', 'g');
+    gameClient_t *owner;
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, ability) || G_HasCommandRawcode(buttons, *count, ability)) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || G_GetPlayerTechResearchedLevel(owner, research) <= 0) return;
+
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, "Asal", false, 0);
+    if (*count > index) buttons[index].disabled = 1;
+}
+
+static void G_AddDiseaseCloudIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                       uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const research = MAKEFOURCC('R', 'u', 'p', 'c');
+    static uint32_t const disease_cloud = MAKEFOURCC('A', 'a', 'p', 'l');
+    static uint32_t const abomination_disease_cloud = MAKEFOURCC('A', 'a', 'p', '1');
+    gameClient_t *owner;
+    uint32_t ability;
+    char code[5] = {0};
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons) return;
+    ability = G_UnitAbilityLevel(ent, abomination_disease_cloud) ? abomination_disease_cloud : disease_cloud;
+    if (!G_UnitAbilityLevel(ent, ability) ||
+        G_HasCommandRawcode(buttons, *count, ability) ||
+        G_HasCommandRawcode(buttons, *count, disease_cloud) ||
+        G_HasCommandRawcode(buttons, *count, abomination_disease_cloud)) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || G_GetPlayerTechResearchedLevel(owner, research) <= 0) return;
+
+    memcpy(code, &ability, 4);
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
+    if (*count > index) buttons[index].disabled = 1;
+}
+
+static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                        uint8_t max_buttons, uint8_t *count,
+                                        uint32_t owned_ability, uint32_t button_ability) {
+    char code[5] = {0};
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, owned_ability) || G_HasCommandRawcode(buttons, *count, button_ability)) return;
+    memcpy(code, &button_ability, 4);
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
+    if (*count > index) buttons[index].disabled = 1;
+}
+
+static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *buttons,
+                                         uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const slow_poison[] = { MAKEFOURCC('A','s','p','o') };
+    static uint32_t const true_sight[] = {
+        MAKEFOURCC('A','g','y','v'), /* Flying Machine True Sight */
+        MAKEFOURCC('A','t','r','u')  /* Shade True Sight */
+    };
+    static uint32_t const spell_immunity[] = {
+        MAKEFOURCC('A','m','i','m'), /* Spell Immunity */
+        MAKEFOURCC('A','C','m','i'), /* Creep Magic Immunity */
+        MAKEFOURCC('A','C','m','2'), /* Archimonde Magic Immunity */
+        MAKEFOURCC('A','C','m','3')  /* Dragon Magic Immunity */
+    };
+
+    FOR_LOOP(i, sizeof(slow_poison) / sizeof(slow_poison[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, slow_poison[i], slow_poison[i]);
+    FOR_LOOP(i, sizeof(true_sight) / sizeof(true_sight[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, true_sight[i], true_sight[i]);
+    /* Adtg aliases Atru but has no authored button art of its own. Show the
+     * True Sight icon from Atru for Owl Scouts and other general detectors. */
+    G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count,
+        MAKEFOURCC('A','d','t','g'), MAKEFOURCC('A','t','r','u'));
+    FOR_LOOP(i, sizeof(spell_immunity) / sizeof(spell_immunity[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, spell_immunity[i], spell_immunity[i]);
+}
+
 static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons,
                                        uint8_t *count, cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
@@ -474,6 +573,10 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
                                  S_AbilityHasCommand(ability) && G_AncientAbilityVisible(ent, ability), false);
         return;
     }
+    /* Bear form uses its own attack and roar data. Hide the normal-form
+     * utility spells even when custom/unit ability lists retain their codes. */
+    if (ent->class_id == MAKEFOURCC('e','d','c','m') &&
+        (ability->proc == CAbilityRoar || ability->proc == CAbilityRejuvination)) return;
     memcpy(&rawcode, code, sizeof(rawcode));
     if (!G_IsUnitAbilityAvailable(ent, rawcode)) {
         if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-unavailable", ability, false, false);
@@ -565,12 +668,14 @@ static bool G_BuildHeroReviveButton(edict_t *altar, edict_t *hero, uint8_t slot,
 }
 
 uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons) {
+    cargo_t *ent_hold = ent ? ent->cargo : NULL;
     uint8_t count = 0;
     UnitBalance_t const *b;
     UnitWeapons_t const *w;
     UnitAbilities_t const *a;
     bool is_burrow;
     bool burrow_occupied;
+    bool armed_structure;
 
     if (!ent || !ent->class_id || !buttons) {
         return 0;
@@ -580,7 +685,10 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     w = ent->data.UnitWeapons;
     a = ent->data.UnitAbilities;
     is_burrow = S_CargoIsBurrow(ent);
-    burrow_occupied = is_burrow && ent->cargo && ent->cargo->count > 0;
+    burrow_occupied = is_burrow && ent_hold && ent_hold->count > 0;
+    armed_structure = G_UnitIsStructure(ent) &&
+        ((w->attack1.damageDice && S_UnitAttackSlotEnabled(ent, 0)) ||
+         (w->attack2.damageDice && S_UnitAttackSlotEnabled(ent, 1)));
 
     /* Unsummon owns the building until destruction. Rally metadata remains
      * editable, but actions and cancellation are hidden. */
@@ -618,17 +726,18 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
-    } else if (burrow_occupied) {
-        /* Burrows are immobile, but Stop is meaningful once their Peons have
-         * enabled the building attack: it cancels the current attack/order. */
+    } else if (burrow_occupied || armed_structure) {
+        /* Immobile armed structures (including Guard Towers) still need Stop
+         * to cancel their current attack/order. Burrows expose it only while
+         * occupied, when their attack slot is enabled. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
     if (S_AncientCanShowRootedAttackCommand(ent) &&
         ((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
          (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
-        if ((S_UnitAttackSlotEnabled(ent, 0) && S_AttackProfileRead(ent, 0)->weapon == WPN_ARTILLERY) ||
-            (S_UnitAttackSlotEnabled(ent, 1) && S_AttackProfileRead(ent, 1)->weapon == WPN_ARTILLERY))
+        if ((S_UnitAttackSlotEnabled(ent, 0) && (S_AttackProfileRead(ent, 0)->weapon == WPN_ARTILLERY || S_AttackProfileRead(ent, 0)->weapon == WPN_ALINE)) ||
+            (S_UnitAttackSlotEnabled(ent, 1) && (S_AttackProfileRead(ent, 1)->weapon == WPN_ARTILLERY || S_AttackProfileRead(ent, 1)->weapon == WPN_ALINE)))
             G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttackGround, false, 0);
     }
     /* Some WC3 data paths expose the Burrow hold/battle-stations abilities
@@ -667,7 +776,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
                 G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, ability_code);
         }
     }
-    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+    FOR_LOOP(i, (ARRAY_COUNT(ent->abilities.added))) {
         char abil[5] = {0};
         uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
@@ -675,6 +784,10 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
             G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
     }
+    G_AddMagicSentryIndicator(ent, buttons, max_buttons, &count);
+    G_AddPillageIndicator(ent, buttons, max_buttons, &count);
+    G_AddDiseaseCloudIndicator(ent, buttons, max_buttons, &count);
+    G_AddPassiveEffectIndicators(ent, buttons, max_buttons, &count);
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
         if (ha->level > 0 && G_IsUnitAbilityAvailable(ent, ha->code) &&
@@ -765,7 +878,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     /* The existing Cancel command can safely cancel the active revival. Do
      * not expose it for ordinary unit training until that queue has matching
      * refund semantics. */
-    if (ent->build && (ent->build->revival && ent->build->revival->reviving)) {
+    if (ent->build && G_HeroIsReviving(ent->build)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
     }
 
@@ -774,11 +887,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
 }
 
 bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInventoryItem_t *out) {
+    item_t *rec = G_ItemState(item);
     cstring_t item_name;
     cstring_t art;
 
-    if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
-        item->item->carrier != ent || item->item->inventory_slot != slot || item->item->in_world) return false;
+    if (!ent || !out || slot >= G_InventoryCapacity(ent) || !rec ||
+        rec->carrier != ent || rec->inventory_slot != slot || rec->in_world) return false;
 
     memset(out, 0, sizeof(*out));
     item_name = GetClassName(item->class_id);
@@ -807,12 +921,13 @@ uint8_t G_GetInventory(edict_t *ent, gameInventoryItem_t *items, uint8_t max_ite
     capacity = G_InventoryCapacity(ent);
     FOR_LOOP(slot, capacity) {
         if (count >= max_items) break;
-        if (G_BuildInventoryItem(ent, ent->inventory[slot], (uint8_t)slot, &items[count])) count++;
+        if (G_BuildInventoryItem(ent, G_InventoryItem(ent, slot), (uint8_t)slot, &items[count])) count++;
     }
     return count;
 }
 
 uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue) {
+    research_t *study = ent ? ent->research : NULL;
     uint8_t count = 0;
     uint32_t cursor = G_Time();
     bool food_blocked = false;
@@ -827,16 +942,16 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
      * that state through the same queue payload used by training/research. */
     if (G_BuildingUpgradeActive(ent)) {
         gameCommandButton_t button;
-        uint32_t const duration = (uint32_t)(MAX(0.0f, ent->research->duration) * 1000.0f);
-        float progress = ent->research->duration > 0.0f
-            ? ent->research->progress / ent->research->duration : 1.0f;
+        uint32_t const duration = (uint32_t)(MAX(0.0f, study->duration) * 1000.0f);
+        float progress = study->duration > 0.0f
+            ? study->progress / study->duration : 1.0f;
         uint32_t const elapsed = (uint32_t)((float)duration * MAX(0.0f, MIN(1.0f, progress)));
 
-        if (G_BuildCommandButton(ent, GetClassName(ent->research->upgrade), false, 0, &button)) {
+        if (G_BuildCommandButton(ent, GetClassName(study->upgrade), false, 0, &button)) {
             UI_CopyString(queue[0].art, sizeof(queue[0].art), button.art);
         } else {
             UI_CopyString(queue[0].art, sizeof(queue[0].art),
-                          FindConfigValue(GetClassName(ent->research->upgrade), STR_ART));
+                          FindConfigValue(GetClassName(study->upgrade), STR_ART));
         }
         queue[0].starttime = elapsed <= cursor ? cursor - elapsed : cursor;
         queue[0].endtime = queue[0].starttime + duration;
@@ -844,37 +959,41 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
     }
 
     for (edict_t *build = ent->build; build && count < max_queue;
-         build = (build->revival && build->revival->reviving) ? build->revival->queue_next : build->build) {
+         build = G_HeroIsReviving(build) ? build->revival->queue_next : build->build) {
         uint32_t duration;
         float progress = 0;
+        construction_t const *site = build ? build->construction : NULL;
+        research_t const *build_study = build ? build->research : NULL;
+        revival_t const *revival = build ? build->revival : NULL;
+        food_t const *ledger = build ? build->food : NULL;
 
-        if (build->research && build->research->upgrade != 0) {
+        if (G_UnitIsResearching(build)) {
             gameCommandButton_t button;
-            duration = (uint32_t)(MAX(0.0f, build->research->duration) * 1000.0f);
-            if (G_BuildCommandButton(ent, GetClassName(build->research->upgrade), true,
-                                     (uint32_t)build->research->level, &button)) {
+            duration = (uint32_t)(MAX(0.0f, build_study->duration) * 1000.0f);
+            if (G_BuildCommandButton(ent, GetClassName(build_study->upgrade), true,
+                                     (uint32_t)build_study->level, &button)) {
                 UI_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
             }
-            if (count == 0 && build->research->duration > 0.0f) {
-                progress = build->research->progress / build->research->duration;
+            if (count == 0 && build_study->duration > 0.0f) {
+                progress = build_study->progress / build_study->duration;
                 progress = MAX(0, MIN(progress, 1));
             }
         } else {
             cstring_t build_name = GetClassName(build->class_id);
             /* Tiny Structures author their own construction clock; the
              * progress bar used to run on the unit's buildTime instead. */
-            duration = (build->revival && build->revival->reviving)
+            duration = G_HeroIsReviving(build)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
-                : (build->construction && build->construction->duration_ms > 0.0f)
-                ? (uint32_t)build->construction->duration_ms
+                : (site && site->duration_ms > 0.0f)
+                ? (uint32_t)site->duration_ms
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
-                if ((build->revival && build->revival->reviving) && duration > 0) {
-                    progress = build->revival->progress / ((float)duration / 1000.0f);
+                if (G_HeroIsReviving(build) && duration > 0) {
+                    progress = revival->progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
-                } else if (build->construction && build->construction->type == CONSTRUCTION_HUMAN && duration > 0) {
-                    progress = build->construction->progress / (float)duration;
+                } else if (site && site->type == CONSTRUCTION_HUMAN && duration > 0) {
+                    progress = site->progress / (float)duration;
                     progress = MAX(0, MIN(progress, 1));
                     bool working = false;
                     FOR_LOOP(worker_index, globals.num_edicts) {
@@ -888,7 +1007,7 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
                     progress = build->health.value / build->health.max_value;
                     progress = MAX(0, MIN(progress, 1));
                 }
-                food_blocked = build->training && cost > 0 && (!build->food || build->food->used == 0) && G_FoodLimitsEnabled();
+                food_blocked = (build && build->training) && cost > 0 && (!ledger || ledger->used == 0) && G_FoodLimitsEnabled();
             }
             UI_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
         }
@@ -910,18 +1029,18 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
         }
         queue[count].progress = MAX(0.0f, MIN(progress, 1.0f));
 #ifdef WC3_DEBUG_BUILD
-        if (count == 0 && build->construction && build->construction->type == CONSTRUCTION_HUMAN) {
+        if (count == 0 && site && site->type == CONSTRUCTION_HUMAN) {
             fprintf(stderr, "WC3_BUILD queue-progress producer=%ld building=%ld id=%.4s construction_paused=%u progress=%.1f health=%.1f/%.1f fraction=%.4f duration_ms=%u queue_start=%u queue_end=%u frame=%u\n",
                     (long)(ent - g_edicts), (long)(build - g_edicts),
-                    (cstring_t)&build->class_id, build->construction->paused,
-                    build->construction->progress, build->health.value,
+                    (cstring_t)&build->class_id, site->paused,
+                    site->progress, build->health.value,
                     build->health.max_value, progress, duration,
                     queue[count].starttime, queue[count].endtime, build->s.frame);
         }
 #endif
         count++;
-        if (((build->revival && build->revival->reviving) && build->revival->queue_next == build) ||
-            (!(build->revival && build->revival->reviving) && build->build == build)) {
+        if ((G_HeroIsReviving(build) && revival->queue_next == build) ||
+            (!G_HeroIsReviving(build) && build->build == build)) {
             break;
         }
     }

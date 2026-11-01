@@ -33,6 +33,7 @@
 #define WC3_PATH_WORK_BUDGET 65536
 #include "common/ui_constants.h"
 #include "games/warcraft-3/common/minimap.h"
+#include "common/map_load_debug.h"
 #include "jass/jass.h"
 #include "hud/score_screen_table.h"
 #include <stdarg.h>
@@ -754,11 +755,16 @@ void G_ApplyTilesetWaterHeight(mapInfo_t const *info) {
 
 static bool G_LoadMap(cstring_t mapFilename) {
     G_ReleaseLevel();
+    double const map_start = GAME_MAP_LOAD_NOW();
+    double stage_start = map_start;
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
+        GAME_MAP_LOAD_REPORT(mapFilename, "CM_LoadMap-failed", stage_start);
         G_SetMapUnitOverrides(NULL);
         G_SetMapAbilityOverrides(NULL);
         return false;
     }
+    GAME_MAP_LOAD_REPORT(mapFilename, "CM_LoadMap", stage_start);
+    stage_start = GAME_MAP_LOAD_NOW();
     gi.LoadingFrame();
     /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
      * animation metadata cache uses those indices too, so retaining it across
@@ -774,6 +780,8 @@ static bool G_LoadMap(cstring_t mapFilename) {
     G_ApplyMapGameDataSet(CM_GetMapInfo());
     G_ApplyTilesetWaterHeight(CM_GetMapInfo());
     S_InitFlightSupport();
+    GAME_MAP_LOAD_REPORT(mapFilename, "map-data-set", stage_start);
+    stage_start = GAME_MAP_LOAD_NOW();
     /* Resolve presentation from the active map data set before publishing the
      * gameplay media contract. */
     cstring_t marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");
@@ -787,13 +795,20 @@ static bool G_LoadMap(cstring_t mapFilename) {
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Bind every panel once so write
      * paths do not parse FDF on first use. */
     UI_LoadHud();
+    GAME_MAP_LOAD_REPORT(mapFilename, "hud-bind", stage_start);
+    stage_start = GAME_MAP_LOAD_NOW();
     gi.LoadingFrame();
     G_SpawnEntities(mapFilename);
+    GAME_MAP_LOAD_REPORT(mapFilename, "spawn-entities", stage_start);
+    stage_start = GAME_MAP_LOAD_NOW();
     gi.LoadingFrame();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
+    GAME_MAP_LOAD_REPORT(mapFilename, "start-scripts", stage_start);
     gi.LoadingFrame();
     level.started = true;
+    MAP_LOAD_LOG("map=%s phase=G_LoadMap total-ms=%.3f\n", mapFilename,
+                     GAME_MAP_LOAD_NOW() - map_start);
     return true;
 }
 
@@ -973,8 +988,17 @@ static void G_ApplyMapGameDataSet(mapInfo_t const *mapinfo) {
      * skin table. */
     Stb_IniCacheLoad(&game.config.map_skin, "war3mapSkin.txt");
     InitConstants();
+    double init_unit_data_start = GAME_MAP_LOAD_NOW();
     InitUnitData();
+    MAP_LOAD_LOG("phase=map-unit-data ms=%.3f\n",
+                     GAME_MAP_LOAD_NOW() - init_unit_data_start);
+    init_unit_data_start = GAME_MAP_LOAD_NOW();
     InitAbilities();
+    MAP_LOAD_LOG("phase=map-abilities ms=%.3f\n",
+                     GAME_MAP_LOAD_NOW() - init_unit_data_start);
+#ifndef DEBUG_MAP_LOAD
+    (void)init_unit_data_start;
+#endif
 }
 
 static void G_RunJassTests(cstring_t script, cstring_t entry) {
@@ -1050,14 +1074,23 @@ static void G_InitGame(void) {
     game.data_prefix[0] = '\0';
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
+    double init_unit_data_start = GAME_MAP_LOAD_NOW();
     InitUnitData();
+    MAP_LOAD_LOG("phase=process-unit-data ms=%.3f\n",
+                     GAME_MAP_LOAD_NOW() - init_unit_data_start);
+    init_unit_data_start = GAME_MAP_LOAD_NOW();
     InitAbilities();
+    MAP_LOAD_LOG("phase=process-abilities ms=%.3f\n",
+                     GAME_MAP_LOAD_NOW() - init_unit_data_start);
     G_ResetSelectionSoundState();
     G_ResetSoundPresentationState();
     G_CommandErrorReset();
     G_RegisterGlobalSounds();
     UI_ResetHud();
     fprintf(stderr, "Game initialized.\n\n");
+#ifndef DEBUG_MAP_LOAD
+    (void)init_unit_data_start;
+#endif
 }
 
 static void G_ShutdownGame(void) {
@@ -2267,7 +2300,7 @@ static bool G_PrepareMap(cstring_t filename) {
 /* Look up or register a display name in the packed CS_GENERAL configstring pool.
  * Each configstring stores ENT_NAMES_PER_CS names of ENT_NAME_SLOT_SIZE bytes each.
  * Returns a 1-based packed index (0 = not found / pool full). */
-static uint16_t G_UnitNameConfigstring(cstring_t name) {
+uint16_t G_NameConfigstring(cstring_t name) {
     char buf[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
     if (!name || !*name) return 0;
     for (uint32_t slot = 0; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
@@ -2286,7 +2319,7 @@ static uint16_t G_UnitNameConfigstring(cstring_t name) {
             return (uint16_t)(slot * ENT_NAMES_PER_CS + sub + 1);
         }
     }
-    fprintf(stderr, "G_UnitNameConfigstring: pool full for \"%s\"\n", name);
+    fprintf(stderr, "G_NameConfigstring: pool full for \"%s\"\n", name);
     return 0;
 }
 
@@ -2295,12 +2328,14 @@ static uint16_t G_UnitNameConfigstring(cstring_t name) {
  * Ordinary Agld mines own the reservoir directly; racial mine overlays expose
  * the live reservoir of their still-bound hidden parent. */
 static uint32_t G_HoverResourceValue(edict_t const *ent) {
+    mineOverlay_t *ovl;
     edict_t const *parent;
     uint32_t value;
 
     if (!ent) return 0;
-    if (S_GoldMineIsOverlay(ent) && ent->mineoverlay && (parent = ent->mineoverlay->parent)) {
-        if (!parent->inuse || parent->spawn_time != ent->mineoverlay->parent_spawn_time ||
+    ovl = ent->mineoverlay;
+    if (S_GoldMineIsOverlay(ent) && ovl && (parent = ovl->parent)) {
+        if (!parent->inuse || parent->spawn_time != ovl->parent_spawn_time ||
             M_IsDead(parent) || !(parent->s.flags & EF_RESOURCE_SOURCE)) return 0;
         value = parent->resources;
     } else {
@@ -2393,15 +2428,16 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         G_FowPlayerCanHoverEntity(player, ent);
 
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL | EF_ALLIED);
-    state->name = 0;
-    state->hover_value = 0;
+    state->name = state->flags & EF_NAMED_ATTACHMENT ? ent->s.name : 0;
+    state->hover_value = state->flags & EF_NAMED_ATTACHMENT ? ent->s.hover_value : 0;
     state->stats[ENT_CARGO] = 0;
     /* World items have no health/mana hover bars, but their authored display
      * name should still appear when the pointer rests on a visible pickup. */
-    if (G_IsItem((edict_t *)ent)) {
-        if (ent->item && ent->item->in_world && !(state->renderfx & RF_HIDDEN) &&
+    item_t const *rec = G_ItemState(ent);
+    if (rec) {
+        if (rec->in_world && !(state->renderfx & RF_HIDDEN) &&
             !(state->flags & EF_NOT_SELECTABLE) && G_FowPlayerCanHoverEntity(player, ent)) {
-            state->name = G_UnitNameConfigstring(G_ObjectName(ent->class_id));
+            state->name = G_NameConfigstring(G_ObjectName(ent->class_id));
             /* The client's shared world-hover gate requires a positive health
              * snapshot even for name-only entities. Items have no health bar,
              * so publish a minimal presence value and keep the neutral pickup
@@ -2431,7 +2467,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
                 snprintf(localized, sizeof(localized), "%.*s", (int)(len - 2), name + 1);
                 name = localized;
             }
-            state->name = G_UnitNameConfigstring(G_LevelString(name));
+            state->name = G_NameConfigstring(G_LevelString(name));
             state->stats[ENT_HEALTH] = compress_stat(&ent->health);
             state->flags |= EF_NEUTRAL;
             /* TFT authors breakable selectability explicitly. ROC predates
@@ -2457,11 +2493,13 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     }
     if (hoverable) {
         uint32_t const cargo_capacity = S_CargoCapacity((edict_t *)ent);
-        if (cargo_capacity > 0)
-            state->stats[ENT_CARGO] = EntityCargoPack(ent->cargo ? ent->cargo->count : 0, cargo_capacity);
+        if (cargo_capacity > 0) {
+            cargo_t const *hold = ent->cargo;
+            state->stats[ENT_CARGO] = EntityCargoPack(hold ? hold->count : 0, cargo_capacity);
+        }
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
-        state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
+        state->name = G_NameConfigstring(G_UnitName(ent->s.class_id));
         state->hover_value = G_HoverResourceValue(ent);
         if (!G_UnitIsInvulnerable(ent)) state->flags |= EF_HOVER_HEALTH;
         if (ent->mana.max_value > 0.0f) state->flags |= EF_HOVER_MANA;

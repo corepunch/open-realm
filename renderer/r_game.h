@@ -46,6 +46,12 @@ void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source
 void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id);
 void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
+/* Optional, per-view opaque->alpha cull handoff; -1 means no valid result.
+ * The Warcraft III renderer owns its lifecycle. */
+void R_SolidVisibilityBegin(void);
+void R_SolidVisibilityEnd(void);
+bool R_SolidVisibilityMatchesView(void);
+int R_SolidVisibilityAt(uint32_t scene_index);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);
 float R_GetHeightAtPoint(float x, float y);
 void R_StartTerrainDeformation(terrainDeform_t const *deformation);
@@ -64,6 +70,9 @@ void R_RenderModelInstanced(model_t const *model, instanceBuffer_t const *instan
 bool R_ModelCanStaticInstance(model_t const *model);
 bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance);
 bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds);
+/* As above, but return the exact matrix used to select the model bounds.
+ * A false result leaves matrix unspecified (the caller uses sphere fallback). */
+bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, mat4_t *matrix);
 bool R_GetModelInfo(model_t *model, modelInfo_t *info);
 /* Mandatory for every game, including identity conversions. Returns native-model -> actor basis. */
 mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose);

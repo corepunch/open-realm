@@ -1,7 +1,60 @@
 #include "s_skills.h"
 
 #define ID_DISEASE_CLOUD MAKEFOURCC('A','a','p','l')
+#define ID_ABOMINATION_DISEASE_CLOUD MAKEFOURCC('A','a','p','1')
+#define ID_DISEASE_CLOUD_RESEARCH MAKEFOURCC('R','u','p','c')
 #define DISEASE_TICK_MS 1000 // milliseconds; DataB is damage per second; infection pulse interval
+
+static bool disease_cloud_researched(edict_t const *source, uint32_t ability) {
+    gameClient_t *owner;
+    if (ability != ID_ABOMINATION_DISEASE_CLOUD) return true;
+    owner = G_GetPlayerClientByNumber(source ? source->s.player : MAX_PLAYERS);
+    return owner && G_GetPlayerTechResearchedLevel(owner, ID_DISEASE_CLOUD_RESEARCH) > 0;
+}
+
+static void disease_cloud_update_abomination_art(edict_t *source, uint32_t ability) {
+    edict_t *effect = NULL;
+    if (!source || ability != ID_ABOMINATION_DISEASE_CLOUD) return;
+    FILTER_EDICTS(existing, existing->inuse && existing->owner == source &&
+                  existing->summon_ability == ability && existing->goalentity == source) {
+        effect = existing;
+        break;
+    }
+    if (!disease_cloud_researched(source, ability)) {
+        if (effect) G_FreeEdict(effect);
+        return;
+    }
+    if (effect) return;
+    effect = G_SpawnAbilityEffectTarget(ability, WC3_EFFECT_TARGET, 0, source, NULL, false);
+    if (!effect) return;
+    effect->owner = source;
+    effect->summon_ability = ability;
+}
+
+/* The map edict list is much larger than an individual cloud. Reject distant
+ * entries before spell targeting (immunity/status/ability lookups). Keep the
+ * existing exact sqrtf distance as the final range test: a square-only test
+ * would incorrectly infect units near its corners. This index-free check
+ * also follows moving sources/targets on every pulse. */
+static bool disease_cloud_in_range(vec2_t const *center, vec2_t const *point, float radius) {
+    float const dx = point->x - center->x;
+    float const dy = point->y - center->y;
+    if (!(dx >= -radius && dx <= radius && dy >= -radius && dy <= radius)) return false;
+    return Vector2_distance(center, point) <= radius;
+}
+
+#ifdef BZ_TESTS
+static uint32_t disease_cloud_target_validations;
+void S_TestResetDiseaseCloudTargetValidations(void) { disease_cloud_target_validations = 0; }
+uint32_t S_TestDiseaseCloudTargetValidations(void) { return disease_cloud_target_validations; }
+#endif
+
+static bool disease_cloud_allows_target(uint32_t ability, edict_t *source, edict_t *target) {
+#ifdef BZ_TESTS
+    disease_cloud_target_validations++;
+#endif
+    return S_SpellAllowsTarget(ability, source, target);
+}
 
 /* A recipient carries the infection after leaving the aura; rank and pulse deadline survive save/load. */
 static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
@@ -31,12 +84,17 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
     if (msg != A_UPDATE || !S_AuraUnitActive(ent)) return CAbilityPassive(ent, msg, call);
     ability = S_ResolveAbilityAlias(ent, ID_DISEASE_CLOUD);
     if (!ability.alias) return true;
+    if (ability.alias == ID_ABOMINATION_DISEASE_CLOUD) {
+        disease_cloud_update_abomination_art(ent, ability.alias);
+        if (!disease_cloud_researched(ent, ability.alias)) return true;
+    }
     row = G_AbilityLevel(ability.alias, ability.level);
     if (row->area <= 0.0f || row->data[0].number <= 0.0f || row->data[1].number <= 0.0f) return true;
     /* ROC omits BuffID; the authored TFT infection token is Bapl (Bplg is cloud art). */
     buff = row->buffID && strlen(row->buffID) >= 4 ? row->buffID : "Bapl";
-    FILTER_EDICTS(target, target != ent && S_SpellAllowsTarget(ability.alias, ent, target) &&
-                  Vector2_distance(&ent->s.origin2, &target->s.origin2) <= row->area) {
+    FILTER_EDICTS(target, target != ent && S_SpellIsAliveTarget(target) &&
+                  disease_cloud_in_range(&ent->s.origin2, &target->s.origin2, row->area) &&
+                  disease_cloud_allows_target(ability.alias, ent, target)) {
         /* Each infector owns its own infection: another source's Bapl must
          * neither suppress this application nor have its pulse phase reset. */
         heroabilitystatus_t *slot = unit_findstatussourceclass(target, FS_SLKKey(buff), ent);
@@ -64,6 +122,12 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
         if (slot->code == MAKEFOURCC('B','a','p','l'))
             slot->buff_flags = (slot->buff_flags & ~(WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE)) |
                                WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
+        /* Disease Cloud's persistent target model is authored on Bapl. The
+         * direct status application above intentionally owns independent
+         * infections, so opt each slot into the regular status-art lifecycle
+         * here (including same-source refreshes). */
+        if (slot->code == MAKEFOURCC('B','a','p','l'))
+            unit_status_enabletargetart(target, slot, NULL);
     }
     return true;
 }

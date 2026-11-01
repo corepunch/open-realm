@@ -38,14 +38,15 @@ bool G_UnitIsWorker(edict_t const *ent) {
 
 bool G_UnitShowsHeroShortcut(gameClient_t *client, edict_t const *ent) {
     return G_ShortcutIsControlledMonster(client, ent) && ent->data.UnitBalance &&
-        ent->data.UnitUI && !ent->training && !(ent->s.renderfx & RF_HIDDEN) &&
+        ent->data.UnitUI && !(ent && ent->training) &&
+        (!(ent->s.renderfx & RF_HIDDEN) || M_IsDead(ent)) &&
         !ent->data.UnitUI->hideHeroBar && !(ent->aiflags & AI_ILLUSION) &&
         G_UnitIsHero(ent);
 }
 
 bool G_UnitIsIdleWorker(edict_t const *ent) {
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
-        !ent->data.UnitBalance || ent->training || G_UnitIsStructure(ent) ||
+        !ent->data.UnitBalance || (ent && ent->training) || G_UnitIsStructure(ent) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
         S_GoldMineWorkerIsInside(ent) || ent->movement.holding_position ||
         !ent->currentmove || ent->currentmove->proc || !ent->currentmove->animation ||

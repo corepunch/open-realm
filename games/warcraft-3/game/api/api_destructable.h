@@ -55,7 +55,7 @@ uint32_t KillDestructable(jass_t *j) {
 }
 /* Ghidra: SetDestructableInvulnerable=FUN_003f83a0 sets an invuln flag bit on
  * the destructable (vtable+0xac); IsDestructableInvulnerable=FUN_003f83d0 reads
- * it (bit 3 of flags @+0x20).  Our edict already carries `invulnerable`, honored
+ * it (bit 3 of flags @+0x20).  Our edict uses `UNIT_FLAG_INVULNERABLE`, honored
  * by the damage path, so reuse it. */
 uint32_t SetDestructableInvulnerable(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
@@ -67,7 +67,7 @@ uint32_t SetDestructableInvulnerable(jass_t *j) {
 }
 uint32_t IsDestructableInvulnerable(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushboolean(j, d && d->invulnerable);
+    return jass_pushboolean(j, d && (d && d->invulnerable));
 }
 uint32_t EnumDestructablesInRect(jass_t *j) {
     /* Visit every destructable inside the rect, exposing each as the enum

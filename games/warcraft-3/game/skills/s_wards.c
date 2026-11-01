@@ -274,8 +274,7 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	G_SetEntityHidden(mine,false);
 	if (invis == 0.0f) G_SetEntityHidden(mine,true);
 	thinker->owner = mine;
-	if (!thinker->channel) thinker->channel = G_AllocChannel();
-	assert(thinker->channel);
+	(thinker->channel ? thinker->channel : (thinker->channel=G_AllocChannel()));
 	thinker->channel->owner_spawn_time = mine->spawn_time;
 	thinker->class_id = code;
 	thinker->wait = (float)level;
@@ -334,6 +333,22 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 	}
 }
 
+static bool sentinel_owl_active(edict_t const *owl);
+
+static edict_t *sentinel_tree_at_point(vec2_t const *point) {
+	edict_t *nearest = NULL;
+	float nearest_distance = 1.0f;
+	if (!point) return NULL;
+	FILTER_EDICTS(tree, tree->targtype == TARG_TREE && G_DestructableIsAttackable(tree)) {
+		float const distance = Vector2_distance(&tree->s.origin2, point);
+		if (distance <= nearest_distance) {
+			nearest = tree;
+			nearest_distance = distance;
+		}
+	}
+	return nearest;
+}
+
 static bool ward_is_sentry(edict_t const *ward) {
 	return ward && ward->inuse && G_AbilityCode(ward->summon_ability) == ID_AEYE;
 }
@@ -346,6 +361,8 @@ static bool ward_is_sentry(edict_t const *ward) {
 /* Passive detectors all expose their authored true-sight radius through Rng.
  * Keep this list data-driven rather than keying detection to unit rawcodes. */
 static float unit_detector_range(edict_t const *detector) {
+	static uint32_t const magic_sentry = MAKEFOURCC('A', 'd', 't', 's');
+	static uint32_t const magic_sentry_research = MAKEFOURCC('R', 'h', 's', 'e');
 	static uint32_t const abilities[] = {
 		MAKEFOURCC('A', 'd', 'e', 't'), /* Detector */
 		MAKEFOURCC('A', 'g', 'y', 'v'), /* True Sight (Flying Machine) */
@@ -357,9 +374,58 @@ static float unit_detector_range(edict_t const *detector) {
 	float range = 0.0f;
 	FOR_LOOP(i, sizeof(abilities) / sizeof(*abilities)) {
 		uint32_t level = G_UnitAbilityClassLevel(detector, abilities[i]);
+        if (abilities[i] == magic_sentry &&
+            G_GetPlayerTechResearchedLevel(G_GetPlayerClientByNumber(detector->s.player), magic_sentry_research) <= 0)
+            continue;
 		if (level) range = MAX(range, S_SpellRange(abilities[i], level));
 	}
 	return range;
+}
+
+/* Magic Sentry has no TargetArt in either the RoC or TFT AbilityData row.
+ * Use its authored caster model as the persistent researched tower visual. */
+static uint32_t const magic_sentry = MAKEFOURCC('A', 'd', 't', 's');
+static uint32_t const magic_sentry_research = MAKEFOURCC('R', 'h', 's', 'e');
+static cstring_t const magic_sentry_model = "Abilities\\Spells\\Human\\MagicSentry\\MagicSentryCaster.mdx";
+
+static edict_t *find_magic_sentry_effect(edict_t *unit) {
+	edict_t *effect = NULL;
+	if (!unit || unit->s.number >= MAX_ENTITIES) return NULL;
+	FILTER_EDICTS(candidate, candidate->owner == unit && candidate->summon_ability == magic_sentry &&
+	              (candidate->s.flags & EF_NOT_SELECTABLE)) {
+		effect = candidate;
+		break;
+	}
+	return effect;
+}
+
+void S_RemoveMagicSentryPresentation(edict_t *unit) {
+	edict_t *effect = find_magic_sentry_effect(unit);
+	if (!effect) return;
+	effect->owner = NULL;
+	effect->summon_ability = 0;
+	G_DestroyEffect(effect);
+}
+
+void S_UpdateMagicSentryPresentation(edict_t *unit) {
+	edict_t *effect;
+	gameClient_t *owner;
+	bool active;
+
+	if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES ||
+	    !G_UnitAbilityLevel(unit, magic_sentry)) return;
+	effect = find_magic_sentry_effect(unit);
+	owner = G_GetPlayerClientByNumber(unit->s.player);
+	active = owner && G_GetPlayerTechResearchedLevel(owner, magic_sentry_research) > 0;
+	if (active) {
+		if (!effect) {
+			effect = G_SpawnModelEffect(magic_sentry_model, NULL, unit, "overhead", false);
+			if (effect) {
+				effect->owner = unit;
+				effect->summon_ability = magic_sentry;
+			}
+		}
+	} else S_RemoveMagicSentryPresentation(unit);
 }
 
 static float permanent_invisibility_transition(edict_t const *unit) {
@@ -581,13 +647,14 @@ bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player) {
 		if (Vector2_distance(&sight->s.origin2, &unit->s.origin2) <= sight->collision) return true;
 	}
 
-	/* Sentry wards are active hidden detectors whose fixture/unit data may not
-	 * carry authored monster health; their summon lifecycle is authoritative. */
+	/* Sentry wards and Sentinel owls are independent detector entities, not
+	 * combat monsters; their respective lifecycles are authoritative. */
 	FILTER_EDICTS(detector, detector != unit &&
-	              (ward_is_sentry(detector) || S_SpellIsAliveTarget(detector)) &&
+	              (ward_is_sentry(detector) || sentinel_owl_active(detector) || S_SpellIsAliveTarget(detector)) &&
 	              detector_shared_with_player(detector, player) &&
 	              S_SpellIsEnemy(detector, (edict_t *)unit)) {
-		float range = ward_is_sentry(detector) ? detector->wait : unit_detector_range(detector);
+		float range = (ward_is_sentry(detector) || detector->think == sentinel_owl_think) ?
+			detector->wait : unit_detector_range(detector);
 		if (range > 0.0f && Vector2_distance(&detector->s.origin2, &unit->s.origin2) <= range) return true;
 	}
 	return false;
@@ -620,6 +687,133 @@ bool S_UnitIsDetected(edict_t const *unit) {
 	FOR_LOOP(player, MAX_PLAYERS)
 		if (S_UnitIsDetectedByPlayer(unit, player)) return true;
 	return false;
+}
+
+#define ID_AESN MAKEFOURCC('A', 'e', 's', 'n') /* Sentinel (Huntress) */
+#define SENTINEL_OWL_MODEL "Units\\NightElf\\Owl\\Owl.mdx"
+
+/* Do not keep the caster as an owner: an owl belongs to its player and remains
+ * stationed even if the Huntress dies.  The target incarnation and health
+ * recorded at placement are the tree's attachment/removal contract. */
+static bool sentinel_owl_active(edict_t const *owl) {
+    edict_t *tree;
+    if (!owl || !owl->inuse || owl->summon_ability != ID_AESN ||
+        owl->think != sentinel_owl_think ||
+        (owl->freetime && G_Time() >= owl->freetime)) return false;
+    tree = owl->goalentity;
+    return tree && tree->inuse && tree->spawn_time == owl->damage &&
+           tree->targtype == TARG_TREE && G_IsDestructable(tree) &&
+           !tree->destructable->dead && tree->health.value > 0.0f &&
+           tree->health.value >= owl->mana.value;
+}
+
+/* The thinker is saved as an edict callback.  Its runtime sight is consumed by
+ * g_fow.c's normal owner/shared-vision pass, not by a private fog modifier. */
+void sentinel_owl_think(edict_t *owl) {
+    animation_t const *anim;
+    if (!sentinel_owl_active(owl)) {
+        G_FreeEdict(owl);
+        return;
+    }
+    /* An owl is a lightweight entity without a unit currentmove.  Advance
+     * its stand sequence directly, not through M_MoveFrame (which expects an
+     * allocated unit move and invokes its callbacks). */
+    anim = owl->animation;
+    if (anim && anim->interval[1] > anim->interval[0]) {
+        if (owl->s.frame < anim->interval[0] || owl->s.frame + 1 >= anim->interval[1])
+            owl->s.frame = anim->interval[0];
+        else
+            owl->s.frame++;
+    }
+}
+
+/* Dispel is an independent removal path; a dispelled owl cannot restore the
+ * spent Sentinel charge to its Huntress. */
+uint32_t S_SentinelDispelAt(vec2_t const *point, float radius) {
+    uint32_t removed = 0;
+    if (!point || radius < 0.0f) return 0;
+    FILTER_EDICTS(owl, owl->inuse && owl->summon_ability == ID_AESN &&
+                  owl->think == sentinel_owl_think &&
+                  Vector2_distance(&owl->s.origin2, point) <= radius) {
+        G_FreeEdict(owl);
+        removed++;
+    }
+    return removed;
+}
+
+/* The stock Sentinel owl uses AbilityData Area for the revealed/detected
+ * radius and Dur for lifetime.  The caster must target a living tree, and
+ * the one-shot command is removed only after the owl is created. */
+BZ_ABILITY_PROC(CAbilitySentinel) {
+	spellTarget_t const *target;
+	edict_t *tree;
+    uint32_t code = call && call->item ? call->item->code : ID_AESN;
+    uint32_t level;
+    float radius, duration;
+    edict_t *owl;
+
+    switch (msg) {
+	case A_SPELL_TARGET_MODE:
+		if (call) ((abilityCall_t *)call)->spell_entity_target_mode = true;
+		return true;
+	case A_SPELL_APPROACH_RANGE:
+		/* This query carries the range in the call payload, not a target. */
+		return true;
+	default:
+		break;
+	}
+	target = call ? call->target : NULL;
+	tree = target && target->type == SPELL_TARGET_UNIT ? target->entity :
+		target && target->type == SPELL_TARGET_POINT ? sentinel_tree_at_point(&target->point) : NULL;
+	switch (msg) {
+    case A_VALIDATE:
+        return ent && tree && G_UnitAbilityLevel(ent, code) &&
+               G_UnitAbilityResearchAvailable(ent, code) &&
+               tree->targtype == TARG_TREE && G_DestructableIsAttackable(tree) &&
+               S_SpellAllowsTarget(code, ent, tree);
+    case A_EXECUTE:
+        if (!ent || !tree || !G_UnitAbilityLevel(ent, code) ||
+            !G_UnitAbilityResearchAvailable(ent, code) ||
+            tree->targtype != TARG_TREE || !G_DestructableIsAttackable(tree)) return false;
+        level = S_SpellLevel(ent, code);
+        /* Aesn's object-data fields are ability-specific: DataB is the
+         * hovering owl's sight radius and DataC is its hovering height.
+         * Area and Dur are zero in stock Warcraft data. */
+        radius = S_SpellData(code, level, 2);
+        float hover_height = S_SpellData(code, level, 3);
+        if (hover_height <= 0.0f) hover_height = 64.0f;
+        duration = S_SpellDuration(code, level, false);
+        if (radius <= 0.0f) return false;
+        owl = G_Spawn();
+        if (!owl) return false;
+        owl->summon_ability = ID_AESN;
+        owl->s.player = ent->s.player;
+        owl->s.flags |= EF_NOT_SELECTABLE;
+        owl->s.origin = tree->s.origin;
+        owl->s.origin2 = tree->s.origin2;
+        owl->s.origin.z += hover_height;
+        owl->s.model = G_RegisterModel(SENTINEL_OWL_MODEL);
+        owl->s.scale = 1.0f;
+        owl->health.value = owl->health.max_value = 1.0f;
+        owl->mana.value = tree->health.value; /* original tree HP */
+        owl->damage = tree->spawn_time; /* target incarnation */
+        owl->goalentity = tree;
+        owl->wait = radius; /* true-sight radius */
+        owl->runtime.sight_radius.day = radius;
+        owl->runtime.sight_radius.night = radius;
+        owl->freetime = duration > 0.0f ?
+            G_Time() + (uint32_t)(duration * 1000.0f) : 0;
+        owl->think = sentinel_owl_think;
+        G_SetUnitAnimation(owl, "stand");
+        /* Publish the persistent model at the tree's fixed world position. */
+        gi.LinkEntity(owl);
+        if (!G_ActorRemoveSkill(ent, code)) {
+            G_FreeEdict(owl);
+            return false;
+        }
+        return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
 }
 
 /* Name=Sentry Ward; UnitID + Dur summon; detect radius from Adt1 Rng stored on ward.wait. */

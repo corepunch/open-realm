@@ -7,6 +7,10 @@
  */
 #include "client.h"
 #include "sound/s_local.h"
+#if defined(BZ_MUSIC_MP3) && !defined(BZ_FFMPEG)
+#include "vendor/minimp3/minimp3.h"
+#include <limits.h>
+#endif
 
 #ifdef BZ_FFMPEG
 #include <libavcodec/avcodec.h>
@@ -79,6 +83,17 @@ typedef struct {
     uint32_t fade_duration_ms;
     float fade_start_factor;
     clMusicFade_t fade;
+#if defined(BZ_FFMPEG) || defined(BZ_MUSIC_MP3)
+    bool decoder_eof;
+#endif
+#if defined(BZ_MUSIC_MP3) && !defined(BZ_FFMPEG)
+    mp3dec_t mp3;
+    uint8_t *mp3_data;
+    uint32_t mp3_size;
+    uint32_t mp3_offset;
+    double mp3_phase;
+    uint64_t mp3_skip;
+#endif
 #ifdef BZ_FFMPEG
     bool extracted;
     PATHSTR source_path;
@@ -91,7 +106,6 @@ typedef struct {
     int audio_stream;
     bool demux_eof;
     bool decoder_flushed;
-    bool decoder_eof;
     uint8_t *audio_buffer;
     unsigned int audio_buffer_size;
 #endif
@@ -239,7 +253,11 @@ static bool CL_MusicResolveDiskPath(cstring_t path) {
 
 static bool CL_MusicOpenCodec(void) {
     AVStream *stream;
+#if LIBAVFORMAT_VERSION_MAJOR >= 59
     AVCodec const *decoder;
+#else
+    AVCodec *decoder;
+#endif
     AVCodecContext *codec;
     int audio_stream;
 
@@ -258,10 +276,15 @@ static bool CL_MusicOpenCodec(void) {
 }
 
 static bool CL_MusicEnsureConversion(AVFrame const *frame) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     AVChannelLayout output_layout = AV_CHANNEL_LAYOUT_STEREO;
     int result;
+#else
+    int64_t input_layout;
+#endif
 
     if (cl_music.swr) return true;
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (frame->sample_rate <= 0 || frame->ch_layout.nb_channels <= 0) return false;
     result = swr_alloc_set_opts2(&cl_music.swr,
                                  &output_layout,
@@ -272,7 +295,26 @@ static bool CL_MusicEnsureConversion(AVFrame const *frame) {
                                  frame->sample_rate,
                                  0,
                                  NULL);
+#else
+    if (frame->sample_rate <= 0 || frame->channels <= 0) return false;
+    input_layout = frame->channel_layout;
+    if (!input_layout) input_layout = av_get_default_channel_layout(frame->channels);
+    if (!input_layout) return false;
+    cl_music.swr = swr_alloc_set_opts(NULL,
+                                      AV_CH_LAYOUT_STEREO,
+                                      AV_SAMPLE_FMT_S16,
+                                      44100,
+                                      input_layout,
+                                      (enum AVSampleFormat)frame->format,
+                                      frame->sample_rate,
+                                      0,
+                                      NULL);
+#endif
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (result < 0 || !cl_music.swr || swr_init(cl_music.swr) < 0) {
+#else
+    if (!cl_music.swr || swr_init(cl_music.swr) < 0) {
+#endif
         swr_free(&cl_music.swr);
         return false;
     }
@@ -402,6 +444,89 @@ static bool CL_MusicOpenTrack(cstring_t path, int32_t start_ms) {
     S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
     if (start_ms > 0 && !CL_MusicSeekDecoder(start_ms)) { CL_MusicCloseDecoder(); return false; }
     if (!CL_MusicPumpDecoder()) { CL_MusicCloseDecoder(); return false; }
+    return true;
+}
+#elif defined(BZ_MUSIC_MP3)
+/* Keep only compressed source bytes and one decoded frame; PCM stays in the mixer ring. */
+static void CL_MusicCloseDecoder(void) {
+    S_StreamStop(S_STREAM_MUSIC);
+    FS_FreeFile(cl_music.mp3_data);
+    cl_music.mp3_data = NULL;
+    cl_music.mp3_size = cl_music.mp3_offset = 0;
+    cl_music.decoder_active = cl_music.decoder_eof = false;
+}
+
+static bool CL_MusicPumpDecoder(void) {
+    mp3d_sample_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    int16_t stereo[16384];
+
+    if (!cl_music.decoder_active || cl_music.paused || cl_music.suspended) return true;
+    while (!cl_music.decoder_eof && S_StreamBufferedFrames(S_STREAM_MUSIC) < CL_MUSIC_AUDIO_TARGET_FRAMES) {
+        mp3dec_frame_info_t info;
+        uint32_t remaining = cl_music.mp3_size - cl_music.mp3_offset;
+        uint32_t count = 0;
+        int samples;
+
+        if (!remaining) { cl_music.decoder_eof = true; break; }
+        samples = mp3dec_decode_frame(&cl_music.mp3, cl_music.mp3_data + cl_music.mp3_offset,
+                                      (int)remaining, pcm, &info);
+        if (info.frame_bytes <= 0 || (uint32_t)info.frame_bytes > remaining) {
+            cl_music.decoder_eof = true;
+            break;
+        }
+        cl_music.mp3_offset += info.frame_bytes;
+        if (!samples) continue;
+        if ((info.channels != 1 && info.channels != 2) || info.hz < 8000) return false;
+        while (cl_music.mp3_phase < samples) {
+            int index = (int)cl_music.mp3_phase * info.channels;
+            if (cl_music.mp3_skip) cl_music.mp3_skip--;
+            else {
+                if (count >= sizeof(stereo) / sizeof(stereo[0]) / 2) return false;
+                stereo[count * 2] = pcm[index];
+                stereo[count * 2 + 1] = pcm[index + info.channels - 1];
+                count++;
+            }
+            cl_music.mp3_phase += (double)info.hz / 44100.0;
+        }
+        cl_music.mp3_phase -= samples;
+        if (count && S_StreamSamples(S_STREAM_MUSIC, stereo, count) != count) return false;
+    }
+    return true;
+}
+
+static bool CL_MusicSeekDecoder(int32_t millisecs) {
+    if (!cl_music.decoder_active) return false;
+    mp3dec_init(&cl_music.mp3);
+    cl_music.mp3_offset = 0;
+    cl_music.mp3_phase = 0;
+    cl_music.mp3_skip = (uint64_t)MAX(0, millisecs) * 44100 / 1000;
+    cl_music.decoder_eof = false;
+    cl_music.position_base_ms = MAX(0, millisecs);
+    S_StreamStart(S_STREAM_MUSIC);
+    CL_MusicApplyVolume();
+    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
+    return true;
+}
+
+static bool CL_MusicOpenTrack(cstring_t path, int32_t start_ms) {
+    CL_MusicCloseDecoder();
+    if (!path || !*path) return false;
+    cl_music.mp3_data = FS_ReadFile(path, &cl_music.mp3_size);
+    if (!cl_music.mp3_data || cl_music.mp3_size < 4 || cl_music.mp3_size > INT_MAX) {
+        CL_MusicCloseDecoder();
+        return false;
+    }
+    cl_music.decoder_active = true;
+    CL_MusicSeekDecoder(start_ms);
+    if (cl_music.fade != CL_MUSIC_FADE_NONE) {
+        cl_music.fade_start_ticks = SDL_GetTicks();
+        cl_music.fade_clock_ticks = cl_music.fade_start_ticks;
+    }
+    if (!CL_MusicPumpDecoder() || (cl_music.decoder_eof && !S_StreamBufferedFrames(S_STREAM_MUSIC))) {
+        CL_MusicCloseDecoder();
+        return false;
+    }
+    fprintf(stderr, "Music: streaming MP3 %s\n", path);
     return true;
 }
 #else
@@ -831,7 +956,7 @@ void CL_MusicUpdate(void) {
         if (cl_music.fade != CL_MUSIC_FADE_OUT) CL_MusicAdvancePlaylist();
         return;
     }
-#ifdef BZ_FFMPEG
+#if defined(BZ_FFMPEG) || defined(BZ_MUSIC_MP3)
     if (cl_music.decoder_active && cl_music.decoder_eof && S_StreamBufferedFrames(S_STREAM_MUSIC) == 0 &&
         cl_music.fade != CL_MUSIC_FADE_OUT) {
         CL_MusicAdvancePlaylist();

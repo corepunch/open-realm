@@ -71,6 +71,9 @@ endif
 ifeq ($(WC3_DEBUG_TUTORIAL_FLOW),1)
 	CFLAGS += -DWC3_DEBUG_TUTORIAL_FLOW
 endif
+ifeq ($(DEBUG_MAP_LOAD),1)
+	CFLAGS += -DDEBUG_MAP_LOAD
+endif
 # Include Warcraft III result/score investigation logging only when requested.
 ifeq ($(WC3_DEBUG_SCORE),1)
 	CFLAGS += -DBZ_WC3_DEBUG_SCORE
@@ -320,3 +323,16 @@ list-devices:
 
 # Browser foundation is isolated from native module linking and platform flags.
 include port/web/build.mk
+
+# Standalone production-shader probe; this is not an Android game build.
+.PHONY: android-probe android-probe-run
+android-probe:
+	python3 tools/android/build_probe.py
+android-probe-run:
+	python3 tools/android/build_probe.py --serial $(or $(ANDROID_SERIAL),emulator-5554)
+
+.PHONY: android-warcraft3 android-warcraft3-run
+android-warcraft3:
+	python3 tools/android/build_probe.py --game
+android-warcraft3-run:
+	python3 tools/android/build_probe.py --game --serial $(or $(ANDROID_SERIAL),emulator-5554)

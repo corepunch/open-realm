@@ -376,6 +376,11 @@ typedef enum {
     WPN_MLINE,
 } weaponType_t;
 
+static inline bool G_WeaponUsesProjectile(weaponType_t weapon) {
+    return weapon == WPN_MISSILE || weapon == WPN_ARTILLERY ||
+           weapon == WPN_MSPLASH || weapon == WPN_MBOUNCE || weapon == WPN_ALINE;
+}
+
 
 typedef enum {
     ALLIANCE_PASSIVE = 0,
@@ -1915,7 +1920,8 @@ typedef enum {
     WC3_STATUS_BUFF_UNDISPELLABLE = 1u << 4,
     WC3_STATUS_BUFF_TRANSFERABLE = 1u << 5,
     /* Opt-in persistent TargetArt owned by the status lifecycle, not the caster. */
-    WC3_STATUS_BUFF_TARGET_ART = 1u << 6
+    WC3_STATUS_BUFF_TARGET_ART = 1u << 6,
+    WC3_STATUS_BUFF_ONE_SHOT_ATTACK = 1u << 7
 } wc3_status_buff_flag_t;
 
 typedef struct heroabilitystatus_s {
@@ -2003,6 +2009,13 @@ typedef struct shopStockItem_s {
     uint32_t delay_end;
 } shopStockItem_t;
 
+/* Building-owned Pillage remainder ledger, separate for each attacking player. */
+typedef struct {
+    double damage_remainder[MAX_PLAYERS];
+    double gold_remainder[MAX_PLAYERS];
+    double lumber_remainder[MAX_PLAYERS];
+} pillage_t;
+
 typedef struct stock_s {
     uint32_t item_slots, unit_slots;
     bool items_initialized;
@@ -2039,6 +2052,9 @@ typedef enum {
 typedef struct artillery_s {
     uint32_t attack_type, area_targets, targets_allowed;
     float area_full, area_medium, area_small, factor_medium, factor_small;
+    float spill_distance, spill_radius;
+    vec2_t line_origin;
+    bool tree_attack_allowed;
 } artillery_t;
 
 typedef enum {
@@ -2179,6 +2195,7 @@ typedef struct {
     abilityPrimaryTimer_t transition, expiration;
     float expiration_remaining; /* AEme paused common-lifetime remainder. */
     bool expiration_paused;
+    float metamorphosis_health_bonus;
     uint32_t code, base_type, target_type;
     uint32_t category_clear, category_set; /* Concrete morph owner's fine occupancy publication. */
     bool reverse, deferred_rebind, animation_held;
@@ -2346,6 +2363,7 @@ typedef struct {
     float armor, health;
     int32_t damage;
     abilityPrimaryTimer_t transition; /* Native Avatar d01c4; outlives BHav. */
+    float original_scale;
 } avatar_t;
 
 typedef struct {
@@ -2423,6 +2441,7 @@ struct edict_s {
     uint32_t wander_random_state;
     edict_t *wander_goal; /* active move, only when owned by Awan */
     edict_t *wander_waypoint; /* private, stable destination while Awan is installed */
+    uint32_t wander_waypoint_spawn_time; /* incarnation of the private destination */
     uint32_t wander_goal_generation;
     uint32_t waypoint_generation; /* increments whenever the waypoint ring reuses this edict */
     shadowMeld_t *shadowmeld;
@@ -2449,6 +2468,7 @@ struct edict_s {
     uint32_t peonsinside;
     uint32_t aiflags;
     uint32_t damage;
+    uint32_t projectile_owner_spawn_time; /* Launch-owner incarnation; rejects recycled attackers. */
     uint32_t projectile_attack_type; /* basic missile attack type captured at launch */
     /* Impact behavior captured by fixed-point artillery shots. */
     artillery_t *artillery; /* projectile splash profile; null on units */
@@ -2466,7 +2486,8 @@ struct edict_s {
     destructable_t *destructable;
     cargo_t *cargo;
     edict_t *ground_next;
-    stock_t *stock; /* shop merchandise; null unless this edict is a shop */
+    stock_t *stock;
+    pillage_t *pillage; /* sparse per-player salvage remainders */
     float velocity;
     doodadHero_t hero;
     int32_t hero_item_agility; /* reversible item contribution; hero.agi retains total AGI */
@@ -2474,6 +2495,7 @@ struct edict_s {
     /* XP supplied by scripted level assignments, retained with the hero when ownership changes. */
     uint32_t score_level_xp;
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
+    cstring_t proper_name; /* Runtime trained Hero name; saved independently of profile rows. */
     uint32_t hero_proper_name; /* original 28a460 Propernames slot, chosen once at creation */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t *abilstatus; /* optional pool; fixed slot order when present */
@@ -5482,5 +5504,31 @@ extern struct edict_s *g_edicts;
 static inline uint32_t G_Time(void) { return level.time; }
 
 extern unitMeta_t const UnitsMetaData[];
+
+/* Upstream gameplay entry points retained with local state ownership. */
+void G_DispelBlightRadius(vec2_t const *point, float radius);
+uint16_t G_NameConfigstring(cstring_t name);
+void G_InitMapPlacementUnitState(edict_t *ent, doodad_t const *placement);
+cstring_t G_AbilityBuffArt(uint32_t buff_id);
+uint32_t G_AbilityEffectCode(uint32_t ability_id, uint32_t level);
+bool G_UnitUsesUpgrade(edict_t const *unit, uint32_t upgrade_id);
+int32_t G_ImpalingBoltResearchLevel(edict_t const *unit);
+int32_t G_SpikedBarricadesResearchLevel(edict_t const *unit);
+bool G_SpikedBarricadesModernEnabled(void);
+int32_t G_MoonGlaiveResearchLevel(edict_t const *unit);
+pillage_t *G_AllocPillage(void);
+void G_FreePillage(edict_t *ent);
+#ifdef BZ_TESTS
+bool G_TestPushAbilityConfig(cstring_t);
+void G_TestPopAbilityConfig(void);
+#endif
+
+item_t *G_ItemState(edict_t const *item);
+edict_t *G_InventoryItem(edict_t const *unit, uint32_t slot);
+static inline bool G_UnitIsResearching(edict_t const *ent) { return ent && ent->research && ent->research->upgrade; }
+static inline bool G_HeroIsReviving(edict_t const *ent) { return ent && ent->revival && ent->revival->reviving; }
+static inline bool G_HeroAwaitsRevival(edict_t const *ent) { return ent && ent->revival && ent->revival->awaiting; }
+
+cstring_t G_InternAnimationName(cstring_t text);
 
 #endif

@@ -1,6 +1,18 @@
 #include "test.h"
 #include "renderer/r_local.h"
 #include "renderer/r_game.h"
+#include "renderer/r_render_scale.h"
+
+TEST(renderer_view, render_scale_preserves_aspect_and_bounds) {
+    size2_t size = R_RenderScaleSize((size2_t){1920, 1200}, 75);
+    T_EQ(size.width, 1440); T_EQ(size.height, 900);
+    size = R_RenderScaleSize((size2_t){1920, 1200}, 67);
+    T_EQ(size.width, 1286); T_EQ(size.height, 804);
+    size = R_RenderScaleSize((size2_t){1920, 1200}, 0);
+    T_EQ(size.width, 1920); T_EQ(size.height, 1200);
+    size = R_RenderScaleSize((size2_t){1, 1}, 50);
+    T_EQ(size.width, 1); T_EQ(size.height, 1);
+}
 
 struct render_globals tr;
 static viewDef_t drawn;
@@ -42,6 +54,10 @@ void R_SetupViewport(rect_t const *rect) { (void)rect; }
 void R_SetupScissor(rect_t const *rect) { (void)rect; }
 void R_SetupGL(bool light) { (void)light; }
 void R_RevertSettings(void) {}
+static bool test_scaled_view;
+static int scaled_view_ends;
+bool R_BeginScaledView(viewDef_t const *view) { (void)view; return test_scaled_view; }
+void R_EndScaledView(viewDef_t const *view) { (void)view; scaled_view_ends++; }
 void R_RenderFogOfWar(void) {}
 uint32_t R_GetFogOfWarTexture(void) { return 0; }
 void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id) {
@@ -63,6 +79,19 @@ void R_DrawAlphaSurfaces(void) {
     if (capture_camera_pass_order) camera_pass_order = camera_pass_order * 10 + 3;
 }
 void R_RenderView(void) { drawn = tr.viewDef; scenes++; }
+
+TEST(renderer_view, scaled_target_restored_after_world_and_entity_camera) {
+    renderEntity_t entity = {0};
+    viewDef_t view = { .time = 1234, .entities = &entity, .num_entities = 1 };
+    test_scaled_view = true;
+    scaled_view_ends = 0;
+    R_RenderFrame(&view);
+    T_EQ(scaled_view_ends, 1);
+    view.rdflags = RDF_NOWORLDMODEL | RDF_USE_ENTITY_CAMERA;
+    R_RenderFrame(&view);
+    T_EQ(scaled_view_ends, 2);
+    test_scaled_view = false;
+}
 cparticle_t *R_BeginParticleScene(particleScene_t *scene) {
     captured_particle_scene = scene;
     if (particle_scene_begins < (int)(sizeof(captured_particle_scenes) / sizeof(captured_particle_scenes[0])))

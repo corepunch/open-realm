@@ -52,7 +52,10 @@ static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float 
     if (!unit || !unit->data.UnitProfile || !(art = unit->data.UnitProfile->art) || !*art) return;
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_COMMANDBUTTON;
-    frame.color = COLOR32_WHITE;
+    /* Dead Heroes stay in the roster so their button can still locate the
+     * corpse. Dim the portrait while dead and restore it on revival. */
+    frame.color = G_UnitIsHero(unit) && M_IsDead(unit)
+        ? MAKE(color32_t, 128, 128, 128, 255) : COLOR32_WHITE;
     frame.tex.index = gi.ImageIndex(art);
     frame.onclick = command;
     frame.tooltip = tooltip;

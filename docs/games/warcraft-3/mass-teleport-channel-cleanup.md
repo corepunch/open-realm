@@ -5,7 +5,7 @@ and destination incarnations plus the cast serial. Cancelling the channel
 cleans up owned area effects and releases destination pause, but the retired
 thinker may receive one more scheduled tick before `S_SpellEndChannel` frees it.
 
-The cleanup path must not clear `target->paused` when a different live Mass
+The cleanup path must not clear `UNIT_FLAG_PAUSED` on the target when a different live Mass
 Teleport thinker already owns the same destination. This includes a recast on
 the same building, and a reused caster with a different serial. Previous
 pre-existing pause is preserved through the thinker's `wait` snapshot.

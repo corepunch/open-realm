@@ -6,6 +6,10 @@ Unart=TestUI\Textures\return-resources.blp
 UnButtonpos=3,2
 Unhotkey=R
 
+[Agyv]
+Art=ReplaceableTextures\PassiveButtons\PASBTNFlyingMachineTrueSight.blp
+Buttonpos=0,2
+
 [AHhb]
 TargetArt=TestUI\Models\anim_pulse.mdx,TestUI\Models\quad_sprite.mdx
 SpecialArt=TestUI\Models\panel_sprite.mdx

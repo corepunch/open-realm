@@ -16,8 +16,16 @@ int R_ReadTextureFile(cstring_t name, string_t path, void **buffer) {
     return ri.FS_ReadFile(path, buffer);
 }
 
-/* texid -> texture index for model texture resolution; the cache below owns the texture memory. */
-static texture_t *g_textures = NULL;
+/* Registered GL texture IDs resolve MDX materials on the hot render path. The
+   existing texture_t::next pointer chains buckets rather than one global list;
+   path-cache entries below still own allocations and their lifetimes. */
+#define R_TEXTURE_ID_BUCKETS 2048u
+static texture_t *g_textures[R_TEXTURE_ID_BUCKETS];
+
+static uint32_t R_TextureIdBucket(uint32_t textureID) {
+    /* Multiplicative integer hashing; bucket count is a power of two. */
+    return (textureID * 2654435761u) & (R_TEXTURE_ID_BUCKETS - 1u);
+}
 static GLenum r_bgra_internal;
 
 /* Source bytes determine channel order; context capabilities only determine whether conversion is necessary. */
@@ -133,7 +141,7 @@ void R_ShutdownTextureCache(void) {
     }
     memset(r_image_hash, 0, sizeof(r_image_hash));
     /* The cache owns every cached texture; g_textures only indexes them by texid, so it must not outlive the free. */
-    g_textures = NULL;
+    memset(g_textures, 0, sizeof(g_textures));
 }
 
 /* Streaming world loads route through here so their cache entries are stamped
@@ -154,10 +162,14 @@ void R_AdvanceTextureGeneration(void) {
 
 /* Remove a texture from the texid index list before its memory is freed. */
 static void R_UnlinkTextureFromIndex(texture_t *texture) {
-    texture_t * *pp = &g_textures;
-    while (*pp) {
-        if (*pp == texture) { *pp = texture->next; return; }
-        pp = &(*pp)->next;
+    texture_t **link = &g_textures[R_TextureIdBucket(texture->texid)];
+    while (*link) {
+        if (*link == texture) {
+            *link = texture->next;
+            texture->next = NULL;
+            return;
+        }
+        link = &(*link)->next;
     }
 }
 
@@ -209,7 +221,9 @@ int R_RegisterTextureFile(char const *textureFileName) {
     if (tex) {
         /* The cache can return an existing node; the old unbraced macro call always reassigned the head. */
         if (!R_FindTextureByID(tex->texid)) {
-            ADD_TO_LIST(tex, g_textures);
+            uint32_t bucket = R_TextureIdBucket(tex->texid);
+            tex->next = g_textures[bucket];
+            g_textures[bucket] = tex;
         }
         return tex->texid;
     } else {
@@ -218,7 +232,7 @@ int R_RegisterTextureFile(char const *textureFileName) {
 }
 
 struct texture const* R_FindTextureByID(uint32_t textureID) {
-    for (texture_t const *tex = g_textures; tex; tex = tex->next) {
+    for (texture_t const *tex = g_textures[R_TextureIdBucket(textureID)]; tex; tex = tex->next) {
         if (tex->texid == textureID)
             return tex;
     }
@@ -263,6 +277,8 @@ void R_ReleaseTexture(texture_t *texture) {
         if (texture == tr.texture[i])
             return;
     }
+    /* A non-cached texture may still have been registered by GL ID. */
+    R_UnlinkTextureFromIndex(texture);
     R_Call(glDeleteTextures, 1, &texture->texid);
     texture->texid = 0;
     ri.MemFree(texture);

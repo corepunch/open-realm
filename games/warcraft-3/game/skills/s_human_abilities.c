@@ -26,8 +26,18 @@ void human_ability_think(edict_t *thinker);
 static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     cstring_t buff = S_SpellBuffId(spell->code, level);
     if (buff) return buff;
-    /* ROC omits BuffID; Aply/ACpy share the TFT token. */
-    return G_AbilityCode(spell->code) == BZ_POLYMORPH ? "Bply" : NULL;
+#if BZ_COMPAT_WORKAROUNDS
+    /* ROC omits BuffID for these stock statuses. */
+    switch (G_AbilityCode(spell->code)) {
+    case BZ_POLYMORPH: return "Bply"; /* Aply/ACpy share the TFT token. */
+    case MAKEFOURCC('A','i','n','f'): return "Binf";
+    case MAKEFOURCC('A','s','l','o'): return "Bslo";
+    case MAKEFOURCC('A','i','v','s'): return "Bivs";
+    default: return NULL;
+    }
+#else
+    return NULL;
+#endif
 }
 
 static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitStatusClassLevel(ent, code) != 0; }
@@ -56,9 +66,10 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
      * dispellable but are not transferable until their cleanup is audited. */
     if (status && status->code == MAKEFOURCC('B','i','n','f')) {
         status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL |
-                             WC3_STATUS_BUFF_TRANSFERABLE;
+                             WC3_STATUS_BUFF_TRANSFERABLE | WC3_STATUS_BUFF_TARGET_ART;
         status->source_ability = spell->code;
         status->rank = level;
+        G_SpawnStatusEffectTarget(status->code, st.entity, "overhead");
     }
     return status;
 }
@@ -159,6 +170,7 @@ static void avatar_expire_internal(edict_t *unit, bool remove_buff, bool transit
     unit->temporary_health_bonus -= unit->avatar->health;
     unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
+    unit->s.scale = unit->avatar->original_scale;
     unit->avatar->level=0;
     if(transition && S_SpellIsAliveTarget(unit) && !G_IsDeferredFree(unit))avatar_transition_begin(unit);
     if(!unit->avatar->transition.active)G_FreeAvatar(unit);
@@ -175,7 +187,8 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
     wc3_status_apply_check_t check;
     (void)spell;
     (void)target; unit_updatestatuses(caster);
-    if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
+    avatar_t *avatar = caster ? caster->avatar : NULL;
+    if (!S_SpellIsAliveTarget(caster) || (avatar && avatar->level)) return false;
     check = unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 });
     if (check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
@@ -192,6 +205,8 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
     if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
+    caster->avatar->original_scale = caster->s.scale;
+    caster->s.scale *= 1.0f + S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     caster->avatar->level = rank; caster->avatar->armor = S_SpellData(spell->code, rank, 1);
     caster->avatar->health = S_SpellData(spell->code, rank, 2); caster->avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
     G_ApplyTemporaryArmorBonus(caster, caster->avatar->armor);
@@ -319,9 +334,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
 }
 
 /* Record presence is the authoritative Polymorph state for orders and JASS. */
-bool S_UnitPolymorphed(edict_t const *unit) {
-    return unit && unit->polymorph;
-}
+bool S_UnitPolymorphed(edict_t const *unit) { return unit && unit->polymorph != NULL; }
 
 /*5fc900 selects BPly+114 for limits, while the public default getter keeps
  * the original unit type. The buff owns the temporary profile selection. */
@@ -346,7 +359,18 @@ static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint3
     /* AbilityData stores Ply1..Ply5 in DataA..DataE.  The typed FOURCC view
      * deliberately keeps the first rawcode from Warcraft's unit-list string;
      * stock Aply uses one morph unit for each movement class. */
-    return S_SpellDataId(code, level, data_slot);
+    {
+        uint32_t const authored = S_SpellDataId(code, level, data_slot);
+        if (authored) return authored;
+#if BZ_COMPAT_WORKAROUNDS
+        if (G_AbilityCode(code) == BZ_POLYMORPH) {
+            if (data_slot == BZ_POLYMORPH_FLY_SLOT)
+                return MAKEFOURCC('n','s','h','f');
+            return MAKEFOURCC('n','s','h','e');
+        }
+#endif
+        return 0;
+    }
 }
 
 /* Reject invalid targets and authored morph forms before spell resources commit. */
@@ -422,6 +446,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     UnitUI_t const *ui;
     UnitBalance_t const *balance;
     PATHSTR model_filename;
+    polymorph_t *morph;
     int model;
     float duration;
     float previous_speed;
@@ -472,10 +497,10 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
         st.entity->polymorph->original_scale = st.entity->s.scale;
         st.entity->polymorph->original_move_speed = st.entity->unitinfo.MoveSpeed;
     }
-    assert(st.entity->polymorph);
-    st.entity->polymorph->ability = spell->code;
-    st.entity->polymorph->buff = buff_code;
-    st.entity->polymorph->form_type = form_type;
+    morph = st.entity->polymorph;
+    morph->ability = spell->code;
+    morph->buff = buff_code;
+    morph->form_type = form_type;
     st.entity->s.model = model;
     st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
     polymorph_set_turn_profile(st.entity,form_type);
@@ -783,8 +808,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
+    (thinker->channel ? thinker->channel : (thinker->channel=G_AllocChannel()));
     thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = human_ability_think; human_ability_think(thinker);
@@ -810,8 +834,28 @@ BZ_ABILITY_PROC(CAbilityInnerFire) {
 /* Dispel Magic family (Adis/Adch/Advm): area timed-status clear; Advm also heals per buff.
  * Adis/Adch author summoned damage in DataB; Advm authors heals in DataA/DataB and damage in DataE.
  * Summons are marked with owner (S_SummonAt), and optionally summon_ability / AI_ILLUSION. */
-static bool dispel_is_summoned(edict_t const *unit) {
-    return unit && (unit->owner || unit->summon_ability || (unit->aiflags & AI_ILLUSION));
+bool S_DispelIsSummoned(edict_t const *unit) {
+    return unit && (unit->owner || unit->summon_ability || (unit->aiflags & AI_ILLUSION) ||
+                    unit->targtype == TARG_WARD);
+}
+
+/* Dispel each status through its owning ability's inverse lifecycle.  Reuse
+ * this for Priest/Spirit Walker dispels and Wisp Detonate so the latter cannot
+ * silently clear timed life or leave speed/armor/flight state behind. */
+uint32_t S_DispelUnitMagic(edict_t *target) {
+    uint32_t removed = 0;
+    if (!target) return 0;
+    FOR_LOOP(i, G_UnitStatusSlotCount(target)) {
+        heroabilitystatus_t *status = &target->abilstatus[i];
+        if (!unit_status_can_magic_dispel(status)) continue;
+        unit_removestatus_deferred(target, status, STATUS_REMOVE_DISPEL);
+        removed++;
+    }
+    if (removed) {
+        unit_refreshstatusflags(target);
+        G_InvalidateUnitInfoPanel(target);
+    }
+    return removed;
 }
 
 /* Shared point-area dispel for ordinary spells and item power-ups.  Use the
@@ -827,6 +871,7 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
     if (!caster || !point || !(area >= 0.0f)) return;
+    removed += S_SentinelDispelAt(point, area);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
                   Vector2_distance(&target->s.origin2, point) <= area) {
         uint32_t target_removed = 0;
@@ -841,11 +886,17 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
             unit_refreshstatusflags(target);
             G_InvalidateUnitInfoPanel(target);
         }
+        bool affected = target_removed != 0;
         /* Retail dispel damages hostile summons, not friendly summons. */
-        if (!S_SpellIsFriend(caster, target) && dispel_is_summoned(target) &&
+        if (!S_SpellIsFriend(caster, target) && S_DispelIsSummoned(target) &&
             !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
-            S_SpellDamage(target, caster, (int)summon_dmg);
+            affected |= S_SpellDamage(target, caster, (int)summon_dmg);
+        if (affected) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     }
+    /* Only Dispel Magic / Disenchant remove loose terrain Blight.  Devour Magic
+     * has its own buff-healing contract and does not paint the terrain. */
+    if (S_AbilityItem(code).ability && S_AbilityItem(code).ability->proc == CAbilityDispelMagic)
+        G_DispelBlightRadius(point, area);
     if (removed && heal_hp > 0.0f) S_SpellHeal(caster, heal_hp * (float)removed);
     if (removed && heal_mana > 0.0f)
         caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + heal_mana * (float)removed);
@@ -1081,8 +1132,8 @@ static bool defend_projectile_reaction(edict_t *projectile) {
 
 int S_HumanAttackDamage(edict_t *attacker, edict_t *target, int damage) {
     uint32_t level;
-    if ((level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('B','i','n','f'))))
-        damage = (int)(damage * (1.0f + S_SpellData(MAKEFOURCC('A','i','n','f'), level, 1)));
+    /* Inner Fire is already included by the hit resolver's status ledger;
+     * multiplying it here again squared its authored attack bonus. */
     damage = S_FeedbackDamage(attacker, target, damage);
     if ((level = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','f','s','h'))) && target->defense_type <= 2)
         damage += (int)S_SpellData(MAKEFOURCC('A','f','s','h'), level, 3 + target->defense_type);
@@ -1129,6 +1180,11 @@ void S_HumanBreakInvisibility(edict_t *unit) {
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     (void)level;
     if (!unit) return;
+    if (code == MAKEFOURCC('B','b','l','o')) {
+        unit->s.scale /= 1.3f;
+        if (unit->avatar && unit->avatar->level) unit->avatar->original_scale /= 1.3f;
+        if (unit->polymorph) unit->polymorph->original_scale /= 1.3f;
+    }
     if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) {
         G_AddUnitAnimationProperties(unit, "defend", false);
         S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
@@ -1138,4 +1194,11 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         G_SetEntityHidden(unit,false);
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
+}
+
+void S_HumanStatusApplied(edict_t *unit, heroabilitystatus_t const *status) {
+    if (!unit || !status || !status->level || status->code != MAKEFOURCC('B','b','l','o')) return;
+    unit->s.scale *= 1.3f;
+    if (unit->avatar && unit->avatar->level) unit->avatar->original_scale *= 1.3f;
+    if (unit->polymorph) unit->polymorph->original_scale *= 1.3f;
 }

@@ -79,7 +79,7 @@ The map's authored resource setup and recurring resource triggers remain authori
 - **`CommandAI` is a per-player ordered interrupt channel.** `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` support polling and interruptible sleeps. Preserve command/data pairing and determine FIFO versus LIFO behavior from authoritative runtime evidence before implementing it; do not model this as one overwriteable flag.
 - **AI mode is native state.** `StandardAI` and `CampaignAI` select different flee, repair, hero, targeting, timed-life, and artillery policies through setter natives. These settings belong to the player AI runtime even when Human02 does not exercise every one. `SetPeonsRepair` now consumes the existing Repair-family autocast path rather than inventing a second repair scheduler: each active bot reconciles owned repair-capable workers to the requested state, including workers created later through JASS `CreateUnit`. The established nearest-valid target scan, normal Repair order, pathing, target masks, costs, and repair rates own the actual work.
 - **Alliance capabilities are independent and directional.** Combat/targeting friendship is `ALLIANCE_PASSIVE`; `SHARED_VISION`, `SHARED_XP`, and control flags do not independently make a target friendly. `SetPlayerAlliance` changes only the source player's relation, so Blizzard/map helpers must author the reverse direction separately when they require mutual alliance.
-- **Unit-target Move is persistent follow.** Smart on a passive allied unit (after higher-priority interactions such as Repair) and explicit target `move` retain the live unit as `movement.follow_target`. The follower uses its acquisition range as the stand-off distance, auto-acquires nearby hostiles, and resumes the retained follow after combat. Point Move, Attack-Move, Patrol, Stop, and Hold Position replace that default movement goal.
+- **Unit-target Move is persistent follow.** Smart on a passive allied unit (after higher-priority interactions such as Repair) and explicit target `move` retain the live unit as `orders->follow_target`. The follower uses its acquisition range as the stand-off distance, auto-acquires nearby hostiles, and resumes the retained follow after combat. Point Move, Attack-Move, Patrol, Stop, and Hold Position replace that default movement goal.
 - **Local acquisition is controller-agnostic.** `G_FindNearestEnemy` uses the acquiring unit owner's directional `PASSIVE` relation; it is not restricted to fights where one side is the human slot. This allows an allied computer Hero to defend against another computer player while keeping Neutral Passive out of ordinary acquisition. Neutral-owned units still do not initiate through `ai_stand`.
 - **Kill XP honors shared XP.** Nearby living, unsuspended Heroes owned by the killer or covered by the killer player's directional `ALLIANCE_SHARED_XP` participate in one recipient set. The victim's available XP is divided by that set before per-receiver modifiers are applied. Neutral Aggressive victims use `HeroFactorXP` by receiving Hero level; enemy player units do not. `MaxLevelHeroesDrainExp=0` excludes capped Heroes from the divisor, and the receiving player's XP handicap scales the final award. A forced kill against a `PASSIVE` ally awards no Hero XP. If the nearby set is empty and `Misc/GlobalExperience` is enabled, the same eligibility rules are retried without the `HeroExpRange` distance gate.
 
@@ -493,6 +493,16 @@ the qualifying component nearest the invoking AI's primary town. If no town exis
 the search origin. The returned representative is the camp member nearest that origin. Keep this geometry confined to
 `G_BotGetCreepCamp` so direct retail/native capture can replace it without changing creep ownership, unit level data, or
 assault behavior.
+
+For performance, each query first collects currently live, non-building Neutral Hostile creeps in
+ascending edict-number order. Its connected-component search then visits only that compact
+candidate set rather than rescanning all unrelated entities after each discovered creep.
+An axis-aligned precheck skips exact radial distances for clearly separate creeps.
+The list is local to each query: deaths, removals, flight type and unit positions are
+observed afresh without a persistent AI cache. Membership radius, transitive grouping,
+representative choice, power, flyer filtering and tie/order behavior remain unchanged.
+The `wc3_bot.creep_camp_compaction_preserves_transitive_groups_and_live_eligibility`
+regression covers live filtering, transitive membership and changing camp state.
 
 ### Enemy Base Discovery
 

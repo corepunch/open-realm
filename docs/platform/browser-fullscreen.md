@@ -1,10 +1,92 @@
 # Browser fullscreen canvas size synchronization
 
 The Warcraft III browser launcher enters DOM fullscreen on `#game-container`,
-not on `#canvas`: fullscreen must keep the canvas, Escape button and fullscreen
-button in the same browser top-layer element. The engine owns a WebGL 2 context
+not on `#canvas`: fullscreen must keep the canvas, Escape button, shortcut
+popups, and fullscreen button in the same browser top-layer element. The engine owns a WebGL 2 context
 on a worker-transferred `OffscreenCanvas` (`PROXY_TO_PTHREAD`), so the DOM main
 thread **must not write canvas.width / canvas.height** after transfer.
+
+## Safari fullscreen compatibility
+
+The fullscreen control uses `port/web/site/fullscreen-controls.js` to enter and
+exit fullscreen on `#game-container`. It uses the standard `requestFullscreen` /
+`exitFullscreen` pair where available and falls back to Safari's older
+`webkitRequestFullscreen` / `webkitExitFullscreen` methods. Calls happen
+**synchronously inside the click handler** to retain the user activation
+required by browsers. The WebKit methods can return `undefined` rather than a
+Promise, so error handling must not unconditionally call `.catch()`.
+
+Both `fullscreenchange` and `webkitfullscreenchange` synchronize the button,
+`is-fullscreen` container class, keyboard focus/capture, and delayed canvas
+resize notifications. Class-based CSS sizing works with both standard and
+prefixed fullscreen selectors without applying windowed dimensions to a
+prefixed fullscreen container. Emscripten's canvas fullscreen requests still
+redirect to the container so the HTML overlay buttons remain accessible.
+Neither branch sets the DOM canvas pixel dimensions; the renderer worker still
+owns backing resolution as described above.
+
+Safari on **iPhone** has historically not allowed the Fullscreen API for
+arbitrary non-video elements. A normal webpage cannot emulate native browser
+fullscreen or hide the Safari chrome through a vendor prefix. In browsers
+without either supported API, the button reports that fullscreen is unavailable.
+This compatibility path primarily targets macOS Safari and Safari versions on
+other platforms that expose the prefixed element API.
+
+Run the browser-only regressions (these do not prove actual Safari rendering):
+
+```sh
+node --test port/web/tests/fullscreen-controls.test.cjs \
+  port/web/tests/fullscreen-resize.test.cjs \
+  port/web/tests/browser-keyboard.test.cjs \
+  port/web/tests/game-controls.test.cjs
+```
+
+Verify in Safari on macOS: enter fullscreen with one click, see Escape and
+fullscreen buttons above the game, exit using the button or browser Escape,
+reenter, confirm canvas fills the screen without stretching or misplaced mouse
+hits, and confirm keyboard input/focus is restored on exit. Retest Chrome to
+catch regressions in standard Promise-returning fullscreen. iPhone Safari
+requires a separate capability assessment and should not be considered fixed
+by the prefixed path alone.
+
+## iPhone and iPad Safari: Add to Home Screen
+
+Safari on iPhone/iPad does not offer arbitrary element fullscreen for this game.
+OpenRealm follows the Home Screen installation path used by HCE-Mobile:
+
+- `port/web/site/manifest.webmanifest` requests `fullscreen` display, a
+  landscape orientation preference, and icons. The start URL and scope are
+  relative so a GitHub Pages project subpath such as `/open-realm/play/` works.
+- `engine-shell.html` contains Apple's standalone-capable meta tags and the
+  `viewport-fit=cover` viewport. It deliberately does not disable pinch zoom.
+- `ios-home-screen.js` shows the **Share → Add to Home Screen → Open as Web App**
+  instructions for iPhone/iPad **Safari tabs**, including desktop-UA iPadOS.
+  The fullscreen button reopens the instructions rather than attempting an
+  unsupported element fullscreen request. Chrome and desktop Safari keep the
+  existing button behaviour.
+- `navigator.standalone` and `display-mode: standalone/fullscreen` distinguish
+  installed web-app launches. In that mode, the guide and fullscreen button are
+  hidden and the game wrapper/canvas fill the available viewport (`100dvh`).
+  The DOM does not write OffscreenCanvas backing dimensions; the existing
+  renderer resize synchronization owns those pixels.
+
+iOS may retain system status-bar/safe-area space, and the manifest orientation
+preference may not be enforced on all iPads. This is an app-like, chrome-free
+experience, **not** a guarantee of hardware-native, edge-to-edge fullscreen.
+The guide does not bypass WebGL 2, cross-origin-isolation, OffscreenCanvas, or
+WasmFS requirements. Safari tab OPFS and installed web-app storage might not be
+shared; imported game files may require re-importing after installation. The
+existing Service Worker isolation/bootstrap is unchanged. No promise of full
+offline play is made.
+
+Browser validation: on iPhone and iPad Safari, verify the guide is visible on
+initial visit, can be dismissed, and is reopened by the fullscreen button.
+After Add to Home Screen, launch via the icon and confirm the instructions are
+hidden, controls stay within the safe area, the fullscreen button is absent,
+and the canvas occupies the app's available viewport. Also verify import and
+service-worker isolation after installation. Retest Chrome and desktop Safari.
+
+Synthetic regression file: `port/web/tests/ios-home-screen.test.cjs`.
 
 ## First-entry fullscreen sizing
 
@@ -17,8 +99,8 @@ layout changes happen to correct it.
 `port/web/site/fullscreen-resize.js` watches both the canvas and its fullscreen
 container using `ResizeObserver`, then coalesces events into two animation-frame
 measurements. It posts a `window.resize` only when layout has settled.
-A fallback from the HTML inline handler preserves legacy operation if the extra
-script was not bundled.
+The fullscreen controller falls back to dispatching `window.resize` if the
+post-layout synchronization script is not available.
 
 The browser engine also independently synchronizes the logical SDL window size
 and the worker-owned OffscreenCanvas backing resolution using the actual CSS
@@ -44,7 +126,7 @@ Run the synthetic event-ordering regression:
 node --test port/web/tests/fullscreen-resize.test.cjs
 ```
 
-Then in Chrome/Edge check initial fullscreen entry, exit, repeated entry,
+Then in Chrome and desktop Safari check initial fullscreen entry, exit, repeated entry,
 HiDPI and browser-zoom changes. The first fullscreen click should fill the
 container and have correct mouse-hit geometry without a second click. Test
 without development tools and with developer tools open; browser rendering
@@ -91,8 +173,7 @@ viewport-relative height. Its CSS aspect is now permitted to vary with the
 browser window. The browser renderer continues to sample the CSS box and sets
 both SDL logical dimensions and the worker's pixel backing store as before;
 `CL_CanvasFrame` alone owns the 250 ms settle and `ui_canvas` command. CSS uses
-`!important` because SDL may write inline width/height styles. The fullscreen
-rules are unchanged and take over when the container enters fullscreen.
+`!important` because SDL may write inline width/height styles. The fullscreen class rules take over when the container enters fullscreen.
 
 **Expected behaviour:** with widescreen-capable game assets, make the browser
 window narrow enough for a 4:3 canvas, then widen it past the canvas class

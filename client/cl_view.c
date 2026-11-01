@@ -3,6 +3,11 @@
 #include "client.h"
 #include "sound/s_local.h"
 #include "tr_public.h"
+#include "common/map_load_debug.h"
+#ifdef DEBUG_MAP_LOAD
+extern void CL_ResetModelLoadDebug(void);
+extern void CL_ReportModelLoadDebug(cstring_t phase, cstring_t map);
+#endif
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
@@ -18,8 +23,30 @@ static struct {
  * from renderer animation that advances with fixed entity frames. */
 static int debug_paused_building_time[MAX_CLIENT_ENTITIES];
 
+#ifdef BZ_TESTS
+static uint32_t test_entity_debug_cvar_samples;
+static bool test_last_entity_debug_enabled;
+#endif
+
+/* Snapshot the diagnostic switch once for an entire scene entity batch.
+ * Query by name again on the next build so runtime console changes remain
+ * effective without keeping a cvar pointer across config/alias changes. */
+static bool V_EntityDebugEnabled(void) {
+    bool const enabled = Cvar_Integer("cl_debug_entities", 0) != 0;
+#ifdef BZ_TESTS
+    test_entity_debug_cvar_samples++;
+    test_last_entity_debug_enabled = enabled;
+#endif
+    return enabled;
+}
+
 static bool world_loaded = false;
 static bool begin_sent = false;
+static double client_map_load_debug_start;
+
+void CL_MapLoadDebugBegin(void) {
+    client_map_load_debug_start = MAP_LOAD_NOW();
+}
 
 /* Optional CS_MODELS indices become handles here. Games that do not publish
  * CS_TERRAIN_LIGHT_MODEL / CS_ENTITY_LIGHT_MODEL leave the slots empty. */
@@ -125,6 +152,8 @@ vec3_t lightAngles = {-40,0,60};
 void CL_RestartRefresh(void) {
     world_loaded = false;
     begin_sent = false;
+    cl.loading_waiting = false;
+    cl.loading_ready_time = 0;
     cl.refresh_prepped = false;
 }
 
@@ -149,6 +178,16 @@ static void CL_SendBegin(void) {
     CL_CanvasWriteChrome();
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "begin");
+}
+
+bool CL_ContinueLoading(uint32_t timestamp) {
+    if (!cl.loading_waiting || !cl.refresh_prepped || cls.state != ca_connected ||
+        !SDL_TICKS_PASSED(timestamp, cl.loading_ready_time)) return false;
+    cl.loading_waiting = false;
+    CL_SendBegin();
+    begin_sent = true;
+    fprintf(stderr, "Loading: acknowledged, entering mission\n");
+    return true;
 }
 
 static void Matrix4_fromViewAngles(vec3_t const *target, vec3_t const *angles, float distance, mat4_t *output) {
@@ -268,7 +307,7 @@ float LerpRotation(float a, float b, float t) {
     }
 }
 
-static void V_AddClientEntity(centity_t const *ent) {
+static void V_AddClientEntity(centity_t const *ent, bool debug_entities) {
     renderEntity_t re = { 0 };
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
         return;
@@ -334,7 +373,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_SELECTION_CIRCLE_ON_WATER) re.flags |= RF_SELECTION_CIRCLE_ON_WATER;
     if (ent->current.flags & EF_MDX_EMISSION_PAUSED) re.flags |= RF_MDX_EMISSION_PAUSED;
     if (ent->current.flags & EF_MDX_ANIMATION_PAUSED) re.flags |= RF_MDX_ANIMATION_PAUSED;
-    if (Cvar_Integer("cl_debug_entities", 0) &&
+    if (debug_entities &&
         (ent->current.flags & EF_MDX_EMISSION_PAUSED) &&
         ent->current.number < MAX_CLIENT_ENTITIES) {
         int *last = &debug_paused_building_time[ent->current.number];
@@ -353,6 +392,13 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
+    if ((ent->current.flags & EF_NAMED_ATTACHMENT) && ent->current.hover_value && ent->current.name) {
+        uint32_t i = ent->current.name - 1;
+        re.attachment_entity = ent->current.hover_value - 1;
+        cstring_t cs = i / ENT_NAMES_PER_CS < CS_MAX_NAMES / ENT_NAMES_PER_CS
+            ? cl.configstrings[CS_GENERAL + i / ENT_NAMES_PER_CS] : NULL;
+        re.attachment_name = cs ? cs + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE : NULL;
+    }
     re.generation = ent->presentation_generation;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
@@ -568,6 +614,7 @@ static void CL_AddCursorSplat(void) {
 }
 
 static void CL_AddEntities(void) {
+    bool const debug_entities = V_EntityDebugEnabled();
     S_BeginLoopingSounds();
     FOR_LOOP(i, cl.num_active) {
         centity_t *cent = &cl.ents[cl.active_entities[i]];
@@ -576,7 +623,7 @@ static void CL_AddEntities(void) {
             cl.configstrings[CS_SOUNDS + state->sound][0])
             S_UpdateLoopingSound(state->number, cl.configstrings[CS_SOUNDS + state->sound],
                                  &state->origin2, 1.0f, DEFAULT_SOUND_PACKET_ATTENUATION);
-        V_AddClientEntity(cent);
+        V_AddClientEntity(cent, debug_entities);
     }
     S_EndLoopingSounds();
     
@@ -601,13 +648,27 @@ void CL_PrepRefresh(void) {
         return;
     }
 
+    bool const report_load = !cl.refresh_prepped;
+    double const refresh_start = MAP_LOAD_NOW();
+    double stage_start;
+#ifdef DEBUG_MAP_LOAD
+    if (report_load) CL_ResetModelLoadDebug();
+#endif
     CL_LoadingStage(0.10f);
 
     if (!world_loaded) {
         if (!CM_IsMapLoaded(cl.configstrings[CS_WORLD])) {
+            stage_start = MAP_LOAD_NOW();
             CM_LoadMap(cl.configstrings[CS_WORLD], CL_LoadingFrame);
+            if (report_load)
+                MAP_LOAD_LOG("map=%s phase=client-CM_LoadMap ms=%.3f\n",
+                                 cl.configstrings[CS_WORLD], MAP_LOAD_NOW() - stage_start);
         }
+        stage_start = MAP_LOAD_NOW();
         re.RegisterMap(cl.configstrings[CS_WORLD]);
+        if (report_load)
+            MAP_LOAD_LOG("map=%s phase=client-register-map ms=%.3f\n",
+                             cl.configstrings[CS_WORLD], MAP_LOAD_NOW() - stage_start);
         world_loaded = true;
     }
     CL_LoadingStage(0.40f);
@@ -636,44 +697,94 @@ void CL_PrepRefresh(void) {
     }
 #endif
 
+    uint32_t registered_models = 0;
+    stage_start = MAP_LOAD_NOW();
     for (uint32_t i = 1; i < MAX_MODELS; i++) {
-        if (!*cl.configstrings[CS_MODELS + i])
-            continue;
+        if (!*cl.configstrings[CS_MODELS + i]) continue;
+        registered_models++;
         CL_RegisterConfigString(CS_MODELS + i);
     }
     CL_RegisterConfigString(CS_ORDER_MARKER);
+    if (report_load)
+        MAP_LOAD_LOG("map=%s phase=client-refresh-models count=%u ms=%.3f\n",
+                         cl.configstrings[CS_WORLD], registered_models, MAP_LOAD_NOW() - stage_start);
+#ifdef DEBUG_MAP_LOAD
+    if (report_load) CL_ReportModelLoadDebug("client-refresh-model-detail", cl.configstrings[CS_WORLD]);
+#endif
     CL_LoadingStage(0.60f);
 
+    uint32_t registered_images = 0;
+    stage_start = MAP_LOAD_NOW();
     for (uint32_t i = 1; i < MAX_IMAGES; i++) {
-        if (!*cl.configstrings[CS_IMAGES + i])
-            continue;
+        if (!*cl.configstrings[CS_IMAGES + i]) continue;
+        registered_images++;
         CL_RegisterConfigString(CS_IMAGES + i);
     }
+    if (report_load)
+        MAP_LOAD_LOG("map=%s phase=client-refresh-images count=%u ms=%.3f\n",
+                         cl.configstrings[CS_WORLD], registered_images, MAP_LOAD_NOW() - stage_start);
     CL_LoadingStage(0.75f);
 
-    if (register_sounds)
+    uint32_t registered_sounds = 0;
+    stage_start = MAP_LOAD_NOW();
+    if (register_sounds) {
         for (uint32_t i = 1; i < MAX_SOUNDS; i++)
-            if (*cl.configstrings[CS_SOUNDS + i]) S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
+            if (*cl.configstrings[CS_SOUNDS + i]) {
+                registered_sounds++;
+                S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
+            }
+    }
+    if (report_load)
+        MAP_LOAD_LOG("map=%s phase=client-refresh-sounds count=%u ms=%.3f\n",
+                         cl.configstrings[CS_WORLD], registered_sounds, MAP_LOAD_NOW() - stage_start);
     CL_LoadingStage(0.87f);
 
+    uint32_t registered_fonts = 0;
+    stage_start = MAP_LOAD_NOW();
     for (uint32_t i = 1; i < MAX_FONTSTYLES; i++) {
-        if (!*cl.configstrings[CS_FONTS + i])
-            continue;
+        if (!*cl.configstrings[CS_FONTS + i]) continue;
+        registered_fonts++;
         CL_RegisterConfigString(CS_FONTS + i);
     }
+    if (report_load)
+        MAP_LOAD_LOG("map=%s phase=client-refresh-fonts count=%u ms=%.3f\n",
+                         cl.configstrings[CS_WORLD], registered_fonts, MAP_LOAD_NOW() - stage_start);
     CL_LoadingStage(0.94f);
 
-    if (world_loaded && !begin_sent) {
-        CL_SendBegin();
-        begin_sent = true;
-    }
     CL_LoadingStage(0.98f);
 
     if (world_loaded && !cl.refresh_prepped) {
+        stage_start = MAP_LOAD_NOW();
         S_EndRegistration();
+        if (report_load)
+            MAP_LOAD_LOG("map=%s phase=client-sound-finalize ms=%.3f\n",
+                             cl.configstrings[CS_WORLD], MAP_LOAD_NOW() - stage_start);
         cl.refresh_prepped = true;
     }
     if (cl.refresh_prepped) CL_LoadingStage(1.0f);
+    if (world_loaded && !begin_sent && !cl.loading_waiting) {
+        if (Cvar_Integer("cl_loading_wait", 0) && cls.state == ca_connected) {
+            cl.loading_waiting = true;
+            cl.loading_ready_time = SDL_GetTicks();
+            /* The plaque freezes ordinary refreshes; publish the ready label now. */
+            SCR_UpdateLoadingPlaque();
+            fprintf(stderr, "Loading: ready, waiting for acknowledgement\n");
+        } else {
+            CL_SendBegin();
+            begin_sent = true;
+        }
+    }
+    if (report_load) {
+        MAP_LOAD_LOG("map=%s phase=client-refresh-total ms=%.3f\n",
+                         cl.configstrings[CS_WORLD], MAP_LOAD_NOW() - refresh_start);
+        if (client_map_load_debug_start > 0.0)
+            MAP_LOAD_LOG("map=%s phase=client-load-cycle ms=%.3f\n",
+                             cl.configstrings[CS_WORLD], MAP_LOAD_NOW() - client_map_load_debug_start);
+    }
+#ifndef DEBUG_MAP_LOAD
+    (void)stage_start;
+    (void)refresh_start;
+#endif
 }
 
 void V_RenderView(void) {
@@ -790,6 +901,26 @@ void V_Shutdown(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+TEST(client_loading, acknowledgement_rejects_stale_input_and_sends_begin_once) {
+    sizeBuf_t old_message = cls.netchan.message;
+    int old_state = cls.state;
+    bool old_waiting = cl.loading_waiting, old_prepped = cl.refresh_prepped, old_begin = begin_sent;
+    uint32_t old_ready = cl.loading_ready_time;
+    uint8_t bytes[128];
+    SZ_Init(&cls.netchan.message, bytes, sizeof(bytes));
+    cls.state = ca_connected;
+    cl.loading_waiting = true; cl.refresh_prepped = true; cl.loading_ready_time = 100;
+    T_ASSERT(!CL_ContinueLoading(99)); T_EQ(cls.netchan.message.cursize, 0);
+    T_ASSERT(CL_ContinueLoading(100)); T_ASSERT(!cl.loading_waiting); T_ASSERT(begin_sent);
+    uint32_t count = cls.netchan.message.cursize;
+    T_ASSERT(count > 0);
+    T_ASSERT(!CL_ContinueLoading(101)); T_EQ(cls.netchan.message.cursize, count);
+    cl.loading_waiting = true; cl.refresh_prepped = false;
+    T_ASSERT(!CL_ContinueLoading(102));
+    cl.loading_waiting = old_waiting; cl.refresh_prepped = old_prepped;
+    cl.loading_ready_time = old_ready; begin_sent = old_begin;
+    cls.state = old_state; cls.netchan.message = old_message;
+}
 
 static size2_t v_test_window(void) { return (size2_t){ 1024, 768 }; }
 static bool v_test_terrain(void) { return true; }
@@ -810,19 +941,19 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     cl.models[1] = &model;
     cl.viewDef.lerpfrac = 0.5f;
     view_state.num_entities = 0;
-    V_AddClientEntity(&cent);
+    V_AddClientEntity(&cent, false);
     T_EQ(view_state.num_entities, 1);
     T_FEQ(view_state.entities[0].scale, 1.0f, 0.0001f);
 
     cent.prev.scale = cent.current.scale = -1.0f;
     view_state.num_entities = 0;
-    V_AddClientEntity(&cent);
+    V_AddClientEntity(&cent, false);
     T_EQ(view_state.num_entities, 1);
     T_FEQ(view_state.entities[0].scale, 1.0f, 0.0001f);
 
     cent.prev.scale = cent.current.scale = 1.25f;
     view_state.num_entities = 0;
-    V_AddClientEntity(&cent);
+    V_AddClientEntity(&cent, false);
     T_EQ(view_state.num_entities, 1);
     T_FEQ(view_state.entities[0].scale, 1.25f, 0.0001f);
 
@@ -830,6 +961,66 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     view_state.num_entities = saved_count;
     cl.models[1] = saved_model;
     cl.viewDef = saved_view;
+}
+
+/* The debug mode is refreshed for each scene build but never queried while
+ * converting individual entities. This retains console toggling and keeps a
+ * linear cvar-name lookup out of the per-entity hot path. */
+TEST(client_entities, debug_mode_samples_once_per_batch_and_tracks_runtime_toggle) {
+    cstring_t const previous = Cvar_String("cl_debug_entities", "0");
+    size_t const previous_len = strlen(previous) + 1;
+    char *saved = malloc(previous_len);
+    centity_t cent = { .prev = { .number = 7 }, .current = { .number = 7 } };
+    int const previous_count = view_state.num_entities;
+    uint32_t const previous_active = cl.num_active;
+    uint32_t const previous_image = cl.cursor_splat.image;
+    int const previous_decals = view_state.num_decals;
+    int const previous_splats = view_state.num_splat_rects;
+    entityState_t *const previous_cursor = cl.cursorEntity;
+    viewDef_t const previous_view = cl.viewDef;
+    renderEntity_t previous_entities[8];
+
+    memcpy(previous_entities, view_state.entities, sizeof(previous_entities));
+    T_NOT_NULL(saved);
+    if (!saved) return;
+    memcpy(saved, previous, previous_len);
+    /* The batch test uses no active entities or placement cursor. */
+    cl.num_active = 0;
+    cl.cursorEntity = NULL;
+    cl.cursor_splat.image = 0;
+    test_entity_debug_cvar_samples = 0;
+    Cvar_Set("cl_debug_entities", "0");
+    CL_AddEntities();
+    T_EQ(test_entity_debug_cvar_samples, 1u);
+    T_ASSERT(!test_last_entity_debug_enabled);
+
+    Cvar_Set("cl_debug_entities", "1");
+    CL_AddEntities();
+    T_EQ(test_entity_debug_cvar_samples, 2u);
+    T_ASSERT(test_last_entity_debug_enabled);
+
+    /* One render converter may process many entities without re-reading the
+     * CVar. The switch is passed in, not looked up from within the loop. */
+    view_state.num_entities = 0;
+    FOR_LOOP(i, 8) V_AddClientEntity(&cent, false);
+    T_EQ(view_state.num_entities, 8);
+    T_EQ(test_entity_debug_cvar_samples, 2u);
+
+    Cvar_Set("cl_debug_entities", "0");
+    CL_AddEntities();
+    T_EQ(test_entity_debug_cvar_samples, 3u);
+    T_ASSERT(!test_last_entity_debug_enabled);
+
+    cl.num_active = previous_active;
+    cl.cursorEntity = previous_cursor;
+    cl.cursor_splat.image = previous_image;
+    view_state.num_entities = previous_count;
+    memcpy(view_state.entities, previous_entities, sizeof(previous_entities));
+    view_state.num_decals = previous_decals;
+    view_state.num_splat_rects = previous_splats;
+    cl.viewDef = previous_view;
+    Cvar_Set("cl_debug_entities", saved);
+    free(saved);
 }
 
 /* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */

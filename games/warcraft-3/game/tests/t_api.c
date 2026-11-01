@@ -1191,6 +1191,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         }
     }
     T_NOT_NULL(mover);
+
     mover->svflags |= SVF_MONSTER;
     mover->movetype = MOVETYPE_STEP;
     mover->stand = unit_stand;
@@ -1261,6 +1262,7 @@ TEST(wc3_api, nonunit_map_entity_placement_does_not_fire_region_enter) {
 
     /* The runtime unit classification admits the same entity and delivers
      * the crossing through the normal movement entry point. */
+
     map_entity->svflags |= SVF_MONSTER;
     old_position = (vec2_t){ 0.0f, 0.0f };
     G_UnitPositionChanged(map_entity, &old_position);
@@ -2449,6 +2451,7 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
             leaving = &g_edicts[i];
     T_NOT_NULL(leaving);
+
     leaving->svflags |= SVF_MONSTER;
     leaving->movetype = MOVETYPE_STEP;
     leaving->stand = unit_stand;
@@ -4499,8 +4502,8 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
 
     tinted = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(tinted);
-    T_ASSERT(tinted->vertex_color_set);
-    T_ASSERT(tinted->vertex_color_override_set);
+    T_ASSERT((tinted && tinted->vertex_color_set));
+    T_ASSERT((tinted && tinted->vertex_color_override_set));
     T_EQ(tinted->vertex_color.r, 255); T_EQ(tinted->vertex_color.g, 128);
     T_EQ(tinted->vertex_color.b, 0); T_EQ(tinted->vertex_color.a, 0);
 
@@ -4526,6 +4529,155 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
         found = true;
     }
     T_ASSERT(found);
+}
+
+/* A tight datagram must either contain every tint or none. Weather and
+ * lightning headers precede the staged tints; no second entity pass may
+ * overwrite them, and a normal untinted entity contributes no entry. */
+TEST(wc3_api, tint_datagram_staging_preserves_wire_order_and_all_or_nothing_fit) {
+    uint8_t data[256] = { 0 };
+    vec3_t source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
+    box2_t bounds = { .min = {0, 0}, .max = {128, 128} };
+    edict_t *first, *untinted, *second;
+    gweather_t *weather;
+    gLightning_t *lightning;
+    uint32_t tint_offset, exact_size, sent, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
+    untinted = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 48, 32);
+    first->vertex_color_set = true;
+    first->vertex_color = MAKE(color32_t, 210, 150, 100, 255);
+    second->vertex_color_set = true;
+    second->vertex_color = MAKE(color32_t, 120, 160, 220, 128);
+    T_ASSERT(!(untinted && untinted->vertex_color_set));
+    weather = G_WeatherAdd(&bounds, MAKEFOURCC('R','A','h','r'), true);
+    T_NOT_NULL(weather);
+    lightning = G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = MAKEFOURCC('C','L','P','B'), .source = &source, .target = &target,
+        .color = COLOR32_WHITE, .duration_ms = 2000,
+    });
+    T_NOT_NULL(lightning);
+
+    tint_offset = sizeof(uint16_t) + sizeof(wc3WeatherEffect_t) +
+                  sizeof(uint16_t) + sizeof(lightningEffect_t);
+    exact_size = tint_offset + sizeof(uint16_t) + 2 * (sizeof(uint16_t) + sizeof(color32_t));
+    T_ASSERT(exact_size <= sizeof(data));
+    sent = G_WriteClientDatagram(NULL, data, exact_size);
+    T_EQ(sent, exact_size);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header & BZ_GAME_DATAGRAM_COUNT_MASK, 1u);
+    T_ASSERT(header & BZ_GAME_DATAGRAM_LIGHTNING);
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header) + sizeof(wc3WeatherEffect_t);
+    memcpy(&count, data + offset, sizeof(count));
+    T_EQ(count, 1u); /* lightning count */
+    memcpy(&count, data + tint_offset, sizeof(count));
+    T_EQ(count, 2u);
+    offset = tint_offset + sizeof(count);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+    T_EQ(number, (uint16_t)first->s.number);
+    T_EQ(color.r, 210); T_EQ(color.g, 150); T_EQ(color.a, 255);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color));
+    T_EQ(number, (uint16_t)second->s.number);
+    T_EQ(color.r, 120); T_EQ(color.b, 220); T_EQ(color.a, 128);
+
+    /* One byte short: preserve the weather and lightning, omit *all* tints. */
+    sent = G_WriteClientDatagram(NULL, data, exact_size - 1);
+    T_EQ(sent, tint_offset);
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_LIGHTNING);
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_ENTITY_TINTS));
+}
+
+TEST(wc3_api, tint_datagram_reserves_pending_blight_mask_before_staging) {
+    uint8_t data[256];
+    edict_t *client_ent, *unit;
+    uint32_t minimum_mask, just_short, size, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 32);
+    unit->s.player = 0;
+    unit->vertex_color_set = true;
+    unit->vertex_color = MAKE(color32_t, 40, 60, 80, 200);
+    minimum_mask = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
+    just_short = sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color) + minimum_mask - 1;
+    T_ASSERT(just_short + 1 <= sizeof(data));
+
+    G_BlightMarkClientFull(client_ent);
+    size = G_WriteClientDatagram(client_ent, data, just_short);
+    T_ASSERT(size >= sizeof(header) + sizeof(terrainMaskChunk_t));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_ENTITY_TINTS));
+
+    G_BlightMarkClientFull(client_ent);
+    size = G_WriteClientDatagram(client_ent, data, just_short + 1);
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1u);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+    T_EQ(number, (uint16_t)unit->s.number);
+    T_EQ(color.r, 40); T_EQ(color.g, 60); T_EQ(color.b, 80); T_EQ(color.a, 200);
+    T_ASSERT(size >= offset + sizeof(terrainMaskChunk_t));
+}
+
+TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
+    uint8_t data[128];
+    edict_t *client_ent, *unit;
+    uint32_t size, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
+    unit->s.player = 0;
+    T_ASSERT(!(unit && unit->vertex_color_set));
+    unit->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1u);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color));
+    T_EQ(number, (uint16_t)unit->s.number);
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_EQ(color.a, 89); /* round(255 * 0.35) */
+    T_EQ(size, sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color));
+
+    unit->runtime.flags &= ~UNIT_BALANCE_GHOST_INVISIBLE;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    memcpy(&count, data + sizeof(header), sizeof(count));
+    T_EQ(count, 0u);
+    T_EQ(size, sizeof(header) + sizeof(count));
 }
 
 TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
@@ -4557,8 +4709,7 @@ TEST(wc3_api, explicit_vertex_color_override_survives_authored_rebind) {
     edict_t unit = {
         .data.UnitUI = &ui,
         .vertex_color = MAKE(color32_t, 17, 34, 51, 68),
-        .vertex_color_set = true,
-        .vertex_color_override_set = true,
+        .vertex_color_set = true, .vertex_color_override_set = true,
     };
 
     G_InitializeUnitVertexColor(&unit);
@@ -6280,8 +6431,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
     building->stand = unit_stand;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
@@ -6478,6 +6628,34 @@ TEST(wc3_api, nonlooping_effect_stand_hides_without_invalidating_handle) {
     jass_callbyname(level.vm, "DestroyRetainedEffect", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(!effect->inuse);
+}
+
+/* MoonWellTarget's finite Stand is a persistent water surface. Unlike a
+ * one-shot attached effect, it stays visible at its final frame while its
+ * owner continues to update the mana-dependent height. */
+TEST(wc3_api, moon_well_water_effect_stays_visible_after_finite_stand) {
+    edict_t *well;
+    edict_t *water;
+
+    setup_test_world();
+    well = alloc_test_unit(MAKEFOURCC('e','m','o','w'), 32.0f, 48.0f);
+    well->s.origin.z = 12.0f;
+    water = G_SpawnModelEffect("TestUI\\Models\\anim_oneshot.mdx", NULL, well, NULL, false);
+    T_NOT_NULL(water);
+    if (!water) return;
+    water->owner = well;
+    water->summon_ability = MAKEFOURCC('A','m','b','t');
+    water->wait = 24.0f;
+
+    for (int i = 0; i < 24; i++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+
+    T_ASSERT(water->inuse);
+    T_ASSERT(!(water->s.renderfx & RF_HIDDEN));
+    T_ASSERT(water->think == G_EffectThink);
+    T_FEQ(water->s.origin.z, well->s.origin.z + water->wait, 0.001f);
 }
 
 TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
@@ -6927,6 +7105,17 @@ TEST(wc3_api, customize_entity_publishes_gold_mine_hover_value) {
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
 }
 
+TEST(wc3_api, customize_entity_preserves_named_attachment_payload) {
+    edict_t ent = { .s = { .flags = EF_NAMED_ATTACHMENT, .name = 41, .hover_value = 12 } };
+    entityState_t state = ent.s;
+
+    globals.CustomizeEntity(0, &ent, &state);
+
+    T_ASSERT(state.flags & EF_NAMED_ATTACHMENT);
+    T_EQ(state.name, 41);
+    T_EQ(state.hover_value, 12);
+}
+
 TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t parent = {
@@ -6939,8 +7128,8 @@ TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     edict_t overlay = {
         .svflags = SVF_MONSTER,
         .s = { .player = 3 },
-        .mineoverlay = &overlay_state,
     };
+    overlay.mineoverlay = &overlay_state;
     parent.health.value = 100.0f;
     overlay.health.value = 100.0f;
 
@@ -8075,39 +8264,91 @@ TEST(wc3_api, prop_window_runtime_native_and_authored_default) {
     T_FEQ(unit->unitinfo.PropWindow, DEG2RAD(20.0f), 0.001f);
 }
 
+/* Native mutations must preserve independent switches and timed-life bookkeeping. */
+TEST(wc3_api, unit_flags_native_updates_preserve_other_bits) {
+    setup_test_world();
+    currentplayer = test_player(0);
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "globals\n  unit subject = null\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set subject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SetUnitInvulnerable(subject, true)\n"
+        "  call PauseUnit(subject, true)\n"
+        "  call SetUnitPathing(subject, false)\n"
+        "  call UnitIgnoreAlarm(subject, true)\n"
+        "endfunction\n"
+        "function freeze takes nothing returns nothing\n"
+        "  call UnitPauseTimedLife(subject, true)\n"
+        "  call UnitPauseTimedLife(subject, true)\n"
+        "endfunction\n"
+        "function resume takes nothing returns nothing\n"
+        "  call PauseUnit(subject, false)\n"
+        "  call SetUnitPathing(subject, true)\n"
+        "endfunction\n"
+        "function unfreeze takes nothing returns nothing\n"
+        "  call UnitPauseTimedLife(subject, false)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit); if (!unit) return;
+    level.time = 1000;
+    T_ASSERT(unit_addtimedstatus(unit, "BTLF", 1, 10.0f));
+    unit->movetype = MOVETYPE_NONE;
+    G_RunEntity(unit); /* Build the timed-status index before pausing. */
+    jass_callbyname(level.vm, "freeze", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit->ignore_alarm && unit->invulnerable && unit->paused && unit->no_pathing && unit->timed_life_paused);
+    heroabilitystatus_t *life = unit_findstatus(unit, MAKEFOURCC('B','T','L','F'));
+    T_NOT_NULL(life); if (!life) return;
+    T_EQ(life->timestamp, 0); T_ASSERT(life->data > 0);
+    level.time = 1200;
+    G_RunEntity(unit); /* A frame while paused clears its timed-slot bit. */
+    jass_callbyname(level.vm, "resume", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit->ignore_alarm && unit->invulnerable && !unit->paused && !unit->no_pathing && unit->timed_life_paused);
+    T_EQ(life->timestamp, 0);
+    jass_callbyname(level.vm, "unfreeze", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit->ignore_alarm && unit->invulnerable && !unit->paused && !unit->no_pathing && !unit->timed_life_paused);
+    T_ASSERT(life->timestamp > G_Time()); T_EQ(life->data, 0);
+    level.time = life->timestamp + 1;
+    G_RunEntity(unit);
+    T_ASSERT(M_IsDead(unit)); /* Resuming restores expiry after the index was cleared. */
+}
+
 TEST(wc3_api, unit_invulnerable_default_false) {
     edict_t *ent = make_unit_hero();
-    T_ASSERT(!ent->invulnerable);
+    T_ASSERT(!(ent && ent->invulnerable));
 }
 
 TEST(wc3_api, unit_invulnerable_set) {
     edict_t *ent = make_unit_hero();
     ent->invulnerable = true;
-    T_ASSERT(ent->invulnerable);
+    T_ASSERT((ent && ent->invulnerable));
 }
 
 TEST(wc3_api, unit_paused_default_false) {
     edict_t *ent = make_unit_hero();
-    T_ASSERT(!ent->paused);
+    T_ASSERT(!(ent && ent->paused));
 }
 
 TEST(wc3_api, unit_paused_set) {
     edict_t *ent = make_unit_hero();
     ent->paused = true;
-    T_ASSERT(ent->paused);
+    T_ASSERT((ent && ent->paused));
     ent->paused = false;
-    T_ASSERT(!ent->paused);
+    T_ASSERT(!(ent && ent->paused));
 }
 
 TEST(wc3_api, unit_no_pathing_default_false) {
     edict_t *ent = make_unit_hero();
-    T_ASSERT(!ent->no_pathing);
+    T_ASSERT(!(ent && ent->no_pathing));
 }
 
 TEST(wc3_api, unit_no_pathing_set) {
     edict_t *ent = make_unit_hero();
     ent->no_pathing = true;
-    T_ASSERT(ent->no_pathing);
+    T_ASSERT((ent && ent->no_pathing));
 }
 
 TEST(wc3_api, unit_color_default_zero) {
@@ -9018,8 +9259,7 @@ static edict_t *alloc_world_test_item(uint32_t class_id) {
     edict_t *item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
+    (item->item ? item->item : (item->item=G_AllocItem()));
     item->item->in_world = true;
     item->item->inventory_slot = -1;
     return item;
@@ -9033,7 +9273,7 @@ TEST(wc3_api, unit_has_item_true) {
     /* UnitHasItem checks pointer identity */
     bool found = false;
     FOR_LOOP(i, MAX_INVENTORY) {
-        if (unit->inventory[i] == item) { found = true; break; }
+        if (G_InventoryItem(unit, i) == item) { found = true; break; }
     }
     T_ASSERT(found);
 }
@@ -9049,7 +9289,7 @@ TEST(wc3_api, unit_has_item_false_different_instance) {
     /* item2 is NOT in inventory */
     bool found = false;
     FOR_LOOP(i, MAX_INVENTORY) {
-        if (unit->inventory[i] == item2) { found = true; break; }
+        if (G_InventoryItem(unit, i) == item2) { found = true; break; }
     }
     T_ASSERT(!found);
 }
@@ -9059,13 +9299,13 @@ TEST(wc3_api, unit_item_in_slot_returns_edict) {
     edict_t *unit = alloc_inventory_test_unit();
     edict_t *item = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(unit, item, 2);
-    T_ASSERT(unit->inventory[2] == item);
+    T_ASSERT(G_InventoryItem(unit, 2) == item);
 }
 
 TEST(wc3_api, unit_item_in_slot_empty_is_null) {
     reset_entities();
     edict_t *unit = alloc_inventory_test_unit();
-    T_NULL(unit->inventory[0]);
+    T_NULL(G_InventoryItem(unit, 0));
 }
 
 /* =========================================================================
@@ -9248,10 +9488,14 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     target->die = unit_die; target->think = monster_think; target->collision = 0.0f;
     target->unitinfo.MoveSpeed = 1000.0f;
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
+    /* Native Move publishes its pose before G_RunEntities refreshes old_origin.
+     * Preserve the actual outside position, not that later presentation baseline. */
+    vec2_t const crossing_start = target->s.origin2;
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &crossing_start) > rangeEvent->range);
     T_ASSERT(unit_issueorder(target, "move", &destination));
     api_run_move_entities(2);
     T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vec2_t)) == 0);
-    T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &crossing_start) > rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
     /* Issued Move delivery is synchronous; no unrelated queued order remains. */
@@ -10047,7 +10291,7 @@ TEST(wc3_api, rexxar_stash_cache_survives_hidden_carrier_removal) {
         if (!ent->inuse || ent->class_id != MAKEFOURCC('H','p','a','l') ||
             fabsf(ent->s.origin2.x - 128.0f) >= 0.01f) continue;
         carrier = ent;
-        FOR_LOOP(slot, MAX_INVENTORY) held[slot] = ent->inventory[slot];
+        FOR_LOOP(slot, MAX_INVENTORY) held[slot] = G_InventoryItem(ent, slot);
         break;
     }
     T_NOT_NULL(carrier);
@@ -10483,6 +10727,30 @@ TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
     T_ASSERT(!shop->stock || shop->stock->item_count == 0);
 }
 
+/* The stock natives must attach the shop's record themselves: a fresh shop has none until initialization. */
+TEST(wc3_api, stock_natives_attach_the_record_on_a_shop_without_stock) {
+    static UnitAbilities_t sell_both = { .abilList = "Asid,Asud", .heroAbilList = "" };
+    edict_t *shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+
+    shop->data.UnitAbilities = &sell_both;
+    T_NULL(shop->stock);
+    G_RemoveItemStock(shop, MAKEFOURCC('s','p','r','o'));
+    T_NOT_NULL(shop->stock);
+    T_EQ(shop->stock->item_count, 0);
+    G_FreeStock(shop);
+    G_RemoveUnitStock(shop, MAKEFOURCC('n','m','e','r'));
+    T_NOT_NULL(shop->stock);
+    T_EQ(shop->stock->unit_count, 0);
+    G_FreeStock(shop);
+    uint32_t const old_items = level.stock.item_slots, old_units = level.stock.unit_slots;
+    level.stock.item_slots = level.stock.unit_slots = 11; /* Zero map-wide slots would reject the add before attaching. */
+    T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('s','p','r','o'), 1, 2));
+    T_EQ(shop->stock->item_count, 1);
+    T_ASSERT(G_AddUnitStock(shop, MAKEFOURCC('n','m','e','r'), 1, 2));
+    T_EQ(shop->stock->unit_count, 1);
+    level.stock.item_slots = old_items; level.stock.unit_slots = old_units;
+}
+
 TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
     static UnitAbilities_t sell_units = { .abilList = "Asud", .heroAbilList = "" };
     edict_t *shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
@@ -10647,7 +10915,7 @@ TEST(wc3_api, unit_set_uses_alt_icon_persists) {
         }
     }
     T_NOT_NULL(unit);
-    T_ASSERT(unit->uses_alt_icon);
+    T_ASSERT((unit && unit->uses_alt_icon));
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call UnitSetUsesAltIcon(null, true)\n"
@@ -11190,6 +11458,154 @@ static uint32_t blight_test_decode(uint8_t const *payload, terrainMaskChunk_t co
     return MSG_DecodeRLE(payload, chunk->payload_bytes, bits, blight_test_write, &(blightBitDst_t){ out, count });
 }
 
+/* The pre-patch encoder tried the complete run and retried with one fewer
+ * row until either RLE or bitpack fit. Use that intentionally slow reference
+ * only in tests to assert byte-for-byte wire and row-delivery compatibility. */
+typedef struct { uint32_t first_row; } blightReferenceCtx_t;
+
+static uint8_t blight_reference_read(uint32_t index, void *ctx) {
+    blightReferenceCtx_t const *c = ctx;
+    return level.blight.cells[c->first_row * level.blight.width + index] != 0;
+}
+
+static uint32_t blight_reference_pack(uint8_t *out, uint32_t available, uint32_t first,
+    uint32_t max_rows, uint32_t *selected_rows) {
+    blightReferenceCtx_t ctx = { first };
+    *selected_rows = 0;
+    while (max_rows) {
+        uint32_t const bits = max_rows * level.blight.width;
+        uint32_t n = MSG_EncodeRLE(out, available, bits, blight_reference_read, &ctx);
+        if (!n) n = MSG_EncodeBitpack(out, available, bits, blight_reference_read, &ctx);
+        if (n) { *selected_rows = max_rows; return n; }
+        max_rows--;
+    }
+    return 0;
+}
+
+TEST(wc3_api, blight_packet_fit_preserves_previous_wire_for_full_and_fragmented_masks) {
+    static uint32_t const capacities[] = { 2, 9, 16, 32, 64, 128, 256, 512, 1024, 8192 };
+    uint8_t data[sizeof(terrainMaskChunk_t) + 8192], expected[8192];
+    terrainMaskChunk_t header;
+    edict_t *ent;
+
+    setup_test_world();
+    ent = &g_edicts[0];
+    ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.framenum = 0;
+    T_EQ(level.blight.width, 64u); T_EQ(level.blight.height, 64u);
+
+    /* Include long runs (and 255-boundary runs), fully alternating masks,
+     * sparse changes and mixed row-to-row transitions. */
+    FOR_LOOP(pattern, 6) {
+        FOR_LOOP(i, 64u * 64u) {
+            uint8_t bit = 0;
+            switch (pattern) {
+            case 1: bit = 1; break;
+            case 2: bit = (uint8_t)(i & 1); break;
+            case 3: bit = (uint8_t)((i % 255) == 0); break;
+            case 4: bit = (uint8_t)((i / 255) & 1); break;
+            case 5: bit = (uint8_t)(((i * 17 + i / 64) % 37) < 13); break;
+            default: break;
+            }
+            level.blight.cells[i] = bit;
+        }
+        FOR_LOOP(c, sizeof(capacities) / sizeof(capacities[0])) {
+            uint32_t const capacity = capacities[c];
+            uint32_t expected_rows = 0;
+            uint32_t const expected_bytes = blight_reference_pack(expected, capacity, 0, 64, &expected_rows);
+            G_BlightMarkClientFull(ent);
+            uint32_t const actual = G_BlightWriteDatagram(ent, data, sizeof(header) + capacity);
+            if (!expected_bytes) {
+                T_EQ(actual, 0u);
+                T_ASSERT(level.blight.dirty_rows[0] & 1u);
+                continue;
+            }
+            T_EQ(actual, sizeof(header) + expected_bytes);
+            memcpy(&header, data, sizeof(header));
+            T_EQ(header.first_row, 0u);
+            T_EQ(header.row_count, expected_rows);
+            T_EQ(header.payload_bytes, expected_bytes);
+            T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+            FOR_LOOP(y, 64) {
+                if (y < expected_rows) T_ASSERT(!(level.blight.dirty_rows[y] & 1u));
+                else T_ASSERT(level.blight.dirty_rows[y] & 1u);
+            }
+        }
+    }
+    ent->client = NULL;
+    game.clients[0].connected = false;
+}
+
+TEST(wc3_api, blight_packet_fit_preserves_large_map_sweeps_and_sparse_dirty_rows) {
+    uint8_t data[sizeof(terrainMaskChunk_t) + 512], expected[512];
+    terrainMaskChunk_t header;
+    edict_t *ent;
+    uint32_t selected, expected_bytes, actual;
+
+    setup_test_world();
+    /* A larger synthetic grid exercises runs far longer than the datagram
+     * budget, with enough rows to expose quadratic shrink-and-retry work. */
+    G_BlightShutdown();
+    level.blight.width = 256;
+    level.blight.height = 192;
+    level.blight.cells = gi.MemAlloc(level.blight.width * level.blight.height);
+    level.blight.dirty_rows = gi.MemAlloc(level.blight.height * sizeof(*level.blight.dirty_rows));
+    T_ASSERT(level.blight.cells && level.blight.dirty_rows);
+    memset(level.blight.dirty_rows, 0, level.blight.height * sizeof(*level.blight.dirty_rows));
+    FOR_LOOP(i, level.blight.width * level.blight.height)
+        level.blight.cells[i] = (uint8_t)(((i / 257) + (i % 11)) & 1);
+    ent = &g_edicts[0];
+    ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.framenum = 0;
+
+    /* Dirty rows are contiguous only at 5..7; later rows must not be sent
+     * early, even when the packet has spare capacity. */
+    level.blight.dirty_rows[5] = 1;
+    level.blight.dirty_rows[6] = 1;
+    level.blight.dirty_rows[7] = 1;
+    level.blight.dirty_rows[10] = 1;
+    selected = 0;
+    expected_bytes = blight_reference_pack(expected, 512, 5, 3, &selected);
+    actual = G_BlightWriteDatagram(ent, data, sizeof(data));
+    T_EQ(actual, sizeof(header) + expected_bytes);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header.first_row, 5u); T_EQ(header.row_count, selected);
+    T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+    FOR_LOOP(y, selected) T_ASSERT(!(level.blight.dirty_rows[5 + y] & 1u));
+    T_ASSERT(level.blight.dirty_rows[10] & 1u);
+
+    /* A full client sync and its limited reservation must make progress. */
+    G_BlightMarkClientFull(ent);
+    expected_bytes = blight_reference_pack(expected, 512, 0, 192, &selected);
+    actual = G_BlightWriteDatagram(ent, data, sizeof(data));
+    T_EQ(actual, sizeof(header) + expected_bytes);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header.first_row, 0u); T_EQ(header.row_count, selected);
+    T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+
+    /* After dirty delivery, a periodic sweep uses the smaller 512-byte
+     * reservation and continues at the first unsent row. */
+    memset(level.blight.dirty_rows, 0, level.blight.height * sizeof(*level.blight.dirty_rows));
+    level.blight.sweep_row[0] = 37;
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    expected_bytes = blight_reference_pack(expected, BLIGHT_SWEEP_BYTES, 37, 192 - 37, &selected);
+    actual = G_BlightWriteDatagram(ent, data, sizeof(data));
+    T_EQ(actual, sizeof(header) + expected_bytes);
+    memcpy(&header, data, sizeof(header));
+    T_EQ(header.first_row, 37u); T_EQ(header.row_count, selected);
+    T_ASSERT(memcmp(data + sizeof(header), expected, expected_bytes) == 0);
+    T_EQ(level.blight.sweep_row[0], (37u + selected) % 192u);
+
+    ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+    G_BlightShutdown();
+}
+
 TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     uint8_t data[8192], bits[4096];
     uint16_t header;
@@ -11394,8 +11810,9 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('D','T','g','1'),
         .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
-        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .data = { .DestructableData = &row },
         .health = { .value = 500, .max_value = 500 } };
+    ent.destructable = &destructable_state;
     entityState_t state = { .number = 7, .model = 11 };
     globals.CustomizeEntity(0, &ent, &state);
     T_NE(state.name, 0);
@@ -11405,10 +11822,10 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
                                     "Ancient Elven Gate"));
     T_ASSERT(state.flags & EF_NEUTRAL);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
-    ent.destructable->dead = true; ent.health.value = 0;
+    destructable_state.dead = true; ent.health.value = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0); T_ASSERT(!(state.flags & EF_NEUTRAL));
-    ent.destructable->dead = false; ent.health.value = 500;
+    destructable_state.dead = false; ent.health.value = 500;
     state.flags |= EF_NOT_SELECTABLE;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0);
@@ -11439,8 +11856,9 @@ TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
     destructable_t destructable_state = { 0 };
     cstring_t (*old_cvar_string)(cstring_t, cstring_t) = gi.CvarString;
     edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
-        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .data = { .DestructableData = &row },
         .health = { .value = 500, .max_value = 500 } };
+    ent.destructable = &destructable_state;
 
     gi.CvarString = hover_test_expansion;
 
@@ -11479,7 +11897,8 @@ TEST(wc3_api, customize_entity_non_debris_destructables_have_no_hover_label) {
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('T','e','s','t'),
         .svflags = SVF_STATIC_SCENERY, .data = { .DestructableData = &row },
-        .destructable = &destructable_state, .health = { .value = 500, .max_value = 500 } };
+        .health = { .value = 500, .max_value = 500 } };
+    ent.destructable = &destructable_state;
 
     FOR_LOOP(i, TARGET_TYPE_COUNT) {
         entityState_t state = { .number = 7, .model = 11 };

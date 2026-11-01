@@ -24,7 +24,31 @@ unit object data
 
 Melee resolves the target-facing stages at the damage point. Missile attacks roll damage and snapshot the selected attack type at launch, then apply that type against the target's current defense and armor at impact. Thus in-flight target defense/armor changes affect the hit while a target morph or later attacker order cannot replace the launched attack slot. Before that normal impact path, a basic missile may be consumed or retargeted by the Defend projectile reaction. Spell missiles provide their own `currentmove/endfunc` and do not enter this physical-attack/Defend-missile branch.
 
+`WPN_MBOUNCE` now shares the ordinary physical missile launch path. After
+a successful primary impact, the Night Elf Moon Glaive passive chains to
+additional targets with damage loss and an extra `Remg`-researched bounce.
+Secondary bounce damage currently resolves immediately at impact rather than
+travelling between targets; see [Moon Glaive](moon-glaive.md).
+
 `WPN_ARTILLERY` shares the physical projectile launch path instead of falling through the melee resolver. The unit-level authored `minRange` is a real dead zone: a mobile attacker backs away until the target is outside it, while a holding/immobile attacker cannot fire. At the attack damage point an artillery unit target is converted to a fixed point, matching Warsmash's `CBehaviorAttack`: the missile flies to that snapshot even if the original unit moves afterward. The projectile snapshots its attack type, splash bands, factors, and matching `splashTargs` mask at launch, so later orders or target selection cannot change impact behavior. Impact then applies those values around the fixed point. If the original unit target is still inside the blast, it retains the ordinary primary-hit pipeline; secondary victims (and all victims of Attack Ground, which has no primary unit) receive physical splash damage without duplicating primary-only orb/lifesteal/cleave behavior. `CmdAttackGround` uses the same point-target projectile/splash path and is exposed only for the implemented `WPN_ARTILLERY` class. Attack Ground approach/retreat steps consult Move-owned `S_UnitCanTranslate` (immobile, Cyclone, Roots, Ensnare, Purge pause) every tick: a locked unit holds its firing point without translating or cancelling, and still fires in-range points.
+
+`WPN_MSPLASH` uses that same server-owned missile launch/presentation pipeline,
+with the transformed Demon Hunter (`AEme`, `Edmm`) as the stock example. Unlike
+artillery it follows its unit target and resolves splash around the *arrival*
+position. The launch snapshots raw damage, attack type, three splash radii and
+medium/small factors, and the authored `splashTargs` mask from the selected
+Attack 1/2 profile. The transformed unit's own `Missileart`, `Missilespeed`,
+and launch offset select projectile appearance, speed, and origin rather than
+hardcoded Demon Hunter asset names; stock Demon Hunter missile art resolves to
+`Abilities\Weapons\DemonHunterMissile\DemonHunterMissile.mdx`. Secondary
+victims must be enemies and have a matching splash target flag. The primary
+victim uses the normal attack-hit pipeline exactly once; if it is excluded from
+the splash enumeration it still takes one ordinary primary hit. Artillery keeps
+its existing fixed-point policy, and only artillery supports Attack Ground.
+The current generic missile mover still treats unit-target missiles as homing
+and uses straight-line 3D motion: authored `MissileHoming=false` and visual
+`Missilearc` trajectories remain separate projectile-physics gaps. Other missile
+variants (bounce, line) remain separate work.
 
 `T_Damage()` ignores targets whose life is already zero, and `unit_die()` is a one-shot transition once `SVF_DEADMONSTER` is set. This matters for simultaneous or near-simultaneous missile impacts: only the first lethal hit may publish WC3 death events, so map-authored death/loot triggers cannot run twice for the same corpse.
 
@@ -40,9 +64,17 @@ consumes the missile rather than reflecting it into the structure. The flag and
 projectile target/owner references cross save/load, so a return flight remains
 semantically the same after loading.
 
+Basic projectiles snapshot `missile->owner_spawn_time` at launch. Validate the
+owner's incarnation before dispatching `S_UnitProjectileHit` or resolving an
+artillery blast: Defend can apply partial damage inside its reaction, before
+the ordinary hit calculation. A check after that callback permits damage and
+reflection from a recycled attacker. The regression
+`wc3_spell.defend_rejects_recycled_projectile_owner_before_reaction` uses a
+guaranteed deflection and nonzero DataG, asserting teardown with no HP loss.
+
 ## Runtime Attack Fields
 
-`edict_t.attack1` and `attack2` are mutable copies of `UnitWeapons.slk` data. Target validation checks both authored target masks without changing either profile. Attack timing, projectile setup, and damage select the compatible profile from the current target, leaving both authored runtime copies in their original slots. Candidate scans and repeated target validation are read-only, so their traversal order cannot change the active weapon.
+`edict_t.unit_state->attack1` and `attack2` are mutable copies of `UnitWeapons.slk` data. Target validation checks both authored target masks without changing either profile. Attack timing, projectile setup, and damage select the compatible profile from the current target, leaving both authored runtime copies in their original slots. Candidate scans and repeated target validation are read-only, so their traversal order cannot change the active weapon.
 
 For each `unitAttack_t`:
 
@@ -52,7 +84,7 @@ For each `unitAttack_t`:
 - `temporaryDamageBonus`: item/temporary modifier added to each roll but not folded into the base range.
 - `cooldown`, `damagePoint`, `backswingPoint`: attack-cycle timing.
 - `range`, `rangeBuffer`: true weapon range and cooldown-only movement hysteresis.
-- artillery splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by the generic `WPN_ARTILLERY` impact path; bounce/line/missile-splash weapon classes remain separate gaps.
+- splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by fixed `WPN_ARTILLERY` and homing `WPN_MSPLASH` paths; `WPN_MBOUNCE` chains secondary hits immediately and currently lacks secondary missile presentation, while line attacks remain a gap.
 
 ### Chase range and attack timing
 
@@ -194,11 +226,44 @@ These affect existing owned units and newly spawned units that inherit already-r
 
 ## Missile Presentation
 
-Ranged Attack 1 missiles remain ordinary server entities with `MOVETYPE_FLYMISSILE`; the renderer does not own a parallel WC3-only projectile object. `G_StartProjectilePresentation()` therefore initializes presentation state when the missile is spawned: the entity is non-selectable, does not cast a unit shadow, and selects the projectile model's authored `Stand` sequence, falling back to `Birth` only when no `Stand` sequence exists. `SV_Physics_Toss()` advances that sequence while the missile is in flight. Ordinary missiles continue to update yaw from their current homing direction every simulation frame; artillery missiles instead carry `AI_PROJECTILE_FIXED_TARGET` plus the launch-time point in `channel.origin`, so they no longer depend on a moving/freed target entity. The existing snapshot `model`/`frame`/`angle` fields remain sufficient for presentation, and the fixed point rides in already-persisted edict state rather than adding a client-only projectile object. Attack and spell missiles also inherit the firing unit's existing `s.player`, allowing the client MDX renderer to resolve replaceable team-colour textures from the correct source player just as it does for ordinary entities.
+Ranged Attack 1 missiles remain ordinary server entities with `MOVETYPE_FLYMISSILE`; the renderer does not own a parallel WC3-only projectile object. `G_StartProjectilePresentation()` initializes presentation state when the missile spawns: the entity is non-selectable, does not cast a unit shadow, and starts with authored `Birth` when available, then switches to `Stand` for travel. Models without `Birth` start in `Stand`. `SV_Physics_Toss()` advances the sequence while the missile is in flight. Ordinary missiles continue to update yaw from their current homing direction every simulation frame; artillery missiles instead carry `AI_PROJECTILE_FIXED_TARGET` plus the launch-time point in `channel.origin`, so they no longer depend on a moving/freed target entity. The existing snapshot `model`/`frame`/`angle` fields remain sufficient for presentation, and the fixed point rides in already-persisted edict state rather than adding a client-only projectile object. Attack and spell missiles also inherit the firing unit's existing `s.player`, allowing the client MDX renderer to resolve replaceable team-colour textures from the correct source player just as it does for ordinary entities.
 
 This is important for Warcraft missile MDX files whose visible geosets/emitters begin in a sequence interval above frame zero. Merely assigning the registered missile model with `frame == 0` can leave a valid projectile simulation entity visually empty. Spell missiles using the same `MOVETYPE_FLYMISSILE` path receive the same initialization rather than maintaining a second animation policy.
 
 The current implementation still moves the simulation entity on a straight three-dimensional line toward the target. Authored projectile arc/pitch and a post-impact `Death` presentation are separate fidelity gaps; they are not approximated here because the current `entityState_t` Warcraft path has only yaw orientation and frees basic attack missiles immediately when damage resolves.
+
+## Night Elf Impaling Bolt / Vorpal Blades (`Repb`)
+
+ROC Ballistae use the `aline` (Artillery Line) weapon type. These are
+**ranged siege missiles**: the normal targeted attack snapshots a fixed
+impact point at its damage point and retains authored three-ring splash.
+Before `Repb`, the normal siege attack still works, but a Ballista cannot
+explicitly attack a tree. After the owner's `Repb` research finishes, the
+Ballista can target a living tree and ordinary attacks against unit targets
+also pierce targets directly behind the original impact. The TFT label is
+Vorpal Blades; its player-tech rawcode and effect contract are shared.
+
+- Eligible units are determined from `UnitBalance.upgrades` (Upgrades Used).
+  Research is read from the **current** owner on each new attack; changing
+  player ownership or setting tech by JASS does not require cached unit state.
+- A penetrating projectile snapshots the weapon's `spillDistance` and
+  `spillRadius` fields, the launch point, attack type and splash target mask
+  at launch. An in-flight bolt (including a targeted tree attack) is unaffected
+  by research revocation.
+- A primary hit and nearby full/medium/small splash are resolved once.
+  Further valid units in the cylinder behind the impact receive physical
+  damage of the same attack type, with target armor/defense applied at impact.
+  No secondary target is hit twice, and penetration does **not** damage trees.
+- Tree attacks damage the selected tree directly; the normal splash mask may
+  omit `tree`, but `Repb` authorizes the selected tree itself.
+- `Attack Ground` is supported for `aline` siege weapons but never inherits
+  Impaling Bolt penetration, matching Blizzard's documented post-1.04 rule.
+- The line profile is serialized with the existing artillery component;
+  save format 119 adds its spill geometry and launch point.
+
+The current penetration is applied at the original missile's impact rather
+than animating an additional travelling follow-through missile. Unusual map
+object data and edge-of-splash overlap remain useful retail comparison tests.
 
 ## Weapon Target Legality And Acquisition
 
@@ -272,3 +337,5 @@ The combat tests cover representative type multipliers, Divine, data-driven cons
 
 - [Group Attack And Chase Gaps](group-attack-chase-gaps.md) — facing, target identity, range geometry, moving-target refresh, and acceptance coverage still outstanding.
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — projectile target Z adds the target model-origin altitude and authored `impactZ`.
+
+Attack cooldown state and its save-format cleanup are described in the [game-state review](state-review.md).

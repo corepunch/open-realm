@@ -37,7 +37,7 @@ $$
 
 If mana reaches zero, the buff is removed immediately. Learned-but-inactive,
 explicitly deactivated, and zero-mana states leave ordinary damage unchanged.
-No extra `edict_t` state is needed because `abilstatus` is the runtime source of
+No extra `edict_t` state is needed because `unit_state->statuses` is the runtime source of
 truth and remains covered by the existing save/load contract.
 
 ## Verification

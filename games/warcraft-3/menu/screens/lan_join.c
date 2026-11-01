@@ -201,11 +201,29 @@ static bool LAN_MapExists(cstring_t path) {
     return false;
 }
 
+/* AppleDouble sidecars (`._map.w3m`) carry macOS metadata, not map data. They
+ * fail W3I parsing, so their zero player count sorts them above every playable
+ * map and selecting one leaves Start Game on an unreadable path. */
+static bool LAN_IsSidecarMap(cstring_t path) {
+    cstring_t base = path;
+
+    if (!path) {
+        return false;
+    }
+    for (cstring_t p = path; *p; p++) {
+        if (*p == '\\' || *p == '/') {
+            base = p + 1;
+        }
+    }
+    return base[0] == '.';
+}
+
 static void LAN_AddMap(cstring_t path) {
     uiMapListItem_t *item;
 
     if (!path || !*path || lan.maps.count >= UI_MAX_MAP_LIST_ITEMS ||
-        !LAN_HasMapExtension(path) || LAN_IsCampaignMap(path) || LAN_MapExists(path)) {
+        !LAN_HasMapExtension(path) || LAN_IsCampaignMap(path) || LAN_IsSidecarMap(path) ||
+        LAN_MapExists(path)) {
         return;
     }
 

@@ -527,6 +527,29 @@ mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t 
 uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions);
+/* Pose generation belongs to the shared scratch matrices; only a caller that
+ * just rendered/bound this pose should pass it to the reuse variant. */
+uint64_t MDLX_BoundBonePoseGeneration(void);
+/* Bounded, per-view alpha reuse; end invalidates every saved pose. */
+void MDLX_ViewPoseBegin(void);
+void MDLX_ViewPoseEnd(void);
+bool MDLX_ViewPoseCachedDraw(renderEntity_t const *entity, mdxModel_t const **model,
+                             mat4_t *transform);
+void MDLX_ViewPoseStore(renderEntity_t const *entity, mdxModel_t const *model,
+                        mat4_t const *transform, uint32_t frame, uint32_t oldframe);
+bool MDLX_ViewPoseRestore(renderEntity_t const *entity, mdxModel_t const *model,
+                          mat4_t const *transform, uint32_t frame, uint32_t oldframe);
+
+uint32_t MDLX_CollectAttachmentPositionsWithPose(mdxModel_t const *model, mat4_t const *model_matrix,
+                                      uint32_t frame, uint32_t oldframe, cstring_t prefix,
+                                      mdxAttachmentPosition_t *positions, uint32_t max_positions,
+                                      uint64_t pose_generation);
+/* Model-child rendering only: references with an empty path cannot spawn a
+ * child, so avoid binding a bone pose when every attachment is a reference. */
+uint32_t MDLX_CollectRenderAttachmentPositionsWithPose(mdxModel_t const *model,
+                                      mat4_t const *model_matrix, uint32_t frame,
+                                      uint32_t oldframe, mdxAttachmentPosition_t *positions,
+                                      uint32_t max_positions, uint64_t pose_generation);
 bool MDLX_EventObjectId(mdxEvent_t const *event, cstring_t type, char *out, uint32_t out_size);
 bool MDLX_EventWorldTransform(mdxModel_t const *model, mdxEvent_t const *event,
                               renderEntity_t const *entity, mat4_t const *model_transform,
@@ -539,6 +562,9 @@ void MDX_ReleaseBuffers(mdxModel_t *model);
 void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
+/* Classify parent-model alpha work before evaluating its bone pose. Child
+ * attachments are handled separately by R_RenderModel after this call. */
+bool MDLX_ModelHasAlphaWork(renderEntity_t const *entity, mdxModel_t const *model);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);

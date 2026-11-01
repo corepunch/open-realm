@@ -118,6 +118,60 @@ TEST(mpq_compression, indexed_lookup_retains_probe_and_first_slot_precedence) {
     free(hashes); fclose(fp); unlink(path);
 }
 
+/* Retail encrypts uncompressed files per sector too; partial reads must decrypt
+ * from the sector's start, not restart the cipher at the requested byte. */
+TEST(mpq_compression, encrypted_raw_full_partial_and_seek_reads) {
+    uint8_t input[9003], encrypted[9003], output[9003];
+    uint32_t random = 0x12345678;
+    for (uint32_t i = 0; i < sizeof(input); i++) {
+        random ^= random << 13; random ^= random >> 17; random ^= random << 5;
+        input[i] = (uint8_t)random;
+    }
+    for (unsigned variant = 0; variant < 4; variant++) {
+        char path[] = "/tmp/openrealm-mpq-encrypted-XXXXXX";
+        uint32_t header[8], block[4], key, read;
+        handle_t archive, file;
+        int fd = mkstemp(path);
+        T_ASSERT(fd >= 0); close(fd);
+        T_ASSERT(SFileCreateArchive(path, 0, 16, &archive));
+        T_ASSERT(SFileAddFileFromBuffer(archive, "image.blp", input, sizeof(input)));
+        T_ASSERT(SFileCloseArchive(archive));
+        FILE *fp = fopen(path, "r+b");
+        T_NOT_NULL(fp);
+        T_EQ(fread(header, sizeof(header), 1, fp), 1);
+        T_EQ(fseek(fp, header[5], SEEK_SET), 0);
+        T_EQ(fread(block, sizeof(block), 1, fp), 1);
+        Mpq_TestDecryptBlock((uint8_t *)block, sizeof(block), 0xec83b3a3);
+        T_EQ(block[3], 0x80000000u); /* incompressible, no offset table */
+        block[3] |= 0x10000u; /* ENCRYPTED */
+        if (variant & 1) block[3] |= 0x1000000u; /* SINGLE_UNIT */
+        if (variant & 2) block[3] |= 0x20000u; /* FIX_KEY */
+        key = Mpq_TestHashString("image.blp", 3);
+        if (variant & 2) key = (key + block[0]) ^ sizeof(input);
+        memcpy(encrypted, input, sizeof(input));
+        if (variant & 1) Mpq_TestEncryptBlock(encrypted, sizeof(encrypted), key);
+        else for (uint32_t pos = 0; pos < sizeof(encrypted); pos += 4096)
+            Mpq_TestEncryptBlock(encrypted + pos, MIN(4096, sizeof(encrypted) - pos), key + pos / 4096);
+        T_EQ(fseek(fp, block[0], SEEK_SET), 0);
+        T_EQ(fwrite(encrypted, sizeof(encrypted), 1, fp), 1);
+        Mpq_TestEncryptBlock((uint8_t *)block, sizeof(block), 0xec83b3a3);
+        T_EQ(fseek(fp, header[5], SEEK_SET), 0);
+        T_EQ(fwrite(block, sizeof(block), 1, fp), 1);
+        fclose(fp);
+
+        T_ASSERT(SFileOpenArchive(path, 0, 0, &archive));
+        T_ASSERT(SFileOpenFileEx(archive, "image.blp", 0, &file));
+        T_ASSERT(SFileReadFile(file, output, sizeof(output), &read, NULL));
+        T_EQ(read, sizeof(input)); T_EQ(memcmp(output, input, read), 0);
+        T_EQ(SFileSetFilePointer(file, 4093, NULL, SEEK_SET), 4093);
+        T_ASSERT(SFileReadFile(file, output, 4109, &read, NULL));
+        T_EQ(read, 4109); T_EQ(memcmp(output, input + 4093, read), 0);
+        T_ASSERT(SFileReadFile(file, output, sizeof(output), &read, NULL));
+        T_EQ(read, sizeof(input) - 8202); T_EQ(memcmp(output, input + 8202, read), 0);
+        SFileCloseFile(file); SFileCloseArchive(archive); unlink(path);
+    }
+}
+
 /* Our reader retains the old full-scan choice. Retail stops at a free slot;
  * inspect the written table so a self-roundtrip cannot hide bad placement. */
 TEST(mpq_compression, writer_retail_hash_probe) {

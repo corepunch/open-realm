@@ -245,6 +245,50 @@ static edict_t *review_thinker(edict_t *caster) {
     return NULL;
 }
 
+static UnitAbilities_t starfall_channel_abilities = { .abilList = "AEsf,AEtq" };
+static char const starfall_channel_slk[] =
+    "ID;PWXL;N;EBB;Y3;X9\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+    "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataB1\"\n"
+    "C;Y2;X1;K\"AEsf\"\nC;Y2;X2;K\"AEsf\"\nC;Y2;X3;K1\n"
+    "C;Y2;X4;K\"air,ground,structure,enemy,neutral\"\nC;Y2;X5;K5\nC;Y2;X6;K5\n"
+    "C;Y2;X7;K150\nC;Y2;X8;K40\nC;Y2;X9;K1\n"
+    "C;Y3;X1;K\"AEtq\"\nC;Y3;X2;K\"AEtq\"\nC;Y3;X3;K1\n"
+    "C;Y3;X4;K\"air,ground,friend\"\nC;Y3;X5;K5\nC;Y3;X6;K5\n"
+    "C;Y3;X7;K250\nC;Y3;X8;K20\nC;Y3;X9;K1\nE\n";
+
+typedef struct {
+    slkTestData_t *rows, *old;
+    edict_t *caster, *thinker;
+    bool cast;
+} starfallChannelFix_t;
+
+static starfallChannelFix_t starfall_channel_setup(void) {
+    starfallChannelFix_t fix = { 0 };
+    uint32_t const code = FS_SLKKey("AEsf");
+    fix.caster = review_setup();
+    fix.rows = parse_slk_string(starfall_channel_slk);
+    fix.old = G_SetSLKRows("AbilityData", fix.rows);
+    fix.caster->data.UnitAbilities = &starfall_channel_abilities;
+    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
+    fix.caster->heroabilities[1] = MAKE(heroability_t, .code = FS_SLKKey("AEtq"), .level = 1);
+    S_AttackProfileWrite(fix.caster, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.caster, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.caster, 0)->damageBase = 10;
+    S_AttackProfileWrite(fix.caster, 0)->cooldown = 1.0f;
+    fix.cast = S_CastNoTargetSpell(fix.caster, code);
+    fix.thinker = review_thinker(fix.caster);
+    return fix;
+}
+
+static void starfall_channel_done(starfallChannelFix_t fix) {
+    S_SpellCancelChannel(fix.caster);
+    if (fix.thinker && fix.thinker->inuse) G_RunEntity(fix.thinker);
+    G_SetSLKRows("AbilityData", fix.old);
+    free_slk_rows(fix.rows);
+}
+
 /* AHdr accepts enemy and friend targets. An enemy cast must still be blocked,
  * and the committed blocked cast must not leave its channel active. */
 TEST(wc3_ability_lifecycle, spell_shield_blocks_hostile_mixed_target_channel) {
@@ -436,6 +480,106 @@ TEST(wc3_ability_lifecycle, area_spell_presentation_resolves_authored_effect_obj
     G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
 }
 
+/* RoC 1.0 authors Tranquility's rain loop on XEtq without an AEtq EfctID. */
+TEST(wc3_ability_lifecycle, roc_tranquility_resolves_rain_effect_object) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X8;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"Area1\"\n"
+        "C;Y2;X1;K\"AEtq\"\nC;Y2;X2;K\"AEtq\"\nC;Y2;X3;K\"ground,friend,self\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"5\"\nC;Y2;X6;K\"800\"\nE\n";
+    static char const effect_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"EffectArt\"\nC;Y1;X3;K\"Effectsoundlooped\"\n"
+        "C;Y2;X1;K\"XEtq\"\nC;Y2;X2;K\"TestUI\\Models\\tranquility-rain.mdx\"\n"
+        "C;Y2;X3;K\"TranquilityTestLoop\"\nE\n";
+    static char const sound_slk[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\nC;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\nC;Y1;X4;K\"Volume\"\n"
+        "C;Y2;X1;K\"TranquilityTestLoop\"\nC;Y2;X2;K\"tranquility-loop.wav\"\n"
+        "C;Y2;X3;K\"TestUI\\Sounds\\\"\nC;Y2;X4;K\"127\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AEtq" };
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
+    slkTestData_t *effect_rows = parse_slk_string(effect_slk);
+    slkTestData_t *sound_rows = parse_slk_string(sound_slk);
+    slkTestData_t *old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    slkTestData_t *old_effect = G_SetSLKRows("AbilityBuffData", effect_rows);
+    slkTestData_t *old_sound_rows = G_SetSLKRows("AbilitySounds", sound_rows);
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    int (*old_sound_index)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    edict_t *caster = review_setup();
+    edict_t *effect = NULL;
+
+    caster->data.UnitAbilities = &abilities;
+    blizzard_effect_model[0] = '\0'; blizzard_sound_path[0] = '\0';
+    gi.ModelIndex = review_capture_model;
+    gi.SoundIndex = review_capture_sound_index; gi.SoundIndexAlias = review_capture_sound_index_alias;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AEtq")));
+    FILTER_EDICTS(candidate, candidate->inuse && candidate->owner && candidate->owner->inuse &&
+                  candidate->owner->owner == caster && candidate->s.model)
+        effect = candidate;
+#if BZ_COMPAT_WORKAROUNDS
+    T_NOT_NULL(effect);
+    T_STREQ(blizzard_effect_model, "TestUI\\Models\\tranquility-rain.mdx");
+    if (effect) T_ASSERT(effect->s.sound != 0);
+    T_STREQ(blizzard_sound_path, "TestUI\\Sounds\\tranquility-loop.wav");
+
+#else
+    /* Strict mode deliberately does not infer a missing EfctID. */
+    T_NULL(effect);
+#endif
+    gi.ModelIndex = old_model_index; gi.SoundIndex = old_sound_index; gi.SoundIndexAlias = old_sound_alias;
+    S_SpellCancelChannel(caster);
+    G_SetSLKRows("AbilitySounds", old_sound_rows); free_slk_rows(sound_rows);
+    G_SetSLKRows("AbilityBuffData", old_effect); free_slk_rows(effect_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
+/* RoC 1.0 authors Starfall's persistent rain art on XEsf without AEsf EfctID. */
+TEST(wc3_ability_lifecycle, roc_starfall_resolves_rain_effect_object) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X9;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"Area1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AEsf\"\nC;Y2;X2;K\"AEsf\"\nC;Y2;X3;K\"air,ground,enemy\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"5\"\nC;Y2;X6;K\"800\"\n"
+        "C;Y2;X7;K\"30\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"AEsd\"\nE\n";
+    static char const effect_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"EffectArt\"\n"
+        "C;Y2;X1;K\"XEsf\"\nC;Y2;X2;K\"TestUI\\Models\\starfall-rain.mdx\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AEsf" };
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
+    slkTestData_t *effect_rows = parse_slk_string(effect_slk);
+    slkTestData_t *old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    slkTestData_t *old_effect = G_SetSLKRows("AbilityBuffData", effect_rows);
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    edict_t *caster = review_setup();
+    edict_t *effect = NULL;
+
+    caster->data.UnitAbilities = &abilities;
+    blizzard_effect_model[0] = '\0';
+    gi.ModelIndex = review_capture_model;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AEsf")));
+    FILTER_EDICTS(candidate, candidate->owner && candidate->owner->owner == caster && candidate->s.model)
+        effect = candidate;
+#if BZ_COMPAT_WORKAROUNDS
+    T_NOT_NULL(effect);
+    T_STREQ(blizzard_effect_model, "TestUI\\Models\\starfall-rain.mdx");
+
+#else
+    /* Strict mode deliberately does not infer a missing EfctID. */
+    T_NULL(effect);
+#endif
+    gi.ModelIndex = old_model_index;
+    S_SpellCancelChannel(caster);
+    G_SetSLKRows("AbilityBuffData", old_effect); free_slk_rows(effect_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
 /* Warsmash shows a Blizzard shard wave first and resolves that wave's damage
  * 0.8 seconds later; Cast owns the delay before the first shard wave. */
 TEST(wc3_ability_lifecycle, blizzard_shards_precede_damage_by_eight_tenths) {
@@ -471,8 +615,7 @@ TEST(wc3_ability_lifecycle, blizzard_damage_phase_survives_save_load) {
     level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
     T_FEQ(enemy->health.value, 1000, .001f);
     T_ASSERT(WriteGame(path));
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
+    (caster->channel ? caster->channel : (caster->channel=G_AllocChannel()));
     caster->channel->code = 0; thinker->think = NULL; thinker->variation = 1;
     T_ASSERT(ReadGame(path));
     T_ASSERT(thinker->think == blizzard_think);
@@ -523,6 +666,92 @@ TEST(wc3_ability_lifecycle, water_elemental_uses_dataa_count_and_marks_summons) 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+#if BZ_COMPAT_WORKAROUNDS
+/* RoC 1.0 stores the Water Elemental unit rawcode in DataA's fourcc slot. */
+TEST(wc3_ability_lifecycle, water_elemental_recovers_roc_dataa_unit_id) {
+    edict_t *caster = review_setup();
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    uint32_t count = 0;
+    abilityLevel_t const *row;
+
+    row = (abilityLevel_t *)G_AbilityLevel(FS_SLKKey("AHwe"), 1);
+    ((abilityLevel_t *)row)->data[0].id = MAKEFOURCC('h','f','o','o');
+    ((abilityLevel_t *)row)->data[0].number = 0;
+    ((abilityLevel_t *)row)->unitID = 0;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHwe")));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
+                  unit->summon_ability == FS_SLKKey("AHwe") &&
+                  unit->class_id == MAKEFOURCC('h','f','o','o')) count++;
+    T_EQ(count, 1);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_ability_lifecycle, priestess_scout_missing_unit_id_uses_roc_owl_fallback) {
+    static UnitAbilities_t scout_abilities = { .abilList = "AEst" };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AEst\"\nC;Y2;X2;K\"AEst\"\nC;Y2;X3;K\"_\"\n"
+        "C;Y2;X4;K50\nC;Y2;X5;K200\nC;Y2;X6;K60\n"
+        "C;Y2;X7;K1\nE\n";
+    static char const unit_ui_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"modelScale\"\nC;Y1;X4;K\"scale\"\n"
+        "C;Y2;X1;K\"nowl\"\nC;Y2;X2;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\n"
+        "C;Y2;X3;K1\nC;Y2;X4;K1\nE\n";
+    static char const unit_data_slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"targType\"\nC;Y1;X3;K\"movetp\"\n"
+        "C;Y1;X4;K\"collision\"\nC;Y1;X5;K\"propWin\"\n"
+        "C;Y2;X1;K\"nowl\"\nC;Y2;X2;K\"air\"\nC;Y2;X3;K\"fly\"\n"
+        "C;Y2;X4;K16\nC;Y2;X5;K60\nE\n";
+    static char const unit_balance_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"realHP\"\n"
+        "C;Y2;X1;K\"nowl\"\nC;Y2;X2;K150\nE\n";
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui;
+    slkTestData_t *data_rows, *old_data, *balance_rows, *old_balance;
+    edict_t *caster;
+    uint32_t owl_count = 0;
+
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ability_rows = parse_slk_string(ability_slk); old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    ui_rows = parse_slk_string(unit_ui_slk); old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    data_rows = parse_slk_string(unit_data_slk); old_data = G_SetSLKRows("UnitData", data_rows);
+    balance_rows = parse_slk_string(unit_balance_slk); old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    caster = review_unit(0, 0);
+    caster->data.UnitAbilities = &scout_abilities;
+
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AEst")));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
+                  unit->summon_ability == FS_SLKKey("AEst") &&
+                  unit->class_id == MAKEFOURCC('n','o','w','l')) {
+        T_EQ(unit->s.player, caster->s.player);
+        T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','T','L','F')), 1);
+        T_ASSERT(Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= 128.0f);
+        owl_count++;
+    }
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(owl_count, 1);
+#else
+    T_EQ(owl_count, 0);
+#endif
+
+    reset_entities();
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
+    G_SetSLKRows("UnitData", old_data); free_slk_rows(data_rows);
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+#endif
+
 /* Mass Teleport is a real channel: DataB delays the relocation, the caster
  * counts against DataA, and only the caster player's mobile units are moved. */
 TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_structures) {
@@ -537,7 +766,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
 
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
     edict_t *thinker = review_thinker(caster);
-    T_NOT_NULL(thinker); T_ASSERT(target->paused); T_FEQ(caster->s.origin2.x, 0, .001f);
+    T_NOT_NULL(thinker); T_ASSERT((target && target->paused)); T_FEQ(caster->s.origin2.x, 0, .001f);
     level.time = thinker->freetime - 1; G_RunEntity(thinker);
     T_FEQ(caster->s.origin2.x, 0, .001f);
     level.time = thinker->freetime; G_RunEntity(thinker);
@@ -554,7 +783,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
     /* Relocation must also update the server broad phase: the caster vacated
      * x=0, so an unmoved unit can legally occupy that point after completion. */
     T_ASSERT(G_CanRepositionUnitAt(own3, &MAKE(vec2_t, 0, 0)));
-    T_ASSERT(!target->paused); T_ASSERT(!caster->channel || caster->channel->code == 0); T_ASSERT(!thinker->inuse);
+    T_ASSERT(!(target && target->paused)); T_ASSERT(!caster->channel || caster->channel->code == 0); T_ASSERT(!thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -567,9 +796,9 @@ TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_ca
     target->s.flags |= EF_BUILDING;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
     edict_t *thinker = review_thinker(caster);
-    T_NOT_NULL(thinker); T_ASSERT(target->paused);
+    T_NOT_NULL(thinker); T_ASSERT((target && target->paused));
     S_SpellCancelChannel(caster);
-    T_ASSERT(!target->paused); T_ASSERT(!caster->channel || caster->channel->code == 0);
+    T_ASSERT(!(target && target->paused)); T_ASSERT(!caster->channel || caster->channel->code == 0);
     if (thinker && thinker->inuse) G_RunEntity(thinker);
     T_ASSERT(!thinker || !thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -585,9 +814,9 @@ TEST(wc3_ability_lifecycle, mass_teleport_old_thinker_preserves_recast_destinati
     T_ASSERT(S_CastUnitTargetSpell(caster, code, target));
     retired = review_thinker(caster);
     T_NOT_NULL(retired);
-    T_ASSERT(target->paused);
+    T_ASSERT((target && target->paused));
     S_SpellCancelChannel(caster);
-    T_ASSERT(!target->paused);
+    T_ASSERT(!(target && target->paused));
     /* Model an immediately restarted channel without bypassing the real
      * channel thinker identity capture or running an unrelated cooldown. */
     caster->channel->serial++;
@@ -599,9 +828,9 @@ TEST(wc3_ability_lifecycle, mass_teleport_old_thinker_preserves_recast_destinati
     replacement->freetime = G_Time() + 5000;
     target->paused = true;
     if (retired->inuse) G_RunEntity(retired);
-    T_ASSERT(target->paused);
+    T_ASSERT((target && target->paused));
     S_SpellCancelChannel(caster);
-    T_ASSERT(!target->paused);
+    T_ASSERT(!(target && target->paused));
     if (replacement->inuse) G_RunEntity(replacement);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -616,7 +845,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
     target->health.value = 0;
     G_RunEntity(thinker);
     T_FEQ(caster->s.origin2.x, 0, .001f);
-    T_ASSERT(!target->paused); T_ASSERT(!caster->channel || caster->channel->code == 0); T_ASSERT(!thinker->inuse);
+    T_ASSERT(!(target && target->paused)); T_ASSERT(!caster->channel || caster->channel->code == 0); T_ASSERT(!thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -628,14 +857,13 @@ TEST(wc3_ability_lifecycle, mass_teleport_continues_after_save_load) {
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
     edict_t *thinker = review_thinker(caster);
-    T_NOT_NULL(thinker); T_ASSERT(target->paused); T_ASSERT(WriteGame(path));
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
+    T_NOT_NULL(thinker); T_ASSERT((target && target->paused)); T_ASSERT(WriteGame(path));
+    (caster->channel ? caster->channel : (caster->channel=G_AllocChannel()));
     caster->channel->code = 0; thinker->think = NULL; target->paused = false;
     T_ASSERT(ReadGame(path));
-    T_ASSERT(thinker->think == mass_teleport_think); T_ASSERT(target->paused);
+    T_ASSERT(thinker->think == mass_teleport_think); T_ASSERT((target && target->paused));
     level.time = thinker->freetime; G_RunEntity(thinker);
-    T_ASSERT(caster->s.origin2.x > 1000); T_ASSERT(!target->paused); T_ASSERT(!thinker->inuse);
+    T_ASSERT(caster->s.origin2.x > 1000); T_ASSERT(!(target && target->paused)); T_ASSERT(!thinker->inuse);
     remove(path); G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -756,6 +984,136 @@ TEST(wc3_ability_lifecycle, no_target_tranquility_establishes_channel) {
     uint32_t channel = caster->channel->code;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     T_ASSERT(cast); T_EQ(channel, FS_SLKKey("AEtq"));
+}
+
+/* Starfall damages every enemy in its authored radius on repeated channel pulses. */
+TEST(wc3_ability_lifecycle, priestess_starfall_repeatedly_damages_enemies_in_area) {
+    static UnitAbilities_t const starfall_abilities = { .abilList = "AEsf" };
+    static char const starfall_slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AEsf\"\nC;Y2;X2;K\"AEsf\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K\"air,ground,enemy\"\nC;Y2;X5;K5\nC;Y2;X6;K5\n"
+        "C;Y2;X7;K150\nC;Y2;X8;K40\nC;Y2;X9;K1\nE\n";
+    edict_t *caster = review_setup();
+    edict_t *near_ground = review_unit(1, 100);
+    edict_t *near_air = review_unit(1, 120);
+    edict_t *far_enemy = review_unit(1, 200);
+    edict_t *ally = review_unit(0, 80);
+    slkTestData_t *rows = parse_slk_string(starfall_slk), *old = G_SetSLKRows("AbilityData", rows);
+    uint32_t const code = FS_SLKKey("AEsf");
+    edict_t *thinker;
+
+    caster->data.UnitAbilities = (UnitAbilities_t *)&starfall_abilities;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
+    near_air->targtype = TARG_AIR;
+    far_enemy->s.origin2.x = 151;
+    far_enemy->s.origin.x = 151;
+
+    T_ASSERT(S_CastNoTargetSpell(caster, code));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    T_FEQ(near_ground->health.value, 960, .001f);
+    T_FEQ(near_air->health.value, 960, .001f);
+    T_FEQ(far_enemy->health.value, 1000, .001f);
+    T_FEQ(ally->health.value, 1000, .001f);
+
+    level.time = 1999;
+    G_RunEntity(thinker);
+    T_FEQ(near_ground->health.value, 960, .001f);
+    level.time = 2000;
+    G_RunEntity(thinker);
+    T_FEQ(near_ground->health.value, 920, .001f);
+    T_FEQ(near_air->health.value, 920, .001f);
+    T_FEQ(far_enemy->health.value, 1000, .001f);
+    T_FEQ(ally->health.value, 1000, .001f);
+
+    caster->s.origin2.x += 10;
+    caster->s.origin.x += 10;
+    level.time = 3000;
+    G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_ASSERT(!caster->channel || caster->channel->code == 0);
+    T_FEQ(near_ground->health.value, 920, .001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_ability_lifecycle, starfall_stops_on_stun_sleep_silence_or_death) {
+    static cstring_t const interruptions[] = { "Bstu", "BUsl", "BNsi", NULL };
+    FOR_LOOP(i, sizeof(interruptions) / sizeof(interruptions[0])) {
+        starfallChannelFix_t fix = starfall_channel_setup();
+        T_ASSERT(fix.cast); T_NOT_NULL(fix.thinker);
+        if (interruptions[i]) unit_addtimedstatus(fix.caster, interruptions[i], 1, 30.0f);
+        else fix.caster->health.value = 0;
+        G_RunEntity(fix.caster);
+        T_ASSERT(!S_SpellIsChanneling(fix.caster));
+        if (fix.thinker && fix.thinker->inuse) G_RunEntity(fix.thinker);
+        T_ASSERT(!fix.thinker || !fix.thinker->inuse);
+        starfall_channel_done(fix);
+    }
+}
+
+TEST(wc3_ability_lifecycle, starfall_stops_when_another_spell_is_cast) {
+    starfallChannelFix_t fix = starfall_channel_setup();
+    T_ASSERT(fix.cast); T_NOT_NULL(fix.thinker);
+    T_ASSERT(S_CastNoTargetSpell(fix.caster, FS_SLKKey("AEtq")));
+    T_EQ(fix.caster->channel->code, FS_SLKKey("AEtq"));
+    G_RunEntity(fix.thinker);
+    T_ASSERT(!fix.thinker->inuse);
+    T_EQ(fix.caster->channel->code, FS_SLKKey("AEtq"));
+    starfall_channel_done(fix);
+}
+
+TEST(wc3_ability_lifecycle, starfall_stops_when_its_duration_expires) {
+    starfallChannelFix_t fix = starfall_channel_setup();
+    T_ASSERT(fix.cast); T_NOT_NULL(fix.thinker);
+    level.time = fix.thinker->spawn_time;
+    G_RunEntity(fix.thinker);
+    T_ASSERT(!fix.thinker->inuse);
+    T_ASSERT(!S_SpellIsChanneling(fix.caster));
+    starfall_channel_done(fix);
+}
+
+TEST(wc3_ability_lifecycle, starfall_manual_move_attack_and_stop_orders_interrupt_channel) {
+    starfallChannelFix_t fix = starfall_channel_setup();
+    vec2_t point = { 300, 0 };
+    T_ASSERT(fix.cast);
+    T_ASSERT(unit_issueorder(fix.caster, "move", &point));
+    T_ASSERT(!S_SpellIsChanneling(fix.caster));
+    starfall_channel_done(fix);
+
+    fix = starfall_channel_setup();
+    edict_t *enemy = review_unit(1, 50);
+    T_ASSERT(fix.cast);
+    T_ASSERT(unit_issuetargetorder(fix.caster, "attack", enemy));
+    T_ASSERT(!S_SpellIsChanneling(fix.caster));
+    starfall_channel_done(fix);
+
+    fix = starfall_channel_setup();
+    T_ASSERT(fix.cast);
+    T_ASSERT(unit_issueimmediateorder(fix.caster, "stop"));
+    T_ASSERT(!S_SpellIsChanneling(fix.caster));
+    starfall_channel_done(fix);
+}
+
+TEST(wc3_ability_lifecycle, starfall_does_not_auto_acquire_until_manual_right_click) {
+    starfallChannelFix_t fix = starfall_channel_setup();
+    edict_t *enemy = review_unit(1, 50);
+    T_ASSERT(fix.cast);
+    level.time = 300 - (uint32_t)(fix.caster - g_edicts) % 300;
+    T_ASSERT(!G_ShouldAcquireThisFrame(fix.caster));
+    G_RunEntity(fix.caster);
+    T_ASSERT(fix.caster->goalentity != enemy);
+    T_EQ(fix.caster->channel->code, FS_SLKKey("AEsf"));
+
+    T_ASSERT(unit_issuetargetorder(fix.caster, "smart", enemy));
+    T_ASSERT(!S_SpellIsChanneling(fix.caster));
+    T_ASSERT(fix.caster->goalentity == enemy);
+    starfall_channel_done(fix);
 }
 
 /* Cannibalize reserves the nearest eligible corpse for the whole channel and
@@ -919,8 +1277,7 @@ TEST(wc3_ability_lifecycle, removed_caster_slot_cannot_own_old_drain) {
     G_FreeEdict(caster); level.time += 2000;
     edict_t *fresh = review_unit(0, 0);
     T_ASSERT(fresh == caster);
-    if (!fresh->channel) fresh->channel = G_AllocChannel();
-    assert(fresh->channel);
+    (fresh->channel ? fresh->channel : (fresh->channel=G_AllocChannel()));
     fresh->channel->code = FS_SLKKey("AHdr"); fresh->channel->serial = thinker->channel->serial;
     G_RunEntity(thinker);
     T_ASSERT(!thinker->inuse); T_FEQ(enemy->mana.value, 100, .001f);
@@ -1004,8 +1361,7 @@ TEST(wc3_ability_lifecycle, live_drain_continues_once_after_save_load) {
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
     edict_t *thinker = review_thinker(caster);
-    if (!caster->channel) caster->channel = G_AllocChannel();
-    assert(caster->channel);
+    (caster->channel ? caster->channel : (caster->channel=G_AllocChannel()));
     T_ASSERT(WriteGame(path)); caster->channel->code = 0; thinker->think = NULL;
     T_ASSERT(ReadGame(path));
     level.time += 1000; G_RunEntity(thinker);
@@ -1368,9 +1724,9 @@ TEST(wc3_ability_lifecycle, scripted_status_removal_updates_derived_stun_immedia
         .buff = "Bstu", .level = 1, .duration = 8.0f
     });
     T_NOT_NULL(slot);
-    T_ASSERT(unit->stunned);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
     unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
-    T_ASSERT(!unit->stunned);
+    T_ASSERT(!unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
 }
 
 TEST(wc3_ability_lifecycle, status_source_lookup_does_not_return_expired_record) {
@@ -1394,11 +1750,11 @@ TEST(wc3_ability_lifecycle, status_deferred_removal_reconciles_after_batch) {
     first = unit_findstatus(unit, MAKEFOURCC('B','s','t','u'));
     second = unit_findstatus(unit, MAKEFOURCC('B','s','t','a'));
     T_NOT_NULL(first); T_NOT_NULL(second);
-    T_ASSERT(unit->stunned);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
     unit_removestatus_deferred(unit, first, STATUS_REMOVE_DISPEL);
     unit_removestatus_deferred(unit, second, STATUS_REMOVE_DISPEL);
     unit_refreshstatusflags(unit);
-    T_ASSERT(!unit->stunned);
+    T_ASSERT(!unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
     T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
     T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','a')));
 }

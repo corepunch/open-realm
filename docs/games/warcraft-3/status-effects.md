@@ -38,9 +38,12 @@ Refresh and Stack retain the existing owner and state mask.
 The state vocabulary includes STUNNED, ROOTED, SILENCED, SLEEPING,
 MAGIC_IMMUNE, INVULNERABLE, and ETHEREAL. These are separate from ability
 rawcodes and do not imply innate unit classifications or script-controlled
-flags. Existing rawcode-derived stun remains supported; explicit STUNNED
-contributors also update the `ent->stunned` cache on status refresh. Gameplay
-consumers and Ethereal behavior are migrated in subsequent phases.
+flags. Existing rawcode-derived stun remains supported alongside explicit STUNNED
+contributors. Gameplay and `IsUnitType(UNIT_TYPE_STUNNED)` query live status records
+directly; there is no `ent->stunned` cache. Expired records stop contributing before
+the cleanup tick, and overlapping contributors remain independent. Explicit pause
+is `UNIT_FLAG_PAUSED`, separate from all status contributions. See
+[unit switches](state-review.md#unit-switches-and-derived-stun).
 
 Adding serialized `state_mask` advances save format 79 to 80; prior formats
 remain rejected.

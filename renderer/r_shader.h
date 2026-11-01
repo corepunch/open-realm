@@ -13,6 +13,11 @@ extern const shader_desc_t sd_commandbutton;/* edge glow + generic clockwise rad
 extern const shader_desc_t sd_minimap_fog;  /* fog-of-war overlay with y-flip */
 extern const shader_desc_t sd_default;      /* ground/world per-vertex lighting */
 extern const shader_desc_t sd_model;        /* shared skinned model (MDX/M2/M3) */
+cstring_t R_ShaderDefines(bool instancing);
+
+typedef struct { uint32_t requests, binds; } shaderBindStats_t;
+void R_ResetShaderBinding(bool cache);
+shaderBindStats_t R_GetShaderBindStats(void);
 
 /* Shared comparison/PCF contract; callers supply the existing shadow sampler and light-space position. */
 #define BZ_SHADOW_GLSL \

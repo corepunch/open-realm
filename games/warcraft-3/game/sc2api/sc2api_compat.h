@@ -3,6 +3,9 @@
 
 #include "../g_local.h"
 
+/* Warcraft-owned adapter for external SC2API agents: translates protocol values
+ * into WC3 units/orders; it does not implement the StarCraft II game module. */
+
 /*Blizzard SC2 Race values 0-4 stay unchanged. OpenRealm extends the enum
  * with Warcraft III races so existing wire values remain compatible. */
 #define WC3_SC2_DESTRUCTABLE_TYPE_FLAG 0x80000000u

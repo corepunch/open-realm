@@ -1029,6 +1029,15 @@ TEST(net, loopback_na_ip_no_crash_without_socket) {
     T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
 }
 
+TEST(client_loading, ready_label_uses_authored_alternate_and_resets) {
+    uiFrame_t frame = { .stat = UI_STAT_LOADING_STATUS_TEXT, .text = "Loading", .tooltip = "Continue" };
+    bool old_waiting = cl.loading_waiting;
+    cl.loading_waiting = false; T_STREQ(SCR_GetStringValue(&frame), "Loading");
+    cl.loading_waiting = true; T_STREQ(SCR_GetStringValue(&frame), "Continue");
+    frame.tooltip = NULL; T_STREQ(SCR_GetStringValue(&frame), "Loading");
+    cl.loading_waiting = old_waiting;
+}
+
 TEST(net, net_config_opens_and_closes_udp_sockets) {
     test_client_stubs_set_cvar("game_port", "28030");
     NET_Init();
@@ -3998,6 +4007,25 @@ TEST(net, entity_delta_preserves_effect_model) {
     T_EQ(out.effect_flags, to.effect_flags);
 }
 
+TEST(net, entity_delta_preserves_named_attachment_payload) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .flags = EF_NAMED_ATTACHMENT,
+        .name = 41, .hover_value = 12 }, out = { 0 };
+    uint32_t bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_NAMED_ATTACHMENT);
+    T_EQ(out.name, 41);
+    T_EQ(out.hover_value, 12);
+}
+
 /* Other game entity events remain delta-compatible; WC3 sounds use svc_sound. */
 TEST(net, entity_delta_preserves_entity_event) {
     uint8_t buf[256];
@@ -5105,4 +5133,24 @@ TEST(net, entity_delta_preserves_game_authored_pose_offset) {
     number = MSG_ReadEntityBits(&sb, &bits);
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
     T_ASSERT(!memcmp(&out.pose_offset, &to.pose_offset, sizeof(to.pose_offset)));
+}
+
+/* Point-only targeting reuses the existing stats delta, including clearing it. */
+TEST(net, location_cursor_flags_round_trip_and_clear) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    player_t from = {0}, to = { .number = 1 }, out = {0};
+    uint32_t bits;
+    to.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = CURSOR_INPUT_LOCATION_POINT | CURSOR_INPUT_MINIMAP_POINT;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    int number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+    T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_FLAGS], to.stats[UI_PLAYERSTAT_CURSOR_FLAGS]);
+    from = out;
+    to.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = 0;
+    SZ_Init(&sb, buf, sizeof(buf));
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+    T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_FLAGS], 0);
 }

@@ -85,7 +85,7 @@ void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player) {
     player->hero_count = 0;
     memset(player->heroes, 0, sizeof(player->heroes));
     FILTER_EDICTS(hero, hero->inuse && hero->s.player == player->number &&
-                  G_UnitIsHero(hero) && !hero->training && !G_IsDeferredFree(hero)) {
+                  G_UnitIsHero(hero) && !(hero && hero->training) && !G_IsDeferredFree(hero)) {
         uint32_t const index = player->hero_count++;
         wc3ScoreHeroSnapshot_t *entry;
         cstring_t art;

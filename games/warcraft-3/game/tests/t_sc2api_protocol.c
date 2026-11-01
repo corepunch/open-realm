@@ -361,9 +361,9 @@ TEST(wc3_sc2api_protocol, raw_spell_cannot_bypass_player_disable_mana_or_cooldow
     T_FEQ(caster->mana.value, 0, 0.001f);
     T_ASSERT(!sc2_query_button_available(caster, &button, true));
     caster->mana.value = 1000;
-    caster->stunned = true;
+    unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
     T_ASSERT(!sc2_query_button_available(caster, &button, true));
-    caster->stunned = false;
+    unit_removestatus(caster, unit_findstatus(caster, MAKEFOURCC('B','s','t','u')), STATUS_REMOVE_SCRIPT);
     T_EQ(WC3_SC2API_IssueRawUnitCommand(0, &command), WC3_SC2_ACTION_SUCCESS);
     T_FEQ(caster->mana.value, 963, 0.001f);
     G_SetSLKRows("AbilityData", saved);

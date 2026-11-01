@@ -31,6 +31,10 @@ static cstring_t melee_buff(abilityitem_t const *spell, uint32_t level) {
     return buff ? buff : melee_buff_fallback(spell->code);
 }
 
+static bool melee_unit_is_bear_form(edict_t const *unit) {
+    return unit && unit->class_id == MAKEFOURCC('e','d','c','m');
+}
+
 static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = melee_buff(spell, level);
@@ -50,10 +54,15 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     else if (status && (status->code == MAKEFOURCC('B','r','e','j') ||
                         status->code == MAKEFOURCC('B','r','o','a')))
         status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
-    else if (status && (status->code == MAKEFOURCC('B','c','r','s') ||
-                        status->code == MAKEFOURCC('B','U','h','f') ||
-                        status->code == MAKEFOURCC('B','u','h','f')))
+    else if (status && status->code == MAKEFOURCC('B','c','r','s')) {
         status->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+        unit_status_enabletargetart(st.entity, status, "overhead");
+    }
+    else if (status && (status->code == MAKEFOURCC('B','U','h','f') ||
+                        status->code == MAKEFOURCC('B','u','h','f'))) {
+        status->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+        unit_status_enabletargetart(st.entity, status, "origin");
+    }
 }
 
 static bool melee_status_capacity(edict_t *caster, edict_t *target, abilityitem_t const *spell) {
@@ -65,8 +74,41 @@ static bool melee_status_capacity(edict_t *caster, edict_t *target, abilityitem_
 }
 
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
+    return spell && st.entity && !S_UnitHasStatus(st.entity, MAKEFOURCC('B','b','l','o')) &&
+        S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
         melee_status_capacity(caster, st.entity, spell);
+}
+
+/* Bloodlust autocast is combat-driven: only consider friendly units that have
+ * actually entered an attack order against a live enemy. */
+static bool bloodlust_autocast_acquire(edict_t *caster, uint32_t code) {
+    edict_t *best = NULL;
+    float best_distance = FLT_MAX;
+    uint32_t level;
+    float range;
+    abilityitem_t item = S_AbilityItem(code);
+
+    if (!caster || !code || !item.ability) return false;
+    level = S_SpellLevel(caster, code);
+    range = S_SpellRange(code, level);
+    if (range <= 0.0f) range = 600.0f;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target)) {
+        edict_t *enemy = target->combatentity;
+        float distance;
+        if (!target->currentmove || target->currentmove->proc != CAbilityAttack ||
+            !enemy || !enemy->inuse || !S_SpellIsAliveTarget(enemy) ||
+            !S_SpellIsEnemy(target, enemy) || !S_SpellIsFriend(caster, target) ||
+            S_UnitHasStatus(target, MAKEFOURCC('B','b','l','o')) ||
+            !S_SpellAllowsTarget(code, caster, target)) continue;
+        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
+        if (distance > range || distance >= best_distance) continue;
+        spellTarget_t spell_target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &spell_target);
+        if (!S_AbilityMessage(caster, A_VALIDATE, &call)) continue;
+        best = target;
+        best_distance = distance;
+    }
+    return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
 static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -78,7 +120,8 @@ static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
     uint32_t level;
     cstring_t buff;
     wc3_status_apply_check_t check;
-    if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity))
+    if (melee_unit_is_bear_form(caster) || !spell || !st.entity ||
+        !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity))
         return false;
     level = S_SpellLevel(caster, spell->code);
     buff = melee_buff(spell, level);
@@ -101,7 +144,7 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, false, 900.0f);
+    case A_AUTOCAST_ACQUIRE: return bloodlust_autocast_acquire(ent, code);
     case A_STATUS_POLICY:
         return UNIT_BUFF_KNOWN | UNIT_BUFF_POSITIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
     case A_STATUS_REFRESH:
@@ -148,14 +191,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = melee_buff(spell, level);
     float duration = S_SpellDuration(spell->code, level, false);
-    if (!buff) return;
+    if (melee_unit_is_bear_form(caster) || !buff) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
-        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, spell->code, level, buff, duration);
         if (status && status->code == MAKEFOURCC('B','r','o','a'))
             status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
     }
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 
 /* DataA owns the attack-rate bonus as a fraction (0.4 = +40%); DataB owns move speed. */

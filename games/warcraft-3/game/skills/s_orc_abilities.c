@@ -76,13 +76,17 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     }
     unit_refreshstatusflags(st.entity);
     G_InvalidateUnitInfoPanel(st.entity);
+    /* Purge's cast impact is authored as SpecialArt, not TargetArt. */
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, st.entity, "origin", true);
     /* The hostile-only movement effect is independent of Purge's dispel. */
     if (hostile) {
         buff = S_SpellBuffId(spell->code, level);
         if (!buff || strlen(buff) < 4) buff = "Bprg";
-        slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                             S_SpellDuration(spell->code, level, false));
-        if (slot) slot->data = spell->code;
+        slot = S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
+        if (slot) {
+            slot->data = spell->code;
+            unit_status_enabletargetart(st.entity, slot, "origin");
+        }
     }
     if (st.entity->owner && !S_SummonIsDispelImmune(st.entity))
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));
@@ -157,13 +161,24 @@ void lsh_think(edict_t *thinker) {
 
 /* Lightning Shield owns a periodic thinker. Reject capacity failures before
  * committing the cast and never spawn that thinker without its carrier buff. */
+static cstring_t lightning_shield_buff(abilityitem_t const *spell, uint32_t level) {
+    cstring_t buff = spell ? S_SpellBuffId(spell->code, level) : NULL;
+    if (buff) return buff;
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 omits Alsh's BuffID; the corresponding status is Blsh. */
+    if (spell && (G_AbilityCode(spell->code) == MAKEFOURCC('A','l','s','h') ||
+                  G_AbilityCode(spell->code) == MAKEFOURCC('A','C','l','s'))) return "Blsh";
+#endif
+    return NULL;
+}
+
 static bool lightning_shield_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level;
     cstring_t buff;
     wc3_status_apply_check_t check;
     if (!caster || !spell || !st.entity || !S_SpellIsAliveTarget(st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
-    buff = S_SpellBuffId(spell->code, level);
+    buff = lightning_shield_buff(spell, level);
     if (!buff || strlen(buff) < 4) return false;
     check = unit_status_checkapplication(st.entity, &(status_application_t){
         .buff = buff, .level = level
@@ -174,10 +189,11 @@ static bool lightning_shield_validate(edict_t *caster, spellTarget_t st, ability
 static void lightning_shield_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float dur = S_SpellDuration(spell->code, level, false);
-    cstring_t buff = S_SpellBuffId(spell->code, level);
+    cstring_t buff = lightning_shield_buff(spell, level);
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
     if (!S_SpellApplyTimedStatus(st.entity, buff, level, dur)) return;
+    unit_status_enabletargetart(st.entity, unit_findstatus(st.entity, FS_SLKKey(buff)), "origin");
     thinker = S_SpellIdentityThinker(st.entity, spell->code, caster);
     if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);

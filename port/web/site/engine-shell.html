@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OpenRealm">
+<meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/openrealm-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/openrealm-192.png">
 <title>OpenRealm</title>
 <style>
 body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; margin: 0; }
@@ -28,32 +35,97 @@ canvas { display: block; max-width: 100%; background: #000; }
  * aspect ratio, so ordinary browser resizes can cross the game's UI aspect
  * threshold. SDL may set inline dimensions, so the CSS box takes precedence;
  * the renderer separately syncs the worker-owned backing pixels. */
-#game-container:not(:fullscreen) > canvas:not(:fullscreen) {
+#game-container:not(.is-fullscreen) > canvas {
   width: 100% !important;
   height: min(65dvh, 75vw, 620px) !important;
   min-height: 240px;
   aspect-ratio: auto !important;
 }
-#game-container > canvas { position: relative; z-index: 0; }
+/* Touches on the game must reach SDL, not browser scroll/zoom gestures.
+ * Browser overlay controls own their gestures separately from the canvas. */
+#game-container > canvas { position: relative; z-index: 0; touch-action: none; }
 #game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
   visibility: visible; opacity: 1; pointer-events: auto;
   display: flex; gap: .5rem; }
+/* iOS Safari can select text/call up its loupe during a long press even with
+ * touch-action:none. Always protect the controls; protect the rest of the page
+ * only while a shortcut popup owns the pointer (and briefly after release). */
+#game-controls, #game-controls * {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+html.game-shortcut-dragging, html.game-shortcut-dragging * {
+  -webkit-user-select: none !important; user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
 #game-controls button { margin: 0; min-width: 2.8rem; min-height: 2.8rem;
   padding: .45rem .7rem; border: 1px solid #9baec7; border-radius: .4rem;
   background: rgba(11, 18, 32, .85); color: #fff; font: 600 14px system-ui, sans-serif;
   cursor: pointer; touch-action: manipulation; }
 #game-controls button:hover, #game-controls button:focus-visible { background: #304969; }
-#game-container:fullscreen { width: 100%; height: 100%; background: #000; outline: none; }
+/* The press/drag/release shortcut menus are ordinary DOM overlays, like Esc.
+ * Never send their pointer events to the SDL canvas. */
+#game-controls .game-popup-control { position: relative; }
+#game-controls .game-popup-control > button { touch-action: none; }
+#game-controls .game-popup {
+  position: absolute; top: calc(100% + .4rem); right: 0;
+  width: 12rem; box-sizing: border-box; padding: .25rem;
+  display: flex; flex-direction: column; gap: .12rem;
+  border: 1px solid #9baec7; border-radius: .4rem;
+  background: rgba(11, 18, 32, .96); box-shadow: 0 .35rem .9rem #0009;
+  max-height: calc(100dvh - 4.5rem); overflow: auto;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#game-controls .game-popup[hidden] { display: none; }
+#game-controls .game-popup button {
+  min-width: 0; min-height: clamp(1.5rem, 5.2dvh, 2.25rem);
+  padding: .2rem .4rem; border-radius: .2rem;
+  font-size: .85rem; white-space: nowrap; touch-action: none;
+}
+#game-controls .game-menu-item { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+#game-controls .game-menu-item span { color: #bccce0; }
+#game-controls .game-group-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0; }
+#game-controls .game-group-row button { border-radius: 0; }
+#game-controls .game-group-row button:first-child { border-radius: .2rem 0 0 .2rem; }
+#game-controls .game-group-row button:last-child { border-radius: 0 .2rem .2rem 0; }
+#game-controls .game-popup button.is-target { background: #42638c; border-color: #e0eaf7; }
+#game-container.is-fullscreen { width: 100%; height: 100%; background: #000; outline: none; }
 #game-container:fullscreen::backdrop { background: #000; }
+#game-container:-webkit-full-screen::backdrop { background: #000; }
 /* SDL may assign inline element sizes. In fullscreen the CSS display size
  * must remain the fullscreen viewport; backing pixels are synced by the
  * Emscripten renderer on its worker, not by these style rules. */
-#game-container:fullscreen canvas {
+#game-container.is-fullscreen canvas {
   width: 100% !important; height: 100% !important; aspect-ratio: auto;
   background: #000; border: 0; outline: 0;
 }
-#game-container:fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
+#game-container.is-fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
   right: max(.65rem, env(safe-area-inset-right)); }
+/* A Home Screen web app fills its own viewport without using the element
+ * Fullscreen API. Keep the canvas size in CSS; the worker owns backing pixels. */
+body.ios-web-app.ios-game-playing { overflow: hidden; touch-action: none; }
+body.ios-web-app #game-container:not([hidden]) {
+  position: fixed; inset: 0; z-index: 10;
+  width: 100vw; height: 100vh; height: 100dvh;
+  max-width: none; background: #000;
+  touch-action: none; overscroll-behavior: none;
+}
+body.ios-web-app #game-container:not([hidden]) > canvas {
+  width: 100% !important; height: 100% !important;
+  min-height: 0; aspect-ratio: auto !important;
+}
+body.ios-web-app #game-controls {
+  top: max(.65rem, env(safe-area-inset-top));
+  right: max(.65rem, env(safe-area-inset-right));
+}
+body.ios-web-app #game-fullscreen { display: none; }
+#ios-app-guide { margin: 1rem 0; border: 1px solid #557399; border-radius: .6rem;
+  padding: 1rem; background: #16243a; }
+#ios-app-guide[hidden] { display: none; }
+#ios-app-guide h2 { margin: 0 0 .4rem; font-size: 1.15rem; }
+#ios-app-guide ol { padding-left: 1.4rem; line-height: 1.6; }
+#ios-app-guide button { padding: .5rem .9rem; color: #fff; background: #304969;
+  border: 1px solid #9baec7; border-radius: .35rem; cursor: pointer; }
 #status { margin: 1rem 0; }
 #browser-unsupported { padding: 1rem; border: 1px solid #b84b4b; border-radius: .4rem; }
 #page-content[hidden], #browser-unsupported[hidden] { display: none; }
@@ -74,6 +146,21 @@ canvas { display: block; max-width: 100%; background: #000; }
 </section>
 <div id="page-content" hidden>
 <h1>OpenRealm</h1>
+<section id="ios-app-guide" aria-labelledby="ios-app-guide-title" hidden>
+  <h2 id="ios-app-guide-title">Play fullscreen on iPhone or iPad</h2>
+  <p>Safari cannot make this game's canvas fullscreen in a normal tab. Add OpenRealm
+    to your Home Screen to open it without Safari's browser bars:</p>
+  <ol>
+    <li>Tap <strong>Share</strong> in Safari (the square with an upward arrow, or
+      <strong>More → Share</strong> beside the address bar).</li>
+    <li>Scroll to <strong>Add to Home Screen</strong>; if offered, leave
+      <strong>Open as Web App</strong> enabled, then tap <strong>Add</strong>.</li>
+    <li>Return to the Home Screen and launch <strong>OpenRealm</strong> from its icon.</li>
+  </ol>
+  <p>On iPad, Share is generally in Safari's top toolbar. Imported game files may
+    need to be imported again in the Home Screen app because its storage can be separate.</p>
+  <button id="ios-app-guide-dismiss" type="button">Continue in Safari</button>
+</section>
 <p id="status" role="status">Checking browser-local Warcraft III data…</p>
 <details id="data-panel">
 <summary id="data-heading">Local Warcraft III data (experimental)</summary>
@@ -119,12 +206,73 @@ canvas { display: block; max-width: 100%; background: #000; }
   </div>
   <div id="game-controls" aria-label="Game controls">
     <button id="game-escape" type="button" aria-label="Send Escape to game" title="Escape / skip cinematic">Esc</button>
+    <div class="game-popup-control">
+      <button id="game-shortcut-menu" type="button" aria-label="Game menus" aria-haspopup="true" aria-controls="game-shortcut-menu-popup" aria-expanded="false" title="Hold and release on Quests, Menu, Allies or Chat">Game</button>
+      <div id="game-shortcut-menu-popup" class="game-popup" role="group" aria-label="Game menu shortcuts" hidden>
+        <button type="button" class="game-menu-item" data-game-key="F9">Quests <span>F9</span></button>
+        <button type="button" class="game-menu-item" data-game-key="F10">Menu <span>F10</span></button>
+        <button type="button" class="game-menu-item" data-game-key="F11">Allies <span>F11</span></button>
+        <button type="button" class="game-menu-item" data-game-key="F12">Chat <span>F12</span></button>
+      </div>
+    </div>
+    <div class="game-popup-control">
+      <button id="game-shortcut-groups" type="button" aria-label="Control groups" aria-haspopup="true" aria-controls="game-shortcut-groups-popup" aria-expanded="false" title="Hold and release to recall, assign or add a control group">1–9</button>
+      <div id="game-shortcut-groups-popup" class="game-popup" role="group" aria-label="Control group shortcuts" hidden>
+        <div class="game-group-row">
+          <button type="button" data-game-key="1" aria-label="Recall group 1">1</button>
+          <button type="button" data-game-key="1" data-game-modifier="Control" aria-label="Assign group 1, Control plus 1">ctrl</button>
+          <button type="button" data-game-key="1" data-game-modifier="Shift" aria-label="Add to group 1, Shift plus 1">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="2" aria-label="Recall group 2">2</button>
+          <button type="button" data-game-key="2" data-game-modifier="Control" aria-label="Assign group 2, Control plus 2">ctrl</button>
+          <button type="button" data-game-key="2" data-game-modifier="Shift" aria-label="Add to group 2, Shift plus 2">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="3" aria-label="Recall group 3">3</button>
+          <button type="button" data-game-key="3" data-game-modifier="Control" aria-label="Assign group 3, Control plus 3">ctrl</button>
+          <button type="button" data-game-key="3" data-game-modifier="Shift" aria-label="Add to group 3, Shift plus 3">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="4" aria-label="Recall group 4">4</button>
+          <button type="button" data-game-key="4" data-game-modifier="Control" aria-label="Assign group 4, Control plus 4">ctrl</button>
+          <button type="button" data-game-key="4" data-game-modifier="Shift" aria-label="Add to group 4, Shift plus 4">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="5" aria-label="Recall group 5">5</button>
+          <button type="button" data-game-key="5" data-game-modifier="Control" aria-label="Assign group 5, Control plus 5">ctrl</button>
+          <button type="button" data-game-key="5" data-game-modifier="Shift" aria-label="Add to group 5, Shift plus 5">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="6" aria-label="Recall group 6">6</button>
+          <button type="button" data-game-key="6" data-game-modifier="Control" aria-label="Assign group 6, Control plus 6">ctrl</button>
+          <button type="button" data-game-key="6" data-game-modifier="Shift" aria-label="Add to group 6, Shift plus 6">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="7" aria-label="Recall group 7">7</button>
+          <button type="button" data-game-key="7" data-game-modifier="Control" aria-label="Assign group 7, Control plus 7">ctrl</button>
+          <button type="button" data-game-key="7" data-game-modifier="Shift" aria-label="Add to group 7, Shift plus 7">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="8" aria-label="Recall group 8">8</button>
+          <button type="button" data-game-key="8" data-game-modifier="Control" aria-label="Assign group 8, Control plus 8">ctrl</button>
+          <button type="button" data-game-key="8" data-game-modifier="Shift" aria-label="Add to group 8, Shift plus 8">shft</button>
+        </div>
+        <div class="game-group-row">
+          <button type="button" data-game-key="9" aria-label="Recall group 9">9</button>
+          <button type="button" data-game-key="9" data-game-modifier="Control" aria-label="Assign group 9, Control plus 9">ctrl</button>
+          <button type="button" data-game-key="9" data-game-modifier="Shift" aria-label="Add to group 9, Shift plus 9">shft</button>
+        </div>
+      </div>
+    </div>
     <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
   </div>
 </div>
 <p>Experimental OpenRealm browser runtime. Imported archives are read directly from OPFS through WasmFS. Engine compatibility is experimental.</p>
 </div>
 </main>
+<script src="pages-isolation.js"></script>
+<script src="ios-audio-session.js"></script>
 <script>
 var webglProbe = document.createElement('canvas');
 var browserCapable = !!(webglProbe.getContext('webgl2') &&
@@ -135,8 +283,14 @@ var browserUnsupported = document.getElementById('browser-unsupported');
 var browserUnsupportedMessage = document.getElementById('browser-unsupported-message');
 if (!browserCapable) {
   browserUnsupported.hidden = false;
-} else if (!window.openrealmPagesReady && window.crossOriginIsolated) {
-  pageContent.hidden = false;
+} else if (!window.openrealmPagesReady) {
+  if (window.crossOriginIsolated) {
+    pageContent.hidden = false;
+  } else {
+    browserUnsupportedMessage.textContent =
+      'Cross-origin isolation bootstrap was not loaded. Check pages-isolation.js and reload.';
+    browserUnsupported.hidden = false;
+  }
 }
 if (browserCapable && window.openrealmPagesReady) {
   window.openrealmPagesReady.then(function (ready) {
@@ -163,19 +317,13 @@ window.addEventListener('error', function (event) {
 });
 /* The game canvas stays absent from layout until archive validation succeeds. */
 window.openrealmGamePresentation = function (state) {
-  document.getElementById('game-container').hidden = state !== 'playing';
+  var playing = state === 'playing';
+  document.getElementById('game-container').hidden = !playing;
+  document.body.classList.toggle('ios-game-playing', playing);
 };
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
 var gameFullscreen = document.getElementById('game-fullscreen');
-/* Prefer fullscreening the wrapper so game controls stay with the canvas. */
-if (gameCanvas.requestFullscreen && gameContainer.requestFullscreen) {
-  try {
-    gameCanvas.requestFullscreen = function (options) {
-      return gameContainer.requestFullscreen(options);
-    };
-  } catch (_) { /* The page fullscreen button requests the wrapper directly. */ }
-}
 function sendGameEscape() {
   gameCanvas.focus();
   for (var i = 0; i < 2; ++i) {
@@ -194,56 +342,67 @@ document.getElementById('game-escape').addEventListener('click', function (event
   event.stopPropagation();
   sendGameEscape();
 });
-gameFullscreen.addEventListener('click', function (event) {
-  event.stopPropagation();
-  if (document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas) {
-    document.exitFullscreen().catch(function () {});
-  } else if (gameContainer.requestFullscreen) {
-    gameContainer.requestFullscreen().catch(function (error) {
-      document.getElementById('status').textContent = 'Fullscreen unavailable: ' + error.message;
-    });
-  }
-});
-document.addEventListener('fullscreenchange', function () {
-  var active = document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas;
-  gameFullscreen.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
-  gameFullscreen.title = active ? 'Exit fullscreen' : 'Toggle fullscreen';
-  if (window.openrealmRequestFullscreenResize) {
-    window.openrealmRequestFullscreenResize();
-  } else {
-    window.dispatchEvent(new Event('resize'));
-  }
-});
-/* AudioContext is created from the first user gesture for browser autoplay policy.
- * The engine worker supplies shared WASM pointers once S_Init has run. */
-var openrealmAudio = { context: null, node: null, pending: null };
+/* Start Web Audio on a direct user gesture, never in the engine worker.
+ * An iOS playback audio session permits sound with the ringer on silent. */
+var openrealmAudio = { context: null, node: null, pending: null,
+                       connecting: false, workletLoaded: false };
+var openrealmIOSAudio = openrealmCreateIOSAudioSession(window, document);
 function openrealmAudioUnlock() {
+  if (document.hidden) return;
+  openrealmIOSAudio.unlock();
   if (!openrealmAudio.context) {
     try {
       openrealmAudio.context = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) { return; }
   }
-  if (openrealmAudio.context.state === 'suspended')
+  if (openrealmAudio.context.state !== 'running')
     openrealmAudio.context.resume().catch(function () {});
   if (openrealmAudio.pending) openrealmAudioConnect();
 }
 document.addEventListener('pointerdown', openrealmAudioUnlock, { capture: true });
+document.addEventListener('touchstart', openrealmAudioUnlock, { capture: true, passive: true });
 document.addEventListener('keydown', openrealmAudioUnlock, { capture: true });
+document.addEventListener('visibilitychange', function () {
+  openrealmIOSAudio.visibilityChanged();
+  if (!openrealmAudio.context) return;
+  if (document.hidden)
+    openrealmAudio.context.suspend().catch(function () {});
+  else
+    openrealmAudio.context.resume().catch(function () {});
+});
 async function openrealmAudioConnect() {
-  if (!openrealmAudio.pending || !openrealmAudio.context || openrealmAudio.node) return;
+  if (!openrealmAudio.pending || !openrealmAudio.context ||
+      openrealmAudio.node || openrealmAudio.connecting) return;
   var descriptor = openrealmAudio.pending;
-  openrealmAudio.pending = null;
+  openrealmAudio.connecting = true;
   try {
-    await openrealmAudio.context.audioWorklet.addModule('audio-worklet.js');
+    if (!openrealmAudio.workletLoaded) {
+      await openrealmAudio.context.audioWorklet.addModule('audio-worklet.js');
+      openrealmAudio.workletLoaded = true;
+    }
+    // S_Shutdown may detach the ring while addModule is in flight.
+    if (openrealmAudio.pending !== descriptor) return;
     var node = new AudioWorkletNode(openrealmAudio.context, 'openrealm-audio', {
-      outputChannelCount: [2],
+      numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
       processorOptions: descriptor
     });
     node.connect(openrealmAudio.context.destination);
     openrealmAudio.node = node;
-    await openrealmAudio.context.resume();
+    openrealmAudio.pending = null;
+    // Resume may stay pending until Safari receives another user gesture.
+    // Ring attachment is complete: never hold the connection lock for it,
+    // and never restart playback after the page was hidden during addModule.
+    if (!document.hidden)
+      openrealmAudio.context.resume().catch(function (error) {
+        console.warn('OpenRealm browser sound resume deferred:', error);
+      });
   } catch (error) {
+    // Preserve pending for retry on the next user gesture.
     console.warn('OpenRealm browser sound unavailable:', error);
+  } finally {
+    openrealmAudio.connecting = false;
+    if (openrealmAudio.pending && openrealmAudio.pending !== descriptor)
+      openrealmAudioConnect();
   }
 }
 window.openrealmAudioAttach = function (memory, ring, frames, write, read, rate) {
@@ -289,15 +448,30 @@ function openrealmStartIsolatedEngine(arguments_) {
   return true;
 };
 </script>
+<script src="game-shortcut-menus.js"></script>
+<script>
+openrealmInstallGameShortcutMenus(window, document, gameCanvas, [
+  [document.getElementById('game-shortcut-menu'), document.getElementById('game-shortcut-menu-popup')],
+  [document.getElementById('game-shortcut-groups'), document.getElementById('game-shortcut-groups-popup')]
+]);
+</script>
 <script src="browser-keyboard.js"></script>
 <script>
 openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 </script>
 <script src="fullscreen-resize.js"></script>
+<script src="ios-home-screen.js"></script>
+<script>
+openrealmInstallIOSHomeScreen(window, document);
+</script>
+<script src="fullscreen-controls.js"></script>
+<script>
+openrealmInstallFullscreenControls(window, document, gameContainer, gameCanvas,
+  gameFullscreen, document.getElementById('status'));
+</script>
 <script src="early-map-loading.js"></script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>
-<script src="pages-isolation.js"></script>
 <script src="filesystem-bridge.js"></script>
 <template id="engine-script">{{{ SCRIPT }}}</template>
 </body>

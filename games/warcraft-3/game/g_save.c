@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 224; /* Reciprocal legacy Couple ownership, ready latch and pause replay. */
+static uint32_t const save_version = 225; /* Upstream gameplay fields with retained native movement ownership. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -183,6 +183,8 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(acid_bomb_think),
     SAVE_CFUNCTION(S_SpellTargetApproachComplete),
     SAVE_CFUNCTION(morph_end),
+    SAVE_CFUNCTION(sentinel_owl_think),
+    SAVE_CFUNCTION(possession_projectile_death_think),
     SAVE_CFUNCTION(S_AncientFacingComplete),
     SAVE_CFUNCTION(S_EntangleApproachComplete),
     SAVE_CFUNCTION(S_MilitiaApproachComplete),
@@ -878,6 +880,7 @@ static field_t const morph_fields[] = {
     TF(morph_t, expiration.sequence, F_INT),
     TF(morph_t, expiration_remaining, F_FLOAT),
     TF(morph_t, expiration_paused, F_INT),
+    TF(morph_t, metamorphosis_health_bonus, F_FLOAT),
     TF(morph_t, expiration.active, F_INT),
     TF(morph_t, code, F_INT),
     TF(morph_t, base_type, F_INT),
@@ -1311,6 +1314,7 @@ field_t edict_fields[] = {
     F(edict_s, destructable, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, cargo, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, stock, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, pillage, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, waygate, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, artillery, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, avatar, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1344,6 +1348,7 @@ field_t edict_fields[] = {
     F(edict_s, wander_random_state, F_INT),
     F(edict_s, wander_goal, F_EDICT, 0, FIELD_NONE),
     F(edict_s, wander_waypoint, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, wander_waypoint_spawn_time, F_INT),
     F(edict_s, wander_goal_generation, F_INT),
     F(edict_s, waypoint_generation, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
@@ -1443,6 +1448,7 @@ field_t edict_fields[] = {
     F(edict_s, score_level_xp, F_INT),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, hero_proper_name, F_INT),
+    F(edict_s, proper_name, F_LSTRING),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
@@ -3327,6 +3333,7 @@ typedef struct {
     size_t offset, size;
     field_t const *fields;
     void *(*alloc)(void);
+    uint32_t capacity;
 } savePool_t;
 
 static field_t const scalar_pool_fields[] = { { NULL, 0, 0, 0, 0, 0 } };
@@ -3360,6 +3367,7 @@ POOL_ALLOC(Item)
 POOL_ALLOC(Destructable)
 POOL_ALLOC(Cargo)
 POOL_ALLOC(Stock)
+POOL_ALLOC(Pillage)
 POOL_ALLOC(Waygate)
 POOL_ALLOC(Artillery)
 POOL_ALLOC(Avatar)
@@ -3367,40 +3375,41 @@ POOL_ALLOC(Sleep)
 POOL_ALLOC(Channel)
 
 static savePool_t const save_pools[] = {
-    { "construction", offsetof(edict_t, construction), sizeof(construction_t), construction_fields, SaveAllocConstruction },
-    { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch },
-    { "rally", offsetof(edict_t, rally), sizeof(rally_t), rally_fields, SaveAllocRally },
-    { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood },
-    { "abilstatus", offsetof(edict_t, abilstatus), sizeof(unitStatusStorage_t), unit_status_fields, SaveAllocUnitStatus },
-    { "order_queue", offsetof(edict_t, order_queue.entries), sizeof(unitOrderStorage_t), scalar_pool_fields, SaveAllocUnitOrders },
-    { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork },
-    { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival },
-    { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice },
-    { "unsummon", offsetof(edict_t, unsummon), sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon },
-    { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld },
-    { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia },
-    { "couple", offsetof(edict_t, couple), sizeof(couple_t), couple_fields, SaveAllocCouple },
-    { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph },
-    { "shadow_strike", offsetof(edict_t, shadow_strike), sizeof(shadowStrike_t), scalar_pool_fields, SaveAllocShadowStrike },
-    { "health_regen", offsetof(edict_t, health_regen), sizeof(healthRegen_t), scalar_pool_fields, SaveAllocHealthRegen },
-    { "raven", offsetof(edict_t, raven), sizeof(raven_t), raven_fields, SaveAllocRaven },
-    { "morph", offsetof(edict_t, morph), sizeof(morph_t), morph_fields, SaveAllocMorph },
-    { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth },
-    { "ensnare", offsetof(edict_t, ensnare), sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare },
-    { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot },
-    { "entangle", offsetof(edict_t, entangle), sizeof(entangle_t), entangle_fields, SaveAllocEntangle },
-    { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine },
-    { "mineoverlay", offsetof(edict_t, mineoverlay), sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay },
-    { "acolyte_mine", offsetof(edict_t, acolyte_mine), sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine },
-    { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem },
-    { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable },
-    { "cargo", offsetof(edict_t, cargo), sizeof(cargo_t), cargo_fields, SaveAllocCargo },
-    { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock },
-    { "waygate", offsetof(edict_t, waygate), sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate },
-    { "artillery", offsetof(edict_t, artillery), sizeof(artillery_t), artillery_fields, SaveAllocArtillery },
-    { "avatar", offsetof(edict_t, avatar), sizeof(avatar_t), avatar_fields, SaveAllocAvatar },
-    { "sleep", offsetof(edict_t, sleep), sizeof(sleep_t), sleep_fields, SaveAllocSleep },
-    { "channel", offsetof(edict_t, channel), sizeof(channel_t), channel_fields, SaveAllocChannel },
+    { "construction", offsetof(edict_t, construction), sizeof(construction_t), construction_fields, SaveAllocConstruction , LIFECYCLE_POOL_CAP },
+    { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch , LIFECYCLE_POOL_CAP },
+    { "rally", offsetof(edict_t, rally), sizeof(rally_t), rally_fields, SaveAllocRally , LIFECYCLE_POOL_CAP },
+    { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood , MAX_ENTITIES },
+    { "abilstatus", offsetof(edict_t, abilstatus), sizeof(unitStatusStorage_t), unit_status_fields, SaveAllocUnitStatus , MAX_ENTITIES },
+    { "order_queue", offsetof(edict_t, order_queue.entries), sizeof(unitOrderStorage_t), scalar_pool_fields, SaveAllocUnitOrders , MAX_ENTITIES },
+    { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork , LIFECYCLE_POOL_CAP },
+    { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival , LIFECYCLE_POOL_CAP },
+    { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice , LIFECYCLE_POOL_CAP },
+    { "unsummon", offsetof(edict_t, unsummon), sizeof(unsummon_t), unsummon_fields, SaveAllocUnsummon , LIFECYCLE_POOL_CAP },
+    { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld , MAX_ENTITIES },
+    { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia , LIFECYCLE_POOL_CAP },
+    { "couple", offsetof(edict_t, couple), sizeof(couple_t), couple_fields, SaveAllocCouple , LIFECYCLE_POOL_CAP },
+    { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph , LIFECYCLE_POOL_CAP },
+    { "shadow_strike", offsetof(edict_t, shadow_strike), sizeof(shadowStrike_t), scalar_pool_fields, SaveAllocShadowStrike , LIFECYCLE_POOL_CAP },
+    { "health_regen", offsetof(edict_t, health_regen), sizeof(healthRegen_t), scalar_pool_fields, SaveAllocHealthRegen , MAX_ENTITIES },
+    { "raven", offsetof(edict_t, raven), sizeof(raven_t), raven_fields, SaveAllocRaven , LIFECYCLE_POOL_CAP },
+    { "morph", offsetof(edict_t, morph), sizeof(morph_t), morph_fields, SaveAllocMorph , LIFECYCLE_POOL_CAP },
+    { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth , LIFECYCLE_POOL_CAP },
+    { "ensnare", offsetof(edict_t, ensnare), sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare , LIFECYCLE_POOL_CAP },
+    { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot , LIFECYCLE_POOL_CAP },
+    { "entangle", offsetof(edict_t, entangle), sizeof(entangle_t), entangle_fields, SaveAllocEntangle , LIFECYCLE_POOL_CAP },
+    { "goldmine", offsetof(edict_t, goldmine), sizeof(goldMine_t), goldmine_fields, SaveAllocGoldMine , LIFECYCLE_POOL_CAP },
+    { "mineoverlay", offsetof(edict_t, mineoverlay), sizeof(mineOverlay_t), mineoverlay_fields, SaveAllocMineOverlay , LIFECYCLE_POOL_CAP },
+    { "acolyte_mine", offsetof(edict_t, acolyte_mine), sizeof(acolyteMine_t), acolyte_mine_fields, SaveAllocAcolyteMine , LIFECYCLE_POOL_CAP },
+    { "item", offsetof(edict_t, item), sizeof(item_t), item_fields, SaveAllocItem , LIFECYCLE_POOL_CAP },
+    { "destructable", offsetof(edict_t, destructable), sizeof(destructable_t), destructable_fields, SaveAllocDestructable , DESTRUCTABLE_POOL_CAP },
+    { "cargo", offsetof(edict_t, cargo), sizeof(cargo_t), cargo_fields, SaveAllocCargo , LIFECYCLE_POOL_CAP },
+    { "stock", offsetof(edict_t, stock), sizeof(stock_t), stock_fields, SaveAllocStock , LIFECYCLE_POOL_CAP },
+    { "pillage", offsetof(edict_t, pillage), sizeof(pillage_t), scalar_pool_fields, SaveAllocPillage , LIFECYCLE_POOL_CAP },
+    { "waygate", offsetof(edict_t, waygate), sizeof(waygate_t), scalar_pool_fields, SaveAllocWaygate , LIFECYCLE_POOL_CAP },
+    { "artillery", offsetof(edict_t, artillery), sizeof(artillery_t), artillery_fields, SaveAllocArtillery , LIFECYCLE_POOL_CAP },
+    { "avatar", offsetof(edict_t, avatar), sizeof(avatar_t), avatar_fields, SaveAllocAvatar , LIFECYCLE_POOL_CAP },
+    { "sleep", offsetof(edict_t, sleep), sizeof(sleep_t), sleep_fields, SaveAllocSleep , LIFECYCLE_POOL_CAP },
+    { "channel", offsetof(edict_t, channel), sizeof(channel_t), channel_fields, SaveAllocChannel , LIFECYCLE_POOL_CAP },
 };
 
 static void *SavePoolSlot(edict_t const *ent, savePool_t const *pool) {
@@ -3440,7 +3449,7 @@ static bool WritePool(FILE *f, savePool_t const *pool) {
 
 static bool ReadPool(FILE *f, savePool_t const *pool) {
     uint32_t count;
-    if (!LoadBytes(f, &count, sizeof(count)) || count >= DESTRUCTABLE_POOL_CAP || count > globals.num_edicts) return false;
+    if (!LoadBytes(f, &count, sizeof(count)) || count >= pool->capacity || count > globals.num_edicts) return false;
     FOR_LOOP(n, count) {
         uint32_t index;
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.num_edicts ||
@@ -3628,8 +3637,8 @@ static void RebindEntityModels(edict_t *ent) {
     FOR_LOOP(slot, 2) {
         unitAttack_t const *base = ent->attack_profiles[slot];
         unitAttack_t *owned = ent->attack_overrides[slot];
-        bool const base_missile = base && (base->weapon == WPN_MISSILE || base->weapon == WPN_ARTILLERY);
-        bool const owned_missile = owned && (owned->weapon == WPN_MISSILE || owned->weapon == WPN_ARTILLERY);
+        bool const base_missile = base && G_WeaponUsesProjectile(base->weapon);
+        bool const owned_missile = owned && G_WeaponUsesProjectile(owned->weapon);
         if (!base_missile && !owned_missile) continue;
         int const model = G_RegisterModel(ent->data.UnitProfile->attack[slot].art);
         if (owned_missile) owned->projectile.model = model;

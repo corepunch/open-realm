@@ -104,31 +104,31 @@ cstring_t G_FoodCommandErrorKey(gameClient_t *client, int32_t food_cost) {
 }
 
 void G_SetUnitFoodUsed(edict_t *unit, int32_t amount) {
+    food_t *ledger = unit ? unit->food : NULL;
     gameClient_t *client;
     int32_t value, delta;
 
     if (!unit) return;
-    if (!unit->food && amount <= 0) return;
-    if (!unit->food) unit->food = G_AllocFood();
-    assert(unit->food);
+    if (!ledger && amount <= 0) return;
+    ledger = (unit->food ? unit->food : (unit->food=G_AllocFood()));
     value = MAX(0, amount);
-    delta = value - unit->food->used;
-    unit->food->used = value;
+    delta = value - ledger->used;
+    ledger->used = value;
     client = G_FoodClient(unit->s.player);
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_USED, delta);
 }
 
 void G_SetUnitFoodMade(edict_t *unit, int32_t amount) {
+    food_t *ledger = unit ? unit->food : NULL;
     gameClient_t *client;
     int32_t value, delta;
 
     if (!unit) return;
-    if (!unit->food && amount <= 0) return;
-    if (!unit->food) unit->food = G_AllocFood();
-    assert(unit->food);
+    if (!ledger && amount <= 0) return;
+    ledger = (unit->food ? unit->food : (unit->food=G_AllocFood()));
     value = MAX(0, amount);
-    delta = value - unit->food->made;
-    unit->food->made = value;
+    delta = value - ledger->made;
+    ledger->made = value;
     client = G_FoodClient(unit->s.player);
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_CAP, delta);
 }
@@ -150,13 +150,14 @@ void G_ClearTrainingQueueFood(edict_t *producer) {
 
     if (!producer) return;
     queued = producer->build;
-    while (queued && queued->training) {
+    while (queued && (queued && queued->training)) {
         G_SetUnitFoodUsed(queued, 0);
         queued = queued->build;
     }
 }
 
 void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
+    food_t *ledger = unit ? unit->food : NULL;
     gameClient_t *old_client, *new_client;
     uint32_t old_player;
 
@@ -171,21 +172,22 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before
      * ownership changes so neither reservations nor refunds cross the transfer. */
-    if ((unit->revival && unit->revival->reviving)) G_CancelHeroRevive(unit->revival->producer, unit);
+    if (G_HeroIsReviving(unit)) G_CancelHeroRevive(unit->revival->producer, unit);
     G_CancelHeroRevives(unit);
     G_CancelTrainingQueue(unit, true);
     if (G_BuildingUpgradeActive(unit)) G_CancelBuildingUpgrade(unit);
+    ledger = unit->food; /* Cancelling the queue may have attached or rewritten the ledger. */
     old_player = unit->s.player;
     old_client = G_FoodClient(old_player);
     new_client = G_FoodClient(player);
 
-    if (unit->food && unit->food->used) {
-        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_USED, -unit->food->used);
-        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_USED, unit->food->used);
+    if (ledger && ledger->used) {
+        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_USED, -ledger->used);
+        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_USED, ledger->used);
     }
-    if (unit->food && unit->food->made) {
-        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -unit->food->made);
-        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
+    if (ledger && ledger->made) {
+        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -ledger->made);
+        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, ledger->made);
     }
     unit->s.player = player;
     G_AcquisitionEntityLinked(unit);
@@ -215,16 +217,16 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
 }
 
 bool G_ReserveTrainingFood(edict_t *unit) {
+    food_t *ledger = unit ? unit->food : NULL;
     gameClient_t *client;
     int32_t cost;
 
     if (!unit || !unit->data.UnitBalance) return false;
     cost = MAX(0, unit->data.UnitBalance->foodUsed);
-    if (cost == 0 && !unit->food) return true;
-    if (!unit->food) unit->food = G_AllocFood();
-    assert(unit->food);
-    if (unit->food->used == cost) return true;
-    if (unit->food->used != 0) return false;
+    if (cost == 0 && !ledger) return true;
+    ledger = (unit->food ? unit->food : (unit->food=G_AllocFood()));
+    if (ledger->used == cost) return true;
+    if (ledger->used != 0) return false;
     if (cost == 0) return true;
     client = G_FoodClient(unit->s.player);
     if (!G_PlayerHasFoodFor(client, cost)) return false;

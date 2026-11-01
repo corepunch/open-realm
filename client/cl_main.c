@@ -155,6 +155,10 @@ static uint32_t CL_LANNumServers(void);
 static bool CL_LANServer(uint32_t index, menuLanGame_t *out);
 static void CL_LANConnectServer(uint32_t index);
 static refExport_t *CL_UIGetRenderer(void);
+/* This uses the same deferred, map-aware path as an in-game named load. */
+static void CL_UI_LoadSavedGame(cstring_t name) {
+    MenuAction("load", name);
+}
 
 static void CL_SuspendMenu(void) {
     if (cl_menu_life != CL_MENU_READY) return;
@@ -567,6 +571,7 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     /* Same-map load keeps CS_WORLD unchanged; forget the previous world's begin
      * so PrepRefresh sends it again and CL_ParseFrame can end the plaque. */
     CL_RestartRefresh();
+    CL_MapLoadDebugBegin();
     cl.loading_progress = 0.0f;
     cl.precache_ready = false;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
@@ -1156,8 +1161,13 @@ void CL_Init(void) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
+        .FS_RegisterArchiveMapSource = FS_RegisterArchiveMapSource,
         .FS_WriteFile = CL_UI_WriteFile,
         .UserPath = FS_UserPath,
+        .ListSaves = FS_ListSaves,
+        .GetSaveMap = SV_GetSaveMap,
+        .DeleteSave = FS_DeleteSave,
+        .LoadSavedGame = CL_UI_LoadSavedGame,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ImageIndex = CL_ImageIndex,

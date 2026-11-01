@@ -8,6 +8,7 @@
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap_render.h"
 #include "games/warcraft-3/common/player_colors.h"
+#include "common/map_load_debug.h"
 #include <ctype.h>
 #include <limits.h>
 #include <math.h>
@@ -356,6 +357,7 @@ typedef struct {
 static wc3EventSplat_t event_splats[WC3_EVENT_SPLAT_MAX];
 static uint32_t event_splat_serial;
 static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id);
+static bool event_splat_batch_active;
 static void R_W3DrawEventSplats(void);
 static bool R_W3RenderEventSplat(wc3EventSplat_t *splat);
 static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params);
@@ -536,14 +538,16 @@ static uint32_t R_W3AttachmentFrame(mdxModel_t const *parent, mdxModel_t const *
     return dst->interval[0] + MIN(span - 1, (uint32_t)(ratio * (float)span));
 }
 
-static void R_W3RenderAttachmentModels(renderEntity_t const *entity, mat4_t const *transform) {
+static void R_W3RenderAttachmentModels(renderEntity_t const *entity, mat4_t const *transform,
+                                       uint64_t parent_pose_generation) {
     mdxAttachmentPosition_t attachments[32];
     uint32_t count;
 
     if (!entity || !entity->model || !entity->model->mdx || !transform) return;
-    count = MDLX_CollectAttachmentPositions(entity->model->mdx, transform, entity->frame,
-                                             entity->oldframe, NULL, attachments,
-                                             sizeof(attachments) / sizeof(*attachments));
+    count = MDLX_CollectRenderAttachmentPositionsWithPose(entity->model->mdx, transform,
+                                             entity->frame, entity->oldframe, attachments,
+                                             sizeof(attachments) / sizeof(*attachments),
+                                             parent_pose_generation);
     FOR_LOOP(i, count) {
         renderEntity_t child = *entity;
         model_t *model;
@@ -648,14 +652,19 @@ static texture_t const *R_W3LoadSplatTexture(wc3SplatTextureParams_t const *para
 
     if (!params || !params->texture || !params->attempted) return NULL;
     if (*params->texture || *params->attempted) return *params->texture;
+    /* Lazy texture registration may touch GL bindings. Finish previously
+     * queued splats before loading, then resume an empty batch so its first
+     * actual rectangle always reinstalls the shader, texture and VAO. */
+    if (event_splat_batch_active) R_EndSplatBatch();
     *params->attempted = true;
     if (!params->dir || !params->file || !params->dir[0] || !params->file[0]) {
         fprintf(stderr, "WC3 renderer: %s row '%s' has no splat texture path\n",
                 params->family ? params->family : "splat", params->name ? params->name : "(unnamed)");
-        return NULL;
+    } else {
+        snprintf(path, sizeof(path), "%s\\%s.blp", params->dir, params->file);
+        *params->texture = R_LoadTexture(path);
     }
-    snprintf(path, sizeof(path), "%s\\%s.blp", params->dir, params->file);
-    *params->texture = R_LoadTexture(path);
+    if (event_splat_batch_active) R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_default));
     return *params->texture;
 }
 
@@ -1244,6 +1253,7 @@ void R_DrawMinimap(rect_t const *screen, cstring_t map) {
 }
 
 void R_RegisterMap(cstring_t mapFileName) {
+    double stage_start = MAP_LOAD_NOW();
     cursor_active_model = NULL; cursor_anim = NULL;
     R_SetMapAssetScope(mapFileName);
     R_AdvanceTextureGeneration();
@@ -1251,17 +1261,38 @@ void R_RegisterMap(cstring_t mapFileName) {
     R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3ClearEventWarnings();
+    stage_start = MAP_LOAD_NOW();
     R_W3LoadSpawnData();
     R_W3LoadSplatData();
     R_W3LoadUberSplatData();
+    MAP_LOAD_LOG("map=%s phase=renderer-register-event-data ms=%.3f\n",
+                     mapFileName, MAP_LOAD_NOW() - stage_start);
     memset(event_state, 0, sizeof(event_state));
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     R_ClearMinimapSpecialAssets();
+    stage_start = MAP_LOAD_NOW();
     if (mapFileName && *mapFileName) R_LoadMinimapSpecialAssets();
+    MAP_LOAD_LOG("map=%s phase=renderer-register-minimap-assets ms=%.3f\n",
+                     mapFileName, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_WeatherRegisterMap();
+    MAP_LOAD_LOG("map=%s phase=renderer-register-weather ms=%.3f\n",
+                     mapFileName, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_LightningRegisterMap();
+    MAP_LOAD_LOG("map=%s phase=renderer-register-lightning ms=%.3f\n",
+                     mapFileName, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     _W3M_RegisterMap(mapFileName);
+    MAP_LOAD_LOG("map=%s phase=renderer-register-world ms=%.3f\n",
+                     mapFileName, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_ReclaimStreamedTextures(0);
+    MAP_LOAD_LOG("map=%s phase=renderer-register-reclaim-textures ms=%.3f\n",
+                     mapFileName, MAP_LOAD_NOW() - stage_start);
+#ifndef DEBUG_MAP_LOAD
+    (void)stage_start;
+#endif
 }
 
 void R_SetupEnvironmentLighting(void) {
@@ -1274,8 +1305,150 @@ void R_SetupEnvironmentLighting(void) {
         tr.viewDef.entityLight = R_EnvironLightFromModel(&light);
 }
 
+/* Matrix reuse is independent of MDX pose reuse: opaque-only entities and
+ * MDX pose-cache-budget misses can avoid rebuilding a transform three times in
+ * the cull, solid and alpha passes. Only real view-array entries qualify.
+ * Warcraft III's R_EntityPose basis is fixed; origin, yaw, pose offset and scale are the
+ * complete inputs to R_GetEntityMatrix. Selection of terrain-fitted models
+ * is intentionally NOT cached, and must still run for every draw. */
+#define WC3_VIEW_MATRIX_ENTRIES 4096
+
+typedef struct {
+    vec3_t origin;
+    float angle, scale;
+    orientation_t pose_offset;
+} wc3MatrixPoseKey_t;
+
+typedef struct {
+    wc3MatrixPoseKey_t key;
+    mat4_t matrix;
+} wc3ViewMatrixEntry_t;
+
+static struct {
+    bool active;
+    uint16_t epoch;
+    uint16_t scene_epoch[MAX_GAME_ENTITIES];
+    uint16_t scene_entry[MAX_GAME_ENTITIES];
+    renderEntity_t const *scene_entities;
+    uint32_t num_entities, count;
+    wc3ViewMatrixEntry_t entries[WC3_VIEW_MATRIX_ENTRIES];
+} wc3_view_matrices;
+
+static void R_W3ViewMatricesBegin(void) {
+    if (++wc3_view_matrices.epoch == 0) {
+        memset(wc3_view_matrices.scene_epoch, 0, sizeof(wc3_view_matrices.scene_epoch));
+        wc3_view_matrices.epoch = 1;
+    }
+    wc3_view_matrices.active = true;
+    wc3_view_matrices.scene_entities = tr.viewDef.entities;
+    wc3_view_matrices.num_entities = tr.viewDef.num_entities;
+    wc3_view_matrices.count = 0;
+}
+
+static void R_W3ViewMatricesEnd(void) {
+    wc3_view_matrices.active = false;
+    wc3_view_matrices.scene_entities = NULL;
+    wc3_view_matrices.num_entities = wc3_view_matrices.count = 0;
+}
+
+/* A local fire/attachment entity can share an entity number with a real
+ * scene entity; its pointer must never alias a cache entry. Avoid relational
+ * pointer comparisons between unrelated C objects. */
+static uint32_t R_W3ViewMatrixSceneIndex(renderEntity_t const *entity) {
+    uintptr_t base, address, offset, index;
+    if (!wc3_view_matrices.active || !entity || !wc3_view_matrices.scene_entities ||
+        wc3_view_matrices.scene_entities != tr.viewDef.entities ||
+        wc3_view_matrices.num_entities != tr.viewDef.num_entities)
+        return UINT32_MAX;
+    base = (uintptr_t)wc3_view_matrices.scene_entities;
+    address = (uintptr_t)entity;
+    if (address < base) return UINT32_MAX;
+    offset = address - base;
+    if (offset % sizeof(*entity)) return UINT32_MAX;
+    index = offset / sizeof(*entity);
+    if (index >= wc3_view_matrices.num_entities || index >= MAX_GAME_ENTITIES)
+        return UINT32_MAX;
+    return (uint32_t)index;
+}
+
+static bool R_W3ResolveAttachmentMatrix(renderEntity_t const *entity, mat4_t *matrix) {
+    renderEntity_t const *parent = NULL;
+    mdxAttachmentPosition_t attachments[32];
+    mat4_t parent_matrix;
+    uint32_t count;
+    if (!entity || !entity->attachment_entity || !entity->attachment_name || !*entity->attachment_name)
+        return false;
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *candidate = tr.viewDef.entities + i;
+        if (candidate->number == entity->attachment_entity) { parent = candidate; break; }
+    }
+    if (!parent || !parent->model || parent->model->modeltype != ID_MDLX || !parent->model->mdx)
+        return false;
+    R_GetEntityMatrix(parent, &parent_matrix);
+    count = MDLX_CollectAttachmentPositionsWithPose(parent->model->mdx, &parent_matrix,
+        parent->frame, parent->oldframe, entity->attachment_name, attachments,
+        sizeof(attachments) / sizeof(attachments[0]), 0);
+    if (!count) return false;
+    {
+        renderEntity_t attached = *entity;
+        attached.origin = attachments[0].origin;
+        attached.angle = parent->angle;
+        R_GetEntityMatrix(&attached, matrix);
+    }
+    return true;
+}
+
+#ifdef BZ_TESTS
+static uint32_t test_wc3_view_matrix_builds;
+static void R_W3ViewMatricesResetBuildCount(void) { test_wc3_view_matrix_builds = 0; }
+static uint32_t R_W3ViewMatricesBuildCount(void) { return test_wc3_view_matrix_builds; }
+#endif
+
+static void R_W3GetViewEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
+    if (R_W3ResolveAttachmentMatrix(entity, matrix)) return;
+    uint32_t index = R_W3ViewMatrixSceneIndex(entity);
+    wc3MatrixPoseKey_t key = { .origin = entity->origin,
+                               .angle = entity->angle, .scale = entity->scale,
+                               .pose_offset = entity->pose_offset };
+    wc3ViewMatrixEntry_t *entry = NULL;
+
+    if (index != UINT32_MAX) {
+        if (wc3_view_matrices.scene_epoch[index] == wc3_view_matrices.epoch) {
+            uint32_t slot = wc3_view_matrices.scene_entry[index];
+            if (slot && slot <= wc3_view_matrices.count)
+                entry = &wc3_view_matrices.entries[slot - 1];
+        }
+        if (entry && !memcmp(&entry->key, &key, sizeof(key))) {
+            *matrix = entry->matrix;
+            return;
+        }
+    }
+    R_GetEntityMatrix(entity, matrix);
+#ifdef BZ_TESTS
+    test_wc3_view_matrix_builds++;
+#endif
+    if (index == UINT32_MAX) return;
+    if (!entry) {
+        if (wc3_view_matrices.count >= WC3_VIEW_MATRIX_ENTRIES) return;
+        entry = &wc3_view_matrices.entries[wc3_view_matrices.count++];
+        wc3_view_matrices.scene_entry[index] = (uint16_t)wc3_view_matrices.count;
+        wc3_view_matrices.scene_epoch[index] = wc3_view_matrices.epoch;
+    }
+    entry->key = key;
+    entry->matrix = *matrix;
+}
+
 void R_DrawWorld(void) {
+    if (tr.render_phase == RENDER_PHASE_SOLID) {
+        MDLX_ViewPoseBegin();
+        R_W3ViewMatricesBegin();
+        R_SolidVisibilityBegin();
+    }
     _W3M_DrawWorld();
+    /* HUD models and cursors render in their own no-world views. Keep the
+     * terrain update above, but do not replay world decals or child effects
+     * into those views; both belong to the actual scene's solid pass. */
+    if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) return;
     R_W3DrawEventSplats();
     R_W3DrawEventSpawns(false, NULL, 0);
 }
@@ -1288,6 +1461,35 @@ void R_DrawTerrainShadows(void) {
     _W3M_DrawTerrainShadows();
 }
 
+/* The parent model's alpha contribution is not the whole draw: attached
+ * meshes and construction-fire slots can still render, even when the parent
+ * itself has only opaque materials. Model events keep their separate update
+ * path; conservatively retain their render path as well. Cliffs may receive
+ * a terrain-fitted replacement, so never classify those from the source
+ * model alone. */
+static bool R_W3AlphaEntityNeedsDraw(renderEntity_t const *entity, int solid_visibility) {
+    mdxModel_t const *model;
+    if (!entity || (entity->flags & RF_HIDDEN) || !entity->model ||
+        entity->model->modeltype != ID_MDLX) return false;
+    model = entity->model->mdx;
+    if (!model) return true; /* preserve the existing model validation path */
+    /* Entity-camera views render the source model as their scene. Keep its
+     * normal renderer entrypoint for camera-owned attachments and effects. */
+    if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) return true;
+    if (model->attachments || model->events || model->ribbons ||
+        ((entity->effect_flags & EFX_MODEL) && entity->effect_model)) return true;
+    if (solid_visibility == 0) return false; /* outer pass already culled it */
+    if (MDLX_ModelHasAlphaWork(entity, model)) return true;
+    if (model->textures) FOR_LOOP(i, model->num_textures)
+        if (model->textures[i].replaceableID == 11) return true;
+    return false;
+}
+
+#ifdef BZ_TESTS
+static uint32_t test_wc3_alpha_model_draws;
+static uint32_t test_wc3_alpha_model_skips;
+#endif
+
 void R_DrawAlphaSurfaces(void) {
     if (!(tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
         _W3M_DrawAlphaSurfaces();
@@ -1298,10 +1500,26 @@ void R_DrawAlphaSurfaces(void) {
     /* MDX blended geosets must composite over water. Opaque geosets were
      * already rendered during the ordinary entity pass; RENDER_PHASE_ALPHA
      * selects only transparent model layers and the alpha of tinted units. */
+    /* Detached ribbon trails need their once-per-time tick even if every
+     * alpha entity is filtered out before R_RenderModel. */
+    MDLX_TickDetachedRibbons();
+    bool const cull_results_valid = R_SolidVisibilityMatchesView();
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *entity = tr.viewDef.entities + i;
-        if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX)
+        int const visible = cull_results_valid ? R_SolidVisibilityAt(i) : -1;
+        if (!R_W3AlphaEntityNeedsDraw(entity, visible)) {
+            /* MDX_RenderModel used to see every MDX entity here, including
+             * offscreen ones. Preserve its pause/global-sequence clock update. */
+            if (entity->model && entity->model->modeltype == ID_MDLX &&
+                !(entity->flags & RF_HIDDEN)) MDLX_UpdateEntityAnimationPause(entity);
+#ifdef BZ_TESTS
+            test_wc3_alpha_model_skips++;
+#endif
             continue;
+        }
+#ifdef BZ_TESTS
+        test_wc3_alpha_model_draws++;
+#endif
         R_RenderModel(entity);
     }
     if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities) {
@@ -1310,6 +1528,9 @@ void R_DrawAlphaSurfaces(void) {
     } else if (!(tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
         R_W3DrawEventSpawns(false, NULL, 0);
     }
+    MDLX_ViewPoseEnd(); /* no entries can outlive this view or a model reload */
+    R_W3ViewMatricesEnd();
+    R_SolidVisibilityEnd();
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {
@@ -1329,6 +1550,24 @@ void R_StopAllTerrainDeformations(void) { R_W3StopAllTerrainDeformations(); }
 bool R_CameraUsesTerrainHeight(void) { return true; }
 
 
+/* Most snapshots contain only a handful of bridges or elevators. Keep the
+ * candidate list on the stack rather than allocate every frame. If a scripted
+ * map exceeds this bound, allocate the complete compact list for this call. */
+#define W3_GROUND_SURFACE_INDEX_CAPACITY 128
+
+#ifdef WC3_GROUND_CONFORM_TESTS
+/* Test-only counters measure candidate classification work and real mesh
+ * traces without adding per-frame instrumentation to release builds. */
+static uint32_t w3_ground_surface_visits;
+static uint32_t w3_ground_surface_traces;
+#define W3_GROUND_VISIT() (++w3_ground_surface_visits)
+#define W3_GROUND_TRACE() (++w3_ground_surface_traces)
+#else
+#define W3_GROUND_VISIT() ((void)0)
+#define W3_GROUND_TRACE() ((void)0)
+#endif
+
+
 static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float y, float *z) {
     line3_t line;
     vec3_t hit;
@@ -1342,6 +1581,7 @@ static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float
         .a = { x, y, surface->origin.z + 4096.0f },
         .b = { x, y, surface->origin.z - 4096.0f },
     };
+    W3_GROUND_TRACE();
     if (!MDLX_TraceWalkableSurface(surface, &line, &hit)) {
         return false;
     }
@@ -1354,8 +1594,9 @@ static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float
  * collision/geoset geometry supplies the exact visual support Z. Preserve the
  * explicit server-authored altitude offset (WC3 FlyHeight) and replace only the
  * coarse destructable-origin support height with the highest authored MDX hit. */
+
 void R_ConformGroundSurfaces(viewDef_t *viewdef) {
-    renderEntity_t const *local_surfaces[128];
+    renderEntity_t const *local_surfaces[W3_GROUND_SURFACE_INDEX_CAPACITY];
     renderEntity_t const **surfaces = local_surfaces;
     uint32_t count = 0;
 
@@ -1368,10 +1609,10 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
      * selectable geosets used by the walkable-surface trace. */
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t const *ent = &viewdef->entities[i];
-        if ((ent->flags & RF_GROUND_SURFACE) && !(ent->flags & RF_HIDDEN) && ent->model)
+        if (ent->flags & RF_GROUND_SURFACE)
             count++;
+        W3_GROUND_VISIT();
     }
-    if (!count) return;
     if (count > sizeof(local_surfaces) / sizeof(*local_surfaces))
         surfaces = ri.MemAlloc((long)((size_t)count * sizeof(*surfaces)));
     if (!surfaces) {
@@ -1381,7 +1622,7 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
     count = 0;
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t const *ent = &viewdef->entities[i];
-        if ((ent->flags & RF_GROUND_SURFACE) && !(ent->flags & RF_HIDDEN) && ent->model)
+        if (ent->flags & RF_GROUND_SURFACE)
             surfaces[count++] = ent;
     }
 
@@ -1398,6 +1639,7 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
         }
         FOR_LOOP(j, count) {
             float hit_z;
+            W3_GROUND_VISIT();
 
             if (!R_W3WalkableSurfaceHit(surfaces[j], ent->origin.x, ent->origin.y, &hit_z)) continue;
             if (!found_surface || hit_z > authored_support) {
@@ -1415,6 +1657,8 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
     }
     if (surfaces != local_surfaces) ri.MemFree(surfaces);
 }
+#undef W3_GROUND_VISIT
+#undef W3_GROUND_TRACE
 
 vec2_t R_WorldOrigin(void) {
     return tr.world ? tr.world->center : (vec2_t){0};
@@ -1644,8 +1888,11 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
         spawn->event_render_time = state.render_time;
         spawn->event_valid = state.valid;
     }
+    uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
     MDX_RenderModel(&child, spawn->model->mdx, &spawn->transform);
-    R_W3RenderAttachmentModels(&child, &spawn->transform);
+    uint64_t const pose_after = MDLX_BoundBonePoseGeneration();
+    R_W3RenderAttachmentModels(&child, &spawn->transform,
+                               pose_after != pose_before ? pose_after : 0);
     spawn->frame = frame;
     return true;
 }
@@ -1905,8 +2152,10 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
         uv = R_W3SplatAtlasUV(row, frame);
         mins = MAKE(vec2_t, splat->origin.x - row->scale, splat->origin.y - row->scale);
         maxs = MAKE(vec2_t, splat->origin.x + row->scale, splat->origin.y + row->scale);
-        R_RenderRectSplatUV(&MAKE(rectSplatParams_t, .mins = &mins, .maxs = &maxs, .uv_mins = &uv.mins,
-            .uv_maxs = &uv.maxs, .texture = texture, .shader = R_SPLAT_SHADER(&tr.shader_default), .color = color));
+        rectSplatParams_t params = { .mins = &mins, .maxs = &maxs, .uv_mins = &uv.mins,
+            .uv_maxs = &uv.maxs, .texture = texture, .shader = R_SPLAT_SHADER(&tr.shader_default), .color = color };
+        if (event_splat_batch_active) R_AddRectSplatUV(&params);
+        else R_RenderRectSplatUV(&params);
         if (total_ms <= 0.0f) splat->active = false;
         return true;
     } else {
@@ -1934,15 +2183,27 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
             color = middle_color;
         else
             color = R_W3LerpSplatColor(middle_color, end_color, ((float)elapsed - birth_ms - pause_ms) / decay_ms);
-        R_RenderSplat(&splat->origin, row->scale, texture, R_SPLAT_SHADER(&tr.shader_default), color);
+        if (event_splat_batch_active) {
+            vec2_t mins = { splat->origin.x - row->scale, splat->origin.y - row->scale };
+            vec2_t maxs = { splat->origin.x + row->scale, splat->origin.y + row->scale };
+            R_AddRectSplat(&mins, &maxs, texture, color);
+        } else {
+            R_RenderSplat(&splat->origin, row->scale, texture, R_SPLAT_SHADER(&tr.shader_default), color);
+        }
         if (total_ms <= 0.0f) splat->active = false;
         return true;
     }
 }
 
 static void R_W3DrawEventSplats(void) {
-    if (tr.render_phase != RENDER_PHASE_SOLID) return;
+    if (tr.render_phase != RENDER_PHASE_SOLID || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) return;
+    /* This pass contains only splats: preserve slot order but merge adjacent
+     * matching textures. Event emissions outside this pass stay immediate. */
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_default));
+    event_splat_batch_active = true;
     FOR_LOOP(i, WC3_EVENT_SPLAT_MAX) R_W3RenderEventSplat(event_splats + i);
+    event_splat_batch_active = false;
+    R_EndSplatBatch();
 }
 
 static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id) {
@@ -2050,7 +2311,7 @@ static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
         !entity->model->mdx || (!instanced && entity->number >= MAX_GAME_ENTITIES)) return;
     model = entity->model->mdx;
     if (!model->events) return;
-    R_GetEntityMatrix(entity, &transform);
+    R_W3GetViewEntityMatrix(entity, &transform);
     if (!instanced) state = event_state + entity->number;
     R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = entity, .model = model,
         .state = state, .transform = &transform, .depth = 0, .entity_camera = entity_camera,
@@ -2070,9 +2331,20 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
     }
     MDLX_TickDetachedRibbons(); /* fade trails whose entity stopped drawing before this model draws */
-    R_GetEntityMatrix(entity, &transform);
-    MDX_RenderModel(entity, R_W3SpecialModel(entity, &transform), &transform);
-    R_W3RenderAttachmentModels(entity, &transform);
+    /* The alpha pass uses the exact solid model matrix and pose when the
+     * scene entity and view are unchanged. Terrain-fitted special models are
+     * re-resolved normally since map-owned meshes can be replaced. */
+    mdxModel_t const *model = NULL;
+    if (tr.render_phase != RENDER_PHASE_ALPHA ||
+        !MDLX_ViewPoseCachedDraw(entity, &model, &transform)) {
+        R_W3GetViewEntityMatrix(entity, &transform);
+        model = R_W3SpecialModel(entity, &transform);
+    }
+    uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
+    MDX_RenderModel(entity, model, &transform);
+    uint64_t const pose_after = MDLX_BoundBonePoseGeneration();
+    R_W3RenderAttachmentModels(entity, &transform,
+                               pose_after != pose_before ? pose_after : 0);
 
     if ((entity->effect_flags & EFX_MODEL) && (entity->effect_flags & EFX_ATTACH_SLOTS) &&
         entity->effect_model && tr.render_phase != RENDER_PHASE_LIGHTS) {
@@ -2087,10 +2359,14 @@ void R_RenderModel(renderEntity_t const *entity) {
 
         slot_mask = (entity->effect_flags & EFX_SLOT_MASK) >> EFX_SLOT_SHIFT;
 
-        attachment_count = MDLX_CollectAttachmentPositions(entity->model->mdx, &transform,
+        /* If the normal attachment pass drew a child its bind generation no
+         * longer matches, and the collector safely rebuilds the parent pose.
+         * Without a child, reuse the parent bind for building-fire sprites. */
+        attachment_count = MDLX_CollectAttachmentPositionsWithPose(entity->model->mdx, &transform,
                                                             entity->frame, entity->oldframe,
                                                             "Sprite ", attachments,
-                                                            sizeof(attachments) / sizeof(*attachments));
+                                                            sizeof(attachments) / sizeof(*attachments),
+                                                            pose_after != pose_before ? pose_after : 0);
         FOR_LOOP(i, attachment_count) {
             static cstring_t const names[5] = {
                 "Sprite First", "Sprite Second", "Sprite Third", "Sprite Fourth", "Sprite Fifth",
@@ -2138,13 +2414,18 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
 
 /* Share the drawn MDX bounds with the outer culler, including terrain-fitted
  * doodads whose roof extends beyond the registered model's authored Z range. */
-bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
-    if (!entity || !bounds || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx)
+bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, mat4_t *matrix) {
+    if (!entity || !bounds || !matrix || !entity->model ||
+        entity->model->modeltype != ID_MDLX || !entity->model->mdx)
         return false;
-    mat4_t transform;
-    R_GetEntityMatrix(entity, &transform);
-    *bounds = R_W3SpecialModel(entity, &transform)->bounds.box;
+    R_W3GetViewEntityMatrix(entity, matrix);
+    *bounds = R_W3SpecialModel(entity, matrix)->bounds.box;
     return true;
+}
+
+bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
+    mat4_t matrix;
+    return R_GetEntityBoundsAndMatrix(entity, bounds, &matrix);
 }
 
 mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
@@ -2187,7 +2468,7 @@ bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, 
         !entity->model->mdx || !prefix || !prefix[0] || !out) {
         return false;
     }
-    R_GetEntityMatrix(entity, &transform);
+    R_W3GetViewEntityMatrix(entity, &transform);
     if (!MDLX_CollectAttachmentPositions(entity->model->mdx, &transform,
                                          entity->frame, entity->oldframe,
                                          prefix, &attachment, 1)) {

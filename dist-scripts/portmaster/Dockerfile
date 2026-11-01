@@ -4,10 +4,14 @@
 FROM ubuntu:22.04 AS builder
 
 ARG TARGETARCH
+# Set to 1 to package the FFmpeg runtime libraries with the PortMaster build.
+# Most supported systems already provide them, so keep this disabled by default.
+ARG BUNDLE_FFMPEG_LIBS=0
 ENV DEBIAN_FRONTEND=noninteractive
 
 # This PortMaster package currently targets aarch64 only.
 RUN test "${TARGETARCH}" = "arm64"
+RUN case "${BUNDLE_FFMPEG_LIBS}" in 0|1) ;; *) echo "BUNDLE_FFMPEG_LIBS must be 0 or 1" >&2; exit 1 ;; esac
 
 # OpenRealm WC3 native GLES3 build dependencies + packaging tools.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,8 +25,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgles2-mesa-dev \
     zlib1g-dev \
     libjpeg-dev \
+    libavformat-dev \
+    libavcodec-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libswresample-dev \
     zip \
     unzip \
+ && if [ "${BUNDLE_FFMPEG_LIBS}" = "1" ]; then \
+      apt-get install -y --no-install-recommends patchelf python3; \
+    fi \
  && rm -rf /var/lib/apt/lists/*
 
 # Verify that the container itself is actually ARM64.
@@ -46,6 +58,7 @@ RUN make clean && \
       BUILD=release \
       GL_BACKEND=gles3 \
       MSAA=0 \
+      FFMPEG=1 \
       openwarcraft3
 
 # ---------------------------------------------------------------------------
@@ -103,6 +116,12 @@ RUN set -eux; \
         [ -e "${lib}" ] || continue; \
         cp -a "${lib}" "${PKG_DIR}/libs.aarch64/"; \
     done; \
+    \
+    # FFmpeg is usually supplied by the target OS; bundle it only on request.
+    if [ "${BUNDLE_FFMPEG_LIBS}" = "1" ]; then \
+        python3 /src/dist-scripts/linux/bundle_media.py \
+            /src/build/bin/openwarcraft3 "${PKG_DIR}/libs.aarch64"; \
+    fi; \
     \
     # OpenRealm's built-in configuration/resources.
     # The executable normally resolves these relative to itself.

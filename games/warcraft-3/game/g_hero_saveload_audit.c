@@ -62,9 +62,10 @@ static void hsa_capture(edict_t const *hero, hsaSnap_t *snap) {
     if (snap->added_count > MAX_ABILITIES) snap->added_count = MAX_ABILITIES;
     FOR_LOOP(i, snap->added_count) snap->added[i] = hero->abilities.added[i];
     FOR_LOOP(i, MAX_INVENTORY) {
-        if (!hero->inventory[i]) continue;
-        snap->inventory[i] = hero->inventory[i]->class_id;
-        snap->charges[i] = hero->inventory[i]->item->charges;
+        edict_t const *carried = G_InventoryItem(hero, i);
+        if (!carried) continue;
+        snap->inventory[i] = carried->class_id;
+        snap->charges[i] = carried->item->charges;
     }
     if (hero->currentmove && hero->currentmove->animation)
         strlcpy(snap->move, hero->currentmove->animation, sizeof(snap->move));
@@ -150,7 +151,7 @@ static bool hsa_in_cinematic(edict_t const *hero) {
 }
 
 static bool hsa_ready_to_walk(edict_t const *hero, bool timed_out) {
-    if (!hsa_hero_ok(hero) || hero->paused) return false;
+    if (!hsa_hero_ok(hero) || (hero && hero->paused)) return false;
     return timed_out || !hsa_in_cinematic(hero);
 }
 
@@ -303,7 +304,7 @@ void G_HeroSaveLoadAuditFrame(void) {
     }
     /* PauseAllUnitsBJ freezes think; keep waiting. Cinematic UI already gated
      * WAIT_HERO; finale timeout fallback must still count walk frames. */
-    if (hero->paused) return;
+    if ((hero && hero->paused)) return;
     if (!walking && !hsa_issue_walk(hero)) {
         hsa_finish("fail_order", hero);
         return;

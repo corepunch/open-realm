@@ -265,18 +265,18 @@ static ability_t abilitylist[] = {
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */
     { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, ancient_root_orders },  /* Root */
     { "AEmb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn */
-    { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation */
+    { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE | AB_UPDATE | AB_TYPE_UPDATE },  /* Immolation */
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
     { "AEme", CAbilityMetamorphosis, AB_SPELL },  /* Metamorphosis */
     { "BEme", CBuffMetamorphosis, AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },  /* Attached typed buff; no command slot. */
     { "AEer", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots */
     { "Aenr", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots (creep) */
     { "Aenw", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Seaweed */
-    { "AEfn", CAbilityForceOfNature, AB_SPELL },  /* Force of Nature */
+    { "AEfn", CAbilityForceOfNature, AB_SPELL, SPELL_TARGET_POINT },  /* Force of Nature */
     { "AEah", CAbilityCreepAura, AB_PASSIVE },  /* Thorns Aura */
     { "AEtq", CAbilityTranquility, AB_SPELL | AB_CHANNEL },  /* Tranquility */
-    { "AHfa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Searing Arrows */
-    { "ACsa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Searing Arrows (creep) */
+    { "AHfa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Searing Arrows */
+    { "ACsa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Searing Arrows (creep) */
     { "AEar", CAbilityCreepAura, AB_PASSIVE },  /* Trueshot Aura */
     { "AEsf", CAbilityStarfall, AB_SPELL | AB_CHANNEL },  /* Starfall */
     { "Aren", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST, SPELL_TARGET_NONE, renew_orders },  /* Renew */
@@ -502,8 +502,8 @@ static ability_t abilitylist[] = {
     { "Aspo", CAbilitySlowPoison, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Slow Poison */
     { "Ashm", CAbilityShadowMeld, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE | AB_INNATE | AB_TYPE_INIT | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld */
     { "Ahid", CAbilityShadowMeldAkama, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE | AB_INNATE | AB_TYPE_INIT | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld (Akama) */
-    { "Aesn", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentinel */
-    { "Adtn", CAbilitySelfDestruct, AB_SPELL, SPELL_TARGET_NONE },  /* Detonate */
+    { "Aesn", CAbilitySentinel, AB_SPELL, SPELL_TARGET_POINT },  /* Sentinel */
+    { "Adtn", CAbilityDetonate, AB_SPELL, SPELL_TARGET_POINT },  /* Detonate */
     { "Abrf", CAbilityBearForm, AB_COMMAND, SPELL_TARGET_NONE, bear_orders },  /* Bear Form */
 
     { "Aadm", CAbilityAbolishMagic, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Abolish Magic */
@@ -513,7 +513,7 @@ static ability_t abilitylist[] = {
     { "Acoh", CAbilityCoupleHippogryph, AB_COMMAND, SPELL_TARGET_UNIT, hippo_couple_orders },  /* Pick up Archer */
     { "Adec", CAbilityDecouple, AB_SPELL, SPELL_TARGET_NONE },  /* Dismount */
     { "Acor", CAbilityCorrosiveBreath, AB_PASSIVE },  /* Corrosive Breath */
-    { "AEst", CAbilityScout, AB_PASSIVE },  /* Scout */
+    { "AEst", CAbilityScout, AB_SPELL, SPELL_TARGET_NONE },  /* Scout */
     { "Acyc", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
     { "ACcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (creep) */
     { "SCc1", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (Cenarius) */
@@ -594,7 +594,7 @@ static ability_t abilitylist[] = {
     // TODO: AIrg a_unknown  /* Potion of Life Regen — CAbility [ITEM] other */
     { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge (Myrmidon) */
     { "AOwd", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Shadow Hunter - Serpent Ward */
-    { "Aimp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impaling Bolt */
+    { "Aimp", CAbilityPassive, AB_PASSIVE },  /* Impaling Bolt / Vorpal Blades (Repb) */
     { "Ansp", CAbilityNeutralSpell, AB_PASSIVE },  /* Neutral Spies */
 
     /* Extra AbilityData aliases of registered parents; poll code= before mapping. */

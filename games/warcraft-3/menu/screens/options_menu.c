@@ -316,11 +316,25 @@ static void OptionsMenu_InitVideoMenus(void) {
         { "OFF", 0 },
         { "ON", 1 },
     };
+#ifndef __ANDROID__
     uint32_t selected;
+#endif
     char current_resolution[32];
 
     if (options_menu.ResolutionPopupMenuMenu) {
         UI_MenuClearItems(options_menu.ResolutionPopupMenuMenu);
+#ifdef __ANDROID__
+        static int const scales[] = {100, 75, 67};
+        int scale = OptionsMenu_CvarInteger("r_render_scale", 100);
+        if (scale != 75 && scale != 67) scale = 100;
+        FOR_LOOP(i, OPTIONS_ARRAY_COUNT(scales)) {
+            char text[32];
+            snprintf(text, sizeof(text), "%d%%", scales[i]);
+            UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, text, scales[i]);
+        }
+        snprintf(current_resolution, sizeof(current_resolution), "%d%%", scale);
+        if (options_menu.ResolutionLabel) UI_SetText(options_menu.ResolutionLabel, "Render scale");
+#else
         FOR_LOOP(i, video_mode_count()) {
             char text[32];
 
@@ -344,9 +358,14 @@ static void OptionsMenu_InitVideoMenus(void) {
                      (unsigned)video_modes[selected].width,
                      (unsigned)video_modes[selected].height);
         }
+#endif
         OptionsMenu_SetPopupTitle(options_menu.ResolutionMenu, current_resolution);
         UI_SetHidden(options_menu.ResolutionPopupMenuMenu, true);
+#ifdef __ANDROID__
+        UI_SetOnClick(options_menu.ResolutionPopupMenuMenu, "menu_render_scale");
+#else
         UI_SetOnClick(options_menu.ResolutionPopupMenuMenu, "menu_video_mode");
+#endif
     }
 
     OptionsMenu_SetPopupItems(options_menu.ModelDetailMenu,
@@ -514,7 +533,11 @@ void OptionsMenu_ShowKeys(void) {
 void OptionsMenu_Apply(void) {
     OptionsMenu_ApplyGamePort();
     if (mi.Cmd_ExecuteText) {
+#ifdef __ANDROID__
+        mi.Cmd_ExecuteText("writeconfig\n");
+#else
         mi.Cmd_ExecuteText("vid_apply\nwriteconfig\n");
+#endif
     }
 }
 

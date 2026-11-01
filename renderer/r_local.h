@@ -73,6 +73,7 @@ typedef enum render_phase_e {
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"
+#include "r_profile.h"
 
 extern refImport_t ri;
 
@@ -383,6 +384,7 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z, text
  * instead of one upload + draw per splat. */
 void R_BeginSplatBatch(splat_shader_t *shader);
 void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color);
+void R_AddRectSplatUV(rectSplatParams_t const *params);
 void R_EndSplatBatch(void);
 
 // r_shader.c
@@ -395,6 +397,9 @@ spriteProg_t *R_SpriteShader(SHADERTYPE type);
 
 // r_main.c
 void R_BindDefaultFramebuffer(void);
+bool R_BeginScaledView(viewDef_t const *view);
+void R_EndScaledView(viewDef_t const *view);
+void R_ShutdownRenderScale(void);
 #ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void);
 #endif

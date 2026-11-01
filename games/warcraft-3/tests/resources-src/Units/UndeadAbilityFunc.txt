@@ -1,8 +1,22 @@
 [Abgm]
 EffectArt=TestUI\Models\anim_pulse.mdx
 
+[Atru]
+Art=ReplaceableTextures\PassiveButtons\PASBTNShadeTrueSight.blp
+Buttonpos=0,2
+
+[Amim]
+Art=ReplaceableTextures\PassiveButtons\PASBTNMagicImmunity.blp
+Buttonpos=2,2
+
 [Buns]
 Targetart=TestUI\Models\anim_pulse.mdx
+
+[AUan]
+SpecialArt=TestUI\Models\anim_pulse.mdx
+
+[Aap1]
+TargetArt=TestUI\Models\anim_pulse.mdx
 
 // Stock aura art differs from the custom alias and the recipient glow.
 [AUau]
@@ -13,3 +27,20 @@ TargetArt=TestUI\Models\anim_pulse.mdx
 
 [XUfx]
 TargetArt=TestUI\Models\ui_panel.mdx
+
+[Apos]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=1500
+MissileHoming=1
+
+[Bpoc]
+TargetArt=TestUI\Models\anim_oneshot.mdx
+Targetattach=overhead
+
+[Bpos]
+TargetArt=TestUI\Models\anim_pulse.mdx
+Targetattach=overhead
+
+[Bcrs]
+TargetArt=TestUI\Models\anim_pulse.mdx
+Targetattach=overhead

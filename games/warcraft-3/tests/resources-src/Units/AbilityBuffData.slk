@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X8;Y3;D0
+B;X8;Y4;D0
 C;X1;Y1;K"alias"
 C;X2;K"Buffart"
 C;X3;K"Bufftip"
@@ -20,5 +20,10 @@ C;X1;Y3;K"Bdef"
 C;X2;K"TestUI\Textures\solid_white.blp"
 C;X3;K"Scroll of Protection"
 C;X4;K"Increases armor temporarily."
+C;X5;K"TestUI\Models\anim_pulse.mdx"
+C;X1;Y4;K"BEim"
+C;X2;K"ReplaceableTextures\CommandButtons\BTNImmolationOn.blp"
+C;X3;K"Immolation"
+C;X4;K"Immolates nearby enemy units."
 C;X5;K"TestUI\Models\anim_pulse.mdx"
 E

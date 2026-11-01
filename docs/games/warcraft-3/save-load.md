@@ -227,7 +227,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 214, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, the current merged format version, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -2177,3 +2177,84 @@ Format 214 changes the meaning of saved Captain target-event subscriptions. Rost
 ORDER-01.12 uses format 218: a worker hidden inside a gold mine owns one saved separation-disable count, and its retained user successor and Harvest phase heads (`852017`/`852018`/`852020`) keep their meaning across load. Format 217 is rejected before entity loading (`wc3_save.rejects_version_217_before_hidden_miner_order_retention`); no migration is provided.
 
 Captain 376 uses format 217 for typed retained Town/Captain event records, Town preferred/latch owner clocks, Suicide AI-record state and the live classification word. Format 216 is rejected before entity or registry loading; no migration is implied. A public mutation changes live classification independently of authored rows, and physical publisher release removes stale listeners before slot reuse.
+
+## Upstream synchronization (Save225)
+
+Save225 adds the incoming persistent gameplay fields and callback roster to the
+reconciled serializer. Save224 and other prior layouts are rejected.
+Upstream version numbers 102–122 describe a different branch layout and are not
+compatible-format identifiers for this branch. Direct sparse pointers and embedded
+movement/order state remain authoritative; component headers, component-ID section
+ordering and travel-only movement allocation are not adopted. Existing native
+clock, target subscription, queue and cold-continuation contracts remain intact.
+
+Possession's impact missile retains `possession_projectile_death_think` while its
+Death sequence plays. The callback roster must restore this continuation without
+repeating ownership transfer. `RebindEntityModels` also registers `WPN_ALINE` attack
+art for both weapon slots; saved numeric model handles are never restored as
+process-independent projectile identities.
+
+Immolation retains seven substeps per second independently of authored DataB.
+Its status stores elapsed substeps in `duration_ms` and the next deadline in
+`next_tick`: each substep drains DataB/7 mana and every seventh applies DataA
+damage. Zero drain still advances damage timing. The merged version rejects
+layouts with incompatible timing semantics. Tests cover RoC Data11/Data12 and TFT
+DataA1/DataB1, zero/fractional rates, toggle-off and saved continuation.
+
+A trained Hero's selected proper name persists independently of the profile's
+comma-separated name list. Serialize its string content rather than its process
+address. Incoming projectile attacker incarnations, launch-time damage profiles,
+Pillage ledgers and original Avatar scale likewise retain their owning records
+and require matching descriptors in the merged serializer.
+
+Metamorphosis captures its temporary health bonus in `morph_t`. That owned value
+survives native reverse scheduling and a save/load while the form is active, so
+the inverse removes the captured contribution rather than recomputing it from
+changed ability data.
+
+Status occupancy and timed-update indexes are derived from authoritative status
+slots, not saved as independent truth. Rebuild or invalidate them on loading and
+maintain them on add/remove/refresh; raw status edits must invalidate the indexes.
+Save rejection must clear partially decoded sparse attachments without dispatching
+gameplay inverses through invalid records. Early header/checksum rejection preserves
+the existing world; later failure does not promise whole-level or VM rollback.
+
+The strict metadata tests keep unresolved RoC effect/Force of Nature art and
+Endurance Aura BuffID unresolved when `COMPAT_WORKAROUNDS=0`; presentation checks
+must not dereference missing effects. Incoming behavior tests and prior checkpoint
+counts do not establish validation of this merged source.
+
+## Frontend Load Saved Game (RoC and TFT)
+
+`Single Player -> Load Saved Game` opens a frontend save chooser in both editions.
+The button opens the browser even when the save directory is empty, so an empty
+list can explain its state instead of appearing unresponsive. The chooser uses
+the same `FS_ListSaves()` ordering and names as the in-game ESC Load Game list,
+and the authored `MapListBox` control/skin. It does not enumerate files from
+inside the menu module: `menuImport_t` receives bounded engine callbacks for
+listing basenames, checking a save's map identity, deletion, and starting the
+load. Invalid names and saves with unreadable/incompatible headers are not
+listed. `quick` is displayed as `Quick Save` without changing its slot identity.
+
+Selecting a row highlights it; Load Game and Delete are disabled until a row
+is selected/available. Load revalidates the chosen slot before queuing
+`MenuAction("load", name)` on the client, which resolves the saved map and
+restores it through `SV_LoadGame()` at the next frame boundary. No serializer,
+map transition, or console command constructed from a filename runs within the
+menu callback. The WC3 menu enables expansion archives for a save targeting a
+built-in `Maps\\FrozenThrone\\Campaign` map before it queues the client load,
+even if the frontend was opened in RoC mode. Delete first shows a confirmation
+dialog, then calls
+`FS_DeleteSave()`, which removes the main `.sav`, its local control-group
+companion, and the bound script-save scope; the list is refreshed afterwards.
+Back returns to Single Player without loading anything. Save files are shared
+across the two frontend editions; they are not copied into separate RoC/TFT
+stores. The save/map validation and runtime still determine compatibility.
+
+Manual check in both editions: open Load Saved Game with no saves, create a
+named save and a quick save from gameplay, return to the main menu, select each
+slot and load, scroll a list longer than 12 rows, cancel deletion, delete a
+slot and verify that it disappears. A stale/invalid save must not crash or
+start a new map. Fixture-backed menu tests cover invalid and unreadable-save
+filtering, Quick Save naming, load dispatch, edition selection, and delete
+refresh. They do not exercise archive restoration or rendered retail layout.

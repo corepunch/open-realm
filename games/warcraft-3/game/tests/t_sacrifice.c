@@ -114,11 +114,11 @@ TEST(wc3_spell, sacrifice_pit_target_hides_acolyte_and_queues_shade) {
     result->stand = unit_stand;
     result->collision = 16.0f;
     T_EQ(result->class_id, ID_SHADE);
-    T_ASSERT(result->training);
-    T_ASSERT(result->sacrifice);
+    T_ASSERT((result && result->training));
+    T_NOT_NULL(result->sacrifice);
     T_ASSERT(result->sacrifice->worker == fix.acolyte);
     T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
-    T_ASSERT(fix.acolyte->paused);
+    T_ASSERT((fix.acolyte && fix.acolyte->paused));
     /* Sacrifice does not reserve the Shade's food while the Acolyte still owns
      * its slot. */
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
@@ -142,11 +142,11 @@ TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_ex
     result->data.UnitBalance = &result_balance;
     FOR_LOOP(i, 40) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !result->training) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
     T_ASSERT(!fix.acolyte->inuse);
     T_ASSERT(result->inuse);
-    T_ASSERT(!result->training);
+    T_ASSERT(!(result && result->training));
     T_NULL(result->sacrifice);
     T_ASSERT(!(result->s.renderfx & RF_HIDDEN));
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
@@ -164,7 +164,7 @@ TEST(wc3_spell, sacrifice_cancel_restores_acolyte_and_removes_queued_shade) {
     T_NULL(fix.pit->build);
     T_ASSERT(fix.acolyte->inuse);
     T_ASSERT(!(fix.acolyte->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!fix.acolyte->paused);
+    T_ASSERT(!(fix.acolyte && fix.acolyte->paused));
     T_ASSERT(!result->inuse);
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
     sac_done(&fix);
@@ -260,18 +260,18 @@ TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
     result->collision = 4000.0f; /* no exit fits: placement must fail */
     FOR_LOOP(i, 20) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !result->training) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
-    T_ASSERT(result->training);
+    T_ASSERT((result && result->training));
     T_ASSERT(fix.acolyte->inuse);
     T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
     result->collision = 16.0f;
     FOR_LOOP(i, 40) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !result->training) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
     T_ASSERT(!fix.acolyte->inuse);
-    T_ASSERT(result->inuse && !result->training);
+    T_ASSERT(result->inuse && !(result && result->training));
     sac_done(&fix);
 }
 
@@ -292,7 +292,7 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     T_ASSERT(fix.pit->build == result);
-    T_ASSERT(result->sacrifice);
+    T_NOT_NULL(result->sacrifice);
     T_ASSERT(result->sacrifice->worker == fix.acolyte);
     result_balance = *result->data.UnitBalance;
     result_balance.buildTime = 1;
@@ -300,10 +300,10 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
     result->data.UnitBalance = &result_balance;
     FOR_LOOP(i, 40) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !result->training) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
     T_ASSERT(!fix.acolyte->inuse);
-    T_ASSERT(result->inuse && !result->training);
+    T_ASSERT(result->inuse && !(result && result->training));
     remove(filename);
     sac_done(&fix);
 }
@@ -323,7 +323,7 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_cancels) {
     T_NULL(fix.pit->build);
     T_ASSERT(fix.acolyte->inuse);
     T_ASSERT(!(fix.acolyte->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!fix.acolyte->paused);
+    T_ASSERT(!(fix.acolyte && fix.acolyte->paused));
     remove(filename);
     sac_done(&fix);
 }

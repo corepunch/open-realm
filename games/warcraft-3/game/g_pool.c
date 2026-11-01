@@ -131,6 +131,7 @@ DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
 DEFINE_POOL_CALLBACKS(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP,
     S_InvalidateCargoHolders(), S_CargoForgetHolder(ent))
 DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(pillage, Pillage, pillage_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
@@ -168,6 +169,7 @@ void G_PoolsReportPeaks(void) {
     REPORT_POOL(destructable);
     REPORT_POOL(cargo);
     REPORT_POOL(stock);
+    REPORT_POOL(pillage);
     REPORT_POOL(waygate);
     REPORT_POOL(artillery);
     REPORT_POOL(avatar);
@@ -216,6 +218,7 @@ void G_PoolsReset(void) {
             g_edicts[i].destructable = NULL;
             g_edicts[i].cargo = NULL;
             g_edicts[i].stock = NULL;
+            g_edicts[i].pillage = NULL;
             g_edicts[i].waygate = NULL;
             g_edicts[i].artillery = NULL;
             g_edicts[i].avatar = NULL;
@@ -254,6 +257,7 @@ void G_PoolsReset(void) {
     G_ResetDestructablePool();
     G_ResetCargoPool();
     G_ResetStockPool();
+    G_ResetPillagePool();
     G_ResetWaygatePool();
     G_ResetArtilleryPool();
     G_ResetAvatarPool();
@@ -296,6 +300,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeDestructable(ent);
     G_FreeCargo(ent);
     G_FreeStock(ent);
+    G_FreePillage(ent);
     G_FreeWaygate(ent);
     G_FreeArtillery(ent);
     G_FreeAvatar(ent);
@@ -361,6 +366,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(destructable, Destructable, destructable_t);
     CHECK_POOL(cargo, Cargo, cargo_t);
     CHECK_POOL(stock, Stock, stock_t);
+    CHECK_POOL(pillage, Pillage, pillage_t);
     CHECK_POOL(waygate, Waygate, waygate_t);
     CHECK_POOL(artillery, Artillery, artillery_t);
     CHECK_POOL(avatar, Avatar, avatar_t);

@@ -272,6 +272,9 @@ cstring_t SCR_GetStringValue(uiFrame_t const *frame) {
     cstring_t edit_text = CL_WindowEditTextValue(frame ? frame->number : 0);
 
     if (edit_text) return edit_text;
+    if (frame->stat == UI_STAT_LOADING_STATUS_TEXT)
+        return cl.loading_waiting && frame->tooltip && *frame->tooltip
+            ? frame->tooltip : frame->text ? frame->text : "";
     if (frame->stat == UI_STAT_SELECTION_HEALTH_TEXT) {
         snprintf(text, sizeof(text), "%u / %u",
                  (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_HEALTH],

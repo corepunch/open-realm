@@ -121,7 +121,7 @@ void M_MoveFrame(edict_t *self) {
     if (self->aiflags & AI_HOLD_FRAME)
         return;
     /* JASS owns destructable sequences; do not restart them via the unit move clock. */
-    if (G_IsDestructable(self) && self->animation_override)
+    if (G_IsDestructable(self) && (self && self->animation_override))
         return;
     umove_t const *move = self->currentmove;
     animation_t const *anim = self->animation;
@@ -283,8 +283,9 @@ uint32_t M_LoadUberSplat(cstring_t uber_splat) {
     }
 }
 
+/* Probe only VFS presence; image/sound registration still owns actual loading. */
 static bool G_FileExists(cstring_t filename) {
-    return gi.FileExists(filename);
+    return filename && *filename && gi.FileExists(filename);
 }
 
 static bool G_HasShadowName(cstring_t shadow) {
@@ -431,7 +432,7 @@ static void unit_register_projectiles_prepared(edict_t *self, unitProjectileReso
     unitAttack_t const *attacks[2] = { S_AttackProfileRead(self, 0), S_AttackProfileRead(self, 1) };
     uint32_t needed = 0;
     FOR_LOOP(i, 2)
-        if (attacks[i]->weapon == WPN_MISSILE || attacks[i]->weapon == WPN_ARTILLERY) needed |= 1u << i;
+        if (G_WeaponUsesProjectile(attacks[i]->weapon)) needed |= 1u << i;
     if (!needed) return;
     uint32_t metadata = G_UnitDataGeneration();
     uint64_t revision = gi.MediaRevision();

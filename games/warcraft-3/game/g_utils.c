@@ -122,6 +122,10 @@ void G_FreeEdict(edict_t *ent) {
     /* Repair's work inverse refreshes separation. Finish it before Move
      * detaches storage, so cleanup cannot reinsert a retiring repulsor. */
     if (ent->buildwork && ent->buildwork->ability) S_CancelRepair(ent);
+    /* An accepted-build indicator may be removed independently of its worker. */
+    if (ent->owner && ent->owner->inuse &&
+        ent->owner->build_preview == ent)
+        ent->owner->build_preview = NULL;
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     S_SpellReleasePointApproach(ent);
     G_BotRemoveCaptainUnit(ent);
@@ -156,8 +160,8 @@ void G_FreeEdict(edict_t *ent) {
     G_UnregisterGroundSurface(ent);
     G_InvalidateUnitShortcutsForUnit(ent);
     G_InvalidateRallyTarget(ent);
-    if ((ent->revival && ent->revival->reviving)) G_CancelHeroRevive(ent->revival->producer, ent);
-    if (ent->training) G_ClearTrainingQueueFood(ent);
+    if (G_HeroIsReviving(ent)) G_CancelHeroRevive(ent->revival->producer, ent);
+    if ((ent && ent->training)) G_ClearTrainingQueueFood(ent);
     else { G_CancelHeroRevives(ent); G_CancelTrainingQueue(ent, true); }
     G_ClearUnitFood(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();

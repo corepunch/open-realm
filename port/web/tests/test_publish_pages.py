@@ -18,20 +18,26 @@ class PublishPagesTest(unittest.TestCase):
             build.mkdir()
             assets.mkdir()
             for name in module.REQUIRED:
+                (build / name).parent.mkdir(parents=True, exist_ok=True)
                 (build / name).write_bytes(b'fixture')
             for name in module.PAGES_ASSETS:
                 (assets / name).write_bytes(b'fixture')
             site.mkdir(parents=True)
             (site / 'stale.js').write_bytes(b'old deployment asset')
-            for name in ('engine_unity.c', 'engine.o', 'War3.mpq', 'index.worker.js', 'index.data', 'early-map-loading.js'):
+            for name in ('engine_unity.c', 'engine.o', 'War3.mpq', 'index.worker.js', 'index.data', 'early-map-loading.js',
+                         'user-tmp.mpq'):
                 (build / name).write_bytes(b'fixture')
             module.publish(build, site, assets)
             self.assertTrue((site / 'index.wasm').exists())
             self.assertTrue((site / 'index.worker.js').exists())
             self.assertTrue((site / 'index.data').exists())
             self.assertTrue((site / 'early-map-loading.js').exists())
+            self.assertTrue((site / 'manifest.webmanifest').exists())
+            self.assertTrue((site / 'ios-home-screen.js').exists())
+            for size in (180, 192, 512):
+                self.assertTrue((site / f'icons/openrealm-{size}.png').exists())
             self.assertFalse((site / 'stale.js').exists())
-            for name in ('engine_unity.c', 'engine.o', 'War3.mpq'):
+            for name in ('engine_unity.c', 'engine.o', 'War3.mpq', 'user-tmp.mpq'):
                 self.assertFalse((site / name).exists(), name)
             self.assertTrue((site / 'coi-serviceworker.js').exists())
 

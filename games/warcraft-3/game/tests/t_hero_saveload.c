@@ -34,8 +34,7 @@ static edict_t *make_walk_hero(float x, float y) {
 static edict_t *give_item(edict_t *hero, uint32_t class_id, uint32_t slot, uint32_t charges) {
     edict_t *item = alloc_test_unit(class_id, hero->s.origin2.x + 32.0f, hero->s.origin2.y);
     item->targtype = TARG_ITEM;
-    if (!item->item) item->item = G_AllocItem();
-    assert(item->item);
+    (item->item ? item->item : (item->item=G_AllocItem()));
     item->item->in_world = true;
     item->item->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(hero, item, slot));
@@ -125,8 +124,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     saved_item1 = item1->class_id;
     saved_charges0 = item0->item->charges;
     saved_charges1 = item1->item->charges;
-    if (!item0->item) item0->item = G_AllocItem();
-    assert(item0->item);
+    (item0->item ? item0->item : (item0->item=G_AllocItem()));
     item0->item->drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
     strlcpy(saved_move, hero->currentmove->animation, sizeof(saved_move));
     index = hero->s.number;
@@ -138,7 +136,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     hero->heroabilities[0].code = hero->heroabilities[1].code = 0;
     hero->heroabilities[0].level = hero->heroabilities[1].level = 0;
     ARRAY_COUNT(hero->abilities.added) = 0;
-    hero->inventory[0] = hero->inventory[1] = NULL;
+    hero->inventory[0] = NULL; hero->inventory[1] = NULL;
     T_ASSERT(ReadGame(path));
     hero = g_edicts + index;
     T_FEQ(hero->s.origin.x, saved_origin.x, 0.01f);
@@ -149,13 +147,13 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_EQ(hero->heroabilities[1].level, 1);
     T_EQ(ARRAY_COUNT(hero->abilities.added), 1);
     T_EQ(hero->abilities.added[0], saved_added);
-    T_NOT_NULL(hero->inventory[0]);
-    T_NOT_NULL(hero->inventory[1]);
-    T_EQ(hero->inventory[0]->class_id, saved_item0);
-    T_EQ(hero->inventory[1]->class_id, saved_item1);
-    T_EQ(hero->inventory[0]->item->charges, saved_charges0);
-    T_EQ(hero->inventory[1]->item->charges, saved_charges1);
-    T_EQ(hero->inventory[0]->item->drop_id, saved_drop_id);
+    T_NOT_NULL(G_InventoryItem(hero, 0));
+    T_NOT_NULL(G_InventoryItem(hero, 1));
+    T_EQ(G_InventoryItem(hero, 0)->class_id, saved_item0);
+    T_EQ(G_InventoryItem(hero, 1)->class_id, saved_item1);
+    T_EQ(G_InventoryItem(hero, 0)->item->charges, saved_charges0);
+    T_EQ(G_InventoryItem(hero, 1)->item->charges, saved_charges1);
+    T_EQ(G_InventoryItem(hero, 0)->item->drop_id, saved_drop_id);
     T_NOT_NULL(hero->currentmove);
     T_STREQ(hero->currentmove->animation, saved_move);
     T_EQ(hero->think, monster_think);

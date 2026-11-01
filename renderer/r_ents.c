@@ -5,19 +5,71 @@
 #include "common/wow_view.h"
 #endif
 #include <float.h>
+#include <math.h>
 #include <stdlib.h>
+
+/* The Warcraft III native model basis is identity. Skip the full 4x4
+ * multiplication when a game supplies that basis, while leaving rotated,
+ * translated or axis-converted native bases on the original composition path.
+ * Checking all 16 coefficients avoids assuming anything about the current
+ * game module or model/attachment type. */
+static mat4_t const r_identity_entity_basis = { .v = {
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+} };
+
+/* With no pitch or roll, the generic orientation quaternion reduces to
+ * (0, 0, sin(yaw/2), cos(yaw/2)). Construct the same column-major scaled
+ * placement directly instead of evaluating four unused trig functions and
+ * converting a general quaternion. Keep the half-angle convention: sin(yaw)
+ * and cos(yaw) do not round identically to the original quaternion path.
+ * The rotation origin supplied by R_GetEntityMatrix is always zero. */
+static void R_YawEntityPlacement(mat4_t *out, modelPose_t const *pose) {
+    float const half = pose->angles.yaw * 0.5f;
+    float const sine = sinf(half), cosine = cosf(half);
+    float const doubled_sine = sine + sine;
+    /* Round the product before subtraction, as the generic matrix's zz
+     * temporary does; contracting this expression changes culling at edges. */
+    float const squared_sine = sine * doubled_sine;
+    float const diagonal = 1.0f - squared_sine;
+    float const off_diagonal = cosine * doubled_sine;
+    float const scale = pose->scale;
+
+    *out = (mat4_t){ .v = {
+        diagonal * scale, off_diagonal * scale, 0, 0,
+        -off_diagonal * scale, diagonal * scale, 0, 0,
+        0, 0, scale, 0,
+        pose->origin.x, pose->origin.y, pose->origin.z, 1,
+    } };
+}
 
 void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
     modelPose_t pose = { .origin = entity->origin, .angles = {
         entity->angle + entity->pose_offset.yaw, entity->pose_offset.pitch, entity->pose_offset.roll },
         .scale = entity->scale };
     mat4_t const *basis = R_EntityPose(entity, &pose);
-    quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
     mat4_t placement;
-    Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
-        &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
-    /* Native skinning precedes this basis. All world-space consumers use this same composition. */
-    Matrix4_multiply(&placement, basis, matrix);
+
+    /* R_EntityPose can author pitch/roll or non-finite data (e.g. WoW
+     * doodads). Preserve the generic path for those cases, including its
+     * NaN/Inf propagation, rather than changing culling in invalid poses. */
+    if (pose.angles.pitch == 0.0f && pose.angles.roll == 0.0f &&
+        isfinite(pose.angles.yaw) && isfinite(pose.scale) &&
+        isfinite(pose.origin.x) && isfinite(pose.origin.y) &&
+        isfinite(pose.origin.z)) {
+        R_YawEntityPlacement(&placement, &pose);
+    } else {
+        quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
+        Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
+            &MAKE(vec3_t, pose.scale, pose.scale, pose.scale), &MAKE(vec3_t, 0, 0, 0));
+    }
+    /* Native skinning precedes this basis. All world-space consumers use this
+     * same composition. An identity basis leaves the placement unchanged;
+     * don't run 16 four-term dot products during every entity cull. */
+    if (!memcmp(basis, &r_identity_entity_basis, sizeof(r_identity_entity_basis))) {
+        *matrix = placement;
+    } else {
+        Matrix4_multiply(&placement, basis, matrix);
+    }
 }
 
 /* A socket already includes the parent's model basis. Apply only the child's local pose. */
@@ -63,8 +115,7 @@ static bool R_EntityInView(renderEntity_t const *entity) {
 
     /* Model bounds cover tall map art whose gameplay selection radius is only
      * the ground footprint; keep the radius path for models without bounds. */
-    if (R_GetEntityBounds(entity, &bounds)) {
-        R_GetEntityMatrix(entity, &matrix);
+    if (R_GetEntityBoundsAndMatrix(entity, &bounds, &matrix)) {
         return Frustum_ContainsBox(&tr.viewDef.frustum, &bounds, &matrix);
     }
 
@@ -73,6 +124,71 @@ static bool R_EntityInView(renderEntity_t const *entity) {
         .center = entity->origin,
         .radius = radius,
     });
+}
+
+/* WC3's alpha pass can reuse the outer opaque pass's frustum result rather
+ * than revisiting offscreen models. Store by SCENE SLOT, never entity number:
+ * transient model children can carry the same number as their parent.
+ * The generation avoids clearing 16,000 bytes on every view (including UI
+ * portraits); a second view or an interrupted pass cannot reuse old results. */
+static struct {
+    bool active;
+    uint16_t generation;
+    uint16_t slot_generation[MAX_GAME_ENTITIES];
+    uint8_t slot_visible[MAX_GAME_ENTITIES];
+    renderEntity_t const *scene;
+    uint32_t count, time, rdflags;
+    mat4_t view_projection;
+    frustum3_t frustum;
+} solid_visibility;
+
+void R_SolidVisibilityBegin(void) {
+    if (++solid_visibility.generation == 0) {
+        memset(solid_visibility.slot_generation, 0, sizeof(solid_visibility.slot_generation));
+        solid_visibility.generation = 1;
+    }
+    solid_visibility.active = true;
+    solid_visibility.scene = tr.viewDef.entities;
+    solid_visibility.count = tr.viewDef.num_entities;
+    solid_visibility.time = tr.viewDef.time;
+    solid_visibility.rdflags = tr.viewDef.rdflags;
+    solid_visibility.view_projection = tr.viewDef.viewProjectionMatrix;
+    solid_visibility.frustum = tr.viewDef.frustum;
+}
+
+void R_SolidVisibilityEnd(void) {
+    solid_visibility.active = false;
+}
+
+/* Check the view only once at the start of the alpha pass; no matrix memcmp
+ * or pointer arithmetic is needed per alpha entity. A negative status means
+ * unknown (e.g. a camera-only view or r_entities=0) and must NOT be culled. */
+bool R_SolidVisibilityMatchesView(void) {
+    return solid_visibility.active &&
+           solid_visibility.scene == tr.viewDef.entities &&
+           solid_visibility.count == tr.viewDef.num_entities &&
+           solid_visibility.time == tr.viewDef.time &&
+           solid_visibility.rdflags == tr.viewDef.rdflags &&
+           !memcmp(&solid_visibility.view_projection, &tr.viewDef.viewProjectionMatrix,
+                   sizeof(solid_visibility.view_projection)) &&
+           !memcmp(&solid_visibility.frustum, &tr.viewDef.frustum,
+                   sizeof(solid_visibility.frustum));
+}
+
+int R_SolidVisibilityAt(uint32_t index) {
+    if (index >= MAX_GAME_ENTITIES ||
+        solid_visibility.slot_generation[index] != solid_visibility.generation)
+        return -1;
+    return solid_visibility.slot_visible[index] != 0;
+}
+
+static void R_SolidVisibilityRecord(uint32_t index, bool visible) {
+    if (!solid_visibility.active || tr.render_phase != RENDER_PHASE_SOLID ||
+        index >= MAX_GAME_ENTITIES ||
+        solid_visibility.scene != tr.viewDef.entities ||
+        solid_visibility.count != tr.viewDef.num_entities) return;
+    solid_visibility.slot_generation[index] = solid_visibility.generation;
+    solid_visibility.slot_visible[index] = visible;
 }
 
 static void R_DrawEntityShadows(bool shad);
@@ -85,7 +201,10 @@ void R_DrawEntities(void) {
     uint32_t drawn = 0;
     uint32_t culled = 0;
 
-    if (!R_CvarEnabled("r_entities", "1")) return;
+    if (!R_CvarEnabled("r_entities", "1")) {
+        R_SolidVisibilityEnd(); /* alpha must treat unrecorded entries as unknown */
+        return;
+    }
     if (debug_entities) {
         memset(state, 0, sizeof(state));
     } else {
@@ -100,6 +219,7 @@ void R_DrawEntities(void) {
         renderEntity_t const *ent = tr.viewDef.entities+i;
         R_UpdateEntityPresentation(ent);
         bool in_view = R_EntityInView(ent);
+        R_SolidVisibilityRecord(i, in_view);
 
         if (debug_entities && ent->number < MAX_GAME_ENTITIES) {
             state[ent->number] = in_view ? 2 : 1;
@@ -181,6 +301,8 @@ void R_DrawSplatRects(void) {
 }
 
 void R_DrawDecals(void) {
+    /* Consecutive decals preserve array order and share texture/shader state. */
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
     FOR_LOOP(i, tr.viewDef.num_decals) {
         renderDecal_t const *decal = tr.viewDef.decals + i;
         box3_t bounds;
@@ -197,8 +319,11 @@ void R_DrawDecals(void) {
                 continue;
             }
         }
-        R_RenderSplat(&decal->origin, decal->radius, decal->texture, R_SPLAT_SHADER(&tr.shader_splat), decal->color);
+        vec2_t const mins = { decal->origin.x - decal->radius, decal->origin.y - decal->radius };
+        vec2_t const maxs = { decal->origin.x + decal->radius, decal->origin.y + decal->radius };
+        R_AddRectSplat(&mins, &maxs, decal->texture, decal->color);
     }
+    R_EndSplatBatch();
 }
 
 uint32_t selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };

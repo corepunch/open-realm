@@ -71,6 +71,22 @@ The WC3 model renderer applies gameplay fog after the shaded/unshaded material b
 Day/night sight-radius selection consumes the server-owned clock documented in [time-of-day.md](time-of-day.md); fog must not derive a
 second clock from `level.time`.
 
+### Night Elf Ultravision (`Reuv`)
+
+A completed Ultravision research (at the Hunter's Hall, or granted via `SetPlayerTechResearched`
+/ the Ultravision glyph) makes eligible **units** retain at least their authored daytime sight
+radius at night. The existing sight calculation uses the owner's researched level and the unit's
+`UnitBalance.upgrades` (`Upgrades Used`) list containing `Reuv`; it excludes authored structures,
+including uprooted Ancients. Units without that upgrade, and other players' units, keep their
+normal night sight. A custom unit may opt in through the same upgrade list. The daytime radius is
+unchanged, and an authored night radius larger than the day radius is never reduced.
+
+There is no second cached vision stat: the next normal `G_FowUpdate()` incorporates research
+completion, JASS grants/revocation, ownership changes and new units. Its existing owner, alliance
+and `UnitShareVision` viewer masks propagate the improved sight without awarding the research to
+allies. Terrain blockers, current-versus-explored fog, and invisibility/detection continue to use
+the existing paths: Ultravision is **not** true sight and does not reveal invisible enemies.
+
 ## Known Gaps
 
 This change intentionally does not alter unrelated compatibility areas that need broader evidence:

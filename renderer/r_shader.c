@@ -533,7 +533,7 @@ const shader_desc_t sd_model = {
    built-in program.  Extra per-variant defines (e.g. BZ_USE_INSTANCING) are
    added by the callers. */
 static char shader_defines_buf[256];
-static cstring_t R_ShaderDefines(bool instancing) {
+cstring_t R_ShaderDefines(bool instancing) {
     int n = 0;
     /* Each variant owns its defines; the old retained instancing after the grass program compiled first. */
     shader_defines_buf[0] = '\0';
@@ -552,7 +552,45 @@ static cstring_t R_ShaderDefines(bool instancing) {
     return shader_defines_buf;
 }
 
+static GLuint r_bound_program;
+static bool r_program_known;
+static bool r_program_cache = true;
+static shaderBindStats_t r_program_stats;
+
+/* A new frame/context must not inherit the binding last observed in another GL owner. */
+void R_ResetShaderBinding(bool cache) {
+    r_program_known = false;
+    r_program_cache = cache;
+    r_program_stats = (shaderBindStats_t){0};
+}
+
+shaderBindStats_t R_GetShaderBindStats(void) { return r_program_stats; }
+
+/* Uniform validation stays in gs_apply; only an unchanged context binding is elided. */
+static void R_BindShaderProgram(GLuint program) {
+    r_program_stats.requests++;
+    if (r_program_cache && r_program_known && r_bound_program == program) return;
+    glUseProgram(program);
+    r_bound_program = program; r_program_known = true; r_program_stats.binds++;
+}
+
+/* GL names may be reused immediately after deletion; a recycled name must bind again. */
+static void R_DeleteShaderProgram(GLuint program) {
+    if (r_program_known && r_bound_program == program) r_program_known = false;
+    glDeleteProgram(program);
+}
+
+/* Keep the shared module byte-identical; only this renderer context owns a binding cache.
+ * Restore loader/test GL macros after its implementation has compiled. */
+#pragma push_macro("glUseProgram")
+#pragma push_macro("glDeleteProgram")
+#undef glUseProgram
+#undef glDeleteProgram
+#define glUseProgram R_BindShaderProgram
+#define glDeleteProgram R_DeleteShaderProgram
 #include "vendor/gl_shader/gl_shader.c"
+#pragma pop_macro("glDeleteProgram")
+#pragma pop_macro("glUseProgram")
 
 static gs_options_t R_ShaderOptions(char const *defines) {
     return (gs_options_t){ .dialect =
@@ -580,11 +618,11 @@ int R_BuildShaderMain(char *buf, int size, bool vertex, glsl_dialect_t dialect) 
 /* The reusable module returns failure; the engine retains its fatal built-in shader policy. */
 void R_LoadShaderState(shaderLoad_t const *load) {
     gs_options_t options = R_ShaderOptions(load->defines);
-    if (!gs_load(load->prog, load->desc, load->state, load->state_size, &options)) exit(EXIT_FAILURE);
+    if (!gs_load(load->prog, load->desc, load->state, load->state_size, &options)) Sys_Exit(EXIT_FAILURE);
 }
 void R_DeleteShader(shaderProg_t *prog) { gs_delete(prog); }
 void R_UploadShader(shaderProg_t *prog, void const *state) {
-    if (!gs_apply(prog, state)) exit(EXIT_FAILURE);
+    if (!gs_apply(prog, state)) Sys_Exit(EXIT_FAILURE);
 }
 
 static modelProg_t model_shader;

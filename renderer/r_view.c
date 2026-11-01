@@ -90,7 +90,7 @@ void R_ReleaseEntityCameraEvents(uintptr_t instance_id) {
 }
 
 /* UI scenes borrow the renderer view; retaining a portrait hid the later minimap camera outline. */
-void R_RenderFrame(viewDef_t const *viewDef) {
+static void R_RenderFrameNative(viewDef_t const *viewDef) {
     viewDef_t saved = tr.viewDef;
     tr.viewDef = *viewDef;
     /* Shadows used to darken the fog itself; give their colour blend the same scene fog as terrain. */
@@ -136,12 +136,16 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         bool const temporary_particle_scene = particle_scene == &temporary_particles;
         cparticle_t *previous_particles = R_BeginParticleScene(particle_scene);
         tr.render_phase = RENDER_PHASE_SOLID;
+        R_ProfileStage(RP_ENTITIES);
         R_DrawEntityCameraEventSpawns(entity->model, entity->instance_id);
         R_DrawEntities();
         tr.render_phase = RENDER_PHASE_ALPHA;
+        R_ProfileStage(RP_ALPHA);
         R_DrawAlphaSurfaces();
-        if (isolated_particles && !(tr.viewDef.rdflags & RDF_NOPARTICLES))
+        if (isolated_particles && !(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
+            R_ProfileStage(RP_PARTICLES);
             R_DrawParticles();
+        }
         R_EndParticleScene(particle_scene, previous_particles);
         if (temporary_particle_scene || (tr.viewDef.rdflags & RDF_NOPARTICLES))
             R_ClearParticleScene(particle_scene);
@@ -153,6 +157,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
 
     Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
 
+    R_ProfileStage(RP_FOG);
     R_RenderFogOfWar();
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
@@ -189,4 +194,14 @@ void R_RenderFrame(viewDef_t const *viewDef) {
             R_ClearParticleScene(particle_scene);
     }
     if (viewDef->rdflags & RDF_NOWORLDMODEL) tr.viewDef = saved;
+}
+
+void R_RenderFrame(viewDef_t const *viewDef) {
+    R_ProfileStage(RP_SCALE);
+    bool scaled = R_BeginScaledView(viewDef);
+    R_ProfileStage(RP_WORLD);
+    R_RenderFrameNative(viewDef);
+    R_ProfileStage(RP_SCALE);
+    if (scaled) R_EndScaledView(viewDef);
+    R_ProfileStage(RP_UI);
 }

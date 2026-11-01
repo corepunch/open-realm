@@ -52,7 +52,8 @@ Drains the loopback or UDP receive buffer and dispatches each message by its `sv
 ### 2. CL_Input
 
 `CL_Input` pumps SDL events through key bindings and shared pan/look/zoom/selection controls. All game builds
-use this one implementation. Bindings and independent config options select behavior; there is no RTS/orbit mode.
+use this one implementation. Direct touchscreen contacts use the same UI and binding
+path alongside ordinary mouse and keyboard events; see [SDL2 touch input](touch-input.md). Bindings and independent config options select behavior; there is no RTS/orbit mode.
 Controller changes are typed `INPUTCMD` operations: focus XY, orbit Euler/distance, or movement bits/milliseconds.
 Game commands such as selection and abilities continue through `clc_stringcmd`.
 
@@ -78,6 +79,16 @@ Builds the render scene:
 - Sets the camera view origin and angles from `cl.viewangles`.
 - Calls `CL_AddEntities` which iterates `cl.entities` and calls `V_AddEntity` for each visible entity. Entities with the `EF_NODRAW` flag are skipped.
 - Client-side temporary effects (`client/cl_tent.c`) add short-lived visual-only entities such as blood splats and hit sparks.
+
+`CL_AddEntities` samples the runtime `cl_debug_entities` diagnostic CVar once
+at the beginning of each scene entity batch and passes the resulting Boolean
+to `V_AddClientEntity`. This avoids repeated named CVar searches for every
+entity when diagnostics are normally disabled. A subsequent scene rebuild
+resamples the flag, so console toggles still take effect without storing a
+long-lived CVar pointer. Model conversion, interpolation, scene order, and the
+existing once-per-second paused-construction diagnostic are unchanged. The
+`client_entities.debug_mode_samples_once_per_batch_and_tracks_runtime_toggle`
+regression covers repeated entity conversion and toggling between batches.
 
 ### 5. SCR_UpdateScreen
 

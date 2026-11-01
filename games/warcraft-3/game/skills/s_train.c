@@ -423,6 +423,7 @@ void ai_train_build(edict_t *ent) {
             G_CancelHeroRevive(ent, hero);
             return;
         }
+        if(G_PlayerInstantBuild(ent->s.player)){CompleteHeroRevive(ent,hero);return;}
         required = G_HeroReviveTime(hero);
         if (required <= 0.0f) return;
         hero->revival->progress += (float)FRAMETIME / 1000.0f;
@@ -608,12 +609,25 @@ void G_CancelHeroRevives(edict_t *altar) {
     }
 }
 
+static cstring_t SelectTrainedHeroProperName(edict_t const *hero) {
+    char name[128];
+    cstring_t selected = G_HeroProperName(hero, name, sizeof(name));
+    if (!selected || !*selected) return NULL;
+    while (isspace((unsigned char)*selected)) selected++;
+    char trimmed[128];
+    snprintf(trimmed, sizeof(trimmed), "%s", selected);
+    size_t length = strlen(trimmed);
+    while (length && isspace((unsigned char)trimmed[length-1])) trimmed[--length] = '\0';
+    return length ? G_InternAnimationName(trimmed) : NULL;
+}
+
 void unit_build(edict_t *self, uint32_t class_id) {
     bool was_empty;
     edict_t *ent;
 
     was_empty = self->build == NULL;
     ent = SP_SpawnAtLocation(class_id, self->s.player, &self->s.origin2);
+    if(G_UnitIsHero(ent))ent->proper_name=SelectTrainedHeroProperName(ent);
     ent->training = true;
     ent->training_food_wait_notified = false;
     G_SetHealth(ent, 0);

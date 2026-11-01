@@ -595,6 +595,7 @@ bool G_QueueUnitResponseSound(edict_t *ent, int sound) {
     *r = (unitResponse_t){ .next = unit_responses, .request = response_serial,
         .entity = ent->s.number, .spawn_time = ent->spawn_time, .owner = ent->s.player, .sound = sound };
     unit_responses = r;
+
     ent->sound.pending = sound;
     return true;
 }
@@ -751,6 +752,9 @@ bool G_CancelTargetMode(edict_t *clent) {
     if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
         return false;
     S_AbilityTargetModeExit(clent);
+    /* Some non-spell point commands (for example Attack Ground) also use the
+     * shared world-space cursor splat, but have no ability exit callback. */
+    S_SpellCursorSplat(clent, 0.0f);
     /* Reset a possible item-owned building model preview as well as the
      * generic targeting state. A zero-model cursor is harmless for spells. */
     gi.Write(PF_BYTE, &(int32_t){svc_cursor});
@@ -813,7 +817,7 @@ void CMD_CancelCommand(edict_t *ent) {
             }
             return;
         }
-        if (producer->build && producer->build->revival && producer->build->revival->reviving &&
+        if (producer->build && G_HeroIsReviving(producer->build) &&
             G_CancelHeroRevive(producer, producer->build)) {
             Get_Commands_f(ent);
             return;
@@ -1317,7 +1321,9 @@ bool G_SelectedSubgroupAutocastAllOn(gameClient_t *client, edict_t *main, uint32
     if (!client || !main || !code) return false;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (ent->class_id != main->class_id) continue;
-        if (!G_ActorHasSkill(ent, GetClassName(code))) continue;
+        /* Hero abilities live in the learned-rank table rather than
+         * UnitAbilities, but autocast buttons still need to toggle them. */
+        if (!G_UnitAbilityLevel(ent, code)) continue;
         any = true;
         if (!G_UnitAutocastIsOn(ent, code)) return false;
     }
@@ -1338,7 +1344,7 @@ CLIENTCOMMAND(Autocast) {
     if (!classname || strlen(classname) != 4) return;
     main = G_GetMainSelectedUnit(client);
     ability = FindAbilityForCommand(classname);
-    if (!G_UnitCanControl(client, main) || !G_ActorHasSkill(main, classname) ||
+    if (!G_UnitCanControl(client, main) || !G_UnitAbilityLevel(main, FS_SLKKey(classname)) ||
         !ability || !(ability->flags & AB_AUTOCAST)) {
 #ifdef WC3_DEBUG_AUTOCAST
         if (G_AutocastDebugLevel() >= 1) {
@@ -1347,7 +1353,7 @@ CLIENTCOMMAND(Autocast) {
                     main && g_edicts ? (long)(main - g_edicts) : -1L,
                     classname,
                     G_UnitCanControl(client, main) ? 1 : 0,
-                    main && G_ActorHasSkill(main, classname) ? 1 : 0,
+                    main && G_UnitAbilityLevel(main, FS_SLKKey(classname)) ? 1 : 0,
                     (void *)ability,
                     ability && (ability->flags & AB_AUTOCAST) ? 1 : 0,
                     ability && (ability->flags & AB_AUTOCAST) ? 1 : 0);
@@ -1362,7 +1368,7 @@ CLIENTCOMMAND(Autocast) {
          * subgroup. Other selected types keep their own autocast state even if
          * custom object data gives them the same ability rawcode. */
         if (ent->class_id != main->class_id) continue;
-        if (!G_ActorHasSkill(ent, classname)) continue;
+        if (!G_UnitAbilityLevel(ent, FS_SLKKey(classname))) continue;
         if (G_SetUnitAutocast(ent, FS_SLKKey(classname), enabled)) {
             changed = true;
             /* The toggle itself must not interrupt active work or movement, but
@@ -1538,8 +1544,8 @@ CLIENTCOMMAND(God) {
     }
     if (!unit) { G_CheatPrintf(clent, "WC3: god requires a selected controllable unit"); return; }
     /* The former controller flag could never protect the selected actor in T_Damage. */
-    unit->invulnerable = !unit->invulnerable;
-    G_CheatPrintf(clent, "WC3: god %s", unit->invulnerable ? "on" : "off");
+    unit->invulnerable = !(unit && unit->invulnerable);
+    G_CheatPrintf(clent, "WC3: god %s", (unit && unit->invulnerable) ? "on" : "off");
 }
 
 /* Suicide must execute the same death callback as combat, including food, selection and trigger cleanup. */
@@ -1977,7 +1983,7 @@ CLIENTCOMMAND(Inventory) {
         return;
     }
 
-    item = ent->inventory[slot];
+    item = G_InventoryItem(ent, slot);
     if (!item || !item->class_id) {
         return;
     }
@@ -2031,9 +2037,10 @@ CLIENTCOMMAND(CargoUnload) {
 
     if (!clent || !(client = clent->client) || argc < 2) return;
     transport = G_GetMainSelectedUnit(client);
+    cargo_t *hold = transport ? transport->cargo : NULL;
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, transport) || slot < 0) return;
-    if (!transport->cargo || (uint32_t)slot >= transport->cargo->count) return;
+    if (!hold || (uint32_t)slot >= hold->count) return;
     S_CargoUnloadAt(transport, (uint32_t)slot);
 }
 
@@ -2049,7 +2056,7 @@ CLIENTCOMMAND(CancelTrain) {
     if (!end || *end || parsed > UINT_MAX) return;
     client = clent->client;
     producer = G_GetMainSelectedUnit(client);
-    if (!G_UnitCanSpendResources(client, producer) || !producer->build || !producer->build->training) return;
+    if (!G_UnitCanSpendResources(client, producer) || !producer->build || !(producer->build && producer->build->training)) return;
     index = (uint32_t)parsed;
     if (!G_CancelTrainingQueueItem(producer, index, true)) return;
     Get_Portrait_f(clent);
@@ -2059,7 +2066,8 @@ CLIENTCOMMAND(CancelTrain) {
 static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
     gameClient_t *client = clent ? clent->client : NULL;
     edict_t *item = G_GetDraggedItem(client);
-    edict_t *carrier = G_IsItem(item) ? item->item->carrier : NULL;
+    item_t const *rec = G_ItemState(item);
+    edict_t *carrier = rec ? rec->carrier : NULL;
 
     /* Targeted item giving uses the same order as UnitDropItemTarget. An
      * inventory-capable allied building is a valid destination too. */
@@ -2075,9 +2083,10 @@ static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
 
     if (!client || !location) return false;
     item = G_GetDraggedItem(client);
-    unit = G_IsItem(item) ? item->item->carrier : NULL;
+    item_t *rec = G_ItemState(item);
+    unit = rec ? rec->carrier : NULL;
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
-        !G_IsItem(item) || item->item->carrier != unit)
+        !rec || rec->carrier != unit)
         return false;
     if (!S_OrderDropItemPoint(unit, item, location)) return false;
     G_SendPointConfirmation(clent, location, false);
@@ -2095,8 +2104,9 @@ CLIENTCOMMAND(ItemDrag) {
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
         slot < 0 || (uint32_t)slot >= G_InventoryCapacity(unit)) return;
-    item = unit->inventory[slot];
-    if (!G_IsItem(item) || item->item->carrier != unit || item->item->in_world) return;
+    item = G_InventoryItem(unit, slot);
+    item_t *rec = G_ItemState(item);
+    if (!rec || rec->carrier != unit || rec->in_world) return;
 
     /* Right-clicking an occupied inventory button enters the same server-owned
      * target-mode lifecycle used by WC3 point abilities. A following left-click

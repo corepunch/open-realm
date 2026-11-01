@@ -2,6 +2,7 @@
 #define __common_h__
 
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "shared.h"
 #include "net.h"
@@ -212,6 +213,17 @@ static inline void Sys_UpdateLoadingPresentation(bool active, float progress, bo
 }
 #endif
 
+/* Android runs native code beside Java/HWUI threads in an isolated game process.
+ * C++ static teardown during exit races those live threads; callers own engine cleanup. */
+static inline void Sys_Exit(int status) {
+#ifdef __ANDROID__
+    fflush(NULL);
+    _Exit(status);
+#else
+    exit(status);
+#endif
+}
+
 handle_t FS_AddArchive(cstring_t filename);
 bool FS_AddDataDirectory(cstring_t dirname);
 bool FS_ArchiveFileVisible(cstring_t archive, cstring_t filename);
@@ -238,6 +250,9 @@ bool FS_FindNextFile(handle_t find, sfileFindData_t *findData);
 bool FS_FindClose(handle_t find);
 uint32_t FS_ListMaps(fsMapListFunc_t func, void *userData);
 fsMapResolve_t FS_ResolveMapPath(cstring_t name, string_t out, uint32_t out_size);
+/* Register one generic archive manifest that exposes map basenames below a virtual path. */
+void FS_RegisterArchiveMapSource(cstring_t archive, cstring_t manifest,
+                                 cstring_t virtual_prefix, cstring_t archive_prefix);
 
 typedef struct {
     handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
@@ -392,6 +407,7 @@ extern struct world_state world;
 
 /* Implemented by the selected game's common/world_*.c. */
 bool     CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield);
+double   Com_MonotonicMilliseconds(void);
 vec2_t  CM_GetNormalizedMapPosition(float x, float y);
 vec2_t  CM_GetDenormalizedMapPosition(float x, float y);
 

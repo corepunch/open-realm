@@ -2,6 +2,33 @@
 
 For measured menu/loading resource residency and reclamation priorities, see [WC3 memory](memory.md).
 
+## Encrypted raw MPQ textures
+
+Pink/noisy loading quadrants with otherwise readable labels can originate in archive reads,
+before image decode or GPU upload. On Honor, ROC `Maps/Campaign/Undead05Interlude.w3m`
+reproduced this. A representative affected asset,
+`UI/Glues/Loading/Backgrounds/Campaigns/Northrend-BotRight.blp` from
+the user's classic 1.26a `war3.mpq`, is 76116 bytes with flags `0x80030000`
+(EXISTS, ENCRYPTED, FIX_KEY), uncompressed, with 4096-byte sectors. The old raw read branch
+decrypted the entire requested range with the base file key. Correct and broken extraction
+first differed at byte 4096; decoding on macOS reproduced the same pink corruption.
+
+`SFileReadFile` now decrypts each complete raw sector with `file_key + sector_index` before
+copying the requested slice. SINGLE_UNIT entries instead decrypt the full unit with the
+base key before slicing. FIX_KEY adjustment remains in file-open code. This matches
+[StormLib's sector and single-unit read paths](https://github.com/ladislav-zezula/StormLib/blob/master/src/SFileReadFile.cpp).
+It preserves arbitrary seeks, reads spanning sector boundaries, and untouched trailing
+1–3 bytes in the cipher block. No archive repair, texture replacement or wire/save change
+is needed. `make test-mpq-compression` uses generated random bytes in four combinations
+of sector/single-unit and normal/fixed key; full, unaligned boundary and tail reads failed
+before the fix and pass afterward. No retail fixture is checked in.
+
+BLP's declared JPEG header length, not the first mip offset, determines the shared header slice; padding between
+the header and first mip is not part of the JPEG. A conventional JPEG viewer interprets the
+four raw BLP bands differently, so compare through the renderer's BLP JPEG band convention.
+After APK replacement, the same Honor loading screen rendered the complete map, borders,
+emblem, text and progress bar without pink/noisy quadrants.
+
 ## Loading-screen ownership
 
 `CL_BeginLoadingMap` publishes the resolved destination and freezes a non-interactive loading plaque.
@@ -21,8 +48,54 @@ The initial transport order is:
 2. `svc_loading_screen` chunks: receiving the complete compressed layout decodes the frame tree, registers
    the preceding media, and repaints immediately.
 3. Full configstring pages, then baseline pages.
-4. The final `svc_mirror "precache"` permits world/model/image/sound registration; completion queues `begin`,
-   then the first usable frame activates gameplay.
+4. The final `svc_mirror "precache"` permits world/model/image/sound registration. Completion queues `begin`
+   immediately by default, or waits for fresh input with `cl_loading_wait=1`; the first usable frame after
+   `begin` activates gameplay.
+
+### Touch acknowledgement
+
+Android enables `cl_loading_wait=1` and `sv_wait_for_begin=1`. Once media registration finishes,
+`CL_PrepRefresh` sets `cl.loading_waiting`, records the SDL tick deadline and explicitly calls
+`SCR_UpdateLoadingPlaque`. Ordinary refresh remains frozen until the first snapshot: updating only
+state after the final 100% progress repaint leaves the old loading caption visible indefinitely.
+`UI_STAT_LOADING_STATUS_TEXT` uses the frame's normal text during loading and its authored tooltip
+string while awaiting acknowledgement. WC3 binds `LoadingBarText` to this generic presentation stat
+and supplies localized `CONTINUE_PLAYING`; the universal client knows no WC3 strings or frame names.
+Both strings use existing UI serialization fields, with no protocol/schema change.
+
+`CL_Input` accepts a new finger/mouse press or non-repeating key event at/after the deadline.
+`CL_ContinueLoading` queues `begin` once; older loading-time events are rejected. The entire input
+batch is consumed so the acknowledgement and SDL's synthetic mouse events do not become world orders.
+The optional server gate continues signon/keepalive traffic but does not advance simulation when clients
+are connected and none is spawned. It rebases the frame deadline while waiting, avoiding a catch-up burst.
+The default desktop/dedicated and already-spawned multiplayer behavior remains unchanged.
+
+Regression coverage: `client_loading.acknowledgement_rejects_stale_input_and_sends_begin_once`,
+`client_loading.ready_label_uses_authored_alternate_and_resets`, the server-net ready-wait test and
+`wc3_loading.initial_layout_resolves_campaign_custom_and_melee_art` (including both authored captions).
+Actual repaint/input delivery was checked on the Android framebuffer: Honor displayed the sixth chapter
+and localized “Продолжить игру” after transition. The ordinary-speed run also exercised the interlude's Escape/skip continuation;
+the preceding accelerated run exercised its natural end.
+
+### Android interlude continuation and tagged pointers
+
+ROC `Undead05Interlude.w3m` sets the next level to `Maps\Campaign\Undead06.w3m` and calls
+`CustomVictoryBJ(Player(3), false, false)`. Retail Blizzard.j calls `CustomVictorySkipBJ` only when
+`GetPlayerController(whichPlayer) == MAP_CONTROL_USER`, then invokes `ChangeLevel` on the local player.
+A victory event without a subsequent ChangeLevel therefore does not establish a failed map lookup.
+
+On Honor Android 12, diagnostics showed equal numeric mapcontrol values (0/0) but a null type on the
+constant operand. Declaration initially found the correct type. `jass_setnull` subsequently rejected
+valid VM-owned type pointers such as `0xb400…` using an x86-style numerical upper address limit and
+zeroed the variable. Android ARM64 can tag heap pointers in the top byte; these are valid pointers
+and must remain intact (see [Android tagged pointers](https://source.android.com/docs/security/test/tagged-pointers)).
+The VM now releases values through its owned type pointer without numerical address heuristics.
+Do not relax enum equality or hardcode a campaign transition: the fault affected other declared
+handle types as well. `wc3_smoke.declared_handle_types_survive_copy_clear_and_reassignment` runs
+without retail files on both host and Android, covering constant/local copies, null and reassignment.
+On the same Honor, the automated test failed with “declared enum type lost” when the original address
+check was restored for a diagnostic build (5/6 assertions). After the fix, Honor called ChangeLevel
+and loaded the sixth chapter through the normal menu-action path.
 
 `SV_BuildLoadingScreen` compresses the complete authored layout into map-owned `sv.loading`. The payload is the
 existing layer byte, delta-encoded UI frames (including text and type-specific buffers), and frame terminator.
@@ -112,9 +185,6 @@ the original 512-byte limit even with text shortening. Protocol version 3 expand
 slots. Protocol version 4 removes the slots and their text budget entirely: `svc_loading_screen` carries complete
 native rows, lobby names, and minimap archive references within the engine message limit. Chunking bounds each
 network packet. The core, loading-FDF, and server signon tests cover these contracts.
-
-The local `data/WarsmashModEngine` checkout's `MenuUI.java` binds `LoadingMeleePanel` but keeps it hidden;
-`internalStartMap` populates the custom panel. It is not a complete retail melee-loading implementation.
 
 For an early framebuffer capture, queue `screenshot 2` before `map` in an exec script, then run bounded:
 

@@ -27,6 +27,10 @@ void UI_LoadHudLoading(void) {
         hud.loading.LoadingBar->Stat = UI_STAT_LOADING_PROGRESS;
         UI_SetText(hud.loading.LoadingBar, "#0");
     }
+    if (hud.loading.LoadingBarText) {
+        hud.loading.LoadingBarText->Stat = UI_STAT_LOADING_STATUS_TEXT;
+        hud.loading.LoadingBarText->Tip = UI_GetString("CONTINUE_PLAYING");
+    }
 }
 
 static cstring_t loading_text(mapInfo_t const *info, cstring_t text) { return text && *text ? G_MapString(info, text) : " "; }

@@ -71,7 +71,7 @@ void G_InitializeUnitVertexColor(edict_t *unit) {
     UnitUI_t const *ui;
 
     if (!unit || !(ui = unit->data.UnitUI)) return;
-    if (unit->vertex_color_override_set) return;
+    if ((unit && unit->vertex_color_override_set)) return;
     if (ui->tintRed == 255 && ui->tintGreen == 255 && ui->tintBlue == 255) {
         unit->vertex_color = COLOR32_WHITE;
         unit->vertex_color_set = false;

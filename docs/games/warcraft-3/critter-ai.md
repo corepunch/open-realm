@@ -41,10 +41,10 @@ either no active order or an active order that `Awan` itself owns.
 | `WANDER_FLEE_DISTANCE` | 192 units | first retreat length, halved per failed attempt |
 | `WANDER_FLEE_ATTEMPTS` | 4 | retreats tried: 192 / 96 / 48 / 24 units |
 
-`wander_next_time` is re-armed (`wander_schedule()`) whenever a decision is
+`wander->next_time` is re-armed (`wander_schedule()`) whenever a decision is
 taken, at `A_MOVE_ARRIVE`, at `A_MOVE_BLOCKED`, and after a flee starts, so a
 finished or failed journey always begins a fresh pause. Randomness comes from a
-per-unit LCG (`wander_random_state`) seeded from the edict number and spawn
+per-unit LCG (`wander->random_state`) seeded from the edict number and spawn
 time, never from the process RNG or wall clock, so replays and saves are
 deterministic. `A_IDLE` is dispatched by `ai_stand()` in `g_ai.c`; the first
 idle tick only arms the deadline.
@@ -57,13 +57,13 @@ destroyed structures (`M_IsDead()`) still occupy their edict but do not.
 
 ## Move ownership and ability events
 
-Each wandering unit keeps one private destination edict, `wander_waypoint`
+Each wandering unit keeps one private destination edict, `wander->waypoint`
 (`SVF_NOCLIENT`, allocated by the first autonomous Move, freed on disable,
 death or removal). The shared `Waypoint_add()` ring is never used because a
-ring slot can be overwritten while a Move still references it. `wander_goal`
-plus `wander_goal_generation` form the ownership token: `wander_owns_move()`
-is true only when `goalentity == wander_goal`, the generation matches the
-waypoint's current `waypoint_generation`, and the unit is in the ordinary walk
+ring slot can be overwritten while a Move still references it. `wander->goal`
+plus `wander->goal_generation` form the ownership token: `wander_owns_move()`
+is true only when `goalentity == wander->goal`, the generation matches the
+waypoint's current `route->serial`, and the unit is in the ordinary walk
 move. A private waypoint is never rewritten while a Move still targets it.
 
 | Event | `CAbilityWander` behaviour |
@@ -80,7 +80,7 @@ move. A private waypoint is never rewritten while a Move still targets it.
 
 `A_MOVE_BLOCKED` is raised by `move_hold()` in `skills/s_move.c` before Move
 installs its terminal Hold pose. The handler checks the live `goalentity`
-against `wander_waypoint`, not the token, because `A_MOVE_LEAVE` or an accepted
+against `wander->waypoint`, not the token, because `A_MOVE_LEAVE` or an accepted
 order may already have retired the token while the route was still in flight.
 It returns false for external Moves so their Hold semantics are unchanged.
 
@@ -99,11 +99,11 @@ attempts; each candidate passes `M_MoveIsValid()` and the building clearance.
 
 | `edict_t` field (`g_local.h`) | `g_save.c` | Role |
 |---|---|---|
-| `wander_next_time` | `F_INT` | next decision deadline (`level.time` ms) |
-| `wander_random_state` | `F_INT` | per-unit LCG state |
-| `wander_goal` | `F_EDICT` | ownership token target |
-| `wander_waypoint` | `F_EDICT` | private destination edict |
-| `wander_goal_generation` | `F_INT` | ownership token generation |
+| `wander->next_time` | `F_INT` | next decision deadline (`level.time` ms) |
+| `wander->random_state` | `F_INT` | per-unit LCG state |
+| `wander->goal` | `F_EDICT` | ownership token target |
+| `wander->waypoint` | `F_EDICT` | private destination edict |
+| `wander->goal_generation` | `F_INT` | ownership token generation |
 
 A save taken mid-Move restores the private waypoint as the live `goalentity`
 and the Move resumes through the normal think callback.

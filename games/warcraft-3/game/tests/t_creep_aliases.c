@@ -171,7 +171,7 @@ TEST(wc3_spell, creep_mana_shield_uses_alias_data_and_orders) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-/* Toggle stores ACsa; bonus damage must read that alias, not AHfa. */
+/* Autocast stores ACsa; bonus damage must read that alias, not AHfa. */
 TEST(wc3_spell, creep_searing_arrows_uses_alias_bonus_damage) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X3\n"
@@ -188,16 +188,16 @@ TEST(wc3_spell, creep_searing_arrows_uses_alias_bonus_damage) {
     attacker->data.UnitAbilities = &abilities;
     S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
     attacker->svflags |= SVF_MONSTER;
-    T_ASSERT(S_CastNoTargetSpell(attacker, BZ_ACSA));
-    T_EQ(G_UnitStatusLevel(attacker, BZ_ACSA), 1);
-    T_EQ(G_UnitStatusLevel(attacker, BZ_AHFA), 0);
+    T_ASSERT(G_SetUnitAutocast(attacker, BZ_ACSA, true));
+    T_ASSERT(G_UnitAutocastIsOn(attacker, BZ_ACSA));
+    T_EQ(G_UnitStatusLevel(attacker, BZ_ACSA), 0);
     T_EQ(S_SearingArrowDamage(attacker, 20), 33);
     S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
     T_EQ(S_SearingArrowDamage(attacker, 20), 20);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-/* ROC ACpy omits BuffID; human_buff must apply Bply, not a melee-table miss. */
+/* ROC ACpy's missing BuffID is usable only with compatibility workarounds. */
 TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X13\n"
@@ -207,7 +207,7 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
         "C;Y1;X10;K\"DataB1\"\nC;Y1;X11;K\"DataC1\"\nC;Y1;X12;K\"DataD1\"\n"
         "C;Y1;X13;K\"DataE1\"\n"
         "C;Y2;X1;K\"ACpy\"\nC;Y2;X2;K\"Aply\"\nC;Y2;X3;K\"air,ground,enemy\"\n"
-        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"500\"\n"
+        "C;Y2;X4;K\"15\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"500\"\n"
         "C;Y2;X7;K\"60\"\nC;Y2;X8;K\"60\"\nC;Y2;X9;K\"5\"\n"
         "C;Y2;X10;K\"opeo\"\nC;Y2;X11;K\"opeo\"\nC;Y2;X12;K\"opeo\"\n"
         "C;Y2;X13;K\"opeo\"\nE\n";
@@ -216,7 +216,7 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     UnitBalance_t creep = { .level = 5 };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     edict_t *caster, *target;
-    uint32_t original_model, morphed_model;
+    uint32_t original_model;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -230,6 +230,7 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     original_model = target->s.model;
     target->s.scale = 1.37f;
     target->unitinfo.MoveSpeed = 234.0f;
+#if BZ_COMPAT_WORKAROUNDS
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     T_EQ(G_UnitStatusLevel(target, BZ_BPLY), 1);
     T_NOT_NULL(target->polymorph);
@@ -242,12 +243,21 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
 
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
-    morphed_model = target->s.model;
+    uint32_t const morphed_model = target->s.model;
     unit_die(target, NULL);
     T_NULL(target->polymorph);
     T_ASSERT(!S_UnitPolymorphed(target));
     S_PolymorphRemove(target);
     T_EQ(target->s.model, morphed_model);
+#else
+    T_ASSERT(!S_CastUnitTargetSpell(caster, BZ_ACPY, target));
+    T_EQ(G_UnitStatusLevel(target, BZ_BPLY), 0);
+    T_NULL(target->polymorph);
+    T_EQ(target->s.model, original_model);
+    T_FEQ(target->s.scale, 1.37f, 0.001f);
+    T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
+    T_FEQ(caster->mana.value, 500.0f, 0.001f);
+#endif
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -519,5 +529,129 @@ TEST(wc3_spell, creep_bash_alias_uses_authored_data) {
     T_EQ(G_UnitStatusLevel(target, MAKEFOURCC('B','s','t','u')), 1);
     T_ASSERT(target->health.value < 500);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+/* Stock Pillage uses Ropg as an unlock, but a custom map may grant an Asal
+ * family alias directly. Synthetic rows avoid dependency on installed MPQs. */
+static const char pillage_ability_slk[] =
+    "ID;PWXL;N;E\nB;X5;Y3;D0\n"
+    "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\n"
+    "C;X4;K\"DataB1\"\nC;X5;K\"targs\"\n"
+    "C;X1;Y2;K\"Asal\"\nC;X2;K\"Asal\"\nC;X3;K0.5\nC;X4;K1\n"
+    "C;X5;K\"structure,enemy\"\n"
+    "C;X1;Y3;K\"Zsal\"\nC;X2;K\"Asal\"\nC;X3;K0.25\nC;X4;K4\n"
+    "C;X5;K\"structure,enemy\"\nE\n";
+static const char pillage_upgrade_slk[] =
+    "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\n"
+    "C;X1;Y2;K\"Ropg\"\nC;X2;K1\nE\n";
+
+typedef struct {
+    slkTestData_t *abilities, *upgrades, *old_abilities, *old_upgrades;
+    edict_t *attacker, *building;
+    gameClient_t *owner;
+} pillageFixture_t;
+
+static pillageFixture_t pillage_setup(cstring_t granted_ability, bool upgrade_listed) {
+    pillageFixture_t fix = {0};
+    static UnitBalance_t const building_cost = { .goldCost = 500, .lumberCost = 300 };
+    static UnitBalance_t const stock_grunt = { .upgrades = "Ropg" };
+    static UnitBalance_t const custom_grunt = { .upgrades = "" };
+    static UnitAbilities_t const stock_abilities = { .abilList = "Asal" };
+    static UnitAbilities_t const custom_abilities = { .abilList = "Zsal" };
+    creep_alias_world();
+    fix.abilities = parse_slk_string(pillage_ability_slk);
+    fix.upgrades = parse_slk_string(pillage_upgrade_slk);
+    fix.old_abilities = G_SetSLKRows("AbilityData", fix.abilities);
+    fix.old_upgrades = G_SetSLKRows("UpgradeData", fix.upgrades);
+    fix.owner = &game.clients[0];
+    memset(fix.owner->tech, 0, sizeof(fix.owner->tech));
+    fix.owner->ps.number = 0;
+    fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    fix.owner->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    fix.owner->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    fix.attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 0, 0);
+    fix.attacker->s.player = 0;
+    fix.attacker->svflags |= SVF_MONSTER;
+    fix.attacker->data.UnitBalance = upgrade_listed ? &stock_grunt : &custom_grunt;
+    fix.attacker->data.UnitAbilities = !strcmp(granted_ability, "Asal") ? &stock_abilities : &custom_abilities;
+    fix.building = alloc_test_unit(MAKEFOURCC('h','f','a','r'), 100, 0);
+    fix.building->s.player = 1;
+    fix.building->svflags |= SVF_MONSTER;
+    fix.building->s.flags |= EF_BUILDING;
+    fix.building->targtype = TARG_STRUCTURE;
+    fix.building->data.UnitBalance = &building_cost;
+    fix.building->health.max_value = fix.building->health.value = 1000;
+    return fix;
+}
+
+static void pillage_teardown(pillageFixture_t fix) {
+    G_SetSLKRows("UpgradeData", fix.old_upgrades);
+    G_SetSLKRows("AbilityData", fix.old_abilities);
+    free_slk_rows(fix.upgrades);
+    free_slk_rows(fix.abilities);
+}
+
+TEST(wc3_spell, pillage_stock_upgrade_controls_reward_for_existing_unit) {
+    pillageFixture_t fix = pillage_setup("Asal", true);
+    uint32_t const research = MAKEFOURCC('R','o','p','g');
+    T_EQ(G_UnitAbilityLevel(fix.attacker, BZ_ASAL), 1);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(fix.attacker, BZ_ASAL));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    G_SetPlayerTechResearched(fix.owner, research, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(fix.attacker, BZ_ASAL));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 25);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 15);
+    G_SetPlayerTechResearched(fix.owner, research, 0);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 25);
+    pillage_teardown(fix);
+}
+TEST(wc3_spell, pillage_custom_alias_respects_damage_threshold_and_remainder) {
+    pillageFixture_t fix = pillage_setup("Zsal", false);
+    T_ASSERT(S_ResolveAbilityAlias(fix.attacker, BZ_ASAL).alias == MAKEFOURCC('Z','s','a','l'));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 3);
+    T_NOT_NULL(fix.building->pillage); /* record allocated, still no payout */
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 97);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12); /* 12.5 truncates; remainder retained */
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 7);
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 25);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 15);
+    pillage_teardown(fix);
+}
+TEST(wc3_spell, pillage_only_primary_hits_and_completed_structures_pay) {
+    pillageFixture_t fix = pillage_setup("Zsal", false);
+    /* Generic spell/secondary T_Damage must not award even against a building. */
+    T_Damage(fix.building, fix.attacker, 10);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    T_NULL(fix.building->pillage);
+    (fix.building->construction ? fix.building->construction : (fix.building->construction=G_AllocConstruction()));
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_NULL(fix.building->pillage);
+    G_FreeConstruction(fix.building);
+    fix.building->s.flags &= ~EF_BUILDING;
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_NULL(fix.building->pillage);
+    fix.building->s.flags |= EF_BUILDING;
+    S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);
+    pillage_teardown(fix);
+}
+
+TEST(wc3_spell, pillage_primary_attack_integration) {
+    pillageFixture_t fix = pillage_setup("Zsal", false);
+    /* Primary attack resolves through shields and committed HP loss. */
+    S_ResolveAttackHit(fix.attacker, fix.building, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 7);
+    T_FEQ(fix.building->health.value, 900.0f, 0.001f);
+    /* Direct damage takes the non-primary path and cannot credit Pillage. */
+    T_Damage(fix.building, fix.attacker, 100);
+    T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);
+    pillage_teardown(fix);
 }
 #endif

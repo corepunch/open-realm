@@ -43,6 +43,7 @@ static int gen_quad_sprite(int, char **);
 static int gen_panel_sprite(int, char **);
 static int gen_ui_panel(int, char **);
 static int gen_anim_pulse(int, char **);
+static int gen_anim_projectile(int, char **);
 static int gen_anim_oneshot(int, char **);
 static int gen_morph(int, char **);
 static int gen_unit_death(int, char **);
@@ -54,6 +55,7 @@ static const struct { const char *name; int (*gen)(int, char **); } presets[] = 
     { "panel_sprite", gen_panel_sprite },
     { "ui_panel", gen_ui_panel },
     { "anim_pulse", gen_anim_pulse },
+    { "anim_projectile", gen_anim_projectile },
     { "anim_oneshot", gen_anim_oneshot },
     { "morph", gen_morph },
     { "unit_death", gen_unit_death },
@@ -517,6 +519,18 @@ static int gen_anim_pulse(int argc, char **argv) {
                        names, starts, ends, 2) ? 0 : 1;
 }
 
+static int gen_anim_projectile(int argc, char **argv) {
+    const char *names[] = { "Stand", "Birth", "Death" };
+    uint32_t starts[] = { 0, 1001, 2001 }, ends[] = { 1000, 2000, 3000 };
+    uint32_t flags[] = { 0, 1, 1 };
+    if (argc < 3) {
+        fprintf(stderr, "usage: mdxgen anim_projectile <tex_path> <out.mdx>\n");
+        return 1;
+    }
+    return build_model_flags(argv[1], argv[2], "AnimProjectile", 0.5f, 0.5f,
+                             names, starts, ends, flags, 3) ? 0 : 1;
+}
+
 static int gen_anim_oneshot(int argc, char **argv) {
     if (argc < 3) {
         fprintf(stderr, "usage: mdxgen anim_oneshot <tex_path> <out.mdx>\n");
@@ -579,6 +593,7 @@ static void usage(void) {
         "  mdxgen panel_sprite  <tex_path> <out.mdx>\n"
         "  mdxgen ui_panel      <tex_path> <out.mdx>\n"
         "  mdxgen anim_pulse    <tex_path> <out.mdx>\n"
+        "  mdxgen anim_projectile <tex_path> <out.mdx>\n"
         "  mdxgen anim_oneshot <tex_path> <out.mdx>\n"
         "  mdxgen morph         <tex_path> <out.mdx>\n"
         "  mdxgen unit_death    <tex_path> <out.mdx>\n"

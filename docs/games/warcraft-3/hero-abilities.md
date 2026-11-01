@@ -8,7 +8,7 @@ Hero skill progression is split across three sources of truth:
 - `UnitAbilities_t::heroAbilList` — the ordered candidate skills a Hero may learn.
 - `AbilityData_t` — per-skill `levels`, `reqLevel`, and `levelSkip` progression data.
 
-Runtime learned Hero skills remain in `edict_t::heroabilities[]`; one entry stores one ability rawcode and its current rank. `doodadHero_t::skillpoints` stores unspent Hero skill points.
+Runtime learned Hero skills remain in `edict_t::unit_state->ranks[]`; one entry stores one ability rawcode and its current rank. `doodadHero_t::skillpoints` stores unspent Hero skill points.
 
 `heroAbilList` is not a list of already learned abilities. Learning rank 1 creates the runtime entry; later learning increments the same entry.
 

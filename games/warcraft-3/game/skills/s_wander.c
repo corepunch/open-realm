@@ -84,9 +84,15 @@ static bool wander_choose_destination(edict_t *unit, vec2_t *result) {
     return false;
 }
 
+/* A freed private destination can be reused with the same local route serial. */
+static bool wander_waypoint_valid(edict_t const *unit) {
+    edict_t const *goal = unit ? unit->wander_waypoint : NULL;
+    return goal && goal->inuse && goal->spawn_time == unit->wander_waypoint_spawn_time;
+}
+
 /* Pointer equality alone is unsafe: waypoints are reused in a fixed ring. */
 static bool wander_owns_move(edict_t const *unit) {
-    return unit && unit->wander_goal &&
+    return wander_waypoint_valid(unit) && unit->wander_goal == unit->wander_waypoint &&
            unit->goalentity == unit->wander_goal &&
            unit->wander_goal->inuse &&
            unit->wander_goal_generation == unit->wander_goal->waypoint_generation &&
@@ -109,16 +115,20 @@ static void wander_release_waypoint(edict_t *unit) {
     if (unit->goalentity == goal) unit->goalentity = NULL;
     unit->wander_waypoint = NULL;
     if (unit->wander_goal == goal) wander_clear(unit);
-    if (goal->inuse) G_FreeEdict(goal);
+    bool const owned = goal->inuse && goal->spawn_time == unit->wander_waypoint_spawn_time;
+    unit->wander_waypoint_spawn_time = 0;
+    if (owned) G_FreeEdict(goal);
 }
 
 static void wander_start(edict_t *unit, vec2_t const *point) {
-    edict_t *goal = unit->wander_waypoint;
+    edict_t *goal = wander_waypoint_valid(unit) ? unit->wander_waypoint : NULL;
     if (!goal) {
         goal = G_Spawn();
         if (!goal) return;
         goal->svflags |= SVF_NOCLIENT;
+        goal->spawn_time = G_Time();
         unit->wander_waypoint = goal;
+        unit->wander_waypoint_spawn_time = goal->spawn_time;
     }
     /* Only rewrite a private waypoint when no Move currently uses it. */
     if (unit->goalentity == goal && move_is_active_order_walk(unit)) return;
@@ -142,7 +152,7 @@ static void wander_start(edict_t *unit, vec2_t const *point) {
  * already have retired wander_goal, so the stable private target is the
  * authoritative identity here. Never intercept ordinary player Move targets. */
 static bool wander_recover_blocked_move(edict_t *unit) {
-    if (!unit || !unit->wander_waypoint ||
+    if (!wander_waypoint_valid(unit) ||
         unit->goalentity != unit->wander_waypoint ||
         !unit->wander_waypoint->inuse ||
         !move_is_active_order_walk(unit)) return false;
@@ -191,7 +201,7 @@ BZ_ABILITY_PROC(CAbilityWander) {
         if (ent) wander_clear(ent);
         return false;
     case A_MOVE_ARRIVE:
-        if (ent && ent->wander_waypoint &&
+        if (wander_waypoint_valid(ent) &&
             ent->goalentity == ent->wander_waypoint &&
             move_is_active_order_walk(ent)) {
             wander_clear(ent);
@@ -214,7 +224,7 @@ BZ_ABILITY_PROC(CAbilityWander) {
             /* The private goal is never exposed to external orders. Even if
              * ownership was cleared on a preceding transition, any live Move
              * still targeting that private edict must be stopped before free. */
-            bool const using_private_goal = ent->wander_waypoint &&
+            bool const using_private_goal = wander_waypoint_valid(ent) &&
                 ent->goalentity == ent->wander_waypoint;
             if (using_private_goal && move_is_active_order_walk(ent))
                 unit_stand_no_queue(ent);

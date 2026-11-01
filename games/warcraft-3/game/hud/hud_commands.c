@@ -83,6 +83,15 @@ static void UI_FormatTooltipLevel(cstring_t code, cstring_t tip, cstring_t ubert
                      (unsigned)supply_icon, (unsigned)food_cost);
         }
     }
+    /* This explicit opt-in changes the stock research balance while classic
+     * MPQs still provide the old tooltip text. Preserve normal authored text
+     * for all other upgrades and for the default classic mode. */
+    if (class_id == MAKEFOURCC('R','o','s','p') && upgrade && upgrade->id == class_id &&
+        G_SpikedBarricadesModernEnabled()) {
+        ubertip = level >= 2
+            ? "Returns 5 damage plus 50% of the attacker's attack damage to melee attackers of Orc buildings."
+            : "Returns 5 damage plus 20% of the attacker's attack damage to melee attackers of Orc buildings.";
+    }
     if (ubertip && *ubertip) {
         snprintf(out + strlen(out), out_size - strlen(out), "|n%s", ubertip);
     }
@@ -245,7 +254,7 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
      * repeated queue icons that Warcraft creates in code. */
     buildtimer_number = UI_WriteBuildingQueueShell(
         ent, constructing ? "CONSTRUCTING" : upgrading ? "UPGRADING" :
-             (ent && ent->build && ent->build->research && ent->build->research->upgrade != 0 ? "RESEARCHING" : "TRAINING"),
+             (ent && ent->build && G_UnitIsResearching(ent->build) ? "RESEARCHING" : "TRAINING"),
         !hide_queue_slots);
     if (!buildtimer_number) {
         fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");
@@ -298,7 +307,7 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
      * refunds the owner, so CancelTrain/CancelBuild are denied server-side
      * without advanced sharing; offer no hit targets the viewer cannot use. */
     if (!unsummoning && G_UnitCanSpendResources(viewer, ent) &&
-        (constructing || upgrading || (ent->build && ent->build->training))) {
+        (constructing || upgrading || (ent->build && (ent->build && ent->build->training)))) {
         uint32_t const cancel_count = (constructing || upgrading) ? 1 : count;
         FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;

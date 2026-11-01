@@ -115,6 +115,11 @@ Each entity has:
 - `entityShared_t shared` — spatial data used by the server for link/unlink/trace (bounding box, link count, …)
 - All other fields (health, AI, move state, callbacks) are game-library-private and never sent over the network
 
+The server only knows `sizeof(edict_t)` (`ge->edict_size`) and the shared prefix. State that only some entities carry
+belongs to the game library: WC3 keeps it in fixed typed pools attached through `edict_t.components`, so the edict
+size does not grow per behavior and the server never interprets those records. See
+[WC3 pooled entity state](../games/warcraft-3/pooled-entity-state.md).
+
 Only the `entityState_t` part is delta-encoded and sent to clients.
 
 ## Snapshots and Delta Compression

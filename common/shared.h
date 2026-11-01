@@ -118,7 +118,8 @@ for (type *property = name; property - name < ARRAY_COUNT(name); property++)
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 #endif
 
-#define FOFS(type, x) (handle_t)&(((struct type *)NULL)->x)
+/* GL byte offsets stay pointer-valued without deriving a member from a null struct. */
+#define FOFS(type, x) (handle_t)offsetof(struct type, x)
 
 #define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 
@@ -232,6 +233,7 @@ enum {
     FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
     FLAG(EF_MDX_EMISSION_PAUSED, 19), /* suppress new MDX particles while authored entity animation is held */
     FLAG(EF_MDX_ANIMATION_PAUSED, 20), /* hold MDX global-sequence tracks while authored entity animation is held */
+    FLAG(EF_NAMED_ATTACHMENT, 21), /* entity uses name/hover payload for parent and attachment socket */
 };
 
 enum {
@@ -573,6 +575,7 @@ typedef enum {
     /* uiFrame_t.stat is NFT_BYTE on the wire. Keep generic special bindings
      * inside the reserved high-byte range and below 251 so the established
      * selection/context bindings retain their values. */
+    UI_STAT_LOADING_STATUS_TEXT = 248, /* text while busy, tooltip text while awaiting acknowledgement */
     UI_STAT_LOADING_PROGRESS = 249, /* client-local normalized resource registration progress */
     UI_STAT_SELECTION_TIMED_STATUS = 250, /* statusbar binding; reads normalized selected-unit timer player stat */
     UI_STAT_SELECTION_HEALTH_TEXT = 251,
@@ -617,7 +620,11 @@ typedef struct environlight_s {
 
 _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR,
                "env phase and cinematic portrait color must occupy distinct stats[] slots");
-enum { CURSOR_INPUT_MINIMAP_POINT = 1u << 0 };
+enum {
+    CURSOR_INPUT_MINIMAP_POINT = 1u << 0,
+    /* This target mode consumes world points even when a scene entity is hit. */
+    CURSOR_INPUT_LOCATION_POINT = 1u << 1
+};
 
 _Static_assert(UI_PLAYERSTAT_CURSOR_FLAGS < MAX_STATS,
                "presentation stats must fit playerState.stats[]");
@@ -753,8 +760,8 @@ typedef struct entityState_s {
     uint8_t effect;
     uint16_t effect_flags; /* EFX_* presentation contract for effect/splat effects */
     uint16_t image;
-    uint16_t name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
-    uint32_t hover_value;   /* recipient-filtered hover detail; 0 = absent, present values are wire_value - 1 */
+    uint16_t name;        /* packed name/socket: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
+    uint32_t hover_value;   /* hover detail or named-attachment parent+1 when EF_NAMED_ATTACHMENT is set */
     uint16_t sound;
     uint32_t frame;
     uint8_t event;

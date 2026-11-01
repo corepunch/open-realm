@@ -9,7 +9,7 @@ function fixture() {
   const listeners = new Map(), queue = [], events = [];
   let rect = {width:960,height:540};
   const container = {}, canvas = {getBoundingClientRect:()=>rect};
-  const doc = {fullscreenElement:null, addEventListener(n, fn) {
+  const doc = {fullscreenElement:null, webkitFullscreenElement:null, addEventListener(n, fn) {
     listeners.set('doc:' + n, fn);
   }};
   const observers = [];
@@ -25,7 +25,10 @@ function fixture() {
   return {doc,win,container,canvas,events,queue,sync,frame,
     changeSize(width,height) {rect={width,height};observers.forEach(fn=>fn());},
     fullscreen() {doc.fullscreenElement=container;listeners.get('doc:fullscreenchange')();},
-    exit() {doc.fullscreenElement=null;listeners.get('doc:fullscreenchange')();}};
+    webkitFullscreen() {doc.webkitFullscreenElement=container;
+      listeners.get('doc:webkitfullscreenchange')();},
+    exit() {doc.fullscreenElement=null;doc.webkitFullscreenElement=null;
+      listeners.get('doc:fullscreenchange')();}};
 }
 
 test('fullscreen event is delayed until browser layout settles', () => {
@@ -38,6 +41,16 @@ test('fullscreen event is delayed until browser layout settles', () => {
   assert.deepEqual(f.events, []); // transient 960x540 must not reach SDL
   f.frame(); f.frame();
   assert.deepEqual(f.events, ['resize']);
+});
+
+test('Safari prefixed fullscreen also triggers settled resize', () => {
+  const f=fixture();
+  f.webkitFullscreen(); f.changeSize(1440,900);
+  f.frame(); f.frame();
+  assert.deepEqual(f.events,['resize']);
+  f.exit(); f.changeSize(960,540);
+  f.frame(); f.frame();
+  assert.deepEqual(f.events,['resize','resize']);
 });
 
 test('fullscreen and exit coalesce notifications; events cannot loop', () => {
@@ -74,11 +87,11 @@ test('a hidden canvas never requests a zero-sized SDL framebuffer', () => {
 // regression-inducing style: forcing a constant 16:9 aspect for windowed play.
 test('windowed game canvas follows viewport aspect and ignores SDL inline sizes', () => {
   const html = fs.readFileSync(path.join(__dirname, '../site/engine-shell.html'), 'utf8');
-  const rule = html.match(/#game-container:not\(:fullscreen\) > canvas:not\(:fullscreen\) \{([^}]+)\}/);
+  const rule = html.match(/#game-container:not\(\.is-fullscreen\) > canvas \{([^}]+)\}/);
   assert.ok(rule, 'windowed canvas must have a dedicated CSS sizing rule');
   assert.match(rule[1], /width:\s*100%\s*!important/);
   assert.match(rule[1], /height:\s*min\(65dvh,\s*75vw,\s*620px\)\s*!important/);
   assert.match(rule[1], /aspect-ratio:\s*auto\s*!important/);
   assert.doesNotMatch(html, /canvas\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*9/);
-  assert.match(html, /#game-container:fullscreen canvas \{[^}]*width:\s*100% !important/);
+  assert.match(html, /#game-container\.is-fullscreen canvas \{[^}]*width:\s*100% !important/);
 });

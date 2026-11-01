@@ -9,7 +9,30 @@ The aggregate target runs the suites concurrently through recursive Make. `TEST_
 The `test-jass-build` shell recipe is marked recursive with `+` because its script invokes Make. This preserves
 GNU Make jobserver descriptors during parallel suite execution and avoids the Linux `jobserver unavailable` warning.
 
+Separate `BIN_DIR`/`LIB_DIR` configurations still share `build/tests` fixture
+outputs, including `tests.mpq`. Finish `test-assets` before running engines
+from multiple configurations; do not regenerate that archive while another
+configuration is reading it. Run already-built test binaries directly when
+comparing compatibility modes against the same prepared fixtures.
+
 ## Benchmark
+
+### macOS SDL event test dependency
+
+On macOS arm64, SDL2-compat 2.32.72 can crash inside SDL3's `SDL_PushEvent_REAL`
+when an events-only headless test submits `SDL_TEXTINPUT`. A standalone program
+that initializes `SDL_INIT_EVENTS` and pushes one text event reproduces it,
+without any engine code. Official SDL2 2.32.10 passes the same reproducer and
+all 618 client-input assertions, and the complete test suite passes when linked
+against it. Keep the text-input tests enabled.
+
+For isolated validation, build SDL2 in a temporary prefix and use fresh `BIN_DIR`
+and `LIB_DIR` outputs. Put its library directory before Homebrew's in `LDFLAGS`
+and add `-Wl,-rpath,<SDL2-prefix>/lib`. Setting `DYLD_LIBRARY_PATH` only on
+`make` is insufficient because macOS system shells can strip it before the
+test executable starts. A direct test invocation with that variable also works.
+
+### Measurements
 
 Measured on `main` at commit `ac44fc12` before the change:
 
@@ -70,6 +93,29 @@ Remaining cost: each save round trip still writes and rereads about 5.8 MB even 
 step. Shrinking it would cut both disk traffic and `wc3_save` time.
 
 ## Diagnostic Workflow
+
+### SDL2-compat text-event injection
+
+On macOS with SDL2-compat backed by SDL3, the menu-input regression crashed inside
+`SDL3_PushEvent` while pushing its synthetic `SDL_TEXTINPUT`. A debugger backtrace
+and the loop index identified the text event before any client dispatch ran.
+In SDL2-compat's [`Event2to3`](https://github.com/libsdl-org/sdl2-compat/blob/main/src/sdl2_compat.c),
+text input conversion returns `NULL`; the affected `SDL_PushEvent` implementation
+passes that result to SDL3. This is a test injection failure, not a menu-routing failure.
+
+The regression queues a tagged `SDL_USEREVENT` marker and translates it into text
+after `SDL_PollEvent`, through `CL_TestPollMenuEvent`. `CL_InputEvents` runs the same
+production input pump with that polling adapter; normal `CL_Input` supplies
+`SDL_PollEvent` directly. Mouse and keyboard events still use the SDL queue, and
+the test still checks text contents and menu exclusion during active/loading
+world presentation, then delivery in the disconnected menu.
+
+Reproduce or verify the focused path after building `make openwarcraft3-tests test-assets`:
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test client_input.menu_sdl_input_is_exclusive_with_world_presentation
+```
 
 ### GitHub Actions jobs that never start
 
@@ -471,3 +517,25 @@ dependency checks pass. The fixture inventory contains all13 committed maps;
 uncommitted generated Morph maps were preserved outside the clean fixture pack.
 This integration check is not a new full-suite checkpoint; the previously
 recorded Captain subscription and paused-removal failures remain separate work.
+
+## Local macOS SDL event-test crash
+
+On 2026-10-22, the rebased state-refactor baseline passed CI and the complete
+`make test-wc3-engine WC3_PATTERN='wc3_*'` RoC/TFT gameplay suites, while local
+`make test` crashed in `client_input.menu_sdl_input_is_exclusive_with_world_presentation`.
+The macOS diagnostic report located the fault in `SDL_PushEvent_REAL` through
+Homebrew `sdl2-compat` and SDL3. Linking warned that this installed SDL runtime
+requires macOS 27.0 while the build targets 26.4; that warning is context, not a
+confirmed root cause. The same crash predates the component migration.
+
+Inspect `~/Library/Logs/DiagnosticReports/openwarcraft3-tests*.ips` for the actual
+faulting stack. This records completed tests before the fault:
+
+```sh
+TEST_SLOW_MS=0 TEST_SHARD=0/4 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test '*'
+```
+
+The `wc3_*` filter verifies gameplay but excludes client-input coverage and must
+not be reported as a passing full suite. Sandbox-denied UDP sockets are a separate
+failure; rerun the full suite with socket access before attributing those assertions
+to code changes.

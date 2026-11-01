@@ -113,6 +113,16 @@ main-menu-only session boundary and must not be used for WC3 Quit Mission becaus
 `CL_Disconnect()` and immediately show the menu while the campaign server/game module is still alive, because game teardown owns
 FDF/template state that the front-end must rebuild afterward.
 
+Campaign Quit Mission resolves its race-specific menu command only after the frontend has rebuilt the single-player screen. In
+particular, `menu_single_player_campaign_night_elf` must use `UI_RequestScreen()` with a configure callback that selects the
+`NightElf` key after `SinglePlayerMenu_Init()` loads `CampaignStrings.txt`; calling `SinglePlayerMenu_LaunchCampaign()` directly
+can run while no frontend screen is active and its campaign table is empty. The resulting `UI: unknown campaign 'NightElf'` leaves
+the player on a blank screen. That direct route also skips `SinglePlayerMenu_ShowCampaign()`, which normally builds the visible
+campaign list. When Back returns from the mission selector, it must refresh progress and rebuild the list from the campaign table
+already loaded by `SinglePlayerMenu_Init()`; it should not parse `CampaignStrings.txt` again. The regression
+`menu_fdf.campaign_return_shortcut_loads_campaign_data_after_gameplay` covers both transitions and asserts the strings file is read
+once.
+
 Use ordinary `onclick` strings for server-owned state transitions such as `menu_endgame` and `menu_confirm_exit`. Save/Load commit
 buttons use `close_window_command ...` plus control placeholders such as `{SaveGameFileEditBox}` and the resolved inner save-list
 control. The client expands those from its local edit/list state, escapes quotes/backslashes, forwards the command, and then closes
@@ -168,7 +178,8 @@ Do not validate this from the front-end menu: `svc_window` requires an active ga
 7. End Game opens EndGamePanel; in single-player, Restart Mission closes the menu and reloads the current mission; in multiplayer it remains disabled.
 8. Quit Game leaves the world through the deferred session boundary and returns to a freshly rebuilt main menu with valid FDF bindings.
 9. Previous returns to MainPanel without closing/reopening the modal lifecycle.
-10. Quit leaves the map and returns to the Warcraft front-end.
+10. Quit leaves a campaign map and opens that race's campaign mission selector; the Night Elf return path must initialize campaign
+    strings before selecting `NightElf`. Non-campaign games return to the Warcraft front-end.
 11. Exit opens ConfirmQuitPanel; Cancel returns to EndGamePanel.
 12. Confirm exits the application.
 13. Leaving the menu open beyond the client timeout interval does not disconnect or advance paused simulation.

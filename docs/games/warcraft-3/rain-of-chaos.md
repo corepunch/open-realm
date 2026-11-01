@@ -8,7 +8,7 @@ share `CAbilityRainOfChaos` and read their own rows through
 `abilityitem_t.code`.
 
 Rain of Chaos is **not** Rain of Fire: it is a point-target simple spell with
-**no** `AB_CHANNEL`. After cast, `caster->channel.code` stays `0` and the caster
+**no** `AB_CHANNEL`. After cast, `G_GetChannel(caster)` holds no active `code` and the caster
 may walk away; a dedicated thinker owns the remaining landings.
 
 | Field | Meta | Meaning |

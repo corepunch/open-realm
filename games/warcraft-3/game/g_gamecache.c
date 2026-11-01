@@ -632,7 +632,7 @@ bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, 
     saved->mana = unit->mana;
     saved->unit_color = unit->unit_color;
     FOR_LOOP(i, MAX_INVENTORY) {
-        edict_t const *item = unit->inventory[i];
+        edict_t const *item = G_InventoryItem(unit, i);
         if (!item) continue;
         saved->inventory[i].item_id = item->class_id;
         saved->inventory[i].charges = item->item->charges;

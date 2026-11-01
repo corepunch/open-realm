@@ -43,7 +43,7 @@ Some state must remain independent of record presence:
 
 ## Save/load and verification
 
-Combined branch save format 90 persists the complete records of all 27 pools. Only pointer fixups and process-owned exclusions need descriptors; unlisted scalar state still persists. Records retain their owning entity identity, not pool-slot indexes or process addresses. See [save/load](save-load.md).
+The merged save format (version pending) persists the complete records of the registered sparse pools. Only pointer fixups and process-owned exclusions need descriptors; unlisted scalar state still persists. Records retain their owning entity identity, not pool-slot indexes or process addresses. See [save/load](save-load.md).
 
 `wc3_pools.release_reuses_zeroed_owned_state` checks initial absence, release, reuse and reset. `wc3_save.all_sparse_pools_restore_records_and_entity_references` checks all pool attachments, absent state on another entity, scalar state and entity references. Construction tests verify release on stop, cancellation and completion, a fresh lifecycle after stop, worker restoration, and completion events/food happening once. Existing ability, combat, construction, mining, item, cargo and save tests exercise the lifecycle entry points in both ROC and TFT modes.
 
@@ -51,3 +51,17 @@ Combined branch save format 90 persists the complete records of all 27 pools. On
 make test-wc3-engine
 make test
 ```
+
+## Upstream synchronization ownership boundary
+
+This branch retains direct optional pointers and embedded persistent movement and
+order state. Travel completion does not free movement state: native clocks, target
+identities, suspension ownership and saved continuation can outlive a physical
+journey. Upstream gameplay fixes use these owners without introducing the upstream
+component linked list or travel-only pool lifetime.
+
+Classification queries must validate entity kind before accessing optional item or
+destructable state; initialization and teardown may inspect partially bound state.
+Cache the validated direct pointer within an operation. Reads do not allocate.
+New ability-owned records retain explicit allocation, inverse and teardown paths;
+the save roster fixes entity references and excludes process-local pointers.

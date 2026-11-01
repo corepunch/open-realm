@@ -6,6 +6,16 @@ poison DPS, `DataD`, and a two-token `BuffID` (`Bpoi,Bpsd`, or
 `BIpb,BIpd` for the `Apo2` item orb). ROC omits `BuffID`. All three rows
 use `CAbilityPoisonAttack` (passive, mirroring `CAbilitySlowPoison`).
 
+## Slow Poison
+
+`Aspo` is a separate passive on-hit effect used by Dryads. A landed weapon
+projectile reaches `S_ResolveAttackHit()`, which applies the `Bspo` slow status
+through `S_SpellApplyTimedTargetStatus()`. That helper reads the status's
+authored `Buffart` and `Targetart`, so the target receives the status icon and
+attached poison effect as well as the authored movement and attack-speed
+reductions. ROC and TFT both define `Aspo` on the Dryad and the `Bspo` target
+art in `NightElfAbilityFunc.txt`.
+
 `Aven` is also the `code=` parent of the already-registered `ACvs`
 (Venom Spears, creep) row, so registering it repairs `ACvs` dispatch the
 way `Anhe`/`ACtc` repair `Anh1`/`ACt2`.

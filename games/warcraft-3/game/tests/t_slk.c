@@ -250,6 +250,43 @@ TEST(wc3_slk, reign_of_chaos_ability_targets_apply_to_every_rank) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_slk, ability_effect_codes_cover_roc_omission_and_tft_rank_fields) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"EfctID1\"\nC;Y1;X5;K\"EfctID2\"\n"
+        "C;Y2;X1;K\"AOeq\"\nC;Y2;X2;K\"AOeq\"\nC;Y2;X3;K1\n"
+        "C;Y3;X1;K\"Atst\"\nC;Y3;X2;K\"Atst\"\nC;Y3;X3;K2\n"
+        "C;Y3;X4;K\"Xone\"\nC;Y3;X5;K\"Xtwo\"\nE\n";
+    uint32_t const roc = MAKEFOURCC('A','O','e','q');
+    uint32_t const tft = MAKEFOURCC('A','t','s','t');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_AbilityEffectCode(roc, 1), MAKEFOURCC('X','O','e','q'));
+#else
+    T_EQ(G_AbilityEffectCode(roc, 1), roc);
+#endif
+    T_EQ(G_AbilityEffectCode(tft, 1), MAKEFOURCC('X','o','n','e'));
+    T_EQ(G_AbilityEffectCode(tft, 2), MAKEFOURCC('X','t','w','o'));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_slk, roc_chain_lightning_uses_primary_and_secondary_bolt_rows) {
+    uint32_t const ability = MAKEFOURCC('A','O','c','l');
+    InitUnitData();
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_AbilityLightningId(ability, 0), MAKEFOURCC('C','L','P','B'));
+    T_EQ(G_AbilityLightningId(ability, 1), MAKEFOURCC('C','L','S','B'));
+#else
+    T_EQ(G_AbilityLightningId(ability, 0), 0);
+    T_EQ(G_AbilityLightningId(ability, 1), 0);
+#endif
+    ShutdownUnitData();
+    InitUnitData(); /* Restore shared tables for later tests in this process. */
+}
+
 TEST(wc3_slk, sheet_reader_prefers_active_map_data_overlay) {
     stbIniCache_t data = { 0 };
     char saved_prefix[sizeof(game.data_prefix)];
@@ -834,6 +871,30 @@ TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
     G_SetProfileRows(old);
 }
 
+TEST(wc3_slk, temple_profile_retains_duplicate_caster_training_researches) {
+    uint32_t const temple_id = MAKEFOURCC('u','t','o','d');
+    uint32_t const custom_id = MAKEFOURCC('u','A','0','1');
+    slkTestData_t *rows = parse_slk_string(
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Researches\"\n"
+        "C;Y2;X1;K\"utod\"\nC;Y2;X2;K\"Rusl,Rusm\"\nE\n");
+    slkTestData_t *old_rows = G_SetProfileRows(rows);
+    unitData_t custom = { .originalUnitID = temple_id, .newUnitID = custom_id };
+    mapInfo_t mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &custom };
+    mapInfo_t const *saved_mapinfo;
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    T_STREQ(G_UnitProfile(temple_id)->researches, "Rusl,Rusm,Rune,Ruba");
+
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    T_STREQ(G_UnitProfile(custom_id)->researches, "Rusl,Rusm,Rune,Ruba");
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    G_SetProfileRows(old_rows);
+}
+
 /* Retail profiles list one missile element per weapon (hgyr: two arts, speeds 2000,900);
  * a single value covers both attacks, as WarSmash's indexed field lookup does. */
 TEST(wc3_slk, profile_missile_fields_select_element_per_attack) {
@@ -885,6 +946,25 @@ TEST(wc3_slk, ini_decode_selects_list_element_by_schema_index) {
     T_STREQ(rows[0].second, "Lightning.mdl");
     T_STREQ(rows[0].third, "Lightning.mdl");
     T_FEQ(rows[0].speed2, 1500.f, 0.01f);
+    FS_SLKFreeRows(schema, rows, count, sizeof(*rows));
+    Stb_IniCacheFree(&cache);
+}
+
+TEST(wc3_slk, profile_missile_speed_accepts_melee_overlay_typo) {
+    static slkField_t const schema[] = {
+        { "", offsetof(UnitProfile_t, id), STB_SLK_FOURCC },
+        { "Missilspeed", offsetof(UnitProfile_t, attack[0].speed), STB_SLK_FLOAT, NULL, NULL, 1 },
+        { "Missilespeed", offsetof(UnitProfile_t, attack[0].speed), STB_SLK_FLOAT, NULL, NULL, 1 },
+        { 0 }
+    };
+    stbIniCache_t cache = { 0 };
+    UnitProfile_t *rows = NULL;
+    uint32_t count;
+
+    T_ASSERT(Stb_IniCacheLoadBuffer(&cache, "[Edmm]\nMissilspeed=900\n"));
+    count = Stb_IniDecode(&cache, schema, (void **)&rows, sizeof(*rows));
+    T_EQ(count, 1);
+    T_FEQ(rows[0].attack[0].speed, 900.0f, 0.001f);
     FS_SLKFreeRows(schema, rows, count, sizeof(*rows));
     Stb_IniCacheFree(&cache);
 }
@@ -1821,13 +1901,8 @@ static int capture_spawn_model(cstring_t name) {
 
 static cstring_t doodad_model_probe_existing;
 
-static handle_t doodad_model_probe_read(cstring_t name, uint32_t *size) {
-    if (size) *size = 0;
-    if (doodad_model_probe_existing && !strcmp(name, doodad_model_probe_existing)) {
-        if (size) *size = 1;
-        return malloc(1);
-    }
-    return NULL;
+static bool doodad_model_probe_exists(cstring_t name) {
+    return doodad_model_probe_existing && !strcmp(name, doodad_model_probe_existing);
 }
 
 TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
@@ -1855,7 +1930,7 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     slkTestData_t *varied_rows = parse_slk_string(varied_slk);
     slkTestData_t *saved = G_SetSLKRows("Doodads", single_rows);
     int (*old_index)(cstring_t) = gi.ModelIndex;
-    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    bool (*old_exists)(cstring_t) = gi.FileExists;
     edict_t ent = { .class_id = MAKEFOURCC('L','O','o','2'), .variation = 0 };
 
     setup_test_world();
@@ -1869,7 +1944,7 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     ent.class_id = MAKEFOURCC('L','O','o','2');
     ent.variation = 2;
     doodad_model_probe_existing = "Doodads\\LordaeronSummer\\Props\\BannerHuman\\BannerHuman2.mdx";
-    gi.ReadFile = doodad_model_probe_read;
+    gi.FileExists = doodad_model_probe_exists;
     SP_CallSpawn(&ent);
     T_STREQ(spawn_model, "Doodads\\LordaeronSummer\\Props\\BannerHuman\\BannerHuman2.mdx");
 
@@ -1877,7 +1952,7 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     free_slk_rows(single_rows);
     free_slk_rows(varied_rows);
     doodad_model_probe_existing = NULL;
-    gi.ReadFile = old_read;
+    gi.FileExists = old_exists;
     gi.ModelIndex = old_index;
 }
 
@@ -1973,7 +2048,7 @@ TEST(wc3_slk, map_w3d_original_variations_and_custom_inheritance) {
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old;
     int (*old_model)(cstring_t) = gi.ModelIndex;
-    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    bool (*old_exists)(cstring_t) = gi.FileExists;
     edict_t ent = { .class_id = MAKEFOURCC('D','0','0','1'), .variation = 2 };
 
     setup_test_world();
@@ -1981,13 +2056,13 @@ TEST(wc3_slk, map_w3d_original_variations_and_custom_inheritance) {
     G_SetMapUnitOverrides(&info);
     T_EQ(G_Doodad(ent.class_id)->numVar, 3);
     gi.ModelIndex = capture_spawn_model;
-    gi.ReadFile = doodad_model_probe_read;
+    gi.FileExists = doodad_model_probe_exists;
     doodad_model_probe_existing = "Doodads\\Original\\Original2.mdx";
     SP_CallSpawn(&ent);
     T_STREQ(spawn_model, "Doodads\\Original\\Original2.mdx");
 
     doodad_model_probe_existing = NULL;
-    gi.ReadFile = old_read;
+    gi.FileExists = old_exists;
     gi.ModelIndex = old_model;
     G_SetMapUnitOverrides(NULL);
     G_SetSLKRows("Doodads", old);
@@ -2035,19 +2110,19 @@ TEST(wc3_slk, doodad_model_missing_variation_falls_back_to_unsuffixed_asset) {
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *saved = G_SetSLKRows("Doodads", rows);
     int (*old_index)(cstring_t) = gi.ModelIndex;
-    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    bool (*old_exists)(cstring_t) = gi.FileExists;
     edict_t ent = { .class_id = MAKEFOURCC('L','O','o','2'), .variation = 2 };
 
     setup_test_world();
     spawn_model[0] = '\0';
     gi.ModelIndex = capture_spawn_model;
     doodad_model_probe_existing = "Doodads\\Props\\Banner\\Banner.mdx";
-    gi.ReadFile = doodad_model_probe_read;
+    gi.FileExists = doodad_model_probe_exists;
     SP_CallSpawn(&ent);
     T_STREQ(spawn_model, "Doodads\\Props\\Banner\\Banner.mdx");
 
     doodad_model_probe_existing = NULL;
-    gi.ReadFile = old_read;
+    gi.FileExists = old_exists;
     gi.ModelIndex = old_index;
     G_SetSLKRows("Doodads", saved);
     free_slk_rows(rows);

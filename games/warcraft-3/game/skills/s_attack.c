@@ -456,6 +456,48 @@ static void attack_call_for_help(edict_t *victim,edict_t *source) {
     attack_cap_insert(victim,ATTACK_TIMER_HELP);
 }
 
+#define ID_MEAT_WAGON MAKEFOURCC('u','m','t','w')
+#define ID_MEAT_WAGON_IMPACT MAKEFOURCC('u','m','t','i')
+#define ID_PLAGUE_TOSS MAKEFOURCC('A','p','t','s')
+#define ID_DISEASE_CLOUD_RESEARCH MAKEFOURCC('R','u','p','c')
+#define MEAT_WAGON_PLAGUE_CLOUD_MS 10000u
+
+static void artillery_spawn_meat_wagon_impact(edict_t *attacker, vec2_t const *impact) {
+    UnitProfile_t const *profile;
+    edict_t *effect;
+    animation_t const *death;
+    if (!attacker || attacker->class_id != ID_MEAT_WAGON) return;
+    profile = attacker->data.UnitProfile ? attacker->data.UnitProfile : G_UnitProfile(attacker->class_id);
+    if (!profile || !profile->attack[0].art || !*profile->attack[0].art) return;
+    effect = G_SpawnModelEffect(profile->attack[0].art, impact, NULL, NULL, true);
+    if (!effect) return;
+    effect->summon_ability = ID_MEAT_WAGON_IMPACT;
+    death = G_GetAnimation(effect->s.model, "Death");
+    if (death && death->interval[1] > death->interval[0]) {
+        effect->animation = death;
+        effect->s.frame = death->interval[0];
+    }
+}
+
+static void artillery_spawn_meat_wagon_plague_cloud(edict_t *attacker, vec2_t const *impact) {
+    gameClient_t *owner;
+    edict_t *effect;
+    UnitUI_t const *ward_ui;
+    if (!attacker || attacker->class_id != ID_MEAT_WAGON ||
+        !G_UnitAbilityLevel(attacker, ID_PLAGUE_TOSS)) return;
+    owner = G_GetPlayerClientByNumber(attacker->s.player);
+    if (!owner || G_GetPlayerTechResearchedLevel(owner, ID_DISEASE_CLOUD_RESEARCH) <= 0) return;
+    effect = G_SpawnModelEffect("Units\\Undead\\PlagueCloud\\PlagueCloud.mdl",
+                                impact, NULL, NULL, false);
+    if (effect) {
+        ward_ui = G_UnitUI(MAKEFOURCC('u','p','l','g'));
+        effect->s.scale = ward_ui->modelScale > 0.0f ? ward_ui->modelScale : 1.0f;
+        effect->s.radius = ward_ui->selectionScale * SEL_SCALE / 2.0f;
+        effect->spawn_time = G_Time() + MEAT_WAGON_PLAGUE_CLOUD_MS;
+        effect->summon_ability = ID_PLAGUE_TOSS;
+    }
+}
+
 typedef struct {
     edict_t *target;
     vec2_t const *fixed_target;
@@ -467,6 +509,10 @@ typedef struct {
     uint32_t attack_type;
     unitAttack_t const *attack;
     uint32_t area_targets;
+    /* Aline's researched follow-through is snapshotted only for normal
+     * attacks. Explicit Attack Ground must never inherit it. */
+    bool impaling_line;
+    bool tree_attack_allowed;
 }  rocketDesc_t;
 
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
@@ -645,6 +691,14 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
         (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 1);
     return attacker ? S_AttackProfileRead(attacker, 0) : NULL;
 }
+
+bool S_AttackProfileIsMelee(unitAttack_t const *attack) {
+    if (!attack || attack->type == ATK_NONE) return false;
+    /* A short-range instant weapon is a melee hit; stock ranged instant attacks
+     * such as Riflemen are distinguished by their authored weapon range. */
+    return attack->weapon == WPN_NORMAL ||
+           (attack->weapon == WPN_INSTANT && attack->range <= 128.0f);
+}
 #define ACTIVE_ATTACK(ent) attack_profile((ent), (ent)->goalentity)
 
 /* Spawn a projectile entity aimed at desc->target.
@@ -665,31 +719,53 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     G_InheritUnitTeamColor(rocket, ent);
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
+
     rocket->projectile_attack_type = desc->attack_type;
+    rocket->projectile_owner_spawn_time = ent->spawn_time;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        if (!rocket->channel) rocket->channel = G_AllocChannel();
-        assert(rocket->channel);
-        rocket->channel->origin = *desc->fixed_target;
+        channel_t *cast = (rocket->channel ? rocket->channel : (rocket->channel=G_AllocChannel()));
+        cast->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
         S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
         rocket->channel->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            rocket->artillery = G_AllocArtillery();
-            assert(rocket->artillery);
-            rocket->artillery->attack_type = desc->attack->type;
-            rocket->artillery->area_targets = desc->area_targets;
-            rocket->artillery->targets_allowed = desc->attack->targetsAllowed;
-            rocket->artillery->area_full = desc->attack->areaFull;
-            rocket->artillery->area_medium = desc->attack->areaMedium;
-            rocket->artillery->area_small = desc->attack->areaSmall;
-            rocket->artillery->factor_medium = desc->attack->factorMedium;
-            rocket->artillery->factor_small = desc->attack->factorSmall;
+            artillery_t *splash = (rocket->artillery ? rocket->artillery : (rocket->artillery=G_AllocArtillery()));
+            splash->attack_type = desc->attack->type;
+            splash->area_targets = desc->area_targets;
+            splash->targets_allowed = desc->attack->targetsAllowed;
+            splash->area_full = desc->attack->areaFull;
+            splash->area_medium = desc->attack->areaMedium;
+            splash->area_small = desc->attack->areaSmall;
+            splash->factor_medium = desc->attack->factorMedium;
+            splash->factor_small = desc->attack->factorSmall;
+            splash->tree_attack_allowed = desc->tree_attack_allowed;
+            if (desc->impaling_line && ent->data.UnitWeapons) {
+                UnitWeapon_t const *weapon = desc->attack == S_AttackProfileRead(ent, 1) ?
+                    &ent->data.UnitWeapons->attack2 : &ent->data.UnitWeapons->attack1;
+                splash->spill_distance = MAX(0.0f, weapon->spillDistance);
+                splash->spill_radius = MAX(0.0f, weapon->spillRadius);
+                splash->line_origin = ent->s.origin2;
+            }
         }
     } else {
         S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
+    }
+    /* Missile Splash follows a unit instead of the artillery impact point.
+     * Both weapons snapshot their splash profile when the projectile launches,
+     * so morphs, upgrades and target changes cannot change an in-flight hit. */
+    if (desc->attack && (desc->attack->weapon == WPN_ARTILLERY || desc->attack->weapon == WPN_MSPLASH)) {
+        artillery_t *splash = (rocket->artillery ? rocket->artillery : (rocket->artillery=G_AllocArtillery()));
+        splash->attack_type = desc->attack->type;
+        splash->area_targets = desc->area_targets;
+        splash->targets_allowed = desc->attack->targetsAllowed;
+        splash->area_full = desc->attack->areaFull;
+        splash->area_medium = desc->attack->areaMedium;
+        splash->area_small = desc->attack->areaSmall;
+        splash->factor_medium = desc->attack->factorMedium;
+        splash->factor_small = desc->attack->factorSmall;
     }
     rocket->owner = ent;
     S_InitMoveProjectile(rocket);
@@ -926,7 +1002,7 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack) {
     bool instant_kill;
 
     if (!target || G_UnitIsInvulnerable(target) ||
@@ -957,6 +1033,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     damage = S_SpiritLinkRedirect(target, attacker, damage);
     if (damage <= 0) return;
+    /* Primary attack only: shields, Spirit Link, damage immunities and overkill
+     * have already been resolved. Award before death can free this edict. */
+    if (primary_attack && attacker)
+        S_PillageOnAttackDamage(attacker, target, MIN(target->health.value, (float)damage));
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
     G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
@@ -999,6 +1079,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
 }
 
+void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+    T_DamageInternal(target, attacker, damage, false);
+}
+
 /* Secondary hits carry the primary weapon's type, not a different weapon selected for the victim.
  * Previously only the primary hit rejected physical damage against Ethereal. */
 bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target) {
@@ -1034,7 +1118,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
     S_OrbOnHit(attacker,target,true);
-    T_Damage(target, attacker, damage);
+    T_DamageInternal(target, attacker, damage, true);
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
@@ -1055,11 +1139,29 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     S_OrbOnHit(attacker,target,false);
     S_FreezingBreathOnHit(attacker, target);
     S_PoisonOnHit(attacker, target);
-    G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
-    if (target->inuse) {
-        float thorns = S_ThornsDamageReturn(target, attacker, damage);
-        float spiked = S_SpikedDamageReturn(target, damage);
-        if (thorns + spiked > 0.0f) T_Damage(attacker, target, (int)(thorns + spiked));
+    {
+        unitAttack_t const *profile = attack_profile(attacker, target);
+        if (S_AttackProfileIsMelee(profile))
+            G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
+    }
+    if (target->inuse && attacker->inuse && !M_IsDead(attacker) &&
+        S_SpellIsEnemy(target, attacker)) {
+        /* Damage returned by a normal melee attack is a secondary damage
+         * event, never another attack hit. Ranged attacks and spell impacts
+         * cannot trigger it even when they occur at point-blank range. */
+        unitAttack_t const *profile = attack_profile(attacker, target);
+        if (profile && (profile->weapon == WPN_NORMAL || profile->weapon == WPN_INSTANT)) {
+            float const thorns = S_ThornsMeleeDamageReturn(target, damage);
+            float const carapace = S_SpikedCarapaceDamageReturn(target, damage);
+            float const barricades = S_SpikedBarricadesDamageReturn(target, damage);
+            if (thorns > 0.0f) T_Damage(attacker, target, (int)thorns);
+            if (carapace > 0.0f && attacker->inuse && !M_IsDead(attacker))
+                T_Damage(attacker, target, (int)carapace);
+            /* Spikes are magic retaliation: go through spell immunity and
+             * anti-magic absorption, not the plain physical-damage path. */
+            if (barricades > 0.0f && attacker->inuse && !M_IsDead(attacker))
+                S_SpellDamage(attacker, target, (int)barricades);
+        }
     }
 }
 
@@ -1073,23 +1175,24 @@ static bool artillery_splash_target_allowed(edict_t *attacker, edict_t *target, 
     return flag && (mask & flag) != 0;
 }
 
-/* Artillery weapons damage around the fixed impact point using the authored
- * full/medium/small radii. Warsmash converts an ARTILLERY unit target to an
- * AbilityPointTarget at the damage point, so the original unit is not a
- * guaranteed direct hit if it moves before impact. Preserve OpenRealm's
- * established hit contract: only that original target receives primary-hit
- * listeners (if it is still in the blast); secondary/Attack-Ground victims
- * receive physical splash damage without multiplying orb/lifesteal/cleave. */
-void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
-                                struct artillery_s const *profile) {
+/* Artillery snapshots an impact point, while Missile Splash resolves around a
+ * homing unit on arrival. Both use the authored rings and only the primary
+ * victim receives attack-hit listeners. */
+static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
+                                     struct artillery_s const *profile, bool missile_splash) {
     float max_radius;
+    bool primary_hit = false;
 
-    if (!attacker || !impact || raw_damage <= 0) return;
-    if (!profile) return;
+    if (!attacker || !impact || raw_damage <= 0 || !profile) return;
+    if (!missile_splash) {
+        artillery_spawn_meat_wagon_impact(attacker, impact);
+        artillery_spawn_meat_wagon_plague_cloud(attacker, impact);
+    }
     max_radius = MAX(profile->area_full, MAX(profile->area_medium, profile->area_small));
     if (max_radius < 0.0f) return;
 
-    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area_targets, profile->targets_allowed)) {
+    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area_targets, profile->targets_allowed) &&
+                  (!missile_splash || other == primary || S_SpellIsEnemy(attacker, other))) {
         float const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
         float factor;
         int damage;
@@ -1100,9 +1203,60 @@ void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t cons
         else continue;
         if (factor <= 0.0f) continue;
         damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
-        if (other == primary) S_ResolveAttackHit(attacker, other, damage);
-        else T_Damage(other, attacker, damage);
+        if (other == primary) {
+            primary_hit = true;
+            S_ResolveAttackHit(attacker, other, damage);
+        } else {
+            T_Damage(other, attacker, damage);
+        }
     }
+    if (missile_splash && !primary_hit && primary && primary->inuse && primary != attacker && !M_IsDead(primary)) {
+        int const damage = attack_damage_type(attacker, primary, raw_damage, profile->attack_type);
+        S_ResolveAttackHit(attacker, primary, damage);
+    }
+    /* A direct, researched tree attack is legal even if the weapon's splash
+     * target mask omits TREE. Follow-through never damages trees. */
+    if (!primary_hit && primary && G_DestructableIsAttackable(primary) &&
+        primary->targtype == TARG_TREE && profile->tree_attack_allowed) {
+        S_ResolveAttackHit(attacker, primary,
+            attack_damage_type(attacker, primary, raw_damage, profile->attack_type));
+    }
+    /* Impaling Bolt is a separate band extending *behind* the original unit
+     * target, along the projectile's captured launch direction. Do not apply
+     * splash and penetration twice to the same victim. */
+    if (profile->spill_distance > 0.0f && profile->spill_radius > 0.0f &&
+        primary && !G_IsDestructable(primary)) {
+        float const dx = impact->x - profile->line_origin.x;
+        float const dy = impact->y - profile->line_origin.y;
+        float const length = sqrtf(dx * dx + dy * dy);
+        if (length > 0.001f) {
+            float const nx = dx / length, ny = dy / length;
+            float const splash = MAX(profile->area_full, MAX(profile->area_medium, profile->area_small));
+            FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area_targets, profile->targets_allowed) &&
+                          other != primary && !G_IsDestructable(other)) {
+                float const ox = other->s.origin2.x - impact->x;
+                float const oy = other->s.origin2.y - impact->y;
+                float const along = ox * nx + oy * ny;
+                float const lateral = fabsf(ox * ny - oy * nx);
+                float const collision = MAX(0.0f, other->collision);
+                if (along <= 0.0f || along > profile->spill_distance + collision ||
+                    lateral > profile->spill_radius + collision ||
+                    Vector2_distance(&other->s.origin2, impact) - collision <= splash) continue;
+                T_Damage(other, attacker,
+                    attack_damage_type(attacker, other, raw_damage, profile->attack_type));
+            }
+        }
+    }
+}
+
+void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
+                                struct artillery_s const *profile) {
+    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, false);
+}
+
+void S_ResolveMissileSplashHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
+                               struct artillery_s const *profile) {
+    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, true);
 }
 
 void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
@@ -1196,21 +1350,24 @@ static void throw_missile(edict_t *ent) {
      * armor or defense changes while the projectile is in flight are honored. */
     int damage = (int)ai_rolldamage1(ent, 1);
     mat4_t matrix;
-    M_GetEntityMatrix(&ent->s, &matrix);
     unitAttack_t const *atk = ACTIVE_ATTACK(ent);
+    M_GetEntityMatrix(&ent->s, &matrix);
     vec3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
     vec2_t impact = other->s.origin2;
+    cstring_t missile_art = S_SearingArrowsMissileArt(ent);
     attack_set_backswing_deadline(ent);
     attack_swing_begin(ent);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
-        .fixed_target = atk->weapon == WPN_ARTILLERY ? &impact : NULL,
+        .fixed_target = (atk->weapon == WPN_ARTILLERY || atk->weapon == WPN_ALINE) ? &impact : NULL,
         .speed = atk->projectile.speed,
-        .model = atk->projectile.model,
+        .model = missile_art ? G_RegisterModel(missile_art) : atk->projectile.model,
         .damage = damage,
         .attack_type = atk->type,
         .attack = atk,
+        .impaling_line = atk->weapon == WPN_ALINE && G_ImpalingBoltResearchLevel(ent) > 0 && !G_IsDestructable(other),
+        .tree_attack_allowed = atk->weapon == WPN_ALINE && G_ImpalingBoltResearchLevel(ent) > 0 && G_IsDestructable(other),
         .area_targets = ent->data.UnitWeapons ? (atk == S_AttackProfileRead(ent, 1) ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
     if (attack_hold_once(ent,move,other)) return;
@@ -1315,6 +1472,9 @@ static bool attack_is_cooling_down(edict_t const *ent) {
     return ent && ent->attack_cooldown_active &&
         (int32_t)(ent->attack_cooldown_end_time - G_Time()) > 0;
 }
+
+/* Recovery animation waits use seconds; derive them only when needed from simulation milliseconds. */
+
 
 static void attack_set_cooldown(edict_t *ent, float seconds) {
     uint32_t duration = (uint32_t)ceilf(MAX(0.0f, seconds) * 1000.0f);
@@ -1469,7 +1629,7 @@ static void ai_attack_walk(edict_t *ent) {
     } else {
         if (!cooldown_ready) {
             ent->wait = MAX(ent->wait, ent->attack_cooldown_remaining);
-            if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY)
+            if (G_WeaponUsesProjectile(ACTIVE_ATTACK(ent)->weapon))
                 unit_setmove(ent, &attack_move_ranged_cooldown);
             else
                 unit_setmove(ent, &attack_move_melee_cooldown);
@@ -1480,7 +1640,7 @@ static void ai_attack_walk(edict_t *ent) {
          * the physical owner still enforces its independent facing gate. */
         if(!S_UnitTargetInFacingWindow(ent,ent->goalentity,game.constants.attackHalfAngle) &&
            S_BeginUnitTargetChase(ent,ent->goalentity,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete))return;
-        if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY)
+        if (G_WeaponUsesProjectile(ACTIVE_ATTACK(ent)->weapon))
             attack_ranged(ent);
         else
             attack_melee(ent);
@@ -1684,6 +1844,28 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     self->attack_acquisition_suppressed = true;
     self->movement.explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);
     return true;
+}
+
+/* A manually targeted attack modifier arms exactly one normal Attack order;
+ * mana is charged later when its ranged weapon reaches the damage point. */
+bool S_SearingArrowsIssueOrder(edict_t *attacker, edict_t *target, uint32_t ability) {
+    status_application_t app;
+    heroabilitystatus_t *status;
+    uint32_t level;
+    if (!attacker || !target || G_AbilityCode(ability) != MAKEFOURCC('A','H','f','a') ||
+        !G_UnitAbilityLevel(attacker, ability) || !S_AttackCanTarget(attacker, target) ||
+        S_AttackProfileRead(attacker, 0)->weapon != WPN_MISSILE) return false;
+    level = G_UnitAbilityLevel(attacker, ability);
+    app = (status_application_t){
+        .buff = GetClassName(ability), .level = level, .source_ability = ability,
+        .rank = level, .buff_flags = WC3_STATUS_BUFF_ONE_SHOT_ATTACK
+    };
+    status = unit_applystatus(attacker, &app);
+    if (!status) return false;
+    status->buff_flags |= WC3_STATUS_BUFF_ONE_SHOT_ATTACK;
+    if (S_OrderAttack(attacker, target)) return true;
+    unit_removestatus(attacker, status, STATUS_REMOVE_SCRIPT);
+    return false;
 }
 
 static float attack_speed_divisor(edict_t *self) {
@@ -2688,12 +2870,33 @@ static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location)
         if (S_AttackProfileRead(ent, 0)->weapon != WPN_ARTILLERY) continue;
         if (G_IssuePlayerPointOrder(ent,"attackground",location,selection.units[i].mode,clent->client->ps.number,0)) any = true;
     }
-    if (any) G_SendPointConfirmation(clent, location, true);
+    if (any) {
+        S_SpellCursorSplat(clent, 0.0f);
+        G_SendPointConfirmation(clent, location, true);
+    }
     return any;
+}
+
+static float attack_ground_cursor_radius(gameClient_t *client) {
+    float radius = 0.0f;
+    if (!client) return 200.0f;
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
+        unitAttack_t const *attacks[] = { S_AttackProfileRead(ent, 0), S_AttackProfileRead(ent, 1) };
+        FOR_LOOP(i, 2) {
+            unitAttack_t const *attack = attacks[i];
+            if (!S_UnitAttackSlotEnabled(ent, i) ||
+                (attack->weapon != WPN_ARTILLERY && attack->weapon != WPN_ALINE)) continue;
+            radius = MAX(radius, MAX(attack->areaFull, MAX(attack->areaMedium, attack->areaSmall)));
+        }
+    }
+    /* Some custom artillery rows omit splash bands but still use the standard
+     * Attack Ground placement preview size. */
+    return radius > 0.0f ? radius : 200.0f;
 }
 
 BZ_COMMAND_PROC(AbilityAttackGround) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_location_selected = attack_ground_selectlocation;
     clent->client->menu.supports_order_queue = true;
+    S_SpellCursorSplat(clent, attack_ground_cursor_radius(clent->client));
 }

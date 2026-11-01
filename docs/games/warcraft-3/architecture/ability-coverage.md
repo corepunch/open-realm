@@ -16,6 +16,31 @@ type definitions. Unknown or unsupported codes may resolve to explicit local
 stubs for recognition/passive coverage, but command-card discovery requires a
 an explicit command or an executable `AB_SPELL` definition so a stub cannot create a dead button.
 
+## Orc Pillage (`Asal` / `Ropg`)
+
+Pillage is a passive attack-damage consumer, not a spell cast. `Asal` remains
+registered under `CAbilitySalvage`, but `S_PillageOnAttackDamage()` now awards
+resources only for **primary** attack damage after shields/Spirit Link and
+other damage reductions. Splash, scripted damage, retaliation, spell attacks,
+misses and overkill never independently award Pillage. Completed live
+structures use their `UnitBalance` gold/lumber costs and live maximum HP.
+
+The unit's active `Asal`-family alias determines its `DataA` salvage ratio
+(`Sal1`) and `DataB` damage accumulation step (`Sal2`); rank and runtime
+ability additions/removals are respected. Stock `Asal` is gated by researched
+`Ropg` when the unit's Upgrades Used list contains `Ropg`. Direct custom
+aliases without the stock dependency work immediately. Income is awarded via
+`G_CreditResourceIncome` for the owning player, including ordinary upkeep and
+score/HUD accounting. Per-structure, per-attacking-player fractional damage
+and resource entitlements reside in the optional Pillage component and survive
+save/load; component ID 29 and save version 117 are reserved for this contract.
+Invalid DataB (non-positive/nonfinite) disables payment instead of hanging.
+
+Remaining retail-observation details: exact integer rounding on DataB > 1,
+neutral relationship masks in specialized custom maps, whether income is
+rounded before or after upkeep on each threshold, and cap/overheal behaviour.
+See [Pillage mechanics](../pillage.md) for tests and limitations.
+
 ## Current Model
 
 Campaign rawcodes in `CampaignAbilityStrings.txt` are registered through
@@ -50,6 +75,22 @@ are explicit passive rows. ROC and TFT `ability_audit` rows match for this block
 Timed statuses remain generic `abilstatus[]` records. Their common duration and
 expiration bookkeeping stays in `unit_updatestatuses()`; add apply, refresh, or remove
 procedure cases only when a status record can resolve its owning ability unambiguously.
+`unit_updatestatuses()` keeps a transient bit index of timed slots to avoid
+scanning empty records every frame. `G_UnitStatusLevel()` uses a second
+occupied-slot mask, including permanent statuses, so frequent status queries
+can skip empty records. `unit_applystatus()` and
+`unit_removestatus[_deferred]()` maintain both masks across additions,
+replacements, refreshes, and callbacks. Raw/direct status writes must call
+`unit_status_invalidate_update_mask()` so the next update rebuilds both masks
+from `unit_state->statuses[]`; queries on an invalid index fall back to a full
+scan. Neither index is saved; see [WC3 save/load](../save-load.md#status-slot-indexes).
+An ARM64 RG40XX-H `perf report --stdio --no-children` capture (about 7K cycles
+samples) attributed 8.15% exclusive samples to the empty-slot check at
+`unit_updatestatuses+0xa8`. After the timed-index optimisation, a second
+capture attributed 8.15% exclusive samples to the `cbz` in
+`G_UnitStatusLevel+0x38` while the timed updater dropped out of the top
+hotspots. These percentages are not predicted FPS gains; re-profile the new
+binary to evaluate the occupied-slot index.
 
 Abilities are discovered through the static `abilitylist[]` in
 `games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the
@@ -223,6 +264,7 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `Abtl` | Battle Stations | Partial | OpenRealm uses its data-driven AoE, busy-unit flag, and allowed unit type to choose the nearest eligible workers up to remaining cargo capacity; selected workers path to the Burrow and load on arrival. The bundled Warsmash source defines the order/error keys but has no `Abtl` implementation, so this auto-call flow is retail/data-derived rather than source-confirmed Warsmash behavior. Needs localized no-Peons command feedback and broader custom-map validation. |
 | `Astd` | Stand Down | Partial | Occupied Burrows synthesize the stock Stand Down command even when the unit ability list omits `Astd`; empty Burrows hide it. Activation first applies normal Stop semantics so any persistent Burrow attack/order is retired, then unloads all occupants through the shared unstuck/unpause path. Needs explicit reference-style remembered-resource Back-to-Work state and remaining presentation parity. |
 | `AEim` | Immolation | Stub | Toggle status exists; needs mana drain, periodic area damage, and caster buff art/rules. |
+| `Adtn` | Wisp Detonate | Partial | Point-order `detonate` (852145), authored Area/Rng/DataA mana/DataB summon damage, shared magical-status removal, friendly mana drain, invulnerable/immune/resistant protection, loose-Blight removal, and Wisp SpecialArt self-sacrifice through the normal death lifecycle. [Design and regression notes](../detonate.md). Exact occupied-point behaviour, Blight provenance, and stock visual/event timing remain retail-parity work. |
 | `Aenc` | Entangled mine cargo hold | Partial | Reuses generic cargo capacity/Smart boarding, hides+pauses loaded Wisps, preserves a rallied/Smart-ordered Wisp's boarding intent while the mine is incomplete, automatically retries loading after construction, and drives first-through-fifth occupancy animation tags. Needs remaining retail presentation/target-error verification. |
 | `Aent` | Entangle Gold Mine | Implemented | Validates an ordinary live Gold Mine with footprint-aware building range, supports `entangle`/`autoentangle` and instant variants, lets Blizzard melee `entangleinstant` create a completed starting overlay, auto-entangles an eligible nearby mine when Root completes, reports `Targetgoldmine` for invalid mine targets, owns persistent caster art/state, and hides/marks the caster ability permanent until overlay teardown restores it. |
 | `Aegm` | Entangled Mine | Partial | Uses `Aenc` cargo occupancy, Warsmash-style round-robin income slots, the parent mine's finite gold pool, direct player income, depletion death, Wisp ejection, and parent restoration. Needs remaining presentation parity. |

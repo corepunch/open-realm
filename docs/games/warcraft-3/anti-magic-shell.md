@@ -52,7 +52,8 @@ but not wired into damage yet (same gap as unit `Ams1`/`Ams2`).
 AbilityData.slk (Aams / Aam2 / ACam)
   -> DataC, Dur/HeroDur, BuffID, targs, Cost, Rng
 CAbilityAntiMagicShell
-  -> unit_addtimedstatus(Bams or Bam2)
+  -> remove dispellable magic statuses, apply Bams or Bam2, and attach the
+     selected buff's authored TargetArt at its configured overhead point
 AbilityData.slk (AIxs, code=Aami) + class Aami
   -> item Dur/Cool/DataB/DataC/BuffID via abilityitem_t.code
 CAbilityAntiMagicShellInstant
@@ -77,6 +78,16 @@ Cast-capacity validation must delegate allegiance to `S_SpellAllowsTarget`; a ha
 ROC-style unrestricted shells and custom `enemy` masks. `anti_magic_shell_respects_authored_enemy_target_mask` casts an authored
 enemy-only shell through `S_CastUnitTargetSpell`; the Aam2 test also verifies that a friendly-only mask rejects the same cast.
 
+Applying unit Anti-Magic Shell removes existing magic-dispellable spell
+statuses from its target, matching its dispel behavior. Aura effects such as
+Unholy Aura remain because their recipient presentation is derived from the
+active aura source rather than stored as a dispellable timed spell status.
+`anti_magic_shell_dispels_spell_buffs_but_preserves_unholy_aura` covers both
+cases. The visible Anti-Magic Shell model is authored as `Bams`/`Bam2`
+`TargetArt` in `UndeadAbilityFunc.txt`; the ability rows have no `TargetArt`.
+Shell application therefore enables the status-owned target art and lets the
+buff row's `Targetattach=overhead` control its placement.
+
 ## Diagnostic Workflow
 
 ```sh
@@ -94,5 +105,5 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.anti_magic_shell*'
 Focused tests cover Bams targeting immunity, physical pass-through, recast
 rejection while immune, expiry, the ROC missing-BuffID fallback, Aam2
 absorption/overflow/refresh, unit alias procedure sharing, item `AIxs`/`Aami`
-Instant procedure lookup with authored item duration/DataC→Bams, and save/load
-of the remaining Bam2 pool.
+Instant procedure lookup with authored item duration/DataC→Bams, the authored
+buff target effect, and save/load of the remaining Bam2 pool.

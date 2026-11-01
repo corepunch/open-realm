@@ -581,6 +581,8 @@ void Cvar_Init(void) {
     Cvar_GetD("r_vsync",          "0",                 CVAR_ARCHIVE, "vertical sync: 0=off (use for perf testing), 1=on");
     Cvar_GetD("r_cursor",         "0",                 CVAR_ARCHIVE, "cursor: 0=native SDL, 1=game-authored");
     Cvar_GetD("r_stats",          "0",                 0,            "print per-frame draw/world stats to console each second");
+    Cvar_GetD("r_profile",        "0",                 0,            "frame timings: 0=off, 1=CPU/particles, 2=CPU and async GPU queries");
+    Cvar_GetD("r_program_cache",  "1",                 0,            "skip unchanged GL program bindings; 0 enables uncached profiling");
     Cvar_GetD("r_norefresh",      "0",                 0,            "skip all screen rendering while client/server processing continues");
     Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");
     Cvar_GetD("r_fogofwar",       "1",                 0,            "render fog-of-war overlay");

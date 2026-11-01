@@ -13,8 +13,9 @@ static bool unit_is_active_repair_move(edict_t *self) {
     char rawcode[5];
     ability_t const *handler;
 
-    if (!self || !self->currentmove || !self->buildwork || !self->buildwork->ability) return false;
-    memcpy(rawcode, &self->buildwork->ability, 4);
+    buildwork_t const *work = self ? self->buildwork : NULL;
+    if (!self || !self->currentmove || !work || !work->ability) return false;
+    memcpy(rawcode, &work->ability, 4);
     rawcode[4] = '\0';
     handler = FindAbilityForCommand(rawcode);
     return handler && self->currentmove->proc == handler->proc;
@@ -167,6 +168,7 @@ static bool unit_has_attack(edict_t const *self) {
 #define AI_ACQUIRE_INTERVAL 300 /* ms */
 
 bool G_ShouldAcquireThisFrame(edict_t const *self) {
+    if (S_SpellIsChanneling((edict_t *)self)) return false;
     uint32_t const stagger = (uint32_t)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
     return ((level.time + stagger) % AI_ACQUIRE_INTERVAL) < (uint32_t)FRAMETIME;
 }
@@ -190,7 +192,7 @@ static bool ai_has_siege_attack(edict_t const *self) {
  * ahead of distance, without affecting lower-level creeps or bot policy. */
 static uint32_t ai_creep_target_priority(edict_t const *self, edict_t const *target) {
     bool injured, hero;
-    if (!self || !target || !self->movement.creep_guard_enabled ||
+    if (!self || !target || (!self->movement.creep_guard_enabled) ||
         self->s.player != PLAYER_NEUTRAL_AGGRESSIVE || !self->data.UnitBalance ||
         self->data.UnitBalance->level < 7) return 2;
     injured = target->health.max_value > 0 && target->health.value < target->health.max_value;
@@ -423,6 +425,7 @@ static float creep_guard_misc(cstring_t key, float fallback) {
 
 void G_CreepGuardInit(edict_t *unit) {
     if (!unit) return;
+
     unit->movement.creep_guard_enabled = unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
         !(unit->runtime.flags & UNIT_BALANCE_BUILDING);
     unit->movement.creep_guard_origin = unit->s.origin2;
@@ -434,6 +437,7 @@ void G_CreepGuardInit(edict_t *unit) {
  * original anchor; only G_CreepGuardInit (spawn, ownership change) sets it. */
 void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
     if (!unit) return;
+
     enabled = enabled && unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
         !(unit->runtime.flags & UNIT_BALANCE_BUILDING);
     if (!enabled) {
@@ -452,7 +456,7 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
 }
 
 void G_CreepGuardAutoCombat(edict_t *unit) {
-    if (!unit || !unit->inuse || M_IsDead(unit) || !unit->movement.creep_guard_enabled ||
+    if (!unit || !unit->inuse || M_IsDead(unit) || (!unit->movement.creep_guard_enabled) ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||
         unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) return;
     unit->movement.creep_guard_phase = CREEP_GUARD_COMBAT;
@@ -464,7 +468,7 @@ void G_CreepGuardAutoCombat(edict_t *unit) {
  * clustering algorithm remains unresolved; this is a bounded local fallback. */
 void G_CreepGuardCallForHelp(edict_t *victim, edict_t *attacker) {
     float radius;
-    if (!victim || !attacker || !victim->movement.creep_guard_enabled ||
+    if (!victim || !attacker || (!victim->movement.creep_guard_enabled) ||
         victim->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(victim) ||
         !attacker->inuse || M_IsDead(attacker) ||
         !S_SpellIsEnemy(victim, attacker)) return;
@@ -474,7 +478,7 @@ void G_CreepGuardCallForHelp(edict_t *victim, edict_t *attacker) {
      * automatic combat order, not a second camp notification. */
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ally = g_edicts + i;
-        if (ally == victim || !ally->inuse || !ally->movement.creep_guard_enabled ||
+        if (ally == victim || !ally->inuse || (!ally->movement.creep_guard_enabled) ||
             ally->s.player != victim->s.player || M_IsDead(ally) ||
             ally->movement.creep_guard_phase == CREEP_GUARD_RETURNING ||
             (ally->aiflags & AI_IMMOBILE) ||
@@ -512,7 +516,7 @@ void G_CreepGuardConstructionStarted(edict_t *building) {
     if (radius <= 0.0f) return;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *creep = g_edicts + i;
-        if (!creep->inuse || !creep->movement.creep_guard_enabled ||
+        if (!creep->inuse || (!creep->movement.creep_guard_enabled) ||
             creep->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(creep) ||
             (creep->aiflags & AI_IMMOBILE) ||
             creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING || G_UnitQueuedOrderCount(creep) ||

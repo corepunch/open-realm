@@ -6,6 +6,7 @@ This build mounts browser-local archives via WasmFS OPFS; full runtime compatibi
 import argparse
 import pathlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -59,6 +60,17 @@ def main():
     wc3_share = ROOT / wc3 / "share"
     if not (wc3_share / "config.cfg").is_file():
         raise SystemExit("missing Warcraft III defaults: " + str(wc3_share / "config.cfg"))
+    # The browser's F12 shortcut opens the single-player message log. Keep this
+    # platform-specific binding out of the shared native defaults.
+    web_share = out / "warcraft-3-share"
+    shutil.copytree(wc3_share, web_share, dirs_exist_ok=True)
+    config = web_share / "config.cfg"
+    config_text = config.read_text(encoding="utf-8")
+    config_text, replacements = re.subn(
+        r'(?m)^bind F12 "[^"]*"$', 'bind F12 "cmd log"', config_text)
+    if replacements != 1:
+        raise SystemExit("expected exactly one F12 binding in " + str(wc3_share / "config.cfg"))
+    config.write_text(config_text, encoding="utf-8")
     module_sources = {
         # shared/test.c defines a function-like TEST macro. In a unity build
         # that leaks into blast.c, where #ifdef TEST enables its standalone
@@ -142,7 +154,7 @@ def main():
          "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
          # SDK 4.0.21 treats GROWABLE_ARRAYBUFFERS as an experimental boolean;
          # the old value 2 aborts linking. Use the default memory-growth path.
-         "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
+         "-sINITIAL_MEMORY=268435456", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=2" if args.debug else "-sASSERTIONS=1",
          "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",
@@ -150,11 +162,17 @@ def main():
          "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
          # Make shipped bindings available before native Com_Init loads config.
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
-         "--embed-file", str(wc3_share) + "@/share/warcraft-3",
+         "--embed-file", str(web_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
-    for name in ("browser-keyboard.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
+    for name in ("browser-keyboard.js", "game-shortcut-menus.js", "fullscreen-controls.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js", "ios-audio-session.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
+    shutil.copy2(ROOT / "port/web/site/ios-home-screen.js", out / "ios-home-screen.js")
+    shutil.copy2(ROOT / "port/web/site/manifest.webmanifest", out / "manifest.webmanifest")
+    (out / "icons").mkdir(parents=True, exist_ok=True)
+    for size in (180, 192, 512):
+        name = f"openrealm-{size}.png"
+        shutil.copy2(ROOT / "port/web/site/icons" / name, out / "icons" / name)
     print("Experimental static engine build emitted to", out)
     # Pages loads this only from its game path; other hosting may ignore it.
     shutil.copy2(ROOT / "port/web/site/pages-isolation.js", out / "pages-isolation.js")

@@ -1,2 +1,14 @@
 [ACsp]
 TargetArt=TestUI\Models\anim_pulse.mdx
+
+[ACmi]
+Art=ReplaceableTextures\PassiveButtons\PASBTNGenericSpellImmunity.blp
+Buttonpos=2,2
+
+[ACm2]
+Art=ReplaceableTextures\PassiveButtons\PASBTNGenericSpellImmunity.blp
+Buttonpos=1,1
+
+[ACm3]
+Art=ReplaceableTextures\PassiveButtons\PASBTNGenericSpellImmunity.blp
+Buttonpos=1,2

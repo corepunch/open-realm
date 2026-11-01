@@ -109,9 +109,22 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	T_NOT_NULL(corpse);
 	T_FEQ(corpse->s.origin2.x, fix.wagon->s.origin2.x, 0.001f);
 	T_FEQ(corpse->s.origin2.y, fix.wagon->s.origin2.y, 0.001f);
-	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT(corpse->paused);
+	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT((corpse && corpse->paused));
 	T_EQ((int)S_CargoCapacity(fix.wagon), 8);
 	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
+	exh_done(&fix);
+}
+
+/* The update dispatcher must admit a runtime-added ability even when the unit
+ * has no learned hero rank for the callback code. */
+TEST(wc3_spell, exhume_update_dispatch_recognizes_runtime_added_ability) {
+	exhFix_t fix;
+	exh_setup(&fix);
+	memset(fix.wagon->heroabilities, 0, sizeof(fix.wagon->heroabilities));
+	T_ASSERT(G_ActorAddSkill(fix.wagon, BZ_AEXH));
+	T_EQ(G_UnitAbilityLevel(fix.wagon, BZ_AEXH), 1u);
+	S_RunAbilityUpdates(fix.wagon);
+	T_NOT_NULL(exh_thinker(fix.wagon));
 	exh_done(&fix);
 }
 
@@ -131,7 +144,7 @@ TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
     T_ASSERT(!S_CargoOrderBoard(living, fix.wagon));
     T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
     T_ASSERT(!(living->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!living->paused);
+    T_ASSERT(!(living && living->paused));
     T_NULL(S_CargoTransportForUnit(living));
     exh_done(&fix);
 }
@@ -400,8 +413,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
     graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
-    if (!graveyard->construction) graveyard->construction = G_AllocConstruction();
-    assert(graveyard->construction);
+    (graveyard->construction ? graveyard->construction : (graveyard->construction=G_AllocConstruction()));
 
     S_RunAbilityUpdates(graveyard);
     T_NULL(graveyard_test_thinker(graveyard));
@@ -420,7 +432,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
 
     /* A restored/stale producer must also stop if its owner becomes incomplete,
      * so it cannot continue producing from a pre-construction timer. */
-    graveyard->construction = G_AllocConstruction();
+    (graveyard->construction ? graveyard->construction : (graveyard->construction=G_AllocConstruction()));
     graveyard_think(thinker);
     T_ASSERT(!thinker->inuse);
 

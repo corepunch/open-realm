@@ -21,6 +21,237 @@ texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
+/* The headless game-renderer harness links its own MDX_RenderModel stub; the
+ * real classifier is covered by test-mdx-geoset, so provide its contract here
+ * for the alpha-filter integration tests. */
+bool MDLX_ModelHasAlphaWork(renderEntity_t const *entity, mdxModel_t const *model) {
+    color32_t const color = (entity && (entity->tint_valid || entity->tint.a))
+        ? entity->tint : COLOR32_WHITE;
+    if (!entity || !model) return false;
+    if (model->ribbons) return true;
+    if (color.a != 255) return model->geosets != NULL;
+    FOR_EACH_LIST(mdxMaterial_t, material, model->materials) {
+        FOR_LOOP(i, material->num_layers)
+            if (material->layers[i].blendMode >= BLEND_MODE_BLEND) return true;
+    }
+    return false;
+}
+
+/* Test-only counter in the real MDX sequence selector. */
+void MDLX_TestResetSequenceSearches(void);
+uint32_t MDLX_TestSequenceSearches(void);
+void MDLX_TestResetKeyframeSearchStats(void);
+uint32_t MDLX_TestKeyframeBoundSearches(void);
+uint32_t MDLX_TestKeyframeSpanHits(void);
+uint32_t MDLX_TestKeyframeBracketHits(void);
+void MDLX_TestResetPoseTrackSamples(void);
+uint32_t MDLX_TestPoseTrackSamples(void);
+
+/* The pre-optimisation eight-corner implementation is intentionally kept
+ * independent of the production support-point test. */
+static int renderer_test_frustum_box_corners(frustum3_t const *frustum, box3_t const *box, mat4_t const *matrix) {
+    vec3_t corners[8];
+    for (int k = 0; k < 8; k++) {
+        vec3_t local = {
+            (k & 1) ? box->max.x : box->min.x,
+            (k & 2) ? box->max.y : box->min.y,
+            (k & 4) ? box->max.z : box->min.z,
+        };
+        corners[k] = Matrix4_multiply_vector3(matrix, &local);
+    }
+    for (int i = 0; i < FRUSTUM_NUM_PLANES; i++) {
+        int any_inside = 0;
+        for (int k = 0; k < 8; k++) {
+            if (Plane3_MultiplyVector3(&frustum->planes[i], &corners[k]) > 0.0f) {
+                any_inside = 1;
+                break;
+            }
+        }
+        if (!any_inside) return 0;
+    }
+    return 1;
+}
+
+/* Independently preserve the pre-patch-47 corner order and > 0 rule.
+ * This is deliberately not an invocation of the production fallback. */
+static int renderer_test_frustum_aabox_corners(frustum3_t const *frustum, box3_t const *box) {
+    vec3_t const corners[8] = {
+        { box->min.x, box->min.y, box->min.z },
+        { box->max.x, box->min.y, box->min.z },
+        { box->min.x, box->max.y, box->min.z },
+        { box->max.x, box->max.y, box->min.z },
+        { box->min.x, box->min.y, box->max.z },
+        { box->max.x, box->min.y, box->max.z },
+        { box->min.x, box->max.y, box->max.z },
+        { box->max.x, box->max.y, box->max.z },
+    };
+    for (int p = 0; p < FRUSTUM_NUM_PLANES; p++) {
+        int any = 0;
+        for (int k = 0; k < 8; k++) {
+            if (Plane3_MultiplyVector3(&frustum->planes[p], &corners[k]) > 0.0f) {
+                any = 1;
+                break;
+            }
+        }
+        if (!any) return 0;
+    }
+    return 1;
+}
+
+TEST(renderer_model, axis_aligned_frustum_box_matches_all_corners) {
+    mat4_t projection;
+    frustum3_t frustum;
+    Matrix4_identity(&projection);
+    Frustum_Calculate(&projection, &frustum);
+
+    /* Real frustum planes and deterministic boxes exercising all six faces,
+     * different extents, inside/outside/overlap, and zero-area axes. */
+    for (int i = 0; i < 864; i++) {
+        box3_t box;
+        float const cx = ((i * 37) % 89 - 44) * 0.095f;
+        float const cy = ((i * 47) % 83 - 41) * 0.099f;
+        float const cz = ((i * 59) % 79 - 39) * 0.103f;
+        float const dx = (i % 7) * 0.41f;
+        float const dy = ((i / 7) % 8) * 0.32f;
+        float const dz = ((i / 13) % 6) * 0.25f;
+        box.min = (vec3_t){cx - dx, cy - dy, cz - dz};
+        box.max = (vec3_t){cx + dx, cy + dy, cz + dz};
+        T_EQ(Frustum_ContainsAABox(&frustum, &box),
+             renderer_test_frustum_aabox_corners(&frustum, &box));
+    }
+
+    /* Synthetic oblique planes catch wrong support-axis selection and
+     * cancellation when the farthest corner differs from plane to plane. */
+    for (int p = 0; p < FRUSTUM_NUM_PLANES; p++) {
+        frustum.planes[p].a = ((p * 7) % 9 - 4) * 0.27f;
+        frustum.planes[p].b = ((p * 5) % 11 - 5) * 0.16f;
+        frustum.planes[p].c = ((p * 3) % 7 - 3) * 0.31f;
+        frustum.planes[p].d = ((p * 13) % 7 - 3) * 0.12f;
+    }
+    for (int i = 0; i < 864; i++) {
+        float const x = ((i * 31) % 41 - 20) * 0.2f;
+        float const y = ((i * 17) % 43 - 21) * 0.18f;
+        float const z = ((i * 23) % 47 - 23) * 0.11f;
+        box3_t const box = {
+            .min = { x, y, z },
+            .max = { x + (i % 11) * 0.39f,
+                     y + (i % 9) * 0.28f, z + (i % 13) * 0.21f },
+        };
+        T_EQ(Frustum_ContainsAABox(&frustum, &box),
+             renderer_test_frustum_aabox_corners(&frustum, &box));
+    }
+}
+
+TEST(renderer_model, axis_aligned_frustum_box_preserves_contact_and_invalid_values) {
+    frustum3_t frustum;
+    mat4_t projection;
+    Matrix4_identity(&projection);
+    Frustum_Calculate(&projection, &frustum);
+
+    /* Strict > 0: a box which just touches a plane can be outside. Exercise
+     * either side of all three axes, including rounding to the same float. */
+    for (int axis = 0; axis < 3; axis++) {
+        for (int sign = -1; sign <= 1; sign += 2) {
+            for (int step = -8; step <= 8; step++) {
+                box3_t box = { .min = {-0.5f, -0.5f, -0.5f},
+                               .max = { 0.5f, 0.5f, 0.5f} };
+                float const contact = sign * 1.0f + step * 0.00000012f;
+                if (axis == 0) box.min.x = box.max.x = contact;
+                if (axis == 1) box.min.y = box.max.y = contact;
+                if (axis == 2) box.min.z = box.max.z = contact;
+                T_EQ(Frustum_ContainsAABox(&frustum, &box),
+                     renderer_test_frustum_aabox_corners(&frustum, &box));
+            }
+        }
+    }
+
+    box3_t specials[] = {
+        { .min = {-1, -1, -1}, .max = {1, 1, 1} },
+        { .min = {2, -1, -1}, .max = {-2, 1, 1} }, /* inverted */
+        { .min = {-INFINITY, -1, -1}, .max = {1, 1, 1} },
+        { .min = {-1, -1, -1}, .max = {INFINITY, 1, 1} },
+        { .min = {NAN, -1, -1}, .max = {1, 1, 1} },
+        { .min = {-1, -1, -1}, .max = {1, NAN, 1} },
+        { .min = {-1.0e30f, -1.0e30f, -1.0e30f},
+          .max = {1.0e30f, 1.0e30f, 1.0e30f} },
+        { .min = {-1.0e-30f, -1.0e-30f, -1.0e-30f},
+          .max = {1.0e-30f, 1.0e-30f, 1.0e-30f} },
+    };
+    for (size_t i = 0; i < sizeof(specials) / sizeof(specials[0]); i++) {
+        T_EQ(Frustum_ContainsAABox(&frustum, &specials[i]),
+             renderer_test_frustum_aabox_corners(&frustum, &specials[i]));
+    }
+    /* Invalid plane values also must use the original corner comparisons. */
+    for (int which = 0; which < 3; which++) {
+        frustum3_t changed = frustum;
+        changed.planes[0].a = which == 0 ? NAN : (which == 1 ? INFINITY : -INFINITY);
+        T_EQ(Frustum_ContainsAABox(&changed, &specials[0]),
+             renderer_test_frustum_aabox_corners(&changed, &specials[0]));
+    }
+}
+
+TEST(renderer_model, affine_frustum_box_matches_corner_test_across_rotations_and_boundaries) {
+    mat4_t camera;
+    frustum3_t frustum;
+    box3_t box = { .min = { -1.0f, -0.75f, -0.5f }, .max = { 1.0f, 0.75f, 0.5f } };
+    Matrix4_identity(&camera);
+    Frustum_Calculate(&camera, &frustum);
+
+    /* Cover all sides of the frustum, reflected axes, nonuniform scales,
+     * off-centre positions, non-orthogonal rotations, and large extents. */
+    for (int k = 0; k < 420; k++) {
+        mat4_t model;
+        vec3_t angles = { (k * 17) % 360, (k * 37) % 360, (k * 53) % 360 };
+        vec3_t scale = {
+            (k & 1) ? -1.3f : 0.65f,
+            (k & 2) ? 2.5f : 0.8f,
+            (k & 4) ? 0.5f : 1.7f,
+        };
+        Matrix4_identity(&model);
+        Matrix4_rotate(&model, &angles, ROTATE_XYZ);
+        Matrix4_scale(&model, &scale);
+        model.v[12] = ((k * 19) % 51 - 25) * 0.12f;
+        model.v[13] = ((k * 23) % 47 - 23) * 0.14f;
+        model.v[14] = ((k * 29) % 43 - 21) * 0.11f;
+        T_EQ(Frustum_ContainsBox(&frustum, &box, &model),
+             renderer_test_frustum_box_corners(&frustum, &box, &model));
+    }
+    for (int face = 0; face < 3; face++) {
+        for (int sign = -1; sign <= 1; sign += 2) {
+            for (int delta = -2; delta <= 2; delta++) {
+                mat4_t model;
+                Matrix4_identity(&model);
+                model.v[12 + face] = sign * (1.0f + (face == 0 ? 1.0f : (face == 1 ? .75f : .5f))) +
+                    delta * .000001f;
+                T_EQ(Frustum_ContainsBox(&frustum, &box, &model),
+                     renderer_test_frustum_box_corners(&frustum, &box, &model));
+            }
+        }
+    }
+    /* The projective path must keep the homogeneous-divide behaviour. */
+    Matrix4_perspective(&camera, 60.0f, 1.4f, 0.1f, 80.0f);
+    box.min.z = -6.0f; box.max.z = -4.0f;
+    T_EQ(Frustum_ContainsBox(&frustum, &box, &camera),
+         renderer_test_frustum_box_corners(&frustum, &box, &camera));
+}
+
+TEST(renderer_model, affine_frustum_box_preserves_inverted_bounds) {
+    mat4_t matrix;
+    frustum3_t frustum;
+    Matrix4_identity(&matrix);
+    Frustum_Calculate(&matrix, &frustum);
+    /* An authored box can have reversed endpoints. The old corner test
+     * visits both endpoints; the support-point shortcut requires ordering. */
+    for (unsigned axes = 1; axes < 8; axes++) {
+        box3_t box = { .min = {-2, -2, -2}, .max = {2, 2, 2} };
+        if (axes & 1) { box.min.x = 2; box.max.x = -2; }
+        if (axes & 2) { box.min.y = 2; box.max.y = -2; }
+        if (axes & 4) { box.min.z = 2; box.max.z = -2; }
+        T_EQ(renderer_test_frustum_box_corners(&frustum, &box, &matrix), 1);
+        T_EQ(Frustum_ContainsBox(&frustum, &box, &matrix), 1);
+    }
+}
+
 static char shader_src[16384];
 static void reset_shader(void);
 static rect_t backdrop_uv, backdrop_rect;
@@ -121,7 +352,7 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 #define glGetShaderInfoLog BZ_TestShaderLog
 #define glGetProgramInfoLog BZ_TestShaderLog
 #define malloc BZ_TestShaderMalloc
-#define exit BZ_TestShaderExit
+#define Sys_Exit BZ_TestShaderExit
 #include "renderer/r_shader.c"
 static void test_shader_source(GLuint stage, shader_desc_t const *desc, bool vertex, char const *defines) {
     gs_options_t options = R_ShaderOptions(defines);
@@ -152,7 +383,7 @@ static void test_shader_source(GLuint stage, shader_desc_t const *desc, bool ver
 #undef glGetShaderInfoLog
 #undef glGetProgramInfoLog
 #undef malloc
-#undef exit
+#undef Sys_Exit
 
 refImport_t ri;
 void R_ClearEntityCameraParticleScenes(void) {}
@@ -392,6 +623,205 @@ static rImageCacheEntry_t *test_texture_entry(cstring_t name) {
     return NULL;
 }
 
+/* A bone pose samples several tracks at the same two animation times.
+ * Compare the actual bound matrices while asserting that each time resolves
+ * its authored sequence only once, regardless of the number of tracks/nodes. */
+TEST(renderer_model, mdx_bone_pose_resolves_each_sequence_once_per_bind) {
+    uint8_t translation_storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = { 0 };
+    uint8_t scale_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
+    mdxKeyTrack_t *translation = (mdxKeyTrack_t *)translation_storage;
+    mdxKeyTrack_t *scale = (mdxKeyTrack_t *)scale_storage;
+    mdxNode_t nodes[3] = { 0 };
+    mdxSequence_t sequences[2] = { { .interval = { 100, 200 } }, { .interval = { 200, 300 } } };
+    mdxModel_t model = { .sequences = sequences, .num_sequences = 2, .num_nodes = 3 };
+    mat4_t transform;
+    float const saved_lerp = tr.viewDef.lerpfrac;
+    vec3_t const positions[2] = { {10, 0, 0}, {20, 0, 0} };
+    vec3_t const unit_scale = { 1, 1, 1 };
+
+    translation->keyframeCount = 2; translation->datatype = TDATA_FLOAT3;
+    translation->linetype = TRACK_LINEAR; translation->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)translation->values + i * (sizeof(int) + sizeof(vec3_t)));
+        key->time = 100 + 80 * i;
+        memcpy(key->data, &positions[i], sizeof(positions[i]));
+    }
+    scale->keyframeCount = 1; scale->datatype = TDATA_FLOAT3;
+    scale->linetype = TRACK_LINEAR; scale->globalSeqId = UINT32_MAX;
+    ((mdxKeyFrame_t *)scale->values)->time = 100;
+    memcpy(((mdxKeyFrame_t *)scale->values)->data, &unit_scale, sizeof(unit_scale));
+    FOR_LOOP(i, 3) {
+        nodes[i].node_id = i;
+        nodes[i].parent_id = UINT32_MAX;
+        nodes[i].translation = translation;
+        nodes[i].scale = scale;
+        model.nodes[i] = model.node_list[i] = &nodes[i];
+    }
+    Matrix4_identity(&transform);
+    tr.viewDef.lerpfrac = 0.5f;
+
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 160, 120);
+    T_EQ(MDLX_TestSequenceSearches(), 2u); /* 3 nodes x 2 tracks x 2 times. */
+    FOR_LOOP(i, 3) T_FEQ(node_matrices[i].v[12], 15.0f, 0.001f);
+
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 140, 140);
+    T_EQ(MDLX_TestSequenceSearches(), 1u); /* One pose time, six local tracks. */
+    FOR_LOOP(i, 3) T_FEQ(node_matrices[i].v[12], 15.0f, 0.001f);
+
+    /* No interval retains its identity across binds: changing the authored
+     * sequence in place must be reflected immediately by the next bind. */
+    sequences[0].interval[1] = 120;
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 140, 140);
+    T_EQ(MDLX_TestSequenceSearches(), 1u);
+    FOR_LOOP(i, 3) T_FEQ(node_matrices[i].v[12], 0.0f, 0.001f);
+    tr.viewDef.lerpfrac = saved_lerp;
+}
+
+/* Global-sequence-only nodes do not need a regular model-sequence search. */
+TEST(renderer_model, mdx_bone_pose_global_tracks_skip_sequence_searches) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
+    mdxKeyTrack_t *translation = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxNode_t node = { .node_id = 0, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1,
+                         .num_nodes = 1 };
+    vec3_t const offset = { 7, 0, 0 };
+    mat4_t transform;
+    uint32_t const old_time = tr.viewDef.time;
+    translation->keyframeCount = 1; translation->datatype = TDATA_FLOAT3;
+    translation->linetype = TRACK_LINEAR; translation->globalSeqId = 0;
+    ((mdxKeyFrame_t *)translation->values)->time = 0;
+    memcpy(((mdxKeyFrame_t *)translation->values)->data, &offset, sizeof(offset));
+    node.translation = translation;
+    model.nodes[0] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.time = 400;
+    MDLX_TestResetSequenceSearches();
+    MDLX_BindBoneMatrices(&model, &transform, 120, 80);
+    T_EQ(MDLX_TestSequenceSearches(), 0u);
+    T_FEQ(node_matrices[0].v[12], 7.0f, 0.001f);
+    tr.viewDef.time = old_time;
+}
+
+/* Global sequences ignore the local frame numbers. During a stable render
+ * clock, querying them for oldframe and frame must give the same sample.
+ * Check against the stateless evaluator and the real parent/child matrices,
+ * not merely against a test-only query counter. */
+TEST(renderer_model, mdx_blended_global_tracks_sample_once_and_preserve_hierarchy) {
+    uint8_t positions[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    uint8_t rotations[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(quaternion_t))] = {0};
+    uint8_t scales[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    uint8_t children[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    mdxKeyTrack_t *pos = (mdxKeyTrack_t *)positions;
+    mdxKeyTrack_t *rot = (mdxKeyTrack_t *)rotations;
+    mdxKeyTrack_t *scl = (mdxKeyTrack_t *)scales;
+    mdxKeyTrack_t *child_pos = (mdxKeyTrack_t *)children;
+    mdxSequence_t seq = {.interval = {100, 400}};
+    mdxGlobalSequence_t global = {.value = 500};
+    mdxNode_t parent = {.node_id = 0, .parent_id = UINT32_MAX,
+                        .translation = pos, .rotation = rot, .scale = scl};
+    mdxNode_t child = {.node_id = 1, .parent_id = 0, .translation = child_pos};
+    mdxNode_t helper = {.node_id = 2, .parent_id = 1};
+    vec3_t pivots[3] = {{0}, {0}, {15, -5, 3}};
+    mdxModel_t model = {.num_nodes = 3, .sequences = &seq, .num_sequences = 1,
+                        .globalSequences = &global, .num_globalSequences = 1,
+                        .pivots = pivots, .num_pivots = 3};
+    mat4_t identity, expected_parent, child_matrix, expected_child;
+    viewDef_t const old_view = tr.viewDef;
+    uint32_t const clocks[] = {125, 625}; /* Second clock wraps the 501-tick global interval. */
+
+    model.nodes[0] = model.node_list[0] = &parent;
+    model.nodes[1] = model.node_list[1] = &child;
+    model.nodes[2] = model.node_list[2] = &helper;
+    pos->keyframeCount = rot->keyframeCount = scl->keyframeCount = child_pos->keyframeCount = 2;
+    pos->datatype = scl->datatype = child_pos->datatype = TDATA_FLOAT3;
+    rot->datatype = TDATA_FLOAT4;
+    pos->linetype = rot->linetype = scl->linetype = child_pos->linetype = TRACK_LINEAR;
+    pos->globalSeqId = rot->globalSeqId = scl->globalSeqId = 0;
+    child_pos->globalSeqId = UINT32_MAX;
+    {
+        int const global_times[] = {0, 500};
+        int const local_times[] = {100, 400};
+        vec3_t const parent_values[] = {{3, 1, 0}, {23, -4, 6}};
+        vec3_t const scale_values[] = {{1, 1, 1}, {1.3f, 0.9f, 1.2f}};
+        vec3_t const child_values[] = {{-2, 0, 0}, {4, 2, 0}};
+        quaternion_t rotation_values[] = {
+            {0, 0, 0, 1},
+            Quaternion_fromEuler(&(vec3_t){0, 0, 80}, ROTATE_XYZ),
+        };
+        /* Non-unit authored quaternion: slerp(q,q,t) must not be removed. */
+        rotation_values[1].x *= 0.9f; rotation_values[1].y *= 0.9f;
+        rotation_values[1].z *= 0.9f; rotation_values[1].w *= 0.9f;
+        FOR_LOOP(i, 2) {
+            mdxKeyFrame_t *kpos = (mdxKeyFrame_t *)((uint8_t *)pos->values + i * (4 + sizeof(vec3_t)));
+            mdxKeyFrame_t *krot = (mdxKeyFrame_t *)((uint8_t *)rot->values + i * (4 + sizeof(quaternion_t)));
+            mdxKeyFrame_t *kscl = (mdxKeyFrame_t *)((uint8_t *)scl->values + i * (4 + sizeof(vec3_t)));
+            mdxKeyFrame_t *kchild = (mdxKeyFrame_t *)((uint8_t *)child_pos->values + i * (4 + sizeof(vec3_t)));
+            kpos->time = krot->time = kscl->time = global_times[i];
+            kchild->time = local_times[i];
+            memcpy(kpos->data, &parent_values[i], sizeof(vec3_t));
+            memcpy(krot->data, &rotation_values[i], sizeof(quaternion_t));
+            memcpy(kscl->data, &scale_values[i], sizeof(vec3_t));
+            memcpy(kchild->data, &child_values[i], sizeof(vec3_t));
+        }
+    }
+    Matrix4_identity(&identity);
+    tr.viewDef.lerpfrac = 0.35f;
+    FOR_LOOP(i, 2) {
+        vec3_t global_position = {0}, global_scale = {1, 1, 1};
+        vec3_t local_old = {0}, local_new = {0}, local = {0};
+        quaternion_t global_rotation = {0, 0, 0, 1};
+        tr.viewDef.time = clocks[i];
+        MDLX_GetModelKeytrackValue(&model, pos, 150, &global_position);
+        MDLX_GetModelKeytrackValue(&model, rot, 250, &global_rotation);
+        MDLX_GetModelKeytrackValue(&model, scl, 250, &global_scale);
+        MDLX_GetModelKeytrackValue(&model, child_pos, 150, &local_old);
+        MDLX_GetModelKeytrackValue(&model, child_pos, 250, &local_new);
+        local = Vector3_lerp(&local_old, &local_new, tr.viewDef.lerpfrac);
+        /* Reference the old two-sample blending arithmetic as well, not
+         * merely the track value: repeated values can round differently. */
+        global_position = Vector3_lerp(&global_position, &global_position, tr.viewDef.lerpfrac);
+        global_rotation = Quaternion_slerp(&global_rotation, &global_rotation, tr.viewDef.lerpfrac);
+        global_scale = Vector3_lerp(&global_scale, &global_scale, tr.viewDef.lerpfrac);
+        Matrix4_from_rotation_translation_scale_origin(&expected_parent,
+            &global_rotation, &global_position, &global_scale, &MAKE(vec3_t, 0, 0, 0));
+        Matrix4_from_translation(&child_matrix, &local);
+        Matrix4_multiply_affine(&expected_parent, &child_matrix, &expected_child);
+        MDLX_TestResetPoseTrackSamples();
+        MDLX_BindBoneMatrices(&model, &identity, 250, 150);
+        T_EQ(MDLX_TestPoseTrackSamples(), 5u); /* 3 global once; local twice. */
+        FOR_LOOP(j, 16) {
+            T_FEQ(node_matrices[0].v[j], expected_parent.v[j], .0002f);
+            T_FEQ(node_matrices[1].v[j], expected_child.v[j], .0002f);
+            T_FEQ(node_matrices[2].v[j], expected_child.v[j], .0002f);
+        }
+    }
+    /* An explicit entity clock stays stable even if a subview has time=0. */
+    {
+        mdxAnimationTimeScope_t scope;
+        tr.viewDef.time = 750;
+        MDLX_PushEntityAnimationTime(NULL, &scope);
+        tr.viewDef.time = 0;
+        MDLX_TestResetPoseTrackSamples();
+        MDLX_BindBoneMatrices(&model, &identity, 250, 150);
+        T_EQ(MDLX_TestPoseTrackSamples(), 5u);
+        MDLX_PopEntityAnimationTime(&scope);
+    }
+    /* Outside that scope and with no fixed render timestamp, the fallback
+     * SDL clock could advance between evaluations: retain both samples. */
+    MDLX_TestResetPoseTrackSamples();
+    MDLX_BindBoneMatrices(&model, &identity, 250, 150);
+    T_EQ(MDLX_TestPoseTrackSamples(), 8u);
+    /* No interpolation with identical old/current frames, regardless of clock. */
+    MDLX_TestResetPoseTrackSamples();
+    MDLX_BindBoneMatrices(&model, &identity, 250, 250);
+    T_EQ(MDLX_TestPoseTrackSamples(), 4u);
+    tr.viewDef = old_view;
+}
+
 TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     uint8_t storage[sizeof(mdxKeyTrack_t) + 5 * (sizeof(int) + sizeof(float))] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
@@ -410,6 +840,203 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.5f, 0.001f);
     MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 2.5f, 0.001f);
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
+}
+
+/* Comparing each pose against the public stateless evaluator exercises the
+ * same interpolation code while making reuse/search-count regressions visible. */
+TEST(renderer_model, mdx_view_key_span_reuses_sequence_bounds_and_nearby_brackets) {
+    int const times[9] = {50, 120, 180, 240, 300, 360, 440, 520, 620};
+    mdxSequence_t sequences[2] = {{.interval = {100, 320}}, {.interval = {320, 560}}};
+    mdxNode_t node = {.node_id = 0, .parent_id = UINT32_MAX};
+    mdxModel_t model = {.sequences = sequences, .num_sequences = 2, .num_nodes = 1};
+    mat4_t transform;
+    float saved_lerp = tr.viewDef.lerpfrac;
+    uint32_t const samples[] = {125, 133, 140, 185, 239, 300, 321, 375, 390, 495, 110};
+    model.nodes[0] = model.node_list[0] = &node;
+    /* Use FLOAT3 for a real node position; update the stride and authored
+     * values to match the vector evaluator. */
+    {
+        uint8_t vector_storage[sizeof(mdxKeyTrack_t) + 9 * (sizeof(int) + sizeof(vec3_t))] = {0};
+        mdxKeyTrack_t *position = (mdxKeyTrack_t *)vector_storage;
+        position->keyframeCount = 9; position->datatype = TDATA_FLOAT3;
+        position->linetype = TRACK_LINEAR; position->globalSeqId = UINT32_MAX;
+        FOR_LOOP(i, 9) {
+            mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)position->values + i * (4 + sizeof(vec3_t)));
+            vec3_t const value = {(float)(i + 1), 0, 0};
+            key->time = times[i]; memcpy(key->data, &value, sizeof(value));
+        }
+        node.translation = position;
+        Matrix4_identity(&transform);
+        tr.viewDef.lerpfrac = 0;
+        MDLX_ViewPoseBegin();
+        MDLX_TestResetKeyframeSearchStats();
+        FOR_LOOP(i, sizeof(samples) / sizeof(samples[0])) {
+            vec3_t expected = {0};
+            uint32_t const time = samples[i];
+            MDLX_GetModelKeytrackValue(&model, position, time, &expected);
+            /* The public stateless evaluator's searches do not count toward
+             * the pose-cache assertions. */
+            MDLX_TestResetKeyframeSearchStats();
+            MDLX_BindBoneMatrices(&model, &transform, time, time);
+            T_FEQ(node_matrices[0].v[12], expected.x, .0001f);
+            if (i == 0) T_ASSERT(MDLX_TestKeyframeBoundSearches() > 0);
+            if (i == 1 || i == 2) {
+                T_EQ(MDLX_TestKeyframeBoundSearches(), 0u);
+                T_ASSERT(MDLX_TestKeyframeSpanHits() >= 1);
+                T_ASSERT(MDLX_TestKeyframeBracketHits() >= 1);
+            }
+        }
+        MDLX_ViewPoseEnd();
+        /* A fresh view must not reuse the previous sequence key indexes. */
+        sequences[0].interval[0] = 170;
+        sequences[0].interval[1] = 245;
+        MDLX_ViewPoseBegin();
+        MDLX_TestResetKeyframeSearchStats();
+        MDLX_BindBoneMatrices(&model, &transform, 190, 190);
+        T_ASSERT(MDLX_TestKeyframeBoundSearches() > 0);
+        T_FEQ(node_matrices[0].v[12], 3.1666667f, .0002f);
+        MDLX_ViewPoseEnd();
+    }
+    tr.viewDef.lerpfrac = saved_lerp;
+}
+
+TEST(renderer_model, mdx_view_key_span_preserves_global_clock_wrap_and_duplicate_keys) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 7 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    int const times[7] = {0, 100, 100, 250, 400, 500, 600};
+    mdxGlobalSequence_t global = {.value = 500};
+    mdxNode_t node = {.node_id = 0, .parent_id = UINT32_MAX, .translation = track};
+    mdxModel_t model = {.globalSequences = &global, .num_globalSequences = 1, .num_nodes = 1};
+    uint32_t const samples[] = {90, 100, 101, 110, 499, 500, 501, 602, 705, 80};
+    mat4_t transform;
+    uint32_t const old_time = tr.viewDef.time;
+    float const old_lerp = tr.viewDef.lerpfrac;
+    model.nodes[0] = model.node_list[0] = &node;
+    track->keyframeCount = 7; track->datatype = TDATA_FLOAT3;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = 0;
+    FOR_LOOP(i, 7) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * (4 + sizeof(vec3_t)));
+        vec3_t const value = {(float)(i * 5), 0, 0};
+        key->time = times[i]; memcpy(key->data, &value, sizeof(value));
+    }
+    Matrix4_identity(&transform);
+    tr.viewDef.lerpfrac = 0;
+    MDLX_ViewPoseBegin();
+    FOR_LOOP(i, sizeof(samples) / sizeof(samples[0])) {
+        mdxAnimationTimeScope_t scope;
+        vec3_t expected = {0};
+        tr.viewDef.time = samples[i];
+        MDLX_PushEntityAnimationTime(NULL, &scope);
+        MDLX_GetModelKeytrackValue(&model, track, 0, &expected);
+        MDLX_BindBoneMatrices(&model, &transform, 0, 0);
+        T_FEQ(node_matrices[0].v[12], expected.x, .0001f);
+        MDLX_PopEntityAnimationTime(&scope);
+    }
+    MDLX_ViewPoseEnd();
+    tr.viewDef.time = old_time;
+    tr.viewDef.lerpfrac = old_lerp;
+}
+
+TEST(renderer_model, mdx_single_key_track_respects_sequence_ownership) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
+    mdxSequence_t seqs[2] = { { .interval = { 100, 200 } }, { .interval = { 200, 300 } } };
+    mdxModel_t model = { .sequences = seqs, .num_sequences = 2 };
+    float authored = 7.25f, value = -99.0f;
+
+    track->keyframeCount = 1;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    key->time = 125;
+    memcpy(key->data, &authored, sizeof(authored));
+    MDLX_GetModelKeytrackValue(&model, track, 100, &value);
+    T_FEQ(value, authored, 0.001f);
+    value = -99.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 199, &value);
+    T_FEQ(value, authored, 0.001f);
+    value = -99.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value);
+    T_FEQ(value, -99.0f, 0.001f); /* Other sequence must not reuse the constant. */
+    MDLX_GetModelKeytrackValue(&model, track, 300, &value);
+    T_FEQ(value, -99.0f, 0.001f); /* No sequence owns the endpoint. */
+    key->time = 200;
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value);
+    T_FEQ(value, authored, 0.001f); /* Authored key now belongs to sequence 2. */
+}
+
+TEST(renderer_model, mdx_full_interval_track_preserves_clamp_pair_and_tail) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 3 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 400 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    int const times[3] = { 120, 200, 300 };
+    float const authored[3] = { 1.0f, 3.0f, 5.0f };
+    float value = -1.0f;
+
+    track->keyframeCount = 3;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 3) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 8);
+        key->time = times[i]; memcpy(key->data, &authored[i], sizeof(float));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 120, &value); T_FEQ(value, 1.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 160, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 3.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 4.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 350, &value); T_FEQ(value, 10.0f / 3.0f, 0.001f);
+    value = -1.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 400, &value); T_FEQ(value, -1.0f, 0.001f);
+}
+
+TEST(renderer_model, mdx_partial_interval_search_excludes_neighbouring_keys) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 6 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 250 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    int const times[6] = { 50, 125, 175, 225, 300, 375 };
+    float const authored[6] = { 100.0f, 2.0f, 3.0f, 4.0f, 200.0f, 300.0f };
+    float value = 0;
+
+    track->keyframeCount = 6;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 6) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 8);
+        key->time = times[i]; memcpy(key->data, &authored[i], sizeof(float));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 105, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 150, &value); T_FEQ(value, 2.5f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 3.5f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 240, &value); T_FEQ(value, 3.4f, 0.001f);
+    value = -1.0f;
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, -1.0f, 0.001f);
+    /* A one-key sequence subsection still clamps exactly to that key. */
+    seq.interval[0] = 170; seq.interval[1] = 200;
+    MDLX_GetModelKeytrackValue(&model, track, 190, &value); T_FEQ(value, 3.0f, 0.001f);
+}
+
+TEST(renderer_model, mdx_two_key_no_interp_retains_step_semantics) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 300 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    float const values[2] = { 2.0f, 9.0f };
+    float value = 0.0f;
+    track->keyframeCount = 2; track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_NO_INTERP; track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 8);
+        key->time = 100 + i * 100; memcpy(key->data, &values[i], sizeof(float));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 199, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 9.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 9.0f, 0.001f);
 }
 
 TEST(renderer_model, mdx_keytrack_lookup_uses_hermite_stride) {
@@ -1316,6 +1943,98 @@ TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
     T_ASSERT(!MDLX_EventObjectId(&event, "SND", id, sizeof(id)));
 }
 
+/* MDX hierarchy inputs are affine, but projection matrices are not. The
+ * fast path must preserve the full transform for nonuniform/negative scale,
+ * pivot offsets, rotations and translations without relying on SIMD. */
+TEST(renderer_model, mdx_affine_multiply_matches_general_for_trs) {
+    FOR_LOOP(i, 5) {
+        vec3_t const translation_a = { 3.0f * i, -7.0f + i, 9.0f - i };
+        vec3_t const translation_b = { -5.0f + i, 0.25f * i, 11.0f };
+        vec3_t const scale_a = { i == 3 ? -2.0f : 0.7f, 1.0f + i, 0.5f };
+        vec3_t const scale_b = { 0.4f + i, i == 2 ? -1.6f : 1.2f, 1.25f };
+        vec3_t const pivot_a = { 1.0f, 2.0f + i, -3.0f };
+        vec3_t const pivot_b = { -2.0f, 1.0f, 4.0f + i };
+        quaternion_t const rotation_a = Quaternion_fromEuler(
+            &(vec3_t){ 11.0f * i, -29.0f, 47.0f }, ROTATE_XYZ);
+        quaternion_t const rotation_b = Quaternion_fromEuler(
+            &(vec3_t){ -17.0f, 6.0f * i, 24.0f }, ROTATE_ZYX);
+        mat4_t left, right, general, affine;
+        Matrix4_from_rotation_translation_scale_origin(&left, &rotation_a,
+                                                      &translation_a, &scale_a, &pivot_a);
+        Matrix4_from_rotation_translation_scale_origin(&right, &rotation_b,
+                                                      &translation_b, &scale_b, &pivot_b);
+        Matrix4_multiply(&left, &right, &general);
+        Matrix4_multiply_affine(&left, &right, &affine);
+        FOR_LOOP(j, 16) T_FEQ(affine.v[j], general.v[j], 0.0002f);
+        T_FEQ(affine.v[3], 0.0f, 0.0f);
+        T_FEQ(affine.v[7], 0.0f, 0.0f);
+        T_FEQ(affine.v[11], 0.0f, 0.0f);
+        T_FEQ(affine.v[15], 1.0f, 0.0f);
+    }
+}
+
+/* An unanimated child is precisely its parent in the model-local pose. It
+ * must still inherit movement, rotation and nonuniform (including mirrored)
+ * scale. A tracked grandchild must compose with that inherited matrix, and
+ * changing the child to animated must be visible on the next bind. */
+TEST(renderer_model, mdx_affine_pose_inherits_unanimated_nodes) {
+    uint8_t translations[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    uint8_t rotations[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(quaternion_t)] = {0};
+    uint8_t scales[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    uint8_t child_translations[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = {0};
+    mdxKeyTrack_t *shift_track = (mdxKeyTrack_t *)translations;
+    mdxKeyTrack_t *rotate_track = (mdxKeyTrack_t *)rotations;
+    mdxKeyTrack_t *scale_track = (mdxKeyTrack_t *)scales;
+    mdxKeyTrack_t *child_track = (mdxKeyTrack_t *)child_translations;
+    vec3_t const parent_shift = { 4.0f, 7.0f, -2.0f };
+    vec3_t const child_shift = { -3.0f, 5.0f, 6.0f };
+    vec3_t const parent_scale = { -1.5f, 0.75f, 2.0f };
+    vec3_t const zero = { 0, 0, 0 };
+    quaternion_t const parent_rotation = Quaternion_fromEuler(
+        &(vec3_t){ 13.0f, 24.0f, -31.0f }, ROTATE_XYZ);
+    mdxSequence_t sequence = { .interval = { 100, 200 } };
+    mdxNode_t parent = { .node_id = 0, .parent_id = UINT32_MAX,
+                         .translation = shift_track, .rotation = rotate_track, .scale = scale_track };
+    mdxNode_t middle = { .node_id = 1, .parent_id = 0 };
+    mdxNode_t grandchild = { .node_id = 2, .parent_id = 1, .translation = child_track };
+    mdxModel_t model = { .num_sequences = 1, .sequences = &sequence };
+    mat4_t world, parent_expected, local, expected, next;
+    mdxKeyTrack_t *tracks[] = { shift_track, rotate_track, scale_track, child_track };
+    FOR_LOOP(i, 4) {
+        tracks[i]->keyframeCount = 1;
+        tracks[i]->datatype = i == 1 ? TDATA_FLOAT4 : TDATA_FLOAT3;
+        tracks[i]->linetype = TRACK_NO_INTERP;
+        tracks[i]->globalSeqId = UINT32_MAX;
+        ((mdxKeyFrame_t *)tracks[i]->values)->time = 100;
+    }
+    memcpy(((mdxKeyFrame_t *)shift_track->values)->data, &parent_shift, sizeof(parent_shift));
+    memcpy(((mdxKeyFrame_t *)rotate_track->values)->data, &parent_rotation, sizeof(parent_rotation));
+    memcpy(((mdxKeyFrame_t *)scale_track->values)->data, &parent_scale, sizeof(parent_scale));
+    memcpy(((mdxKeyFrame_t *)child_track->values)->data, &child_shift, sizeof(child_shift));
+    model.nodes[0] = model.node_list[0] = &parent;
+    model.nodes[1] = model.node_list[1] = &middle;
+    model.nodes[2] = model.node_list[2] = &grandchild;
+    model.num_nodes = 3;
+    Matrix4_identity(&world);
+    MDLX_BindBoneMatrices(&model, &world, 125, 125);
+    Matrix4_from_rotation_translation_scale_origin(&parent_expected, &parent_rotation,
+                                                    &parent_shift, &parent_scale, &zero);
+    Matrix4_from_translation(&local, &child_shift);
+    Matrix4_multiply(&parent_expected, &local, &expected);
+    FOR_LOOP(i, 16) {
+        T_FEQ(node_matrices[0].v[i], parent_expected.v[i], 0.0002f);
+        T_FEQ(node_matrices[1].v[i], parent_expected.v[i], 0.0002f);
+        T_FEQ(node_matrices[2].v[i], expected.v[i], 0.0002f);
+    }
+
+    /* Same raw model, different parentage: an immediate rebinding cannot
+     * accidentally use the earlier identity-local shortcut. */
+    middle.translation = child_track;
+    MDLX_BindBoneMatrices(&model, &world, 125, 125);
+    Matrix4_multiply(&parent_expected, &local, &next);
+    FOR_LOOP(i, 16) T_FEQ(node_matrices[1].v[i], next.v[i], 0.0002f);
+}
+
 TEST(renderer_model, mdx_parented_eye_and_pendant_billboards_face_camera_without_losing_animated_pivots) {
     uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(quaternion_t))] = {0};
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
@@ -1446,6 +2165,390 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
     T_FEQ(positions[0].origin.z, 36.0f, 0.001f);
 }
 
+
+/* Cross-pass snapshots must restore a parent's exact matrices after another
+ * model overwrites the shared scratch, without calling the keytrack evaluator. */
+void MDLX_TestResetPoseLookupCandidates(void);
+uint32_t MDLX_TestPoseLookupCandidates(void);
+
+/* Scene-array slots, not entity numbers, identify poses. Sparse lookups must
+ * examine only their exact indexed candidate, never the 96 cached entries. */
+TEST(renderer_model, mdx_view_pose_direct_index_sparse_entities_and_repeated_stores) {
+    static renderEntity_t entities[256];
+    renderEntity_t copied;
+    mdxNode_t node = { .node_id = 3, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    mat4_t transform, result;
+    mdxModel_t const *cached = NULL;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    uint32_t const slots[] = { 1, 127, 255 };
+    memset(entities, 0, sizeof(entities));
+    model.nodes[3] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 256;
+    tr.viewDef.time = 400;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    FOR_LOOP(i, 3) {
+        renderEntity_t *ent = &entities[slots[i]];
+        ent->number = 99; /* Distinct slots may share a presentation number. */
+        ent->model = &wrapper;
+        MDLX_BindBoneMatrices(&model, &transform, 20, 10);
+        MDLX_ViewPoseStore(ent, &model, &transform, 20, 10);
+    }
+    /* The newest store for an existing slot overrides the original entry. */
+    transform.v[12] = 7;
+    MDLX_BindBoneMatrices(&model, &transform, 20, 10);
+    MDLX_ViewPoseStore(&entities[127], &model, &transform, 20, 10);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    MDLX_TestResetPoseLookupCandidates();
+    FOR_LOOP(i, 3) {
+        renderEntity_t *ent = &entities[slots[i]];
+        T_ASSERT(MDLX_ViewPoseCachedDraw(ent, &cached, &result));
+        T_EQ(cached, &model);
+        T_FEQ(result.v[12], i == 1 ? 7 : 0, 0.001f);
+    }
+    T_EQ(MDLX_TestPoseLookupCandidates(), 3u);
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[64], &cached, &result));
+    T_EQ(MDLX_TestPoseLookupCandidates(), 3u); /* Missing slot: zero probes. */
+    copied = entities[1];
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&copied, &cached, &result));
+    T_EQ(MDLX_TestPoseLookupCandidates(), 3u); /* Child/copy: never cached. */
+    T_ASSERT(MDLX_ViewPoseRestore(&entities[127], &model, &transform, 20, 10));
+    T_EQ(MDLX_TestPoseLookupCandidates(), 4u);
+    MDLX_ViewPoseEnd();
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
+/* An index must not carry a pose into another view, and the fixed 96-entry
+ * admission limit must still use the original recalculation fallback. */
+TEST(renderer_model, mdx_view_pose_direct_index_resets_and_preserves_budgets) {
+    static renderEntity_t entities[128];
+    mdxNode_t node = { .node_id = 1, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    mat4_t transform, result;
+    mdxModel_t const *cached = NULL;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    memset(entities, 0, sizeof(entities));
+    model.nodes[1] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 128;
+    tr.viewDef.time = 800;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    FOR_LOOP(i, 97) {
+        entities[i].model = &wrapper;
+        MDLX_BindBoneMatrices(&model, &transform, 30, 20);
+        MDLX_ViewPoseStore(&entities[i], &model, &transform, 30, 20);
+    }
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[96], &cached, &result));
+    MDLX_ViewPoseEnd();
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    MDLX_ViewPoseBegin();
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_BindBoneMatrices(&model, &transform, 30, 20);
+    MDLX_ViewPoseStore(&entities[96], &model, &transform, 30, 20);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entities[96], &cached, &result));
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entities[95], &cached, &result));
+    MDLX_ViewPoseEnd();
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
+TEST(renderer_model, mdx_view_pose_reuses_bones_after_intervening_model) {
+    mdxNode_t node = { .node_id = 7, .parent_id = UINT32_MAX };
+    mdxNode_t other_node = { .node_id = 7, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 }, other = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    renderEntity_t entity = { .number = 42, .model = &wrapper, .frame = 100, .oldframe = 80 };
+    mat4_t transform, alternate, saved;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    uint64_t generation;
+    mdxModel_t const *cached_model = NULL;
+
+    model.nodes[7] = model.node_list[0] = &node;
+    other.nodes[7] = other.node_list[0] = &other_node;
+    Matrix4_identity(&transform);
+    alternate = transform;
+    alternate.v[12] = 25.0f;
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+    tr.viewDef.time = 12345;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    MDLX_BindBoneMatrices(&model, &transform, 100, 80);
+    node_matrices[7].v[12] = 5.0f; /* Distinguishable authored pose for this snapshot test. */
+    saved = node_matrices[7];
+    MDLX_ViewPoseStore(&entity, &model, &transform, 100, 80);
+    MDLX_BindBoneMatrices(&other, &alternate, 101, 101);
+    T_NE(node_matrices[7].v[12], saved.v[12]);
+
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entity, &cached_model, &alternate));
+    T_ASSERT(cached_model == &model);
+    T_FEQ(alternate.v[12], transform.v[12], 0.001f);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_ASSERT(MDLX_ViewPoseRestore(&entity, &model, &transform, 100, 80));
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+    T_FEQ(node_matrices[7].v[12], saved.v[12], 0.001f);
+    T_ASSERT(!memcmp(&node_matrices[7], &saved, sizeof(saved)));
+    /* Attachment reuse remains valid for the restored generation. */
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    MDLX_ViewPoseEnd();
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &alternate));
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
+TEST(renderer_model, mdx_view_pose_invalidates_mutation_camera_and_time) {
+    mdxNode_t node = { .node_id = 2, .parent_id = UINT32_MAX };
+    mdxModel_t model = { .num_nodes = 1 };
+    model_t wrapper = { .modeltype = ID_MDLX, .mdx = &model };
+    renderEntity_t entity = { .number = 3, .model = &wrapper, .frame = 100 };
+    mat4_t transform;
+    viewDef_t const old_view = tr.viewDef;
+    render_phase_t const old_phase = tr.render_phase;
+    mdxModel_t const *cached_model = NULL;
+    model.nodes[2] = model.node_list[0] = &node;
+    Matrix4_identity(&transform);
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+    tr.viewDef.time = 555;
+    tr.viewDef.lerpfrac = 0.5f;
+    Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+    tr.render_phase = RENDER_PHASE_SOLID;
+    MDLX_ViewPoseBegin();
+    MDLX_BindBoneMatrices(&model, &transform, 100, 100);
+    MDLX_ViewPoseStore(&entity, &model, &transform, 100, 100);
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    T_ASSERT(!MDLX_ViewPoseRestore(&entity, &model, &transform, 101, 100));
+    transform.v[12] = 1.0f;
+    T_ASSERT(!MDLX_ViewPoseRestore(&entity, &model, &transform, 100, 100));
+    Matrix4_identity(&transform);
+    entity.tint = COLOR32_WHITE;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    entity.tint = (color32_t){ 0 };
+    tr.viewDef.time++;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    tr.viewDef.time--;
+    tr.viewDef.viewProjectionMatrix.v[0] = 2.0f;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    tr.viewDef.viewProjectionMatrix.v[0] = 1.0f;
+    tr.viewDef.lerpfrac += 0.1f;
+    T_ASSERT(!MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    tr.viewDef.lerpfrac = 0.5f;
+    T_ASSERT(MDLX_ViewPoseCachedDraw(&entity, &cached_model, &transform));
+    MDLX_ViewPoseEnd();
+    tr.viewDef = old_view;
+    tr.render_phase = old_phase;
+}
+
+/* Shared MDX bones are scratch storage, not a persistent per-model cache.
+ * Reuse is valid only when the draw that supplied the generation bound the
+ * identical model, frames and transform, with no intervening child model. */
+TEST(renderer_model, mdx_attachment_reuses_just_bound_pose) {
+    mdxAttachment_t attachment = { 0 };
+    vec3_t pivots[] = { { 2.0f, 3.0f, 4.0f } };
+    mdxModel_t model = { .attachments = &attachment, .pivots = pivots, .num_pivots = 1 };
+    mdxAttachmentPosition_t positions[1] = { 0 };
+    mat4_t transform;
+    uint64_t generation;
+
+    attachment.node.node_id = 0;
+    attachment.node.parent_id = (uint32_t)-1;
+    snprintf(attachment.node.name, sizeof(attachment.node.name), "Sprite First Ref");
+    model.nodes[0] = &attachment.node;
+    model.node_list[0] = &attachment.node;
+    model.num_nodes = 1;
+    Matrix4_identity(&transform);
+    Matrix4_translate(&transform, &(vec3_t){ 10.0f, 20.0f, 30.0f });
+
+    MDLX_BindBoneMatrices(&model, &transform, 100, 90);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform, 100, 90,
+         "Sprite ", positions, 1, generation), 1);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_FEQ(positions[0].origin.x, 12.0f, 0.001f);
+    T_FEQ(positions[0].origin.y, 23.0f, 0.001f);
+    T_FEQ(positions[0].origin.z, 34.0f, 0.001f);
+
+    /* Explicitly untrusted requests retain the original full-bind contract. */
+    T_EQ(MDLX_CollectAttachmentPositions(&model, &transform, 100, 90,
+                                         NULL, positions, 1), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+}
+
+TEST(renderer_model, mdx_attachment_pose_reuse_invalidates_after_child_model) {
+    mdxAttachment_t parent_attachment = { 0 }, child_attachment = { 0 };
+    vec3_t pivots[] = { { 1.0f, 2.0f, 3.0f } };
+    mdxModel_t parent = { .attachments = &parent_attachment, .pivots = pivots, .num_pivots = 1 };
+    mdxModel_t child = { .attachments = &child_attachment, .pivots = pivots, .num_pivots = 1 };
+    mdxAttachmentPosition_t positions[1] = { 0 };
+    mat4_t transform, shifted;
+    uint64_t generation, after_child;
+
+    parent_attachment.node.node_id = 0;
+    parent_attachment.node.parent_id = (uint32_t)-1;
+    child_attachment.node.node_id = 0;
+    child_attachment.node.parent_id = (uint32_t)-1;
+    parent.nodes[0] = &parent_attachment.node;
+    parent.node_list[0] = &parent_attachment.node;
+    parent.num_nodes = 1;
+    child.nodes[0] = &child_attachment.node;
+    child.node_list[0] = &child_attachment.node;
+    child.num_nodes = 1;
+    Matrix4_identity(&transform);
+    shifted = transform;
+    Matrix4_translate(&shifted, &(vec3_t){ 40.0f, 0.0f, 0.0f });
+
+    MDLX_BindBoneMatrices(&parent, &transform, 20, 10);
+    generation = MDLX_BoundBonePoseGeneration();
+    MDLX_BindBoneMatrices(&child, &shifted, 20, 10);
+    after_child = MDLX_BoundBonePoseGeneration();
+    T_NE(after_child, generation);
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&parent, &transform, 20, 10,
+                                                 NULL, positions, 1, generation), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), after_child);
+    T_FEQ(positions[0].origin.x, 1.0f, 0.001f);
+
+    /* A same-model draw with a different transform is also a fresh pose. */
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&parent, &shifted, 20, 10,
+                                                 NULL, positions, 1, generation), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+    T_FEQ(positions[0].origin.x, 41.0f, 0.001f);
+
+    /* Interpolated frames must match, even when the model and transform do. */
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&parent, &shifted, 21, 10,
+                                                 NULL, positions, 1, generation), 1);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+}
+
+/* Reference-point attachments without a child MDX path are very common.
+ * Even after a culled draw (no parent bind), model-child rendering should
+ * not rebuild every bone merely to discard those reference entries. */
+TEST(renderer_model, mdx_render_attachments_skip_reference_only_poses) {
+    mdxAttachment_t origin = { 0 }, overhead = { 0 };
+    mdxModel_t model = { .attachments = &origin };
+    mdxAttachmentPosition_t positions[2] = { 0 };
+    mat4_t transform;
+    uint64_t const before = MDLX_BoundBonePoseGeneration();
+
+    origin.node.node_id = 0;
+    origin.node.parent_id = UINT32_MAX;
+    snprintf(origin.node.name, sizeof(origin.node.name), "Origin Ref");
+    origin.next = &overhead;
+    overhead.node.node_id = 1;
+    overhead.node.parent_id = UINT32_MAX;
+    snprintf(overhead.node.name, sizeof(overhead.node.name), "Overhead Ref");
+    model.nodes[0] = model.node_list[0] = &origin.node;
+    model.nodes[1] = model.node_list[1] = &overhead.node;
+    model.num_nodes = 2;
+    Matrix4_identity(&transform);
+
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 2, 0), 0u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), before);
+    /* The general attachment API remains authoritative for reference slots. */
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform,
+        50, 40, NULL, positions, 2, 0), 2u);
+    T_NE(MDLX_BoundBonePoseGeneration(), before);
+    T_STREQ(positions[0].name, "Origin Ref");
+    T_STREQ(positions[1].name, "Overhead Ref");
+}
+
+/* A mixed model still collects *all* attachment records in their original
+ * order, including empty paths that consumed one of the bounded 32 slots.
+ * Reusing a just-bound parent pose remains valid, while clobbering the
+ * shared scratch state or switching frames forces the normal recomputation. */
+TEST(renderer_model, mdx_render_attachments_preserve_mixed_order_and_reuse) {
+    mdxAttachment_t origin = { 0 }, child_ref = { 0 };
+    mdxModel_t model = { .attachments = &origin }, other = { 0 };
+    vec3_t pivots[] = { { 1, 2, 3 }, { 4, 5, 6 } };
+    mdxAttachmentPosition_t positions[2] = { 0 };
+    mat4_t transform;
+    uint64_t generation;
+
+    origin.node.node_id = 0;
+    origin.node.parent_id = UINT32_MAX;
+    origin.next = &child_ref;
+    snprintf(origin.node.name, sizeof(origin.node.name), "Origin Ref");
+    child_ref.node.node_id = 1;
+    child_ref.node.parent_id = UINT32_MAX;
+    snprintf(child_ref.node.name, sizeof(child_ref.node.name), "Weapon Ref");
+    snprintf(child_ref.path, sizeof(child_ref.path), "Abilities\\Weapons\\Test.mdx");
+    model.nodes[0] = model.node_list[0] = &origin.node;
+    model.nodes[1] = model.node_list[1] = &child_ref.node;
+    model.num_nodes = 2;
+    model.pivots = pivots;
+    model.num_pivots = 2;
+    Matrix4_identity(&transform);
+    Matrix4_translate(&transform, &(vec3_t){ 10, 20, 30 });
+
+    MDLX_BindBoneMatrices(&model, &transform, 50, 40);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 2, generation), 2u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_STREQ(positions[0].name, "Origin Ref");
+    T_STREQ(positions[1].path, "Abilities\\Weapons\\Test.mdx");
+    T_FEQ(positions[1].origin.x, 14, 0.001f);
+    T_FEQ(positions[1].origin.y, 25, 0.001f);
+    T_FEQ(positions[1].origin.z, 36, 0.001f);
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 1, generation), 1u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_STREQ(positions[0].name, "Origin Ref"); /* Preserve original cap. */
+
+    MDLX_BindBoneMatrices(&other, &transform, 50, 40);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectRenderAttachmentPositionsWithPose(&model, &transform,
+        50, 40, positions, 2, generation), 2u);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform,
+        50, 40, "Weapon ", positions, 2, generation), 1u);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform,
+        51, 40, "Weapon ", positions, 2, generation), 1u);
+    T_NE(MDLX_BoundBonePoseGeneration(), generation);
+}
+
+TEST(renderer_model, mdx_attachment_missing_prefix_skips_pose_binding) {
+    mdxAttachment_t attachment = { 0 };
+    mdxModel_t model = { .attachments = &attachment };
+    mdxModel_t empty = { 0 };
+    mdxAttachmentPosition_t positions[1] = { 0 };
+    mat4_t transform;
+    uint64_t generation;
+
+    snprintf(attachment.node.name, sizeof(attachment.node.name), "Origin Ref");
+    Matrix4_identity(&transform);
+    generation = MDLX_BoundBonePoseGeneration();
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&empty, &transform, 0, 0,
+                                                 NULL, positions, 1, 0), 0);
+    T_EQ(MDLX_CollectAttachmentPositionsWithPose(&model, &transform, 0, 0,
+                                                 "Sprite ", positions, 1, 0), 0);
+    T_EQ(MDLX_BoundBonePoseGeneration(), generation);
+}
 
 TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
     vec3_t pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
@@ -1596,12 +2699,102 @@ TEST(renderer_model, unknown_model_release_is_immediate) {
 
 TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {
     texture_t first = { .texid = 100 }, second = { .texid = 101 };
+    texture_t *saved = texture_load_result;
 
+    R_ShutdownTextureCache();
     texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
     texture_load_result = &second; T_EQ(R_RegisterTextureFile("second"), 101);
     T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
     texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
     T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
+    R_ShutdownTextureCache();
+    texture_load_result = saved;
+}
+
+TEST(renderer_texture, hashed_id_lookup_handles_collisions_missing_ids_and_duplicates) {
+    texture_t first = { .texid = 15 }, second = { .texid = 15 + R_TEXTURE_ID_BUCKETS };
+    texture_t third = { .texid = 15 + R_TEXTURE_ID_BUCKETS * 2 };
+    texture_t duplicate = { .texid = 15 };
+    texture_t *saved = texture_load_result;
+
+    R_ShutdownTextureCache();
+    T_EQ(R_TextureIdBucket(first.texid), R_TextureIdBucket(second.texid));
+    T_EQ(R_TextureIdBucket(second.texid), R_TextureIdBucket(third.texid));
+    texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), (int)first.texid);
+    texture_load_result = &second; T_EQ(R_RegisterTextureFile("second"), (int)second.texid);
+    texture_load_result = &third; T_EQ(R_RegisterTextureFile("third"), (int)third.texid);
+    texture_load_result = &duplicate; T_EQ(R_RegisterTextureFile("duplicate"), (int)first.texid);
+    T_ASSERT(R_FindTextureByID(first.texid) == &first);
+    T_ASSERT(R_FindTextureByID(second.texid) == &second);
+    T_ASSERT(R_FindTextureByID(third.texid) == &third);
+    T_NULL(R_FindTextureByID(15 + R_TEXTURE_ID_BUCKETS * 3));
+    T_NULL(R_FindTextureByID(0));
+    R_ShutdownTextureCache();
+    T_NULL(R_FindTextureByID(first.texid));
+    T_NULL(R_FindTextureByID(second.texid));
+    texture_load_result = saved;
+}
+
+TEST(renderer_texture, streamed_reclaim_unindexes_ids_before_reuse) {
+    texture_t *old = reset_texture_registry();
+    texture_t peer = { .texid = 15 };
+    texture_t *fresh;
+    texture_t *saved = texture_load_result;
+    bool saved_minimap = cache_minimap_textures;
+    cache_minimap_textures = false;
+    /* Reclaim from a collision chain, retaining the other live entry. */
+    texture_load_result = &peer;
+    T_EQ(R_RegisterTextureFile("peer"), 15);
+    old->texid = 15 + R_TEXTURE_ID_BUCKETS;
+    r_load_streamed = true;
+    R_CacheLoadedTexture("textures/old-streamed.blp", old);
+    r_load_streamed = false;
+    texture_load_result = old;
+    T_EQ(R_RegisterTextureFile("old-streamed"), (int)old->texid);
+    T_ASSERT(R_FindTextureByID(old->texid) == old);
+
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_NULL(R_FindTextureByID(15 + R_TEXTURE_ID_BUCKETS));
+    T_ASSERT(R_FindTextureByID(peer.texid) == &peer);
+    T_NULL(R_FindLoadedTexture("textures/old-streamed.blp"));
+    T_EQ(texture_delete_count, 1);
+
+    /* GL may hand the freed numeric ID back to a different allocation. */
+    fresh = test_alloc(sizeof(*fresh)); fresh->texid = 15 + R_TEXTURE_ID_BUCKETS;
+    texture_load_result = fresh;
+    T_EQ(R_RegisterTextureFile("replacement"), (int)fresh->texid);
+    T_ASSERT(R_FindTextureByID(fresh->texid) == fresh);
+    R_ReleaseTexture(fresh);
+    T_NULL(R_FindTextureByID(15 + R_TEXTURE_ID_BUCKETS));
+    T_ASSERT(R_FindTextureByID(peer.texid) == &peer);
+    T_EQ(texture_delete_count, 2);
+    R_ShutdownTextureCache();
+    cache_minimap_textures = saved_minimap;
+    texture_load_result = saved;
+}
+
+TEST(renderer_texture, shutdown_clears_registered_cached_texture_ids) {
+    texture_t *cached = reset_texture_registry();
+    texture_t replacement = { .texid = 73 };
+    texture_t *saved = texture_load_result;
+    bool saved_minimap = cache_minimap_textures;
+    cache_minimap_textures = false;
+    cached->texid = 73;
+    R_CacheLoadedTexture("textures/resident.blp", cached);
+    texture_load_result = cached;
+    T_EQ(R_RegisterTextureFile("resident"), 73);
+    T_ASSERT(R_FindTextureByID(73) == cached);
+    R_ShutdownTextureCache();
+    T_NULL(R_FindTextureByID(73));
+    T_EQ(texture_delete_count, 1);
+
+    texture_load_result = &replacement;
+    T_EQ(R_RegisterTextureFile("replacement"), 73);
+    T_ASSERT(R_FindTextureByID(73) == &replacement);
+    R_ShutdownTextureCache();
+    T_NULL(R_FindTextureByID(73));
+    cache_minimap_textures = saved_minimap;
+    texture_load_result = saved;
 }
 
 TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit) {
@@ -2307,9 +3500,72 @@ static void test_splat_disable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) 
 static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
     splat_bias.offsets++; splat_bias.factor = factor; splat_bias.units = units;
 }
+/* Capture real splat batching and draw order without a GL context. The
+ * ground renderer is included as production C below; only GPU calls are
+ * intercepted, including shader/texture binding. */
+#define SPLAT_TEST_DRAW_MAX 12
+#define SPLAT_TEST_VERTEX_CAPTURE 128
+typedef struct {
+    texture_t const *texture;
+    uint32_t count;
+    vertex_t vertices[SPLAT_TEST_VERTEX_CAPTURE];
+} splatTestDraw_t;
+static struct {
+    uint32_t uploads, draws, binds, shader_sets, depth_restores;
+    texture_t const *texture;
+    splatTestDraw_t results[SPLAT_TEST_DRAW_MAX];
+} splat_submit;
+static void test_splat_bind_texture(texture_t const *texture, uint32_t unit) {
+    (void)unit;
+    splat_submit.texture = texture;
+    splat_submit.binds++;
+}
+static void test_splat_wrap_texture(texture_t const *texture, bool s, bool t) {
+    (void)texture; (void)s; (void)t;
+}
+static void test_splat_apply_shader(void *shader) {
+    (void)shader;
+    splat_submit.shader_sets++;
+}
+static void test_splat_bind_buffer(GLenum target, GLuint handle) { (void)target; (void)handle; }
+static void test_splat_bind_vao(GLuint handle) { (void)handle; }
+static void test_splat_blend_func(GLenum src, GLenum dst) { (void)src; (void)dst; }
+static void test_splat_depth_mask(GLboolean enabled) {
+    if (enabled) splat_submit.depth_restores++;
+}
+static void test_splat_buffer_data(GLenum target, GLsizeiptr size, void const *data, GLenum usage) {
+    uint32_t count;
+    (void)target; (void)usage;
+    T_ASSERT(size >= 0 && size % sizeof(vertex_t) == 0);
+    count = (uint32_t)(size / sizeof(vertex_t));
+    T_ASSERT(splat_submit.draws < SPLAT_TEST_DRAW_MAX);
+    splatTestDraw_t *draw = &splat_submit.results[splat_submit.draws];
+    draw->count = count;
+    draw->texture = splat_submit.texture;
+    if (count <= SPLAT_TEST_VERTEX_CAPTURE)
+        memcpy(draw->vertices, data, size);
+    splat_submit.uploads++;
+}
+static void test_splat_draw_arrays(GLenum mode, GLint first, GLsizei count) {
+    T_EQ(mode, GL_TRIANGLES); T_EQ(first, 0);
+    T_ASSERT(splat_submit.draws < SPLAT_TEST_DRAW_MAX);
+    T_EQ(splat_submit.results[splat_submit.draws].count, (uint32_t)count);
+    splat_submit.draws++;
+}
 #define glEnable test_splat_enable
 #define glDisable test_splat_disable
 #define glPolygonOffset test_splat_polygon_offset
+#define glBufferData test_splat_buffer_data
+#define glDrawArrays test_splat_draw_arrays
+#define glBindVertexArray test_splat_bind_vao
+#define glBindBuffer test_splat_bind_buffer
+#define glDepthMask test_splat_depth_mask
+#define glBlendFunc test_splat_blend_func
+#define R_BindTexture test_splat_bind_texture
+#define R_SetTextureWrap test_splat_wrap_texture
+#undef R_ApplyShader
+#define R_ApplyShader test_splat_apply_shader
+void R_TestProductionRenderRectSplatUV(rectSplatParams_t const *params);
 static struct { uint32_t calls, first, count; float z; } ground_update;
 static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
     (void)buffer;
@@ -2321,12 +3577,24 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
 #define WC3_TERRAIN_NORMAL_TESTS
+#define WC3_SPLAT_GEOMETRY_CACHE_TESTS
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef WC3_SPLAT_GEOMETRY_CACHE_TESTS
 #undef WC3_TERRAIN_NORMAL_TESTS
 #undef R_UpdateVertexArrayObject
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
+#undef glBufferData
+#undef glDrawArrays
+#undef glBindVertexArray
+#undef glBindBuffer
+#undef glDepthMask
+#undef glBlendFunc
+#undef R_BindTexture
+#undef R_SetTextureWrap
+#undef R_ApplyShader
+#define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 #undef R_RenderRectSplatUV
 #undef R_RenderFlatRectSplat
 #undef R_RenderSplat
@@ -2559,6 +3827,79 @@ TEST(renderer_terrain, deformation_rebuild_rebakes_blight_layer) {
     tr.world = saved_world;
 }
 
+TEST(renderer_terrain, consecutive_splats_batch_without_changing_atlas_color_or_texture_order) {
+    war3mapVertex_t corners[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = corners };
+    war3map_t const *old_world = tr.world;
+    buffer_t temp_buffer = { .vao = 11, .vbo = 12 };
+    buffer_t *old_buffer = tr.buffer[RBUF_TEMP1];
+    splat_shader_t shader1 = {0}, shader2 = {0};
+    texture_t texture1 = { .width = 32, .height = 32 };
+    texture_t texture2 = { .width = 32, .height = 32 };
+    vec2_t const mins = { 10, 12 }, maxs = { 92, 104 };
+    vec2_t const uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    vec2_t const atlas0 = { 0.25f, 0.125f }, atlas1 = { 0.75f, 0.625f };
+    color32_t const blue = { 20, 40, 220, 160 };
+    rectSplatParams_t rect = { .mins = &mins, .maxs = &maxs, .uv_mins = &uv0,
+        .uv_maxs = &uv1, .texture = &texture1, .shader = &shader1, .color = COLOR32_WHITE };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    uint32_t vertices_per_splat;
+    FOR_LOOP(i, 4) corners[i].accurate_height = 8192;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map; tr.buffer[RBUF_TEMP1] = &temp_buffer;
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect);
+    vertices_per_splat = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_ASSERT(vertices_per_splat > 0 && 3 * vertices_per_splat <= SPLAT_TEST_VERTEX_CAPTURE);
+    memcpy(reference, ground_vertex_buffer, vertices_per_splat * sizeof(vertex_t));
+    R_InvalidateSplatGeometryCache();
+    memset(&splat_submit, 0, sizeof(splat_submit));
+    R_BeginSplatBatch(&shader1);
+    R_AddRectSplatUV(&rect);
+    rect.uv_mins = &atlas0; rect.uv_maxs = &atlas1; rect.color = blue;
+    R_AddRectSplatUV(&rect); /* same shader + texture despite different atlas frame and tint */
+    rect.texture = &texture2;
+    R_AddRectSplatUV(&rect); /* texture change must flush prior draw */
+    rect.texture = &texture1; rect.shader = &shader2;
+    R_AddRectSplatUV(&rect); /* shader change must flush prior draw */
+    R_EndSplatBatch();
+
+    T_EQ(splat_submit.draws, 3);
+    T_EQ(splat_submit.uploads, 3);
+    T_EQ(splat_submit.shader_sets, 3);
+    T_EQ(splat_submit.binds, 3);
+    T_EQ(splat_submit.depth_restores, 1);
+    T_EQ(splat_submit.results[0].count, vertices_per_splat * 2);
+    T_EQ(splat_submit.results[1].count, vertices_per_splat);
+    T_EQ(splat_submit.results[2].count, vertices_per_splat);
+    T_ASSERT(splat_submit.results[0].texture == &texture1);
+    T_ASSERT(splat_submit.results[1].texture == &texture2);
+    T_ASSERT(splat_submit.results[2].texture == &texture1);
+    FOR_LOOP(i, vertices_per_splat) {
+        vertex_t const *plain = &splat_submit.results[0].vertices[i];
+        vertex_t const *animated = &splat_submit.results[0].vertices[vertices_per_splat + i];
+        T_FEQ(plain->position.z, reference[i].position.z, 0.0001f);
+        T_FEQ(plain->texcoord.x, reference[i].texcoord.x, 0.0001f);
+        T_FEQ(animated->texcoord.x, LerpNumber(atlas0.x, atlas1.x, reference[i].texcoord.x), 0.0001f);
+        T_FEQ(animated->texcoord.y, LerpNumber(atlas0.y, atlas1.y, reference[i].texcoord.y), 0.0001f);
+        T_EQ(animated->color.a, blue.a); T_EQ(animated->color.b, blue.b);
+    }
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world; tr.buffer[RBUF_TEMP1] = old_buffer;
+}
+
+TEST(renderer_terrain, splat_batch_empty_pass_does_not_change_gl_state) {
+    splat_shader_t shader = {0};
+    memset(&splat_submit, 0, sizeof(splat_submit));
+    R_BeginSplatBatch(&shader);
+    R_EndSplatBatch();
+    T_EQ(splat_submit.draws, 0);
+    T_EQ(splat_submit.uploads, 0);
+    T_EQ(splat_submit.depth_restores, 0);
+}
+
 TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     memset(&splat_bias, 0, sizeof(splat_bias));
     R_SetSplatDepthBias(true);
@@ -2567,6 +3908,447 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     R_SetSplatDepthBias(false);
     T_EQ(splat_bias.disables, 1); T_EQ(splat_bias.offsets, 2);
     T_FEQ(splat_bias.factor, 0.0f, 0.0f); T_FEQ(splat_bias.units, 0.0f, 0.0f);
+}
+
+/* Oracle for moving splats: the old rectangle walk sampled all four
+ * corners of every accepted tile. Keep the production tile emitter, clips,
+ * UV mapping and tile order rather than substituting a simplified grid. */
+static uint32_t R_TestUncachedSplatReference(rectSplatParams_t const *params) {
+    vec2_t const *mins = params->mins, *maxs = params->maxs;
+    int const x0 = MAX(0, (int)floor((mins->x - tr.world->center.x) / TILE_SIZE));
+    int const y0 = MAX(0, (int)floor((mins->y - tr.world->center.y) / TILE_SIZE));
+    int const x1 = MIN((int)tr.world->width - 1, (int)ceil((maxs->x - tr.world->center.x) / TILE_SIZE));
+    int const y1 = MIN((int)tr.world->height - 1, (int)ceil((maxs->y - tr.world->center.y) / TILE_SIZE));
+    ground_current_vertex = ground_vertex_buffer;
+    for (int x = x0; x < x1; x++) for (int y = y0; y < y1; y++) {
+        if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) continue;
+        R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world,
+            .x = (uint32_t)x, .y = (uint32_t)y, .mins = mins,
+            .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+            .width = maxs->x - mins->x, .height = maxs->y - mins->y,
+            .color = params->color));
+    }
+    return (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+}
+
+TEST(renderer_terrain, moving_splat_corners_preserve_original_clipped_vertices) {
+    war3mapVertex_t vertices[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t const uv0 = { 0.125f, 0.25f }, uv1 = { 0.75f, 0.875f };
+    color32_t const tint = { 41, 82, 123, 164 };
+    struct { vec2_t mins, maxs; } const rects[] = {
+        { { 10, 20 }, { 240, 250 } },   /* 2x2, four clipped edges */
+        { { 140, 8 }, { 360, 255 } },   /* shifted moving rectangle */
+        { { 20, 130 }, { 100, 475 } }, /* 1x3 vertical */
+        { { 130, 20 }, { 470, 105 } }, /* 3x1 horizontal */
+        { { -20, -10 }, { 210, 200 } }, /* clipped at map boundary */
+        { { 34, 30 }, { 485, 478 } },  /* 4x4, height variation */
+        { { 8, 6 }, { 105, 110 } },    /* single-tile fallback */
+    };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 25) {
+        vertices[i].accurate_height = 8192 + (i * 113);
+        /* Keep all tiles ground-owned while varying the per-corner height. */
+    }
+    tr.world = &map;
+    FOR_LOOP(i, sizeof(rects) / sizeof(rects[0])) {
+        rectSplatParams_t const params = {
+            .mins = &rects[i].mins, .maxs = &rects[i].maxs,
+            .uv_mins = &uv0, .uv_maxs = &uv1, .color = tint,
+        };
+        R_InvalidateSplatGeometryCache(); /* every rectangle is a first observation */
+        uint32_t const expected = R_TestUncachedSplatReference(&params);
+        T_ASSERT(expected > 0 && expected <= SPLAT_CACHE_MAX_VERTICES);
+        memcpy(reference, ground_vertex_buffer, expected * sizeof(vertex_t));
+        ground_current_vertex = ground_vertex_buffer;
+        splat_corner_reuses = splat_cache_bakes = 0;
+        R_GenerateSplatTiles(&params);
+        uint32_t const actual = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+        T_EQ(actual, expected);
+        T_EQ(splat_cache_bakes, 0);
+        T_ASSERT((i == 6) ? (splat_corner_reuses == 0) : (splat_corner_reuses > 0));
+        FOR_LOOP(j, MIN(actual, expected)) {
+            vertex_t const *a = &reference[j], *b = &ground_vertex_buffer[j];
+            T_FEQ(a->position.x, b->position.x, 0.0f);
+            T_FEQ(a->position.y, b->position.y, 0.0f);
+            T_FEQ(a->position.z, b->position.z, 0.0f);
+            T_FEQ(a->texcoord.x, b->texcoord.x, 0.0f);
+            T_FEQ(a->texcoord.y, b->texcoord.y, 0.0f);
+            T_EQ(a->color.r, b->color.r);
+            T_EQ(a->color.g, b->color.g);
+            T_EQ(a->color.b, b->color.b);
+            T_EQ(a->color.a, b->color.a);
+            T_FEQ(a->normal.z, b->normal.z, 0.0f);
+            T_ASSERT(!memcmp(a->skin, b->skin, sizeof(a->skin)));
+            T_ASSERT(!memcmp(a->boneWeight, b->boneWeight, sizeof(a->boneWeight)));
+        }
+    }
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, oversized_moving_splat_uses_original_corner_path) {
+    war3mapVertex_t vertices[64] = {0};
+    war3map_t map = { .width = 8, .height = 8, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t const mins = { 0, 0 }, maxs = { 7 * TILE_SIZE, 7 * TILE_SIZE };
+    vec2_t const uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    rectSplatParams_t const params = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 64) vertices[i].accurate_height = 8192 + i * 23;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    uint32_t const expected = R_TestUncachedSplatReference(&params);
+    T_ASSERT(expected > 0 && expected <= SPLAT_CACHE_MAX_VERTICES);
+    memcpy(reference, ground_vertex_buffer, expected * sizeof(vertex_t));
+    ground_current_vertex = ground_vertex_buffer;
+    splat_corner_reuses = splat_cache_bakes = 0;
+    R_GenerateSplatTiles(&params);
+    uint32_t const actual = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_EQ(actual, expected);
+    T_EQ(splat_corner_reuses, 0);
+    T_EQ(splat_cache_bakes, 0);
+    FOR_LOOP(j, MIN(actual, expected)) {
+        T_FEQ(ground_vertex_buffer[j].position.z, reference[j].position.z, 0.0f);
+        T_FEQ(ground_vertex_buffer[j].texcoord.x, reference[j].texcoord.x, 0.0f);
+        T_FEQ(ground_vertex_buffer[j].texcoord.y, reference[j].texcoord.y, 0.0f);
+    }
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, splat_cache_replays_clipped_geometry_with_live_color_and_atlas) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    vec2_t atlas0 = { 0.25f, 0.125f }, atlas1 = { 0.75f, 0.625f };
+    color32_t const colored = { 72, 80, 90, 160 };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    uint32_t count;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_hits = splat_cache_bakes = 0;
+    ground_current_vertex = ground_vertex_buffer;
+    rectSplatParams_t neutral = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    R_GenerateSplatTiles(&neutral); /* one-off rect: use original geometry generation */
+    count = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_ASSERT(count > 0 && count <= SPLAT_CACHE_MAX_VERTICES);
+    memcpy(reference, ground_vertex_buffer, count * sizeof(vertex_t));
+    T_EQ(splat_cache_bakes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&neutral); /* second sighting: bake once */
+    T_EQ(splat_cache_bakes, 1);
+    T_EQ((uint32_t)(ground_current_vertex - ground_vertex_buffer), count);
+    ground_current_vertex = ground_vertex_buffer;
+    rectSplatParams_t changed = neutral;
+    changed.uv_mins = &atlas0; changed.uv_maxs = &atlas1; changed.color = colored;
+    R_GenerateSplatTiles(&changed); /* reuse positions while updating tint and UV */
+    T_EQ(splat_cache_bakes, 1);
+    T_ASSERT(splat_cache_hits >= 2);
+    T_EQ((uint32_t)(ground_current_vertex - ground_vertex_buffer), count);
+    FOR_LOOP(i, count) {
+        vertex_t const *v = ground_vertex_buffer + i;
+        T_FEQ(v->position.x, reference[i].position.x, 0.0001f);
+        T_FEQ(v->position.y, reference[i].position.y, 0.0001f);
+        T_FEQ(v->position.z, reference[i].position.z, 0.0001f);
+        T_FEQ(v->texcoord.x, LerpNumber(atlas0.x, atlas1.x, reference[i].texcoord.x), 0.0001f);
+        T_FEQ(v->texcoord.y, LerpNumber(atlas0.y, atlas1.y, reference[i].texcoord.y), 0.0001f);
+        T_EQ(v->color.r, colored.r); T_EQ(v->color.a, colored.a);
+    }
+    /* Terrain heights are part of the baked vertices, never the cache key. */
+    vertices[1].accurate_height += 2048;
+    R_W3ResetTerrainDeformations(); /* production terrain-reset invalidation */
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&neutral);
+    T_EQ(splat_cache_bakes, 1);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&neutral);
+    T_EQ(splat_cache_bakes, 2);
+    bool any_height_changed = false;
+    FOR_LOOP(i, count)
+        any_height_changed |= ground_vertex_buffer[i].position.z != reference[i].position.z;
+    T_ASSERT(any_height_changed);
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+/* Multiple stationary shadows can share a geometry hash bucket. The
+ * four-way cache should retain all four, then evict the least-recently-used
+ * one without touching a recently drawn shadow. */
+TEST(renderer_terrain, splat_cache_keeps_colliding_stationary_shadows_and_evicts_lru) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins[5], maxs[5];
+    vec2_t const uv0 = {0, 0}, uv1 = {1, 1};
+    uint32_t found = 0;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_hits = splat_cache_bakes = 0;
+
+    /* Find five distinct rects in the same set without relying on a
+     * particular hash result or assuming identical entity numbers. */
+    uint32_t target_hash = UINT32_MAX;
+    for (uint32_t i = 0; i < 4096 && found < 5; i++) {
+        vec2_t const lo = {24.0f + i * (1.0f / 1024.0f), 20.0f};
+        vec2_t const hi = {108.0f + i * (1.0f / 1024.0f), 112.0f};
+        uint32_t const hash = R_SplatCacheHash(&lo, &hi);
+        if (target_hash == UINT32_MAX) target_hash = hash;
+        if (hash != target_hash) continue;
+        mins[found] = lo; maxs[found] = hi;
+        found++;
+    }
+    T_EQ(found, 5);
+    for (uint32_t i = 0; i < 4; i++) {
+        rectSplatParams_t const rect = { .mins = &mins[i], .maxs = &maxs[i],
+            .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&rect);
+        T_EQ(splat_cache_bakes, i); /* first observation */
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&rect);
+        T_EQ(splat_cache_bakes, i + 1);
+    }
+    T_ASSERT(splat_cache_bytes > 0);
+    uint32_t const baked = splat_cache_bakes;
+    /* Refresh entry 0 so entry 1 is the oldest resident entry. */
+    rectSplatParams_t rect0 = { .mins = &mins[0], .maxs = &maxs[0],
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect0);
+    T_EQ(splat_cache_bakes, baked);
+    T_ASSERT(splat_cache_hits > 0);
+    rectSplatParams_t rect4 = rect0;
+    rect4.mins = &mins[4]; rect4.maxs = &maxs[4];
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect4); /* eviction on first sighting */
+    T_EQ(splat_cache_bakes, baked);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect4);
+    T_EQ(splat_cache_bakes, baked + 1);
+    uint32_t const hits = splat_cache_hits;
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect0);
+    T_EQ(splat_cache_bakes, baked + 1);
+    T_EQ(splat_cache_hits, hits + 1);
+    rectSplatParams_t rect1 = rect0;
+    rect1.mins = &mins[1]; rect1.maxs = &maxs[1];
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect1); /* first re-observation after eviction */
+    T_EQ(splat_cache_bakes, baked + 1);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&rect1);
+    T_EQ(splat_cache_bakes, baked + 2);
+    R_InvalidateSplatGeometryCache();
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, splat_cache_skips_transient_rectangles_and_resets_on_map_change) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t uv0 = {0, 0}, uv1 = {1, 1};
+    rectSplatParams_t params = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_bakes = 0;
+    FOR_LOOP(i, 16) {
+        mins.x += 1.0f;
+        maxs.x += 1.0f;
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&params);
+    }
+    T_EQ(splat_cache_bakes, 0);
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params);
+    T_EQ(splat_cache_bakes, 1);
+    T_ASSERT(splat_cache_bytes != 0);
+    R_ResetGroundTextures(); /* map removal resets renderer-owned geometry */
+    T_EQ(splat_cache_bytes, 0);
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params);
+    T_EQ(splat_cache_bakes, 1);
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+TEST(renderer_terrain, splat_cache_allocation_failure_preserves_original_geometry) {
+    war3mapVertex_t vertices[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 }, uv0 = {0, 0}, uv1 = {1, 1};
+    rectSplatParams_t params = { .mins = &mins, .maxs = &maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .color = COLOR32_WHITE };
+    vertex_t reference[SPLAT_CACHE_MAX_VERTICES];
+    uint32_t count;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 4) vertices[i].accurate_height = 8192;
+    tr.world = &map;
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params);
+    count = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+    T_ASSERT(count > 0 && count <= SPLAT_CACHE_MAX_VERTICES);
+    memcpy(reference, ground_vertex_buffer, count * sizeof(vertex_t));
+    test_alloc_fail_after = 0;
+    ground_current_vertex = ground_vertex_buffer;
+    R_GenerateSplatTiles(&params); /* second sighting cannot allocate; falls back */
+    T_EQ((uint32_t)(ground_current_vertex - ground_vertex_buffer), count);
+    FOR_LOOP(i, count) {
+        T_FEQ(ground_vertex_buffer[i].position.z, reference[i].position.z, 0.0001f);
+        T_FEQ(ground_vertex_buffer[i].texcoord.x, reference[i].texcoord.x, 0.0001f);
+    }
+    T_EQ(splat_cache_bytes, 0);
+    R_InvalidateSplatGeometryCache();
+    ground_current_vertex = NULL;
+    tr.world = old_world;
+}
+
+/* Keep the original tile generator as a regression oracle. The optimized
+ * path must produce the same vertex count, triangle order, Z, UV, tint and
+ * skinning defaults for fully contained and partially clipped tiles. */
+static void R_ReferenceMakeSplatTile(splatTileParams_t const *params) {
+    vertex_t geom[6];
+    struct splClip clips[4];
+    uint32_t num_clips = 0;
+    war3map_t const *map = params->map;
+    vec2_t const *mins = params->mins;
+    vec2_t const *uv_mins = params->uv_mins;
+    vec2_t const *uv_maxs = params->uv_maxs;
+    float const width = params->width, height = params->height;
+
+    R_BuildSplatQuad(map, params->x, params->y, mins, width, height, params->color, geom);
+    FOR_LOOP(i, 6) {
+        geom[i].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[i].texcoord.x);
+        geom[i].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[i].texcoord.y);
+    }
+    if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
+        geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
+        memcpy(ground_current_vertex, geom, sizeof(geom));
+        ground_current_vertex += 6;
+        return;
+    }
+    /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
+    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
+    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
+    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
+    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
+    FOR_LOOP(tri, 2) {
+        vec3_t a[8], b[8];
+        vec3_t *poly = a, *scratch = b;
+        uint32_t n = 3;
+        FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
+        FOR_LOOP(edge, num_clips) {
+            struct splClip clip = clips[edge];
+            vec3_t *swap;
+            clip.count = n;
+            n = R_ClipSplatPoly(poly, scratch, clip);
+            if (!n) break;
+            swap = poly; poly = scratch; scratch = swap;
+        }
+        for (uint32_t i = 1; i + 1 < n; i++) {
+            vec3_t p[] = { poly[0], poly[i], poly[i + 1] };
+            FOR_LOOP(j, 3) {
+                vertex_t v = geom[0];
+                v.position = p[j];
+                {
+                    float const u = (p[j].x - mins->x) / width;
+                    float const vcoord = 1.0f - (p[j].y - mins->y) / height;
+                    v.texcoord = (vec2_t){
+                        LerpNumber(uv_mins->x, uv_maxs->x, u),
+                        LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
+                    };
+                }
+                *ground_current_vertex++ = v;
+            }
+        }
+    }
+}
+
+
+TEST(renderer_terrain, splat_tile_deferred_uv_matches_original_across_clipping) {
+    war3mapVertex_t corners[9] = {0};
+    war3map_t map = { .width = 3, .height = 3, .vertices = corners,
+                      .center = {-64.0f, 80.0f} };
+    war3map_t const *old_world = tr.world;
+    vertex_t *old_ground_vertex = ground_current_vertex;
+    vec2_t const uv_min = {0.125f, 0.375f}, uv_max = {0.75f, 0.9375f};
+    color32_t const tint = {43, 120, 202, 175};
+    /* Tile 1,1 is x=[64,192], y=[208,336]. Each rectangle intersects it. */
+    struct { vec2_t mins, maxs; } const cases[] = {
+        { {-160,-120}, {480,520} },  /* complete tile */
+        { {80,188}, {380,520} },    /* left edge */
+        { {-160,188}, {156,520} },  /* right edge */
+        { {-160,240}, {480,520} },  /* bottom edge */
+        { {-160,188}, {480,303} },  /* top edge */
+        { {81,239}, {160,300} },    /* four-edge clip */
+        { {64,208}, {192,336} },    /* exact tile boundaries */
+        { {64,208}, {131,336} },    /* exact left/bottom boundaries */
+    };
+    vertex_t original[SPLAT_TILE_MAX_VERTICES];
+    FOR_LOOP(i, 9) {
+        corners[i].accurate_height = 8192 + i * 133;
+        corners[i].level = i % 3;
+    }
+    tr.world = NULL; /* Synthetic fixture: no global terrain deformation. */
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        vec2_t const *mins = &cases[i].mins, *maxs = &cases[i].maxs;
+        splatTileParams_t const params = {
+            .map = &map, .x = 1, .y = 1, .mins = mins,
+            .uv_mins = &uv_min, .uv_maxs = &uv_max,
+            .width = maxs->x - mins->x, .height = maxs->y - mins->y, .color = tint
+        };
+        uint32_t expected, actual;
+        ground_current_vertex = ground_vertex_buffer;
+        R_ReferenceMakeSplatTile(&params);
+        expected = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+        T_ASSERT(expected > 0 && expected <= SPLAT_TILE_MAX_VERTICES);
+        memcpy(original, ground_vertex_buffer, expected * sizeof(vertex_t));
+        ground_current_vertex = ground_vertex_buffer;
+        R_MakeSplatTile(&params);
+        actual = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+        T_EQ(actual, expected);
+        FOR_LOOP(j, MIN(expected, actual)) {
+            vertex_t const *a = original + j, *b = ground_vertex_buffer + j;
+            T_FEQ(a->position.x, b->position.x, 0.0001f);
+            T_FEQ(a->position.y, b->position.y, 0.0001f);
+            T_FEQ(a->position.z, b->position.z, 0.0001f);
+            T_FEQ(a->texcoord.x, b->texcoord.x, 0.0001f);
+            T_FEQ(a->texcoord.y, b->texcoord.y, 0.0001f);
+            T_FEQ(a->normal.z, b->normal.z, 0.0f);
+            T_EQ(a->color.r, b->color.r);
+            T_EQ(a->color.g, b->color.g);
+            T_EQ(a->color.b, b->color.b);
+            T_EQ(a->color.a, b->color.a);
+            T_ASSERT(!memcmp(a->skin, b->skin, sizeof(a->skin)));
+            T_ASSERT(!memcmp(a->boneWeight, b->boneWeight, sizeof(a->boneWeight)));
+        }
+    }
+    ground_current_vertex = old_ground_vertex;
+    tr.world = old_world;
 }
 
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {

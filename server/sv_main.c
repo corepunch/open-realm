@@ -482,6 +482,19 @@ void SV_Frame(uint32_t msec) {
         return;
     }
 
+    if (sv.state == ss_game && Cvar_Integer("sv_wait_for_begin", 0)) {
+        bool connected = false, spawned = false;
+        FOR_LOOP(i, svs.num_clients) {
+            connected |= svs.clients[i].state == cs_connected;
+            spawned |= svs.clients[i].state == cs_spawned;
+        }
+        if (connected && !spawned) {
+            sv.next_frame_msec = svs.realtime;
+            SV_SendClientMessages();
+            return;
+        }
+    }
+
     if (sv.state != ss_game || svs.realtime < sv.next_frame_msec) {
         return;
     }

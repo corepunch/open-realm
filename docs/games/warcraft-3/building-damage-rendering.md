@@ -6,7 +6,7 @@ Building combat damage is presentation-only. The server remains authoritative fo
 
 The game module keeps the building's normal MDX model and selects the authored building-fire model and attachment slots. The renderer overlays that model at the building model's `Sprite ... Ref` attachment pivots. The fire does not create a game entity, change HP, affect pathing, or participate in combat.
 
-Construction is deliberately separate. Human construction begins at low HP, so the server keeps fire disabled while `ent->construction` is non-null. Once construction completes, ordinary health thresholds apply.
+Construction is deliberately separate. Human construction begins at low HP, so the server keeps fire disabled while the unit carries a construction component (`G_GetConstruction(ent)`). Once construction completes, ordinary health thresholds apply.
 
 ## Data Flow
 
@@ -83,6 +83,30 @@ The renderer registers these required models through the normal model registry. 
 5. returns matching authored names and world positions.
 
 The building renderer filters the returned `Sprite ` attachments by semantic names (`Sprite First`, `Sprite Second`, and so on). It must not assume linked-list order and must not invent random offsets when an authored slot is absent.
+
+### Renderer pose reuse
+
+`MDLX_BindBoneMatrices()` uses shared scratch node matrices for each model. When
+`MDX_RenderModel()` has just bound the parent model in the current draw,
+`R_W3RenderAttachmentModels()` passes that bind's generation to
+`MDLX_CollectAttachmentPositionsWithPose()`. If the model, frames or transform
+have changed—or another model was bound in between—attachment collection
+rebinds the bones normally. A culled model does not grant reuse: callers pass
+zero unless its render advanced the bind generation.
+
+Attachmentless models and searches without a matching attachment-name prefix
+return before binding any bones. This also avoids an unnecessary second pose
+calculation for models without attachment refs. Building-fire sprite slots are
+collected separately after the normal attachment children, so those paths still
+rebind when a child model has replaced the shared pose. The ordinary
+`MDLX_CollectAttachmentPositions()` API always recomputes its pose if needed
+and remains safe for event, selection, and other standalone lookups.
+
+Reuse is scoped to a single draw: it does not retain cached poses across entity
+instances, shadow/alpha passes, camera changes or animation time changes.
+Regression tests cover identical-pose reuse, child-model invalidation,
+transform/frame changes and missing attachments without requiring Warcraft MPQs.
+
 
 ## Network Contract
 

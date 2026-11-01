@@ -1254,3 +1254,10 @@ SHA256 `77367f88e3b41ade57aef0f73139c7d7fef8e92f6b6c8d75f78d8feb90ac16c3`.
 This is a separate passing checkpoint; the earlier failed batch remains part
 of the history. The subsequent Entangle evidence commit changes no engine
 source and passes50 focused native-evidence/corpus Python checks separately.
+
+## Validated item-state lookup
+
+Validate item kind before accessing the optional `ent->item` record, then retain
+that direct pointer within the operation. Initialization and teardown can inspect
+partially bound state. The merged branch retains direct sparse pointers; reads
+do not allocate. See [ownership and access](pooled-entity-state.md#ownership-and-access).

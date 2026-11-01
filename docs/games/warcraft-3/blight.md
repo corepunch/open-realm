@@ -18,6 +18,18 @@ Blight is global terrain state. The JASS setter natives validate their `player` 
 
 WC3/Warsmash Blight is authored on 128-world-unit terrain corners, with each changed corner projecting to the surrounding 4x4 32-unit pathing cells. OpenRealm follows that shape for point/radius/rect operations. `G_BlightInit()` samples the initial shared pathing flags into `level.blight.cells`. Runtime add/remove operations then mutate only that WC3-owned field, so scripts can both create Blight and clear authored map Blight.
 
+`G_SetBlightPoint`, `G_SetBlightRadius`, and `G_SetBlightRect` aggregate the
+number of actually changed 32-unit cells returned by `G_SetBlightCorner`.
+Add operations update existing destructables only when at least one cell
+changes; repeated growth ticks over already-blighted terrain skip the
+otherwise global `G_BlightUpdateDestructables` edict traversal. Remove
+operations still clear the gameplay Blight plane without reversing a
+previously blighted destructable tint. Newly spawned destructables get their
+initial Blight appearance through `G_BlightInitializeDestructable` in the
+normal spawn path, so a no-op add does not need to rescan them. The
+`wc3_destructable.blight_{point,radius,rect}_noop_skips_destructable_rescan`
+regressions cover unchanged additions and clear/re-add transitions.
+
 The shared `pathmap.terrain`, `pathmap.original`, and `pathmap.data` stay untouched by runtime Blight. WC3 building placement samples shared pathing, then replaces only the Blight predicate with `G_IsPointBlighted()` before applying `preventPlace` / `requirePlace`. Blight does not block movement, so changing it cannot invalidate shared movement heatmaps.
 
 ## Blight Growth (`Abli`)
@@ -29,11 +41,11 @@ The shared `pathmap.terrain`, `pathmap.original`, and `pathmap.data` stay untouc
 - `Area`: maximum radius;
 - `Duration`: seconds between expansion steps.
 
-The unit stores the concrete alias, current radius, and next expansion deadline in `edict.blight_growth`. The state is initialized on unit bind/ability add, cleared on ability removal/unit removal, and uses the restored simulation clock. Per-player `SetPlayerAbilityAvailable` suppression stops expansion without deleting existing Blight; when availability returns, an overdue step may happen immediately, matching Warsmash's disabled-tick behavior.
+The unit stores the concrete alias, current radius, and next expansion deadline in its `blightGrowth_t` component (`G_GetBlightGrowth`, attached with `G_AddBlightGrowth(ent)`). The state is initialized on unit bind/ability add, cleared on ability removal/unit removal, and uses the restored simulation clock. Per-player `SetPlayerAbilityAvailable` suppression stops expansion without deleting existing Blight; when availability returns, an overdue step may happen immediately, matching Warsmash's disabled-tick behavior.
 
 The implementation intentionally does not erase Blight when the source dies or disappears. `Abli` paints world state; removal is an explicit Blight operation, not reference-counted aura teardown.
 
-Growth is suspended while `ent->construction` is non-null. If authored `Area` data is reduced while a source is alive, its stored progress is clamped for future growth; previously painted world cells are not removed.
+Growth is suspended while the unit carries a construction component (`G_GetConstruction(ent)`). If authored `Area` data is reduced while a source is alive, its stored progress is clamped for future growth; previously painted world cells are not removed.
 
 ## Placement and regeneration
 
@@ -43,7 +55,7 @@ Natural HP regeneration with `uhrt=blight` queries the current Blight field at t
 
 ## Save/load
 
-Save format 32 writes the final game-owned Blight plane after the level field stream and restores it before entity records. Each unit's `blight_growth` scalar state is part of the raw versioned `edict_t` record. This preserves both script mutations and the expansion progress/deadline of `Abli` sources. The saved byte count must exactly match the Blight grid initialized for the freshly loaded map.
+Save format 32 writes the final game-owned Blight plane after the level field stream and restores it before entity records. Each unit's Blight Growth scalar state is a component payload in the typed pool section (see [pooled entity state](pooled-entity-state.md#optional-components)). This preserves both script mutations and the expansion progress/deadline of `Abli` sources. The saved byte count must exactly match the Blight grid initialized for the freshly loaded map.
 
 ## Client presentation
 

@@ -1,7 +1,7 @@
 # OpenWarcraft3 on iPad
 
 An iPad app (one executable plus six embedded frameworks) built directly with
-Xcode SDK commands, following the `mapview/ui` Makefile workflow. No Xcode project or third-party
+Xcode SDK commands. No Xcode project or third-party
 iOS dependencies are required beyond the SDL2 release tarball (downloaded and
 built automatically). The default deployment target is iPadOS 16.
 
@@ -54,10 +54,10 @@ and override `BUILD_DIR` or `ARCH`.
   `games/warcraft-3/share/` under `Warcraft3.app/share/`, a universal
   1024x1024 app icon compiled by `actool`, and an `Info.plist` with iPad-only device family,
   `opengles-3` capability, file-sharing/Documents support, and a launch
-  screen. Unlike the Orion port, no `UIApplicationSceneManifest` is set: SDL2
+  screen. No `UIApplicationSceneManifest` is set: SDL2
   provides its own app delegate and a foreign scene delegate would break
-  startup. `tools/ipad/sign.py`, `run_simulator.py`, and `wrap_mac.py` behave
-  like their `mapview/ui` counterparts.
+  startup. `tools/ipad/sign.py`, `run_simulator.py`, and `wrap_mac.py` handle
+  signing, simulator deployment, and launching the signed iPad build on macOS.
 - `common/main.c` resolves the iOS home directory to the Files-visible
   `Documents` folder and defaults `-data` there, so retail MPQs copied via
   Files, AirDrop, or USB (`War3.mpq`, `War3x.mpq`, …) are picked up with no

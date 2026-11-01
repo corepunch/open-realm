@@ -57,8 +57,7 @@ TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
     producer->data.UnitProfile = &rally_train_profile;
     producer->data.UnitAbilities = &rally_ancient_abilities;
-    if (!producer->ancient_root) producer->ancient_root = G_AllocAncientRoot();
-    assert(producer->ancient_root);
+    (producer->ancient_root ? producer->ancient_root : (producer->ancient_root=G_AllocAncientRoot()));
     producer->ancient_root->ability = MAKEFOURCC('A','r','o','1');
     producer->ancient_root->mode = ANCIENT_ROOTED;
     producer->s.flags |= EF_BUILDING;
@@ -271,7 +270,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     indicator = client->rally_indicator;
     T_NOT_NULL(indicator);
     T_ASSERT(indicator->inuse);
-    T_ASSERT(indicator->rally_indicator);
+    T_ASSERT((indicator && indicator->rally_indicator));
     T_ASSERT(indicator->svflags & SVF_OWNER_ONLY);
     T_EQ(indicator->s.player, 0);
     T_EQ((indicator->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
@@ -365,7 +364,7 @@ TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     T_ASSERT(G_SetRallyPoint(producer, &latest));
     ai_train_build(producer);
 
-    T_ASSERT(!trained->training);
+    T_ASSERT(!(trained && trained->training));
     T_ASSERT(!(trained->s.renderfx & RF_HIDDEN));
     T_EQ(game.clients[0].score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
     T_NOT_NULL(trained->goalentity);
@@ -399,7 +398,7 @@ TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
 
     ai_train_build(producer);
 
-    T_ASSERT(!trained->training);
+    T_ASSERT(!(trained && trained->training));
     T_ASSERT(!(trained->s.renderfx & RF_HIDDEN));
     T_NULL(trained->goalentity);
     T_NULL(trained->movement.follow_target);

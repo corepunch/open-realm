@@ -3,6 +3,7 @@
 
 #define NUM_PARTICLE_VERTICES 6
 #define MAX_PARTICLES 10000
+#define BZ_PARTICLE_TEXTURES 4 // textures per ordered batch; static sampler indices keep GLSL 120/140 and GLES3 compatible
 
 typedef struct particle_vertex {
     vec3_t position;
@@ -11,7 +12,7 @@ typedef struct particle_vertex {
     vec3_t tail;
     vec3_t quadRight;
     vec3_t quadUp;
-    float uv[2];
+    float uv[3];
     uint8_t axis[2];
 } particleVertex_t;
 
@@ -27,6 +28,11 @@ typedef struct particlequad_s {
     float size;
 } particleQuad_t;
 
+typedef struct particleBatch_s {
+    texture_t const *textures[BZ_PARTICLE_TEXTURES];
+    uint32_t first, count, texcount;
+    BLEND_MODE blend_mode;
+} particleBatch_t;
 
 
 typedef struct particleState_s {
@@ -34,7 +40,7 @@ typedef struct particleState_s {
     mat4_t textureMatrix;
     mat4_t model;
     vec3_t eye;
-    int texture;
+    int texture[BZ_PARTICLE_TEXTURES];
     int fogOfWar;
     bool alphaKey;
     float alphaCutoff;
@@ -60,6 +66,8 @@ cparticle_t *active_particles, *free_particles;
 cparticle_t particles[MAX_PARTICLES];
 int cl_numparticles = MAX_PARTICLES;
 static uint32_t particle_generation;
+/* Standalone billboards can run between models; retain their shadow and fog bindings on units 1 and 2. */
+static int const particle_texunits[BZ_PARTICLE_TEXTURES] = {0, 3, 4, 5};
 
 void R_ClearParticles(void) {
     particle_generation++;
@@ -144,7 +152,7 @@ static const shader_desc_t sd_particle = {
         UNIFORM(textureMatrix,  UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(eye,            UT_FLOAT_VEC3, PRECISION_HIGH),
-        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW, BZ_PARTICLE_TEXTURES),
         UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(alphaKey,       UT_BOOL,       PRECISION_LOW),
         UNIFORM(alphaCutoff,    UT_FLOAT,      PRECISION_LOW),
@@ -152,7 +160,7 @@ static const shader_desc_t sd_particle = {
     .Attributes = {
         ATTRIB(position, attrib_position,     UT_FLOAT_VEC3),
         ATTRIB(color,    attrib_color,        UT_COLOR),
-        ATTRIB(texcoord, attrib_texcoord,     UT_FLOAT_VEC2),
+        ATTRIB(texcoord, attrib_texcoord,     UT_FLOAT_VEC3),
         ATTRIB(size,     attrib_particleSize, UT_FLOAT),
         ATTRIB(tail,     attrib_particleTail, UT_FLOAT_VEC3),
         ATTRIB(quadRight, attrib_particleQuadRight, UT_FLOAT_VEC3),
@@ -161,7 +169,7 @@ static const shader_desc_t sd_particle = {
     },
     .Shared = {
         SHARED(color,    UT_COLOR),
-        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(texcoord, UT_FLOAT_VEC3),
         SHARED(texcoord2, UT_FLOAT_VEC2),
     },
     .VertexBody =
@@ -191,7 +199,12 @@ static const shader_desc_t sd_particle = {
     /* Waterfalls are PRE2-only models; the old unfogged particle pass exposed the whole effect through black FOW. */
     .FragmentBody =
         "vec4 frag() {\n"
-        "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
+        "  vec4 col;\n"
+        "  if (v_texcoord.z < 0.5) col = texture(u_texture[0], v_texcoord.xy);\n"
+        "  else if (v_texcoord.z < 1.5) col = texture(u_texture[1], v_texcoord.xy);\n"
+        "  else if (v_texcoord.z < 2.5) col = texture(u_texture[2], v_texcoord.xy);\n"
+        "  else col = texture(u_texture[3], v_texcoord.xy);\n"
+        "  col *= v_color;\n"
         "#ifdef USE_FOGOFWAR\n"
         "  col.rgb *= texture(u_fogOfWar, v_texcoord2).r;\n"
         "#endif\n"
@@ -306,12 +319,28 @@ color32_t FX_BlendColor(cparticle_t const *p) {
     }
 }
 
-static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
-    GLboolean const cull_enabled = glIsEnabled(GL_CULL_FACE);
+/* One VBO replacement owns the whole pass; material runs draw ranges without replacing in-flight data. */
+static void R_UploadParticles(particleVertex_t const *pv) {
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
+}
 
+/* Keep interleaved textures in vertex order; blend changes and a full sampler set end the batch. */
+static uint32_t R_ParticleTextureSlot(particleBatch_t *batch, cparticle_t const *p) {
+    texture_t const *texture = p->texture ? p->texture : particles_resources.texture;
+    if (batch->count && batch->blend_mode != p->blend_mode) return BZ_PARTICLE_TEXTURES;
+    FOR_LOOP(i, batch->texcount)
+        if (batch->textures[i] == texture) return i;
+    if (batch->texcount == BZ_PARTICLE_TEXTURES) return BZ_PARTICLE_TEXTURES;
+    batch->blend_mode = p->blend_mode;
+    batch->textures[batch->texcount] = texture;
+    return batch->texcount++;
+}
+
+/* One uninterrupted pass owns common uniforms, FOW and two-sided culling; immediate draws start a new pass. */
+static GLboolean R_BeginParticleDraws(mat4_t const *matrix) {
+    GLboolean const cull_enabled = glIsEnabled(GL_CULL_FACE);
     particles_resources.shader.state.model = *matrix;
     particles_resources.shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     particles_resources.shader.state.eye = tr.viewDef.camerastate[0].eye;
@@ -320,8 +349,21 @@ static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, par
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : R_GetFogOfWarTexture());
 #endif
+    if (cull_enabled) R_Call(glDisable, GL_CULL_FACE);
+    return cull_enabled;
+}
+
+/* Bind only changes within this pass; the caller's stack cache cannot outlive intervening model/UI draws. */
+static void R_DrawParticleBatch(particleBatch_t const *batch, texture_t const **bound) {
+    BLEND_MODE blend_mode = batch->blend_mode;
+    FOR_LOOP(i, BZ_PARTICLE_TEXTURES) {
+        texture_t const *texture = batch->textures[i < batch->texcount ? i : 0];
+        if (bound[i] == texture) continue;
+        R_Call(glActiveTexture, GL_TEXTURE0 + particle_texunits[i]);
+        R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+        bound[i] = texture;
+    }
     R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
     particles_resources.shader.state.alphaKey = blend_mode == BLEND_MODE_ALPHAKEY;
     particles_resources.shader.state.alphaCutoff = 0.5f;
     R_SetAlphaKeyState(blend_mode == BLEND_MODE_ALPHAKEY);
@@ -357,11 +399,17 @@ static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, par
             break;
         }
     }
-    /* Billboard/tail quads are two-sided relative to the caller's scene winding. */
-    if (cull_enabled) R_Call(glDisable, GL_CULL_FACE);
-    R_StatsDraw(GL_TRIANGLES, (uint32_t)(pv - particles_resources.vertices), 1);
+    R_StatsDraw(GL_TRIANGLES, batch->count, 1);
     R_ApplyShader(&particles_resources.shader);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
+    R_Call(glDrawArrays, GL_TRIANGLES, batch->first, batch->count);
+}
+
+/* Standalone sprites and ribbons replace the shared buffer before their immediate draw. */
+static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
+    R_UploadParticles(pv);
+    texture_t const *bound[BZ_PARTICLE_TEXTURES] = {0};
+    GLboolean const cull_enabled = R_BeginParticleDraws(matrix);
+    R_DrawParticleBatch(&(particleBatch_t){ .textures = {texture ? texture : particles_resources.texture}, .texcount = 1, .count = (uint32_t)(pv - particles_resources.vertices), .blend_mode = blend_mode }, bound);
     if (cull_enabled) R_Call(glEnable, GL_CULL_FACE);
 }
 
@@ -403,18 +451,18 @@ static color32_t FX_GetFrame(cparticle_t const *p) {
 void R_DrawParticles(void) {
     mat4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
-    texture_t const *texture;
-    BLEND_MODE blend_mode;
+    particlePerf_t stats = {0};
 
     if (!R_CvarEnabled("r_particles", "1") || !active_particles) return;
-    texture = active_particles->texture; blend_mode = active_particles->blend_mode;
-    
-    Matrix4_identity(&matrix);
     R_UpdateParticles();
+    if (!active_particles) return;
+    Matrix4_identity(&matrix);
+    particleBatch_t batch = {0};
     FOR_EACH_LIST(cparticle_t const, p, active_particles) {
-        if (p->texture != texture || p->blend_mode != blend_mode) {
-            R_FlushParticles(texture, &matrix, pv, blend_mode);
-            pv = particles_resources.vertices;
+        uint32_t slot = R_ParticleTextureSlot(&batch, p);
+        if (slot == BZ_PARTICLE_TEXTURES) {
+            batch = (particleBatch_t){0};
+            slot = R_ParticleTextureSlot(&batch, p);
         }
         /* Kinematics: org = org0 + vel0*t + 1/2*accel*t^2. The original engine
          * integrates gravity per-frame (semi-implicit Euler), which over a
@@ -429,11 +477,30 @@ void R_DrawParticles(void) {
         float size = p->size_value_scale * FX_BlendFloat(p->size, p->time * p->size_time_scale,
                                                          BYTE2FLOAT(p->midtime));
         pv = R_AddParticle(pv, &org, &tail, &quad_right, &quad_up, FX_GetFrame(p), col, size);
-        texture = p->texture;
-        blend_mode = p->blend_mode;
+        FOR_LOOP(i, NUM_PARTICLE_VERTICES) (pv - NUM_PARTICLE_VERTICES)[i].uv[2] = slot;
+        batch.count += NUM_PARTICLE_VERTICES;
     }
-    
-    R_FlushParticles(texture, &matrix, pv, blend_mode);
+    R_UploadParticles(pv);
+    texture_t const *bound[BZ_PARTICLE_TEXTURES] = {0};
+    GLboolean const cull_enabled = R_BeginParticleDraws(&matrix);
+    batch = (particleBatch_t){0};
+    FOR_EACH_LIST(cparticle_t const, p, active_particles) {
+        if (R_ParticleTextureSlot(&batch, p) == BZ_PARTICLE_TEXTURES) {
+            stats.blends += batch.blend_mode != p->blend_mode;
+            stats.texfull += batch.blend_mode == p->blend_mode;
+            stats.batches++; stats.texsum += batch.texcount;
+            R_DrawParticleBatch(&batch, bound);
+            batch = (particleBatch_t){ .first = batch.first + batch.count };
+            R_ParticleTextureSlot(&batch, p);
+        }
+        batch.count += NUM_PARTICLE_VERTICES;
+        stats.alive++;
+    }
+    R_DrawParticleBatch(&batch, bound);
+    if (cull_enabled) R_Call(glEnable, GL_CULL_FACE);
+    stats.batches++; stats.texsum += batch.texcount;
+    stats.bytes = (uint64_t)stats.alive * NUM_PARTICLE_VERTICES * sizeof(particleVertex_t);
+    R_ProfileParticles(&stats);
     R_SetAlphaKeyState(false);
 }
 
@@ -507,7 +574,7 @@ static buffer_t *R_MakeParticlesVertexArrayObject(void) {
     
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, position));
     R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, color));
-    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
     R_Call(glVertexAttribPointer, attrib_particleSize, 1, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, size));
     R_Call(glVertexAttribPointer, attrib_particleTail, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, tail));
     R_Call(glVertexAttribPointer, attrib_particleQuadRight, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, quadRight));
@@ -553,6 +620,7 @@ void R_InitParticles(void) {
     R_LoadShader(&sd_particle, particle_defines, &particles_resources.shader);
     /* The scene contract reserves unit 2 for FOW; particles omit the shadow sampler that normally occupies unit 1. */
     particles_resources.shader.state.fogOfWar = 2;
+    memcpy(particles_resources.shader.state.texture, particle_texunits, sizeof(particle_texunits));
     particles_resources.particles = R_MakeParticlesVertexArrayObject();
     R_ClearParticles();
 }

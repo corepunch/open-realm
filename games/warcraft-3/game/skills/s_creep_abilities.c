@@ -96,7 +96,7 @@ static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability
     abilityLevel_t const *row;
     cstring_t targets;
 
-    if (!target || !G_IsDestructable(target) || target->destructable->dead || target->invulnerable) return false;
+    if (!target || !G_IsDestructable(target) || target->destructable->dead || (target && target->invulnerable)) return false;
     row = G_AbilityLevel(code, ability_level);
     targets = row ? row->targs : NULL;
     if (!targets || !*targets) return false;
@@ -169,8 +169,7 @@ static void death_damage_aoe(edict_t *ent, uint32_t code) {
         return;
     }
     thinker->owner = ent;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
+    (thinker->channel ? thinker->channel : (thinker->channel=G_AllocChannel()));
     thinker->channel->owner_spawn_time = ent->spawn_time;
     thinker->class_id = code;
     thinker->wait = (float)level;
@@ -254,13 +253,140 @@ BZ_ABILITY_PROC(CAbilityEthereal) {
     default:return CAbilityPassive(ent,msg,call);
     }
 }
-BZ_ABILITY_PROC(CAbilityScout) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityScout) {
+    if (msg == A_EXECUTE) {
+        spellTarget_t const target = call && call->target ? *call->target :
+            MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+        S_SummonAbilityUnits(ent, MAKEFOURCC('A', 'E', 's', 't'), &target);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
 BZ_ABILITY_PROC(CAbilityBallsOfFire) { return CAbilityPassive(ent, msg, call); }
+/* Pillage (Asal): the passive handler itself never polls; actual primary-hit
+ * damage calls here from T_DamageInternal after mitigation and Spirit Link.
+ * DataA=Sal1 salvage ratio; DataB=Sal2 accumulated HP per award step.
+ * A separate ledger on each building keeps attackers/players independent and
+ * survives save/load through the component pool. */
+#define ID_PILLAGE MAKEFOURCC('A','s','a','l')
+
+static bool pillage_allows_target(edict_t *attacker, edict_t *target, uint32_t alias, uint32_t rank) {
+    abilityLevel_t const *row = G_AbilityLevel(alias, rank);
+    cstring_t mask = row ? row->targs : NULL;
+    bool enemy = S_SpellIsEnemy(attacker, target);
+    bool friend = S_SpellIsFriend(attacker, target);
+    bool neutral = target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
+
+    if (!mask || !*mask) return enemy;
+    if (S_SpellTargetHasToken(mask, "enemy", NULL) && enemy) return true;
+    if (S_SpellTargetHasToken(mask, "friend", NULL) && friend) return true;
+    if (S_SpellTargetHasToken(mask, "neutral", NULL) && neutral) return true;
+    if (S_SpellTargetHasToken(mask, "player", NULL) && attacker->s.player == target->s.player) return true;
+    return !S_SpellTargetHasToken(mask, "enemy", NULL) &&
+           !S_SpellTargetHasToken(mask, "friend", NULL) &&
+           !S_SpellTargetHasToken(mask, "neutral", NULL) &&
+           !S_SpellTargetHasToken(mask, "player", NULL) && enemy;
+}
+
+/* Convert double-precision fractional entitlements into integral transactions.
+ * Payout is bounded so malicious custom data cannot overflow the player state. */
+static void pillage_credit(edict_t *target, player_t *player, uint32_t resource, double *remainder,
+                           double gained) {
+    int32_t whole;
+    if (!isfinite(gained) || gained <= 0.0) return;
+    *remainder += gained;
+    if (!isfinite(*remainder)) { *remainder = 0.0; return; }
+    if (*remainder < 1.0) return;
+    /* G_CreditResourceIncome adds a signed player stat. Do not overflow the
+     * resource counter when a map authors extreme building costs/ratios. */
+    whole = (int32_t)MIN(floor(*remainder + 1e-9),
+                         (double)MAX(0, INT32_MAX - MAX(0, player->stats[resource])));
+    if (whole <= 0) return;
+    *remainder -= whole;
+    G_CreditResourceIncome(player, target, resource, whole);
+}
+
+void S_PillageOnAttackDamage(edict_t *attacker, edict_t *target, float health_removed) {
+    abilityAliasRef_t ability;
+    gameClient_t *client;
+    pillage_t *ledger;
+    UnitBalance_t const *building;
+    double step, ratio, completed, hp;
+    uint32_t owner;
+
+    if (!attacker || !target || health_removed <= 0.0f || !target->inuse ||
+        !G_UnitIsStructure(target) || target->construction || !target->data.UnitBalance ||
+        target->health.max_value <= 0.0f || M_IsDead(target) ||
+        (target && target->invulnerable)) return;
+    owner = attacker->s.player;
+    if (owner >= MAX_PLAYERS || !(client = G_GetPlayerClientByNumber(owner)) ||
+        client->ps.number != owner) return;
+    ability = S_ResolveAbilityAlias(attacker, ID_PILLAGE);
+    if (!ability.alias || !ability.level || !G_IsUnitAbilityAvailable(attacker, ability.alias) ||
+        !G_UnitAbilityResearchAvailable(attacker, ability.alias) ||
+        !pillage_allows_target(attacker, target, ability.alias, ability.level)) return;
+    building = target->data.UnitBalance;
+    if (building->goldCost <= 0 && building->lumberCost <= 0) return;
+    ratio = (double)S_SpellData(ability.alias, ability.level, 1);
+    step = (double)S_SpellData(ability.alias, ability.level, 2);
+    if (!isfinite(ratio) || ratio <= 0.0 || !isfinite(step) || step <= 0.0) return;
+    if (!(ledger = (target->pillage ? target->pillage : (target->pillage=G_AllocPillage())))) return;
+
+    /* DataB is a damage threshold, not a per-hit multiplier. Retain sub-step
+     * HP independently for each recipient, even when another unit repairs or
+     * a non-Pillage source damages the same building. */
+    hp = ledger->damage_remainder[owner] + health_removed;
+    completed = floor(hp / step + 1e-9);
+    if (completed < 1.0) { ledger->damage_remainder[owner] = hp; return; }
+    ledger->damage_remainder[owner] = hp - completed * step;
+    hp = completed * step / (double)target->health.max_value;
+    if (building->goldCost > 0)
+        pillage_credit(target, &client->ps, PLAYERSTATE_RESOURCE_GOLD,
+                       &ledger->gold_remainder[owner], building->goldCost * ratio * hp);
+    if (building->lumberCost > 0)
+        pillage_credit(target, &client->ps, PLAYERSTATE_RESOURCE_LUMBER,
+                       &ledger->lumber_remainder[owner], building->lumberCost * ratio * hp);
+}
+
 BZ_ABILITY_PROC(CAbilitySalvage) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityTreeOfLife) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityTreeOfLife) {
+    uint32_t const ability = MAKEFOURCC('A','t','o','l');
+    switch (msg) {
+    case A_UNIT_INIT:
+    case A_ENABLE:
+        /* Type transforms re-run A_UNIT_INIT on the retained edict. Rebuild
+         * the three authored attachments so their animation properties match
+         * the new Tree tier. */
+        G_DestroyStatusEffectTarget(ability, ent);
+        G_SpawnStatusEffectTarget(ability, ent, "origin");
+        return true;
+    case A_DISABLE:
+    case A_DEATH:
+    case A_UNIT_REMOVE:
+        G_DestroyStatusEffectTarget(ability, ent);
+        return true;
+    default:
+        return CAbilityPassive(ent, msg, call);
+    }
+}
 BZ_ABILITY_PROC(CAbilityGrabTree) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityDetector) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityMagicSentry) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityMagicSentry) {
+    switch (msg) {
+    case A_UNIT_INIT:
+    case A_ENABLE:
+        S_UpdateMagicSentryPresentation(ent);
+        return true;
+    case A_DISABLE:
+    case A_DEATH:
+    case A_UNIT_REMOVE:
+        S_RemoveMagicSentryPresentation(ent);
+        return true;
+    default:
+        return CAbilityPassive(ent, msg, call);
+    }
+}
 BZ_ABILITY_PROC(CAbilityNeutralSpell) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityDrunkenBrawler) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySellItem) { return CAbilityPassive(ent, msg, call); }

@@ -213,6 +213,21 @@ static void reset_server_state(int max_players) {
     reset_test_gi();
 }
 
+TEST(server_net, ready_wait_keeps_handshake_alive_without_advancing_simulation) {
+    NET_Shutdown(); reset_server_state(1);
+    test_client_stubs_set_cvar("sv_wait_for_begin", "1");
+    sv.state = ss_game;
+    SV_ClientConnect();
+    T_EQ(svs.clients[0].state, cs_connected);
+    FOR_LOOP(i, 3) {
+        SV_Frame(1000);
+        T_EQ(sv.time, 0); T_EQ(sv.framenum, 0);
+        T_EQ(sv.next_frame_msec, svs.realtime);
+    }
+    test_client_stubs_set_cvar("sv_wait_for_begin", "0");
+    SV_Shutdown(); NET_Shutdown();
+}
+
 TEST(server_net, hidden_entity_baseline_matches_what_signon_sends) {
     reset_server_state(3);
     test_edicts[0].s = (entityState_t){ .number = 0, .model = 7, .origin = { 1, 2, 3 } };

@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 
 #include "menu_local.h"
 #include "common/difficulty.h"
@@ -40,6 +42,48 @@ static void UI_ClearScreen(void);
 static void M_ShowSinglePlayerSkirmishMenu(void);
 static void M_ShowOnlineBrowserMenu(void);
 
+#if BZ_COMPAT_WORKAROUNDS
+static void UI_RegisterClassicInstallerMaps(void) {
+    void *installer_data = NULL;
+    int installer_size = mi.FS_ReadFile("SetupDat\\inst_files.ins", &installer_data);
+    char build[64] = "Files100";
+    if (installer_size > 0 && installer_size <= 65536 && installer_data) {
+        char *contents = malloc((size_t)installer_size + 1);
+        if (contents) {
+            memcpy(contents, installer_data, (size_t)installer_size);
+            contents[installer_size] = '\0';
+            for (char *line = contents; *line; ) {
+                char *current = line;
+                char *end = strpbrk(line, "\r\n");
+                if (end) { *end = '\0'; line = end + 1; while (*line == '\r' || *line == '\n') line++; }
+                else line += strlen(line);
+                if (!strstr(current, "String Build")) continue;
+                char *value = strchr(current, '='), *first, *last;
+                if (!value || !(first = strchr(value, '"')) || !(last = strchr(first + 1, '"'))) break;
+                size_t length = (size_t)(last - first - 1);
+                bool valid = length > 0 && length < sizeof(build);
+                for (size_t i = 0; valid && i < length; i++) {
+                    unsigned char ch = (unsigned char)first[i + 1];
+                    if (!isalnum(ch) && ch != '_' && ch != '-') valid = false;
+                }
+                if (valid) { memcpy(build, first + 1, length); build[length] = '\0'; }
+                break;
+            }
+            free(contents);
+        }
+    }
+    if (installer_data) {
+        mi.FS_FreeFile(installer_data);
+    }
+    char archive_prefix[128];
+    snprintf(archive_prefix, sizeof(archive_prefix), "%s\\Maps\\", build);
+    mi.FS_RegisterArchiveMapSource("Setup.mpq", "SetupDat\\maps.lst", "Maps\\", archive_prefix);
+    snprintf(archive_prefix, sizeof(archive_prefix), "%s\\Maps\\Scenario\\", build);
+    mi.FS_RegisterArchiveMapSource("Setup.mpq", "SetupDat\\Scenario.lst",
+                                   "Maps\\Scenario\\", archive_prefix);
+}
+#endif
+
 typedef struct { cstring_t name; void (*func)(void); } menucommand_t;
 
 static void UI_MenuMain_f(void);
@@ -56,15 +100,18 @@ static void UI_MenuRealmSelect_f(void);
 static void UI_MenuOptionsGameplay_f(void);
 static void UI_MenuOptionsSound_f(void);
 static void UI_MenuOptionsApply_f(void);
+static void UI_MenuRenderScale_f(void);
 static void UI_MenuSinglePlayerCampaign_f(void);
 static void UI_MenuGameSetupStart_f(void);
 static void UI_MenuCampaignHuman_f(void);
 static void UI_MenuCampaignOrc_f(void);
 static void UI_MenuCampaignUndead_f(void);
 static void UI_MenuCampaignNightElf_f(void);
+static void UI_MenuCampaignNightElfSelect(void);
 static void UI_MenuCampaignTutorial_f(void);
 static void UI_MenuVideoMode_f(void);
 static void UI_MenuCampaignSelect_f(void);
+static void UI_MenuSaveSelect_f(void);
 static void UI_MenuMissionSelect_f(void);
 static void UI_MenuDifficulty_f(void);
 static void UI_MenuLANSelect_f(void);
@@ -97,6 +144,11 @@ static const menucommand_t menu_commands[] = {
     { "menu_options_sound", UI_MenuOptionsSound_f },
     { "menu_options_apply", UI_MenuOptionsApply_f },
     { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
+    { "menu_single_player_saved_games", SinglePlayerMenu_ShowSavedGames },
+    { "menu_single_player_save_select", UI_MenuSaveSelect_f },
+    { "menu_single_player_save_load", SinglePlayerMenu_LoadSelectedSave },
+    { "menu_single_player_save_delete_confirm", SinglePlayerMenu_ConfirmDeleteSave },
+    { "menu_single_player_save_delete", SinglePlayerMenu_DeleteSelectedSave },
     { "menu_single_player_skirmish", M_ShowSinglePlayerSkirmishMenu },
     { "menu_lan_refresh", LAN_RefreshMaps },
     { "menu_lan_start", LAN_StartSelectedMap },
@@ -111,6 +163,7 @@ static const menucommand_t menu_commands[] = {
     { "menu_single_player_campaign_night_elf", UI_MenuCampaignNightElf_f },
     { "menu_single_player_campaign_tutorial", UI_MenuCampaignTutorial_f },
     { "menu_video_mode", UI_MenuVideoMode_f },
+    { "menu_render_scale", UI_MenuRenderScale_f },
     { "menu_single_player_campaign_select", UI_MenuCampaignSelect_f },
     { "menu_single_player_mission_select", UI_MenuMissionSelect_f },
     { "menu_single_player_difficulty", UI_MenuDifficulty_f },
@@ -366,6 +419,9 @@ void M_Init(void) {
     memset(&ui_state, 0, sizeof(ui_state));
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
+#if BZ_COMPAT_WORKAROUNDS
+    UI_RegisterClassicInstallerMaps();
+#endif
     
     mi.Printf("M_Init: loading FDF assets\n");
 
@@ -624,7 +680,16 @@ static void UI_MenuVideoMode(uint32_t value) {
 }
 
 static void UI_MenuVideoMode_f(void) { UI_MenuIndex(UI_MenuVideoMode); }
+static void UI_MenuRenderScale(uint32_t value) {
+    static unsigned const scales[] = {100, 75, 67};
+    char command[64];
+    if (value >= sizeof(scales) / sizeof(scales[0])) return;
+    snprintf(command, sizeof(command), "seta r_render_scale %u\n", scales[value]);
+    mi.Cmd_ExecuteText(command);
+}
+static void UI_MenuRenderScale_f(void) { UI_MenuIndex(UI_MenuRenderScale); }
 static void UI_MenuCampaignSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_LaunchCampaignIndex); }
+static void UI_MenuSaveSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_SelectSavedGame); }
 static void UI_MenuMissionSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_LaunchMissionIndex); }
 static void UI_MenuDifficulty_f(void) { UI_MenuIndex(SinglePlayerMenu_SetDifficulty); }
 static void UI_MenuLANSelect_f(void) { UI_MenuIndex(LAN_SelectMapIndex); }
@@ -635,8 +700,12 @@ static void UI_MenuSlotRace_f(void) { UI_MenuPair(GameSetup_SetSlotRace); }
 static void UI_MenuCampaignHuman_f(void) { SinglePlayerMenu_LaunchCampaign("human"); }
 static void UI_MenuCampaignOrc_f(void) { SinglePlayerMenu_LaunchCampaign("orc"); }
 static void UI_MenuCampaignUndead_f(void) { SinglePlayerMenu_LaunchCampaign("undead"); }
-/* CampaignStrings uses NightElf; the old hyphenated shortcut never resolved a campaign. */
-static void UI_MenuCampaignNightElf_f(void) { SinglePlayerMenu_LaunchCampaign("NightElf"); }
+/* This route is also used after leaving a campaign map, when no menu screen (and
+ * therefore no campaign data) may be initialized yet. Load the screen first. */
+static void UI_MenuCampaignNightElf_f(void) {
+    UI_RequestScreen(&singlePlayerMenuScreen, singlePlayerMenuScreen.glue, UI_MenuCampaignNightElfSelect);
+}
+static void UI_MenuCampaignNightElfSelect(void) { SinglePlayerMenu_LaunchCampaign("NightElf"); }
 static void UI_MenuCampaignTutorial_f(void) { SinglePlayerMenu_LaunchCampaign("tutorial"); }
 
 /* A quoted map path is one console argument, including spaces and archive separators. */

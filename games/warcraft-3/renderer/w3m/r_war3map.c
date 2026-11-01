@@ -1,4 +1,6 @@
 #include "r_war3map.h"
+#include "common/map_load_debug.h"
+#include "games/warcraft-3/common/war3map_vertices.h"
 #include "../mdx/r_mdx.h"
 #include "renderer/r_shader.h"
 #include <float.h>
@@ -331,6 +333,7 @@ static void R_W3ClearTerrainDeformations(void) {
 }
 
 static void R_W3ResetTerrainDeformations(void) {
+    R_InvalidateSplatGeometryCache();
     memset(w3_deformations, 0, sizeof(w3_deformations));
     if (w3_terrain_offsets) memset(w3_terrain_offsets, 0, (size_t)w3_terrain_offset_count * sizeof(float));
     if (w3_terrain_dirty_segments) memset(w3_terrain_dirty_segments, 1, w3_terrain_segment_count);
@@ -467,7 +470,10 @@ void R_W3UpdateTerrainDeformations(void) {
         w3_deform_x0 = current_x0; w3_deform_y0 = current_y0;
         w3_deform_x1 = current_x1; w3_deform_y1 = current_y1;
     } else w3_deform_bounds_valid = false;
-    if (changed) w3_terrain_rebuild_pending = true;
+    if (changed) {
+        R_InvalidateSplatGeometryCache(); /* Height offsets changed before mesh rebake. */
+        w3_terrain_rebuild_pending = true;
+    }
     if (!active) w3_deform_last_update = 0;
 }
 
@@ -500,6 +506,7 @@ static void R_W3EmitChangedTerrain(void) {
         }
     }
     if (rebuilt) {
+        R_InvalidateSplatGeometryCache();
         R_W3InvalidateSpecialModels();
         R_FinishCliffs();
         R_InvalidateBlightLayer();
@@ -706,69 +713,26 @@ static void R_LoadMapMinimap(handle_t hMpq, cstring_t mapFilename) {
     }
 }
 
-static bool R_ReadWar3MapVertex(handle_t file, war3mapVertex_t *vert) {
-    uint16_t water_and_edge;
-    uint8_t flags;
-    uint8_t variation;
-    uint8_t cliff_and_layer;
-
-    if (!file || !vert) {
-        return false;
-    }
-    memset(vert, 0, sizeof(*vert));
-    if (!SFileReadFile(file, &vert->accurate_height, sizeof(vert->accurate_height), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &water_and_edge, sizeof(water_and_edge), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &flags, sizeof(flags), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &variation, sizeof(variation), NULL, NULL)) {
-        return false;
-    }
-    if (!SFileReadFile(file, &cliff_and_layer, sizeof(cliff_and_layer), NULL, NULL)) {
-        return false;
-    }
-
-    vert->waterlevel = water_and_edge & 0x3FFF;
-    vert->mapedge = (water_and_edge & 0x4000) != 0;
-    vert->ground = flags & 0x0F;
-    vert->ramp = (flags & 0x10) != 0;
-    vert->blight = (flags & 0x20) != 0;
-    vert->water = (flags & 0x40) != 0;
-    vert->boundary = (flags & 0x80) != 0;
-    vert->cliffVariation = (variation >> 5) & 0x07;
-    vert->groundVariation = variation & 0x1F;
-    vert->cliff = (cliff_and_layer >> 4) & 0x0F;
-    vert->level = cliff_and_layer & 0x0F;
-    return true;
-}
-
 war3map_t *FileReadWar3Map(handle_t archive) {
-    war3map_t *map = ri.MemAlloc(sizeof(war3map_t));
     handle_t file;
-    SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
-    SFileReadFile(file, &map->header, 4, NULL, NULL);
-    SFileReadFile(file, &map->version, 4, NULL, NULL);
-    SFileReadFile(file, &map->tileset, 1, NULL, NULL);
-    SFileReadFile(file, &map->custom, 4, NULL, NULL);
-    SFileReadArray(file, map, grounds, 4, ri.MemAlloc);
-    SFileReadArray(file, map, cliffs, 4, ri.MemAlloc);
-    SFileReadFile(file, &map->width, 4, NULL, NULL);
-    SFileReadFile(file, &map->height, 4, NULL, NULL);
-    SFileReadFile(file, &map->center, 8, NULL, NULL);
-    uint32_t const num_vertices = map->width * map->height;
-    int const vertexblocksize = sizeof(war3mapVertex_t) * num_vertices;
-    map->vertices = ri.MemAlloc(vertexblocksize);
-    R_AllocateFogOfWar(map);
-    FOR_LOOP(i, num_vertices) {
-        if (!R_ReadWar3MapVertex(file, (war3mapVertex_t *)map->vertices + i)) {
-            break;
-        }
+    if (!SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file)) return NULL;
+    war3map_t *map = ri.MemAlloc(sizeof(war3map_t));
+    if (!map) {
+        SFileCloseFile(file);
+        return NULL;
     }
+    if (!W3E_ReadHeader(file, map, ri.MemAlloc)) {
+        SFileCloseFile(file);
+        R_FreeWar3Map(map);
+        return NULL;
+    }
+    bool const valid_vertices = W3E_ReadVertexBlock(file, map, ri.MemAlloc, ri.MemFree);
     SFileCloseFile(file);
+    if (!valid_vertices) {
+        R_FreeWar3Map(map);
+        return NULL;
+    }
+    R_AllocateFogOfWar(map);
     FOR_LOOP(y, map->height) {
 //        printf("%04x  ", y);
         FOR_LOOP(x, map->width) {
@@ -801,44 +765,98 @@ void _W3M_RegisterMap(char const *mapFilename) {
     uint8_t *mapData;
     int mapSize;
     war3map_t *map;
+    double stage_start;
 
     /* A map registration replaces the whole WC3 world.  Free GPU buffers,
      * map-owned models, fog targets and source terrain before creating the
      * next level so repeated campaign transitions do not accumulate state. */
+    stage_start = MAP_LOAD_NOW();
     _W3M_ClearMap();
+    MAP_LOAD_LOG("map=%s phase=renderer-world-clear ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
 
     /* Load .w3m file (which is itself an MPQ archive) */
+    stage_start = MAP_LOAD_NOW();
     mapSize = ri.FS_ReadFile(mapFilename, (void **)&mapData);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-read-file bytes=%d ms=%.3f\n",
+                     mapFilename, mapSize, MAP_LOAD_NOW() - stage_start);
     if (mapSize < 0 || !mapData) {
         ri.error("R_RegisterMap: failed to open map %s\n", mapFilename);
         return;
     }
     
     /* Open the .w3m as a nested MPQ archive to read internal files */
+    stage_start = MAP_LOAD_NOW();
     if (!SFileOpenArchiveFromMemory(mapData, (uint32_t)mapSize, 0, &hMpq)) {
         ri.FS_FreeFile(mapData);
         ri.error("R_RegisterMap: failed to open map archive %s\n", mapFilename);
         return;
     }
+    MAP_LOAD_LOG("map=%s phase=renderer-world-open-archive ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     map = FileReadWar3Map(hMpq);
+    if (!map) {
+        SFileCloseArchive(hMpq);
+        ri.FS_FreeFile(mapData);
+        ri.error("R_RegisterMap: invalid or truncated war3map.w3e in %s\n", mapFilename);
+        return;
+    }
+    MAP_LOAD_LOG("map=%s phase=renderer-world-parse-terrain width=%u height=%u ms=%.3f\n",
+                     mapFilename, map ? map->width : 0, map ? map->height : 0,
+                     MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_FileReadShadowMap(hMpq, map);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-shadow-map ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_LoadMapMinimap(hMpq, mapFilename);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-minimap ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
     tr.world = map;
+    stage_start = MAP_LOAD_NOW();
     R_W3OpenTilesetArchive(map->tileset);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-tileset-archive ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
     /* Read special-doodad footprint masks while the nested map MPQ is open,
      * before baking either ground or ordinary cliff meshes. */
+    stage_start = MAP_LOAD_NOW();
     R_W3LoadSpecialCutouts(hMpq, map);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-special-cutouts ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
+    stage_start = MAP_LOAD_NOW();
     R_LoadBlightTexture(map->tileset);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-blight-texture ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_LoadWaterStyle(map->tileset);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-water-style ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_W3SetMapTerrainOffsets(map);
     R_W3RebuildCameraHeightMap();
+    MAP_LOAD_LOG("map=%s phase=renderer-world-camera-height ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
 
+    stage_start = MAP_LOAD_NOW();
     R_LoadMapSegments(map);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-segments count=%u ms=%.3f\n",
+                     mapFilename, ((map->width - 1) / SEGMENT_SIZE) * ((map->height - 1) / SEGMENT_SIZE),
+                     MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_FinishCliffs();
+    MAP_LOAD_LOG("map=%s phase=renderer-world-finish-cliffs ms=%.3f\n",
+                     mapFilename, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
     R_BuildGroundLayers(map);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-ground-layers count=%u ms=%.3f\n",
+                     mapFilename, map->num_grounds, MAP_LOAD_NOW() - stage_start);
     w3_terrain_rebuild_pending = false;
+#ifndef DEBUG_MAP_LOAD
+    (void)stage_start;
+#endif
 }
 
 float R_W3CameraHeightAtPoint(float x, float y) {

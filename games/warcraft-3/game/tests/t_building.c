@@ -26,6 +26,7 @@ TEST(wc3_building, repeated_tech_queries_use_index_and_keep_first_free_slots) {
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
+void reset_entities(void);
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void repair_build_primary(edict_t *ent, edict_t *building);
 void repair_build_legacy(edict_t *ent, edict_t *building);
@@ -314,6 +315,46 @@ static const char building_upgrade_slk[] =
     "C;X18;K\"undead ghoul cannibalize\"\n"
     "E\n";
 
+/* Night Elf ranged upgrades use the same generic ratr/ratx path as other
+ * research. These two retail rawcodes have dedicated fixture rows so tests
+ * exercise both the researcher and the unit-side Upgrades Used opt-in without
+ * loading the developer's Warcraft archives. The bonus values here are
+ * authored object-data values, not engine constants. */
+static const char building_nightelf_ranged_upgrade_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X10;Y3;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\n"
+    "C;X2;K\"maxlevel\"\n"
+    "C;X3;K\"goldbase\"\n"
+    "C;X4;K\"lumberbase\"\n"
+    "C;X5;K\"timebase\"\n"
+    "C;X6;K\"effect1\"\n"
+    "C;X7;K\"base1\"\n"
+    "C;X8;K\"mod1\"\n"
+    "C;X9;K\"class\"\n"
+    "C;X10;K\"used\"\n"
+    "C;X1;Y2;K\"Reib\"\n"
+    "C;X2;K1\n"
+    "C;X3;K50\n"
+    "C;X4;K100\n"
+    "C;X5;K35\n"
+    "C;X6;K\"ratr\"\n"
+    "C;X7;K200\n"
+    "C;X8;K0\n"
+    "C;X9;K\"range\"\n"
+    "C;X10;K1\n"
+    "C;X1;Y3;K\"Remk\"\n"
+    "C;X2;K1\n"
+    "C;X3;K100\n"
+    "C;X4;K175\n"
+    "C;X5;K40\n"
+    "C;X6;K\"ratx\"\n"
+    "C;X7;K4\n"
+    "C;X8;K0\n"
+    "C;X9;K\"range\"\n"
+    "C;X10;K1\n"
+    "E\n";
+
 static const char building_dependency_ability_slk[] =
     "ID;PWXL;N;E\n"
     "B;X4;Y3;D0\n"
@@ -332,7 +373,7 @@ static const char building_dependency_ability_slk[] =
  * archive. Install rows so the research gate tests exercise parsed game data. */
 static const char building_caster_ability_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X4;Y5;D0\n"
+    "B;X4;Y18;D0\n"
     "C;X1;Y1;K\"alias\"\n"
     "C;X2;K\"code\"\n"
     "C;X3;K\"checkDep\"\n"
@@ -341,14 +382,33 @@ static const char building_caster_ability_slk[] =
     "C;X1;Y3;K\"Aply\"\nC;X2;K\"Aply\"\nC;X3;K1\nC;X4;K\"Polymorph\"\n"
     "C;X1;Y4;K\"Adis\"\nC;X2;K\"Adis\"\nC;X3;K1\nC;X4;K\"Dispel Magic\"\n"
     "C;X1;Y5;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K1\nC;X4;K\"Inner Fire\"\n"
+    "C;X1;Y6;K\"Auhf\"\nC;X2;K\"Auhf\"\nC;X3;K1\nC;X4;K\"Unholy Frenzy\"\n"
+    "C;X1;Y7;K\"Acri\"\nC;X2;K\"Acri\"\nC;X3;K1\nC;X4;K\"Cripple\"\n"
+    "C;X1;Y8;K\"Aam2\"\nC;X2;K\"Aam2\"\nC;X3;K1\nC;X4;K\"Anti-Magic Shell\"\n"
+    "C;X1;Y9;K\"Aps2\"\nC;X2;K\"Aps2\"\nC;X3;K1\nC;X4;K\"Possession\"\n"
+    "C;X1;Y10;K\"Aams\"\nC;X2;K\"Aams\"\nC;X3;K1\nC;X4;K\"Anti-magic Shield\"\n"
+    "C;X1;Y11;K\"Apos\"\nC;X2;K\"Apos\"\nC;X3;K1\nC;X4;K\"Possession\"\n"
+    "C;X1;Y12;K\"Ablo\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K\"Bloodlust\"\n"
+    "C;X1;Y13;K\"Asta\"\nC;X2;K\"Asta\"\nC;X3;K1\nC;X4;K\"Stasis Trap\"\n"
+    "C;X1;Y14;K\"Ahwd\"\nC;X2;K\"Ahwd\"\nC;X3;K1\nC;X4;K\"Healing Ward\"\n"
+    "C;X1;Y15;K\"Alsh\"\nC;X2;K\"Alsh\"\nC;X3;K1\nC;X4;K\"Lightning Shield\"\n"
+    "C;X1;Y16;K\"Arej\"\nC;X2;K\"Arej\"\nC;X3;K1\nC;X4;K\"Rejuvenation\"\n"
+    "C;X1;Y17;K\"Abrf\"\nC;X2;K\"Abrf\"\nC;X3;K1\nC;X4;K\"Bear Form\"\n"
+    "C;X1;Y18;K\"Aadm\"\nC;X2;K\"Aadm\"\nC;X3;K1\nC;X4;K\"Abolish Magic\"\n"
     "E\n";
 
 static const char building_caster_upgrade_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X3;Y3;D0\n"
+    "B;X3;Y9;D0\n"
     "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n"
     "C;X1;Y2;K\"Rhst\"\nC;X3;K2\n"
     "C;X1;Y3;K\"Rhpt\"\nC;X3;K2\n"
+    "C;X1;Y4;K\"Rune\"\nC;X3;K2\n"
+    "C;X1;Y5;K\"Ruba\"\nC;X3;K2\n"
+    "C;X1;Y6;K\"Rowd\"\nC;X3;K2\n"
+    "C;X1;Y7;K\"Rost\"\nC;X3;K2\n"
+    "C;X1;Y8;K\"Redc\"\nC;X3;K2\n"
+    "C;X1;Y9;K\"Resi\"\nC;X3;K1\n"
     "E\n";
 
 typedef struct {
@@ -695,8 +755,7 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     building->s.player = trainee->s.player = client->ps.number;
     building->build = trainee;
     trainee->training = true;
-    if (!trainee->food) trainee->food = G_AllocFood();
-    assert(trainee->food);
+    (trainee->food ? trainee->food : (trainee->food=G_AllocFood()));
     trainee->food->used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
@@ -863,8 +922,7 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     level.events.read = level.events.write = 0;
 
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
-    if (!building->research) building->research = G_AllocResearch();
-    assert(building->research);
+    (building->research ? building->research : (building->research=G_AllocResearch()));
     building->research->progress = building->research->duration;
     G_RunBuildingUpgradeFrame(building);
 
@@ -1149,8 +1207,7 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
     G_RunEvents();
     jass_runevents(level.vm);
     T_NOT_NULL(producer->build);
-    if (!producer->build->research) producer->build->research = G_AllocResearch();
-    assert(producer->build->research);
+    (producer->build->research ? producer->build->research : (producer->build->research=G_AllocResearch()));
     producer->build->research->duration = 0.0f;
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
@@ -1288,6 +1345,148 @@ TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_un
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, nightelf_improved_bows_and_marksmanship_affect_only_opted_in_units) {
+    gameClient_t *owner = &game.clients[0];
+    edict_t *archer, *rider, *huntress, *future, *future_rider;
+    UnitBalance_t ranged_balance = { .upgrades = "Reib,Remk" };
+    UnitBalance_t huntress_balance = { .upgrades = "Remg,Resc" };
+    slkTestData_t *rows = parse_slk_string(building_nightelf_ranged_upgrade_slk);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+    uint32_t const bows = MAKEFOURCC('R','e','i','b');
+    uint32_t const marksmanship = MAKEFOURCC('R','e','m','k');
+
+    setup_test_world();
+    memset(owner->tech, 0, sizeof(owner->tech));
+    archer = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 0, 0);
+    rider = alloc_test_unit(MAKEFOURCC('e','h','p','r'), 128, 0);
+    huntress = alloc_test_unit(MAKEFOURCC('e','s','e','n'), 256, 0);
+    archer->s.player = rider->s.player = huntress->s.player = owner->ps.number;
+    archer->data.UnitBalance = rider->data.UnitBalance = &ranged_balance;
+    huntress->data.UnitBalance = &huntress_balance;
+    archer->runtime.acquisition_range = 800.0f;
+    S_AttackProfileWrite(archer, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(archer, 0)->range = 500.0f;
+    S_AttackProfileWrite(archer, 0)->damageBase = 16;
+    /* The generic effect must also update an authored second attack. */
+    S_AttackProfileWrite(archer, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(archer, 1)->range = 450.0f;
+    S_AttackProfileWrite(archer, 1)->damageBase = 19;
+    S_AttackProfileWrite(rider, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(rider, 0)->range = 400.0f;
+    S_AttackProfileWrite(rider, 0)->damageBase = 18;
+    S_AttackProfileWrite(huntress, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(huntress, 0)->range = 225.0f;
+    S_AttackProfileWrite(huntress, 0)->damageBase = 15;
+
+    T_EQ(G_UpgradeData(bows)->effect[0], MAKEFOURCC('r','a','t','r'));
+    T_EQ(G_UpgradeData(marksmanship)->effect[0], MAKEFOURCC('r','a','t','x'));
+    G_SetPlayerTechResearched(owner, bows, 1);
+    G_SetPlayerTechResearched(owner, marksmanship, 1);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 700.0f, 0.001f);
+    T_FEQ(archer->runtime.acquisition_range, 800.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(archer, 1)->range, 650.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 20);
+    T_EQ(S_AttackProfileRead(archer, 1)->damageBase, 23);
+    T_FEQ(S_AttackProfileRead(rider, 0)->range, 600.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(rider, 0)->damageBase, 22);
+    T_FEQ(S_AttackProfileRead(huntress, 0)->range, 225.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(huntress, 0)->damageBase, 15);
+
+    future = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 384, 0);
+    future->s.player = owner->ps.number;
+    future->data.UnitBalance = &ranged_balance;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future, 0)->range = 500.0f;
+    S_AttackProfileWrite(future, 0)->damageBase = 16;
+    G_ApplyPlayerUpgradesToUnit(future);
+    T_FEQ(S_AttackProfileRead(future, 0)->range, 700.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future, 0)->damageBase, 20);
+    T_FEQ(S_AttackProfileRead(future, 0)->permanentDamageBonus, 4.0f, 0.001f);
+    future_rider = alloc_test_unit(MAKEFOURCC('e','h','p','r'), 448, 0);
+    future_rider->s.player = owner->ps.number;
+    future_rider->data.UnitBalance = &ranged_balance;
+    S_AttackProfileWrite(future_rider, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future_rider, 0)->range = 400.0f;
+    S_AttackProfileWrite(future_rider, 0)->damageBase = 18;
+    G_ApplyPlayerUpgradesToUnit(future_rider);
+    T_FEQ(S_AttackProfileRead(future_rider, 0)->range, 600.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future_rider, 0)->damageBase, 22);
+
+    /* JASS may revoke either upgrade independently; the other survives. */
+    G_SetPlayerTechResearched(owner, bows, 0);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 500.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(rider, 0)->range, 400.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 20);
+    G_SetPlayerTechResearched(owner, marksmanship, 0);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 16);
+    T_EQ(S_AttackProfileRead(rider, 0)->damageBase, 18);
+    T_FEQ(S_AttackProfileRead(future, 0)->permanentDamageBonus, 0.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(future_rider, 0)->range, 400.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future_rider, 0)->damageBase, 18);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, nightelf_ranged_research_queue_completes_both_upgrade_effects) {
+    gameClient_t *owner = &game.clients[0];
+    edict_t *producer, *archer;
+    UnitProfile_t profile = { .researches = "Reib,Remk" };
+    UnitBalance_t balance = { .upgrades = "Reib,Remk" };
+    slkTestData_t *rows = parse_slk_string(building_nightelf_ranged_upgrade_slk);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+    uint32_t const bows = MAKEFOURCC('R','e','i','b');
+    uint32_t const marksmanship = MAKEFOURCC('R','e','m','k');
+    int32_t next_level = 0;
+    char reason[128];
+
+    setup_test_world();
+    memset(owner->tech, 0, sizeof(owner->tech));
+    producer = alloc_test_unit(MAKEFOURCC('e','a','o','w'), 0, 0);
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
+    producer->s.player = owner->ps.number;
+    producer->data.UnitProfile = &profile;
+    producer->stand = building_test_stand;
+    archer = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 64, 0);
+    archer->s.player = owner->ps.number;
+    archer->data.UnitBalance = &balance;
+    S_AttackProfileWrite(archer, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(archer, 0)->range = 500.0f;
+    S_AttackProfileWrite(archer, 0)->damageBase = 16;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    owner->connected = false;
+    owner->cheat_instant_build = true;
+
+    T_EQ(G_GetResearchCommandState(owner, producer, bows, &next_level, reason, sizeof(reason)),
+         BUILD_COMMAND_AVAILABLE);
+    T_EQ(G_GetResearchCommandState(owner, producer, marksmanship, &next_level, reason, sizeof(reason)),
+         BUILD_COMMAND_AVAILABLE);
+    T_ASSERT(G_QueueResearch(producer, bows));
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 500.0f, 0.001f);
+    T_NOT_NULL(producer->currentmove);
+    T_NOT_NULL(producer->currentmove->think);
+    producer->currentmove->think(producer);
+    T_EQ(G_GetPlayerTechResearchedLevel(owner, bows), 1);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 700.0f, 0.001f);
+
+    T_ASSERT(G_QueueResearch(producer, marksmanship));
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 16);
+    T_NOT_NULL(producer->currentmove);
+    T_NOT_NULL(producer->currentmove->think);
+    producer->currentmove->think(producer);
+    T_EQ(G_GetPlayerTechResearchedLevel(owner, marksmanship), 1);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 20);
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 850);
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 725);
+
+    owner->cheat_instant_build = false;
+    G_SetPlayerTechResearched(owner, bows, 0);
+    G_SetPlayerTechResearched(owner, marksmanship, 0);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
     gameClient_t *client = &game.clients[0];
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 0, 0);
@@ -1421,6 +1620,65 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     T_ASSERT(found);
 
     building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, passive_true_sight_and_spell_immunity_show_disabled_indicators) {
+    static UnitAbilities_t const effect_abilities = {
+        .abilList = "Agyv,Atru,Adtg,Amim,ACmi,ACm2,ACm3"
+    };
+    static UnitAbilities_t const owl_abilities = { .abilList = "Adtg" };
+    static cstring_t const expected[] = { "Agyv", "Atru", "Amim", "ACmi", "ACm2", "ACm3" };
+    gameCommandButton_t buttons[16];
+    edict_t *unit, *owl;
+    uint8_t count, found_count = 0;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->data.UnitAbilities = (UnitAbilities_t *)&effect_abilities;
+    count = G_GetCommandButtons(unit, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, sizeof(expected) / sizeof(expected[0])) {
+        bool found = false;
+        FOR_LOOP(j, count) if (!strcmp(buttons[j].command, expected[i])) {
+            found = true;
+            T_ASSERT(buttons[j].disabled);
+        }
+        T_ASSERT(found);
+        found_count += found;
+    }
+    T_EQ(found_count, sizeof(expected) / sizeof(expected[0]));
+
+    owl = alloc_test_unit(MAKEFOURCC('n','o','w','l'), 64, 0);
+    owl->data.UnitAbilities = (UnitAbilities_t *)&owl_abilities;
+    count = G_GetCommandButtons(owl, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    {
+        bool found_true_sight = false;
+        FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Atru")) {
+            found_true_sight = true;
+            T_ASSERT(buttons[i].disabled);
+        }
+        T_ASSERT(found_true_sight);
+    }
+}
+
+TEST(wc3_building, dryad_slow_poison_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const dryad_abilities = { .abilList = "Aadm,Amim,Aspo,Aien,Ault" };
+    gameCommandButton_t buttons[16];
+    edict_t *dryad;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    dryad = alloc_test_unit(MAKEFOURCC('e','d','r','y'), 0, 0);
+    dryad->data.UnitAbilities = (UnitAbilities_t *)&dryad_abilities;
+    count = G_GetCommandButtons(dryad, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aspo")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNSlowPoison.blp");
+    }
+    T_ASSERT(found);
 }
 
 TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
@@ -1715,6 +1973,236 @@ TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
     building_restore_caster_data(caster_rows);
 }
 
+TEST(wc3_building, undead_caster_training_gates_banshee_and_necromancer_tiers) {
+    buildingCasterRows_t caster_rows;
+    gameClient_t *client;
+    edict_t *banshee, *necromancer;
+    UnitBalance_t banshee_balance = { .upgrades = "Ruba" };
+    UnitBalance_t necromancer_balance = { .upgrades = "Rune" };
+    UnitAbilities_t banshee_abilities = { .abilList = "Aam2,Aps2,Aams,Apos" };
+    UnitAbilities_t necromancer_abilities = { .abilList = "Auhf,Acri" };
+    uint32_t const banshee_training = MAKEFOURCC('R','u','b','a');
+    uint32_t const necromancer_training = MAKEFOURCC('R','u','n','e');
+
+    setup_test_world();
+    caster_rows = building_install_caster_data();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, banshee_training, 1);
+    G_SetPlayerTechMaxAllowed(client, necromancer_training, 1);
+
+    banshee = alloc_test_unit(MAKEFOURCC('u','b','a','n'), 64, 0);
+    banshee->s.player = client->ps.number;
+    banshee->data.UnitBalance = &banshee_balance;
+    banshee->data.UnitAbilities = &banshee_abilities;
+    necromancer = alloc_test_unit(MAKEFOURCC('u','n','e','c'), 128, 0);
+    necromancer->s.player = client->ps.number;
+    necromancer->data.UnitBalance = &necromancer_balance;
+    necromancer->data.UnitAbilities = &necromancer_abilities;
+
+    T_ASSERT(G_UnitAbilityResearchVisible(banshee, MAKEFOURCC('A','a','m','2')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','a','m','2')));
+    T_ASSERT(G_UnitAbilityResearchVisible(banshee, MAKEFOURCC('A','a','m','s')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','a','m','s')));
+    T_ASSERT(!G_UnitAbilityResearchVisible(banshee, MAKEFOURCC('A','p','s','2')));
+    T_ASSERT(!G_UnitAbilityResearchVisible(banshee, MAKEFOURCC('A','p','o','s')));
+    T_ASSERT(G_UnitAbilityResearchVisible(necromancer, MAKEFOURCC('A','u','h','f')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(necromancer, MAKEFOURCC('A','u','h','f')));
+    T_ASSERT(!G_UnitAbilityResearchVisible(necromancer, MAKEFOURCC('A','c','r','i')));
+
+    G_SetPlayerTechResearched(client, banshee_training, 1);
+    G_SetPlayerTechResearched(client, necromancer_training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','a','m','2')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','a','m','s')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(necromancer, MAKEFOURCC('A','u','h','f')));
+
+    G_SetPlayerTechMaxAllowed(client, banshee_training, 2);
+    G_SetPlayerTechMaxAllowed(client, necromancer_training, 2);
+    T_ASSERT(G_UnitAbilityResearchVisible(banshee, MAKEFOURCC('A','p','s','2')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','p','s','2')));
+    T_ASSERT(G_UnitAbilityResearchVisible(banshee, MAKEFOURCC('A','p','o','s')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','p','o','s')));
+    T_ASSERT(G_UnitAbilityResearchVisible(necromancer, MAKEFOURCC('A','c','r','i')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(necromancer, MAKEFOURCC('A','c','r','i')));
+    G_SetPlayerTechResearched(client, banshee_training, 2);
+    G_SetPlayerTechResearched(client, necromancer_training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','p','s','2')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','p','o','s')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(necromancer, MAKEFOURCC('A','c','r','i')));
+
+    G_SetPlayerTechResearched(client, banshee_training, 0);
+    G_SetPlayerTechResearched(client, necromancer_training, 0);
+    G_SetPlayerTechMaxAllowed(client, banshee_training, -1);
+    G_SetPlayerTechMaxAllowed(client, necromancer_training, -1);
+    building_restore_caster_data(caster_rows);
+}
+
+TEST(wc3_building, orc_caster_training_gates_shaman_and_witch_doctor_spells) {
+    buildingCasterRows_t caster_rows;
+    gameClient_t *client;
+    edict_t *shaman, *witch_doctor, *spirit_lodge;
+    UnitBalance_t shaman_balance = { .upgrades = "Rost" };
+    UnitBalance_t witch_doctor_balance = { .upgrades = "Rowd" };
+    UnitAbilities_t shaman_abilities = { .abilList = "Ablo,Alsh,Apg2,Aion" };
+    UnitAbilities_t witch_doctor_abilities = { .abilList = "Aeye,Ahwd,Asta,Aion" };
+    UnitProfile_t spirit_lodge_profile = { .researches = "Rowd,Rost" };
+    uint32_t const shaman_training = MAKEFOURCC('R','o','s','t');
+    uint32_t const witch_doctor_training = MAKEFOURCC('R','o','w','d');
+    int32_t next_level;
+    char reason[128];
+
+    setup_test_world();
+    caster_rows = building_install_caster_data();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, shaman_training, 1);
+    G_SetPlayerTechMaxAllowed(client, witch_doctor_training, 1);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+
+    spirit_lodge = alloc_test_unit(MAKEFOURCC('o','s','l','d'), 0, 0);
+    spirit_lodge->s.player = client->ps.number;
+    spirit_lodge->s.flags |= EF_BUILDING;
+    spirit_lodge->runtime.flags |= UNIT_BALANCE_BUILDING;
+    spirit_lodge->data.UnitProfile = &spirit_lodge_profile;
+    T_ASSERT(G_ProducerCanResearch(spirit_lodge, witch_doctor_training));
+    T_ASSERT(G_ProducerCanResearch(spirit_lodge, shaman_training));
+    T_EQ(G_GetResearchCommandState(client, spirit_lodge, witch_doctor_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 1);
+    T_EQ(G_GetResearchCommandState(client, spirit_lodge, shaman_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 1);
+
+    shaman = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 64, 0);
+    shaman->s.player = client->ps.number;
+    shaman->data.UnitBalance = &shaman_balance;
+    shaman->data.UnitAbilities = &shaman_abilities;
+    witch_doctor = alloc_test_unit(MAKEFOURCC('o','d','o','c'), 128, 0);
+    witch_doctor->s.player = client->ps.number;
+    witch_doctor->data.UnitBalance = &witch_doctor_balance;
+    witch_doctor->data.UnitAbilities = &witch_doctor_abilities;
+
+    T_ASSERT(G_UnitAbilityResearchVisible(shaman, MAKEFOURCC('A','l','s','h')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(shaman, MAKEFOURCC('A','l','s','h')));
+    T_ASSERT(!G_UnitAbilityResearchVisible(shaman, MAKEFOURCC('A','b','l','o')));
+    T_ASSERT(G_UnitAbilityResearchVisible(witch_doctor, MAKEFOURCC('A','s','t','a')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(witch_doctor, MAKEFOURCC('A','s','t','a')));
+    T_ASSERT(!G_UnitAbilityResearchVisible(witch_doctor, MAKEFOURCC('A','h','w','d')));
+
+    G_SetPlayerTechResearched(client, shaman_training, 1);
+    G_SetPlayerTechResearched(client, witch_doctor_training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(shaman, MAKEFOURCC('A','l','s','h')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(witch_doctor, MAKEFOURCC('A','s','t','a')));
+    T_EQ(G_GetResearchCommandState(client, spirit_lodge, witch_doctor_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_HIDDEN);
+    G_SetPlayerTechMaxAllowed(client, witch_doctor_training, 2);
+    T_EQ(G_GetResearchCommandState(client, spirit_lodge, witch_doctor_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 2);
+    G_SetPlayerTechMaxAllowed(client, shaman_training, 2);
+    T_EQ(G_GetResearchCommandState(client, spirit_lodge, shaman_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 2);
+    T_ASSERT(G_UnitAbilityResearchVisible(shaman, MAKEFOURCC('A','b','l','o')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(shaman, MAKEFOURCC('A','b','l','o')));
+
+    T_ASSERT(G_UnitAbilityResearchVisible(witch_doctor, MAKEFOURCC('A','h','w','d')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(witch_doctor, MAKEFOURCC('A','h','w','d')));
+    G_SetPlayerTechResearched(client, witch_doctor_training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(witch_doctor, MAKEFOURCC('A','h','w','d')));
+    G_SetPlayerTechResearched(client, shaman_training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(shaman, MAKEFOURCC('A','b','l','o')));
+    T_EQ(G_GetResearchCommandState(client, spirit_lodge, witch_doctor_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_HIDDEN);
+
+    G_SetPlayerTechResearched(client, shaman_training, 0);
+    G_SetPlayerTechResearched(client, witch_doctor_training, 0);
+    G_SetPlayerTechMaxAllowed(client, shaman_training, -1);
+    G_SetPlayerTechMaxAllowed(client, witch_doctor_training, -1);
+    building_restore_caster_data(caster_rows);
+}
+
+TEST(wc3_building, night_elf_caster_training_gates_druid_and_dryad_spells) {
+    buildingCasterRows_t caster_rows;
+    gameClient_t *client;
+    edict_t *druid, *dryad, *ancient_lore;
+    UnitBalance_t druid_balance = { .upgrades = "Redc,Reuv,Repm,Reeb" };
+    UnitBalance_t dryad_balance = { .upgrades = "Resw,Rerh,Resi,Reuv,Repm" };
+    UnitAbilities_t druid_abilities = { .abilList = "Arej,Abrf" };
+    UnitAbilities_t dryad_abilities = { .abilList = "Aadm" };
+    UnitProfile_t ancient_lore_profile = { .researches = "Resi,Redc" };
+    uint32_t const druid_training = MAKEFOURCC('R','e','d','c');
+    uint32_t const dryad_training = MAKEFOURCC('R','e','s','i');
+    int32_t next_level;
+    char reason[128];
+
+    setup_test_world();
+    caster_rows = building_install_caster_data();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, druid_training, 1);
+    G_SetPlayerTechMaxAllowed(client, dryad_training, 1);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+
+    ancient_lore = alloc_test_unit(MAKEFOURCC('e','a','o','e'), 0, 0);
+    ancient_lore->s.player = client->ps.number;
+    ancient_lore->s.flags |= EF_BUILDING;
+    ancient_lore->runtime.flags |= UNIT_BALANCE_BUILDING;
+    ancient_lore->data.UnitProfile = &ancient_lore_profile;
+    T_ASSERT(G_ProducerCanResearch(ancient_lore, druid_training));
+    T_ASSERT(G_ProducerCanResearch(ancient_lore, dryad_training));
+    T_EQ(G_GetResearchCommandState(client, ancient_lore, druid_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 1);
+    T_EQ(G_GetResearchCommandState(client, ancient_lore, dryad_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 1);
+
+    druid = alloc_test_unit(MAKEFOURCC('e','d','o','c'), 64, 0);
+    druid->s.player = client->ps.number;
+    druid->data.UnitBalance = &druid_balance;
+    druid->data.UnitAbilities = &druid_abilities;
+    dryad = alloc_test_unit(MAKEFOURCC('e','d','r','y'), 128, 0);
+    dryad->s.player = client->ps.number;
+    dryad->data.UnitBalance = &dryad_balance;
+    dryad->data.UnitAbilities = &dryad_abilities;
+
+    T_ASSERT(G_UnitAbilityResearchVisible(druid, MAKEFOURCC('A','r','e','j')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(druid, MAKEFOURCC('A','r','e','j')));
+    T_ASSERT(!G_UnitAbilityResearchVisible(druid, MAKEFOURCC('A','b','r','f')));
+    T_ASSERT(G_UnitAbilityResearchVisible(dryad, MAKEFOURCC('A','a','d','m')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(dryad, MAKEFOURCC('A','a','d','m')));
+
+    G_SetPlayerTechResearched(client, druid_training, 1);
+    G_SetPlayerTechResearched(client, dryad_training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(druid, MAKEFOURCC('A','r','e','j')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(dryad, MAKEFOURCC('A','a','d','m')));
+    T_EQ(G_GetResearchCommandState(client, ancient_lore, druid_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_HIDDEN);
+
+    G_SetPlayerTechMaxAllowed(client, druid_training, 2);
+    T_EQ(G_GetResearchCommandState(client, ancient_lore, druid_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 2);
+    T_ASSERT(G_UnitAbilityResearchVisible(druid, MAKEFOURCC('A','b','r','f')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(druid, MAKEFOURCC('A','b','r','f')));
+    G_SetPlayerTechResearched(client, druid_training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(druid, MAKEFOURCC('A','b','r','f')));
+    T_EQ(G_GetResearchCommandState(client, ancient_lore, druid_training,
+                                   &next_level, reason, sizeof(reason)), BUILD_COMMAND_HIDDEN);
+
+    G_SetPlayerTechResearched(client, druid_training, 0);
+    G_SetPlayerTechResearched(client, dryad_training, 0);
+    G_SetPlayerTechMaxAllowed(client, druid_training, -1);
+    G_SetPlayerTechMaxAllowed(client, dryad_training, -1);
+    building_restore_caster_data(caster_rows);
+}
+
 TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
     static const char upgrade_slk[] =
         "ID;PWXL;N;E\nB;X13;Y2;D0\n"
@@ -1866,6 +2354,72 @@ TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
     free_slk_rows(ui_rows);
     free_slk_rows(balance_rows);
     free_slk_rows(profile_rows);
+}
+
+static void building_assert_tree_attachment_art(edict_t *tree, cstring_t animation_props) {
+    uint32_t const atol = MAKEFOURCC('A','t','o','l');
+    uint32_t const expected[3] = {
+        G_RegisterModel("TestUI\\Models\\anim_pulse.mdx"),
+        G_RegisterModel("TestUI\\Models\\anim_projectile.mdx"),
+        G_RegisterModel("Buildings\\Other\\ElvenFishVillageBuildingRuined2\\ElvenFishVillageBuildingRuined2.mdx")
+    };
+    uint32_t found[3] = {0};
+    T_ASSERT(expected[0] && expected[1] && expected[2]);
+    FILTER_EDICTS(effect, effect->status_effect_code == atol && effect->goalentity == tree) {
+        bool matched = false;
+        T_STREQ(G_UnitAnimationProperties(effect), animation_props);
+        T_STREQ(G_UnitAnimationRequest(effect), "birth");
+        FOR_LOOP(i, 3) if (effect->s.model == expected[i]) { found[i]++; matched = true; }
+        T_ASSERT(matched);
+    }
+    T_EQ(found[0], 1);
+    T_EQ(found[1], 1);
+    T_EQ(found[2], 1);
+}
+
+TEST(wc3_building, tree_of_life_attachments_refresh_with_upgrade_animation_properties) {
+    static cstring_t const ability_config =
+        "[Atol]\n"
+        "Targetart=TestUI\\Models\\anim_pulse.mdx,TestUI\\Models\\anim_projectile.mdx,Buildings\\Other\\ElvenFishVillageBuildingRuined2\\ElvenFishVillageBuildingRuined2.mdx\n"
+        "Targetattachcount=3\nTargetattach=origin\n"
+        "Targetattach1=hand,left\nTargetattach2=hand,right\n";
+    static UnitAbilities_t const abilities = { .abilList = "Atol" };
+    static UnitProfile_t const life = { .attachmentAnimProps = "large" };
+    static UnitProfile_t const ages = { .attachmentAnimProps = "upgrade,first,large" };
+    static UnitProfile_t const eternity = { .attachmentAnimProps = "upgrade,second,large" };
+    uint32_t const atol = MAKEFOURCC('A','t','o','l');
+    edict_t *tree;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 64.0f, 64.0f);
+    tree->svflags |= SVF_MONSTER;
+    tree->data.UnitAbilities = &abilities;
+    tree->data.UnitProfile = &life;
+    globals.num_edicts = MAX(globals.num_edicts, (uint32_t)(tree - globals.edicts + 1));
+
+    S_UnitAbilityEvent(tree, A_UNIT_INIT);
+    building_assert_tree_attachment_art(tree, "large");
+
+    /* G_TransformUnitType dispatches A_UNIT_INIT after rebinding to the new
+     * UnitProfile. The passive must replace old art so attached models select
+     * the authored tier-specific Birth/Stand sequence family. */
+    tree->data.UnitProfile = &ages;
+    S_UnitAbilityEvent(tree, A_UNIT_INIT);
+    building_assert_tree_attachment_art(tree, "upgrade,first,large");
+
+    tree->data.UnitProfile = &eternity;
+    S_UnitAbilityEvent(tree, A_UNIT_INIT);
+    building_assert_tree_attachment_art(tree, "upgrade,second,large");
+
+    S_DisableAbility(tree, atol);
+    {
+        uint32_t count = 0;
+        FILTER_EDICTS(effect, effect->status_effect_code == atol && effect->goalentity == tree) count++;
+        T_EQ(count, 0);
+    }
+    G_TestPopAbilityConfig();
 }
 
 TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
@@ -3433,7 +3987,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                     T_EQ(workers[i]->build_preview->s.frame,
                          workers[i]->build_preview->animation->interval[0]);
                 }
-                T_ASSERT(workers[i]->build_preview->vertex_color_set);
+                T_ASSERT((workers[i]->build_preview && workers[i]->build_preview->vertex_color_set));
                 T_EQ(workers[i]->build_preview->vertex_color.r, 255);
                 T_EQ(workers[i]->build_preview->vertex_color.g, 255);
                 T_EQ(workers[i]->build_preview->vertex_color.b, 255);
@@ -3483,8 +4037,7 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
 
     building->s.flags &= ~EF_NOT_SELECTABLE;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     CM_BakeStaticObstacles();
     T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
     building->pathtex = NULL;
@@ -3813,17 +4366,16 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
     mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -64, -64);
     builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
-    if (!builder->goldmine) builder->goldmine = G_AllocGoldMine();
-    assert(builder->goldmine);
+    (builder->goldmine ? builder->goldmine : (builder->goldmine=G_AllocGoldMine()));
     builder->goldmine->mine = mine; builder->goldmine->mine_spawn_time = mine->spawn_time;
-    builder->invulnerable = true; builder->s.renderfx |= RF_HIDDEN; mine->peonsinside = 1;
+    builder->invulnerable = true; builder->s.renderfx |= RF_HIDDEN; (mine->goldmine ? mine->goldmine : (mine->goldmine=G_AllocGoldMine())); mine->peonsinside = 1;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
     T_ASSERT(!S_GoldMineWorkerIsInside(builder)); T_EQ(mine->peonsinside, 0);
-    T_ASSERT(!(builder->s.renderfx & RF_HIDDEN)); T_ASSERT(!builder->invulnerable);
+    T_ASSERT(!(builder->s.renderfx & RF_HIDDEN)); T_ASSERT(!(builder && builder->invulnerable));
     T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
 }
 
@@ -4340,12 +4892,10 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
     T_ASSERT(G_StartHumanConstruction(builder, building));
     /* Keep this lifecycle test independent of the optional Repair SLK fixture. */
     builder->build = building;
-    if (!builder->buildwork) builder->buildwork = G_AllocBuildwork();
-    assert(builder->buildwork);
-    builder->buildwork->ability = MAKEFOURCC('A','r','e','p');
-    builder->buildwork->primary = true;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    buildwork_t *work = (builder->buildwork ? builder->buildwork : (builder->buildwork=G_AllocBuildwork()));
+    work->ability = MAKEFOURCC('A','r','e','p');
+    work->primary = true;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->primary_builder = builder;
     T_ASSERT(builder->build == building);
 
@@ -4591,8 +5141,8 @@ TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
     T_ASSERT(!building->inuse);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!worker->paused);
-    T_ASSERT(!worker->invulnerable);
+    T_ASSERT(!(worker && worker->paused));
+    T_ASSERT(!(worker && worker->invulnerable));
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -4609,13 +5159,13 @@ TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
     worker->s.renderfx |= RF_HIDDEN;
 
     T_ASSERT(G_StartOrcConstruction(worker, building));
-    T_ASSERT(worker->paused);
-    T_ASSERT(worker->invulnerable);
+    T_ASSERT((worker && worker->paused));
+    T_ASSERT((worker && worker->invulnerable));
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
     G_StopConstruction(building);
 
-    T_ASSERT(worker->paused);
-    T_ASSERT(worker->invulnerable);
+    T_ASSERT((worker && worker->paused));
+    T_ASSERT((worker && worker->invulnerable));
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 }
 
@@ -4733,6 +5283,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
             ziggurat_balance = *ent->data.UnitBalance;
             ziggurat_balance.buildTime = 1;
             ent->data.UnitBalance = &ziggurat_balance;
+
             ent->svflags |= SVF_MONSTER;
             ent->health.max_value = 1000.0f;
             ent->health.value = ent->health.max_value;
@@ -4758,8 +5309,8 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     T_NULL(acolyte->build);
     T_ASSERT(acolyte->goalentity && acolyte->goalentity->s.origin2.x == build_point.x);
     T_ASSERT(!(acolyte->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!acolyte->paused);
-    T_ASSERT(!acolyte->invulnerable);
+    T_ASSERT(!(acolyte && acolyte->paused));
+    T_ASSERT(!(acolyte && acolyte->invulnerable));
 
     order_move(acolyte, Waypoint_add(&move_point));
     FOR_LOOP(i, 20) {
@@ -4774,6 +5325,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     acolyte->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','u','n','s'), .level = 1);
     acolyte->mana.value = acolyte->mana.max_value = 100.0f;
     ziggurat->s.player = client->ps.number;
+
     ziggurat->svflags |= SVF_MONSTER;
     ziggurat->s.flags |= EF_BUILDING;
     ziggurat->targtype = TARG_STRUCTURE;
@@ -4842,7 +5394,7 @@ TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
     G_StopConstruction(building);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!worker->paused);
+    T_ASSERT(!(worker && worker->paused));
     T_EQ(worker->food->used, worker_balance.foodUsed);
     T_NULL(building->construction);
 }
@@ -4889,7 +5441,7 @@ TEST(wc3_building, night_elf_non_ancient_completion_releases_wisp) {
     G_CompleteConstruction(building);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!worker->paused);
+    T_ASSERT(!(worker && worker->paused));
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -4906,7 +5458,7 @@ TEST(wc3_building, cancelling_night_elf_non_ancient_construction_releases_wisp) 
 
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!worker->paused);
+    T_ASSERT(!(worker && worker->paused));
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -4965,8 +5517,7 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     building->health.value = 1000.0f;
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->paid = true;
     building->construction->payer = client->ps.number;
     building->construction->gold = balance.goldCost;
@@ -5058,8 +5609,7 @@ TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
     building->s.player = client->ps.number;
     building->svflags |= SVF_MONSTER;
     building->stand = unit_stand;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->paid = true;
     building->construction->payer = client->ps.number;
     building->construction->gold = 100;
@@ -5168,8 +5718,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->s.player = client->ps.number;
     building->health.max_value = 1000.0f;
     building->health.value = 400.0f;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->paused = true;
     building->construction->type = CONSTRUCTION_HUMAN;
     building->construction->primary_builder = builder;
@@ -5376,7 +5925,6 @@ TEST(wc3_building, roc_peasant_aliased_repair_order_repairs_damaged_structure) {
     edict_t *building;
     UnitAbilities_t abilities = { .abilList = "Ahrp" };
     UnitBalance_t balance;
-    gameClient_t *saved_client;
     slkTestData_t *rows = parse_slk_string(roc_repair_slk);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
 
@@ -5403,16 +5951,23 @@ TEST(wc3_building, roc_peasant_aliased_repair_order_repairs_damaged_structure) {
     T_ASSERT(G_UnitHasHumanRepair(worker));
     T_FEQ(G_AbilityData(MAKEFOURCC('A','h','r','p'))->level[0].data[0].number, 0.35f, 0.001f);
     T_FEQ(G_AbilityData(MAKEFOURCC('A','h','r','p'))->level[0].data[1].number, 1.5f, 0.001f);
+#if BZ_COMPAT_WORKAROUNDS
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','h','r','p')));
     T_EQ(worker->buildwork->ability, MAKEFOURCC('A','h','r','p'));
     T_NOT_NULL(worker->currentmove);
     if (worker->currentmove) T_STREQ(worker->currentmove->animation, "stand work");
 
-    saved_client = g_edicts[0].client;
+    gameClient_t *saved_client = g_edicts[0].client;
     g_edicts[0].client = NULL;
     if (worker->currentmove && worker->currentmove->think) worker->currentmove->think(worker);
     g_edicts[0].client = saved_client;
     T_ASSERT(building->health.value > 500.0f);
+#else
+    /* Without the RoC exception, the authored mask excludes structures. */
+    T_ASSERT(!S_OrderRepair(worker, building, MAKEFOURCC('A','h','r','p')));
+    T_NULL(worker->buildwork);
+    T_FEQ(building->health.value, 500.0f, 0.001f);
+#endif
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
@@ -5853,7 +6408,7 @@ TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
     T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
     ai_train_build(producer);
-    T_ASSERT(!worker->training);
+    T_ASSERT(!(worker && worker->training));
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
     T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
@@ -6036,9 +6591,15 @@ TEST(wc3_building, roc_peasant_repair_button_uses_aliased_repair_presentation) {
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     worker->data.UnitAbilities = &abilities;
 
-    T_ASSERT(G_BuildCommandButton(worker, "Ahrp", false, 0, &button));
+    bool const built = G_BuildCommandButton(worker, "Ahrp", false, 0, &button);
     T_STREQ(button.command, "Ahrp");
+#if BZ_COMPAT_WORKAROUNDS
+    T_ASSERT(built);
     T_ASSERT(button.art[0] != '\0');
+#else
+    T_ASSERT(!built);
+    T_EQ(button.art[0], '\0');
+#endif
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -6407,8 +6968,7 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     building->health.max_value = 1000.0f;
     building->health.value = 100.0f;
     building->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->paused = true;
     building->construction->type = CONSTRUCTION_ORC;
 
@@ -6575,7 +7135,7 @@ TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
         T_ASSERT(preview->s.flags & EF_NOT_SELECTABLE);
         T_FEQ(preview->s.origin2.x, 512.0f, 0.01f);
         T_FEQ(preview->s.origin2.y, 64.0f, 0.01f);
-        T_ASSERT(preview->vertex_color_set);
+        T_ASSERT((preview && preview->vertex_color_set));
         T_EQ(preview->vertex_color.a, 128);
     }
 }
@@ -6751,6 +7311,24 @@ TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
     T_ASSERT(!preview->inuse || preview->spawn_time != preview_spawn_time);
     remove(filename);
+}
+
+TEST(wc3_building, removing_active_preview_detaches_worker_before_slot_reuse) {
+    edict_t *clent;
+    edict_t *worker = building_begin_barracks_placement(&clent);
+    cstring_t point[] = { "point", "64", "64" };
+    G_ClientCommand(clent, 3, point);
+    edict_t *preview = worker->build_preview;
+    T_NOT_NULL(preview);
+    if (!preview) return;
+    G_FreeEdict(preview);
+    T_NULL(worker->build_preview);
+    level.time += 1001;
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 400);
+    T_ASSERT(replacement == preview);
+    G_FreeEdict(worker);
+    T_ASSERT(replacement->inuse);
+    T_ASSERT(replacement->inuse);
 }
 
 TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) {
@@ -7112,8 +7690,7 @@ TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
     balance.buildTime = 10;
     building->data.UnitBalance = &balance;
     building->animation = &birth;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->paused = true;
     building->aiflags |= AI_HOLD_FRAME;
 
@@ -7220,8 +7797,7 @@ static buildingTinyFixture_t building_tiny_fixture(cstring_t ability) {
     item_data = MAKE(ItemData_t, .abilList = ability, .uses = 2, .perishable = false);
     f.item = alloc_test_unit(MAKEFOURCC('s','t','w','p'), -200.0f, -200.0f);
     f.item->s.model = 1; f.item->movetype = MOVETYPE_NONE; f.item->targtype = TARG_ITEM;
-    if (!f.item->item) f.item->item = G_AllocItem();
-    assert(f.item->item);
+    (f.item->item ? f.item->item : (f.item->item=G_AllocItem()));
     f.item->item->carrier = NULL; f.item->item->inventory_slot = -1; f.item->item->in_world = true;
     f.item->data.ItemData = &item_data; f.item->item->charges = 2; f.item->spawn_time = 1234;
     gi.LinkEntity(f.item);
@@ -7363,8 +7939,7 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     building->data.UnitBalance = &balance;
     building->s.player = client->ps.number;
     building->build = building;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     building->construction->type = CONSTRUCTION_TINY;
     building->construction->duration_ms = 9000.0f;
     building->health.value = building->health.max_value * 0.5f;
@@ -7991,6 +8566,100 @@ TEST(wc3_building, build298_repair_notification_precedes_work_and_respects_reent
         level.time+=2000;level.pathing_clock.time+=2;S_RunAbilityTimers();G_RunEvents();CM_BakeStaticObstacles();
     }
     jass_callbyname(level.vm,"finish",false);reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Rosp is a player technology; a unit's authored Upgrades Used controls
+ * whether stock barricades activate, and a directly granted Aspi with no
+ * Rosp entry remains independent of the War Mill. */
+static cstring_t building_spikes_modern_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "wc3_spiked_barricades_modern") ? "1" : fallback;
+}
+
+static cstring_t building_spikes_classic_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "wc3_spiked_barricades_modern") ? "0" : fallback;
+}
+
+TEST(wc3_building, spiked_barricades_research_uses_owner_tech_and_classic_upgrade_data) {
+    static const char upgrades[] =
+        "ID;PWXL;N;E\nB;X7;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\n"
+        "C;X3;K\"effect1\"\nC;X4;K\"base1\"\nC;X5;K\"mod1\"\n"
+        "C;X6;K\"lumberbase\"\nC;X7;K\"lumbermod\"\n"
+        "C;X1;Y2;K\"Rosp\"\nC;X2;K3\nC;X3;K\"rspi\"\n"
+        "C;X4;K4\nC;X5;K6\nC;X6;K75\nC;X7;K100\nE\n";
+    gameClient_t *owner = &game.clients[0], *other = &game.clients[1];
+    cstring_t (*previous)(cstring_t, cstring_t) = gi.CvarString;
+    edict_t *building = alloc_test_unit(MAKEFOURCC('o','b','a','r'), 0, 0);
+    edict_t *future = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 128, 0);
+    UnitBalance_t balance = { .upgrades = "Rosp" };
+    slkTestData_t *rows = parse_slk_string(upgrades);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+
+    memset(owner->tech, 0, sizeof(owner->tech));
+    memset(other->tech, 0, sizeof(other->tech));
+    gi.CvarString = building_spikes_classic_cvar;
+    T_ASSERT(!G_SpikedBarricadesModernEnabled());
+    building->s.flags |= EF_BUILDING;
+    future->s.flags |= EF_BUILDING;
+    building->s.player = future->s.player = owner->ps.number;
+    building->data.UnitBalance = future->data.UnitBalance = &balance;
+    T_EQ(G_SpikedBarricadesResearchLevel(building), 0);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 0, 0.001f);
+
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 1);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 4, 0.001f);
+    T_FEQ(S_SpikedBarricadesDamageReturn(future, 40), 4, 0.001f);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 2);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 10, 0.001f);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 3);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 16, 0.001f);
+
+    /* Ownership is resolved from current player, without stale per-unit data. */
+    building->s.player = other->ps.number;
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 0, 0.001f);
+    building->s.player = owner->ps.number;
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 0);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 0, 0.001f);
+    T_EQ(G_UpgradeLumberCost(MAKEFOURCC('R','o','s','p'), 2), 175);
+
+    gi.CvarString = previous;
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, spiked_barricades_modern_flag_is_opt_in) {
+    static const char upgrades[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\n"
+        "C;X3;K\"lumberbase\"\nC;X4;K\"lumbermod\"\n"
+        "C;X1;Y2;K\"Rosp\"\nC;X2;K3\nC;X3;K75\nC;X4;K100\nE\n";
+    cstring_t (*previous)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner = &game.clients[0];
+    edict_t *building = alloc_test_unit(MAKEFOURCC('o','b','a','r'), 0, 0);
+    UnitBalance_t balance = { .upgrades = "Rosp" };
+    UnitProfile_t profile = { .researches = "Rosp" };
+    slkTestData_t *rows = parse_slk_string(upgrades);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+    memset(owner->tech, 0, sizeof(owner->tech));
+    building->s.player = owner->ps.number;
+    building->s.flags |= EF_BUILDING;
+    building->data.UnitBalance = &balance;
+    building->data.UnitProfile = &profile;
+    gi.CvarString = building_spikes_modern_cvar;
+    T_ASSERT(G_SpikedBarricadesModernEnabled());
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 1);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 13, 0.001f);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 2);
+    T_FEQ(S_SpikedBarricadesDamageReturn(building, 40), 25, 0.001f);
+    T_EQ(G_UpgradeLumberCost(MAKEFOURCC('R','o','s','p'), 2), 100);
+    /* The authoring file still allows classic level 3, but a modern match
+     * must not offer a third research command. */
+    T_EQ(G_GetResearchCommandState(owner, building, MAKEFOURCC('R','o','s','p'),
+                                   NULL, NULL, 0), BUILD_COMMAND_HIDDEN);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','s','p'), 0);
+    gi.CvarString = previous;
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
 }
 
 #endif

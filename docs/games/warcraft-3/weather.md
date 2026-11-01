@@ -379,6 +379,24 @@ Disabling/removing stops new emission.  Already-spawned cosmetic particles are
 allowed to expire by their authored lifespan rather than being converted into
 networked state.
 
+### Client datagram tint packing
+
+`G_WriteClientDatagram` carries weather, lightning, full entity RGBA tints,
+then any pending terrain/blight mask in that order. Tint entries are six-byte
+(entity number, RGBA) records; recipients who lack vision of an explicitly tinted
+entity do not receive its colour. For owner/shared-vision recipients, the same
+path also transmits Shadow Meld, permanent/ghost invisibility, and hero
+dissipation presentation alpha without mutating authoritative vertex colours.
+
+The server evaluates each entity's presentation tint **once** per datagram,
+staging eligible entries directly into the outgoing buffer after the weather
+and admitted lightning sections. It reserves the terrain mask's minimum bytes
+before staging. As before, either the complete tint list fits and is sent, or
+no tint section is sent; a pending terrain section retains its prior priority.
+An untinted non-fading entity without an invisibility or Shadow Meld candidate
+skips the expensive player-specific FoW and detector checks entirely. This
+change does not alter the datagram wire format, protocol version, or save state.
+
 ## Deliberate Gaps
 
 The initial renderer intentionally does **not** guess behavior that was not

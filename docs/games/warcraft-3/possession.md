@@ -11,7 +11,7 @@ It is **not** an `Apos` alias and is **not** Charm (`ANch` / `CAbilityCharm`).
 
 | Rawcode | Archive | Class | Channel | Effect |
 | --- | --- | --- | --- | --- |
-| `Apos` | ROC and TFT | `CAbilityPossession` | no | immediate ownership transfer; caster dies |
+| `Apos` | ROC and TFT | `CAbilityPossession` | no | launches a homing missile; on impact, transfers ownership and kills the caster |
 | `ACps` | ROC and TFT | `CAbilityPossession` (`code=Apos`) | no | same; creep cost/tooltip row |
 | `Aps2` | TFT only | `CAbilityPossessionTwo` | yes (`AB_CHANNEL`) | stun lock for `Dur`, then transfer; caster dies |
 
@@ -30,7 +30,7 @@ allies, dead, and spell-immune units are invalid. `DataA` is max allowed
 | `BuffID` | `Bpos,Bpoc` | — | `Bpos` on target (stun); `Bpoc` on caster (damage amp, not `stunned`) |
 | `Dur`/`HeroDur` | 4.5 | — | channel length; successful expiry performs the takeover |
 
-`Bpoc` must **not** set `ent->stunned`: `spell_run_frame` cancels any channel on
+`Bpoc` must **not** contribute `WC3_STATUS_STATE_STUNNED`: `spell_run_frame` cancels any channel on
 stun, and an external `Bstu` is what aborts Possession. Caster lock is the
 normal `AB_CHANNEL` origin/move cancel. Target `Bpos` is a real stun status.
 
@@ -45,7 +45,7 @@ AbilityData.slk (Apos / ACps / Aps2)
   -> targs, Cost, Rng, Dur, DataA-D, BuffID
 CAbilityPossession / CAbilityPossessionTwo
   -> A_VALIDATE: nonhero + DataA level (+ enemy/neutral)
-  -> A_EXECUTE Apos: G_SetUnitPlayer + unit_die(caster)
+  -> A_EXECUTE Apos/ACps: launch MissileArt; on impact G_SetUnitPlayer + unit_die(caster)
   -> A_EXECUTE Aps2: channel thinker, Bpos/Bpoc, optional invuln
 S_ResolveAttackHit
   -> S_PossessionDamageTaken multiplies by Bpoc.data (DataB * 1000)
@@ -76,5 +76,19 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.possession*'
 ```
 
 Focused tests cover alias/procedure lookup, targs rejects without mana spend,
-authored DataA gate, instant takeover + caster death, Aps2 channel success and
-abort, DataB attack amp, and DataC invulnerability during the channel.
+authored DataA gate, missile launch/impact and takeover, converted-unit selection,
+Aps2 channel success and abort, DataB attack amp, and DataC invulnerability
+during the channel.
+
+## Projectile animation follow-up
+
+TODO: audit other authored projectile models for `Birth` and `Death` sequences.
+Possession now plays `Birth`, transitions to `Stand` during longer flights, and
+plays `Death` on impact. Check basic attacks and each spell-missile family for
+authored launch/impact sequences and implement the appropriate lifecycle where
+needed; do not assume every projectile should use both sequences.
+
+Saving during the instant Possession missile's Death animation is covered by
+`wc3_spell.possession_apos_takes_over_and_consumes_caster`. The impact thinker is
+rostered in save version 122; restoration finishes the animation without
+repeating the takeover. See [save/load](save-load.md#impact-callbacks-and-immolation-timing-version-122).

@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "common/map_load_debug.h"
 #include "games/warcraft-3/common/difficulty.h"
 #include "jass/jass.h"
 #include "g_entity_set.h"
@@ -486,14 +487,7 @@ void G_UnitOwnerInsert(edict_t *unit) {
 
 /* Confirm a candidate variation resolves through the authoritative VFS. */
 static bool SP_DoodadModelExists(cstring_t filename) {
-    uint32_t size = 0;
-    handle_t data;
-
-    if (!filename || !*filename) return false;
-    data = gi.ReadFile(filename, &size);
-    if (!data) return false;
-    gi.MemFree(data);
-    return true;
+    return filename && *filename && gi.FileExists(filename);
 }
 
 /* Resolve an authored doodad model and only use a variation file that exists. */
@@ -590,6 +584,7 @@ static void SP_DestructableModelFilename(DestructableData_t const *row,
 }
 
 static void SP_SpawnDestructable(edict_t *edict) {
+    destructable_t *dstr;
     DestructableData_t const *row = edict->data.DestructableData;
     cstring_t path_tex = row->pathingTexture;
     float radius = row->radius;
@@ -600,12 +595,11 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     SP_DestructableModelFilename(row, edict->variation, buffer, sizeof(buffer));
     edict->s.model = G_RegisterModel(buffer);
-    if (!edict->destructable) edict->destructable = G_AllocDestructable();
-    assert(edict->destructable);
-    edict->destructable->occluder_height = row->occluderHeight;
-    edict->destructable->alive_pathtex = M_LoadPathTex(path_tex);
-    edict->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
-    edict->pathtex = edict->destructable->alive_pathtex;
+    dstr = (edict->destructable ? edict->destructable : (edict->destructable=G_AllocDestructable()));
+    dstr->occluder_height = row->occluderHeight;
+    dstr->alive_pathtex = M_LoadPathTex(path_tex);
+    dstr->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
+    edict->pathtex = dstr->alive_pathtex;
     /* selcircsize is an authored diameter for the selection circle. The
      * destructable radius remains the gameplay collision footprint below. */
     edict->s.radius = selection_radius > 0.0f ? selection_radius : 50.0f;
@@ -614,11 +608,11 @@ static void SP_SpawnDestructable(edict_t *edict) {
      * collision circle.  Fabricating a 50-unit circle on every tree was a prime
      * cause of units sticking on trunks. */
     edict->collision = radius > 0.0f ? radius : 0.0f;
-    edict->destructable->alive_collision = edict->collision;
-    edict->destructable->dead = false;
-    edict->destructable->item_table = (uint32_t)-1;
-    edict->destructable->placement_solid = true;
-    edict->destructable->pathing_active = edict->pathtex || edict->collision > 0.0f;
+    dstr->alive_collision = edict->collision;
+    dstr->dead = false;
+    dstr->item_table = (uint32_t)-1;
+    dstr->placement_solid = true;
+    dstr->pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS
     edict->s.shadow = G_LoadShadowTexture(row->shadow, false);
     edict->s.shadow_rect = 0;
@@ -684,6 +678,14 @@ void G_BindEntityRuntime(edict_t *edict) {
 void G_FillMapPlacedUnitMana(edict_t *ent) {
     if (!ent || !(ent->s.flags & EF_UNIT) || ent->mana.max_value <= 0.0f) return;
     ent->mana.value = ent->mana.max_value;
+}
+
+/* Preserve map-authored Hero progression before SP_SpawnUnit initializes it,
+ * while keeping scenery and other non-unit placements free of unit state. */
+void G_InitMapPlacementUnitState(edict_t *ent, doodad_t const *placement) {
+    if (!ent || !placement || !G_UnitBalance(placement->doodID)->id) return;
+
+    ent->hero = placement->hero;
 }
 
 void SP_CallSpawn(edict_t *edict) {
@@ -954,6 +956,59 @@ static vec3_t G_CenterSpecialDoodad(vec3_t min_corner, pathTex_t const *footprin
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+
+/* These mocks exercise the real spawn/shadow selection paths without retail MPQs. */
+static cstring_t spawn_probe_existing;
+static uint32_t spawn_probe_calls, spawn_probe_images;
+static bool G_TestSpawnFileExists(cstring_t path) {
+    spawn_probe_calls++;
+    return spawn_probe_existing && !strcmp(path, spawn_probe_existing);
+}
+static int G_TestSpawnImageIndex(cstring_t path) {
+    (void)path;
+    spawn_probe_images++;
+    return 71;
+}
+
+TEST(wc3_spawn, shadow_texture_probes_blp_then_optional_dds_without_full_file_reads) {
+    struct game_import const saved = gi;
+    gi.FileExists = G_TestSpawnFileExists;
+    gi.ImageIndex = G_TestSpawnImageIndex;
+
+    spawn_probe_existing = "ReplaceableTextures\\Shadows\\Shadow.blp";
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", true), 71);
+    T_EQ(spawn_probe_calls, 1);
+    T_EQ(spawn_probe_images, 1);
+
+    spawn_probe_existing = "ReplaceableTextures\\Shadows\\Shadow.dds";
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", true), 71);
+    T_EQ(spawn_probe_calls, 2);
+    T_EQ(spawn_probe_images, 1);
+
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", false), 0);
+    T_EQ(spawn_probe_calls, 1);
+    T_EQ(spawn_probe_images, 0);
+
+    spawn_probe_existing = NULL;
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("Shadow", true), 0);
+    T_EQ(spawn_probe_calls, 2);
+    T_EQ(spawn_probe_images, 0);
+
+    spawn_probe_calls = spawn_probe_images = 0;
+    T_EQ(G_LoadShadowTexture("_", true), 0);
+    T_EQ(G_LoadShadowTexture("", true), 0);
+    T_EQ(G_LoadShadowTexture(NULL, true), 0);
+    T_EQ(spawn_probe_calls, 0);
+    T_EQ(spawn_probe_images, 0);
+
+    spawn_probe_existing = NULL;
+    gi = saved;
+}
+
 static vec2_t special_doodad_sample;
 static float special_doodad_test_height;
 static float G_TestSpecialDoodadHeight(float x, float y) {
@@ -1046,7 +1101,7 @@ void G_SpawnEntities(cstring_t map_path) {
     G_FowInit();
     G_InitJassHost();
     level.vm = jass_newstate();
-    
+
     FOR_LOOP(p, MAX_PLAYERS) {
         gameClient_t *client = game.clients+p;
         uint32_t playernum = G_ClientSlotMapPlayerNumber(mapinfo, p, local_player);
@@ -1061,11 +1116,14 @@ void G_SpawnEntities(cstring_t map_path) {
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
     G_InitWaypoints();
 
-    uint32_t spawn_count = 0;
+    uint32_t spawn_count = 0, spawned_entities = 0, spawned_units = 0;
+    uint32_t spawned_destructables = 0, spawned_static_scenery = 0, skipped_script_owned = 0;
     FOR_EACH_LIST(doodad_t const, doodad, entities) {
         if ((spawn_count++ & 127u) == 0) gi.LoadingFrame();
-        if (!G_LoadMapUnitData() && G_MapObjectCreatedByMapScript(doodad->doodID))
+        if (!G_LoadMapUnitData() && G_MapObjectCreatedByMapScript(doodad->doodID)) {
+            skipped_script_owned++;
             continue;
+        }
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
 //            int a=0;
 //            printf("%.4s", )
@@ -1076,7 +1134,7 @@ void G_SpawnEntities(cstring_t map_path) {
         }
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
-        ent->hero = doodad->hero;
+        G_InitMapPlacementUnitState(ent, doodad);
         ent->s.player = G_NormalizeMapObjectPlayer(doodad->player);
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
@@ -1094,6 +1152,10 @@ void G_SpawnEntities(cstring_t map_path) {
             ent->s.scale = row->defScale > 0.0f ? row->defScale : 1.0f;
         }
         SP_CallSpawn(ent);
+        spawned_entities++;
+        if (ent->s.flags & EF_UNIT) spawned_units++;
+        if (G_IsDestructable(ent)) spawned_destructables++;
+        if (ent->svflags & SVF_STATIC_SCENERY) spawned_static_scenery++;
         G_FillMapPlacedUnitMana(ent);
         if (ent->s.flags & EF_UNIT) {
             G_PlayerScoreUnitTrained(ent); /* preplaced map units count */
@@ -1118,7 +1180,7 @@ void G_SpawnEntities(cstring_t map_path) {
         if (client->mapplayer && client->mapplayer->used)
             G_AccumulatePlayerFood(client);
     }
-    
+
     jass_dofile(level.vm, "Scripts\\common.j");
     gi.LoadingFrame();
     jass_dofile(level.vm, "Scripts\\Blizzard.j");
@@ -1151,8 +1213,11 @@ void G_SpawnEntities(cstring_t map_path) {
     CM_BakeStaticObstacles();
     /* Start simulation from the map load itself so dedicated and listen-server restores share one lifecycle. */
     level.started = true;
+    MAP_LOAD_LOG("map=%s phase=spawn-counts placements=%u spawned=%u units=%u destructables=%u static-scenery=%u skipped-script-owned=%u\n",
+                     map_path, spawn_count, spawned_entities, spawned_units, spawned_destructables,
+                     spawned_static_scenery, skipped_script_owned);
 }
- 
+
 /* Spawn a unit at a point while allowing map-restoration paths to skip presentation-only birth. */
 static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, vec2_t const *location, bool play_birth) {
     edict_t *ent = G_Spawn();
@@ -1245,13 +1310,14 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
 
         FOR_LOOP(i, globals.num_edicts) {
             edict_t *existing = &g_edicts[i];
+            destructable_t *dstr = existing->destructable;
             float distance;
 
             if (!existing->inuse ||
                 existing->class_id != class_id ||
                 !G_IsDestructable(existing) ||
-                !existing->destructable->map_placed ||
-                existing->destructable->script_bound) {
+                !dstr->map_placed ||
+                dstr->script_bound) {
                 continue;
             }
 
@@ -1365,7 +1431,9 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
 static bool G_RepositionBlocker(edict_t const *other) {
     float dx, dy, reach;
     edict_t *unit = reposition_unit;
-    if (other == unit || (G_IsItem(unit) && other == unit->item->carrier) ||
+    if (other == unit) return false;
+    item_t const *rec = G_ItemState(unit);
+    if ((rec && other == rec->carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
         !!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) return false;
     dx = other->s.origin2.x - reposition_point->x;

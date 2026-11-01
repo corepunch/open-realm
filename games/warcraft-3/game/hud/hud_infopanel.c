@@ -220,6 +220,53 @@ static void FormatAttackDamageValue(char *buffer, size_t buffer_size,
     }
 }
 
+static void FormatAttackDamageWithStatus(char *buffer, size_t buffer_size,
+                                         edict_t const *ent, int32_t min_damage,
+                                         int32_t max_damage, float temporary_bonus,
+                                         float damage_base) {
+    float const roar_bonus = S_RoarDamageBonus(ent);
+    float const percent = unit_status_modifier_total(ent, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT);
+    if (roar_bonus != 0.0f) {
+        int32_t const bonus = (int32_t)(damage_base * roar_bonus + 0.5f);
+        if (bonus > 0) {
+            snprintf(buffer, buffer_size, "%ld - %ld |cff00ff00+%ld|r",
+                     (long)min_damage, (long)max_damage, (long)bonus);
+            return;
+        }
+    }
+    if (percent != 0.0f) {
+        snprintf(buffer, buffer_size, "%ld - %ld |cff00ff00+%d%%|r",
+                 (long)min_damage, (long)max_damage, (int)(percent * 100.0f + 0.5f));
+        return;
+    }
+    FormatAttackDamageValue(buffer, buffer_size, min_damage, max_damage, temporary_bonus);
+}
+
+#ifdef BZ_TESTS
+void UI_TestFormatAttackDamageWithStatus(char *buffer, size_t buffer_size,
+                                         edict_t const *ent, int32_t min_damage,
+                                         int32_t max_damage, float temporary_bonus,
+                                         float damage_base) {
+    FormatAttackDamageWithStatus(buffer, buffer_size, ent, min_damage, max_damage,
+                                 temporary_bonus, damage_base);
+}
+#endif
+
+static void FormatArmorValue(char *buffer, size_t buffer_size, edict_t const *ent) {
+    float const temporary_bonus = ent->temporary_armor_bonus;
+    float const status_bonus = unit_status_modifier_total(ent, WC3_STATUS_MOD_ARMOR_FLAT);
+    int32_t const base = (int32_t)(G_UnitArmorValue(ent) - temporary_bonus - status_bonus + 0.5f);
+    int32_t const bonus = (int32_t)(temporary_bonus + status_bonus);
+
+    if (bonus > 0) {
+        snprintf(buffer, buffer_size, "%ld |cff00ff00+%ld|r", (long)base, (long)bonus);
+    } else if (bonus < 0) {
+        snprintf(buffer, buffer_size, "%ld |cffff0000%ld|r", (long)base, (long)bonus);
+    } else {
+        snprintf(buffer, buffer_size, "%ld", (long)(base + bonus));
+    }
+}
+
 static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
                                  bool has_attack2, int32_t min_damage, int32_t max_damage,
                                  int32_t min_damage2, int32_t max_damage2, bool is_hero,
@@ -227,19 +274,21 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
     char buffer[128];
 
     UI_SetText(hud.unit.AttackLabel1, "Damage:");
-    FormatAttackDamageValue(buffer, sizeof(buffer), min_damage, max_damage,
-                            S_AttackProfileRead(ent, 0)->temporaryDamageBonus);
+    FormatAttackDamageWithStatus(buffer, sizeof(buffer), ent, min_damage, max_damage,
+                            S_AttackProfileRead(ent, 0)->temporaryDamageBonus,
+                            S_AttackProfileRead(ent, 0)->damageBase);
     UI_SetText(hud.unit.AttackValue1, "%s", buffer);
     UI_SetText(hud.unit.AttackLabel2, "Damage:");
-    FormatAttackDamageValue(buffer, sizeof(buffer), min_damage2, max_damage2,
-                            S_AttackProfileRead(ent, 1)->temporaryDamageBonus);
+    FormatAttackDamageWithStatus(buffer, sizeof(buffer), ent, min_damage2, max_damage2,
+                            S_AttackProfileRead(ent, 1)->temporaryDamageBonus,
+                            S_AttackProfileRead(ent, 1)->damageBase);
     UI_SetText(hud.unit.AttackValue2, "%s", buffer);
     UI_SetHidden(hud.unit.AttackLabel2, !has_attack2);
     UI_SetHidden(hud.unit.AttackValue2, !has_attack2);
     UI_SetText(hud.unit.DefenseLabel, "Armor:");
     if (G_UnitIsInvulnerable(ent)) UI_SetText(hud.unit.DefenseValue, "%s", "|cffff0000Invulnerable|r");
     else {
-        snprintf(buffer, sizeof(buffer), "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+        FormatArmorValue(buffer, sizeof(buffer), ent);
         UI_SetText(hud.unit.DefenseValue, "%s", buffer);
     }
     UI_SetText(hud.unit.SpeedTitle, "Speed:");
@@ -489,7 +538,7 @@ static cstring_t StatusBuffArt(uint32_t code) {
      * instead of the ordinary status icon strip. Cooldowns are stored
      * separately and never enter this status presentation path. */
     if (unit_statusshowstimedbar(code)) return NULL;
-    art = StatusBuffField(code, "Buffart");
+    art = G_AbilityBuffArt(code);
     if (!art || !*art) return NULL;
     return art;
 }
@@ -569,11 +618,16 @@ static void WriteBuffStatusFrames(edict_t *ent) {
         slot++;
     }
 
-    /* Passive auras do not own gameplay status slots. Devotion and Unholy
-     * Aura recipient presentation is reconciled by the shared aura cadence;
-     * render the authored BuffID virtually without fabricating abilstatus[]. */
+    /* Passive auras do not own gameplay status slots. Their recipient
+     * presentation is reconciled by the shared aura cadence; render authored
+     * BuffIDs virtually without fabricating abilstatus[]. */
+    WriteVirtualBuffStatusFrame(S_BrillianceAuraBuff(ent), shown, &slot);
     WriteVirtualBuffStatusFrame(S_DevotionAuraBuff(ent), shown, &slot);
     WriteVirtualBuffStatusFrame(S_UnholyAuraBuff(ent), shown, &slot);
+    WriteVirtualBuffStatusFrame(S_EnduranceAuraBuff(ent), shown, &slot);
+    WriteVirtualBuffStatusFrame(S_VampiricAuraBuff(ent), shown, &slot);
+    WriteVirtualBuffStatusFrame(S_ThornsAuraBuff(ent), shown, &slot);
+    WriteVirtualBuffStatusFrame(S_TrueshotAuraBuff(ent), shown, &slot);
 }
 
 static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *weapons,
@@ -594,8 +648,9 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
     if (has_attack1) {
         SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop, "Damage", weapons->attack1.attackType,
                               weapon_upgrade != 0);
-        FormatAttackDamageValue(value, sizeof(value), min_damage, max_damage,
-                                S_AttackProfileRead(ent, 0)->temporaryDamageBonus);
+        FormatAttackDamageWithStatus(value, sizeof(value), ent, min_damage, max_damage,
+                                S_AttackProfileRead(ent, 0)->temporaryDamageBonus,
+                                S_AttackProfileRead(ent, 0)->damageBase);
         UI_SetText(hud.simple.InfoPanelIconValue, "%s", value);
         SetUpgradeLevel(hud.simple.InfoPanelIconLevel, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack1);
@@ -604,8 +659,9 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
     if (has_attack2) {
         SetTypedInfoPanelIcon(hud.attack2_icon_backdrop, "Damage", weapons->attack2.attackType,
                               weapon_upgrade != 0);
-        FormatAttackDamageValue(value, sizeof(value), min_damage2, max_damage2,
-                                S_AttackProfileRead(ent, 1)->temporaryDamageBonus);
+        FormatAttackDamageWithStatus(value, sizeof(value), ent, min_damage2, max_damage2,
+                                S_AttackProfileRead(ent, 1)->temporaryDamageBonus,
+                                S_AttackProfileRead(ent, 1)->damageBase);
         UI_SetText(hud.attack2_icon_value, "%s", value);
         SetUpgradeLevel(hud.attack2_icon_level, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack2);
@@ -616,7 +672,7 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
                           armor_upgrade != 0);
     if (G_UnitIsInvulnerable(ent)) UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", "|cffff0000Invulnerable|r");
     else {
-        snprintf(value, sizeof(value), "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+        FormatArmorValue(value, sizeof(value), ent);
         UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", value);
     }
     SetUpgradeLevel(hud.simple.InfoPanelIconLevel_2, armor_upgrade, ent);
@@ -813,9 +869,12 @@ uint32_t UI_WriteBuildingQueueShell(edict_t *ent, cstring_t action_key, bool sho
 }
 
 void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
+    cargo_t *hold = ent ? ent->cargo : NULL;
     UnitBalance_t const *balance = ent->data.UnitBalance;
     UnitWeapons_t const *weapons = ent->data.UnitWeapons;
-    cstring_t name = G_LevelString(G_UnitProfile(ent->class_id)->properNames);
+    cstring_t name = ent->proper_name && *ent->proper_name
+        ? ent->proper_name
+        : G_LevelString(G_UnitProfile(ent->class_id)->properNames);
     cstring_t unit_name = G_UnitName(ent->class_id);
     bool const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
     uint32_t level = is_hero && ent->hero.level > 0 ? ent->hero.level
@@ -844,7 +903,7 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
          * custom maps can author a different number of visible slots. The
          * stock FDF has no slot frame definitions, so these native proxy
          * frames use inline authored values as permitted for native controls. */
-        if (ent->cargo && ent->cargo->count > 0 && S_CargoCapacity(ent) > 0) {
+        if (hold && hold->count > 0 && S_CargoCapacity(ent) > 0) {
             uint32_t const capacity = S_CargoCapacity(ent);
             cstring_t const slot_art = Theme_String("CargoBackdrop", NULL);
             uint32_t slot_image;
@@ -978,17 +1037,15 @@ void UI_SeedInfoPanelCache(edict_t *ent, edict_t * *selected, uint32_t count) {
     if (!ent->client) return;
     if (count == 1 && !UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
         ent->client->infopanel.entity = selected[0]->s.number;
-        ent->client->infopanel.hp = (int32_t)(selected[0]->health.value + 0.5f);
-        ent->client->infopanel.mana = (int32_t)(selected[0]->mana.value + 0.5f);
-        ent->client->infopanel.xp = (int32_t)selected[0]->hero.xp;
+        ent->client->infopanel.hp = 0;
+        ent->client->infopanel.xp = (int32_t)(selected[0]->hero.xp);
     } else {
         ent->client->infopanel.entity = 0;
         /* HP/mana no longer drive the live portrait bars. Reuse hp as the
          * non-single selection-count cache so async removals (death/fog/hide)
-         * can invalidate a still-multiselect info panel without changing the
-         * serialized GAMECLIENT layout. -1 distinguishes the build queue. */
+         * can invalidate a still-multiselect info panel. -1 distinguishes
+         * the building queue from an empty selection. */
         ent->client->infopanel.hp = count == 1 ? -1 : (int32_t)count;
-        ent->client->infopanel.mana = 0;
         ent->client->infopanel.xp = 0;
     }
 }
@@ -1080,8 +1137,7 @@ void Get_Commands_f(edict_t *ent) {
                               !strcmp(buttons[i].command, STR_CmdCancelBuild) ||
                               !strcmp(buttons[i].command, STR_CmdBuild) ||
                               (!strcmp(buttons[i].command, STR_CmdCancel) &&
-                               selected->build && selected->build->revival &&
-                               selected->build->revival->reviving);
+                               selected->build && G_HeroIsReviving(selected->build));
             if (profile && strlen(buttons[i].command) == 4) {
                 cstring_t const lists[] = {profile->trains, profile->researches,
                                           profile->upgrade};
@@ -1486,7 +1542,7 @@ void G_RefreshInfoPanel(edict_t *ent) {
     /* HP/mana/timed-status progress are live player-state bindings, so changing
      * their values must not force LAYER_INFOPANEL/FDF reserialization every frame. */
     if (selected[0]->s.number == ent->client->infopanel.entity &&
-        (int32_t)selected[0]->hero.xp == ent->client->infopanel.xp) {
+        (int32_t)(selected[0]->hero.xp) == ent->client->infopanel.xp) {
         return;
     }
     UI_SendInfoPanel(ent, selected, count);

@@ -29952,4 +29952,42 @@ TEST(wc3_movement, widgetgoal_stop_uses_prepared_water_input_after_cold_load) {
     }
     CM_W3SetWaterHeight(old_water);reset_entities();setup_test_world();
 }
+TEST(wc3_movement, rooted_point_order_keeps_travel_absent) {
+    edict_t *unit = make_moving_unit(0, 0);
+    vec2_t destination = {100, 100};
+    vec2_t const origin = unit->s.origin2;
+    G_EnsureUnitStatusSlots(unit);
+    unit->abilstatus[0] = (heroabilitystatus_t){ .level = 1, .state_mask = WC3_STATUS_STATE_ROOTED };
+    T_EQ(unit->movement.group_id,0);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &destination, false, 0, 100));
+    T_EQ(unit->movement.group_id,0);
+    T_NULL(unit->goalentity);
+    /* Direct point publication retains its logical Move head even when
+     * rooted state prevents a physical walk owner. */
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    /* The public head survives, but there is no executing movement proc. */
+    T_ASSERT(!G_UnitHasActiveOrder(unit));
+    T_FEQ(unit->s.origin2.x, origin.x, 0.000001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.000001f);
+    T_EQ(unit->movement.velocity.x, 0);
+    T_EQ(unit->movement.velocity.y, 0);
+}
+TEST(wc3_movement, rooted_selected_order_keeps_travel_absent) {
+    edict_t *unit = make_moving_unit(0, 0);
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = {100, 100};
+    vec2_t const origin = unit->s.origin2;
+    G_SetEntitySelectionMask(unit,1 << clent->client->ps.number);
+    G_EnsureUnitStatusSlots(unit);
+    unit->abilstatus[0] = (heroabilitystatus_t){ .level = 1, .state_mask = WC3_STATUS_STATE_ROOTED };
+    T_EQ(unit->movement.group_id,0);
+    T_ASSERT(move_selectlocation(clent, &destination));
+    T_EQ(unit->movement.group_id,0);
+    T_NULL(unit->goalentity);
+    T_EQ(unit->current_order_id, 0);
+    T_FEQ(unit->s.origin2.x, origin.x, 0.000001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.000001f);
+    T_EQ(unit->movement.velocity.x, 0);
+    T_EQ(unit->movement.velocity.y, 0);
+}
 #endif

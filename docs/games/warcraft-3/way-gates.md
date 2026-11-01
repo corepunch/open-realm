@@ -182,3 +182,8 @@ also match3094 continuation commits. The JASS destination getters still expose
 stored script coordinates; native coarse-record getter quantization remains
 unverified in the engine. Blocked exits,ID reuse,chained gates and paired group
 regrouping retain their existing backlog requirements.
+
+Runtime destination/activation state remains an entity-owned `waygate_t` record.
+Queries read the direct optional pointer without allocating; setters retain the
+ability-owned allocation lifetime described above. See
+[ownership and persistence](pooled-entity-state.md#ownership-and-access).

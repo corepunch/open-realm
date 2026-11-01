@@ -41,6 +41,8 @@ static void creep_setup(creepFix_t *fix, creepData_t const *row) {
     fix->abilities = (UnitAbilities_t){ .abilList = row->id };
     fix->caster->data.UnitAbilities = &fix->abilities;
     fix->caster->s.player = 0; fix->target->s.player = 1;
+    if (!strcmp(row->id, "Aap1"))
+        G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','p','c'), 1);
     fix->caster->svflags |= SVF_MONSTER; fix->target->svflags |= SVF_MONSTER;
     fix->caster->targtype = fix->target->targtype = TARG_GROUND;
     fix->caster->health.value = fix->caster->health.max_value = 500;

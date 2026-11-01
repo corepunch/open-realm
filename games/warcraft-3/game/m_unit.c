@@ -180,7 +180,7 @@ void unit_begin_decay(edict_t *self) {
 void unit_decay_think(edict_t *self) {
     if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO | AI_CORPSE_DECAY_SUSPENDED)) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
-        if (!(self->revival && self->revival->awaiting)) unit_runwait(self, hero_become_revivable);
+        if (!G_HeroAwaitsRevival(self)) unit_runwait(self, hero_become_revivable);
         return;
     }
     unit_runwait(self, G_FreeEdict);
@@ -563,19 +563,12 @@ void unit_die(edict_t *self, edict_t *attacker) {
     if ((self->mineoverlay && self->mineoverlay->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);
-    if (self->training) G_ClearTrainingQueueFood(self);
+    if ((self && self->training)) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
-    if (G_UnitIsHero(self)) {
-        if (!self->revival) self->revival = G_AllocRevival();
-        assert(self->revival);
-        self->revival->awaiting = false;
-        self->revival->reviving = false;
-        self->revival->producer = NULL;
-        self->revival->queue_next = NULL;
-        self->revival->player = 0;
-        self->revival->gold = self->revival->lumber = 0;
-        self->revival->progress = 0.0f;
+    if (G_UnitIsHero(self)) { /* Death starts a fresh revival lifecycle on the persistent Hero record. */
+        revival_t *revival = (self->revival ? self->revival : (self->revival=G_AllocRevival()));
+        *revival = (revival_t){0};
     }
     unit_leavecombat(self);
     G_SetEntitySelectionMask(self, 0);
@@ -656,6 +649,8 @@ void unit_die(edict_t *self, edict_t *attacker) {
         self->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
         self->wait = FRAMETIME / 1000.0f;
     }
+    /* Rebuild from the final death state, including any hidden death effect. */
+    G_InvalidateUnitShortcutsForUnit(self);
 }
 
 void unit_birth(edict_t *self) {
@@ -758,6 +753,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "stomp", 852127, MAKEFOURCC('A','O','w','s') },
     { "whirlwind", 852128, MAKEFOURCC('A','O','w','w') },
     { "windwalk", 852129, MAKEFOURCC('A','O','w','k') },
+    { "detonate", 852145, MAKEFOURCC('A','d','t','n') },
     { "eattree", 852146, MAKEFOURCC('A','e','a','t') },
     { "entangle", 852147, 0 },
     { "entangleinstant", 852148, 0 },
@@ -1464,6 +1460,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
      * orders on ordinary weapons and in-range immobile artillery. */
     if (!strcmp(order, "attackground")) return S_OrderAttackGround(self, point);
     if (self->aiflags & AI_IMMOBILE) return false;
+    if ((!strcmp(order, "smart") || !strcmp(order, "move")) && !S_UnitCanTranslate(self)) return false;
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
     if (!strcmp(order, "smart") || !strcmp(order, "move")) {
@@ -2095,6 +2092,10 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     gameClient_t *client;
     float health_ratio, mana_ratio, temporary_armor, temporary_health, temporary_mana;
     float temporary_attack1, temporary_attack2;
+    doodadHero_t saved_hero;
+    heroability_t saved_ranks[MAX_HERO_ABILITIES];
+    UnitBalance_t const *source_balance;
+    bool preserve_hero_progression;
     uint32_t old_flags;
     bool source_building, target_building;
     /* SP_SpawnUnit initializes guards for new entities; a morph is not a spawn.
@@ -2104,6 +2105,12 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     creepGuardPhase_t creep_guard_phase;
 
     if (!unit || !type || !G_UnitUI(type)->modelFile) return false;
+    source_balance = unit->data.UnitBalance;
+    preserve_hero_progression = G_UnitIsHero(unit);
+    if (preserve_hero_progression) {
+        saved_hero = unit->hero;
+        memcpy(saved_ranks, unit->heroabilities, sizeof(saved_ranks));
+    }
     source_building = G_UnitIsBuilding(unit->class_id);
     target_building = G_UnitIsBuilding(type);
     /* Keep pathing/lifecycle ownership coherent: morphs may stay within the
@@ -2146,6 +2153,26 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     unit->temporary_mana_bonus = 0.0f;
     SP_SpawnUnit(unit);
     S_RefreshRetainedPermanentInvisibility(unit,retained_apiv);
+    /* Spawn rebinding initializes the new type's base Hero state. A Hero
+     * changing into another Hero form keeps its level, XP, learned abilities,
+     * and non-level attribute bonuses, while level growth follows the target
+     * form's UnitBalance row. */
+    if (preserve_hero_progression && G_UnitIsHero(unit)) {
+        UnitBalance_t const *target_balance = unit->data.UnitBalance;
+        float const steps = (float)(saved_hero.level > 0 ? saved_hero.level - 1 : 0);
+        int32_t const old_str_level = source_balance->strength + (int32_t)(steps * source_balance->strengthPerLevel);
+        int32_t const old_agi_level = source_balance->agility + (int32_t)(steps * source_balance->agilityPerLevel);
+        int32_t const old_int_level = source_balance->intelligence + (int32_t)(steps * source_balance->intelligencePerLevel);
+        unit->hero = saved_hero;
+        unit->hero.str = (uint32_t)MAX(0, target_balance->strength +
+            (int32_t)(steps * target_balance->strengthPerLevel) + (int32_t)saved_hero.str - old_str_level);
+        unit->hero.agi = (uint32_t)MAX(0, target_balance->agility +
+            (int32_t)(steps * target_balance->agilityPerLevel) + (int32_t)saved_hero.agi - old_agi_level);
+        unit->hero.intel = (uint32_t)MAX(0, target_balance->intelligence +
+            (int32_t)(steps * target_balance->intelligencePerLevel) + (int32_t)saved_hero.intel - old_int_level);
+        memcpy(unit->heroabilities, saved_ranks, sizeof(saved_ranks));
+        G_RecomputeHeroStats(unit);
+    }
     /* A transformation retains the same handle, owner, and guard post. Do not
      * silently recapture its current position or re-enable a disabled guard. */
     unit->movement.creep_guard_origin = creep_guard_origin;
@@ -2391,35 +2418,34 @@ static bool unit_status_timedlife(uint32_t code) {
 
 bool unit_statusshowstimedbar(uint32_t code) {
     return code == MAKEFOURCC('B', 'T', 'L', 'F') ||
-           code == MAKEFOURCC('B', 'm', 'i', 'l');
+           code == MAKEFOURCC('B', 'm', 'i', 'l') ||
+           code == MAKEFOURCC('B', 'H', 'a', 'v') ||
+           code == MAKEFOURCC('B', 'E', 'm', 'e');
 }
 
 float unit_statusremainingfraction(heroabilitystatus_t const *status) {
-    uint32_t now;
-
-    if (!status || !status->level || !status->timestamp || !status->duration_ms) {
-        return 0.0f;
+    if (!status || !status->level || !status->duration_ms) return 0.0f;
+    /* Native class-owned timers remain authoritative even while their public
+     * timestamp is zero. Read the paused remainder without advancing it. */
+    if (status->class_code == MAKEFOURCC('B','E','m','e')) {
+        wc3Clock_t now = G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+        float remaining = status->class_clock_depth ? status->class_timer_remaining :
+            status->class_timer.active ? wc3_elapsed(&status->class_timer.deadline, &now) : 0.0f;
+        return MIN(1.0f, MAX(0.0f, remaining) * 1000.0f / (float)status->duration_ms);
     }
-    now = G_Time();
-    if (now >= status->timestamp) {
-        return 0.0f;
-    }
+    uint32_t now = G_Time();
+    if (!status->timestamp || now >= status->timestamp) return 0.0f;
     return MIN(1.0f, (float)(status->timestamp - now) / (float)status->duration_ms);
 }
 
 heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *ent) {
     heroabilitystatus_t const *result = NULL;
-    uint32_t now;
-
     if (!ent) return NULL;
-    now = G_Time();
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        if (!status->level || !status->timestamp || !status->duration_ms) continue;
-        if (status->timestamp <= now || !unit_statusshowstimedbar(G_UnitStatusClassCode(status))) continue;
-        /* Warsmash owns one timed-status slot; later qualifying buffs replace
-         * earlier ones during status population. Preserve that deterministic
-         * single-slot behavior using abilstatus[] order. */
+        if (!unit_statusshowstimedbar(G_UnitStatusClassCode(status)) ||
+            unit_statusremainingfraction(status) <= 0.0f) continue;
+        /* Later qualifying buffs replace earlier ones in the single HUD slot. */
         result = status;
     }
     return result;
@@ -2497,6 +2523,13 @@ void unit_statusdeath(edict_t *ent) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
             UnitDispatchStatus(ent, slot, (slot->source_ability ? slot->source_ability : slot->data), A_STATUS_DEATH, STATUS_REMOVE_DEATH, NULL);
+    }
+    /* Status state can remain on the corpse for its death presentation, but
+     * attached target art must not keep following the dead unit. */
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t const *slot = ent->abilstatus + i;
+        if (slot->level && (slot->buff_flags & WC3_STATUS_BUFF_TARGET_ART))
+            G_DestroyStatusEffectTarget(slot->code, ent);
     }
 }
 
@@ -2620,8 +2653,8 @@ float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t
     return result;
 }
 
-/* Derived locks come only from statuses that actually remain; owners
- * reconcile their own flight/height state through A_STATUS_REFRESH. */
+/* Notify live status owners to reconcile flight/height and refresh the
+ * stun mirror consumed by native movement and order owners. */
 void unit_refreshstatusflags(edict_t *ent) {
     bool stunned = false;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
@@ -2810,6 +2843,7 @@ void unit_updatestatuses(edict_t *ent) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level || !status->timestamp) {
+
             continue;
         }
         if (now >= status->timestamp) {
@@ -2882,12 +2916,14 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     heroabilitystatus_t *slot = NULL;
     cstring_t stacktype;
     wc3_status_apply_check_t preflight;
+    bool status_replaced = false;
 
     /* Fail before any removal or state mutation when allocation is impossible. */
     preflight = unit_status_checkapplication(ent, app);
     if (preflight == WC3_STATUS_APPLY_INVALID || preflight == WC3_STATUS_APPLY_FULL) {
         return NULL;
     }
+
 
     code = *((uint32_t const *)skill);
     now = G_Time();
@@ -2922,6 +2958,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                 UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE, STATUS_REMOVE_REPLACED, NULL);
                 status->code = code;
                 status->class_code = app->class_code;
+                status_replaced = true;
                 status->instance_id = ++ent->next_status_instance_id;
                 if (!status->instance_id) status->instance_id = ++ent->next_status_instance_id;
                 status->stack_policy = app->stack_policy;
@@ -2942,6 +2979,8 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                     status->duration_ms = 0;
                 }
             }
+
+            if (status_replaced) S_HumanStatusApplied(ent, status);
             if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
                 G_SpawnStatusEffectTarget(status->code, ent, "origin");
             unit_refreshstatusflags(ent);
@@ -2973,6 +3012,8 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
     slot->rank = app->rank;
     slot->next_tick = 0;
+
+    S_HumanStatusApplied(ent, slot);
     if (slot->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
         G_SpawnStatusEffectTarget(slot->code, ent, "origin");
     unit_refreshstatusflags(ent);
@@ -3045,6 +3086,12 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
     uint32_t buff;
 
     if (!status || !status->level) return 0;
+    /* Runtime stun state is Bstu; Warcraft's visible pause buff is BPSE. */
+    if (status->code == MAKEFOURCC('B','s','t','u'))
+        return MAKEFOURCC('B','P','S','E');
+    /* Auhf's TFT BuffID is BUhf, but AbilityBuffData uses Buhf. */
+    if (status->code == MAKEFOURCC('B','U','h','f'))
+        return MAKEFOURCC('B','u','h','f');
     if (status->class_code || (status->code & 0xff) == 'B') return status->code;
     /* Timed statuses use a separate progress-bar presentation. Persistent
      * Axxx status records (for example Devotion Aura on its caster) have
@@ -3165,6 +3212,10 @@ uint32_t G_PickHeroProperName(uint32_t type) {
 
 /* GetHeroProperName and the info panel read the chosen comma-separated Propernames entry. */
 cstring_t G_HeroProperName(edict_t const *ent, char *out, size_t size) {
+    if (ent && ent->proper_name && *ent->proper_name) {
+        if (out && size) strlcpy(out, ent->proper_name, size);
+        return out && size ? out : ent->proper_name;
+    }
     cstring_t names = ent ? G_LevelString(G_UnitProfile(ent->class_id)->properNames) : NULL;
     uint32_t slot = ent ? ent->hero_proper_name : 0;
     if (!size) return "";
@@ -3195,6 +3246,7 @@ void G_HeroInitializeProgression(edict_t *ent) {
     if (!ent) {
         return;
     }
+
     if (ent->hero.level == 0) {
         ent->hero.level = 1;
     }
@@ -4152,7 +4204,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
 
     if (!ent || !ent->inuse || !G_UnitIsHero(ent) || !M_IsDead(ent) ||
         (ent->aiflags & AI_SOUL_TRAPPED)) return false;
-    if ((ent->revival && ent->revival->reviving)) G_CancelHeroRevive(ent->revival->producer, ent);
+    if (G_HeroIsReviving(ent)) G_CancelHeroRevive(ent->revival->producer, ent);
     float const lifeFactor = G_MiscNum("HeroReviveLifeFactor", 1.0f);
     float const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
     float const manaStart = G_MiscNum("HeroReviveManaStart", 0.0f);
@@ -4184,6 +4236,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     S_RestoreRetiredAbilityDisables(ent);
     unit_stand(ent); /* back to a living idle state */
     gi.LinkEntity(ent);
+    G_InvalidateUnitShortcutsForUnit(ent);
     return true;
 }
 
@@ -4192,7 +4245,7 @@ void SP_monster_unit(edict_t *self) {
     self->die = unit_die;
     self->stand = unit_stand;
     self->birth = unit_birth;
-    
+
     unit_setmove(self, &unit_move_stand);
     S_GoldMineInitUnit(self);
     monster_start(self);

@@ -78,6 +78,7 @@ void R_ResetTerrainNormalCache(void) {
 
 /* The layers themselves belong to g_groundLayers and are freed with it; only the range tables live here. */
 void R_ResetGroundTextures(void) {
+    R_InvalidateSplatGeometryCache();
     FOR_LOOP(i, MAX_MAP_LAYERS) SAFE_DELETE(g_groundBatches[i].first, ri.MemFree);
     memset(g_groundBatches, 0, sizeof(g_groundBatches));
     memset(g_groundTextures, 0, sizeof(g_groundTextures));
@@ -213,13 +214,11 @@ static bool R_TileAcceptsSplat(war3map_t const *map, uint32_t x, uint32_t y) {
     return R_TileHasGround(map, x, y);
 }
 
-static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, color32_t color, vertex_t *geom) {
-    vec3_t const p[] = {
-        R_GetVertexPosition(map, x, y, true),
-        R_GetVertexPosition(map, x + 1, y, true),
-        R_GetVertexPosition(map, x + 1, y + 1, true),
-        R_GetVertexPosition(map, x, y + 1, true),
-    };
+/* Share the original UV/triangle layout with Blight and the unclipped splat
+ * path. A partially covered splat only needs the positions, not these UVs. */
+static void R_BuildSplatQuadFromCorners(vec3_t const p[4], vec2_t const *mins,
+                                        float width, float height, color32_t color,
+                                        vertex_t *geom) {
     vec2_t const uv[] = {
         { (p[0].x - mins->x) / width, 1 - (p[0].y - mins->y) / height },
         { (p[1].x - mins->x) / width, 1 - (p[1].y - mins->y) / height },
@@ -238,6 +237,18 @@ static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y, vec2_
     memcpy(geom, quad, sizeof(quad));
 }
 
+
+static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y,
+                             vec2_t const *mins, float width, float height,
+                             color32_t color, vertex_t *geom) {
+    vec3_t const p[4] = {
+        R_GetVertexPosition(map, x, y, true),
+        R_GetVertexPosition(map, x + 1, y, true),
+        R_GetVertexPosition(map, x + 1, y + 1, true),
+        R_GetVertexPosition(map, x, y + 1, true),
+    };
+    R_BuildSplatQuadFromCorners(p, mins, width, height, color, geom);
+}
 /* Clip in world XY while interpolating Z on each original terrain triangle. */
 struct splClip { uint32_t count, axis; float edge; bool above; };
 static uint32_t R_ClipSplatPoly(vec3_t const *src, vec3_t *dst, struct splClip clip) {
@@ -270,38 +281,50 @@ typedef struct {
     color32_t color;
 } splatTileParams_t;
 
-/* Emit one terrain tile of a splat while remapping both whole and clipped polygons into its atlas UV rectangle. */
-static void R_MakeSplatTile(splatTileParams_t const *params) {
-    vertex_t geom[6];
+/* Emit one terrain tile with its already sampled corner positions. The
+ * clipped path constructs UVs from the final vertices; a moving rectangle
+ * can reuse neighbouring corners without altering clipping or draw order. */
+static void R_EmitSplatTile(splatTileParams_t const *params, vec3_t const p[4]) {
     struct splClip clips[4];
     uint32_t num_clips = 0;
-    war3map_t const *map = params->map;
     vec2_t const *mins = params->mins;
     vec2_t const *uv_mins = params->uv_mins;
     vec2_t const *uv_maxs = params->uv_maxs;
     float const width = params->width, height = params->height;
 
-    R_BuildSplatQuad(map, params->x, params->y, mins, width, height, params->color, geom);
-    FOR_LOOP(i, 6) {
-        geom[i].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[i].texcoord.x);
-        geom[i].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[i].texcoord.y);
-    }
-    if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
-        geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
+    if (p[0].x >= mins->x && p[1].x <= mins->x + width &&
+        p[0].y >= mins->y && p[2].y <= mins->y + height) {
+        vertex_t geom[6];
+        R_BuildSplatQuadFromCorners(p, mins, width, height, params->color, geom);
+        /* Four distinct corners, not six independent UV transforms: the
+         * two shared triangle corners must use identical atlas coordinates. */
+        geom[0].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[0].texcoord.x);
+        geom[0].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[0].texcoord.y);
+        geom[1].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[1].texcoord.x);
+        geom[1].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[1].texcoord.y);
+        geom[2].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[2].texcoord.x);
+        geom[2].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[2].texcoord.y);
+        geom[5].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[5].texcoord.x);
+        geom[5].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[5].texcoord.y);
+        geom[3].texcoord = geom[0].texcoord;
+        geom[4].texcoord = geom[2].texcoord;
         memcpy(ground_current_vertex, geom, sizeof(geom));
         ground_current_vertex += 6;
         return;
     }
-    /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
-    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
-    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
-    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
-    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
+
+    /* Clip world-space triangles, as before, but do not build UVs for any
+     * original corner: clipped output reconstructs UVs from final XY. */
+    if (p[0].x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
+    if (p[1].x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
+    if (p[0].y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
+    if (p[2].y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
     FOR_LOOP(tri, 2) {
         vec3_t a[8], b[8];
         vec3_t *poly = a, *scratch = b;
         uint32_t n = 3;
-        FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
+        if (tri == 0) { a[0] = p[0]; a[1] = p[1]; a[2] = p[2]; }
+        else { a[0] = p[0]; a[1] = p[2]; a[2] = p[3]; }
         FOR_LOOP(edge, num_clips) {
             struct splClip clip = clips[edge];
             vec3_t *swap;
@@ -311,22 +334,32 @@ static void R_MakeSplatTile(splatTileParams_t const *params) {
             swap = poly; poly = scratch; scratch = swap;
         }
         for (uint32_t i = 1; i + 1 < n; i++) {
-            vec3_t p[] = { poly[0], poly[i], poly[i + 1] };
+            vec3_t triangle[] = { poly[0], poly[i], poly[i + 1] };
             FOR_LOOP(j, 3) {
-                vertex_t v = geom[0];
-                v.position = p[j];
-                {
-                    float const u = (p[j].x - mins->x) / width;
-                    float const vcoord = 1.0f - (p[j].y - mins->y) / height;
-                    v.texcoord = (vec2_t){
-                        LerpNumber(uv_mins->x, uv_maxs->x, u),
-                        LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
-                    };
-                }
+                vec3_t const point = triangle[j];
+                float const u = (point.x - mins->x) / width;
+                float const vcoord = 1.0f - (point.y - mins->y) / height;
+                vertex_t v = { .position = point, .normal = { 0, 0, 1 }, .color = params->color };
+                v.texcoord = (vec2_t){
+                    LerpNumber(uv_mins->x, uv_maxs->x, u),
+                    LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
+                };
                 *ground_current_vertex++ = v;
             }
         }
     }
+}
+
+static void R_MakeSplatTile(splatTileParams_t const *params) {
+    /* The original four-sample path also serves oversized rectangles and
+     * stationary splats being baked into the persistent geometry cache. */
+    vec3_t const p[4] = {
+        R_GetVertexPosition(params->map, params->x, params->y, true),
+        R_GetVertexPosition(params->map, params->x + 1, params->y, true),
+        R_GetVertexPosition(params->map, params->x + 1, params->y + 1, true),
+        R_GetVertexPosition(params->map, params->x, params->y + 1, true),
+    };
+    R_EmitSplatTile(params, p);
 }
 
 static void R_MakeBlightTile(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, uint32_t blight_tile) {
@@ -353,11 +386,161 @@ static void R_FlushSplatBatch(void) {
     ground_current_vertex = ground_vertex_buffer;
 }
 
+/* Persistent CPU geometry for repeated terrain-conforming splat rectangles. The
+ * cache is four-way set associative: a crowded group of stationary unit
+ * shadows must not evict each other merely because their positions hash to
+ * the same index. A two-observation admission rule still excludes one-frame
+ * and moving effects, and both the entry count and vertex budget are bounded. */
+#define SPLAT_CACHE_SETS 128u
+#define SPLAT_CACHE_WAYS 4u
+#define SPLAT_CACHE_SLOTS (SPLAT_CACHE_SETS * SPLAT_CACHE_WAYS)
+#define SPLAT_CACHE_MAX_VERTICES 512u
+#define SPLAT_CACHE_MAX_TILES 32u
+#define SPLAT_CACHE_BUDGET (512u * 1024u)
+typedef struct {
+    war3map_t const *map;
+    vec2_t mins, maxs;
+    vertex_t *vertices;
+    uint32_t count;
+    uint64_t last_used;
+    bool unavailable;
+} splatGeometryCacheEntry_t;
+static splatGeometryCacheEntry_t splat_geometry_cache[SPLAT_CACHE_SLOTS];
+static size_t splat_cache_bytes;
+static uint64_t splat_cache_clock;
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+static uint32_t splat_cache_hits, splat_cache_bakes, splat_corner_reuses;
+#endif
+
+static void R_ClearSplatCacheEntry(splatGeometryCacheEntry_t *entry) {
+    if (entry->vertices) {
+        splat_cache_bytes -= (size_t)entry->count * sizeof(vertex_t);
+        ri.MemFree(entry->vertices);
+    }
+    memset(entry, 0, sizeof(*entry));
+}
+
+void R_InvalidateSplatGeometryCache(void) {
+    FOR_LOOP(i, SPLAT_CACHE_SLOTS) R_ClearSplatCacheEntry(&splat_geometry_cache[i]);
+    splat_cache_bytes = 0;
+    splat_cache_clock = 0;
+}
+
+static uint32_t R_SplatCacheHash(vec2_t const *mins, vec2_t const *maxs) {
+    uint32_t bits[4], hash = UINT32_C(2166136261);
+    memcpy(bits, mins, sizeof(*mins));
+    memcpy(bits + 2, maxs, sizeof(*maxs));
+    FOR_LOOP(i, 4) { hash ^= bits[i]; hash *= UINT32_C(16777619); }
+    return hash & (SPLAT_CACHE_SETS - 1);
+}
+
+static splatGeometryCacheEntry_t *R_SplatCacheLookup(rectSplatParams_t const *params) {
+    splatGeometryCacheEntry_t *vacant = NULL, *oldest = NULL;
+    vec2_t const *mins = params->mins, *maxs = params->maxs;
+    if (!tr.world || !isfinite(mins->x) || !isfinite(mins->y) ||
+        !isfinite(maxs->x) || !isfinite(maxs->y)) return NULL;
+    uint32_t const base = R_SplatCacheHash(mins, maxs) * SPLAT_CACHE_WAYS;
+    FOR_LOOP(way, SPLAT_CACHE_WAYS) {
+        splatGeometryCacheEntry_t *entry = &splat_geometry_cache[base + way];
+        if (entry->map == tr.world && !memcmp(&entry->mins, mins, sizeof(*mins)) &&
+            !memcmp(&entry->maxs, maxs, sizeof(*maxs))) {
+            entry->last_used = ++splat_cache_clock;
+            return entry;
+        }
+        if (!entry->map && !vacant) vacant = entry;
+        if (!oldest || entry->last_used < oldest->last_used) oldest = entry;
+    }
+    /* Evict only a way in this set. Other collision partners stay resident. */
+    splatGeometryCacheEntry_t *entry = vacant ? vacant : oldest;
+    R_ClearSplatCacheEntry(entry);
+    entry->map = tr.world;
+    entry->mins = *mins;
+    entry->maxs = *maxs;
+    entry->last_used = ++splat_cache_clock;
+    return NULL; /* First observation: avoid capturing transient geometry. */
+}
+
+/* Reclaim oldest baked geometry when the fixed vertex budget fills. Unbaked
+ * entries cost no vertex memory and are handled by per-set replacement. */
+static bool R_SplatCacheReserve(size_t bytes, splatGeometryCacheEntry_t const *incoming) {
+    if (bytes > SPLAT_CACHE_BUDGET) return false;
+    while (bytes > SPLAT_CACHE_BUDGET - splat_cache_bytes) {
+        splatGeometryCacheEntry_t *oldest = NULL;
+        FOR_LOOP(i, SPLAT_CACHE_SLOTS) {
+            splatGeometryCacheEntry_t *entry = &splat_geometry_cache[i];
+            if (entry == incoming || !entry->vertices) continue;
+            if (!oldest || entry->last_used < oldest->last_used) oldest = entry;
+        }
+        if (!oldest) return false;
+        R_ClearSplatCacheEntry(oldest);
+    }
+    return true;
+}
+
+/* Replay through the original shared splat batch, respecting its flush boundary
+ * and preserving per-draw tint/UV changes and texture-group draw order. */
+static void R_ReplaySplatGeometry(splatGeometryCacheEntry_t const *entry, rectSplatParams_t const *params) {
+    for (uint32_t i = 0; i < entry->count;) {
+        uint32_t room = (uint32_t)(GROUND_VERTEX_BUFFER_CAPACITY -
+            (ground_current_vertex - ground_vertex_buffer));
+        uint32_t take = MIN(room, entry->count - i);
+        if (!room) { R_FlushSplatBatch(); continue; }
+        FOR_LOOP(j, take) {
+            vertex_t v = entry->vertices[i + j];
+            v.texcoord.x = LerpNumber(params->uv_mins->x, params->uv_maxs->x, v.texcoord.x);
+            v.texcoord.y = LerpNumber(params->uv_mins->y, params->uv_maxs->y, v.texcoord.y);
+            v.color = params->color;
+            *ground_current_vertex++ = v;
+        }
+        i += take;
+    }
+}
+
+/* Build the neutral mesh in a local vertex array without disturbing the
+ * accumulated batch. Keep the original generator for large splats. */
+static bool R_BakeSplatGeometry(rectSplatParams_t const *params,
+                                int x0, int y0, int x1, int y1,
+                                splatGeometryCacheEntry_t *entry) {
+    vertex_t scratch[SPLAT_CACHE_MAX_VERTICES];
+    vertex_t *saved = ground_current_vertex;
+    vec2_t const uv0 = {0, 0}, uv1 = {1, 1};
+    float width = params->maxs->x - params->mins->x;
+    float height = params->maxs->y - params->mins->y;
+    uint32_t count;
+    vertex_t *stored;
+    ground_current_vertex = scratch;
+    for (int x = x0; x < x1; x++) for (int y = y0; y < y1; y++) {
+        if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) continue;
+        if (ground_current_vertex - scratch > SPLAT_CACHE_MAX_VERTICES - SPLAT_TILE_MAX_VERTICES) {
+            ground_current_vertex = saved;
+            return false;
+        }
+        R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world, .x = (uint32_t)x, .y = (uint32_t)y,
+            .mins = params->mins, .uv_mins = &uv0, .uv_maxs = &uv1,
+            .width = width, .height = height, .color = COLOR32_WHITE));
+    }
+    count = (uint32_t)(ground_current_vertex - scratch);
+    ground_current_vertex = saved;
+    if (!count || !R_SplatCacheReserve((size_t)count * sizeof(vertex_t), entry))
+        return false;
+    stored = ri.MemAlloc((size_t)count * sizeof(vertex_t));
+    if (!stored) return false;
+    memcpy(stored, scratch, (size_t)count * sizeof(vertex_t));
+    entry->vertices = stored;
+    entry->count = count;
+    splat_cache_bytes += (size_t)count * sizeof(vertex_t);
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+    splat_cache_bakes++;
+#endif
+    return true;
+}
+
 /* Bind the splat shader/VAO/VBO and upload the per-view uniforms once.  All
  * splats in a batch share this state; only the texture and per-tile geometry
  * vary, so re-issuing it per splat was pure overhead. */
 static texture_t const *g_splat_texture;
 static splat_shader_t *g_splat_shader;
+static bool g_splat_batch_active;
 
 static void R_SetSplatDepthBias(bool enabled) {
     if (enabled) {
@@ -390,6 +573,72 @@ static void R_SetupSplatState(texture_t const *texture, splat_shader_t *shader) 
     R_ApplyShader(shader);
 }
 
+/* The persistent cache deliberately misses moving splats. Their adjacent
+ * tiles still share terrain vertices, however. Cache the two x-columns of
+ * corners only while generating THIS rectangle, so deformation/map changes
+ * cannot leave stale heights behind. Maximum eligible area is 32 tiles,
+ * therefore each column needs at most 33 corners and no allocations. */
+static void R_GenerateSplatTilesWithSharedCorners(rectSplatParams_t const *params,
+                                                  int x_start, int y_start, int x_end, int y_end) {
+    vec3_t columns[2][SPLAT_CACHE_MAX_TILES + 1];
+    bool valid[2][SPLAT_CACHE_MAX_TILES + 1] = {{false}};
+    float const width = params->maxs->x - params->mins->x;
+    float const height = params->maxs->y - params->mins->y;
+
+    for (int x = x_start; x < x_end; x++) {
+        int const left = (x - x_start) & 1;
+        int const right = left ^ 1;
+        /* The old right column becomes the new left column; the next right
+         * column is unobserved until a tile actually needs its vertices. */
+        memset(valid[right], 0, sizeof(valid[right]));
+        for (int y = y_start; y < y_end; y++) {
+            if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) continue;
+            int const row = y - y_start;
+            vec3_t p[4];
+            if (!valid[left][row]) {
+                columns[left][row] = R_GetVertexPosition(tr.world, (uint32_t)x, (uint32_t)y, true);
+                valid[left][row] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            if (!valid[right][row]) {
+                columns[right][row] = R_GetVertexPosition(tr.world, (uint32_t)x + 1, (uint32_t)y, true);
+                valid[right][row] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            if (!valid[right][row + 1]) {
+                columns[right][row + 1] = R_GetVertexPosition(tr.world, (uint32_t)x + 1, (uint32_t)y + 1, true);
+                valid[right][row + 1] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            if (!valid[left][row + 1]) {
+                columns[left][row + 1] = R_GetVertexPosition(tr.world, (uint32_t)x, (uint32_t)y + 1, true);
+                valid[left][row + 1] = true;
+            }
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+            else splat_corner_reuses++;
+#endif
+            p[0] = columns[left][row];
+            p[1] = columns[right][row];
+            p[2] = columns[right][row + 1];
+            p[3] = columns[left][row + 1];
+            if (ground_current_vertex - ground_vertex_buffer >
+                GROUND_VERTEX_BUFFER_CAPACITY - SPLAT_TILE_MAX_VERTICES) {
+                R_FlushSplatBatch();
+            }
+            R_EmitSplatTile(&MAKE(splatTileParams_t, .map = tr.world,
+                .x = (uint32_t)x, .y = (uint32_t)y, .mins = params->mins,
+                .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+                .width = width, .height = height, .color = params->color), p);
+        }
+    }
+}
+
 /* Emit terrain-conforming tiles for one splat rect into the shared buffer,
  * flushing to the GPU only when the buffer fills. */
 static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
@@ -411,6 +660,30 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
         return;
     }
 
+    /* Only small, repeated rectangles qualify for persistent geometry.
+     * Moving rectangles instead reuse corners within the current traversal. */
+    size_t const tiles = (size_t)(x_end - x_start) * (size_t)(y_end - y_start);
+    if (tiles <= SPLAT_CACHE_MAX_TILES) {
+        splatGeometryCacheEntry_t *entry = R_SplatCacheLookup(params);
+        if (entry) {
+            if (!entry->vertices && !entry->unavailable &&
+                !R_BakeSplatGeometry(params, x_start, y_start, x_end, y_end, entry))
+                entry->unavailable = true; /* Do not re-bake an oversized/uncacheable rect each draw. */
+            if (entry->vertices) {
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+                splat_cache_hits++;
+#endif
+                R_ReplaySplatGeometry(entry, params);
+                return;
+            }
+        }
+        /* Single-tile splats cannot share corners; avoid setup overhead. */
+        if (tiles > 1) {
+            R_GenerateSplatTilesWithSharedCorners(params, x_start, y_start, x_end, y_end);
+            return;
+        }
+    }
+
     for (int x = x_start; x < x_end; x++) {
         for (int y = y_start; y < y_end; y++) {
             if (!R_TileAcceptsSplat(tr.world, (uint32_t)x, (uint32_t)y)) {
@@ -430,25 +703,44 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
 void R_BeginSplatBatch(splat_shader_t *shader) {
     g_splat_shader = shader;
     g_splat_texture = NULL;
+    g_splat_batch_active = true;
     ground_current_vertex = ground_vertex_buffer;
 }
 
-void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color) {
-    if (!tr.world || !texture) {
+/* Preserve submission order, including alpha blending: only consecutive
+ * rectangles using the same texture and shader may share a draw. Atlas UVs
+ * and per-rectangle tint are baked per vertex, never used as batch keys. */
+void R_AddRectSplatUV(rectSplatParams_t const *params) {
+    if (!params || !tr.world || !params->mins || !params->maxs || !params->uv_mins ||
+        !params->uv_maxs || !params->texture || !params->shader) return;
+    if (!g_splat_batch_active) {
+        R_RenderRectSplatUV(params); /* Preserve unscoped immediate callers. */
         return;
     }
-    if (texture != g_splat_texture) {
+    if (params->texture != g_splat_texture || params->shader != g_splat_shader) {
         R_FlushSplatBatch();
-        R_SetupSplatState(texture, g_splat_shader);
+        R_SetupSplatState(params->texture, params->shader);
     }
-    R_GenerateSplatTiles(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
-        .uv_mins = &(vec2_t){ 0, 0 }, .uv_maxs = &(vec2_t){ 1, 1 }, .color = color));
+    R_GenerateSplatTiles(params);
+}
+
+void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color) {
+    vec2_t const uv0 = { 0, 0 }, uv1 = { 1, 1 };
+    R_AddRectSplatUV(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
+        .uv_mins = &uv0, .uv_maxs = &uv1, .texture = texture,
+        .shader = g_splat_shader, .color = color));
 }
 
 void R_EndSplatBatch(void) {
-    R_FlushSplatBatch();
-    R_SetSplatDepthBias(false);
-    R_Call(glDepthMask, GL_TRUE);
+    if (!g_splat_batch_active) return;
+    if (g_splat_texture) {
+        R_FlushSplatBatch();
+        R_SetSplatDepthBias(false);
+        R_Call(glDepthMask, GL_TRUE);
+    }
+    g_splat_batch_active = false;
+    g_splat_texture = NULL;
+    g_splat_shader = NULL;
 }
 
 typedef struct {

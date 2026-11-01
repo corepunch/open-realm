@@ -32,6 +32,12 @@ The runtime reads upgrade metadata from `Units\UpgradeData.slk`:
 - the four `effect`, `base`, `mod`, and `code` slots (`effect`/`code` are
   stored as FOURCCs)
 
+Orc Pillage uses stock research `Ropg` to unlock the passive `Asal` ability
+for units listing `Ropg` under Upgrades Used. This gate is handled by the
+stock compatibility requirement table; direct `Asal`-family custom aliases
+without a corresponding research dependency remain independently usable.
+See [Pillage](pillage.md) for damage and income behaviour.
+
 Buildings expose upgrades through the `Researches` (`ures`) field already parsed
 into `UnitProfile_t.researches`. Unit types opt into completed upgrade effects
 through `UnitBalance.upgrades` (`upgrades` / Upgrades Used).
@@ -150,6 +156,11 @@ The Prologue02 tutorial depends on this contract at the War Mill lesson: its
 `EVENT_PLAYER_UNIT_RESEARCH_START` and advances only when clicking an upgrade
 produces the research-start callback.
 
+**Night Elf Moon Glaive (`Remg`)** is a weapon-chain upgrade rather than a stat modifier.
+The Huntress retains one pre-research bounce and gains a second when the owning
+player completes `Remg`; see [Moon Glaive](moon-glaive.md) for the weapon data,
+research ownership and remaining projectile-presentation limitations.
+
 ## Runtime stat effects
 
 This implementation intentionally enables only the upgrade effect codes whose
@@ -208,6 +219,34 @@ as Human Long Rifles (`Rhri`) flow through the ordinary player-tech path. The
 combat behavior already queries the mutable runtime range, so existing and
 newly trained affected units use the researched distance without replacing the
 unit type.
+
+### Night Elf Improved Bows (`Reib`) and Marksmanship (`Remk`)
+
+Both upgrades are researched at the Ancient of War. The player-wide tech is
+applied to eligible Archers and Hippogryph Riders because their unit types list
+the upgrade in `UnitBalance.upgrades` (`Upgrades Used`); it is not a global bonus
+for every Night Elf attack. The completed research applies to existing units and
+new spawns, including Hippogryph Riders created by mounting an Archer. Standard
+Huntresses do not receive either upgrade.
+
+- `Reib` uses `ratr`: increases the runtime weapon range of eligible attack
+  slots. The usual +200 Warcraft world-unit effect is supplied by the upgrade
+  row, not hard-coded. Unit-target attack/chase checks use the updated runtime
+  weapon range. `uacq` (automatic acquisition range) is a **separate** authored
+  statistic and is not changed by this research; automatic scanning remains
+  bounded by the existing acquisition setting.
+- `Remk` uses `ratx`: increases the runtime damage base of eligible attack
+  slots, and the permanent attack-damage ledger keeps it consistent with other
+  buffs and modifiers. The currently common +4 and older +3 values are
+  resolved from the loaded `UpgradeData.slk`, not assumed by the engine.
+- Both are independent player-owned technologies: ordinary research completion
+  and JASS `SetPlayerTechResearched`/`AddPlayerTechResearched` use the same delta
+  path. Removing either bonus does not remove the other; unresearched units
+  remain unchanged. Costs, prerequisites and duration are controlled by the
+  loaded upgrade/command data rather than these gameplay effect handlers.
+
+Regression coverage is in `games/warcraft-3/game/tests/t_building.c`, using
+fixture `Reib`/`Remk` rows and the real research queue plus runtime stat path.
 
 ### `rhpx` — maximum hit points
 
@@ -302,6 +341,57 @@ that file. Unit object edits can change which upgrades a unit uses, but cannot
 author the missing spell-to-upgrade tier. The stock table remains necessary
 until a supported authoritative source exposes those links and tiers. Do not
 infer them from text fields or repurpose `reqLevel`.
+
+### `Rosp` / `Aspi` — Orc Spiked Barricades
+
+Spiked Barricades is a research-owned *passive retaliation*, not an attack-stat
+upgrade. The War Mill exposes `Rosp` through `UnitProfile.researches`; an
+eligible real building lists `Rosp` in `UnitBalance.upgrades` (Upgrades Used).
+The `Rosp` technology level is stored on the owning player, independent of the
+War Mill. The first researched level activates retaliation. Research level 0
+leaves an authored base `Aspi` dormant when the structure lists `Rosp`.
+Existing and newly built structures query that owner technology rather than
+storing another permanent per-building level. Player changes and save restores
+therefore do not require special technology serialization.
+
+**Default: classic RoC/TFT.** Damage returned to a successful enemy melee
+attacker is a flat 4/10/16 for levels 1/2/3. The implementation first uses
+`Rosp`'s authored positive flat `effectBase` and `effectMod` pair when supplied
+(4 + 6 per additional level in stock classic), then falls back to these
+classic values when the row does not expose them as flat damage values. The general passive `Aspi`
+on a custom unit *without* `Rosp` in Upgrades Used retains its original
+ability DataA/DataB formula; `AUts` Spiked Carapace remains separate.
+
+**Optional modern behaviour:** set `wc3_spiked_barricades_modern 1` before
+loading the map (default is `0`). Modern level 1 returns `5 + 20%` of the
+resolved attack damage; level 2 returns `5 + 50%`. Normal research is capped
+at two levels, and level 2 costs 100 rather than 175 lumber. Research time and
+per-level tech prerequisites continue to use authored data. The two stock
+modern tooltips are substituted when this opt-in is enabled while loading
+classic game data. This is a game/server setting and should be the same for
+all players in a match. Changing it midway through a match is unsupported.
+
+Normal damage reflection triggers only for a successfully resolved enemy
+`WPN_NORMAL` or `WPN_INSTANT` attack. The attack resolver uses the *selected*
+weapon profile, including Attack 2, not merely the attacker's first weapon.
+Retaliation uses independent Thorns, Carapace and Barricades events. The
+Barricades event follows the existing `S_SpellDamage` mitigation path, which
+checks spell immunity and anti-magic absorption; none of these secondary damage
+events recursively re-enters the attack-hit resolver. Impact reflection uses
+the final `S_ResolveAttackHit` damage argument after attack-type, armor,
+ability and defensive hit modifiers.
+
+The Warcraft `SpikeBarrier.mdx` visual is attached via the generic effect
+system, preferring the authored `Aspi` TargetArt when available. It is
+reconciled during periodic passive-effect updates for completed living
+buildings, and is removed when research, construction/unsummoning state, or
+ownership no longer qualifies. Construction previews are deliberately
+excluded. No new serialized edict fields are required.
+
+Remaining external-data limitations: `war3map.w3q` upgrade overrides are not
+currently normalized; research level configuration comes from the loaded SLK
+and per-level requirements. Full art placement and rare lethal-hit/immunity
+ordering should be compared with retail visual/gameplay captures.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 

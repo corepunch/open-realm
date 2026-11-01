@@ -141,6 +141,9 @@ static slkField_t const profile_schema[] = {
     { "Makeitems",     offsetof(UnitProfile_t, makeItems),         STB_SLK_STR,   "umki" },
     { "Missileart",    offsetof(UnitProfile_t, attack[0].art),     STB_SLK_STR,   "ua1m", .list = 1 },
     { "Missilearc",    offsetof(UnitProfile_t, attack[0].arc),     STB_SLK_FLOAT, "uma1", .list = 1 },
+    /* Some melee overlays contain this misspelling; canonical follows it so
+     * correct data wins if both keys are present. */
+    { "Missilspeed",   offsetof(UnitProfile_t, attack[0].speed),   STB_SLK_FLOAT, NULL, .list = 1 },
     { "Missilespeed",  offsetof(UnitProfile_t, attack[0].speed),   STB_SLK_FLOAT, "ua1z", .list = 1 },
     { "MissileHoming", offsetof(UnitProfile_t, attack[0].homing),  STB_SLK_BOOL,  "umh1", .list = 1 },
     { "Missileart",    offsetof(UnitProfile_t, attack[1].art),     STB_SLK_STR,   "ua2m", .list = 2 },
@@ -1761,7 +1764,7 @@ static void AddMapUnitProfileOverride(unitData_t const *unit, uint32_t target_id
     UnitProfile_t const *base = FindMapUnitProfileOverride(base_id);
     mapUnitProfileOverride_t *override;
 
-    if (!base) base = FS_SLKLookup(&profile_idx, base_id);
+    if (!base) base = G_UnitProfile(base_id);
     override = map_unit_profile_overrides + map_unit_profile_override_count++;
     memset(&override->row, 0, sizeof(override->row));
     if (base) override->row = *base;
@@ -2378,10 +2381,41 @@ UnitBalance_t const *G_UnitBalance(uint32_t id) {
 UpgradeData_t const *G_UpgradeData(uint32_t id) { static UpgradeData_t zero; UpgradeData_t *row = FS_SLKLookup(&upgrade_idx, id); return row ? row : &zero; }
 UnitProfile_t const *G_UnitProfile(uint32_t id) {
     static UnitProfile_t zero;
+    static UnitProfile_t temple_profile;
+    static char temple_researches[256];
     UnitProfile_t const *override = FindMapUnitProfileOverride(id);
     UnitProfile_t *row;
     if (override) return override;
     row = FS_SLKLookup(&profile_idx, ResolveUnitID(id));
+    if (row && id == MAKEFOURCC('u','t','o','d')) {
+        /* UndeadUnitFunc.txt authors Researches twice for the Temple of the
+         * Damned. The INI cache keeps the later Rusl/Rusm value, dropping the
+         * RoC/TFT caster training researches Rune/Ruba. Retain both pairs. */
+        cstring_t const authored = row->researches ? row->researches : "";
+        bool has_rune = false, has_ruba = false;
+        size_t used;
+        cstring_t cursor = authored;
+        while (*cursor) {
+            size_t length = strcspn(cursor, ",");
+            if (length == 4 && !strncmp(cursor, "Rune", 4)) has_rune = true;
+            if (length == 4 && !strncmp(cursor, "Ruba", 4)) has_ruba = true;
+            cursor += length;
+            if (*cursor == ',') cursor++;
+        }
+        snprintf(temple_researches, sizeof(temple_researches), "%s", authored);
+        used = strlen(temple_researches);
+        if (!has_rune && used < sizeof(temple_researches)) {
+            used += (size_t)snprintf(temple_researches + used, sizeof(temple_researches) - used,
+                                     "%sRune", used ? "," : "");
+        }
+        if (!has_ruba && used < sizeof(temple_researches)) {
+            snprintf(temple_researches + used, sizeof(temple_researches) - used,
+                     "%sRuba", used ? "," : "");
+        }
+        temple_profile = *row;
+        temple_profile.researches = temple_researches;
+        return &temple_profile;
+    }
     return row ? row : &zero;
 }
 UnitData_t const *G_UnitData(uint32_t id) {
@@ -2925,6 +2959,22 @@ cstring_t FindConfigValue(cstring_t category, cstring_t field) {
     }
     return NULL;
 }
+
+#ifdef BZ_TESTS
+bool G_TestPushAbilityConfig(cstring_t text) {
+    stbIniCache_t *cache;
+    if (!text || abilityConfigTableCount >= sizeof(abilityConfigTables) / sizeof(abilityConfigTables[0])) return false;
+    cache = abilityConfigTables + abilityConfigTableCount;
+    if (!Stb_IniCacheLoadBuffer(cache, text)) return false;
+    abilityConfigTableCount++;
+    return true;
+}
+
+void G_TestPopAbilityConfig(void) {
+    if (!abilityConfigTableCount) return;
+    Stb_IniCacheFree(abilityConfigTables + --abilityConfigTableCount);
+}
+#endif
 
 cstring_t GetClassName(uint32_t class_id) {
     static char classname[5] = { 0 };

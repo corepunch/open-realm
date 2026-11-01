@@ -15,8 +15,11 @@ OpenRealm implements the stock `Aply` Polymorph contract through the shared spel
 - `DataE` / `Ply5`: water morph unit;
 - normal mana, range, duration, targets, and `BuffID` fields.
 
-Creep `ACpy` is a `code=Aply` alias. ROC omits BuffID; `human_buff` falls back to
-the TFT token `Bply`. That fallback is not in `melee_buff_fallback` — Polymorph
+Creep `ACpy` is a `code=Aply` alias. ROC omits BuffID; with
+`BZ_COMPAT_WORKAROUNDS`, `human_buff` supplies the TFT token `Bply`. With
+`COMPAT_WORKAROUNDS=0`, a missing BuffID rejects the cast before mana, model,
+scale, or movement changes. The `creep_polymorph_roc_empty_buffid_applies_bply`
+test checks both configurations. That fallback is not in `melee_buff_fallback` — Polymorph
 never reads the melee table.
 
 The current typed AbilityData loader exposes the first rawcode from each `Ply2`-`Ply5` unit-list string. Stock `Aply` uses that representation directly. Selecting among multiple authored morph-unit rawcodes remains future data-loader work rather than a hard-coded fallback.
@@ -35,9 +38,10 @@ The command path rejects an unavailable spell before opening a target cursor and
 
 ## Runtime behavior
 
-A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. `edict_t.polymorph` snapshots the original model handle and scale. The configured form contributes its model/scale, a form-minus-original authored speed delta, and its own minimum/maximum speed bounds. Public default speed continues to use the original type. See [Payoff271 retail evidence](retail-pathfinding-engine.md#polymorph-owns-a-temporary-movement-profile-payoff271).
+A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. The entity-owned `polymorph_t` state snapshots the original model handle and scale. The configured form contributes its model/scale, a form-minus-original authored speed delta, and its own minimum/maximum speed bounds. Public default speed continues to use the original type. See [Payoff271 retail evidence](retail-pathfinding-engine.md#polymorph-owns-a-temporary-movement-profile-payoff271).
 
-The morph interrupts the current incompatible action and queued orders. While `polymorph.active` is set, attack orders and new spell casts are rejected. Fresh movement orders remain legal, using the temporary movement speed. `S_HumanCanAttack()` also rejects autonomous attacks so acquisition cannot bypass order validation.
+
+The morph interrupts the current incompatible action and queued orders. While the Polymorph record is attached, attack orders and new spell casts are rejected. Fresh movement orders remain legal, using the temporary movement speed. `S_HumanCanAttack()` also rejects autonomous attacks so acquisition cannot bypass order validation.
 
 Re-casting the same configured buff uses `unit_addtimedstatus()`'s existing refresh semantics. The original presentation snapshot is recorded only on the first transition, so a refresh cannot turn the temporary form into the restore target.
 
@@ -57,7 +61,7 @@ Death retires the active restore contract so an expired timer cannot revive or r
 
 `polymorph` is registered as Warcraft order ID `852074`, so the canonical string/numeric order router introduced by the spell-order work can dispatch owned `Aply` abilities through the same spell pipeline.
 
-`IsUnitType(unit, UNIT_TYPE_POLYMORPHED)` (`ConvertUnitType(22)`) reflects `edict_t.polymorph.active`; it does not infer Polymorph from the temporary model or a particular sheep rawcode.
+`IsUnitType(unit, UNIT_TYPE_POLYMORPHED)` (`ConvertUnitType(22)`) reflects `S_UnitPolymorphed`, i.e. optional record presence; it does not infer Polymorph from the temporary model or a particular sheep rawcode.
 
 ## Save/load
 

@@ -163,7 +163,7 @@ even presentation-neutral special state such as Militia expiry, Wind Walk, and
 ability-owned timed toggles now uses `S_SpellApplyTimedStatus()`, while each owner
 still keeps its transform, invisibility, animation, expiry, and payload policy. This
 presentation-neutral primitive returns the authoritative status slot, so special
-abilities can attach payload without rescanning `abilstatus`; this also replaces
+abilities can attach payload without rescanning `unit_state->statuses`; this also replaces
 manual post-apply status lookups in Avatar/Polymorph and preserves presentation-
 neutral transfer/pulse uses such as Spell Steal, Stasis Trap, and Earthquake. Ordinary target buffs
 that also use standard authored TargetArt layer `S_SpellApplyTimedTargetStatus()`
@@ -216,8 +216,9 @@ thinkers may reuse `S_SpellChannelTarget()` only when they already store the sam
 Cannibalize/corpse-cargo approaches, Unsummon thinker lookup, and Acid Bomb use that
 contract. Route later reads of the captured target generation through the resolver.
 Range rechecks, duration, pulse cadence, pause/ownership changes, cancellation side effects and
-cleanup remain ability-owned. Do not reallocate `thinker->channel` after either
-channel constructor: the constructor already owns that lifecycle storage.
+cleanup remain ability-owned. Do not attach or reset the thinker's channel component
+(`G_AddChannel(thinker)`) after either channel constructor: the
+constructor already owns that lifecycle storage; read it with `G_GetChannel(thinker)`.
 For chained/bouncing unit spells, use `S_SpellBounceTargetAllowed()` for the
 demonstrated common candidate contract (alive, authored target mask, friendly or
 enemy relation, and jump radius) and `S_SpellTargetVisited()` for small
@@ -269,7 +270,7 @@ identity.
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_spell.<name>*'
-make test-wc3-engine WC3_PATTERN='wc3_save.*'   # edict_t / abilstatus / new think pointer
+make test-wc3-engine WC3_PATTERN='wc3_save.*'   # edict_t / unit_state->statuses / new think pointer
 ```
 
 Do not debug `make test` `+test '*'` while finishing one ability. Never
@@ -281,7 +282,7 @@ that path dies in `jass_runevents(NULL)`. Advance buffs with
 
 When finishing several abilities in one pass, split the list into groups that
 do not share a procedure, `s_*.c` owner, or shared hook (`S_SpellDamage`,
-`S_UnitSpellImmune`, `edict_t` fields, `abilstatus` payload). Spawn one
+`S_UnitSpellImmune`, `edict_t` fields, `unit_state->statuses` payload). Spawn one
 subagent per unrelated group. Each child polls its own rawcodes, writes its
 own tests and docs, and commits only its group.
 
@@ -783,7 +784,7 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 | Campaign entry | Registry status | Result |
 | --- | --- | --- |
 | `AOw2` War Stomp | `CAbilityWarStompCampaign` | campaign procedure reads its requested rawcode |
-| `ANsh` / `AOs2` Shockwave | `CAbilityShockwaveCampaign` / `CAbilityShockwaveCairne` | shared campaign area-damage helper, separate rawcodes |
+| `ANsh` / `AOs2` Shockwave | `CAbilityShockwaveCampaign` / `CAbilityShockwaveCairne` | `S_ShockwaveExecute` line corridor, separate rawcodes; authored target mask filters both damage and cap contributors |
 | `ANcf` Breath of Fire | `CAbilityBreathOfFireCampaign` | shared campaign area-damage helper |
 | `Acdh`, `ANhw`, `ANhx` | campaign Drunken Haze, Healing Wave, and Hex procedures | currently share `campaign_status_execute`; verify each gameplay contract |
 | `ACs7`, `ACs8`, `Arsq`, `Arsg`, `Arsp`, `Acef`, `Arsw`, `AOls` | campaign summon procedures | share `campaign_summon_execute` with authored rawcodes |
@@ -793,6 +794,17 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 
 These are registration and code-path observations, not a completeness claim. Verify the behavior in
 `skills/s_campaign_abilities.c` with focused tests before consolidating a campaign row with a standard procedure.
+
+Shockwave's shared corridor filters targets through `S_SpellAllowsAreaTarget`
+before counting DataB's damage-cap contributors and before applying damage.
+Ignoring the mask let flyers take damage and dilute each ground target's share.
+`wc3_spell.shockwave_target_mask_filters_damage_and_cap` covers `AOsh`, `ANsh`,
+and `AOs2` with RoC `Data11`/`Data12`/`Data13` and TFT `DataA1`/`DataB1`/`DataC1`
+fixtures, ground enemies, a flyer, an ally, and an enemy outside the corridor.
+The [Blizzard Tauren Chieftain reference](https://classic.battle.net/war3/orc/units/taurenchieftain.shtml)
+describes land-unit line damage and a total damage cap. Damage still resolves
+immediately; the travelling missile is presentation only, so retail travel-time
+damage parity remains unverified. No network or save format changes.
 
 ## Human Ability Audit
 

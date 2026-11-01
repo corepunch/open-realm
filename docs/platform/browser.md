@@ -410,12 +410,14 @@ installer continues to use local OPFS. No documentation navigation or Play
 link is added.
 
 GitHub Pages does not provide the required COOP/COEP headers. The game registers
-`coi-serviceworker.js` at `/openwarcraft3/play/` with that exact scope; its fetch
+`coi-serviceworker.js` at `/open-realm/play/` with that exact scope; its fetch
 handler adds the required isolation headers only to GET responses within the
 game directory. It does not cache assets or intercept documentation requests.
 On first visit, `pages-isolation.js` waits for the worker to control the page
-and reloads once so the navigation receives those headers. Engine startup waits
-for isolation and requires `crossOriginIsolated` before starting WASM pthreads.
+and reloads once so the navigation receives those headers. The bootstrap script
+loads before the UI visibility gate; failed isolation shows a browser error instead
+of leaving the entire page hidden. Engine startup waits for isolation and requires
+`crossOriginIsolated` before starting WASM pthreads.
 For other hosting paths, the existing server-provided isolation headers remain
 required.
 

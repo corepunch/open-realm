@@ -67,7 +67,6 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
 }
 
 TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
-    umove_t busy = { "walk", NULL, NULL, NULL };
     edict_t *worker;
 
     reset_entities();
@@ -80,7 +79,8 @@ TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
 
     T_ASSERT(G_ActorHasSkill(worker, "Ahar"));
     T_ASSERT(G_UnitIsIdleWorker(worker));
-    unit_setmove(worker, &busy);
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){640,64},false,0,0));
+    T_EQ(worker->current_order_id,G_OrderId("move"));
     T_ASSERT(!G_UnitIsIdleWorker(worker));
     unit_stand(worker);
     T_ASSERT(G_UnitIsIdleWorker(worker));

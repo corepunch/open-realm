@@ -118,6 +118,30 @@ sscanf(token, "%f,%f,%f", &x, &y, &z);
 
 Not character walking, not separator loops. The format string IS the parser.
 
+## Intrusive typed components over fixed pools
+
+WC3 attaches optional per-entity records to `edict_t.components` instead of adding one pointer per behavior. Each record
+type puts a `component_t { uint32_t id; component_t *next; }` header first. One X-macro row in `G_COMPONENTS` describes a
+component completely, and every table, accessor and save section is expanded from it:
+
+```c
+X(22, RESEARCH, research, Research, research_t, LIFECYCLE_POOL_CAP, scalar_pool_fields)
+
+construction_t *site = G_GetConstruction(building); /* NULL-safe read, never allocates */
+research_t *study = G_AddResearch(item);            /* typed, idempotent attach */
+G_FreeResearch(item);                               /* unlink, then release the slot */
+```
+
+The expansion statically asserts a nonzero ID and `offsetof(type, component) == 0`, and the registry is a switch over
+the rows, so a duplicated ID is a duplicate case label. Typed adders return the record type, so a caller cannot pair a
+type with another row's ID; the untyped add and the per-type allocators stay private to `g_pool.c`.
+
+IDs name exact layouts. They are not class or family masks, and they are separate from authored rawcodes. Lookup walks a
+short list, so cache the pointer once per operation and re-read it after any call that may release the record. Test
+builds overwrite released slots with `0xa5`, so a pointer held across a release faults in the suite instead of reading
+stale data. Saves write the payload with its ID and clear the link; restore checks the ID and reattaches. Details:
+[pooled entity state](games/warcraft-3/pooled-entity-state.md).
+
 ## Function tables for cross-module boundaries
 
 Renderer ↔ Game ↔ UI boundaries use function tables (`ri.*`, `gi.*`, `mi.*`). Each module exports a `*_GetAPI(import_t)` function. This is the Quake 2/3 pattern — no direct includes across module boundaries, no global function calls.

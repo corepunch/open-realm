@@ -1,5 +1,6 @@
 #include "r_local.h"
 #include "r_game.h"
+#include "r_shader.h"
 #include "stb/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
@@ -103,6 +104,83 @@ static void R_WebSyncCanvasSize(void) {
  * Every "back to the drawable" site must use R_BindDefaultFramebuffer. */
 static GLuint r_default_framebuffer;
 void R_BindDefaultFramebuffer(void) { R_Call(glBindFramebuffer, GL_FRAMEBUFFER, r_default_framebuffer); }
+
+#include "r_render_scale.h"
+static struct {
+    GLuint framebuffer, color, depth, drawable;
+    size2_t size, native;
+} r_scale;
+
+void R_ShutdownRenderScale(void) {
+    if (r_scale.framebuffer) glDeleteFramebuffers(1, &r_scale.framebuffer);
+    if (r_scale.color) glDeleteRenderbuffers(1, &r_scale.color);
+    if (r_scale.depth) glDeleteRenderbuffers(1, &r_scale.depth);
+    memset(&r_scale, 0, sizeof(r_scale));
+}
+
+bool R_BeginScaledView(viewDef_t const *view) {
+    int percent = atoi(ri.CvarString("r_render_scale", "100"));
+    size2_t size = R_RenderScaleSize(tr.drawableSize, percent);
+    /* Small UI portraits stay sharp. Multisampled drawables require a separate resolve. */
+    if (tr.msaa_samples || size.width == tr.drawableSize.width) {
+        R_ShutdownRenderScale();
+        return false;
+    }
+    if (view->viewport.w < 0.5f || view->viewport.h < 0.5f) return false;
+    if (r_scale.size.width != size.width || r_scale.size.height != size.height) {
+        R_ShutdownRenderScale();
+        glGenFramebuffers(1, &r_scale.framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, r_scale.framebuffer);
+        glGenRenderbuffers(1, &r_scale.color);
+        glBindRenderbuffer(GL_RENDERBUFFER, r_scale.color);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, size.width, size.height);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, r_scale.color);
+        glGenRenderbuffers(1, &r_scale.depth);
+        glBindRenderbuffer(GL_RENDERBUFFER, r_scale.depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, size.width, size.height);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, r_scale.depth);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            R_BindDefaultFramebuffer();
+            R_ShutdownRenderScale();
+            fprintf(stderr, "Render scale: target unavailable; using native resolution\n");
+            return false;
+        }
+        r_scale.size = size;
+        fprintf(stderr, "Render scale: %d%%, 3D %ux%u, UI %ux%u\n", percent,
+                size.width, size.height, tr.drawableSize.width, tr.drawableSize.height);
+    }
+    r_scale.native = tr.drawableSize;
+    r_scale.drawable = r_default_framebuffer;
+    glDisable(GL_SCISSOR_TEST);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, r_scale.drawable);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, r_scale.framebuffer);
+    /* Preserve any earlier background layers behind transparent model scenes. */
+    glBlitFramebuffer(0, 0, r_scale.native.width, r_scale.native.height,
+                      0, 0, size.width, size.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    r_default_framebuffer = r_scale.framebuffer;
+    R_BindDefaultFramebuffer();
+    tr.drawableSize = size;
+    glDepthMask(GL_TRUE);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    return true;
+}
+
+void R_EndScaledView(viewDef_t const *view) {
+    rect_t clip = view->scissor;
+    if (!clip.w && !clip.h) clip = (rect_t){0, 0, 1, 1};
+    float left = MAX(view->viewport.x, clip.x), bottom = MAX(view->viewport.y, clip.y);
+    float right = MIN(view->viewport.x + view->viewport.w, clip.x + clip.w);
+    float top = MIN(view->viewport.y + view->viewport.h, clip.y + clip.h);
+    tr.drawableSize = r_scale.native;
+    r_default_framebuffer = r_scale.drawable;
+    R_SetupScissor(&(rect_t){left, bottom, MAX(0, right - left), MAX(0, top - bottom)});
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, r_scale.framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, r_default_framebuffer);
+    glBlitFramebuffer(0, 0, r_scale.size.width, r_scale.size.height,
+                      0, 0, tr.drawableSize.width, tr.drawableSize.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    R_BindDefaultFramebuffer();
+    R_RevertSettings();
+}
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
 static void R_Screenshot(void) {
@@ -723,6 +801,7 @@ static void R_UpdateSwapInterval(void) {
 
 void R_InitRenderer(uint32_t width, uint32_t height) {
     renderer_shutdown = false;
+    R_ResetShaderBinding(true);
     r_swapinterval = -999;
     bool gl_current = false;
     int requested_msaa = BZ_MSAA_SAMPLES;
@@ -764,7 +843,7 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
 #endif
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, requested_msaa ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, requested_msaa);
-#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if defined(__ANDROID__) || (defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR))
     /* EGL-style drivers build the drawable from these attributes; the window
      * system provides no implicit depth buffer as desktop GL does, while the
      * renderer clears and depth-tests unconditionally. */
@@ -935,7 +1014,9 @@ void R_ShutdownRenderer(void) {
         return;
     }
     renderer_shutdown = true;
+    R_ProfileShutdown();
     R_ClearEntityCameraParticleScenes();
+    R_ShutdownRenderScale();
     R_ShutdownModels();
     R_Shutdown();
     R_ShutdownModelShader();
@@ -948,6 +1029,7 @@ void R_ShutdownRenderer(void) {
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     R_ShutdownTextureCache();
     R_ShutdownDrawBufferInstanced();
+    R_ResetShaderBinding(true);
     
 #ifdef __EMSCRIPTEN__
     if (web_gl_context > 0) {
@@ -1032,20 +1114,25 @@ void R_RenderView(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
+    R_ProfileStage(RP_WORLD);
     R_DrawSky();
     R_DrawWorld();
     R_DrawDecals();
     R_DrawSplatRects();
+    R_ProfileStage(RP_ENTITIES);
     R_DrawEntities();
     tr.render_phase = RENDER_PHASE_ALPHA;
+    R_ProfileStage(RP_ALPHA);
     R_DrawAlphaSurfaces();
     /* Water and walkable destructable surfaces must not cover rings drawn at
      * their support height. Flush those selection/hover/indicator overlays
      * after the terrain alpha pass. */
     R_DrawSupportedEntityOverlays();
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
+        R_ProfileStage(RP_PARTICLES);
         R_DrawParticles();
     }
+    R_ProfileStage(RP_WORLD);
     R_DrawViewBlend();
     tr.render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
@@ -1093,6 +1180,7 @@ void R_DrawIndexedBuffer(buffer_t const *buffer, uint32_t num_indices) {
 
 typedef struct {
     uint64_t draws, vertices, triangles, instances;
+    uint64_t program_requests, program_binds;
 } renderStats_t;
 
 static renderStats_t r_frame_stats, r_stats_accum;
@@ -1111,18 +1199,21 @@ void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) {
 /* Emit one averaged line per second so profiling logs remain readable. */
 static void R_FinishFrameStats(void) {
     uint32_t now = SDL_GetTicks(), elapsed;
+    shaderBindStats_t programs = R_GetShaderBindStats();
 
     r_stats_accum.draws += r_frame_stats.draws; r_stats_accum.vertices += r_frame_stats.vertices;
     r_stats_accum.triangles += r_frame_stats.triangles; r_stats_accum.instances += r_frame_stats.instances;
+    r_stats_accum.program_requests += programs.requests; r_stats_accum.program_binds += programs.binds;
     r_stats_frames++;
     if (!r_stats_start) r_stats_start = now;
     elapsed = now - r_stats_start;
     if (elapsed < 1000) return;
     if (R_CvarEnabled("r_stats", "0")) {
-        fprintf(stderr, "[R_STATS] fps=%.1f draws=%.1f vertices=%.0f triangles=%.0f instances=%.0f\n",
+        fprintf(stderr, "[R_STATS] fps=%.1f draws=%.1f vertices=%.0f triangles=%.0f instances=%.0f frames=%u elapsed_ms=%u program_requests=%.1f program_binds=%.1f\n",
                 r_stats_frames * 1000.0 / elapsed, (double)r_stats_accum.draws / r_stats_frames,
                 (double)r_stats_accum.vertices / r_stats_frames, (double)r_stats_accum.triangles / r_stats_frames,
-                (double)r_stats_accum.instances / r_stats_frames);
+                (double)r_stats_accum.instances / r_stats_frames, r_stats_frames, elapsed,
+                (double)r_stats_accum.program_requests / r_stats_frames, (double)r_stats_accum.program_binds / r_stats_frames);
     }
     memset(&r_stats_accum, 0, sizeof(r_stats_accum)); r_stats_frames = 0; r_stats_start = now;
 }
@@ -1131,6 +1222,8 @@ void R_BeginFrame(void) {
 #ifdef __EMSCRIPTEN__
     R_WebSyncCanvasSize();
 #endif
+    R_ResetShaderBinding(R_CvarEnabled("r_program_cache", "1"));
+    R_ProfileBeginFrame();
     if (drawable_dirty) {
         drawable_dirty = false;
         R_RefreshDrawableSize("window-event");
@@ -1155,13 +1248,15 @@ void R_EndFrame(void) {
 #endif
     R_FinishFrameStats();
     R_UpdateSwapInterval();
+    R_ProfileStage(RP_SWAP);
 #ifdef __EMSCRIPTEN__
     /* Present the worker-owned OffscreenCanvas context's completed frame. */
     if (web_gl_context > 0) emscripten_webgl_commit_frame();
 #else
+    /* The main loop owns com_maxfps pacing; the old extra sleep penalized every uncapped or VSync frame too. */
     SDL_GL_SwapWindow(window);
-    SDL_Delay(1);
 #endif
+    R_ProfileEndFrame();
 }
 
 size2_t R_GetWindowSize(void) {

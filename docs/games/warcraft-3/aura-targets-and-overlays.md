@@ -35,17 +35,54 @@ map doodads and destructables receive during spawn. A non-null
 zero row for unknown rawcodes, and `G_BindEntityData` binds that pointer to
 scenery too.
 
+`regen_aura_cache_update` builds one shared provider snapshot per simulation
+frame (and again if the ability-data generation changes). For each in-use edict,
+`aura_resolve_owned_abilities` walks the native `abilList` once, then the
+runtime-added list, then ranked hero slots; it fills the 14 distinct aura-family
+slots as it goes. This is equivalent to calling `S_ResolveAbilityAlias` once
+per family but avoids parsing the same list for every family. The first matching
+alias within each source category wins, and native abilities outrank added and
+hero entries. Removed native/added skills are ignored; hero slots retain their
+actual levels. Separate combat DataA/DataB consumers share the resolved ability.
+The snapshot does not persist across frames: changes to runtime skills, hero
+ranks and ability data are still observed on the next provider refresh.
+
+`aura_owned_family_mask` additionally caches the rawcode-to-family bitmask in a
+256-entry, generation-tagged direct-mapped lookup. It caches *classification*
+(including non-aura rawcodes), not whether a particular unit owns the ability.
+Native and runtime-added entries are checked with `G_ActorHasSkill` only if
+the classification can provide an aura, and hero ranks are still taken live.
+One rawcode can match both an explicit aura ID and a different inherited
+`AbilityData.code`; both family bits must be retained to match
+`S_ResolveAbilityAlias` independently for each family. A hash collision is a
+miss, not a false match. Ability-data replacement changes
+`G_AbilityDataGeneration()`, invalidating both positive and negative entries.
+No unit, save, network or effect-lifecycle state is added.
+
+`aura_combat_owned_slots` maps the 14 authored combat cache keys directly to
+the resolved family slots (including duplicate DataA/DataB uses). Keep it in
+sync with `aura_cache_keys`; the discovery regression oracle verifies that
+mapping before comparing every family's alias and rank with the standalone
+resolver. Tests also cover filtered ownership checks, metadata replacement,
+rawcode collisions and cross-family alias matches.
+
+`wc3_spell.aura_provider_discovery_preserves_alias_precedence_and_ranks`
+compares the bulk discovery results against the standalone resolver across
+native aliases, added abilities, hero ranks, removed aliases and direct
+fixture edits. `combat_aura_alias_resolution_scales_with_edicts` also checks
+that discovery visits each live edict at most once per cache rebuild.
+
 `S_UpdateHeroAuraEffects` selects the strongest eligible Devotion or Unholy Aura
 for each recipient and keeps that buff's `TargetArt` on the recipient. The
 ability's own `TargetArt` is a second effect, spawned only on the unit that owns
 the aura.
 
-| | Devotion Aura | Unholy Aura |
-|---|---|---|
-| Ability rawcode | `AHad` | `AUau` |
-| Ability `TargetArt` (caster ground pattern) | `Abilities\Spells\Human\DevotionAura\DevotionAura.mdl` | `Abilities\Spells\Undead\UnholyAura\UnholyAura.mdl` |
-| Buff rawcode | `BHad` | `BUau` |
-| Buff `TargetArt` (recipient glow) | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` |
+| | Brilliance Aura | Devotion Aura | Unholy Aura |
+|---|---|---|---|
+| Ability rawcode | `AHab` | `AHad` | `AUau` |
+| Ability `TargetArt` (caster ground pattern) | `Abilities\Spells\Human\Brilliance\Brilliance.mdl` | `Abilities\Spells\Human\DevotionAura\DevotionAura.mdl` | `Abilities\Spells\Undead\UnholyAura\UnholyAura.mdl` |
+| Buff rawcode | `BHab` | `BHad` | `BUau` |
+| Buff `TargetArt` (recipient glow) | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` |
 
 ROC `War3.mpq` and TFT `War3x.mpq` both author those strings in
 `Units/HumanAbilityFunc.txt` and `Units/UndeadAbilityFunc.txt`. `Targetattach`
@@ -80,8 +117,14 @@ changes, and save/load. Save format 72 serializes the role and rejects earlier
 saves, following the normal no-migration policy. There is no network change.
 See [Save/Load](save-load.md).
 
-Brilliance, Endurance, Vampiric, Thorns, and Command Aura do not use this pair
-of slots. Vampiric's extra buff `SpecialArt` is a separate contract.
+Brilliance Aura uses the same source-pattern and recipient-glow pair as
+Devotion and Unholy Aura, and exposes its active recipient buff virtually in
+the selected-unit status strip. Only friendly recipients with a positive max
+mana value receive its mana bonus or presentation. TFT reads the authored `AHab` `BuffID`
+(`BHab`); RoC has no `BuffID` column, so the `BZ_COMPAT_WORKAROUNDS` mapping
+supplies `BHab` for stock `AHab`. Endurance, Vampiric, Thorns, and Command Aura
+do not use these world-space overlay slots. Vampiric's extra buff `SpecialArt`
+is a separate contract.
 
 The scenery bug made recipient art appear under crates and trees. The recipient
 regression runs `monster_think` on a friendly unit and two static destructables,

@@ -45,8 +45,9 @@ bool WC3_SC2API_FillPlayerCommon(uint32_t player, wc3Sc2PlayerCommon_t *out) {
      * still training, or buildings do not. */
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) &&
                   ent->s.player == player && ent->data.UnitBalance &&
-                  !ent->training && !M_IsDead(ent) && !G_UnitIsBuilding(ent->class_id)) {
-        uint32_t const food = (uint32_t)MAX(0, (ent->food ? ent->food->used : 0));
+                  !(ent && ent->training) && !M_IsDead(ent) && !G_UnitIsBuilding(ent->class_id)) {
+        food_t const *ledger = ent->food;
+        uint32_t const food = (uint32_t)MAX(0, (ledger ? ledger->used : 0));
         if (G_UnitIsWorker(ent)) {
             out->food_workers += food;
             if (G_UnitIsIdleWorker(ent)) out->idle_worker_count++;

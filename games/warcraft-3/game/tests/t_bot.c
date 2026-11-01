@@ -250,8 +250,7 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     other->s.player = 1;
     done->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER; training->svflags |= SVF_MONSTER;
     dead->svflags |= SVF_MONSTER | SVF_DEADMONSTER; other->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     training->training = true;
     builder->s.player = 2; builder->health.value = 100; builder->build_project = MAKEFOURCC('h','b','a','r');
     mine->resources = 1000;
@@ -274,8 +273,7 @@ TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town)
     hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
     done = alloc_test_unit(footman, 64, 0); done->s.player = 2; done->svflags |= SVF_MONSTER;
     building = alloc_test_unit(footman, 96, 0); building->s.player = 2; building->svflags |= SVF_MONSTER;
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     training = alloc_test_unit(footman, 1024, 0); training->s.player = 2; training->svflags |= SVF_MONSTER;
     training->training = true;
     pending_builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
@@ -326,6 +324,7 @@ TEST(wc3_bot, expansion_natives_keep_one_viable_mine_and_order_hall_normally) {
     worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 128, 0, 2, &bot_harvester_abilities);
     worker->data.UnitProfile = &worker_profile;
     foe = make_bot_harvest_unit(MAKEFOURCC('o','f','o','o'), 700, 256, 3, NULL);
+
     foe->svflags |= SVF_MONSTER;
     player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
     player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
@@ -715,6 +714,7 @@ TEST(wc3_bot, campaign_difficulty_drives_ai_settings_defenders_and_wave_quantiti
         G_BotStop(2);
         FOR_LOOP(i, 2) {
             edict_t *unit = make_bot_harvest_unit(defender, 64.0f * (float)i, 0, 2, NULL);
+
             unit->svflags |= SVF_MONSTER;
         }
         FOR_LOOP(i,5)make_bot_harvest_unit(MAKEFOURCC('o','h','u','n'), 64.0f * (float)i, 128, 2, NULL)->svflags |= SVF_MONSTER;
@@ -796,7 +796,7 @@ TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
+    (shop->stock ? shop->stock : (shop->stock=G_AllocStock()));
     T_NOT_NULL(shop->stock);
     shop->stock->item_slots = 11;
     gi.LinkEntity(shop);
@@ -818,10 +818,10 @@ TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
     G_BotUpdateHeroItems(player);
     T_EQ(bot->item_policy_last_scan, G_Time());
     T_EQ(bot->hero_buy_last_scan, G_Time());
-    T_NOT_NULL(hero->inventory[0]);
-    if (hero->inventory[0])
-        T_ASSERT(hero->inventory[0]->class_id == MAKEFOURCC('m','o','o','n') ||
-                 hero->inventory[0]->class_id == MAKEFOURCC('p','l','c','l'));
+    T_NOT_NULL(G_InventoryItem(hero, 0));
+    if (G_InventoryItem(hero, 0))
+        T_ASSERT(G_InventoryItem(hero, 0)->class_id == MAKEFOURCC('m','o','o','n') ||
+                 G_InventoryItem(hero, 0)->class_id == MAKEFOURCC('p','l','c','l'));
 }
 
 /* Bots shop from the live stock like players, including AddItemToStock. */
@@ -854,7 +854,7 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32;
     shop->spawn_time = G_Time();
-    if (!shop->stock) shop->stock = G_AllocStock();
+    (shop->stock ? shop->stock : (shop->stock=G_AllocStock()));
     T_NOT_NULL(shop->stock);
     shop->stock->item_slots = 11;
     gi.LinkEntity(shop);
@@ -869,8 +869,8 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     T_EQ(G_FindShopPatron(clent->client, shop), hero);
     T_ASSERT(G_ShopItemRequirementsSatisfied(clent->client, MAKEFOURCC('p','l','c','l'), NULL, 0));
     G_BotUpdateHeroItems(player);
-    T_NOT_NULL(hero->inventory[0]);
-    if (hero->inventory[0]) T_EQ(hero->inventory[0]->class_id, MAKEFOURCC('p','l','c','l'));
+    T_NOT_NULL(G_InventoryItem(hero, 0));
+    if (G_InventoryItem(hero, 0)) T_EQ(G_InventoryItem(hero, 0)->class_id, MAKEFOURCC('p','l','c','l'));
     T_EQ(shop->stock->items[0].current, 0);
 }
 
@@ -958,7 +958,7 @@ TEST(wc3_bot, harvest_returns_carried_resources_before_collecting) {
     edict_t *hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
     edict_t *worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 64, 0, 2, &bot_harvester_abilities);
     edict_t *mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
-    mine->resources = 1000; worker->harvested_lumber = 5;
+    mine->resources = 1000; S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 5);
 
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
@@ -1092,6 +1092,7 @@ TEST(wc3_bot, group_flee_does_not_invent_a_frame_polled_power_timer) {
     enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 600, 0, 1, NULL);
     first->data.UnitBalance = second->data.UnitBalance = &friendly_balance;
     enemy->data.UnitBalance = &enemy_balance; enemy->data.UnitWeapons = &enabled_attack;
+
     enemy->svflags |= SVF_MONSTER;
     first->health.value = first->health.max_value = 100;
     second->health.value = second->health.max_value = 100;
@@ -1257,8 +1258,7 @@ TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     edict_t *building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
     edict_t *enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
-    if (!building->construction) building->construction = G_AllocConstruction();
-    assert(building->construction);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
@@ -1316,6 +1316,7 @@ TEST(wc3_bot, set_assault_group_form_group_uses_max_with_retained_type_total) {
     reset_entities();
     FOR_LOOP(i, 6) {
         edict_t *unit = make_bot_harvest_unit(type, (float)i * 32.0f, 0, 2, NULL);
+
         unit->svflags |= SVF_MONSTER;
     }
 
@@ -1337,6 +1338,8 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     edict_t *enemy = make_bot_harvest_unit(type, 256, 128, 1, NULL);
     player_t *target = &game.clients[1].ps;
+
+
 
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
@@ -1374,7 +1377,10 @@ TEST(wc3_bot, suicide_player_preserves_member_orders_while_selection_is_pending)
     edict_t *hidden = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 64, 0, 1, NULL);
     edict_t *visible = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 256, 0, 1, NULL);
 
+
+
     hidden->svflags |= SVF_MONSTER;
+
     visible->svflags |= SVF_MONSTER;
     hidden->s.renderfx |= RF_HIDDEN;
     mapinfo->players[1].used = true;
@@ -1404,6 +1410,8 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
     edict_t *unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
     edict_t *enemy = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 128, 1, NULL);
+
+
 
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
@@ -2005,6 +2013,7 @@ TEST(wc3_bot, get_creep_camp_filters_total_level_flyers_and_nearest_camp) {
     far_b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3300, 0);
     for (edict_t *u = near_a; u; u = u == near_a ? near_b : u == near_b ? far_a : u == far_a ? far_b : NULL) {
         u->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+
         u->svflags |= SVF_MONSTER;
         u->health.value = u->health.max_value = 100;
         u->data.UnitData = &ground_data;
@@ -2022,6 +2031,75 @@ TEST(wc3_bot, get_creep_camp_filters_total_level_flyers_and_nearest_camp) {
     T_ASSERT(G_BotGetCreepCamp(player, 5, 6, false) == far_a);
     T_ASSERT(G_BotGetCreepCamp(player, 5, 5, true) == near_a);
     (void)hall;
+}
+
+TEST(wc3_bot, creep_camp_compaction_preserves_transitive_groups_and_live_eligibility) {
+    static UnitBalance_t const level2 = { .maxHealth = 100, .level = 2 };
+    static UnitBalance_t const level3 = { .maxHealth = 100, .level = 3 };
+    static UnitBalance_t const level4 = { .maxHealth = 100, .level = 4 };
+    static UnitBalance_t const level6 = { .maxHealth = 100, .level = 6 };
+    static UnitData_t const ground = { .moveTypeName = "foot" };
+    static UnitData_t const flying = { .moveTypeName = "fly" };
+    player_t *player = &game.clients[2].ps;
+    edict_t *creeps[3], *isolated, *dead, *removed, *passive, *nonunit;
+
+    reset_entities();
+    InitUnitData();
+    make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    creeps[0] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1000, 0);
+    creeps[1] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1550, 0);
+    creeps[2] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 2150, 0);
+    isolated = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 4000, 0);
+    dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1300, 0);
+    removed = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1400, 0);
+    passive = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1650, 0);
+    nonunit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1750, 0);
+
+    FOR_LOOP(i, 3) {
+        creeps[i]->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+        creeps[i]->svflags |= SVF_MONSTER;
+        creeps[i]->health.value = 100;
+        creeps[i]->data.UnitData = &ground;
+    }
+    creeps[0]->data.UnitBalance = &level2;
+    creeps[1]->data.UnitBalance = &level3;
+    creeps[2]->data.UnitBalance = &level4;
+    isolated->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    isolated->svflags |= SVF_MONSTER;
+    isolated->health.value = 100;
+    isolated->data.UnitBalance = &level6;
+    isolated->data.UnitData = &ground;
+    dead->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    dead->svflags |= SVF_MONSTER;
+    dead->health.value = 0;
+    removed->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    removed->svflags |= SVF_MONSTER;
+    removed->health.value = 100;
+    removed->inuse = false;
+    passive->s.player = PLAYER_NEUTRAL_PASSIVE;
+    passive->svflags |= SVF_MONSTER;
+    passive->health.value = 100;
+    nonunit->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    nonunit->svflags &= ~SVF_MONSTER;
+    nonunit->health.value = 100;
+
+    /* Third creep is exactly 600 from the middle, but not near the first. */
+    T_ASSERT(G_BotGetCreepCamp(player, 9, 9, false) == creeps[0]);
+    T_ASSERT(G_BotGetCreepCamp(player, 6, 6, false) == isolated);
+    T_NULL(G_BotGetCreepCamp(player, 10, 20, true));
+
+    /* Membership is recomputed per query; neither dead nor removed units bridge a camp. */
+    creeps[1]->health.value = 0;
+    T_NULL(G_BotGetCreepCamp(player, 9, 9, true));
+    creeps[1]->health.value = 100;
+    creeps[1]->data.UnitData = &flying;
+    T_NULL(G_BotGetCreepCamp(player, 9, 9, false));
+    T_ASSERT(G_BotGetCreepCamp(player, 9, 9, true) == creeps[0]);
+    creeps[1]->data.UnitData = &ground;
+    creeps[2]->s.origin2.x = 2201; /* 651 units from middle, so no longer connected. */
+    T_NULL(G_BotGetCreepCamp(player, 9, 9, true));
+    creeps[2]->s.origin2.x = 2150;
+    T_ASSERT(G_BotGetCreepCamp(player, 9, 9, false) == creeps[0]);
 }
 
 TEST(wc3_bot, purchase_zeppelin_native_is_registered_for_player_bound_ai) {
@@ -2063,8 +2141,7 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     lab->s.player = PLAYER_NEUTRAL_PASSIVE;
     lab->data.UnitProfile = &lab_profile;
     lab->data.UnitAbilities = &lab_abilities;
-    if (!lab->stock) lab->stock = G_AllocStock();
-    assert(lab->stock);
+    (lab->stock ? lab->stock : (lab->stock=G_AllocStock()));
     lab->stock->unit_slots = 11;
     lab->spawn_time = G_Time();
     lab->collision = 32.0f;
@@ -2151,8 +2228,7 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 1, &bot_hall_abilities);
     target = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 128, 0, 1, NULL);
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 256, 0, 1, NULL);
-    if (!tower->ancient_root) tower->ancient_root = G_AllocAncientRoot();
-    assert(tower->ancient_root);
+    (tower->ancient_root ? tower->ancient_root : (tower->ancient_root=G_AllocAncientRoot()));
     tower->ancient_root->ability = 0;
     hall->data.UnitAbilities = &bot_hall_abilities;
     tower->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE; S_AttackProfileWrite(tower, 0)->range = 0;
@@ -2282,7 +2358,9 @@ TEST(wc3_bot, individual_flee_policy_moves_damaged_combat_unit_home) {
     unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 500, 0, 2, NULL);
     enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 550, 0, 1, NULL);
     unit->health.max_value = 100; unit->health.value = 20;
+
     unit->svflags |= SVF_MONSTER;
+
     enemy->svflags |= SVF_MONSTER;
     S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
     S_AttackProfileWrite(enemy, 0)->type = ATK_NORMAL;

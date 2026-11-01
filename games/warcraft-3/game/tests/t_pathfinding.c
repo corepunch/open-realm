@@ -4395,4 +4395,5 @@ TEST(wc3_pathfinding, outside_fine_source_reconstructs_the_previous_search_chain
     level.pathing_counter=old_counter;S_ClearMoveFineRequests();reset_entities();setup_test_world();
 }
 
+
 #endif /* BZ_TESTS */

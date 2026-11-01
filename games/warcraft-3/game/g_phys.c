@@ -47,9 +47,8 @@ void SV_Physics_Step(edict_t *ent) {
 
 /* Missile entities use the same snapshot/model path as ordinary units, but
  * they do not run monster_think() and therefore never select/advance an MDX
- * sequence on their own.  Start with the authored Stand sequence (the normal
- * travelling sequence for WC3 missiles), falling back to Birth for models
- * that only provide a one-shot sequence.  Keeping this state on the server
+ * sequence on their own. Start with authored Birth launch art when available,
+ * then transition to the Stand travel loop. Keeping this state on the server
  * means the existing entity snapshot contract remains sufficient for every
  * client renderer. */
 void G_StartProjectilePresentation(edict_t *ent) {
@@ -60,10 +59,8 @@ void G_StartProjectilePresentation(edict_t *ent) {
     ent->s.renderfx |= RF_NO_SHADOW;
     if (!ent->s.model) return;
 
-    anim = G_GetAnimation(ent->s.model, "Stand");
-    /* TODO: Some authored missile models omit Stand; Birth is the only
-     * available travel sequence until a data-driven sequence selector exists. */
-    if (!anim) anim = G_GetAnimation(ent->s.model, "Birth");
+    anim = G_GetAnimation(ent->s.model, "Birth");
+    if (!anim) anim = G_GetAnimation(ent->s.model, "Stand");
     ent->animation = anim;
     if (anim) ent->s.frame = anim->interval[0];
 }
@@ -85,6 +82,16 @@ static void G_AdvanceProjectilePresentation(edict_t *ent) {
     step = (uint32_t)MAX(1.0f, FRAMETIME);
     next = ent->s.frame + step;
     if (next >= anim->interval[1]) {
+        /* An authored projectile Birth plays once before its Stand travel
+         * loop. Ordinary missiles still start directly in Stand. */
+        if (G_AnimationHasPrimary(anim, "birth")) {
+            animation_t const *stand = G_GetAnimation(ent->s.model, "Stand");
+            if (stand) {
+                ent->animation = stand;
+                ent->s.frame = stand->interval[0];
+                return;
+            }
+        }
         if (anim->flags & 1)
             next = anim->interval[1] - 1;
         else
@@ -101,6 +108,8 @@ void SV_Physics_Toss(edict_t *ent) {
     float distance;
     vec3_t target, dir;
     bool const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
+    /* Only fixed-point projectiles carry a channel record; homing missiles skip the lookup. */
+    channel_t const *cast = fixed_target ? ent->channel : NULL;
 
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     /* The host may submit5ms frames while the game retains its private scalar
@@ -113,9 +122,9 @@ void SV_Physics_Toss(edict_t *ent) {
     }
     distance = ent->velocity * millis;
     if (fixed_target) {
-        assert(ent->channel);
-        target = MAKE(vec3_t, ent->channel->origin.x, ent->channel->origin.y,
-                      CM_GetHeightAtPoint(ent->channel->origin.x, ent->channel->origin.y));
+        assert(cast);
+        target = MAKE(vec3_t, cast->origin.x, cast->origin.y,
+                      CM_GetHeightAtPoint(cast->origin.x, cast->origin.y));
     } else {
         target = ent->goalentity->s.origin;
         /* s.origin already contains support surface + current FlyHeight.  ImpactZ
@@ -127,6 +136,13 @@ void SV_Physics_Toss(edict_t *ent) {
         if (ent->currentmove && ent->currentmove->endfunc) {
             ent->currentmove->endfunc(ent);
         } else {
+            /* Reject recycled attackers before Defend can reflect the shot or
+             * apply partial damage, and before artillery resolves its blast. */
+            edict_t *attacker = ent->owner;
+            if (!attacker || !attacker->inuse || attacker->spawn_time != ent->projectile_owner_spawn_time) {
+                G_FreeEdict(ent);
+                return;
+            }
             /* Abilities own projectile-impact reactions before the normal hit path. */
             if (!fixed_target && S_UnitProjectileHit(ent)) return;
             /* Basic attack missiles carry the launch-time raw roll. Resolve
@@ -134,15 +150,21 @@ void SV_Physics_Toss(edict_t *ent) {
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
             if (fixed_target) {
-                vec2_t impact = fixed_target ? ent->channel->origin : ent->goalentity->s.origin2;
+                vec2_t impact = fixed_target ? cast->origin : ent->goalentity->s.origin2;
                 edict_t *primary = ent->goalentity;
                 if (fixed_target && primary &&
-                    (!primary->inuse || primary->spawn_time != ent->channel->target_spawn_time)) primary = NULL;
-                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, ent->artillery);
+                    (!primary->inuse || primary->spawn_time != cast->target_spawn_time)) primary = NULL;
+                S_ResolveArtilleryPointHit(attacker, primary, &impact, ent->damage, ent->artillery);
+            } else if (ent->artillery) {
+                /* Unit-target Missile Splash follows the victim, unlike fixed
+                 * artillery. Its authored attack type and splash bands were
+                 * captured on the projectile at the launch damage point. */
+                vec2_t const impact = ent->goalentity->s.origin2;
+                S_ResolveMissileSplashHit(attacker, ent->goalentity, &impact, ent->damage, ent->artillery);
             } else {
-                int const damage = G_AttackDamageWithType(ent->owner, ent->goalentity, ent->damage,
+                int const damage = G_AttackDamageWithType(attacker, ent->goalentity, ent->damage,
                                                           ent->projectile_attack_type);
-                S_ResolveAttackHit(ent->owner, ent->goalentity, damage);
+                S_ResolveAttackHit(attacker, ent->goalentity, damage);
             }
             G_FreeEdict(ent);
         }

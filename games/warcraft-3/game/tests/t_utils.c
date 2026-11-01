@@ -36,6 +36,8 @@ void reattach_test_weapons(edict_t *ent) {
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
     edict_t *ent = G_Spawn();
+
+
     ent->class_id = class_id;
     G_BindEntityData(ent);
     ent->unit_classification=G_UnitClassificationFlagsFromRows(ent->data.UnitBalance,ent->data.UnitData);

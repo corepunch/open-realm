@@ -18,6 +18,7 @@ maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t 
 void R_BakeMapSegmentCliffsForWeld(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff);
 maplayer_t *R_BuildMapSegmentWater(war3map_t const *map, uint32_t sx, uint32_t sy);
 void R_ResetGroundTextures(void);
+void R_InvalidateSplatGeometryCache(void);
 void R_BeginTerrainNormalCache(war3map_t const *map);
 void R_EndTerrainNormalCache(void);
 void R_ResetTerrainNormalCache(void);

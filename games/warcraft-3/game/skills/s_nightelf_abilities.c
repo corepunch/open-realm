@@ -2,6 +2,64 @@
 
 /* Night Elf passive attack abilities: Moon Glaive (Amgl/Amgr) and Slow Poison (Aspo). */
 
+/* Detonate (Adtn) has none of Kaboom's physical area-damage or death-triggered
+ * behavior.  The point order controls approach; the caster's position when it
+ * completes is the epicentre. DataA is mana loss, DataB hostile summon damage. */
+BZ_ABILITY_PROC(CAbilityDetonate) {
+    uint32_t const code = call && call->item ? call->item->code : 0;
+    uint32_t level;
+    float radius, mana_loss, summon_damage;
+    vec2_t origin;
+    if (msg != A_EXECUTE) {
+        if (msg == A_VALIDATE)
+            return ent && call && call->target && call->target->type == SPELL_TARGET_POINT &&
+                S_SpellIsAliveTarget(ent);
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+    if (!ent || !code || !S_SpellIsAliveTarget(ent) || !call || !call->target ||
+        call->target->type != SPELL_TARGET_POINT) return false;
+
+    level = S_SpellLevel(ent, code);
+    radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    mana_loss = MAX(0.0f, S_SpellData(code, level, 1));
+    summon_damage = MAX(0.0f, S_SpellData(code, level, 2));
+    origin = ent->s.origin2;
+    if (radius >= 0.0f) {
+        /* A completed cast works even if the target area is empty. The normal
+         * point-approach thinker still cancels an interrupted Move order. */
+        FILTER_EDICTS(target, target != ent && S_SpellIsAliveTarget(target) &&
+                      Vector2_distance(&target->s.origin2, &origin) <= radius &&
+                      S_SpellAllowsAreaTarget(code, ent, target)) {
+            bool affected = S_DispelUnitMagic(target) != 0;
+            /* Invulnerable units still lose magical buffs, but not mana or HP. */
+            if (!(target && target->invulnerable)) {
+                if (mana_loss > 0.0f && target->mana.value > 0.0f) {
+                    target->mana.value = MAX(0.0f, target->mana.value - mana_loss);
+                    G_InvalidateUnitInfoPanel(target);
+                    affected = true;
+                }
+                if (summon_damage > 0.0f && S_SpellIsEnemy(ent, target) &&
+                    S_DispelIsSummoned(target) && !S_SummonIsDispelImmune(target))
+                    affected |= S_SpellDamage(target, ent, (int)summon_damage);
+            }
+            if (affected && target->inuse)
+                G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        }
+        /* Loose terrain Blight (including Sacrificial Skull paint) can be
+         * dispelled; do not erase currently maintained building-growth areas. */
+        G_DispelBlightRadius(&origin, radius);
+    }
+    /* Die through the ordinary worker lifecycle (food, harvest, queues, death
+     * events). Script explosion uses the unit's authored SpecialArt, not the
+     * Sapper's damage effect. Death alone must never trigger Adtn. */
+    ent->aiflags |= AI_SCRIPT_EXPLODED;
+    G_SetHealth(ent, 0);
+    if (ent->die) ent->die(ent, ent);
+    else unit_die(ent, ent);
+    return true;
+}
+
+
 #define ID_MOON_GLAIVE  MAKEFOURCC('A','m','g','l')
 #define ID_MOON_GLAIVER MAKEFOURCC('A','m','g','r')
 #define ID_SLOW_POISON  MAKEFOURCC('A','s','p','o')
@@ -18,36 +76,71 @@ BZ_ABILITY_PROC(CAbilityMoonGlaive) {
     return CAbilityPassive(ent, msg, call);
 }
 
-/* Called from S_ResolveAttackHit after the primary hit lands. Stock Amgl DataA
- * and Area are 0; that means one extra bounce inside attack range, not "no bounce".
- * Authored DataA>0 is total targets. Damage is the already-mitigated primary hit. */
+/* The stock Huntress weapon is mbounce with two total targets before
+ * research (the primary plus one bounce). Remg grants one additional target;
+ * it does not unlock the first bounce. Custom unit data can author a different
+ * base target count and damage-loss factor on its attack profile. Amgr is the
+ * independent (no-research) version, used by campaign units such as Naisha.
+ *
+ * This is invoked only after the primary attack passes evasion/miss checks.
+ * Damage has already been mitigated for the primary; like the other secondary
+ * attack effects, do not run G_AttackDamage again and double-apply armor.
+ * Secondary hits use T_Damage rather than retriggering primary attack procs. */
 void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
-    uint32_t level = G_UnitAbilityClassLevel(attacker, ID_MOON_GLAIVE);
-    float data_a, range;
-    uint32_t total;
+    uint32_t level, code, total;
+    float range, loss, bounce_damage;
     edict_t *visited[8], *current;
-    uint32_t nvisited = 0;
-    if (!level) level = G_UnitAbilityClassLevel(attacker, ID_MOON_GLAIVER);
-    if (!level || !primary) return;
-    data_a = S_SpellData(ID_MOON_GLAIVE, level, 1);
-    total = data_a > 0.0f ? (uint32_t)data_a : 2; /* stock 0 → primary + 1 bounce */
-    range = S_SpellNumber(ID_MOON_GLAIVE, ABILITY_NUMBER_AREA, level);
-    if (range <= 0.0f) range = S_AttackProfileRead(attacker, 0)->range;
-    if (nvisited < 8) visited[nvisited++] = primary;
-    current = primary;
+    uint32_t nvisited = 1;
+    unitAttack_t const *profile;
+
+    if (!attacker || !attacker->inuse || !primary || damage <= 0) return;
+    code = ID_MOON_GLAIVE;
+    level = G_UnitAbilityLevel(attacker, code);
+    if (!level) { code = ID_MOON_GLAIVER; level = G_UnitAbilityLevel(attacker, code); }
+    if (!level) return;
+    profile = S_AttackProfileRead(attacker, 0);
+    /* DataA is only a fallback for custom ability/weapon combinations. The
+     * weapon's authored utc1 takes precedence when it is populated. */
+    total = profile->maxTargets;
+    if (!total) {
+        float const count = S_SpellData(code, level, 1);
+        total = count > 0.0f ? (uint32_t)count : 2;
+    }
+    if (code == ID_MOON_GLAIVE && G_MoonGlaiveResearchLevel(attacker) > 0) total++;
+    total = MIN(total, 8u);
+    if (total <= 1) return;
+
+    range = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    if (range <= 0.0f) range = 400.0f; /* Warcraft stock Moon Glaive bounce radius */
+    loss = profile->damageLoss > 0.0f ? profile->damageLoss : 0.5f;
+    loss = MAX(0.0f, MIN(loss, 1.0f));
+    bounce_damage = (float)damage;
+    visited[0] = current = primary;
+
     for (uint32_t i = 1; i < total; i++) {
         edict_t *next = NULL;
+        float best_distance = range;
+        bounce_damage *= 1.0f - loss;
+        if (bounce_damage < 1.0f) break;
         FILTER_EDICTS(other, other != attacker && S_SpellIsAliveTarget(other) &&
                       S_AttackHitAllowed(attacker, primary, other) &&
                       S_SpellIsEnemy(attacker, other) &&
-                      Vector2_distance(&other->s.origin2, &current->s.origin2) <= range) {
+                      !S_UnitIsHiddenFromPlayer(other, attacker->s.player) &&
+                      G_TargetFlagForType(G_UnitTargetType(other)) != WC3_TARGET_FLAG_WARD) {
             bool seen = false;
-            FOR_LOOP(j, nvisited) seen |= other == visited[j];
-            if (!seen) { next = other; break; }
+            float const distance = Vector2_distance(&other->s.origin2, &current->s.origin2);
+            FOR_LOOP(j, nvisited) if (other == visited[j]) { seen = true; break; }
+            if (seen || distance > best_distance) continue;
+            /* The secondary target must be legal for the primary weapon.
+             * A zero mask is retained for legacy/custom attack fixtures. */
+            if (profile->targetsAllowed &&
+                !(profile->targetsAllowed & G_TargetFlagForType(G_UnitTargetType(other)))) continue;
+            best_distance = distance;
+            next = other;
         }
         if (!next) break;
-        if (nvisited < 8) visited[nvisited++] = next;
-        T_Damage(next, attacker, damage);
+        visited[nvisited++] = next;
+        T_Damage(next, attacker, (int)bounce_damage);
         current = next;
     }
 }
@@ -62,10 +155,13 @@ BZ_ABILITY_PROC(CAbilitySlowPoison) {
 /* Called from S_ResolveAttackHit after a hit lands on an enemy.  Applies the
  * Bspo buff which the movement and attack-speed hooks read each frame. */
 void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target) {
-    uint32_t level = G_UnitAbilityClassLevel(attacker, ID_SLOW_POISON);
-    if (!level || !target || !S_SpellIsEnemy(attacker, target)) return;
+    uint32_t level = G_UnitAbilityLevel(attacker, ID_SLOW_POISON);
+    heroabilitystatus_t *status;
+    if (!level || !target || !S_SpellAllowsTarget(ID_SLOW_POISON, attacker, target)) return;
     /* DataA DPS / BuffID Bssd are leftover; this slice only applies Bspo slow. */
-    S_SpellApplyTimedStatus(target, "Bspo", level, S_SpellResistantDuration(ID_SLOW_POISON, level, target));
+    status = S_SpellApplyTimedStatusFromAbility(target, ID_SLOW_POISON, level, "Bspo",
+                                               S_SpellResistantDuration(ID_SLOW_POISON, level, target));
+    if (status) unit_status_enabletargetart(target, status, "origin");
 }
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */

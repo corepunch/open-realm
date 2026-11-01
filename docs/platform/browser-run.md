@@ -5,7 +5,23 @@
 > compatibility is still under development. A long loading pause can look like
 > a freeze; allow a minute or more before concluding that startup failed.
 > Warcraft III save/load is unsupported in this browser build. Audio uses an
-> AudioWorklet after a user gesture and can underrun during loading stalls.
+> AudioWorklet after a user gesture and can underrun during loading stalls. On iPhone/iPad,
+> the launcher selects Safari's `playback` audio session so sound works with
+> the device's silent switch enabled (older Safari uses a silent looping media
+> element). This can pause music playing in other apps. If Safari interrupts
+> audio, return to the page and tap the game once to resume it.
+
+Safari's playback-session behavior is described in
+[WebKit's silent-mode issue](https://bugs.webkit.org/show_bug.cgi?id=237322#c6).
+The browser audio bridge keeps worklet registration separate from context
+resumption: `AudioContext.resume()` may remain pending during an interruption,
+so it must not hold the connection lock and block a new engine audio ring after
+shutdown/restart. If worklet registration finishes while the page is hidden,
+the ring may attach but playback stays suspended until the page returns.
+Hidden-page shortcut events also cannot unlock audio. The bridge regressions in
+`port/web/tests/ios-audio-session.test.cjs` cover these cases, registration retry,
+and detach during registration; they do not replace an audible check on an iOS
+device with the silent switch enabled.
 
 This guide builds the playable browser engine. `make web-warcraft3-foundation`
 builds a separate WebGL smoke test and does not run Warcraft III.
@@ -92,9 +108,28 @@ page, but cannot delete a generation that an open game tab is using.
 
 The canvas uses the Warcraft III defaults bundled with the browser build:
 left-click selection, right-click smart orders and middle mouse button pan.
-The **Esc** overlay sends Escape to the game. The fullscreen control expands
+The **Esc** overlay sends Escape to the game. The **Game** and **1–9**
+overlays open their shortcut lists on finger/pointer down: drag to an option and
+release to activate it, or release elsewhere to cancel. **Game** offers Quests
+(F9), Menu (F10), Allies (F11) and Chat (F12). In single-player F12 opens the
+Message Log; multiplayer chat-mode selection is not yet implemented. The
+browser F12 binding is isolated from the native Screenshot binding. The **1–9**
+list has three targets per row: its wide number recalls the group, **ctrl**
+assigns it and **shft** adds to it. Each action
+synthesizes a complete keyboard press/release (including any modifier) through
+the normal SDL canvas input route; it does not implement new game commands.
+The popups remain within the existing browser controls layer and cancel on
+pointer cancellation or lost page focus. They are also operable from a keyboard.
+The fullscreen control expands
 the game container, keeping both overlay controls visible; canvas resizing does
 not cover the controls. Interact with the page once to unlock browser audio.
+
+On a touchscreen, one-finger tap/drag uses the usual left-click UI/selection
+path, and two fingers pan the camera during gameplay. A mouse and keyboard
+remain usable on hybrid laptops. The game canvas disables browser touch
+scrolling/zooming; page controls outside it remain normal. See
+[SDL2 touch input](../architecture/touch-input.md) for the pointer ownership
+contract and physical-device verification limits.
 
 If the page says cross-origin isolation is unavailable, use the included
 `port/web/serve.py` server and verify in DevTools:
