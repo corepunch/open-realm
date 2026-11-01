@@ -24,7 +24,8 @@ void pocket_factory_think(edict_t *thinker) {
         loc.x += cosf(factory->s.angle) * thinker->collision;
         loc.y += sinf(factory->s.angle) * thinker->collision;
     }
-    S_SummonAt(factory, thinker->damage, &loc, thinker->wait);
+    edict_t *goblin = S_SummonAt(factory, thinker->damage, &loc, thinker->wait);
+    if (goblin) G_ApplyRallyOrder(factory, goblin);
     thinker->freetime = G_Time() + thinker->resources;
 }
 

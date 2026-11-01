@@ -95,6 +95,36 @@ TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval
     pf_done(fix);
 }
 
+TEST(wc3_spell, pocket_factory_rally_orders_spawned_clockwerks) {
+    static UnitProfile_t const factory_profile = { .trains = "" };
+    static UnitAbilities_t const factory_abilities = { .abilList = "ARal" };
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vec2_t const factory_point = { 256.0f, 192.0f };
+    vec2_t const rally_point = { 400.0f, 192.0f };
+    edict_t *factory, *goblin;
+
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &factory_point));
+    factory = pf_find(BZ_HFOO);
+    T_NOT_NULL(factory);
+    if (!factory) { pf_done(fix); return; }
+    factory->data.UnitProfile = (UnitProfile_t *)&factory_profile;
+    factory->data.UnitAbilities = (UnitAbilities_t *)&factory_abilities;
+    T_ASSERT(G_UnitHasRally(factory));
+    T_ASSERT(G_SetRallyPoint(factory, &rally_point));
+
+    pf_tick(2000);
+    goblin = pf_find(BZ_OGRU);
+    T_NOT_NULL(goblin);
+    if (goblin) {
+        T_NOT_NULL(goblin->goalentity);
+        if (goblin->goalentity) {
+            T_FEQ(goblin->goalentity->s.origin2.x, rally_point.x, 0.001f);
+            T_FEQ(goblin->goalentity->s.origin2.y, rally_point.y, 0.001f);
+        }
+    }
+    pf_done(fix);
+}
+
 /* DataC is each Clockwerk's timed life; expiry goes through unit_updatestatuses, not RunFrame. */
 TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
     pfFix_t fix = pf_setup(BZ_ANSY);
