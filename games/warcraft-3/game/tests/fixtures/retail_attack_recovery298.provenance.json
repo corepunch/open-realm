@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "status": "Original-code service-boundary oracle; no live public witness or engine parity claim.",
+  "binary": {
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "0x6f000000"
+  },
+  "command": "python tools/ghidra/research/attack_recovery298_oracle.py --binary /path/to/original/game.dll --check",
+  "coverage": {
+    "producer_cases": 81,
+    "original_task_pop_cases": 7,
+    "negative_controls": 9,
+    "equal_adjacent_range_words": [
+      "0x43a67fff",
+      "0x43a68000",
+      "0x43a68001"
+    ],
+    "range_rule": "Original4985c0 chooses maximum enabled slot, then original06fbb0 adds targetradius and50. Raw intermediate maximum and all five D051 argumentwords retained.",
+    "third_argument": "capture request word, not event pointer; overwritten by Unitcast at49d338. Generic non-Unit widget remains eligible when resolved; NULL Unitcast skips Blinkcheck."
+  },
+  "adjusted_range_scope": {
+    "status": "Not exercised; ordinary public producer reachability excluded by existing static evidence, not a claim that the numerical branch is covered.",
+    "fields": "4985c0 resolves identity2bc/2c0 and can return2cc for nonsimple weapon targetmask.2c8 is scalar control;2c4 is not the identity generation used by this branch.",
+    "setter": "49c4d0 has zero incoming code/data references in the current original program; constructor491f30 invalidates identity and initializes adjustedrange0;499860 can restore serialized state.",
+    "limitation": "A crafted/restored nondefault retained-target state is outside this oracle; do not describe all4985c0branches as covered."
+  },
+  "stubs": [
+    "Identity resolve and dynamic Unitcast with retained-reference effect",
+    "Weapon-slot eligibility only (maximum-range selection executes originalcode)",
+    "Target collision radius and worldXYZ getters",
+    "Active-ownership/target-release/stop services retainingflag4 deliberately; no callback mutation model",
+    "Synthetic taskhead storage/pop/cancelcompletion, while original497190 decides which tasks to pop",
+    "Point-task creation argument recorder and queue-dispatch recorder",
+    "Unit owner getter0; neutral/Town guard-evaluation branch not exercised"
+  ],
+  "initializer": {
+    "function_rva": "0x001cd0",
+    "output_va": "0x6fd3c7ac",
+    "poison_before": "0xdeadbeef",
+    "expected_word": "0x42480000",
+    "method": "Unmodified initializer executes before cases; no assignment of expected50 to memory."
+  },
+  "instruction_guards": [
+    {
+      "function_rva": "0x1cd0",
+      "size": 15,
+      "sha256": "f8c86dd145cee22b260e00fc19606d9b4a3b4da2c600201b55872077ca38dfc4"
+    },
+    {
+      "function_rva": "0x49d280",
+      "size": 555,
+      "sha256": "89b8e98c5abcf5e96f98f7e0d7dbc27993dc3e8ccc2ff8371e6e89724bc49123"
+    },
+    {
+      "function_rva": "0x497190",
+      "size": 141,
+      "sha256": "4fb78438b68b58491c9293f63c147de46f8a38ecc575eb95b530dec8378ac221"
+    },
+    {
+      "function_rva": "0x4985c0",
+      "size": 173,
+      "sha256": "e004d288e368cb73a7a6dd99feb6e1ee0c89a2bdbea63ef257d549e0c992f2be"
+    },
+    {
+      "function_rva": "0x6fbb0",
+      "size": 274,
+      "sha256": "f970aaef169f28d3d737ba0eb8b94ed25db2e6732a4aff55f6812cbb7f629158"
+    },
+    {
+      "function_rva": "0x49c4d0",
+      "size": 115,
+      "sha256": "1b75635d6f4976cfdad1fdbb9cb5fa2202fe50953b3fbb3bd6dff15721564239"
+    }
+  ],
+  "original_exports": [
+    {
+      "function_rva": "0x1cd0",
+      "name": "ScalarStartup352_6f001cd0",
+      "body": "void ScalarStartup352_6f001cd0(void)\n\n{\n  Math_FromIntegerTruncated(&Math_RuntimeFifty,0x32);\n  return;\n}",
+      "body_sha256": "d1de3246c103f27fa31ddcedaf83b1490f80770b3abddc81fc508457439375d0",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "xref_count": 1
+    },
+    {
+      "function_rva": "0x4985c0",
+      "name": "Attack_GetMaximumEnabledRange",
+      "body": "WC3PathScalar * __thiscall\nAttack_GetMaximumEnabledRange(WC3AttackRangePrefix *attack,WC3PathScalar *output)\n\n{\n  WC3PathScalar *pWVar1;\n  uint uVar2;\n  void *pvVar3;\n  WC3PathScalar **ppWVar4;\n  uint slot;\n  bool bVar5;\n  \n  pWVar1 = output;\n  slot = 0;\n  *output = Math_RuntimeZero;\n  do {\n    uVar2 = Attack_IsWeaponSlotEnabled(attack,slot);\n    if (uVar2 != 0) {\n      if (((attack->target).generation & (attack->target).slot) != 0xffffffff) {\n        pvVar3 = AgentIdentity_ResolvePayload(&attack->target);\n        if (((pvVar3 != (void *)0x0) && (slot != 0xffffffff)) &&\n           (uVar2 = (&attack->target_mask0)[slot], (&attack->weapon0)[slot] - 2 < 7)) {\n          if (uVar2 < 0x81) {\n            if ((uVar2 == 0x80) || (uVar2 == 1)) goto LAB_6f498631;\n            bVar5 = uVar2 == 0x40;\n          }\n          else {\n            bVar5 = uVar2 == 0x100;\n          }\n          if (!bVar5) {\n            *pWVar1 = attack->adjusted_range;\n            return pWVar1;\n          }\n        }\n      }\nLAB_6f498631:\n      output = (WC3PathScalar *)(&attack->range0)[slot * 2];\n      ppWVar4 = &output;\n      if ((float)(&attack->range0)[slot * 2] < (float)*pWVar1) {\n        ppWVar4 = (WC3PathScalar **)pWVar1;\n      }\n      *pWVar1 = (WC3PathScalar)*ppWVar4;\n    }\n    slot = slot + 1;\n    if (1 < slot) {\n      return pWVar1;\n    }\n  } while( true );\n}",
+      "body_sha256": "78c2b9d9fcf3f746104c9a13b87f1c943319b00a40c047c7b5f5917d0af49da7",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "xref_count": 16
+    },
+    {
+      "function_rva": "0x49c4d0",
+      "name": "Attack_SetRetainedTargetUnreferenced",
+      "body": "void __thiscall\nAttack_SetRetainedTargetUnreferenced(WC3AttackRangePrefix *attack,void *target,WC3PathScalar *range)\n\n{\n  WC3CanonicalPrefix *pWVar1;\n  WC3CanonicalPrefix *pWVar2;\n  \n  if (target != (void *)0x0) {\n    pWVar1 = PathRegistry_ResolveCanonical\n                       (*(int *)((int)target + 0xc),*(uint *)((int)target + 0x10));\n    if (pWVar1 != (WC3CanonicalPrefix *)0x0) {\n      pWVar2 = (WC3CanonicalPrefix *)0x0;\n      if (*(int *)&pWVar1->field_0xc == 0x2b61676c) {\n        pWVar2 = pWVar1;\n      }\n      if (pWVar2 != (WC3CanonicalPrefix *)0x0) {\n        (attack->target).slot = (pWVar2->identity).slot;\n        (attack->target).generation = (pWVar2->identity).generation;\n        goto LAB_6f49c524;\n      }\n    }\n  }\n  (attack->target).generation = 0xffffffff;\n  (attack->target).slot = -1;\nLAB_6f49c524:\n  (*(code *)**(undefined4 **)&attack->field_0x2c8)(range,1);\n  FUN_6f49d260();\n  return;\n}",
+      "body_sha256": "284143026752945f2e1984fca9189ce291fb3ff488bbc5995fed3966bd349399",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "xref_count": 0
+    },
+    {
+      "function_rva": "0x6fbb0",
+      "name": "Math_Add",
+      "body": "WC3PathScalar * __fastcall Math_Add(WC3PathScalar *output,WC3PathScalar *left,WC3PathScalar *right)\n\n{\n  uint uVar1;\n  byte bVar2;\n  uint uVar3;\n  uint uVar4;\n  int iVar5;\n  uint uVar6;\n  int iVar7;\n  int iVar8;\n  uint uVar9;\n  \n  uVar1 = *left;\n  uVar6 = uVar1 & 0x7f800000;\n  if (uVar6 == 0) {\nLAB_6f06fcb0:\n    *output = *right;\n    return output;\n  }\n  uVar9 = *right;\n  uVar3 = uVar9 & 0x7f800000;\n  if (uVar3 == 0) {\nLAB_6f06fca3:\n    *output = uVar1;\n    return output;\n  }\n  uVar4 = uVar3 - uVar6;\n  iVar7 = ((uVar1 & 0x7fffff | 0x800000) * 2 ^ (int)uVar1 >> 0x1f) - ((int)uVar1 >> 0x1f);\n  iVar5 = ((uVar9 & 0x7fffff | 0x800000) * 2 ^ (int)uVar9 >> 0x1f) - ((int)uVar9 >> 0x1f);\n  if ((int)uVar4 < 1) {\n    if ((int)uVar4 < -0xb7fffff) goto LAB_6f06fca3;\n    iVar5 = iVar5 >> ((byte)(uVar6 - uVar3 >> 0x17) & 0x1f);\n  }\n  else {\n    if (0xb7fffff < (int)uVar4) goto LAB_6f06fcb0;\n    iVar7 = iVar7 >> ((byte)(uVar4 >> 0x17) & 0x1f);\n    uVar6 = uVar3;\n  }\n  uVar1 = iVar5 + iVar7;\n  if (uVar1 == 0) {\n    *output = 0;\n    return output;\n  }\n  iVar8 = (uVar1 ^ (int)uVar1 >> 0x1f) - ((int)uVar1 >> 0x1f);\n  iVar5 = FUN_6f06fd30();\n  iVar7 = -iVar5 + 8;\n  bVar2 = (byte)iVar7;\n  if (iVar7 < 0) {\n    uVar9 = iVar8 << (-bVar2 & 0x1f);\n  }\n  else {\n    uVar9 = iVar8 >> (bVar2 & 0x1f);\n  }\n  *output = (-iVar5 + 7) * 0x800000 + uVar6 | uVar9 & 0x7fffff | uVar1 & 0x80000000;\n  return output;\n}",
+      "body_sha256": "afb36c1423faff1143cb3e13a40b85b5c384064d9e225d9ebdb81fe2eec5d7ec",
+      "ghidra_revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      },
+      "xref_count": 100
+    }
+  ],
+  "repository_files": {
+    "tools/ghidra/research/attack_recovery298_oracle.py": "7c0e71e9ac7072bfca8587e46e0709782974bfd245706681829b7f94aa24af36",
+    "games/warcraft-3/game/tests/fixtures/retail_attack_recovery298.json": "c88fc338693fd016465582985ae19070d323221c8ed5585dd710af71b9b35af7",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3",
+    "games/warcraft-3/game/tests/fixtures/retail_attack_recovery298_static.json": "9a9de168bab583e680a9f3a0f43d8fb490d9b1b8d68e1bda0f5d0ae98d0f01ba",
+    "tests/test_wc3_pathfinding_attack_recovery298.py": "ffea7cc7b9c4102694c45fe2ee2d95e2cbe6fad6a01b43e941eebcbd853fb85a"
+  },
+  "portable_check": "python -m unittest discover -s tests -p test_wc3_pathfinding_attack_recovery298.py"
+}

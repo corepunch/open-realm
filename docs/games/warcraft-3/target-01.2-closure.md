@@ -1,8 +1,215 @@
 # TARGET-01.2: exact remaining work and original caller inventory
 
-This checklist names the original functions and call instructions that must be accounted for. It also records the five Patrol corrections, their evidence and tests, and the remaining caller-by-caller acceptance work.
+This checklist names the original functions and call instructions that must be accounted for. It records eight delivered Patrol/Attack corrections and separates the remaining implementation, evidence reconciliation, caller identification and final verification work.
 
 Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`. Addresses below are RVAs: add image base `0x6f000000` to obtain the preferred-image virtual address. A running process may use a different image base. For example, RVA `0x49a980` has preferred-image virtual address `0x6f49a980`.
+
+## Execution register: finite blocks to close this leaf
+
+**Current accounting:** the direct-call inventory contains 54 functions: 43 have incomplete proof, nine have an explicitly different owner, and two have accepted bounded contracts. This is not 43 missing engine features. The 136 D rows are individual instructions, not 136 public commands. The historical 53-function status file omits F16 and must not be used as a current completion denominator.
+
+The following 18 blocks partition the known work. B17 retains accepted behavior and requires evidence linkage only; the other blocks require their stated investigation, implementation, evidence or verification deliverables. These are work packages inside TARGET-01.2, not new backlog leaves. A percentage based on counting these unequal packages would not measure implementation completion.
+
+For a D row, record the exact fixture filename and scene/record, submitted raw arguments, branch condition, result and C regression name; or record its exact other-owner exclusion and evidence. A checkpoint number alone does not close the instruction. An unknown value or receiver is an investigation task, and stays unknown until recovered. The F/D register immediately below assigns each known direct instruction to one block; sections 4–7 retain the literal CALL addresses and arguments.
+
+### B01. Correct and finish Attack recovery — F19 / D051
+
+1. Use the [17-entry incoming-caller table](retail-pathfinding-attack-recovery.md#all-direct-incoming-calls), not an inferred “target lost” family. Its CALL addresses are `497e06`, `49cec6`, `49cf0c`, `49e6c2`, `49a3ff`, `49935a`, `49b58f`, `49b240`, `4953a4`, `495420`, `494313`, `497ba8`, `4980f7`, `58cd36`, `5e80f8`, `5fc245` and `628a5d`. All are RVAs. Record forced and capture-request words independently for each.
+2. Reproduce/check the completed bounded original-byte oracle for `49d280`, task-pop helper `497190`, two-slot range helper `4985c0`, scalar addition `06fbb0` and the RuntimeFifty initializer `001cd0`. The prepared recovery298 fixture contains 81 producer cases, seven task-pop cases and nine negative controls. This is synthetic service-boundary evidence, not public command reachability.
+3. Capture six public scenes: explicit Attack then target Hide; current-target owner change; active Attack-ability removal; automatic acquisition then target Hide; allied Invisibility on a far, actively chasing attacker; paused attacker target loss followed by resume. The Invisibility scene is a candidate until actual active recovery and capture-request entry words are observed. Keep a failed precondition as a failed precondition; do not substitute private flag writes.
+4. Implement the demonstrated C decisions in `s_attack.c`: logical active ownership independently of physical-group existence; pending-loss flag set/clear lifetime; source acquisition permission; explicit capture word; generic-widget eligibility and Blink-Unit exclusion; captured position and range; alternative-target release; eligible task pop and synchronous successor dispatch. A simple `!owner_changed` test cannot replace those state decisions.
+5. Require two identical instrumented observations and a fresh unhooked public control. Compare complete ordered arrival/velocity records, clocks and headings through the declared end against uninterrupted and saved C replay. Existing223/224 captures contain no complete arrival/velocity suffix and cannot satisfy this condition.
+
+**Close B01:** D051 has original arguments and public reachability for the claimed branches, the C policy follows those inputs, the entire declared normal/saved suffix matches, and the 17 incoming sites have an explicit disposition. Unproved adjusted-range setter `49c4d0` reachability and release-callback reentrancy remain explicit limits until established; synthetic restored state alone does not prove either.
+
+### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
+
+1. Preserve the completed public265 stream and cache correction. For D036–D041, attach the exact acquisition/home/replacement scene rather than describing that completed stream as unfinished.
+2. For D042 (`497fc0`), recover the submitted guard-return heading and continuation. Compare facing-only execution, Stop/replacement and saved continuation; identify its actual guard owner.
+3. For D043–D048 (`49a980`), map target Attack and point AttackMove creation separately. Record initial task, retained return point, selected range and facing inputs. Exercise the equality and adjacent representable values of the gates actually used by each listed producer.
+4. For D052–D054 (`49eb00`), resolve the `d0168`, `d016a`, `d016c` and `d016f` dispatch paths and join each constructed target/point task to its public Attack/AttackMove cause. Compare full ordered approach/return/recovery polls and saved continuation for the uncovered paths.
+
+**Close B02:** these 16 direct instructions each have a concrete accepted scene or exact exclusion. ORDER-01.10 public-head ownership stays accepted; this block supplies the missing producer arguments and numerical execution evidence.
+
+### B03. Finish Ground approach and boundary evidence — F18
+
+1. Attribute D049 (`49b04c`, committed `d0169`, zero range) and D050 (`49b078`, approach `d016b`, supplied range and owner context) separately to Ground371 evidence.
+2. Exercise actual selected-weapon minimum/maximum boundaries at equality and adjacent representable inputs. Preserve rejection for an ordinary weapon that cannot fire Ground.
+3. Remove `Aatk` before approach reaches committed `d0169`; verify the physical approach and subsequent queue owner are retired or retained according to the original path. P8 only proves committed Ground retirement.
+4. Supply the complete ordered firing/blocked-recovery suffix for the identified missing branch and its saved continuation. Reuse Ground371 selected-range, immobile and human/computer blocked evidence where it actually covers these instructions.
+
+**Close B03:** both D049 and D050 have exact arguments and completion/retirement evidence, including the pre-arrival removal branch. Do not reopen the already accepted Ground admission contract.
+
+### B04. Finish shared-spell task producers — F02, F03, F13
+
+1. Attribute D002 and D003 (`40a7a0`) to target and point shapes. Complete the non-Acoi point spell that starts within range but faces away. Record actual spell receiver, configured range, heading and force/stop inputs.
+2. Attribute D004 and D005 (`40e030`) to the spell completion branch that submits each request. Attribute D032 (`438680`) to the retained target-approach continuation, separately from initial construction.
+3. Compare ordered turn/approach polls at each demonstrated numerical gate, including equality and its adjacent inputs. Verify cancellation/replacement and saved ownership of the particular submitted task.
+4. Reuse the accepted Acoi datasets: stock540, custom333532, moving214400, ready233 and the later preparatory-item/cannot-path continuations. Their exact shapes and limits are preserved; they do not prove the unidentified receiver classes in B15.
+
+**Close B04:** D002, D003, D004, D005 and D032 have scene-specific parameter and execution evidence. Wider channel/reentrancy behavior remains ORDER-01.13 unless one of these instructions demonstrably supplies a different TARGET argument.
+
+### B05. Identify and reconcile resource producers — F04–F08, F10, F14, F31–F33
+
+1. Identify the concrete resource selector/public action for each function in the register: `418580`, `418660`, `4192b0`, `419380`, `419530`, `42ca90`, `438880`, `59b180`, `59b8c0` and `59b9b0`. Their exact resource variants are not established by the present names.
+2. Match `d0182/d0183`, `d0184/d0185`, `d0186/d0187` and `d0191` branches to their actual consumers. Record the entry target/range, point retry coordinates, authored cast range and resume task at each assigned D instruction.
+3. Compare the `418660` and `59b180` selector paths explicitly; a shared `d0171` identifier does not prove equal range or retry policy. Likewise keep `419380` target/point retry separate from `419530` point/target retry.
+4. Attach existing Harvest/Return captures instruction by instruction. Only a specified uncovered D branch receives a new capture or C fix. Deposit/resume lifetime outside these parameter decisions stays ORDER-01.12.
+
+**Close B05:** the 34 assigned CALL instructions have named resource variants, raw request arguments and accepted approach/retry evidence or a specific exclusion. “Harvest covered” is insufficient without those mappings.
+
+### B06. Reconcile Root and Entangle producers — F09, F25–F28, F30
+
+1. Map Root `426f50` D025–D027 to its actual placed point, facing and target request.
+2. Map retained Entangle action `562380` D066 and placement `5624f0` D067–D070 to accepted rooted/placement traces.
+3. Map unroot/retry `562700` D071, completion `56a930` D072/D073 and re-entry `56af20` D076–D079. Keep ordinary `d00b3` and instant `d00b4` branches distinct; preserve `d0190`, `d018b`, `d018f` and `d016e` task roles.
+4. Attach the exact existing range/heading and saved-continuation scenes to these instructions. Add only a concrete missing producer boundary/full-poll branch; broader ownership callback compositions retain their original owner.
+
+**Close B06:** these 15 instructions are reconciled with the accepted Root/Entangle scope, with an explicit disposition for the retry and re-entry paths.
+
+### B07. Reconcile inventory requests — F23, F24
+
+1. For D061–D063 in `54efe0`, identify the point Drop, Give and Pawn branch and its raw point/target/range/heading/force/stop values.
+2. For D064/D065 in `55bb10`, distinguish initial Smart pickup from reconstructed pickup. Check the actual range boundary at equality and adjacent values.
+3. Join these requests to accepted Itemdrop captures. Where an old observer only recorded periodic markers, obtain the missing complete ordered firing suffix for that specific branch; do not call periodic markers full-poll proof.
+
+**Close B07:** the five listed instructions have exact scene/record mappings and their declared complete execution evidence. Accepted inventory normal flows remain accepted.
+
+### B08. Reconcile Move, boarding and continuation requests — F34–F36, F38–F41
+
+1. Map D090–D093 in `5fad30` to mobile, static and Float carrier branches. Map static retry D116 in `5feb60` to the half-second retry evidence.
+2. For D094 in `5fc640`, join the physical target request to the upstream target-task D instruction that supplied its arguments. Preserve the proved bridge arithmetic.
+3. Attribute D095–D112 in `5fd270` individually to their point/target/facing branch and existing Follow/Patrol/rejection scene. Friendly-target Patrol integration is already delivered.
+4. Identify the actual public owner of `5fe3e0`, D114/D115, and its `d018e`/`d0174` target tasks. Its current numeric name does not establish an ability identity.
+5. Join D117 in `5ffb60` to the zero-range point Move contract and the distinct nonzero/forced/cannot-path producer branch, if present in the frozen body. Ordinary zero-range Move remains closed under TARGET-01.4.
+6. Reconcile D118–D121 in `600080` with the captured Waygate-exit continuation and its non-Waygate point/target branches. Match the accepted377 scene only to the branch it executes.
+
+**Close B08:** these 31 instructions have explicit upstream/public-owner mappings and branch-specific request evidence. Static/mobile/Float boarding is not treated as one interchangeable observation.
+
+### B09. Reconcile Militia approach — F42
+
+For D122 (`62e964`, `d0188`, zero range) and D123 (`62e9c9`, `d0174`, authored range), attach the accepted forward/reverse initial range and facing-only FLT_MAX cases. Identify the absent complete-poll or boundary case by instruction and scene before adding one. A forward lifecycle capture does not prove reverse interruption or saved continuation.
+
+**Close B09:** both instructions have the exact range/heading and execution evidence for the claimed forward/reverse branches; no blanket Militia closure is inferred.
+
+### B10. Identify six unresolved command containers — F11, F12, F22, F29, F43, F44
+
+1. Resolve `4377d0` D030 (`d0151/d0167/d0171`) and `437ae0` D031 (`d0032/d0167/d0171`) through their recorded incoming references/vtables to a public command or a specific non-unit owner.
+2. Resolve `54cc80` D057–D060 to its actual receiver and point/target task branches. Its proximity to inventory code is not an ability identification.
+3. Resolve `56ad70` D074/D075 and the source of range global `6fd6d920`; establish the public route to its `d0171` request.
+4. Resolve `643720` D124: public action `d024d`, internal point action `d029a`, point transform and RuntimeFifty. Resolve its call into `644350`, whose D125/D126 submit `d029b` zero-range and `d0174` fifty-range target tasks.
+5. For each resolved owner, attach accepted exact instruction evidence or implement/test the demonstrated missing producer behavior. Keep an unresolved row open; do not invent an ability name to close it.
+
+**Close B10:** these 11 instructions have concrete receiver/public-owner identities and request-argument dispositions. These six unknown function containers are a real identification gap, not six proven missing abilities.
+
+### B11. Reconcile suspension request — F45
+
+Identify the source/target and queue owner at `690a50` D127 (`690ae3`, `d0147`, zero range). Join it to the existing Pause/Sleep/physical-begin contracts and record which exact branch executes it. Supply a new TARGET test only if that instruction introduces a distinct command range, heading, force or stop value.
+
+**Close B11:** D127 has its exact request owner and accepted argument evidence; generic Pause/Sleep domains are not reopened.
+
+### B12. Reconcile the point adapter — F01
+
+At D001 (`05b961`), verify forwarding of source `param_1`, point components `param_2`/`param_2+4`, and `param_3` through `param_8` to `05b970`. Use the incoming references in the frozen inventory to record the actual upstream caller identities. If a reference is not a direct call, classify it as such rather than inventing a call edge.
+
+**Close B12:** the adapter's forwarding and actual incoming edges are recorded. It is not a new public command, and gets no independent gameplay implementation solely for being a wrapper.
+
+### B13. Record five projectile exclusions — F46–F50
+
+Record the exact other-owner evidence for D128 (`6cf903`), D129 (`6d008b`), D130 (`6d0681`), D131 (`6d317b`) and D132 (`6d3252`). These are artillery/missile physical-path requests, not Unit command producers. Retain their point/target arguments and the cited route/target ownership evidence.
+
+**Close B13:** all five exclusions name their evidence and actual owner. No new Unit Stop/save/cargo requirements are imported into these projectile rows.
+
+### B14. Record four Captain producer dispositions — F51–F54
+
+For D133, D134, D135 and D136, record the member-order, combat-target, point-request and live-target-refresh argument branch respectively, with the exact call addresses in their F rows. Retain the accepted helper/range evidence. Explicitly assign composed combat journeys, strategic membership and moving-target policy to their existing GROUP owner; a distinct unproved TARGET argument must be identified at the exact instruction before it becomes work here.
+
+**Close B14:** all four instructions have evidence-backed argument dispositions and explicit scope boundaries. This does not close GROUP-03.2 or any other Captain leaf.
+
+### B15. Resolve the named upstream spell dispatches
+
+1. Classify concrete receivers and vtable targets at V01 `40a779`, V02 `423e61`, V04 `561a74`, V05 `5a4df6` and V06 `642a02`. Record whether slot `+0x400` reaches `40a7a0` or a specific override. Receiver enumeration is incomplete today.
+2. Retain V03 `55213d` as an excluded Morph slot collision, with its different class contract.
+3. Join direct upstream calls `4cbc09` in `4cbb70`, `54eef5` in `54ee00`, `54efa9` in `54ef10` and `58d0cd` in `58cfa0` to F02. Reuse accepted Acoi identification for the first; identify the actual order/ability of the other three instead of inferring it from address proximity.
+
+**Close B15:** these ten listed sites have explicit callee/receiver/argument dispositions. If resolution exposes another actual factory, add its exact instruction and owner to the inventory before declaring the graph closed.
+
+### B16. Classify the 210 computed instructions
+
+Resolve I001–I210, individually listed in section7, from the exact instruction and containing function. For each, record receiver source, concrete callee or bounded callee set, and classification: getter, destructor/reference release, validation, task factory, or still unresolved. A getter/destructor row closes with static evidence; it does not require a gameplay capture. A real factory row links to the actual D/V producer and concrete receiver, or creates a precisely addressed inventory addition.
+
+**Close B16:** zero unclassified I rows. These are 210 known computed sites within the audited scope, not a claim that all indirect calls in the original DLL have been found. The graph-wide unresolved-call inventory remains separately owned by E2E-05.2.
+
+### B17. Retain the two accepted bounded functions — F21, F37
+
+F21/D055/D056 is the accepted legacy Archer/Hippogryph producer. F37/D113 is the delivered Patrol producer, with complete public/poll/saved replay. Attach the accepted evidence to the D055/D056 reconciliation rows without repeating the behavior investigation. D113 is already checked. Separate I-row receiver classification does not erase either bounded contract.
+
+**State:** no new producer implementation is identified in this block. Legacy coupling reconciliation and any computed-call row still receive their own explicit evidence record.
+
+### B18. Run final verification, commit and close
+
+After the implementation blocks and caller dispositions are complete: build the test and production modules; run affected regressions in Classic and TFT with normal and saved continuation; run the coordinated original/C gates and corpus checks against the final frozen sources; and run a successful batched full suite. Full295 is not a pass, and focused297 is not a substitute. Commit implementation, executable evidence, the completed call dispositions and documentation in the primary `open-realm` branch. Then close TARGET-01.2. The other 24 open whole leaves are outside this work register.
+
+### Exact direct-function assignment
+
+The table is a partition: each F function and D instruction appears in one block. A range such as D006–D009 means those four exact CALL rows in section4; it does not stand for unspecified additional callers.
+
+| Function | Original RVA | Block | Exact direct instructions | Current disposition |
+| --- | --- | --- | --- | --- |
+| F01 | `0x05b940` | B12 | D001 | proof incomplete |
+| F02 | `0x40a7a0` | B04 | D002, D003 | proof incomplete |
+| F03 | `0x40e030` | B04 | D004, D005 | proof incomplete |
+| F04 | `0x418580` | B05 | D006, D007, D008, D009 | proof incomplete |
+| F05 | `0x418660` | B05 | D010, D011, D012 | proof incomplete |
+| F06 | `0x4192b0` | B05 | D013, D014, D015 | proof incomplete |
+| F07 | `0x419380` | B05 | D016, D017, D018, D019, D020 | proof incomplete |
+| F08 | `0x419530` | B05 | D021, D022, D023, D024 | proof incomplete |
+| F09 | `0x426f50` | B06 | D025, D026, D027 | proof incomplete |
+| F10 | `0x42ca90` | B05 | D028, D029 | proof incomplete |
+| F11 | `0x4377d0` | B10 | D030 | proof incomplete |
+| F12 | `0x437ae0` | B10 | D031 | proof incomplete |
+| F13 | `0x438680` | B04 | D032 | proof incomplete |
+| F14 | `0x438880` | B05 | D033, D034, D035 | proof incomplete |
+| F15 | `0x4943f0` | B02 | D036, D037, D038, D039, D040, D041 | proof incomplete |
+| F16 | `0x497fc0` | B02 | D042 | proof incomplete |
+| F17 | `0x49a980` | B02 | D043, D044, D045, D046, D047, D048 | proof incomplete |
+| F18 | `0x49af00` | B03 | D049, D050 | proof incomplete |
+| F19 | `0x49d280` | B01 | D051 | proof incomplete |
+| F20 | `0x49eb00` | B02 | D052, D053, D054 | proof incomplete |
+| F21 | `0x4e3c60` | B17 | D055, D056 | covered bounded contract |
+| F22 | `0x54cc80` | B10 | D057, D058, D059, D060 | proof incomplete |
+| F23 | `0x54efe0` | B07 | D061, D062, D063 | proof incomplete |
+| F24 | `0x55bb10` | B07 | D064, D065 | proof incomplete |
+| F25 | `0x562380` | B06 | D066 | proof incomplete |
+| F26 | `0x5624f0` | B06 | D067, D068, D069, D070 | proof incomplete |
+| F27 | `0x562700` | B06 | D071 | proof incomplete |
+| F28 | `0x56a930` | B06 | D072, D073 | proof incomplete |
+| F29 | `0x56ad70` | B10 | D074, D075 | proof incomplete |
+| F30 | `0x56af20` | B06 | D076, D077, D078, D079 | proof incomplete |
+| F31 | `0x59b180` | B05 | D080, D081, D082 | proof incomplete |
+| F32 | `0x59b8c0` | B05 | D083, D084, D085 | proof incomplete |
+| F33 | `0x59b9b0` | B05 | D086, D087, D088, D089 | proof incomplete |
+| F34 | `0x5fad30` | B08 | D090, D091, D092, D093 | proof incomplete |
+| F35 | `0x5fc640` | B08 | D094 | proof incomplete |
+| F36 | `0x5fd270` | B08 | D095, D096, D097, D098, D099, D100, D101, D102, D103, D104, D105, D106, D107, D108, D109, D110, D111, D112 | proof incomplete |
+| F37 | `0x5fdff0` | B17 | D113 | covered bounded contract |
+| F38 | `0x5fe3e0` | B08 | D114, D115 | proof incomplete |
+| F39 | `0x5feb60` | B08 | D116 | proof incomplete |
+| F40 | `0x5ffb60` | B08 | D117 | proof incomplete |
+| F41 | `0x600080` | B08 | D118, D119, D120, D121 | proof incomplete |
+| F42 | `0x62e8f0` | B09 | D122, D123 | proof incomplete |
+| F43 | `0x643720` | B10 | D124 | proof incomplete |
+| F44 | `0x644350` | B10 | D125, D126 | proof incomplete |
+| F45 | `0x690a50` | B11 | D127 | proof incomplete |
+| F46 | `0x6cf5e0` | B13 | D128 | other owner |
+| F47 | `0x6cfe00` | B13 | D129 | other owner |
+| F48 | `0x6d0630` | B13 | D130 | other owner |
+| F49 | `0x6d30c0` | B13 | D131 | other owner |
+| F50 | `0x6d3190` | B13 | D132 | other owner |
+| F51 | `0x9d16c0` | B14 | D133 | other owner |
+| F52 | `0x9d3bc0` | B14 | D134 | other owner |
+| F53 | `0x9d44d0` | B14 | D135 | other owner |
+| F54 | `0x9d4600` | B14 | D136 | other owner |
 
 ## 1. What the audit actually establishes
 
@@ -24,7 +231,7 @@ Original binary: Warcraft III 1.27.1.7085 `game.dll`, SHA256 `d51e5680243fc90e19
 | `0x05a5c0` | start physical target movement | 5 |
 | `0x692570` | forward through the additional target-task wrapper | 1 |
 
-## 2. Patrol corrections verified in checkpoint 287
+## 2. Delivered Patrol and Attack corrections
 
 Checkpoint 287 passes all 18 focused processes in Classic and TFT: 1,224 test executions and 308,850 assertions. Its sources remained unchanged throughout the run. P1–P5 below are completed corrections. The additional review checks P6 and P7 also pass checkpoint 290: 18 focused processes, 1,226 test executions and 309,036 assertions across both editions. The larger caller inventory in sections 4–7 remains open. Checkpoint 288 only restores a test-local data pointer before fixture return; final Combat and corpus rechecks are recorded separately.
 
@@ -106,7 +313,9 @@ Checkpoint 287 passes all 18 focused processes in Classic and TFT: 1,224 test ex
 
 ### Patrol delivery checkpoint
 
-P1–P7 and the coordinated native/corpus checks pass; the production module builds without warnings. Commit this verified Patrol producer block, P8 now also passes its bounded retirement checks. The next unresolved recovery branch is F19/D051, including native flag `0x40000`. Run the batched full suite at the user-requested cadence after a few implementation commits; the focused result is not a full-suite result. Commit the Patrol implementation, fixtures and documentation on the primary `open-realm` branch. Do not wait for AttackMove before delivering this completed block. The implementation currently uses candidate Save232; its final serializer, rejection and saved-owner checks must pass before delivery.
+P1–P7 were delivered in `4fd5de93b`; P8 was delivered in `6453035d5`. Save232 is implemented, and its focused serializer/rejection/saved-owner checks passed checkpoint294. These are completed bounded changes, not future work. The next implementation block is F19/D051.
+
+The later full-suite attempt295 did not pass: six cases failed in Building/Spell fixtures that still assumed legacy attack timing; the remaining run was deliberately stopped. Fixture repairs were committed in `300577548`. Checkpoint297 then passed the complete Building and Spell patterns in both editions: four processes, 1,616 test executions and 45,128 assertions. A successful full-suite run after these changes remains required. See [the validation record](retail-pathfinding-patrol-validation.json).
 
 ## 3. Exact checks to attach to each listed call
 
@@ -148,7 +357,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Target/far-point shared spell and bounded Acoi zero/authored/FLT_MAX/bit8 paths verified.
 
-**Action for this function:** Complete the non-Acoi point-spell initially-in-range facing-away branch, plus any remaining shape-specific range/heading/force/stop branches; compare full polls and equality/adjacent inputs.
+**Action for this function:** For D002 (target d0174) and D003 (point shape), identify the actual receiver, submitted range, point/target and task identifier. The specifically identified missing witness is a non-Acoi point spell initially within range and facing away. Branch classification for the other receiver/shape combinations is unresolved; record their exact conditions from the frozen body before declaring a finite missing test list. Follow B04 for boundary, ordered-poll and saved-owner acceptance; B15 handles the exact upstream dispatch instructions.
 
 **Task identifiers present in the frozen body:** `0xd0144`, `0xd0148`, `0xd014a`, `0xd014c`, `0xd014e`, `0xd015f`, `0xd0160`, `0xd0161`, `0xd016b`, `0xd016e`, `0xd0174`, `0xd0178`.
 
@@ -168,7 +377,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Acoi forced CHANNEL/FINISH/ENDCAST and target-binding cleanup measured.
 
-**Action for this function:** Separate physical producer arguments from broader spell-phase lifecycle; cover remaining reachable task-producing branches, leave unrelated channel/reentrancy combinations to ORDER-01.13.
+**Action for this function:** Map D004 and D005 separately to the frozen completion branch, concrete receiver, submitted target/point and supplied range. Attach an accepted fixture scene/record to each or identify its exact absent branch before adding a test. See B04; wider spell-channel/reentrancy behavior remains ORDER-01.13.
 
 **Task identifiers present in the frozen body:** `0xd015f`, `0xd0160`, `0xd016b`, `0xd0174`.
 
@@ -384,7 +593,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Authored-range target continuation and public cast ownership are documented.
 
-**Action for this function:** Match every retained continuation producer branch to existing full-poll evidence; add only uncovered heading/range boundary cases, not repeat initial40a7a0 proof.
+**Action for this function:** Map D032 to its retained target-approach continuation and actual range source. Record the executed branch and exact existing full-poll fixture rows, or identify the absent range/heading boundary witness. The initial 40a7a0 construction is a separate row under F02, not evidence that D032 executed.
 
 **Task identifiers present in the frozen body:** `0xd0174`.
 
@@ -424,7 +633,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Patrol public265 exposes idle-combat home range50 and failed-target ownership.
 
-**Action for this function:** Finish current public265 complete stream and saved replay after failed-target cache correction; match retained home and replacement branches.
+**Action for this function:** The public265 stream and saved replay are already exact. Attribute D036, D037, D038, D039, D040 and D041 individually to their accepted acquisition, retained-home or replacement branch. Record the fixture scene and raw arguments at each instruction. Add a test only for a listed instruction whose executed branch is not represented by that evidence.
 
 **Task identifiers present in the frozen body:** `0xd0148`, `0xd014b`, `0xd0163`, `0xd0168`, `0xd016a`, `0xd016c`, `0xd016f`.
 
@@ -510,7 +719,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Ground371 selected range, minimum rejection, immobile completion and blocked recovery verified.
 
-**Action for this function:** Reconcile full firing-poll/equality-adjacent coverage for remaining selected-weapon/force branches; retain nonfiring ordinary-weapon policy.
+**Action for this function:** Complete B03 for D049 and D050: committed d0169 versus pre-arrival d016b, selected-weapon minimum/maximum boundary words, approach removal before commitment, and complete firing/blocked-recovery replay. Attach Ground371 scenes where they cover the exact instruction; retain the ordinary nonfiring weapon policy.
 
 **Task identifiers present in the frozen body:** `0xd000f`, `0xd0144`, `0xd0148`, `0xd014a`, `0xd014c`, `0xd014e`, `0xd0166`, `0xd0169`, `0xd016b`, `0xd0178`.
 
@@ -530,7 +739,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Invalid-target recovery and prior target chase evidence documented.
 
-**Action for this function:** Map forced versus ordinary recovery and resulting target/action arguments to exact captures; compare any still-uncovered complete poll suffix.
+**Action for this function:** Execute block B01 above. Resolve active flag 0x4, loss flag 0x40000, source Unit acquisition bit 0x200, the explicit capture-request word, generic-widget versus Blink-Unit handling, and the 0x497190 task-pop result as separate decisions. Compare the complete normal and saved recovery suffix. The dedicated [Attack recovery document](retail-pathfinding-attack-recovery.md) names all 17 incoming CALL instructions, their two literal input words, existing evidence and the precise missing public observations.
 
 **Task identifiers present in the frozen body:** `0xd016c`.
 
@@ -658,7 +867,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.
 
-**Action for this function:** Map d018b construction and cancellation to accepted Entangle traces; prove any remaining task parameter and full-poll branch rather than infer from placement producer5624f0.
+**Action for this function:** Map D066 d018b construction and cancellation to an exact accepted Entangle fixture scene/record and its raw target/range. If no such record exists, identify that missing witness under B06. A record executing placement producer5624f0 does not establish that D066 executed.
 
 **Task identifiers present in the frozen body:** `0xd0144`, `0xd0148`, `0xd014a`, `0xd014c`, `0xd014e`, `0xd0178`, `0xd018b`.
 
@@ -714,7 +923,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Entangle point completion appends facing/root action; separate terminal range documented.
 
-**Action for this function:** Verify this continuation against saved placement replay and exact completion parameter evidence; identify only missing branch/poll coverage.
+**Action for this function:** Map D072 and D073 separately to the accepted placement-completion fixture records and the saved replay that reconstructs each request. Record target/point, task identifier and range for both. An unmatched instruction becomes an explicitly named missing witness under B06; mentioning the placement family alone does not close it.
 
 **Task identifiers present in the frozen body:** `0xd018f`.
 
@@ -892,7 +1101,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Existing evidence:** Ordinary Move/Follow and current unit-target Patrol conversion evidence documented.
 
-**Action for this function:** Finish Patrol integration checks for friendly target branch and retain existing Follow evidence; cover only still-unmapped force/stop/rejection branches.
+**Action for this function:** The friendly-target Patrol public integration is delivered. Attribute D095, D096, D097, D098, D099, D100, D101, D102, D103, D104, D105, D106, D107, D108, D109, D110, D111 and D112 individually to their point, target, facing or rejection branch. Reuse the accepted Follow/Patrol scenes where their raw arguments match. A still-unmapped instruction needs its own receiver, submitted arguments and completion outcome recorded before deciding whether a new capture or C change is necessary.
 
 **Task identifiers present in the frozen body:** `0xd0002`, `0xd0003`, `0xd000f`, `0xd0012`, `0xd0014`, `0xd0016`, `0xd0144`, `0xd0148`, `0xd014a`, `0xd014c`, `0xd014e`, `0xd014f`, `0xd0161`, `0xd0165`, `0xd0166`, `0xd016b`, `0xd016c`, `0xd016e`, `0xd0170`, `0xd0173`, `0xd0174`, `0xd0178`, `0xd0193`.
 
@@ -1597,7 +1806,7 @@ No row below is claimed to be a proven missing producer solely because its desti
 
 ## 8. What must be committed before TARGET-01.2 is marked complete
 
-1. P1–P5 have passing reports, including the complete original ordered streams and saved replays.
+1. Retain the passing P1–P8 reports and their separate scopes, including complete original ordered streams, saved replays and the six-control detach inverse. Do not count those delivered corrections as remaining implementation.
 2. D001–D136 each identify an accepted test/fixture row or a specific existing owner exclusion. F rows are not closed by mentioning a related checkpoint.
 3. V01–V06 each have their receiver-specific disposition; the Morph slot collision remains excluded.
 4. I001–I210 each have a recorded receiver/callee classification. The classifier must identify a new real factory path as a concrete row rather than silently dropping it.
@@ -1608,3 +1817,16 @@ No row below is claimed to be a proven missing producer solely because its desti
 Completed bounded Entangle, Militia, inventory Pickup/Give/Pawn/Drop, point Attack371, Ground371, Waygate377, legacy Couple and Acoi contracts remain accepted for their documented scopes. Their accepted rows are reused; this audit must identify a specific uncovered instruction/branch before requiring another implementation or capture.
 
 The other 24 open backlog leaves are not work items added to this document.
+
+## 9. Checks for this document and bounded recovery evidence
+
+The direct-call byte audit verifies original E8 bytes and destinations for all136 D instructions. The 54-function assignment table partitions those instructions exactly once. It does not turn unresolved virtual/computed destinations into known callers.
+
+The recovery298 original-byte check completed with 81 producer cases, seven task-pop cases and nine rejecting mutation controls. Its 17 portable regression tests also pass. Reproduce them from the repository root:
+
+```sh
+python tools/ghidra/research/attack_recovery298_oracle.py --binary /path/to/original/game.dll --check
+python -m unittest discover -s tests -p test_wc3_pathfinding_attack_recovery298.py
+```
+
+The first command requires the original DLL and the oracle's Unicorn environment. The second uses committed fixtures and the Python standard library. Neither command certifies the unobserved public recovery scenes or completes TARGET-01.2.

@@ -8559,6 +8559,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F01",
+        "block_id": "B12",
+        "direct_instruction_ids": [
+          "D001"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8591,7 +8599,7 @@
           "0xd0178"
         ],
         "bounded_existing_evidence": "Target/far-point shared spell and bounded Acoi zero/authored/FLT_MAX/bit8 paths verified.",
-        "exact_remaining_requirement": "Complete the non-Acoi point-spell initially-in-range facing-away branch, plus any remaining shape-specific range/heading/force/stop branches; compare full polls and equality/adjacent inputs.",
+        "exact_remaining_requirement": "For D002 (target d0174) and D003 (point shape), identify the actual receiver, submitted range, point/target and task identifier. The specifically identified missing witness is a non-Acoi point spell initially within range and facing away. Branch classification for the other receiver/shape combinations is unresolved; record their exact conditions from the frozen body before declaring a finite missing test list. Follow B04 for boundary, ordered-poll and saved-owner acceptance; B15 handles the exact upstream dispatch instructions.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/hippogryph-couple.md",
@@ -8635,6 +8643,15 @@
           7
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F02",
+        "block_id": "B04",
+        "direct_instruction_ids": [
+          "D002",
+          "D003"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8659,7 +8676,7 @@
           "0xd0174"
         ],
         "bounded_existing_evidence": "Acoi forced CHANNEL/FINISH/ENDCAST and target-binding cleanup measured.",
-        "exact_remaining_requirement": "Separate physical producer arguments from broader spell-phase lifecycle; cover remaining reachable task-producing branches, leave unrelated channel/reentrancy combinations to ORDER-01.13.",
+        "exact_remaining_requirement": "Map D004 and D005 separately to the frozen completion branch, concrete receiver, submitted target/point and supplied range. Attach an accepted fixture scene/record to each or identify its exact absent branch before adding a test. See B04; wider spell-channel/reentrancy behavior remains ORDER-01.13.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/hippogryph-couple.md",
@@ -8675,6 +8692,15 @@
           7
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F03",
+        "block_id": "B04",
+        "direct_instruction_ids": [
+          "D004",
+          "D005"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8713,6 +8739,17 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F04",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D006",
+          "D007",
+          "D008",
+          "D009"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8748,6 +8785,16 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F05",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D010",
+          "D011",
+          "D012"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8789,6 +8836,16 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F06",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D013",
+          "D014",
+          "D015"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8839,6 +8896,18 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F07",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D016",
+          "D017",
+          "D018",
+          "D019",
+          "D020"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8887,6 +8956,17 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F08",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D021",
+          "D022",
+          "D023",
+          "D024"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8934,6 +9014,16 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F09",
+        "block_id": "B06",
+        "direct_instruction_ids": [
+          "D025",
+          "D026",
+          "D027"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -8975,6 +9065,15 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F10",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D028",
+          "D029"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9008,6 +9107,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F11",
+        "block_id": "B10",
+        "direct_instruction_ids": [
+          "D030"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9041,6 +9148,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F12",
+        "block_id": "B10",
+        "direct_instruction_ids": [
+          "D031"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9061,7 +9176,7 @@
           "0xd0174"
         ],
         "bounded_existing_evidence": "Authored-range target continuation and public cast ownership are documented.",
-        "exact_remaining_requirement": "Match every retained continuation producer branch to existing full-poll evidence; add only uncovered heading/range boundary cases, not repeat initial40a7a0 proof.",
+        "exact_remaining_requirement": "Map D032 to its retained target-approach continuation and actual range source. Record the executed branch and exact existing full-poll fixture rows, or identify the absent range/heading boundary witness. The initial 40a7a0 construction is a separate row under F02, not evidence that D032 executed.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -9105,6 +9220,14 @@
           7
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F13",
+        "block_id": "B04",
+        "direct_instruction_ids": [
+          "D032"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9171,6 +9294,16 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F14",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D033",
+          "D034",
+          "D035"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9202,7 +9335,7 @@
           "0xd016f"
         ],
         "bounded_existing_evidence": "Patrol public265 exposes idle-combat home range50 and failed-target ownership.",
-        "exact_remaining_requirement": "Finish current public265 complete stream and saved replay after failed-target cache correction; match retained home and replacement branches.",
+        "exact_remaining_requirement": "The public265 stream and saved replay are already exact. Attribute D036, D037, D038, D039, D040 and D041 individually to their accepted acquisition, retained-home or replacement branch. Record the fixture scene and raw arguments at each instruction. Add a test only for a listed instruction whose executed branch is not represented by that evidence.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
@@ -9226,6 +9359,19 @@
           6
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F15",
+        "block_id": "B02",
+        "direct_instruction_ids": [
+          "D036",
+          "D037",
+          "D038",
+          "D039",
+          "D040",
+          "D041"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9244,7 +9390,8 @@
           {
             "path": "docs/games/warcraft-3/guard-position.md"
           }
-        ]
+        ],
+        "exact_remaining_requirement": "At D rows below, establish the guard-return heading argument, the action that resumes after the turn, and the public command or internal guard state that owns the request. Compare the resulting facing-only polls and saved continuation with original behavior."
       },
       "frozen_decompiled_function": "\n// \n// Payoff254: d01ae creates Move d0012 at retained2ac/2b4, replacement admission680320\n// mode1/dispatch1; then appends immediate d0013, whose498ff0 consumer requests SleepAlways when\n// attached. Stop/invalidate commits pending physical pose and zeros velocity between owners.\n// Original target first changes1483; do not normalize the duplicate old-owner visit or overwrite\n// the retained trajectory fixture. Early neutral-passive global gates and structure-disabled branch\n// remain separate.\n// Payoff254: d01ae creates Move d0012 at retained2ac/2b4, replacement admission680320\n// mode1/dispatch1; then appends immediate d0013, whose498ff0 consumer requests SleepAlways when\n// attached. Stop/invalidate commits pending physical pose and zeros velocity between owners. Timer\n// rearm uses the request deadline, while predicted-pose/range and Stop use the current primary\n// source-clock quantum; conflating these clocks overshoots the retained position words. Original\n// target first changes1483; do not normalize the duplicate old-owner visit or overwrite the\n// retained trajectory fixture. Early neutral-passive global gates and structure-disabled branch\n// remain separate.\n\nvoid __fastcall Attack_OnGuardReturn(int param_1)\n\n{\n  WC3MoveSpeedPrefix *pWVar1;\n  WC3UnitOrdersPrefix *self;\n  int iVar2;\n  uint uVar3;\n  WC3OrderPrefix *order;\n  void *target;\n  uint *x;\n  uint *y;\n  void *association;\n  void *retained;\n  uint arg_08;\n  uint arg_0c;\n  void *pvVar4;\n  uint local_14;\n  uint local_10;\n  WC3PathScalar local_c;\n  \n  self = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  if ((((DAT_6fcd52f0 == 0) && (iVar2 = FUN_6f78be40(), iVar2 == 0)) &&\n      (uVar3 = FUN_6f78bb00(), uVar3 < 6000)) &&\n     (iVar2 = (**(code **)((int)self->vtable + 0xec))(), iVar2 == 0xf)) {\n    return;\n  }\n  pWVar1 = self->move_ability;\n  iVar2 = Unit_IsStructureForSupportRecovery(0);\n  if (((iVar2 == 0) || (pWVar1 == (WC3MoveSpeedPrefix *)0x0)) || ((int)pWVar1->disabled_count < 1))\n  {\n    local_14 = *(uint *)(param_1 + 0x2ac);\n    arg_0c = 1;\n    local_10 = *(uint *)(param_1 + 0x2b4);\n    arg_08 = 1;\n    retained = (void *)0x0;\n    local_c = Math_RuntimeZero;\n    y = &local_10;\n    association = (void *)0x0;\n    x = &local_14;\n    target = (void *)0x0;\n    pvVar4 = (void *)0x0;\n    uVar3 = (**(code **)((int)self->vtable + 0xec))();\n    pvVar4 = OrderTarget_CreateArguments(0xd0012,uVar3,pvVar4,target,x,y,association,retained);\n    Unit_AdmitOrder(self,(uint)pvVar4,arg_08,arg_0c);\n  }\n  else {\n    Unit_ReplaceOrdersForStop(self,1);\n    Unit_CreateActionTask(self,0);\n    Unit_CreateEventTask(self,0xd0148);\n    Unit_CreateEventTask(self,0xd014a);\n    uVar3 = FUN_6f42cea0();\n    Unit_PrependFacingTask((uint)self,uVar3);\n    Unit_DispatchInternalTaskQueue(self);\n  }\n  pvVar4 = (void *)0x0;\n  uVar3 = (**(code **)((int)self->vtable + 0xec))();\n  order = OrderImmediate_Create(0xd0013,uVar3,pvVar4);\n  Unit_AppendUserOrder(self,order);\n  FUN_6f49e940();\n  return;\n}\n\n",
       "path_conditions_status": "Full frozen function and exact instruction-associated argument expressions supplied; coverage is bounded, not all-branch parity.",
@@ -9253,6 +9400,14 @@
           6
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F16",
+        "block_id": "B02",
+        "direct_instruction_ids": [
+          "D042"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9340,6 +9495,19 @@
           6
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F17",
+        "block_id": "B02",
+        "direct_instruction_ids": [
+          "D043",
+          "D044",
+          "D045",
+          "D046",
+          "D047",
+          "D048"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9370,7 +9538,7 @@
           "0xd0178"
         ],
         "bounded_existing_evidence": "Ground371 selected range, minimum rejection, immobile completion and blocked recovery verified.",
-        "exact_remaining_requirement": "Reconcile full firing-poll/equality-adjacent coverage for remaining selected-weapon/force branches; retain nonfiring ordinary-weapon policy.",
+        "exact_remaining_requirement": "Complete B03 for D049 and D050: committed d0169 versus pre-arrival d016b, selected-weapon minimum/maximum boundary words, approach removal before commitment, and complete firing/blocked-recovery replay. Attach Ground371 scenes where they cover the exact instruction; retain the ordinary nonfiring weapon policy.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-ground-command-admission.md",
@@ -9401,6 +9569,15 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F18",
+        "block_id": "B03",
+        "direct_instruction_ids": [
+          "D049",
+          "D050"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9421,7 +9598,7 @@
           "0xd016c"
         ],
         "bounded_existing_evidence": "Invalid-target recovery and prior target chase evidence documented.",
-        "exact_remaining_requirement": "Map forced versus ordinary recovery and resulting target/action arguments to exact captures; compare any still-uncovered complete poll suffix.",
+        "exact_remaining_requirement": "Execute block B01 above. Resolve active flag 0x4, loss flag 0x40000, source Unit acquisition bit 0x200, the explicit capture-request word, generic-widget versus Blink-Unit handling, and the 0x497190 task-pop result as separate decisions. Compare the complete normal and saved recovery suffix. The dedicated [Attack recovery document](retail-pathfinding-attack-recovery.md) names all 17 incoming CALL instructions, their two literal input words, existing evidence and the precise missing public observations.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -9441,6 +9618,14 @@
           6
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F19",
+        "block_id": "B01",
+        "direct_instruction_ids": [
+          "D051"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9480,6 +9665,16 @@
           6
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F20",
+        "block_id": "B02",
+        "direct_instruction_ids": [
+          "D052",
+          "D053",
+          "D054"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9521,6 +9716,15 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F21",
+        "block_id": "B17",
+        "direct_instruction_ids": [
+          "D055",
+          "D056"
+        ],
+        "disposition": "covered bounded contract"
       }
     },
     {
@@ -9563,6 +9767,17 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F22",
+        "block_id": "B10",
+        "direct_instruction_ids": [
+          "D057",
+          "D058",
+          "D059",
+          "D060"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9622,6 +9837,16 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F23",
+        "block_id": "B07",
+        "direct_instruction_ids": [
+          "D061",
+          "D062",
+          "D063"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9669,6 +9894,15 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F24",
+        "block_id": "B07",
+        "direct_instruction_ids": [
+          "D064",
+          "D065"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9695,7 +9929,7 @@
           "0xd018b"
         ],
         "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
-        "exact_remaining_requirement": "Map d018b construction and cancellation to accepted Entangle traces; prove any remaining task parameter and full-poll branch rather than infer from placement producer5624f0.",
+        "exact_remaining_requirement": "Map D066 d018b construction and cancellation to an exact accepted Entangle fixture scene/record and its raw target/range. If no such record exists, identify that missing witness under B06. A record executing placement producer5624f0 does not establish that D066 executed.",
         "repository_evidence": [],
         "frozen_body_key": "6f562380"
       },
@@ -9705,6 +9939,14 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F25",
+        "block_id": "B06",
+        "direct_instruction_ids": [
+          "D066"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9753,6 +9995,17 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F26",
+        "block_id": "B06",
+        "direct_instruction_ids": [
+          "D067",
+          "D068",
+          "D069",
+          "D070"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9792,6 +10045,14 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F27",
+        "block_id": "B06",
+        "direct_instruction_ids": [
+          "D071"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9813,7 +10074,7 @@
           "0xd018f"
         ],
         "bounded_existing_evidence": "Entangle point completion appends facing/root action; separate terminal range documented.",
-        "exact_remaining_requirement": "Verify this continuation against saved placement replay and exact completion parameter evidence; identify only missing branch/poll coverage.",
+        "exact_remaining_requirement": "Map D072 and D073 separately to the accepted placement-completion fixture records and the saved replay that reconstructs each request. Record target/point, task identifier and range for both. An unmatched instruction becomes an explicitly named missing witness under B06; mentioning the placement family alone does not close it.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -9828,6 +10089,15 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F28",
+        "block_id": "B06",
+        "direct_instruction_ids": [
+          "D072",
+          "D073"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9860,6 +10130,15 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F29",
+        "block_id": "B10",
+        "direct_instruction_ids": [
+          "D074",
+          "D075"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9898,6 +10177,17 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F30",
+        "block_id": "B06",
+        "direct_instruction_ids": [
+          "D076",
+          "D077",
+          "D078",
+          "D079"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9933,6 +10223,16 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F31",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D080",
+          "D081",
+          "D082"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -9976,6 +10276,16 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F32",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D083",
+          "D084",
+          "D085"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10022,6 +10332,17 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F33",
+        "block_id": "B05",
+        "direct_instruction_ids": [
+          "D086",
+          "D087",
+          "D088",
+          "D089"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10077,6 +10398,17 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F34",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D090",
+          "D091",
+          "D092",
+          "D093"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10141,6 +10473,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F35",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D094"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10200,7 +10540,7 @@
           "0xd0193"
         ],
         "bounded_existing_evidence": "Ordinary Move/Follow and current unit-target Patrol conversion evidence documented.",
-        "exact_remaining_requirement": "Finish Patrol integration checks for friendly target branch and retain existing Follow evidence; cover only still-unmapped force/stop/rejection branches.",
+        "exact_remaining_requirement": "The friendly-target Patrol public integration is delivered. Attribute D095, D096, D097, D098, D099, D100, D101, D102, D103, D104, D105, D106, D107, D108, D109, D110, D111 and D112 individually to their point, target, facing or rejection branch. Reuse the accepted Follow/Patrol scenes where their raw arguments match. A still-unmapped instruction needs its own receiver, submitted arguments and completion outcome recorded before deciding whether a new capture or C change is necessary.",
         "repository_evidence": [
           {
             "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -10244,6 +10584,31 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F36",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D095",
+          "D096",
+          "D097",
+          "D098",
+          "D099",
+          "D100",
+          "D101",
+          "D102",
+          "D103",
+          "D104",
+          "D105",
+          "D106",
+          "D107",
+          "D108",
+          "D109",
+          "D110",
+          "D111",
+          "D112"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10337,6 +10702,14 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "covered bounded D113 producer parameter contract atcheckpoint290; separate computed-call classification remains unchanged"
+      },
+      "execution_register": {
+        "function_id": "F37",
+        "block_id": "B17",
+        "direct_instruction_ids": [
+          "D113"
+        ],
+        "disposition": "covered bounded contract"
       }
     },
     {
@@ -10378,6 +10751,15 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F38",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D114",
+          "D115"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10416,6 +10798,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F39",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D116"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10483,6 +10873,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F40",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D117"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10520,6 +10918,17 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F41",
+        "block_id": "B08",
+        "direct_instruction_ids": [
+          "D118",
+          "D119",
+          "D120",
+          "D121"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10567,6 +10976,15 @@
         "blocks": [],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family.",
         "state": "bounded evidence retained; no automatic reopening"
+      },
+      "execution_register": {
+        "function_id": "F42",
+        "block_id": "B09",
+        "direct_instruction_ids": [
+          "D122",
+          "D123"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10604,6 +11022,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F43",
+        "block_id": "B10",
+        "direct_instruction_ids": [
+          "D124"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10641,6 +11067,15 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F44",
+        "block_id": "B10",
+        "direct_instruction_ids": [
+          "D125",
+          "D126"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10684,6 +11119,14 @@
           8
         ],
         "policy": "Existing bounded closure retained; a block assignment requires only the precise uncovered parameter branch in the coverage row, not reopening an entire family."
+      },
+      "execution_register": {
+        "function_id": "F45",
+        "block_id": "B11",
+        "direct_instruction_ids": [
+          "D127"
+        ],
+        "disposition": "proof incomplete"
       }
     },
     {
@@ -10732,6 +11175,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F46",
+        "block_id": "B13",
+        "direct_instruction_ids": [
+          "D128"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -10780,6 +11231,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F47",
+        "block_id": "B13",
+        "direct_instruction_ids": [
+          "D129"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -10821,6 +11280,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F48",
+        "block_id": "B13",
+        "direct_instruction_ids": [
+          "D130"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -10867,6 +11334,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F49",
+        "block_id": "B13",
+        "direct_instruction_ids": [
+          "D131"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -10917,6 +11392,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F50",
+        "block_id": "B13",
+        "direct_instruction_ids": [
+          "D132"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -10985,6 +11468,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F51",
+        "block_id": "B14",
+        "direct_instruction_ids": [
+          "D133"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -11028,6 +11519,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F52",
+        "block_id": "B14",
+        "direct_instruction_ids": [
+          "D134"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -11087,6 +11586,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F53",
+        "block_id": "B14",
+        "direct_instruction_ids": [
+          "D135"
+        ],
+        "disposition": "other owner"
       }
     },
     {
@@ -11144,6 +11651,14 @@
         ],
         "state": "explicit other owner; resolve applicability under block1 before assigning any TARGET work",
         "policy": "Do not silently exclude missile/Captain parameters or import their entire lifetime leaf."
+      },
+      "execution_register": {
+        "function_id": "F54",
+        "block_id": "B14",
+        "direct_instruction_ids": [
+          "D136"
+        ],
+        "disposition": "other owner"
       }
     }
   ],
@@ -16718,5 +17233,6 @@
   "coverage_status_source": {
     "path": "docs/games/warcraft-3/target-01.2-caller-status.json",
     "sha256": "65f2b3e07d92d9e76275529215e55f1cdbeb7276740de80a9f0ba001d6e10ff9"
-  }
+  },
+  "execution_register_note": "B01\u2013B18 refer to the current execution register in target-01.2-closure.md. Historical numeric closure_assignment.blocks are retained as provenance, not current work-block IDs. Frozen original function bodies and instruction records remain unchanged."
 }
