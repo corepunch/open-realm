@@ -20,6 +20,11 @@ restores food accounting, returns the unit to its stand move, relinks it, and re
 `DataA * maxHealth` hit points and `DataB * maxMana` mana. The revived unit is no longer a corpse and cannot be selected by a
 subsequent cast.
 
+On successful revival, `Aast` plays its authored `ReincarnationTarget.mdl`
+target art using the Death flare sequence used by the Elder Sage's
+Reincarnation return. This is presentation only and does not change the
+restored unit state.
+
 ## Authoritative Data
 
 `War3x.mpq:Units/AbilityData.slk` contains the active `Aast` row. `War3.mpq` has no `Aast` row, so the
@@ -60,7 +65,8 @@ The in-engine `wc3_spell.ancestral_spirit_revives_nearest_owned_nonhero_tauren` 
 `S_CastNoTargetSpell` with a synthetic `Aast` SLK row whose nontrivial `DataA=0.4` proves the health
 fraction is data-driven and `DataB` mana restoration is verified. It covers nearest selection, same-edict and owner preservation, food reactivation,
 reuse prevention, and rejection of health-only pseudo-corpses, living, Hero, non-Tauren, allied, and
-out-of-range units in both ROC and TFT fixture runs:
+out-of-range units in both ROC and TFT fixture runs. It also verifies the
+Reincarnation return model and Death sequence on the revived Tauren:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_spell.ancestral_spirit_revives_nearest_owned_nonhero_tauren'

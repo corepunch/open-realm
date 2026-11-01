@@ -10566,6 +10566,9 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
     edict_t *ether_corpse = alloc_test_unit(MAKEFOURCC('o','s','p','m'), 240, 0);
     edict_t *solid_corpse = alloc_test_unit(MAKEFOURCC('o','s','p','w'), 270, 0);
 	edict_t *distant = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 351, 0);
+	edict_t *return_effect = NULL;
+	uint32_t reincarnation_model = G_RegisterModel(
+		"Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl");
 	uint32_t nearest_spawn = nearest->spawn_time;
     int32_t previous_rowt = G_GetPlayerTechResearchedLevel(&game.clients[0], MAKEFOURCC('R','o','w','t'));
 
@@ -10601,6 +10604,15 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
     T_FEQ(nearest->mana.value, 50.0f, .001f);
 	T_ASSERT(!(nearest->svflags & SVF_DEADMONSTER)); T_ASSERT(!(nearest->s.flags & EF_NOT_SELECTABLE));
 	T_EQ(G_GetFood(nearest)->used, 5); T_ASSERT(M_IsDead(next)); T_ASSERT(M_IsDead(allied_corpse));
+	T_ASSERT(reincarnation_model > 0);
+	FILTER_EDICTS(effect, effect->inuse && effect->goalentity == nearest &&
+	              effect->s.model == reincarnation_model) { return_effect = effect; break; }
+	T_NOT_NULL(return_effect);
+	if (return_effect) {
+		T_ASSERT(return_effect->currentmove != NULL);
+		if (return_effect->currentmove)
+			T_STREQ(return_effect->currentmove->animation, "death");
+	}
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
 	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_ASSERT(!M_IsDead(next));
     S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
