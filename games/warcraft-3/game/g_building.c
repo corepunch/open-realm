@@ -493,6 +493,27 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
         return researchable && G_GetPlayerTechResearchedLevel(
             owner, MAKEFOURCC('R','u','e','x')) >= 1;
     }
+    /* Burning Oil is authored as a passive on the Demolisher, but TFT gates
+     * the projectile upgrade through Robf rather than AbilityData rlev. */
+    if (unit && unit->class_id == MAKEFOURCC('o','c','a','t') &&
+        ability_id == MAKEFOURCC('A','b','o','f')) {
+        static uint32_t const research = MAKEFOURCC('R','o','b','f');
+        bool const expansion = gi.CvarString && atoi(gi.CvarString("fs_expansion", "0")) != 0;
+        gameClient_t *owner;
+        int32_t maximum;
+        if (!expansion) {
+            if (visible) *visible = false;
+            return false;
+        }
+        if (research_id) *research_id = research;
+        if (required_level) *required_level = 1;
+        owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (!owner || owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(owner, research);
+        researchable = maximum < 0 || maximum >= 1;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(owner, research) >= 1;
+    }
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     ability = G_AbilityData(ability_id);
     if (!ability || ability->id != ability_id) return true;
