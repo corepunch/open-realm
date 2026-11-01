@@ -1929,7 +1929,7 @@ bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
 bool unit_status_setmodifier(heroabilitystatus_t *status, uint32_t index,
                              wc3_status_modifier_t const *modifier) {
     if (!status || !status->level || !modifier || index >= WC3_STATUS_MAX_MODIFIERS ||
-        modifier->type > WC3_STATUS_MOD_MANA_REGEN_FLAT ||
+        modifier->type > WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT ||
         modifier->policy > WC3_STATUS_MOD_STRONGEST_NEGATIVE ||
         (modifier->policy != WC3_STATUS_MOD_ADD && !modifier->family) || !isfinite(modifier->value)) return false;
     status->modifiers[index] = *modifier;
@@ -1949,7 +1949,7 @@ float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t
     modifierFamily_t families[MAX_UNIT_STATUSES * WC3_STATUS_MAX_MODIFIERS];
     bool have_families = false;
     float result = 0.0f;
-    if (!unit || type > WC3_STATUS_MOD_MANA_REGEN_FLAT) return 0.0f;
+    if (!unit || type > WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT) return 0.0f;
     FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0) {
         heroabilitystatus_t const *status = unit->unit_state->statuses + i;
         if (!status->level || !status->modifier_count ||

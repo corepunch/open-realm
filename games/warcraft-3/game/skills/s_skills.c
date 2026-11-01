@@ -496,7 +496,7 @@ static ability_t abilitylist[] = {
 
     /* OrcAbilityStrings.txt */
     { "Abof", CAbilityBallsOfFire, AB_PASSIVE },  /* Burning Oil */
-    { "Absk", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Berserk */
+    { "Absk", CAbilityFrenzy, AB_SPELL, SPELL_TARGET_NONE },  /* Berserk */
     { "Arbr", CAbilityPassive, AB_PASSIVE },  /* Reinforced Burrows Upgrade */
     { "Aast", CAbilityAncestralSpirit, AB_SPELL, SPELL_TARGET_NONE },  /* Ancestral Spirit */
     { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */

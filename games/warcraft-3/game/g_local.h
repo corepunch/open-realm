@@ -1559,7 +1559,8 @@ typedef enum {
     WC3_STATUS_MOD_ATTACK_DAMAGE_FLAT,
     WC3_STATUS_MOD_ARMOR_FLAT,
     WC3_STATUS_MOD_HP_REGEN_FLAT,
-    WC3_STATUS_MOD_MANA_REGEN_FLAT
+    WC3_STATUS_MOD_MANA_REGEN_FLAT,
+    WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT
 } wc3_status_modifier_type_t;
 
 /* Combination policy for modifiers sharing a stat channel. */

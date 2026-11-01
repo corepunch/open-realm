@@ -8719,6 +8719,70 @@ TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values)
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, troll_berserker_berserk_self_cast_shows_status_and_modifies_combat) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X8;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"Dur1\"\nC;X5;K\"Cool1\"\nC;X6;K\"DataB1\"\n"
+        "C;X7;K\"DataC1\"\nC;X8;K\"BuffID1\"\n"
+        "C;X1;Y2;K\"Absk\"\nC;X2;K\"Absk\"\nC;X3;K1\n"
+        "C;X4;K12\nC;X5;K30\nC;X6;K0.5\nC;X7;K0.5\nC;X8;K\"Bbsk\"\nE\n";
+    static char const buff_slk[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Buffart\"\nC;X4;K\"Bufftip\"\n"
+        "C;X1;Y2;K\"Bbsk\"\nC;X2;K\"Bbsk\"\n"
+        "C;X3;K\"ReplaceableTextures\\\\CommandButtons\\\\BTNBerserkForTrolls.blp\"\n"
+        "C;X4;K\"Berserk\"\nE\n";
+    static UnitAbilities_t const berserker_abilities = { .abilList = "Absk" };
+    slkTestData_t *ability_rows, *old_abilities, *buff_rows, *old_buffs;
+    edict_t *berserker, *attacker;
+    heroabilitystatus_t *status;
+
+    reset_entities();
+    setup_test_world();
+    ability_rows = parse_slk_string(ability_slk);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    buff_rows = parse_slk_string(buff_slk);
+    old_buffs = G_SetSLKRows("AbilityBuffData", buff_rows);
+    berserker = alloc_test_unit(MAKEFOURCC('o','t','b','k'), 0, 0);
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    berserker->data.UnitAbilities = (UnitAbilities_t *)&berserker_abilities;
+    berserker->s.player = 1;
+    attacker->s.player = 0;
+    berserker->svflags |= SVF_MONSTER;
+    attacker->svflags |= SVF_MONSTER;
+    berserker->health.value = berserker->health.max_value = 500.0f;
+    attacker->health.value = attacker->health.max_value = 500.0f;
+    berserker->unit_state->attack1.cooldown = 1.5f;
+    berserker->unit_state->attack1.damagePoint = 0.3f;
+
+    T_EQ(S_SpellAbilityForCode(MAKEFOURCC('A','b','s','k'))->target_type, SPELL_TARGET_NONE);
+    attack_melee(berserker);
+    T_FEQ(berserker->wait, 0.3f, 0.001f);
+    T_ASSERT(S_CastNoTargetSpell(berserker, MAKEFOURCC('A','b','s','k')));
+
+    status = unit_findstatus(berserker, MAKEFOURCC('B','b','s','k'));
+    T_NOT_NULL(status);
+    T_EQ(G_UnitStatusBuffCode(status), MAKEFOURCC('B','b','s','k'));
+    T_STREQ(G_AbilityBuffArt(MAKEFOURCC('B','b','s','k')),
+            "ReplaceableTextures\\CommandButtons\\BTNBerserkForTrolls.blp");
+    T_FEQ((float)(status->timestamp - G_Time()) / 1000.0f, 12.0f, 0.001f);
+    T_FEQ(unit_status_modifier_total(berserker, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.5f, 0.001f);
+    T_FEQ(unit_status_modifier_total(berserker, WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT), 0.5f, 0.001f);
+    attack_melee(berserker);
+    T_FEQ(berserker->wait, 0.2f, 0.001f);
+
+    T_Damage(attacker, berserker, 100);
+    T_Damage(berserker, attacker, 100);
+    T_FEQ(attacker->health.value, 400.0f, 0.001f);
+    T_FEQ(berserker->health.value, 350.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    G_SetSLKRows("AbilityBuffData", old_buffs);
+    free_slk_rows(ability_rows);
+    free_slk_rows(buff_rows);
+}
+
 TEST(wc3_spell, banshee_curse_blocks_attack_damage_at_authored_miss_chance) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X8\n"
