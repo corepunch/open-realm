@@ -213,7 +213,8 @@ TEST(wc3_militia_orders, live_hall_rank_changes_terminal_range_without_replacing
             "function milChangeRank takes nothing returns nothing\n"
             "call SetUnitAbilityLevel(milHall,'Amic',%u)\nendfunction\n",mode==0 ? 1 : 2,mode==1 ? 1 : 2);
         T_ASSERT(jass_dobuffer(level.vm,script));MilitiaOrderCall("milIssue");
-        FOR_LOOP(i,3)MilitiaOrderStep();MilitiaOrderCall("milChangeRank");
+        FOR_LOOP(i,3)MilitiaOrderStep();
+        MilitiaOrderCall("milChangeRank");
         T_EQ(f.worker->current_order_id,852071);
         for(unsigned i=0;i<150 && f.worker->current_order_id;i++)MilitiaOrderStep();
         T_EQ(f.worker->class_id,mode==0 ? MAKEFOURCC('h','p','e','a') : MAKEFOURCC('h','m','i','l'));

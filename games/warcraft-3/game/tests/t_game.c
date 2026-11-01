@@ -8055,7 +8055,8 @@ TEST(wc3_save, pool_capacity_is_checked_before_allocating_records) {
     T_ASSERT(WritePool(f,&pool));G_FreeChannel(unit);rewind(f);
     T_ASSERT(!ReadPool(f,&pool));T_NULL(unit->channel);
     pool.capacity=2048;rewind(f);T_ASSERT(ReadPool(f,&pool));T_NOT_NULL(unit->channel);
-    if(unit->channel)T_EQ(unit->channel->code,17);fclose(f);
+    if(unit->channel)T_EQ(unit->channel->code,17);
+    fclose(f);
     FOR_LOOP(i,sizeof(save_pools)/sizeof(save_pools[0]))
         if(!strcmp(save_pools[i].name,"abilstatus"))T_EQ(save_pools[i].capacity,MAX_ENTITIES);
 }

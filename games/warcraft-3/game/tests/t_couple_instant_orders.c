@@ -189,7 +189,8 @@ TEST(wc3_couple_instant_orders, stock_command_button_produces_immediate_pairing)
         gi.Write=old_write;gi.unicast=old_unicast;
         T_EQ(caster->current_order_id,852508);
         T_EQ((reverse ? f.archer : f.hippo)->current_order_id,reverse ? 0 : 852507);
-        FOR_LOOP(i,1200)CoupleInstantStep();T_EQ(CoupleInstantRiders(),1);
+        FOR_LOOP(i,1200) {CoupleInstantStep();}
+        T_EQ(CoupleInstantRiders(),1);
         CoupleInstantEnd(&f);
     }
 }
@@ -983,7 +984,8 @@ TEST(wc3_couple_instant_orders, explicit_source_uses_own_partner_type_only) {
     T_EQ(S_SpellDataId(MAKEFOURCC('A','c','o','3'),1,1),MAKEFOURCC('h','f','o','o'));
     T_ASSERT(CoupleInstantCompile("function ciAsymmetric takes nothing returns nothing\ncall BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"source own DataA admits asymmetric peer\")\nendfunction\n"));
     CoupleInstantCall("ciAsymmetric");T_EQ(f.archer->current_order_id,852507);T_EQ(f.hippo->current_order_id,0);
-    FOR_LOOP(i,1200)CoupleInstantStep();T_EQ(f.archer->current_order_id,852507);T_EQ(CoupleInstantRiders(),0);
+    FOR_LOOP(i,1200) {CoupleInstantStep();}
+        T_EQ(f.archer->current_order_id,852507);T_EQ(CoupleInstantRiders(),0);
     CoupleInstantEnd(&f);
 }
 
@@ -1520,7 +1522,8 @@ TEST(wc3_couple_instant_orders, complete_public_reservation_poll_stream_and_save
             "function cpStartClock takes nothing returns nothing\nset cpPollTimer=CreateTimer()\n"
             "call TimerStart(cpPollTimer,0.02,true,function cpClock)\nendfunction\n"));
         if(scene)T_ASSERT(CoupleInstantCompile("function cpSetScene takes nothing returns nothing\nset cpScene=1\nendfunction\n"));
-        if(scene)CoupleInstantCall("cpSetScene");CoupleInstantCall("cpStartClock");
+        if(scene) {CoupleInstantCall("cpSetScene");}
+        CoupleInstantCall("cpStartClock");
         /* Execute the same periodic JASS callback before any equal-deadline
          * owner tick, rather than issuing after RunFrame already drained it. */
         FOR_LOOP(i,4+scene*1600)CoupleInstantStep();
@@ -1537,7 +1540,8 @@ TEST(wc3_couple_instant_orders, complete_public_reservation_poll_stream_and_save
         CouplePollCheckNative214(scene);
         couplePollRow_t *expected=malloc(sizeof(couple_poll_trace.rows));memcpy(expected,couple_poll_trace.rows,sizeof(couple_poll_trace.rows));
         T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.print=false;
-        FOR_LOOP(i,1120)CoupleInstantStep();T_EQ(couple_poll_trace.count,total);
+        FOR_LOOP(i,1120) {CoupleInstantStep();}
+        T_EQ(couple_poll_trace.count,total);
         FOR_LOOP(i,total-prefix)FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);
         free(expected);remove(path);move_test_group_arrival=NULL;move_test_group_commit=NULL;move_test_group_committed=NULL;move_test_turn_request=NULL;CoupleInstantEnd(&f);
     }
@@ -1590,7 +1594,8 @@ TEST(wc3_couple_instant_orders, provisional_target_publication_preserves_callbac
         for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {p->func=couple_publication_assert_original;break;}
         T_EQ(couple_publication_observed,1);T_ASSERT(!S_TargetApproachPublicationPending());
         FOR_LOOP(i,ARRAY_COUNT(level.move_groups))if(level.move_groups[i]->inuse)T_ASSERT(!level.move_groups[i]->publication_pending);
-        if(mode==1){T_EQ(f.archer->current_order_id,851986);FOR_LOOP(i,60)CoupleInstantStep();T_ASSERT(f.archer->s.origin2.x<704);}
+        if(mode==1){T_EQ(f.archer->current_order_id,851986);FOR_LOOP(i,60) {CoupleInstantStep();}
+        T_ASSERT(f.archer->s.origin2.x<704);}
         if(mode==2)T_ASSERT(!f.archer->inuse || G_IsDeferredFree(f.archer));
         T_ASSERT(WriteGame(couple_publication_save));T_ASSERT(ReadGame(couple_publication_save));
         T_ASSERT(!S_TargetApproachPublicationPending());remove(couple_publication_save);CoupleInstantEnd(&f);
@@ -1670,13 +1675,15 @@ TEST(wc3_couple_instant_orders, continuous_native_range_boundary_polls_and_saved
     unsigned prefix=couple_poll_trace.count,scene=couple_poll_trace.scene;
     edict_t *roles[4];memcpy(roles,couple_poll_trace.roles,sizeof(roles));
     cstring_t path=Test_TempPath("couple-instant229-boundary-polls.bin");T_ASSERT(WriteGame(path));
-    FOR_LOOP(i,13936)CoupleInstantStep();T_EQ(couple_boundary_spawns,9);
+    FOR_LOOP(i,13936) {CoupleInstantStep();}
+        T_EQ(couple_boundary_spawns,9);
     T_ASSERT(!jass_rterror_pending(level.vm));CouplePollCheckNative193();
     unsigned total=couple_poll_trace.count;
     couplePollRow_t *expected=malloc(sizeof(couple_poll_trace.rows));memcpy(expected,couple_poll_trace.rows,sizeof(couple_poll_trace.rows));
     T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.scene=scene;couple_poll_trace.print=false;
     memcpy(couple_poll_trace.roles,roles,sizeof(roles));couple_boundary_spawns=1;
-    FOR_LOOP(i,13936)CoupleInstantStep();T_EQ(couple_boundary_spawns,9);T_EQ(couple_poll_trace.count,total);
+    FOR_LOOP(i,13936) {CoupleInstantStep();}
+        T_EQ(couple_boundary_spawns,9);T_EQ(couple_poll_trace.count,total);
     FOR_LOOP(i,total-prefix) {
         T_EQ(couple_poll_trace.rows[prefix+i].scene,expected[prefix+i].scene);
         FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);
@@ -1742,13 +1749,15 @@ TEST(wc3_couple_instant_orders, continuous_native_stock_polls_and_saved_suffix) 
     unsigned prefix=couple_poll_trace.count,scene=couple_poll_trace.scene;
     edict_t *roles[4];memcpy(roles,couple_poll_trace.roles,sizeof(roles));
     cstring_t path=Test_TempPath("couple-instant232-stock-polls.bin");T_ASSERT(WriteGame(path));
-    FOR_LOOP(i,9136)CoupleInstantStep();T_EQ(couple_boundary_spawns,6);
+    FOR_LOOP(i,9136) {CoupleInstantStep();}
+        T_EQ(couple_boundary_spawns,6);
     T_ASSERT(!jass_rterror_pending(level.vm));CouplePollCheckNativeStock193();
     unsigned total=couple_poll_trace.count;
     couplePollRow_t *expected=malloc(sizeof(couple_poll_trace.rows));memcpy(expected,couple_poll_trace.rows,sizeof(couple_poll_trace.rows));
     T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.scene=scene;couple_poll_trace.print=false;
     memcpy(couple_poll_trace.roles,roles,sizeof(roles));couple_boundary_spawns=1;
-    FOR_LOOP(i,9136)CoupleInstantStep();T_EQ(couple_boundary_spawns,6);T_EQ(couple_poll_trace.count,total);
+    FOR_LOOP(i,9136) {CoupleInstantStep();}
+        T_EQ(couple_boundary_spawns,6);T_EQ(couple_poll_trace.count,total);
     FOR_LOOP(i,total-prefix) {
         T_EQ(couple_poll_trace.rows[prefix+i].scene,expected[prefix+i].scene);
         FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);
@@ -1757,6 +1766,487 @@ TEST(wc3_couple_instant_orders, continuous_native_stock_polls_and_saved_suffix) 
     move_test_group_arrival=NULL;move_test_group_commit=NULL;move_test_group_committed=NULL;
     CoupleInstantEnd(&f);
     for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_boundary_assert_original;break;}
+}
+
+/* Native233 ready chronology: exact public actor/target/head tuples. Callback
+ * replacement/removal below are engine ownership controls, not retail captures. */
+static jassCFunction_t couple_ready_assert_original;
+static char couple_ready_rows[2048];
+static unsigned couple_ready_frontiers;
+static int couple_ready_mode;
+static cstring_t couple_ready_save;
+static uint32_t CoupleReadyAssert(jass_t *j) {
+    cstring_t message=jass_checkstring(j,2);
+    if(message && !strncmp(message,"ready-row:",10)) {
+        unsigned kind,id,actor,target,archer_head,hippo_head;
+        int fields=sscanf(message+10,"%u:%u:%u:%u:%u:%u;",&kind,&id,&actor,&target,&archer_head,&hippo_head);
+        T_EQ(fields,6);
+        if(fields==6) {
+            /* Engine/JASS rawcode literals use MAKEFOURCC's little-endian
+             * integer representation; retail logs print big-endian rawcodes.
+             * Canonicalize only typed spell IDs. Order IDs/heads are numeric
+             * and remain exact. This does not assert raw integer ABI parity. */
+            if(kind>=2)id=((id&0xffu)<<24)|((id&0xff00u)<<8)|((id>>8)&0xff00u)|((id>>24)&0xffu);
+            size_t used=strlen(couple_ready_rows);
+            int written=snprintf(couple_ready_rows+used,sizeof(couple_ready_rows)-used,
+                "%u:%u:%u:%u:%u:%u;",kind,id,actor,target,archer_head,hippo_head);
+            T_ASSERT(written>=0 && (size_t)written<sizeof(couple_ready_rows)-used);
+        }
+    } else if(message && !strcmp(message,"ready-frontier")) {
+        couple_ready_frontiers++;
+        T_ASSERT(S_TargetApproachPublicationPending());
+        if(couple_ready_mode) {
+            T_ASSERT(!WriteGame(couple_ready_save));T_ASSERT(!ReadGame(couple_ready_save));
+        }
+    }
+    return couple_ready_assert_original(j);
+}
+static void CoupleReadyBegin(coupleInstantFixture_t *f,int mode) {
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+        couple_ready_assert_original=p->func;p->func=CoupleReadyAssert;break;
+    }
+    couple_ready_rows[0]=0;couple_ready_frontiers=0;couple_ready_mode=mode;
+    CoupleInstantBeginProfile(f,&(coupleInstantSetup_t){.range333=true,.empty=true,.retail_profile=true,.peer_type="earc"});
+    T_ASSERT(CoupleInstantCompile(
+        "globals\ninteger crMode=0\nendglobals\n"
+        "function crRole takes unit u returns integer\nif u==ciArcher then\nreturn 1\nelseif u==ciHippo then\nreturn 2\nendif\nreturn 0\nendfunction\n"
+        "function crRow takes integer kind,integer id,unit target returns nothing\n"
+        "call BJassAssert(true,\"ready-row:\"+I2S(kind)+\":\"+I2S(id)+\":\"+I2S(crRole(GetTriggerUnit()))+\":\"+I2S(crRole(target))+\":\"+I2S(GetUnitCurrentOrder(ciArcher))+\":\"+I2S(GetUnitCurrentOrder(ciHippo))+\";\")\nendfunction\n"
+        "function crImmediate takes nothing returns nothing\ncall crRow(0,GetIssuedOrderId(),null)\nendfunction\n"
+        "function crTarget takes nothing returns nothing\ncall crRow(1,GetIssuedOrderId(),GetOrderTargetUnit())\n"
+        "if GetIssuedOrderId()==852508 then\ncall BJassAssert(true,\"ready-frontier\")\n"
+        "if crMode==1 then\ncall IssuePointOrder(ciHippo,\"move\",1792.0,1024.0)\nelseif crMode==2 then\ncall RemoveUnit(ciHippo)\nendif\nendif\nendfunction\n"
+        "function crChannel takes nothing returns nothing\ncall crRow(2,GetSpellAbilityId(),GetSpellTargetUnit())\nendfunction\n"
+        "function crCast takes nothing returns nothing\ncall crRow(3,GetSpellAbilityId(),GetSpellTargetUnit())\nendfunction\n"
+        "function crEffect takes nothing returns nothing\ncall crRow(4,GetSpellAbilityId(),GetSpellTargetUnit())\nendfunction\n"
+        "function crEnd takes nothing returns nothing\ncall crRow(5,GetSpellAbilityId(),GetSpellTargetUnit())\nendfunction\n"
+        "function crFinish takes nothing returns nothing\ncall crRow(6,GetSpellAbilityId(),GetSpellTargetUnit())\nendfunction\n"
+        "function crInstall takes nothing returns nothing\nlocal trigger t\n"
+        "set ciArcher=CreateUnit(Player(0),'earc',1280.0,1024.0,0.0)\nset ciHippo=CreateUnit(Player(0),'ehip',1536.0,1024.0,180.0)\n"
+        "call SetUnitAcquireRange(ciArcher,0.0)\ncall SetUnitAcquireRange(ciHippo,0.0)\n"
+        "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,ciArcher,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function crImmediate)\n"
+        "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,ciArcher,EVENT_UNIT_ISSUED_TARGET_ORDER)\ncall TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_TARGET_ORDER)\ncall TriggerAddAction(t,function crTarget)\n"
+        "endfunction\n"));
+    CoupleInstantCall("crInstall");
+    unsigned const events[]={289,290,291,293,292};
+    cstring_t const handlers[]={"crChannel","crCast","crEffect","crEnd","crFinish"};
+    char script[2600];size_t used=snprintf(script,sizeof(script),"function crPhases takes nothing returns nothing\nlocal trigger t\n");
+    FOR_LOOP(i,5)used+=snprintf(script+used,sizeof(script)-used,
+        "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,ciArcher,ConvertUnitEvent(%u))\ncall TriggerRegisterUnitEvent(t,ciHippo,ConvertUnitEvent(%u))\ncall TriggerAddAction(t,function %s)\n",events[i],events[i],handlers[i]);
+    snprintf(script+used,sizeof(script)-used,"set crMode=%d\nendfunction\n",mode);
+    T_ASSERT(CoupleInstantCompile(script));CoupleInstantCall("crPhases");
+    FILTER_EDICTS(e,e->inuse) {
+        if(e->class_id==MAKEFOURCC('e','a','r','c'))f->archer=e;
+        if(e->class_id==MAKEFOURCC('e','h','i','p'))f->hippo=e;
+    }
+    T_NOT_NULL(f->archer);T_NOT_NULL(f->hippo);
+    memset(&couple_poll_trace,0,sizeof(couple_poll_trace));couple_poll_trace.roles[0]=f->archer;couple_poll_trace.roles[1]=f->hippo;
+    move_test_group_arrival=CouplePollArrival;move_test_group_committed=CouplePollCommitted;
+}
+static void CoupleReadyIssue(unsigned scene) {
+    cstring_t const orders[]={"IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo)","IssueTargetOrder(ciHippo,\"coupletarget\",ciArcher)","IssueImmediateOrder(ciArcher,\"coupleinstant\")","IssueImmediateOrder(ciHippo,\"coupleinstant\")"};
+    char script[420];snprintf(script,sizeof(script),"function crIssue takes nothing returns nothing\ncall BJassAssert(%s,\"ready order accepted\")\nendfunction\n",orders[scene]);
+    T_ASSERT(CoupleInstantCompile(script));CoupleInstantCall("crIssue");
+}
+static void CoupleReadyEnd(coupleInstantFixture_t *f) {
+    move_test_group_arrival=NULL;move_test_group_committed=NULL;
+    CoupleInstantEnd(f);
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_ready_assert_original;break;}
+}
+TEST(wc3_couple_instant_orders, native_ready_producer_public_phase_chronology) {
+    cstring_t const expected[]={
+        "1:852507:1:2:852507:0;2:1097035570:1:2:852507:0;3:1097035570:1:2:852507:0;4:1097035570:1:2:852507:0;",
+        "1:852507:2:1:0:852507;2:1097035571:2:1:0:852507;3:1097035571:2:1:0:852507;4:1097035571:2:1:0:852507;5:1097035571:2:1:0:852507;",
+        "0:852508:1:0:852508:0;1:852508:1:2:852508:0;1:852507:2:1:852508:852507;2:1097035571:2:1:852508:852507;3:1097035571:2:1:852508:852507;4:1097035571:2:1:852508:852507;0:851972:1:0:851972:852507;5:1097035571:2:1:0:852507;",
+        "0:852508:2:0:0:852508;1:852508:2:1:0:852508;2:1097035571:2:1:0:852508;3:1097035571:2:1:0:852508;4:1097035571:2:1:0:852508;5:1097035571:2:1:0:852508;",
+    };
+    FOR_LOOP(scene,4) {
+        coupleInstantFixture_t f;CoupleReadyBegin(&f,0);CoupleReadyIssue(scene);
+        T_ASSERT(!strcmp(couple_ready_rows,expected[scene]));
+        T_EQ(couple_ready_frontiers,scene>=2 ? 1 : 0);T_ASSERT(!S_TargetApproachPublicationPending());
+        T_EQ(couple_poll_trace.count,0);T_ASSERT(CoupleInstantGroup(f.archer)==NULL);T_ASSERT(CoupleInstantGroup(f.hippo)==NULL);
+        T_EQ(CoupleInstantRiders(),scene==0 ? 0 : 1);
+        if(scene==0) {T_ASSERT(f.archer->couple_instant->waiting);T_EQ(f.archer->current_order_id,852507);}
+        else {T_FEQ(f.archer->health.value,0,0);T_FEQ(f.hippo->health.value,0,0);}
+        FOR_LOOP(i,20) {CoupleInstantStep();}
+        T_EQ(couple_poll_trace.count,0);
+        CoupleReadyEnd(&f);
+    }
+}
+TEST(wc3_couple_instant_orders, ready_publication_callback_preserves_replacement_and_blocks_partial_save) {
+    for(int mode=1;mode<=2;mode++) {
+        coupleInstantFixture_t f;CoupleReadyBegin(&f,mode);
+        couple_ready_save=Test_TempPath("couple-ready230-publication.bin");T_ASSERT(WriteGame(couple_ready_save));
+        CoupleReadyIssue(3);T_EQ(couple_ready_frontiers,1);T_ASSERT(!S_TargetApproachPublicationPending());
+        T_EQ(CoupleInstantRiders(),0);T_ASSERT(!strstr(couple_ready_rows,"2:1097035571:"));
+        if(mode==1) {
+            T_EQ(f.hippo->current_order_id,851986);T_ASSERT(!f.hippo->couple_instant->ready_pending);
+            FOR_LOOP(i,120) {CoupleInstantStep();}
+        T_ASSERT(f.hippo->s.origin2.x>1536);
+        } else T_ASSERT(!f.hippo->inuse || G_IsDeferredFree(f.hippo));
+        T_ASSERT(WriteGame(couple_ready_save));T_ASSERT(ReadGame(couple_ready_save));
+        remove(couple_ready_save);CoupleReadyEnd(&f);
+    }
+}
+
+#include "fixtures/retail_couple_instant233_boundaries.h"
+static jassCFunction_t couple_adjacent_assert_original;
+static unsigned couple_adjacent_events,couple_adjacent_spawns,couple_adjacent_returns;
+static bool couple_adjacent_complete;
+static uint32_t CoupleAdjacentAssert(jass_t *j) {
+    cstring_t message=jass_checkstring(j,2);unsigned tick,scene;
+    char label[40];
+    if(message && sscanf(message,"CPR tick=%u scene=%u label=%39s",&tick,&scene,label)==3 &&
+       scene==11 && !strcmp(label,"complete"))couple_adjacent_complete=true;
+    if(message && sscanf(message,"CPR tick=%u scene=%u label=%39s",&tick,&scene,label)==3 && scene<11) {
+        if(!strcmp(label,"spawn-a")) {
+            couple_poll_trace.scene=scene;couple_adjacent_spawns++;
+            memset(couple_poll_trace.roles,0,sizeof(couple_poll_trace.roles));
+            FILTER_EDICTS(e,e->inuse && !G_IsDeferredFree(e) && !M_IsDead(e)) {
+                if(e->class_id==MAKEFOURCC('e','a','r','c'))couple_poll_trace.roles[0]=e;
+                if(e->class_id==MAKEFOURCC('e','h','i','p'))couple_poll_trace.roles[1]=e;
+            }
+            T_NOT_NULL(couple_poll_trace.roles[0]);T_NOT_NULL(couple_poll_trace.roles[1]);
+            if(scene>=7) {
+                uint32_t const headings[]={0x3e4cccda,0x3e4cccdb,0x3e4cccdc,0x3e4ccccd};
+                T_EQ(wc3_float_bits(couple_poll_trace.roles[0]->s.angle),headings[scene-7]);
+            }
+        } else if(!strcmp(label,"order-return-setup")) {
+            T_NOT_NULL(strstr(message,"accepted=1"));couple_adjacent_returns++;
+            bool task=scene==4 || scene==8 || scene==9;
+            edict_t *actor=couple_poll_trace.roles[scene>=4 && scene<=6 ? 1 : 0];
+            moveGroup_t *group=CoupleInstantGroup(actor);
+            if(task) {
+                T_NOT_NULL(group);
+                if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),scene==4 ? 0x413a7fd3u : 0x7cffffffu);
+            } else {
+                T_ASSERT(CoupleInstantGroup(couple_poll_trace.roles[0])==NULL);
+                T_ASSERT(CoupleInstantGroup(couple_poll_trace.roles[1])==NULL);
+            }
+        } else if(!strncmp(label,"issued-",7) || !strncmp(label,"spell-",6)) {
+            unsigned id=0,actor=0,target=0,ah=0,hh=0;char const *fields=strstr(message," oid=");
+            bool spell=!strncmp(label,"spell-",6);
+            if(spell)fields=strstr(message," ability=");
+            T_NOT_NULL(fields);
+            int n=fields ? sscanf(strchr(fields,'=')+1,"%u actor=%u target=%u ah=%u hh=%u",&id,&actor,&target,&ah,&hh) : 0;
+            T_EQ(n,5);
+            unsigned kind=!strcmp(label,"issued-immediate") ? 0 : !strcmp(label,"issued-target") ? 1 :
+                !strcmp(label,"spell-channel") ? 2 : !strcmp(label,"spell-cast") ? 3 :
+                !strcmp(label,"spell-effect") ? 4 : !strcmp(label,"spell-endcast") ? 5 : 6;
+            if(spell)id=((id&0xffu)<<24)|((id&0xff00u)<<8)|((id>>8)&0xff00u)|((id>>24)&0xffu);
+            unsigned count=sizeof(couple_native_public233)/sizeof(couple_native_public233[0]);
+            T_ASSERT(couple_adjacent_events<count);
+            if(n==5 && couple_adjacent_events<count) {
+                coupleNativePublic233_t const *e=&couple_native_public233[couple_adjacent_events++];
+                T_EQ(scene,e->scene);T_EQ(tick,e->tick);T_EQ(kind,e->kind);T_EQ(id,e->id);
+                T_EQ(actor,e->actor);T_EQ(target,e->target);T_EQ(ah,e->archer_head);T_EQ(hh,e->hippo_head);
+                T_EQ(wc3_float_bits(level.pathing_clock.time),e->clock_word);
+                if(couple_poll_trace.print)fprintf(stderr,"ACOIPUBLIC %u %u %u %u %u %u %u %u %u\n",
+                    scene,tick,kind,id,actor,target,ah,hh,wc3_float_bits(level.pathing_clock.time));
+            }
+        }
+    }
+    return couple_adjacent_assert_original(j);
+}
+static void CouplePollCheckNative233(void) {
+    unsigned at=0,counts[11]={0};
+    unsigned const arrival[]={2,3,4,5,6,7,8,18,10,11},committed[]={2,13,14,15,16,7};
+    unsigned count=sizeof(couple_native_polls233)/sizeof(couple_native_polls233[0]);T_EQ(count,12);
+    FOR_LOOP(i,couple_poll_trace.count) {
+        couplePollRow_t const *row=&couple_poll_trace.rows[i];if(row->words[0]==1)continue;
+        T_ASSERT(at<count);if(at>=count)break;
+        coupleNativePoll233_t const *e=&couple_native_polls233[at++];
+        T_EQ(row->scene,e->scene);T_EQ(row->words[0],e->phase);T_EQ(row->words[1],e->role);
+        unsigned const *indices=e->phase==0 ? arrival : committed;
+        FOR_LOOP(j,e->count)T_EQ(row->words[indices[j]],e->words[j]);
+        if(row->words[0]==0 && row->scene<11)counts[row->scene]++;
+    }
+    T_EQ(at,count);
+    FOR_LOOP(i,11)T_EQ(counts[i],i==4 || i==8 || i==9 ? 2 : 0);
+}
+/* Floating timer deadlines accumulate; 88 nominal seconds need not include
+ * callback4399. Stop on the probe's own completion marker, with a hard bound,
+ * preserving every captured absolute clock rather than shifting expectations. */
+static unsigned CoupleAdjacentRunToComplete(void) {
+    unsigned steps=0;
+    while(!couple_adjacent_complete && steps<17200) {CoupleInstantStep();steps++;}
+    T_ASSERT(couple_adjacent_complete);
+    return steps;
+}
+TEST(wc3_couple_instant_orders, native_adjacent_range_and_public_facing_boundaries) {
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+        couple_adjacent_assert_original=p->func;p->func=CoupleAdjacentAssert;break;
+    }
+    coupleInstantFixture_t f;
+    CoupleInstantBeginProfile(&f,&(coupleInstantSetup_t){.range333=true,.empty=true,.retail_profile=true,.peer_type="earc"});
+    /* Parsed w3a-style binary floats, not decimal SLK approximations. The
+     * three aliases inherit Aco3 and override only its authored range. */
+    float ranges[3];unitModification_t mods[3];unitData_t aliases[3];
+    FOR_LOOP(i,3) {
+        ranges[i]=wc3_float(0x43a67fd3u+i);
+        mods[i]=(unitModification_t){.modID=MAKEFOURCC('a','r','a','n'),.type=mod_unreal,.level=1,.data=&ranges[i]};
+        aliases[i]=(unitData_t){.originalUnitID=MAKEFOURCC('A','c','o','3'),.newUnitID=MAKEFOURCC('X','c','3','1'+i),.numbeOfModifications=1,.modifications=&mods[i]};
+    }
+    f.info.num_userCreatedAbilities=3;f.info.userCreatedAbilities=aliases;G_SetMapAbilityOverrides(&f.info);
+    FOR_LOOP(i,3)T_EQ(wc3_float_bits(S_SpellRange(aliases[i].newUnitID,1)),0x43a67fd3u+i);
+    memset(&couple_poll_trace,0,sizeof(couple_poll_trace));couple_poll_trace.print=true;
+    couple_adjacent_events=couple_adjacent_spawns=couple_adjacent_returns=0;couple_adjacent_complete=false;
+    /* Native233 public probe. Preload transport becomes a test observer;
+     * absent Blizzard ModuloInteger is expressed with integer arithmetic;
+     * Xc31/32/33 are typed tags (engine and retail rawcode integers differ).
+     * Fixture common.j uses pre-mouse player spell IDs272..276; retail233
+     * uses275..279. JassUnitEventType adds3 at registration for this common.j.
+     * Public I2R/division facing expressions and all timer ages are intact. */
+    T_ASSERT(CoupleInstantCompile(
+        "globals\n"
+        " timer cpTimer=null\n"
+        " unit cpArcher=null\n"
+        " unit cpHippo=null\n"
+        " integer cpTick=0\n"
+        " integer cpScene=0\n"
+        " integer cpAlias='Aco3'\n"
+        " integer cpRangeBits=1134985216\n"
+        " integer cpFacingBits=0\n"
+        " boolean cpNested=false\n"
+        "endglobals\n"
+        "function CpBool takes boolean b returns integer\n"
+        " if b then\n"
+        "  return 1\n"
+        " endif\n"
+        " return 0\n"
+        "endfunction\n"
+        "function CpEmit takes string value returns nothing\n"
+        " call BJassAssert(true,value)\n"
+        "endfunction\n"
+        "function CpMark takes string label,boolean accepted returns nothing\n"
+        " local group g=CreateGroup()\n"
+        " local unit u=null\n"
+        " local integer riders=0\n"
+        " local real rx=0.0\n"
+        " local real ry=0.0\n"
+        " call GroupEnumUnitsOfPlayer(g,Player(0),null)\n"
+        " loop\n"
+        "  set u=FirstOfGroup(g)\n"
+        "  exitwhen u==null\n"
+        "  call GroupRemoveUnit(g,u)\n"
+        "  if GetUnitTypeId(u)=='ehpr' then\n"
+        "   set riders=riders+1\n"
+        "   set rx=GetUnitX(u)\n"
+        "   set ry=GetUnitY(u)\n"
+        "  endif\n"
+        " endloop\n"
+        " call DestroyGroup(g)\n"
+        " call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=\"+label+\"-a ah=\"+I2S(GetUnitCurrentOrder(cpArcher))+\" ax=\"+R2S(GetUnitX(cpArcher))+\" ay=\"+R2S(GetUnitY(cpArcher))+\" af=\"+R2S(GetUnitFacing(cpArcher))+\" al=\"+R2S(GetWidgetLife(cpArcher)))\n"
+        " call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=\"+label+\"-h hh=\"+I2S(GetUnitCurrentOrder(cpHippo))+\" hx=\"+R2S(GetUnitX(cpHippo))+\" hy=\"+R2S(GetUnitY(cpHippo))+\" hf=\"+R2S(GetUnitFacing(cpHippo))+\" hl=\"+R2S(GetWidgetLife(cpHippo)))\n"
+        " call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=\"+label+\"-setup accepted=\"+I2S(CpBool(accepted))+\" reht=\"+I2S(GetPlayerTechCount(Player(0),'Reht',true))+\" at=\"+I2S(GetUnitTypeId(cpArcher))+\" aa=\"+I2S(GetUnitAbilityLevel(cpArcher,'Aco2'))+\" ht=\"+I2S(GetUnitTypeId(cpHippo))+\" ha=\"+I2S(GetUnitAbilityLevel(cpHippo,cpAlias))+\" pa=\"+I2S(CpBool(IsUnitPaused(cpArcher)))+\" ph=\"+I2S(CpBool(IsUnitPaused(cpHippo))))\n"
+        " call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=\"+label+\"-result riders=\"+I2S(riders)+\" rx=\"+R2S(rx)+\" ry=\"+R2S(ry))\n"
+        "\n"
+        "endfunction\n"
+        "function CpEvent takes string kind returns nothing\n"
+        " local unit actor=GetTriggerUnit()\n"
+        " local integer role=0\n"
+        " local integer target=0\n"
+        " local integer oid=GetIssuedOrderId()\n"
+        " if actor==cpArcher then\n"
+        "  set role=1\n"
+        " elseif actor==cpHippo then\n"
+        "  set role=2\n"
+        " else\n"
+        "  return\n"
+        " endif\n"
+        " if GetOrderTargetUnit()==cpArcher then\n"
+        "  set target=1\n"
+        " elseif GetOrderTargetUnit()==cpHippo then\n"
+        "  set target=2\n"
+        " endif\n"
+        " call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=issued-\"+kind+\" oid=\"+I2S(oid)+\" actor=\"+I2S(role)+\" target=\"+I2S(target)+\" ah=\"+I2S(GetUnitCurrentOrder(cpArcher))+\" hh=\"+I2S(GetUnitCurrentOrder(cpHippo)))\n"
+        " set actor=null\n"
+        "endfunction\n"
+        "function CpTargetEvent takes nothing returns nothing\n"
+        " call CpEvent(\"target\")\n"
+        "endfunction\n"
+        "function CpPointEvent takes nothing returns nothing\n"
+        " call CpEvent(\"point\")\n"
+        "endfunction\n"
+        "function CpImmediateEvent takes nothing returns nothing\n"
+        " call CpEvent(\"immediate\")\n"
+        "endfunction\n"
+        "function CpSpellEvent takes string kind returns nothing\n"
+        " local unit actor=GetTriggerUnit()\n"
+        " local unit target=GetSpellTargetUnit()\n"
+        " local integer role=0\n"
+        " local integer tr=0\n"
+        " if actor==cpArcher then\n"
+        "  set role=1\n"
+        " elseif actor==cpHippo then\n"
+        "  set role=2\n"
+        " else\n"
+        "  return\n"
+        " endif\n"
+        " if target==cpArcher then\n"
+        "  set tr=1\n"
+        " elseif target==cpHippo then\n"
+        "  set tr=2\n"
+        " endif\n"
+        " call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=spell-\"+kind+\" ability=\"+I2S(GetSpellAbilityId())+\" actor=\"+I2S(role)+\" target=\"+I2S(tr)+\" ah=\"+I2S(GetUnitCurrentOrder(cpArcher))+\" hh=\"+I2S(GetUnitCurrentOrder(cpHippo)))\n"
+        " set actor=null\n"
+        " set target=null\n"
+        "endfunction\n"
+        "function CpSpellChannel takes nothing returns nothing\n"
+        " call CpSpellEvent(\"channel\")\n"
+        "endfunction\n"
+        "function CpSpellCast takes nothing returns nothing\n"
+        " call CpSpellEvent(\"cast\")\n"
+        "endfunction\n"
+        "function CpSpellEffect takes nothing returns nothing\n"
+        " call CpSpellEvent(\"effect\")\n"
+        "endfunction\n"
+        "function CpSpellEnd takes nothing returns nothing\n"
+        " call CpSpellEvent(\"endcast\")\n"
+        "endfunction\n"
+        "function CpSpellFinish takes nothing returns nothing\n"
+        " call CpSpellEvent(\"finish\")\n"
+        "endfunction\n"
+        "function CpTick takes nothing returns nothing\n"
+        " local integer age=cpTick-(cpTick/400)*400\n"
+        " local real ax=1280.0\n"
+        " local real af=0.0\n"
+        " local group g=null\n"
+        " local unit u=null\n"
+        " local boolean removed=false\n"
+        " local boolean added=false\n"
+        " if age==0 then\n"
+        "  set cpAlias='Aco3'\n"
+        "  set cpRangeBits=1134985216\n"
+        "  set cpFacingBits=0\n"
+        "  if cpScene>=4 and cpScene<=6 then\n"
+        "   set ax=1163.0\n"
+        "   if cpScene==4 then\n"
+        "set cpAlias='Xc31'\n"
+        "elseif cpScene==5 then\n"
+        "set cpAlias='Xc32'\n"
+        "else\n"
+        "set cpAlias='Xc33'\n"
+        "endif\n"
+        "   set cpRangeBits=1134985171+cpScene-4\n"
+        "  endif\n"
+        "  if cpScene==7 then\n"
+        "   set cpFacingBits=1094146240\n"
+        "   set af=I2R(12015808)/1048576.0\n"
+        "  elseif cpScene==8 then\n"
+        "   set cpFacingBits=1094146241\n"
+        "   set af=I2R(12015809)/1048576.0\n"
+        "  elseif cpScene==9 then\n"
+        "   set cpFacingBits=1094146242\n"
+        "   set af=I2R(12015810)/1048576.0\n"
+        "  elseif cpScene==10 then\n"
+        "   set cpFacingBits=1094146229\n"
+        "   set af=I2R(12015797)/1048576.0\n"
+        "  endif\n"
+        "  set cpArcher=CreateUnit(Player(0),'earc',ax,1024.0,af)\n"
+        "  set cpHippo=CreateUnit(Player(0),'ehip',1536.0,1024.0,180.0)\n"
+        "  call SetUnitAcquireRange(cpArcher,0.0)\n"
+        "  call SetUnitAcquireRange(cpHippo,0.0)\n"
+        "  if cpScene>=4 and cpScene<=6 then\n"
+        "   set removed=UnitRemoveAbility(cpHippo,'Aco3')\n"
+        "   set added=UnitAddAbility(cpHippo,cpAlias)\n"
+        "  endif\n"
+        "  call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=alias alias=\"+I2S(cpAlias)+\" removed=\"+I2S(CpBool(removed))+\" added=\"+I2S(CpBool(added))+\" level=\"+I2S(GetUnitAbilityLevel(cpHippo,cpAlias)))\n"
+        "  call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=\"+I2S(cpScene)+\" label=inputs rangeBits=\"+I2S(cpRangeBits)+\" facingBits=\"+I2S(cpFacingBits)+\" arange=333 area=900 ab=0 hb=1\")\n"
+        "  call CpMark(\"spawn\",true)\n"
+        " elseif age==100 then\n"
+        "  call CpMark(\"before\",true)\n"
+        "  if cpScene==2 then\n"
+        "   call CpMark(\"order-return\",IssueImmediateOrder(cpArcher,\"coupleinstant\"))\n"
+        "  elseif cpScene==3 then\n"
+        "   call CpMark(\"order-return\",IssueImmediateOrder(cpHippo,\"coupleinstant\"))\n"
+        "  elseif cpScene==1 or (cpScene>=4 and cpScene<=6) then\n"
+        "   call CpMark(\"order-return\",IssueTargetOrder(cpHippo,\"coupletarget\",cpArcher))\n"
+        "  else\n"
+        "   call CpMark(\"order-return\",IssueTargetOrder(cpArcher,\"coupletarget\",cpHippo))\n"
+        "  endif\n"
+        " elseif age==398 then\n"
+        "  call CpMark(\"settled\",true)\n"
+        " elseif age==399 then\n"
+        "  set g=CreateGroup()\n"
+        "  call GroupEnumUnitsOfPlayer(g,Player(0),null)\n"
+        "  loop\n"
+        "   set u=FirstOfGroup(g)\n"
+        "   exitwhen u==null\n"
+        "   call GroupRemoveUnit(g,u)\n"
+        "   call RemoveUnit(u)\n"
+        "  endloop\n"
+        "  call DestroyGroup(g)\n"
+        "  set cpArcher=null\n"
+        "  set cpHippo=null\n"
+        "  set cpScene=cpScene+1\n"
+        "  if cpScene==11 then\n"
+        "   call CpEmit(\"CPR tick=\"+I2S(cpTick)+\" scene=11 label=complete\")\n"
+        "   call PauseTimer(cpTimer)\n"
+        "   return\n"
+        "  endif\n"
+        " elseif age>100 and (age<=115 or age-(age/10)*10==0) then\n"
+        "  call CpMark(\"sample\",true)\n"
+        " endif\n"
+        " set cpTick=cpTick+1\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " local trigger et=CreateTrigger()\n"
+        " local trigger ep=CreateTrigger()\n"
+        " local trigger ei=CreateTrigger()\n"
+        " local trigger sc=CreateTrigger()\n"
+        " local trigger ss=CreateTrigger()\n"
+        " local trigger se=CreateTrigger()\n"
+        " local trigger sd=CreateTrigger()\n"
+        " local trigger sf=CreateTrigger()\n"
+        " call TriggerRegisterPlayerUnitEvent(et,Player(0),EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,null)\n"
+        " call TriggerRegisterPlayerUnitEvent(ep,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        " call TriggerRegisterPlayerUnitEvent(ei,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+        " call TriggerAddAction(et,function CpTargetEvent)\n"
+        " call TriggerAddAction(ep,function CpPointEvent)\n"
+        " call TriggerAddAction(ei,function CpImmediateEvent)\n"
+        " call TriggerRegisterPlayerUnitEvent(sc,Player(0),ConvertPlayerUnitEvent(272),null)\n"
+        " call TriggerRegisterPlayerUnitEvent(ss,Player(0),ConvertPlayerUnitEvent(273),null)\n"
+        " call TriggerRegisterPlayerUnitEvent(se,Player(0),ConvertPlayerUnitEvent(274),null)\n"
+        " call TriggerRegisterPlayerUnitEvent(sd,Player(0),ConvertPlayerUnitEvent(276),null)\n"
+        " call TriggerRegisterPlayerUnitEvent(sf,Player(0),ConvertPlayerUnitEvent(275),null)\n"
+        " call TriggerAddAction(sc,function CpSpellChannel)\n"
+        " call TriggerAddAction(ss,function CpSpellCast)\n"
+        " call TriggerAddAction(se,function CpSpellEffect)\n"
+        " call TriggerAddAction(sd,function CpSpellEnd)\n"
+        " call TriggerAddAction(sf,function CpSpellFinish)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetPlayerTechResearched(Player(0),'Reht',1)\n"
+        " call CpEmit(\"CPR tick=0 scene=-1 label=start\")\n"
+        " set cpTimer=CreateTimer()\n"
+        " call TimerStart(cpTimer,0.02,true,function CpTick)\n"
+        "endfunction\n"
+    ));
+    move_test_group_arrival=CouplePollArrival;move_test_group_committed=CouplePollCommitted;
+    CoupleInstantCall("PathProbeInit");
+    FOR_LOOP(i,464) {CoupleInstantStep();}
+    unsigned prefix=couple_poll_trace.count,event_prefix=couple_adjacent_events;
+    edict_t *roles[4];memcpy(roles,couple_poll_trace.roles,sizeof(roles));
+    cstring_t path=Test_TempPath("couple-instant233-adjacent.bin");T_ASSERT(WriteGame(path));
+    unsigned suffix_steps=CoupleAdjacentRunToComplete();
+    T_EQ(couple_adjacent_spawns,11);T_EQ(couple_adjacent_returns,11);
+    T_EQ(couple_adjacent_events,sizeof(couple_native_public233)/sizeof(couple_native_public233[0]));
+    T_ASSERT(!jass_rterror_pending(level.vm));CouplePollCheckNative233();
+    unsigned total=couple_poll_trace.count;
+    couplePollRow_t expected[32];T_ASSERT(total<=32);memcpy(expected,couple_poll_trace.rows,MIN(total,32)*sizeof(*expected));
+    T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.scene=0;couple_poll_trace.print=false;
+    memcpy(couple_poll_trace.roles,roles,sizeof(roles));couple_adjacent_events=event_prefix;couple_adjacent_spawns=1;couple_adjacent_returns=1;
+    couple_adjacent_complete=false;T_EQ(CoupleAdjacentRunToComplete(),suffix_steps);
+    T_EQ(couple_adjacent_events,sizeof(couple_native_public233)/sizeof(couple_native_public233[0]));T_EQ(couple_poll_trace.count,total);
+    FOR_LOOP(i,MIN(total,32)-prefix) {
+        T_EQ(couple_poll_trace.rows[prefix+i].scene,expected[prefix+i].scene);
+        FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);
+    }
+    T_ASSERT(!jass_rterror_pending(level.vm));remove(path);
+    move_test_group_arrival=NULL;move_test_group_committed=NULL;
+    G_SetMapAbilityOverrides(NULL);CoupleInstantEnd(&f);
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_adjacent_assert_original;break;}
 }
 
 #endif

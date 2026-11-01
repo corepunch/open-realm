@@ -254,7 +254,8 @@ TEST(wc3_couple_orders, reissued_pairing_retires_only_old_partner) {
         T_EQ(f.archer->current_order_id,852143);T_ASSERT(f.archer->couple && f.archer->couple->active);
         T_EQ(f.archer->couple->partner->current_order_id,852141);
         T_EQ(f.hippo->current_order_id,other ? 0 : 852141);
-        FOR_LOOP(i,2500)CoupleOrderStep();T_EQ(CoupleOrderRiders(),1);
+        FOR_LOOP(i,2500)CoupleOrderStep();
+        T_EQ(CoupleOrderRiders(),1);
         CoupleOrderEnd(&f);
     }
 }
@@ -271,7 +272,8 @@ TEST(wc3_couple_orders, queued_pairing_and_invalid_partner_preserve_fifo) {
             char script[]="function cpRemove takes nothing returns nothing\ncall RemoveUnit(cpHippo)\nendfunction\n";
             T_ASSERT(jass_dobuffer(level.vm,script));CoupleOrderCall("cpRemove");
         }
-        FOR_LOOP(i,2500)CoupleOrderStep();T_EQ(CoupleOrderRiders(),invalid ? 0 : 1);
+        FOR_LOOP(i,2500)CoupleOrderStep();
+        T_EQ(CoupleOrderRiders(),invalid ? 0 : 1);
         if(invalid) {T_EQ(f.archer->current_order_id,0);T_ASSERT(f.archer->s.origin2.x<600 && f.archer->s.origin2.y<850);}
         CoupleOrderEnd(&f);
     }
@@ -290,7 +292,8 @@ TEST(wc3_couple_orders, allied_owner_rejected_and_single_configured_alias_retain
             T_EQ(f.archer->couple->ability,MAKEFOURCC('Z','c','o','a'));T_EQ(f.hippo->couple->ability,MAKEFOURCC('Z','c','o','h'));
             CoupleOrderRestore(&f);
         } else {T_ASSERT(S_SpellIsFriend(f.archer,f.hippo));T_EQ(f.archer->current_order_id,0);}
-        FOR_LOOP(i,2500)CoupleOrderStep();T_EQ(CoupleOrderRiders(),allied ? 0 : 1);
+        FOR_LOOP(i,2500)CoupleOrderStep();
+        T_EQ(CoupleOrderRiders(),allied ? 0 : 1);
         CoupleOrderEnd(&f);
     }
 }
@@ -305,7 +308,8 @@ TEST(wc3_couple_orders, source_target_callback_removal_retires_constructor) {
             "call BJassAssert(IssueTargetOrder(cpArcher,\"mounthippogryph\",cpHippo),\"admitted before removal\")\nendfunction\n",source ? "cpArcher" : "cpHippo");
         T_ASSERT(jass_dobuffer(level.vm,script));CoupleOrderCall("cpIssue");
         if(!source) {T_EQ(f.archer->current_order_id,0);T_ASSERT(f.archer->currentmove && f.archer->currentmove->think);}
-        FOR_LOOP(i,60)CoupleOrderStep();T_EQ(CoupleOrderRiders(),0);
+        FOR_LOOP(i,60)CoupleOrderStep();
+        T_EQ(CoupleOrderRiders(),0);
         T_ASSERT(source ? !f.archer->inuse : !f.hippo->inuse);
         CoupleOrderEnd(&f);
     }
@@ -322,7 +326,8 @@ TEST(wc3_couple_orders, reciprocal_callback_revalidates_ability_and_owner) {
             owner==1 ? "call SetUnitOwner(cpHippo,Player(1),false)" : owner==2 ? "call UnitRemoveAbility(cpArcher,'Acoa')" : owner==3 ? "call UnitRemoveAbility(cpHippo,'Zcoh')" : "call UnitRemoveAbility(cpHippo,'Acoh')");
         T_ASSERT(jass_dobuffer(level.vm,script));CoupleOrderCall("cpIssue");
         T_EQ(f.hippo->current_order_id,0);T_ASSERT(!f.hippo->couple || !f.hippo->couple->active);
-        FOR_LOOP(i,2500)CoupleOrderStep();T_EQ(CoupleOrderRiders(),0);
+        FOR_LOOP(i,2500)CoupleOrderStep();
+        T_EQ(CoupleOrderRiders(),0);
         CoupleOrderEnd(&f);
     }
 }
@@ -333,7 +338,8 @@ TEST(wc3_couple_orders, lone_ready_wait_round_trips_without_reissuing_peer) {
         "function cpIssue takes nothing returns nothing\nlocal trigger t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,cpHippo,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
         "call TriggerAddAction(t,function cpReplace)\ncall IssueTargetOrder(cpArcher,\"mounthippogryph\",cpHippo)\nendfunction\n";
     T_ASSERT(jass_dobuffer(level.vm,script));CoupleOrderCall("cpIssue");
-    FOR_LOOP(i,2500)CoupleOrderStep();T_ASSERT(f.archer->couple && f.archer->couple->ready);
+    FOR_LOOP(i,2500)CoupleOrderStep();
+    T_ASSERT(f.archer->couple && f.archer->couple->ready);
     T_EQ(f.archer->current_order_id,852143);T_EQ(f.hippo->current_order_id,0);
     CoupleOrderRestore(&f);FOR_LOOP(i,500)CoupleOrderStep();
     T_EQ(f.archer->current_order_id,852143);T_EQ(f.hippo->current_order_id,0);T_EQ(CoupleOrderRiders(),0);
@@ -376,11 +382,13 @@ TEST(wc3_couple_orders, inverse_stop_callback_original_actor_is_outer_owned) {
             "function cpStop takes nothing returns nothing\ncall IssueImmediateOrder(cpArcher,\"stop\")\nendfunction\n",
             remove ? "call RemoveUnit(cpArcher)" : "call IssuePointOrder(cpArcher,\"move\",704.0,768.0)");
         T_ASSERT(jass_dobuffer(level.vm,script));CoupleOrderCall("cpIssue");
-        FOR_LOOP(i,60)CoupleOrderStep();vec2_t before=f.archer->s.origin2;
+        FOR_LOOP(i,60)CoupleOrderStep();
+        vec2_t before=f.archer->s.origin2;
         CoupleOrderCall("cpStop");
         T_EQ(f.hippo->current_order_id,0);
         if(!remove)T_EQ(f.archer->current_order_id,0);
-        FOR_LOOP(i,500)CoupleOrderStep();T_EQ(CoupleOrderRiders(),0);
+        FOR_LOOP(i,500)CoupleOrderStep();
+        T_EQ(CoupleOrderRiders(),0);
         if(!remove) {T_EQ(f.archer->current_order_id,0);T_ASSERT(Vector2_distance(&before,&f.archer->s.origin2)<0.01f);}
         /* Native185's removal attempt retained the actor. This branch checks
          * bounded engine lifetime safety without asserting a retail removal. */

@@ -656,18 +656,6 @@ static void possession_clear_status(edict_t *ent, uint32_t code) {
             unit_removestatus(ent, ent->abilstatus + i, STATUS_REMOVE_TRANSFORM);
 }
 
-/* Keep stunned in sync after stripping Bpos without waiting for a later status tick. */
-static void possession_refresh_stun(edict_t *ent) {
-    if (!ent) return;
-    ent->stunned = false;
-    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
-        uint32_t c = G_UnitStatusClassCode(ent->abilstatus+i);
-        if (!ent->abilstatus[i].level) continue;
-        if (c == MAKEFOURCC('B', 's', 't', 'u') || c == MAKEFOURCC('B', 'U', 's', 'l') || c == BZ_BPOS)
-            ent->stunned = true;
-    }
-}
-
 static void possession_select_target(edict_t *target);
 
 static void possession_takeover(edict_t *caster, edict_t *target) {
@@ -725,11 +713,6 @@ static void possession_select_target(edict_t *target) {
     G_SelectEntity(client, target);
     G_FocusSelectedUnit(client, target);
     G_SyncClientSelection(client);
-}
-
-static bool possession_is_neutral(edict_t const *target) {
-    return target && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
 }
 
 static void possession_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

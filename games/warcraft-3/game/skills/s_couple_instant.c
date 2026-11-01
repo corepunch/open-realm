@@ -122,7 +122,7 @@ static void instant_cancel(edict_t *unit) {
      * first peer inverse. Approach cleanup releases before that inverse.
      * Thus Stop of the waiting initiator can recurse A-H-A, while Stop of
      * the approaching peer produces A-H. */
-    bool waited=state->waiting || state->channel_open;state->waiting=false;state->linked=false;
+    bool waited=state->waiting || state->channel_open;state->waiting=false;state->linked=false;state->ready_pending=false;
     if(!waited) {state->active=false;S_ReleaseTargetReservation(&state->reservation);}
     instant_end_channel(unit);
     if(!unit->inuse || unit->spawn_time!=spawn || !unit->couple_instant || unit->couple_instant->serial!=serial)return;
@@ -142,6 +142,9 @@ static umove_t instant_wait_move={.animation="stand",.proc=CAbilityCoupleInstant
 static bool instant_complete(edict_t *unit,abilityCall_t const *call) {
     coupleInstant_t *state=unit->couple_instant;
     if(!state || !state->active || !call || !call->item || state->ability!=call->item->code)return false;
+    /* 423d90 finishes its producer and publishes the synthetic target before
+     * ready terminal delivery. A nested peer can retire this owner first. */
+    if(state->constructing) {state->ready_pending=true;return true;}
     uint32_t spawn=unit->spawn_time,serial=state->serial,code=state->ability,rank=S_SpellLevel(unit,code);
     edict_t *target=state->partner;uint32_t target_spawn=state->partner_spawn_time;
     if(!instant_alive(target,target_spawn)) {instant_cancel(unit);unit_stand(unit);return true;}
@@ -224,7 +227,21 @@ static queuedOrderResult_t instant_activate(edict_t *unit,unitOrder_t const *pac
            S_SpellData(code,S_SpellLevel(unit,code),2)==0)
             G_IssueUnitTargetOrder(target,"coupletarget",unit,false,packet->issuer_player);
     }
-    S_EndTargetApproachPublication(&publication);
+    bool published=S_EndTargetApproachPublication(&publication);
+    if(published && instant_alive(unit,spawn) && unit->couple_instant &&
+       unit->couple_instant->serial==serial && unit->couple_instant->active &&
+       unit->couple_instant->ready_pending) {
+        unit->couple_instant->ready_pending=false;
+        if(!instant_alive(target,target_spawn)) {
+            instant_cancel(unit);
+            if(instant_alive(unit,spawn) && G_UnitMoveRevision(unit)==revision)unit_stand(unit);
+            return QUEUED_ORDER_REPLACED;
+        }
+        abilityitem_t item={.code=code};
+        spellTarget_t ready_target={.type=SPELL_TARGET_UNIT,.entity=target};
+        abilityCall_t ready=MAKE(abilityCall_t,.item=&item,.target=&ready_target);
+        instant_complete(unit,&ready);
+    }
     return instant_alive(unit,spawn) && G_UnitMoveRevision(unit)==revision ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }
 BZ_ABILITY_PROC(CAbilityCoupleInstant) {

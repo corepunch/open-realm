@@ -2214,7 +2214,7 @@ typedef struct {
     uint32_t partner_spawn_time, ability, order_id, serial;
     unitAbilityDisable_t *channel_owner; /* Retained exact attachment; rebuilt after load. */
     targetReservationLease_t reservation;
-    bool active, waiting, constructing, linked, retiring, resume, channel_open;
+    bool active, waiting, constructing, linked, retiring, resume, channel_open, ready_pending;
 } coupleInstant_t;
 
 typedef struct {
@@ -4207,7 +4207,7 @@ typedef struct {
     bool open;
 } moveTargetPublication_t;
 moveTargetPublication_t S_BeginTargetApproachPublication(edict_t *);
-void S_EndTargetApproachPublication(moveTargetPublication_t *);
+bool S_EndTargetApproachPublication(moveTargetPublication_t *);
 bool S_TargetApproachPublicationPending(void);
 bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 bool S_BeginUnitEntityPointApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));

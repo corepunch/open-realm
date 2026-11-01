@@ -598,19 +598,86 @@ are separate datasets, totaling 1,472 projected rows; they are not one continuou
 capture. Saved suffixes use path-state-cleared ReadGame, not an SV_Map cold
 restart. No full-suite or five-gate rerun is claimed for this fixture addition.
 
-The remaining Coupling comparison is finite: in-range, already-facing admission
-for both roles and literal adjacent/equality range and heading boundaries.
-Native233 now has accepted repeats and an unhooked control across 11 scenes,
-with 2,150 identical public markers per capture. Runtime `coupling-public233`
-retains the audited sources, raw streams and ready chronology. Its literal
-range and angular branches are established, but engine comparison remains
-pending. Ready automatic orders expose a chronology difference: synthetic
-coordination precedes CHANNEL, and ready Archer automatic pairing publishes
-only the Hippogryph CHANNEL. The next implementation/test work covers these
-ready, float-range and angular branches; native acceptance is not engine parity.
-This stock232 documentation checkpoint makes no production change. The accepted193 distances 373, 373.25 and 372.75 are
-quarter-world offsets, not adjacent IEEE754 values. Moving-partner214 coverage
-remains the verified 400-row checkpoint227/228 contract. Shared producer
-force/stop branches still require reachable-caller accounting; unrelated generic
-ability availability and channel-policy combinations remain ORDER-01.13.
-**25 leaves remain open; zero whole leaves close.**
+Native233 supplies the remaining ready and literal-boundary witness: two
+observations and a fresh unhooked control across 11 scenes, with 2,150 identical
+public markers. All orders are accepted; the measured range and heading tests
+select immediate execution or physical tasks. The three adjacent authored range
+words `43a67fd3/43a67fd4/43a67fd5` at distance373 produce false/true/true range
+results. Public degree inputs `413758c0/413758c1/413758c2` produce adjacent
+headings with true/false/false facing results; `413758b5` produces exactly the
+`0.2`-radian window and passes. Only three scenes construct tasks, totaling six
+arrival calls and six velocity commits. Already-facing ready scenes construct
+none. The earlier193 distances 373, 373.25 and 372.75 remain quarter-world
+offsets, not adjacent IEEE754 values.
+
+Save230 corrects ready completion chronology. During producer construction the
+ability records readiness without opening CHANNEL. Automatic orders publish the
+synthetic target and perform peer coordination first; completion then revalidates
+the surviving source/target and owner before consuming readiness. Ready Archer
+automatic pairing therefore channels only the Hippogryph before merging; ready
+Hippogryph automatic pairing publishes its synthetic target before its own
+CHANNEL. Cancellation clears pending readiness. These flags are runtime-only,
+and synchronous save/load remains rejected during publication. Checkpoint235
+passes 2,070 tests and 417,320 assertions across both editions, including ready
+chronology and callback ownership regressions. This focused result is separate
+from the earlier full220 baseline and does not claim a new full-suite run.
+
+The portable233 projector independently checks both native observations and the
+fresh control, all public/native chronology, and the literal header's 12 poll
+rows plus 59 issued/spell event tuples. It rejects missing, extra, reordered and
+changed header rows. Typed ability/unit identifiers use native big-endian ASCII
+FourCC words; engine host-packed identifiers require field-specific conversion.
+Order IDs, clocks, floats and other integers must not be byte-swapped. Only
+explicit pointer fields and registry slot/generation pairs are normalized;
+public order IDs and numerical inputs remain exact. The original capture task
+label and map sidecar's omission of custom alias rows are preserved and explained
+in the provenance; independently parsed map bytes and live alias/range fields
+prove those rows.
+
+Checkpoint240 verifies the complete eleven-scene engine replay in both editions:
+all 59 issued/spell events and all 12 poll rows match, including the final
+cleanup event's raw clock. All 26 Couple Instant tests pass per edition (52 tests and 164,654
+assertions combined), and the saved full suffix repeats exactly. The fixture waits for the original completion
+marker within a hard bound and requires the restored suffix to take the same
+number of steps. Iteration236's event-registration fixture error and238's early
+stop are excluded from successful replay evidence; neither changes native
+expectations. This save continuation uses warm ReadGame, unlike the earlier
+path-state-cleared193/214 suffixes; neither is an SV_Map cold restart. The broader
+validation is composite: the 20 other236 focused runs pass 2,804 tests and
+17,698,746 assertions; the240 Couple runs pass separately,
+not another full suite or a repeated235 aggregate. All five237 native gates pass against the
+frozen240 candidate in both editions: Captain473, Group012, Itemdrop,
+Waygate377 and SupportGoal. Checkpoint241 also passes all 120 focused Python
+tests and validates the corpus with 614 entries and 3,316 pins. See `coupling_instant233_ready_projection.py`
+and `retail_couple_instant233_ready.provenance.json` for the native scope.
+
+### Bounded force and stop parameter audit
+
+The exact Acoi vtable `6fafc8dc+34c` resolves to `4358d0`, whose instruction bytes
+`b8 04 00 10 00 c3` return the constant `0x00100004`. Consequently the shared
+producer's ability-return bypass bit `0x02000000` is absent for this class and
+its data aliases. Slot `408` resolves to `417f90`; `40a7a0` supplies buffer0.
+The ordinary unit-target branch emits `d0174` with authored range or FLT_MAX,
+with a literal NULL final argument, or emits no physical task when both range
+and facing pass. The trailing action3 is an internal task; it does not establish
+a public Stop event by itself.
+
+Caster `+60` bit8 has a distinct, scoped producer. `608ed0` sets it at `60918c`,
+calls transient dispatch `688790` at `609195`, then clears it at `60919a`.
+The preparatory-item collector accepts exact AIma/AImr/AIra/AIre classes.
+Its source gate requires Town AI enrollment (`+5c` bit4), not merely computer
+control, Hero status or immobility. `40a7a0` snapshots the bypass before invoking
+its own preparation helper, so an ordinary outer Acoi producer does not gain
+that bypass from its own preparatory dispatch. Existing observer `unit.flags`
+reads `+5c`, not `+60`, and cannot prove this bypass's value.
+
+Transient dispatch publishes synchronous issued-order callbacks while bit8 is
+set. The inspected fresh Acoi admission path has no bit8 rejection, making a
+nested public Acoi command a concrete remaining producer candidate. The proposed
+native238 preparation/item-callback witness is **not yet accepted evidence**:
+public setup, admission and entry under the live bit must still be established.
+Do not declare the ordinary producer family complete or dismiss this reachable
+callback boundary as generic channel policy. Guarded original instructions,
+exports and the bounded design are retained in runtime `coupling-force237-audit`.
+Unrelated generic ability availability and channel-policy combinations remain
+ORDER-01.13. **25 leaves remain open; zero whole leaves close.**

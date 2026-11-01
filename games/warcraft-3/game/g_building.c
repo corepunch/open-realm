@@ -1957,7 +1957,6 @@ bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration
 }
 
 static edict_t *G_ConstructionWorker(edict_t *building) {
-    construction_t *site = building ? building->construction : NULL;
     edict_t *worker;
 
     if (!building || !(worker = building->construction->worker)) return NULL;
@@ -1972,7 +1971,6 @@ static edict_t *G_ConstructionWorker(edict_t *building) {
 }
 
 static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
-    construction_t *site = building ? building->construction : NULL;
     edict_t *worker;
     bool consumes, inside, work_active;
 

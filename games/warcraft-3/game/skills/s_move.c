@@ -5676,8 +5676,17 @@ static bool move_begin_target_approach(edict_t *unit, edict_t *target, float ran
  * Nested producers therefore activate before their still-pending parent, while
  * the ordinary group list remains newest-first (169840 ->16c880). */
 moveTargetPublication_t S_BeginTargetApproachPublication(edict_t *unit) {
-    moveGroup_t *group=unit ? move_unit_group(unit) : NULL;
-    if(!group || group->initialized || group->publication_pending || !group->target || !group->receiver || !group->complete)
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit))return (moveTargetPublication_t){0};
+    moveGroup_t *group=move_unit_group(unit);
+    /* Ready logical producers also cross synchronous notification callbacks,
+     * although they own no physical cohort to unlink. */
+    if(!group) {
+        if(move_target_publications==UINT32_MAX)gi.error("Move: target publication depth exhausted");
+        move_target_publications++;
+        return (moveTargetPublication_t){.unit=unit,.spawn=unit->spawn_time,
+            .revision=G_UnitMoveRevision(unit),.epoch=move_target_publication_epoch,.open=true};
+    }
+    if(group->initialized || group->publication_pending || !group->target || !group->receiver || !group->complete)
         return (moveTargetPublication_t){0};
     if(move_target_publications==UINT32_MAX)gi.error("Move: target publication depth exhausted");
     move_prepare_group_order();
@@ -5694,12 +5703,18 @@ moveTargetPublication_t S_BeginTargetApproachPublication(edict_t *unit) {
 
 bool S_TargetApproachPublicationPending(void) {return move_target_publications!=0;}
 
-void S_EndTargetApproachPublication(moveTargetPublication_t *publication) {
-    if(!publication || !publication->open)return;
+bool S_EndTargetApproachPublication(moveTargetPublication_t *publication) {
+    if(!publication || !publication->open)return false;
+    bool published=false;
     moveTargetPublication_t const held=*publication;*publication=(moveTargetPublication_t){0};
     assert(move_target_publications);
     if(held.epoch!=move_target_publication_epoch)goto closed;
     moveGroup_t *group=held.group;edict_t *unit=held.unit;
+    if(!group) {
+        published=unit->inuse && unit->spawn_time==held.spawn && !G_IsDeferredFree(unit) &&
+            G_UnitMoveRevision(unit)==held.revision;
+        goto closed;
+    }
     if(!group->inuse || group->id!=held.group_id || group->sequence!=held.sequence || !group->publication_pending)goto closed;
     bool actor=unit->inuse && unit->spawn_time==held.spawn && !G_IsDeferredFree(unit);
     if(!actor || G_UnitMoveRevision(unit)!=held.revision || unit->movement.group_id!=held.group_id ||
@@ -5722,9 +5737,10 @@ void S_EndTargetApproachPublication(moveTargetPublication_t *publication) {
     group->sequence=++level.next_move_group_sequence;
     group->newer=NULL;group->older=move_group_head;
     if(move_group_head)move_group_head->newer=group;
-    move_group_head=group;
+    move_group_head=group;published=true;
 closed:
     move_target_publications--;
+    return published;
 }
 
 bool S_BeginUnitTargetApproach(edict_t *unit,edict_t *target,float range,

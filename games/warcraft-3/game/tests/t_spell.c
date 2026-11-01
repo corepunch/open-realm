@@ -4247,7 +4247,7 @@ TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
 	S_AttackProfileWrite(enemy, 0)->cooldown = 1.0f;
 	S_AttackProfileWrite(enemy, 0)->damagePoint = 0.3f;
 	enemy->unitinfo.MoveSpeed = 270.0f;
-	float const normal_move_distance = unit_movedistance(enemy);
+	(void)unit_movedistance(enemy);
 	attack_melee(enemy);
 	T_FEQ(enemy->wait, 0.3f, 0.001f);
 	test_execute_code(caster, "Aslo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));

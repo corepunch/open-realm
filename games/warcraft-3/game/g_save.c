@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 229; /* Target-task physical publication follows producer unwind. */
+static uint32_t const save_version = 230; /* Ready logical completion follows producer publication/coordination. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -776,6 +776,7 @@ static field_t const couple_instant_fields[] = {
     TF(coupleInstant_t, order_id, F_INT),
     TF(coupleInstant_t, serial, F_INT),
     TF(coupleInstant_t, constructing, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(coupleInstant_t, ready_pending, F_IGNORE, 0, FIELD_RUNTIME),
     TF(coupleInstant_t, channel_owner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(coupleInstant_t, reservation.target, F_EDICT, 0, FIELD_NONE),
     TF(coupleInstant_t, reservation.target_spawn_time, F_INT),
