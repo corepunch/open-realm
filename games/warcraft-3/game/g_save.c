@@ -254,6 +254,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(stampede_channel_think),
     SAVE_CFUNCTION(stampede_beast_prethink),
     SAVE_CFUNCTION(stampede_blast_think),
+    SAVE_CFUNCTION(tinker_rockets_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

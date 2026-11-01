@@ -2060,7 +2060,9 @@ void spell_cmd(edict_t *clent) {
             clent->client->menu.on_location_selected = NULL;
             clent->client->menu.on_entity_selected = spell_ability_entity_target_selected;
         } else if (!spell_is_tiny_structure(spell)) {
-            float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
+            uint32_t const display_code = S_TinkerVariant(caster, code);
+            uint32_t const display_level = display_code == code ? S_SpellLevel(caster, code) : 1;
+            float area = S_SpellNumber(display_code, ABILITY_NUMBER_AREA, display_level);
             S_SpellCursorSplat(clent, area);
         }
         if (!entity_target)

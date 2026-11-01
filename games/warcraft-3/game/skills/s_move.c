@@ -1504,6 +1504,7 @@ static float unit_effective_speed(edict_t *ent) {
     if (S_ItemSpeedActive(ent)) return game.constants.maxUnitSpeed;
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
+    speed *= 1.0f + S_TinkerEngineeringMoveBonus(ent);
     speed *= 1.0f + S_UnholyMoveBonus(ent);
     /* Status-owned movement contributions are resolved once, not per spell. */
     speed *= S_HumanMoveFactor(ent);

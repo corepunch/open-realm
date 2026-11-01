@@ -36,19 +36,21 @@ void pocket_factory_think(edict_t *thinker) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityPocketFactory) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    uint32_t interval = (uint32_t)(S_SpellData(spell->code, level, 1) * 1000.0f);
-    uint32_t clockwerk = S_SpellDataId(spell->code, level, 2);
-    float duration = S_SpellDuration(spell->code, level, false);
+    uint32_t code = S_TinkerVariant(caster, spell->code);
+    uint32_t const data_level = code == spell->code ? level : 1;
+    uint32_t interval = (uint32_t)(S_SpellData(code, data_level, 1) * 1000.0f);
+    uint32_t clockwerk = S_SpellDataId(code, data_level, 2);
+    float duration = S_SpellDuration(code, data_level, false);
     edict_t *factory, *thinker;
     if (!interval || !clockwerk || duration <= 0.0f) return;
-    factory = S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point, duration);
+    factory = S_SummonAbilityAt(caster, code, S_SpellUnitId(code, data_level), &st.point, duration);
     if (!factory) return;
     thinker = S_SpellIdentityThinker(factory, 0, NULL);
     if (!thinker) { G_FreeEdict(factory); return; }
     thinker->damage = clockwerk; thinker->resources = interval;
-    thinker->wait = S_SpellData(spell->code, level, 3);
-    thinker->collision = S_SpellData(spell->code, level, 4);
-    thinker->velocity = S_SpellData(spell->code, level, 5); /* DataE leash range */
+    thinker->wait = S_SpellData(code, data_level, 3);
+    thinker->collision = S_SpellData(code, data_level, 4);
+    thinker->velocity = S_SpellData(code, data_level, 5); /* DataE leash range */
     thinker->freetime = G_Time() + interval; thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->think = pocket_factory_think;
 }

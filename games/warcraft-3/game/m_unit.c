@@ -2696,6 +2696,8 @@ bool G_HeroLearnSkill(edict_t *ent, uint32_t abilcode) {
     if (!G_HeroModifySkillPoints(ent, -1)) {
         return false;
     }
+    if (G_AbilityCode(abilcode) == MAKEFOURCC('A','N','e','g'))
+        S_TinkerOnEngineeringLearned(ent, old_level);
     return true;
 }
 
@@ -2723,7 +2725,7 @@ void G_RecomputeHeroStats(edict_t *ent) {
     float const agiDefenseBonus = game.constants.combatConstantsLoaded
                                 ? game.constants.agiDefenseBonus
                                 : 0.3f;
-    float const newArmor = balance->armor + ((int32_t)ent->unit_state->hero.agi - baseAgi) * agiDefenseBonus;
+    float const newArmor = balance->armor + ((int32_t)ent->unit_state->hero.agi - baseAgi) * agiDefenseBonus + S_TinkerRoboArmor(ent);
 
     bool const alive = ent->health.value > 0.0f;
     float const dHP = newMaxHP - ent->health.max_value;
@@ -2761,10 +2763,12 @@ void G_RecomputeHeroStats(edict_t *ent) {
         if (ent->data.UnitWeapons) {
             ent->unit_state->attack1.damageBase = (uint32_t)MAX(0,
                 (int32_t)ent->data.UnitWeapons->attack1.damageBase + primaryDamage
-                + (int32_t)ent->unit_state->attack1.permanentDamageBonus);
+                + (int32_t)ent->unit_state->attack1.permanentDamageBonus
+                + (int32_t)S_TinkerEngineeringDamageBonus(ent));
             ent->unit_state->attack2.damageBase = (uint32_t)MAX(0,
                 (int32_t)ent->data.UnitWeapons->attack2.damageBase + primaryDamage
-                + (int32_t)ent->unit_state->attack2.permanentDamageBonus);
+                + (int32_t)ent->unit_state->attack2.permanentDamageBonus
+                + (int32_t)S_TinkerEngineeringDamageBonus(ent));
         }
     }
 }
