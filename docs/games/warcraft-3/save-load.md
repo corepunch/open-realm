@@ -1,3 +1,42 @@
+Save231 adds preparatory item-ability identities and a spell-owned Move
+continuation. `moveContinuation_t` contains only destination point, speed and
+public order ID; it borrows no waypoint, group or client order pointer. The
+approach channel owns this value until cast creation consumes and clears it,
+then the scheduled cast record owns it. Cancellation discards it. Successful
+completion resumes the Move only while the cast still owns the actor; a callback
+replacement retains control. The loader requires finite coordinates, finite
+nonnegative speed and either the supported Move order or an empty value. A live
+continuation must match its restored approach receiver/owner and public head,
+or its active scheduled cast and `ordered_spell_move`; invalid owners reject
+load instead of reconstructing an unrelated Move.
+
+The preparation registry has a dedicated saved section immediately after the
+entity pools. Rows retain item/carrier indices and incarnations, configured
+alias/ordinal, identity slot/generation, the LIFO free chain and domain generation
+counter. Read reconstructs item lookup chains and checks the supplied rows,
+free-list graph and completeness against actual usable inventory attachments.
+An empty registry cannot silently erase held potion contributions. These are
+local retained identities, not literal native global agent IDs. Direct saves
+and loads reject open preparation frames; map reset invalidates their epoch
+before old frames unwind. Save230 and earlier layouts are rejected.
+
+Checkpoint253 passes 24 focused processes, 2,400 tests and 464,334 assertions,
+including the rerun of native249 scene1's 122 public records and 10 raw phase
+clocks in both editions. Facing/cast saved suffixes use path-state-cleared
+ReadGame, not an SV_Map cold restart. Explicit later Stop/Move cancellation and
+current-format malformed-save cases also pass in both editions: nonfinite
+facing data and a mismatched cast public head reject load, then a valid save
+restores successfully. These negative interventions are engine regressions,
+not new native oracles. Five native gates pass through four 253 reports and
+the 254 Itemdrop rerun, with unchanged production sources. The 255 direct-cast
+regression also confirms that successful `spell_commit` already clears temporary
+Move staging through channel/cast cancellation; the suspected leak is retracted
+without a production fix. This does not prove all EFFECT/save compositions.
+The 255 broader run passes all 24 processes, 2,402 tests and 464,402 assertions
+with zero failures. Final verification passes 120 focused Python tests in
+42.506 seconds and direct manifest loading of 614 entries/3,316 pins; the five
+native gates retain their composite253/254 scope. See [preparatory coupling ownership](hippogryph-couple.md#preparatory-item-callback-producer-accepted-native-evidence-pending-port).
+
 Save226 adds the game-owned Couple Instant `coupleInstant_t` pool. The edict's
 `couple_instant` pointer is runtime-excluded from the raw record and restored by
 the typed pool; the partner uses `F_EDICT`, with its incarnation and configured

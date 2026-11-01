@@ -2214,7 +2214,7 @@ typedef struct {
     uint32_t partner_spawn_time, ability, order_id, serial;
     unitAbilityDisable_t *channel_owner; /* Retained exact attachment; rebuilt after load. */
     targetReservationLease_t reservation;
-    bool active, waiting, constructing, linked, retiring, resume, channel_open, ready_pending;
+    bool active, waiting, constructing, linked, retiring, resume, channel_open, ready_pending, point_channel;
 } coupleInstant_t;
 
 typedef struct {
@@ -2407,12 +2407,24 @@ typedef struct {
     bool sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
 } sleep_t;
 
+/* A spell factory may temporarily execute above a callback's logical Move.
+ * Coordinates own the continuation; no borrowed waypoint or SC2 order cache. */
+typedef struct {
+    vec2_t point;
+    float speed;
+    uint32_t order_id;
+} moveContinuation_t;
+bool S_CaptureMoveContinuation(edict_t const *,moveContinuation_t *);
+bool S_ResumeMoveContinuation(edict_t *,moveContinuation_t const *);
+bool S_ValidMoveContinuation(moveContinuation_t const *);
+
 typedef struct {
     uint32_t code;     // ability code being channeled (0 = none)
     uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
     uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
     uint32_t target_spawn_time; // thinker copy of target identity; rejects reused target slots
     vec2_t origin; // position when channel started (movement cancels channel)
+    moveContinuation_t resume_move; /* Approach-owned suspended logical task. */
 } channel_t;
 
 typedef enum {
@@ -5087,6 +5099,19 @@ bool G_UnitIsHero(edict_t const *ent);
 float G_UnitDissipatePresentationAlpha(edict_t const *ent);
 float G_UnitArmorValue(edict_t const *ent);
 bool S_SpellCooldownReady(edict_t *caster, uint32_t code);
+float S_PreparatoryManaPotential(edict_t const *);
+bool S_PrepareSpellMana(edict_t *,uint32_t code,uint32_t rank);
+bool S_SpellPreparationBypassesTarget(edict_t const *);
+bool S_SpellPreparationPending(void);
+uint64_t S_SpellPreparationEpoch(void);
+void S_ResetSpellPreparation(void);
+void S_AttachPreparatoryItems(edict_t *unit,edict_t *item);
+void S_DetachPreparatoryItems(edict_t *item);
+bool S_WritePreparationItems(FILE *);
+bool S_ReadPreparationItems(FILE *);
+bool S_ValidateUnitTargetSpell(edict_t *,uint32_t,edict_t *);
+bool S_ValidatePointTargetSpell(edict_t *,uint32_t,vec2_t const *);
+bool S_ValidateNoTargetSpell(edict_t *,uint32_t);
 float S_SpellCooldownRemaining(edict_t *caster, uint32_t code);
 float S_SpellCooldownLength(edict_t *caster, uint32_t code);
 bool S_SpellCooldownWindow(edict_t *caster, uint32_t code, abilityCooldownWindow_t *window);
@@ -5371,6 +5396,7 @@ uint32_t G_ItemCharges(edict_t const *item);
 void G_SetItemCharges(edict_t *item, uint32_t charges);
 void G_ConsumeItemCharge(edict_t *item);
 void G_CompleteItemUse(edict_t *unit, edict_t *item);
+void G_CompletePreparatoryItemUse(edict_t *unit, edict_t *item);
 void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);

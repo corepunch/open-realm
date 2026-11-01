@@ -1173,6 +1173,53 @@ TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, mana_and_restoration_item_messages_use_carrier_and_authored_alias_data) {
+    setup_test_world();
+    mapInfo_t *info=(mapInfo_t *)level.mapinfo;
+    uint32_t old_format=info->fileFormat;
+    edict_t *player=&g_edicts[0];
+    edict_t *carrier=make_item_test_inventory_unit(0,0);
+    edict_t *selected=make_item_test_inventory_unit(64,0);
+    carrier->s.player=selected->s.player=0;
+    carrier->mana.max_value=selected->mana.max_value=200;
+    player->client->ps.number=0;
+    G_SelectEntity(player->client,selected);
+    static ItemData_t data={.abilList="Zman,Zres",.uses=1,.usable=true,.perishable=true};
+    edict_t *source=make_item_test_world_item(MAKEFOURCC('p','m','a','n'),0,0);
+    source->data.ItemData=&data;
+    source->item->carrier=carrier;source->item->inventory_slot=0;
+    source->item->in_world=false;source->item->charges=1;carrier->inventory[0]=source;
+    for(unsigned edition=0;edition<2;edition++) {
+        info->fileFormat=edition ? 25 : 24;
+        char text[1400];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+            "C;X4;K\"%s\"\nC;X5;K\"%s\"\n"
+            "C;Y2;X1;K\"Zman\"\nC;X2;K\"AIma\"\nC;X3;K1\nC;X4;K37\n"
+            "C;Y3;X1;K\"Zres\"\nC;X2;K\"AIre\"\nC;X3;K1\nC;X4;K23\nC;X5;K41\nE\n",
+            edition ? "DataA1" : "Data11",edition ? "DataB1" : "Data12");
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        carrier->health.value=selected->health.value=50;
+        carrier->mana.value=10;selected->mana.value=5;
+        abilityitem_t item=S_AbilityItem(MAKEFOURCC('Z','m','a','n'));
+        abilityCall_t call={.item=&item,.client=player,.source_item=source,.source_item_spawn_time=source->spawn_time};
+        T_ASSERT(S_AbilityMessage(carrier,A_ITEM_USE,&call));
+        T_FEQ(carrier->mana.value,47,0);T_FEQ(selected->mana.value,5,0);
+        item=S_AbilityItem(MAKEFOURCC('Z','r','e','s'));
+        T_ASSERT(S_AbilityMessage(carrier,A_ITEM_USE,&call));
+        T_FEQ(carrier->mana.value,88,0);T_FEQ(carrier->health.value,73,0);
+        T_FEQ(selected->mana.value,5,0);T_FEQ(selected->health.value,50,0);
+        T_EQ(source->item->charges,1); /* Resource body alone does not commit item use. */
+        T_ASSERT(G_GetMainSelectedUnit(player->client) == selected);
+        /* The existing client-driven path still uses its selected unit. */
+        item=S_AbilityItem(MAKEFOURCC('Z','m','a','n'));
+        T_ASSERT(S_AbilityMessage(player,A_ITEM_USE,&call));
+        T_FEQ(selected->mana.value,42,0);T_FEQ(carrier->mana.value,88,0);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    info->fileFormat=old_format;
+}
+
 TEST(wc3_items, restoration_rune_restores_both_resources_from_authored_data) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X7\n"

@@ -13,7 +13,9 @@ static instantPhase_t const instant_endcast={EVENT_PLAYER_UNIT_SPELL_ENDCAST,EVE
 static instantPhase_t const instant_finish={EVENT_PLAYER_UNIT_SPELL_FINISH,EVENT_UNIT_SPELL_FINISH};
 
 static bool instant_phase(edict_t *unit,coupleInstant_t const *state,instantPhase_t const *phase) {
-    return S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=state->ability,.target={.type=SPELL_TARGET_UNIT,.entity=state->partner},.player_event=phase->player,.unit_event=phase->unit},state->serial);
+    spellTarget_t target=state->point_channel ? (spellTarget_t){.type=SPELL_TARGET_NONE} :
+        (spellTarget_t){.type=SPELL_TARGET_UNIT,.entity=state->partner};
+    return S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=state->ability,.target=target,.player_event=phase->player,.unit_event=phase->unit},state->serial);
 }
 
 /* Pool teardown has no public spell callbacks, but still releases the retained
@@ -132,16 +134,50 @@ static void instant_cancel(edict_t *unit) {
     if(unit->inuse && unit->spawn_time==spawn && unit->couple_instant && unit->couple_instant->serial==serial) {
         S_ReleaseTargetReservation(&unit->couple_instant->reservation);
         unit->couple_instant->active=false;
+        unit->couple_instant->point_channel=false;
     }
 }
 
 static umove_t instant_wait_move={.animation="stand",.proc=CAbilityCoupleInstant};
+
+/* 40a7a0's scoped direct CHANNEL returns before setting target-mode10000.
+ * Acoi's402850 ->402b20 rejects that mode (class00100004 lacks bit2), before
+ * range validation or4ca180. The identity is retained, but the event unit is
+ * NULL; only CHANNEL keeps the cached click coordinates. */
+static bool instant_point_channel(edict_t *unit,abilityCall_t const *call) {
+    coupleInstant_t *state=unit->couple_instant;
+    uint32_t spawn=unit->spawn_time,serial=state->serial,revision=G_UnitMoveRevision(unit);
+    state->point_channel=true;state->channel_open=true;
+    state->channel_owner=S_RetainAbilityAvailability(unit,state->ability,0);
+    unitAbilityDisable_t *owner=S_RetainAbilityAvailability(unit,state->ability,0);
+    coupleInstant_t packet=*state;
+    bool current=S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=packet.ability,
+        .target=*call->target,.player_event=instant_channel.player,.unit_event=instant_channel.unit},serial);
+    S_AdjustAbilityBusy(owner,1);S_ReleaseAbilityAvailability(owner);
+    if(!instant_alive(unit,spawn) || !unit->couple_instant || unit->couple_instant->serial!=serial)return true;
+    state=unit->couple_instant;
+    if(!state->channel_open) {
+        instant_phase(unit,&packet,&instant_finish);
+        return true;
+    }
+    instant_phase(unit,&packet,&instant_finish);
+    if(!instant_alive(unit,spawn) || !unit->couple_instant || unit->couple_instant->serial!=serial)return true;
+    state=unit->couple_instant;
+    if(state->channel_open)instant_end_channel(unit);
+    if(!instant_alive(unit,spawn) || !unit->couple_instant || unit->couple_instant->serial!=serial)return true;
+    state=unit->couple_instant;
+    state->active=false;state->point_channel=false;
+    S_ReleaseTargetReservation(&state->reservation);
+    if(current && G_UnitMoveRevision(unit)==revision)unit_stand(unit);
+    return true;
+}
 
 /* Only DataB zero enters the indefinite wait. The merging actor supplies
  * its own authored result and pose; originals retire world/life separately. */
 static bool instant_complete(edict_t *unit,abilityCall_t const *call) {
     coupleInstant_t *state=unit->couple_instant;
     if(!state || !state->active || !call || !call->item || state->ability!=call->item->code)return false;
+    if(call->target && call->target->type==SPELL_TARGET_POINT)return instant_point_channel(unit,call);
     /* 423d90 finishes its producer and publishes the synthetic target before
      * ready terminal delivery. A nested peer can retire this owner first. */
     if(state->constructing) {state->ready_pending=true;return true;}
@@ -242,7 +278,8 @@ static queuedOrderResult_t instant_activate(edict_t *unit,unitOrder_t const *pac
         abilityCall_t ready=MAKE(abilityCall_t,.item=&item,.target=&ready_target);
         instant_complete(unit,&ready);
     }
-    return instant_alive(unit,spawn) && G_UnitMoveRevision(unit)==revision ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
+    return instant_alive(unit,spawn) && G_UnitMoveRevision(unit)==revision &&
+        unit->current_order_id==packet->order_id ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }
 BZ_ABILITY_PROC(CAbilityCoupleInstant) {
     switch(msg) {
@@ -363,7 +400,7 @@ BZ_ABILITY_PROC(CAbilityCoupleInstant) {
             if(instant_alive(ent,spawn) && G_UnitMoveRevision(ent)==revision)unit_stand(ent);
         }
         return false;
-    case A_VALIDATE:return call && call->target && call->item && instant_validate(ent,call->target->entity,call->item->code);
+    case A_VALIDATE:return call && call->target && call->target->type==SPELL_TARGET_UNIT && call->item && instant_validate(ent,call->target->entity,call->item->code);
     case A_SPELL_TARGET_COMPLETE:return instant_complete(ent,call);
     default:return false;
     }

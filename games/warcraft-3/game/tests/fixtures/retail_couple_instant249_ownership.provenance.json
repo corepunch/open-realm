@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "projection_sha256": "48e22a46a74b8e14fd8cb915aaf141648f9d124925b573f8a2a1796d040afea5",
+  "header_sha256": "6339396c8476868e0e50101cb03369c2ad1a675cfd266bc6657326f41f50c764",
+  "capture_files_sha256": {
+    "itemdrop_probe.j": "d872f25905dfce823b73ee3f6a9e6c678097a32d29f32ced189b0b7f96e45dd3",
+    "itemdrop_observer.js": "5db03ea5da368c6435565e22f0aead365bd350c11441e1379d830c6005f50eeb",
+    "itemdrop_capture.py": "b2e25346367ec768e34c229ee4d67b0c9b108f32ceae58e7493fd15ae854bd74",
+    "itemdrop_make_map.py": "d90b5986dc81c533376e6522b40f86a2441d48d52dfbba89138a140877497bcc",
+    "probe.ai": "a6857c412666d7ebf97f5835c0f327c5b8ec1b00ad676b01270b70f6763f0975",
+    "run.py": "351908913b177e589abb1996dbb27aac27cfac76620884b475e91581688c7c37",
+    "design.json": "39460f3d029784f55447ad28acd5a5ee342ff9629da4fdededb59294a1f8b432",
+    "RS-TARGET249-preparation-ownership-v1.w3m": "e1b7f92f095c7b1873958ba95431569dde1aa7fdbbb3d6e21792508ad552fadd",
+    "RS-TARGET249-preparation-ownership-v1.json": "76fb93cd529944d15e933df6c883728ee5c95c522571f9804f1ed993b664aa2d",
+    "frozen-sources.json": "a7ae4726b1897bf0e17d21ed2fa0691590617bae53c273e359bcb8f0657494b8",
+    "runs.json": "44631311d055fc9daccf6339d0b54c5326d4830d05e65191e4bdda52488571c0",
+    "observe1.jsonl": "3742439acdcab445c99cd6cbd12eb99872861b73a206323aef818e6ed2204afb",
+    "observe2.jsonl": "d613329b0b738d8f8446db8e3fb675bcd1b3b9f63b252101f05370a3763b0278",
+    "control1.jsonl": "8643c0bb8149ef7794e88e3a65733ca066bffd05d1adbe1c82da135292cbd647",
+    "observe1-preload.txt": "41205aa97e73f449623116adfe337ecd04aecc841e163d26381b486ffc3180a0",
+    "observe2-preload.txt": "aa0144f312d235b3c796fbaa2fd7489e2cfd7da94738f4cecc0da855bd371061",
+    "control1-preload.txt": "db5821fe9d8c135691ebffb115563b8d11e1d32b2865e6e94142f745f85d8cec"
+  },
+  "limitations": [
+    "Scene4 transfer attempt returnedfalse; successful transfer unmeasured.",
+    "Public source handle retained type/life after RemoveUnit does not prove worldpresence.",
+    "Targetrole0 alone is not a null measurement.",
+    "737 scoped rows select documented fields; raw captures preserve omitted fields.",
+    "Move pointer strings use first-appearance roles; numeric identity/float/clock words are unchanged. Unit+cc retains only measured potential word; adjacent unspecified words are excluded as in243.",
+    "No complete movement parity claim.",
+    "FourCC values are native integer encoding; engine comparisons must map typed identifiers."
+  ]
+}

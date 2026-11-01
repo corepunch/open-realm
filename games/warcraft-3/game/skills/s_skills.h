@@ -259,6 +259,7 @@ BZ_ABILITY_PROC(CAbilityCoupleHippogryph);
 BZ_ABILITY_PROC(CAbilityDecouple);
 BZ_ABILITY_PROC(CAbilityItemHeal);
 BZ_ABILITY_PROC(CAbilityItemManaRestore);
+BZ_ABILITY_PROC(CAbilityItemRestore);
 BZ_ABILITY_PROC(CAbilityItemInvis);
 BZ_ABILITY_PROC(CAbilityAttackBonus);
 BZ_ABILITY_PROC(CAbilityMoveSpeedBonus);
@@ -771,6 +772,8 @@ typedef struct {
     uint32_t code;
     spellTarget_t target;
     EVENTTYPE player_event,unit_event;
+    bool override_point;
+    vec2_t point;
 } spellPhaseParams_t;
 bool S_DispatchSpellPhase(spellPhaseParams_t const *);
 /* Synchronous owner frames expose live target clearing to resumed callbacks,

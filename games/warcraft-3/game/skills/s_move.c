@@ -5381,6 +5381,35 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
         self->current_order_id = order_id;
 }
 
+/* Keep the admitted point task independently of its disposable physical group.
+ * Retail249 reconstructs the same request after the intervening spell ends. */
+bool S_ValidMoveContinuation(moveContinuation_t const *resume) {
+    if(!isfinite(resume->point.x) || !isfinite(resume->point.y) ||
+       !isfinite(resume->speed) || resume->speed<0)return false;
+    return resume->order_id ? resume->order_id==G_OrderId("move") :
+        resume->point.x==0 && resume->point.y==0 && resume->speed==0;
+}
+bool S_CaptureMoveContinuation(edict_t const *unit,moveContinuation_t *resume) {
+    if(!unit || unit->current_order_id!=G_OrderId("move") ||
+       unit->currentmove!=&move_move_walk || !unit->goalentity ||
+       !(unit->goalentity->svflags&SVF_MOVE_WAYPOINT))return false;
+    *resume=(moveContinuation_t){.point=unit->goalentity->s.origin2,
+        .speed=unit->movement.group_speed,.order_id=unit->current_order_id};
+    return S_ValidMoveContinuation(resume);
+}
+bool S_ResumeMoveContinuation(edict_t *unit,moveContinuation_t const *resume) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       !resume->order_id || !S_ValidMoveContinuation(resume))return false;
+    uint32_t spawn=unit->spawn_time;
+    edict_t *goal=Waypoint_add(&resume->point);
+    if(!goal)return false;
+    S_IssueMoveOrder(unit,goal,resume->order_id);
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       unit->goalentity!=goal || unit->currentmove!=&move_move_walk)return false;
+    unit->movement.group_speed=resume->speed;
+    return true;
+}
+
 /* AI admission remains an independent follower until the all-entered gate.
  * Saved physical state retains this phase without a process-owned bot VM. */
 bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {

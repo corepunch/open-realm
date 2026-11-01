@@ -105,6 +105,8 @@ static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
      * change while an item is carried (custom abilities/tech/scripted data),
      * and blocking A_ITEM_REMOVE would leak the old stat bonus after a drop. */
     if (apply && !G_InventoryCanUseItems(unit)) return;
+    if (apply) S_AttachPreparatoryItems(unit, (edict_t *)item);
+    else S_DetachPreparatoryItems((edict_t *)item);
     abilities = G_ItemAbilityList(item);
     if (!abilities || !*abilities) return;
     PARSE_LIST(abilities, ability, parse_segment) {
@@ -415,6 +417,8 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
 
     if (!rec || rec->pending_use_removal) return;
     carrier = rec->carrier;
+    uint32_t item_spawn = item->spawn_time;
+    uint32_t carrier_spawn = carrier ? carrier->spawn_time : 0;
     slot = rec->inventory_slot;
     rec->pending_use_carrier = carrier;
     rec->pending_use_carrier_spawn_time = carrier ? carrier->spawn_time : 0;
@@ -427,7 +431,14 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
             }
         }
         if (slot >= 0) {
+            bool preparing = S_SpellPreparationBypassesTarget(carrier);
             G_ApplyItemStats(carrier, item, false);
+            if (preparing && !S_SpellPreparationBypassesTarget(carrier)) return;
+            if (!item->inuse || item->spawn_time != item_spawn || G_IsDeferredFree(item) ||
+                item->item != rec) return;
+            if (!carrier->inuse || carrier->spawn_time != carrier_spawn ||
+                G_IsDeferredFree(carrier) || rec->carrier != carrier ||
+                G_InventoryItem(carrier, slot) != item) return;
             carrier->inventory[slot] = NULL;
         }
         G_RefreshInventoryUI(carrier);
@@ -459,6 +470,36 @@ void G_CompleteItemUse(edict_t *unit, edict_t *item) {
         return;
     }
     G_ConsumeItemCharge(item);
+}
+
+/* Preparatory item packets commit after ENDCAST. Native249 observes the
+ * decremented charge while the item remains carried in synchronous USE_ITEM.
+ * Exhausted perishables retire only after that callback returns. Ordinary item
+ * entry points retain their existing queued-event completion contract. */
+void G_CompletePreparatoryItemUse(edict_t *unit, edict_t *item) {
+    item_t *rec = G_ItemState(item);
+    if (!unit || !unit->inuse || G_IsDeferredFree(unit) || !rec ||
+        G_IsDeferredFree(item) || rec->pending_use_removal || rec->carrier != unit ||
+        !item->data.ItemData) return;
+    uint64_t epoch = S_SpellPreparationEpoch();
+    uint32_t unit_spawn = unit->spawn_time, item_spawn = item->spawn_time;
+    bool unlimited = item->data.ItemData->uses == 0;
+    if (!unlimited) {
+        if (!rec->charges) return;
+        --rec->charges;
+    }
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,
+        .type=EVENT_PLAYER_UNIT_USE_ITEM},EVENT_UNIT_USE_ITEM,false);
+    if (epoch != S_SpellPreparationEpoch()) return;
+    if (!unit->inuse || unit->spawn_time != unit_spawn || G_IsDeferredFree(unit) ||
+        !item->inuse || item->spawn_time != item_spawn || G_IsDeferredFree(item) ||
+        item->item != rec || rec->carrier != unit || rec->pending_use_removal ||
+        rec->inventory_slot < 0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot) != item) return;
+    if (!unlimited && !rec->charges && item->data.ItemData->perishable) {
+        G_RemoveItem(item);
+    } else {
+        G_RefreshInventoryUI(unit);
+    }
 }
 
 static bool G_ConsumedItemHasQueuedEvent(edict_t const *item) {
@@ -575,6 +616,7 @@ bool G_AddItemToSlotScripted(edict_t *unit, edict_t *item, uint32_t slot) {
  * admission. A failed Give attachment retains a hidden unowned item, while
  * RemoveUnit's retirement producer observes the already-cleared source slot. */
 void G_DetachCarriedItem(edict_t *item) {
+    S_DetachPreparatoryItems(item);
     edict_t *carrier=item->item->carrier;
     int32_t slot=item->item->inventory_slot;
     if(carrier && carrier->inuse) {

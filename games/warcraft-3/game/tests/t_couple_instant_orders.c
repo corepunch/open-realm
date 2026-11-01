@@ -14,12 +14,12 @@ typedef struct {
     edict_t *archer,*hippo;
 } coupleInstantFixture_t;
 static cstring_t const couple_instant_tables[]={"UnitBalance","UnitData","UnitAbilities","UnitUI","AbilityData"};
-typedef struct {float archer_x;bool range333,empty,retail_profile;cstring_t peer_type;} coupleInstantSetup_t;
+typedef struct {float archer_x;bool range333,empty,retail_profile,preparation_profile;cstring_t peer_type;} coupleInstantSetup_t;
 static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSetup_t const *setup) {
     float archer_x=setup->archer_x;bool range333=setup->range333;cstring_t peer_type=setup->peer_type;
     reset_entities();setup_test_world();memset(f,0,sizeof(*f));f->old_info=level.mapinfo;
     bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
-    char ability[1800];snprintf(ability,sizeof(ability),
+    char ability[4096];snprintf(ability,sizeof(ability),
         "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
         "C;X4;K\"UnitID1\"\nC;X5;K\"Rng1\"\nC;X6;K\"levels\"\nC;X7;K\"targs\"\nC;X8;K\"%s\"\nC;X9;K\"Area1\"\n"
         "C;X1;Y2;K\"Aco2\"\nC;X2;K\"Acoi\"\nC;X3;K\"ehip\"\nC;X4;K\"ehpr\"\nC;X5;K%g\nC;X6;K1\nC;X7;K\"vuln,invu\"\nC;X8;K0\nC;X9;K900\n"
@@ -53,6 +53,33 @@ static void CoupleInstantBeginProfile(coupleInstantFixture_t *f,coupleInstantSet
         char *death=strstr(retail_data,"X7;K0.4");if(death)memcpy(death,"X7;K3.0",7);
         death=strstr(retail_data,"X7;K1.2");if(death)memcpy(death,"X7;K3.0",7);
         text[0]=retail_balance;text[1]=retail_data;
+    }
+    char preparation_balance[2048],preparation_data[2048],preparation_abilities[1024],preparation_ui[1024];
+    if(setup->preparation_profile) {
+        /* Authored native243 ehip mana capacity, separate Inner Fire and stock
+         * mana-potion alias. Keep this profile isolated from prior captures. */
+        snprintf(preparation_balance,sizeof(preparation_balance),"%.*s%s",(int)strlen(text[0])-2,text[0],
+            "C;Y1;X5;K\"manaN\"\nC;X6;K\"realM\"\nC;X7;K\"mana0\"\n"
+            "C;Y3;X5;K200\nC;X6;K200\nC;X7;K0\n"
+            "C;Y5;X1;K\"hfoo\"\nC;X2;K420\nC;X3;K270\nC;X4;K31\n"
+            "C;Y1;X8;K\"repulse\"\nC;X9;K\"repulseParam\"\nC;X10;K\"repulseGroup\"\nC;X11;K\"repulsePrio\"\n"
+            "C;Y2;X8;K0\nC;Y3;X8;K1\nC;Y4;X8;K1\n"
+            "C;Y5;X8;K2\nC;X9;K17\nC;X10;K17\nC;X11;K17\nE\n");
+        snprintf(preparation_data,sizeof(preparation_data),"%.*s%s",(int)strlen(text[1])-2,text[1],
+            "C;Y5;X1;K\"hfoo\"\nC;X2;K\"foot\"\nC;X3;K0.6\nC;X4;K\"human\"\nC;X5;K31\nC;X6;K60\n"
+            "C;Y1;X8;K\"targType\"\nC;X9;K\"castpt\"\nC;X10;K\"castbsw\"\nC;Y3;X9;K0.3\nC;X10;K0.51\nC;Y2;X8;K\"ground\"\nC;Y3;X8;K\"air\"\nC;Y4;X8;K\"air\"\nC;Y5;X8;K\"ground\"\nE\n");
+        snprintf(preparation_abilities,sizeof(preparation_abilities),"%.*s%s",(int)strlen(text[2])-2,text[2],
+            "C;Y5;X1;K\"hfoo\"\nC;X2;K\"Amov\"\nE\n");
+        snprintf(preparation_ui,sizeof(preparation_ui),"%.*s%s",(int)strlen(text[3])-2,text[3],
+            "C;Y5;X1;K\"hfoo\"\nC;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\nE\n");
+        size_t used=strlen(ability)-2;
+        snprintf(ability+used,sizeof(ability)-used,
+            "C;Y1;X10;K\"Cost1\"\nC;X11;K\"Cast1\"\nC;X12;K\"Cool1\"\nC;X13;K\"Dur1\"\nC;X14;K\"item\"\nC;X15;K\"checkDep\"\nC;X16;K\"%s\"\nC;X17;K\"%s\"\nC;X18;K\"%s\"\nC;X19;K\"BuffID1\"\n"
+            "C;Y4;X1;K\"Xinf\"\nC;X2;K\"Ainf\"\nC;X3;K0.1\nC;X5;K99999\nC;X6;K1\nC;X7;K\"air,ground,friend,neutral,self\"\nC;X8;K5\nC;X10;K50\nC;X11;K0\nC;X12;K0\nC;X13;K60\nC;X16;K500\nC;X19;K\"Binf\"\n"
+            "C;Y5;X1;K\"AIm1\"\nC;X2;K\"AIma\"\nC;X3;K150\nC;X5;K100\nC;X6;K1\nC;X7;K\"_\"\nC;X10;K0\nC;X11;K0\nC;X12;K20\nC;X14;K1\nC;X15;K0\n"
+            "C;Y6;X1;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K6\nC;X6;K1\nC;X7;K\"_\"\nC;X8;K0\nC;X16;K1\nC;X17;K1\nC;X18;K1\nE\n",
+            tft ? "DataC1" : "Data13",tft ? "DataD1" : "Data14",tft ? "DataE1" : "Data15");
+        text[0]=preparation_balance;text[1]=preparation_data;text[2]=preparation_abilities;text[3]=preparation_ui;
     }
     FOR_LOOP(i,5){f->rows[i]=parse_slk_string(text[i]);f->old[i]=G_SetSLKRows(couple_instant_tables[i],f->rows[i]);}
     f->info.fileFormat=tft ? 25 : 24;f->info.players[0].used=true;f->info.players[0].playerType=kPlayerTypeHuman;
@@ -2247,6 +2274,460 @@ TEST(wc3_couple_instant_orders, native_adjacent_range_and_public_facing_boundari
     move_test_group_arrival=NULL;move_test_group_committed=NULL;
     G_SetMapAbilityOverrides(NULL);CoupleInstantEnd(&f);
     for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_adjacent_assert_original;break;}
+}
+
+
+#include "fixtures/retail_couple_instant243_preparation.h"
+#include "fixtures/retail_couple_instant244_context.h"
+static jassCFunction_t couple_preparation_assert_original;
+static handle_t (*couple_preparation_read_original)(cstring_t,uint32_t *);
+static unsigned couple_preparation_rows,couple_preparation_base_rows,couple_preparation_contexts;
+static uint32_t couple_preparation_phase_ability;
+static bool couple_preparation_complete;
+static unsigned couple_preparation_mode,couple_preparation_item_endcasts,couple_preparation_barriers;
+static edict_t *couple_preparation_potion;
+static cstring_t couple_preparation_save;
+static uint64_t couple_preparation_save_hash;
+static uint64_t CouplePreparationFileHash(cstring_t path) {
+    FILE *file=fopen(path,"rb");T_NOT_NULL(file);if(!file)return 0;
+    uint64_t hash=UINT64_C(14695981039346656037);int byte;
+    while((byte=fgetc(file))!=EOF)hash=(hash^(uint8_t)byte)*UINT64_C(1099511628211);
+    T_ASSERT(!ferror(file));fclose(file);return hash;
+}
+static char couple_preparation_script[24000];
+static void CouplePreparationReplace(cstring_t from,cstring_t to) {
+    char *p=couple_preparation_script;size_t a=strlen(from),b=strlen(to);
+    while((p=strstr(p,from))) {
+        T_ASSERT(strlen(couple_preparation_script)+b-a<sizeof(couple_preparation_script));
+        memmove(p+b,p+a,strlen(p+a)+1);memcpy(p,to,b);p+=b;
+    }
+}
+static handle_t CouplePreparationRead(cstring_t path,uint32_t *size) {
+    if(!strcmp(path,"Scripts\\target243.ai")) {
+        cstring_t source="function main takes nothing returns nothing\n"
+            "call BJassAssert(true,\"CPF tick=0 scene=0 label=ai-thread-enter\")\n"
+            "call SetCampaignAI()\ncall CreateCaptains()\ncall SetCaptainHome(1,1536.0,1024.0)\n"
+            "loop\ncall Sleep(1.0)\nendloop\nendfunction\n";
+        *size=strlen(source);char *data=gi.MemAlloc(*size+1);memcpy(data,source,*size+1);return data;
+    }
+    return couple_preparation_read_original(path,size);
+}
+#include "fixtures/retail_couple_instant249_ownership.h"
+static struct {
+    edict_t *source;
+    unsigned expected,next_context,issued_moves;
+    bool returned,channel,endcast,settled,intervened;
+    vec2_t held;
+} couple_ownership;
+static void CoupleOwnershipCanonicalize(char *text,cstring_t key) {
+    char *p=text;
+    while((p=strstr(p,key))) {
+        p+=strlen(key);char *end;uint32_t raw=(uint32_t)strtoul(p,&end,10);
+        uint32_t native=((raw&255u)<<24)|((raw&0xff00u)<<8)|((raw>>8)&0xff00u)|(raw>>24);
+        char value[32];snprintf(value,sizeof(value),"%u",native);
+        size_t n=strlen(value);memmove(p+n,end,strlen(end)+1);memcpy(p,value,n);p+=n;
+    }
+}
+static uint32_t CoupleOwnershipAssert(jass_t *j,cstring_t message) {
+    unsigned tick,scene;if(sscanf(message,"CPF tick=%u scene=%u",&tick,&scene)!=2)return couple_preparation_assert_original(j);
+    if(strstr(message,"label=start ")) {
+        FILTER_EDICTS(e,e->inuse && e->user_data==5)couple_ownership.source=e;
+        T_NOT_NULL(couple_ownership.source);
+    }
+    if(scene!=1)return couple_preparation_assert_original(j);
+    if(couple_ownership.intervened) {
+        if(strstr(message,"label=issued oid=851986 actor=5 "))couple_ownership.issued_moves++;
+        return couple_preparation_assert_original(j);
+    }
+    char canonical[512];snprintf(canonical,sizeof(canonical),"%s",message);
+    CoupleOwnershipCanonicalize(canonical," ability=");CoupleOwnershipCanonicalize(canonical," type=");CoupleOwnershipCanonicalize(canonical," item=");
+    unsigned n=sizeof(couple_native_public249)/sizeof(couple_native_public249[0]);
+    T_ASSERT(couple_ownership.expected<n);
+    if(couple_ownership.expected<n) {
+        cstring_t expected=couple_native_public249[couple_ownership.expected++];
+        if(strcmp(canonical,expected))fprintf(stderr,"ACOIPREP249 expected:%s actual:%s\n",expected,canonical);
+        T_ASSERT(!strcmp(canonical,expected));
+    }
+    if(strstr(canonical,"label=context ")) {
+        unsigned count=sizeof(couple_native_context249)/sizeof(couple_native_context249[0]);
+        T_ASSERT(couple_ownership.next_context<count);
+        if(couple_ownership.next_context<count) {
+            coupleNativeContext249_t const *context=&couple_native_context249[couple_ownership.next_context++];
+            T_EQ(context->scene,1);T_EQ(context->tick,tick);
+            T_EQ(wc3_float_bits(level.pathing_clock.time),context->clock_word);
+        }
+    }
+    if(strstr(canonical,"label=issued oid=851986 actor=5 "))couple_ownership.issued_moves++;
+    if(strstr(canonical,"label=outer-return ")) {
+        T_NOT_NULL(strstr(canonical,"accepted=1"));couple_ownership.returned=true;
+        T_EQ(couple_ownership.source->current_order_id,851986);
+        couple_ownership.held=couple_ownership.source->s.origin2;
+    }
+    if(strstr(canonical,"label=spell event=272 actor=5 ability=1483304550"))couple_ownership.channel=true;
+    if(strstr(canonical,"label=spell event=276 actor=5 ability=1483304550"))couple_ownership.endcast=true;
+    if(tick==800 && strstr(canonical,"label=item "))couple_ownership.settled=true;
+    return couple_preparation_assert_original(j);
+}
+static void CoupleOwnershipStep(void) {
+    CoupleInstantStep();
+    if(couple_ownership.returned && !couple_ownership.endcast && !couple_ownership.intervened) {
+        edict_t *source=couple_ownership.source;
+        T_EQ(source->current_order_id,851986);
+        T_EQ(wc3_float_bits(source->s.origin2.x),wc3_float_bits(couple_ownership.held.x));
+        T_EQ(wc3_float_bits(source->s.origin2.y),wc3_float_bits(couple_ownership.held.y));
+    }
+}
+static void CoupleOwnershipCheck(void) {
+    unsigned n=sizeof(couple_native_public249)/sizeof(couple_native_public249[0]);
+    T_ASSERT(couple_ownership.settled);T_ASSERT(couple_ownership.channel);T_ASSERT(couple_ownership.endcast);
+    T_ASSERT(couple_ownership.expected<n);
+    if(couple_ownership.expected<n)T_ASSERT(strstr(couple_native_public249[couple_ownership.expected],"scene=1 ")==NULL);
+    T_EQ(couple_ownership.issued_moves,1);
+    T_EQ(couple_ownership.next_context,20);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_FEQ(couple_ownership.source->mana.value,100,0);
+    T_ASSERT(couple_ownership.source->s.origin2.x>couple_ownership.held.x);
+    T_ASSERT(!S_SpellPreparationPending());
+}
+
+static uint32_t CouplePreparationAssert(jass_t *j) {
+    cstring_t message=jass_checkstring(j,2);
+    if(couple_preparation_mode==7 && message && !strcmp(message,"engine direct preparation cast")) {
+        edict_t *target=NULL;
+        FILTER_EDICTS(e,e->inuse && e->user_data==7)target=e;
+        T_NOT_NULL(target);T_NOT_NULL(couple_ownership.source);
+        T_ASSERT(S_CastUnitTargetSpell(couple_ownership.source,MAKEFOURCC('X','i','n','f'),target));
+        couple_ownership.returned=true;
+        return couple_preparation_assert_original(j);
+    }
+    if(couple_preparation_mode>=3 && message && !strncmp(message,"CPF ",4))return CoupleOwnershipAssert(j,message);
+    if(message && !strncmp(message,"CPF ",4)) {
+        unsigned observed_tick,observed_scene;
+        if(sscanf(message,"CPF tick=%u scene=%u",&observed_tick,&observed_scene)==2)
+            couple_poll_trace.scene=observed_scene;
+        /* Initial three markers precede retail PreloadGenClear. They establish
+         * real public setup; the completed preload below owns all92 rows. */
+        if(strstr(message,"label=start ")) {
+            memset(&couple_poll_trace,0,sizeof(couple_poll_trace));
+            FILTER_EDICTS(e,e->inuse && e->user_data>=1 && e->user_data<=4) {
+                couple_poll_trace.roles[e->user_data-1]=e;
+                T_ASSERT(e->aiflags&AI_TOWN_OWNED);
+            }
+            FOR_LOOP(i,4) {T_NOT_NULL(couple_poll_trace.roles[i]);}
+            if(couple_poll_trace.roles[3]) {
+                T_FEQ(couple_poll_trace.roles[3]->mana.max_value,200,0);
+                T_FEQ(couple_poll_trace.roles[3]->mana.value,0,0);
+                couple_preparation_potion=G_InventoryItem(couple_poll_trace.roles[3],0);
+                T_NOT_NULL(couple_preparation_potion);
+            }
+        }
+        if(strstr(message,"tick=0 ") && !strstr(message,"label=ai-thread-enter"))return couple_preparation_assert_original(j);
+        if(couple_ownership.intervened) {
+        if(strstr(message,"label=issued oid=851986 actor=5 "))couple_ownership.issued_moves++;
+        return couple_preparation_assert_original(j);
+    }
+    char canonical[512];snprintf(canonical,sizeof(canonical),"%s",message);
+        char *id=strstr(canonical," ability=");
+        if(id) {
+            uint32_t raw=(uint32_t)strtoul(id+9,NULL,10);
+            uint32_t native=((raw&255u)<<24)|((raw&0xff00u)<<8)|((raw>>8)&0xff00u)|(raw>>24);
+            snprintf(id+9,sizeof(canonical)-(size_t)(id+9-canonical),"%u",native);
+            couple_preparation_phase_ability=native;
+        }
+        if(couple_preparation_mode==2 && strstr(message,"label=nested-before ")) {
+            edict_t *source=couple_poll_trace.roles[3];uint32_t spawn=source->spawn_time;
+            T_ASSERT(S_SpellPreparationPending());T_ASSERT(S_SpellPreparationBypassesTarget(source));
+            T_ASSERT(!WriteGame(couple_preparation_save));T_ASSERT(!ReadGame(couple_preparation_save));
+            T_EQ(CouplePreparationFileHash(couple_preparation_save),couple_preparation_save_hash);
+            T_ASSERT(source->inuse);T_EQ(source->spawn_time,spawn);
+            T_ASSERT(S_SpellPreparationBypassesTarget(source));couple_preparation_barriers++;
+        }
+        if(couple_preparation_mode==1) {
+            /* Engine success control from the recovered AIma effect/charge
+             * lifecycle, not a new exact native243 chronology claim. */
+            if(strstr(canonical,"label=spell event=276 actor=4 ability=1095331121")) {
+                edict_t *source=couple_poll_trace.roles[3];
+                T_ASSERT(S_SpellPreparationPending());
+                T_FEQ(source->mana.value,150,0);
+                item_t const *potion=G_ItemState(couple_preparation_potion);
+                T_NOT_NULL(potion);if(potion)T_EQ(potion->charges,1);
+                couple_preparation_item_endcasts++;
+            }
+            if(strstr(message,"label=outer-return "))T_NOT_NULL(strstr(message,"accepted=1"));
+            if(strstr(message,"label=complete "))couple_preparation_complete=true;
+            return couple_preparation_assert_original(j);
+        }
+        if(strstr(message,"label=spellcontext ")) {
+            unsigned tick,scene,event,actor,target;float x,y;
+            int parsed=sscanf(message,"CPF tick=%u scene=%u label=spellcontext event=%u actor=%u target=%u x=%f y=%f",&tick,&scene,&event,&actor,&target,&x,&y);
+            unsigned n=sizeof(couple_native_context244)/sizeof(couple_native_context244[0]);
+            T_EQ(parsed,7);T_ASSERT(couple_preparation_contexts<n);
+            if(parsed==7 && couple_preparation_contexts<n) {
+                coupleNativeContext244_t const *e=&couple_native_context244[couple_preparation_contexts];
+                T_EQ(tick,e->tick);T_EQ(event,e->event);T_EQ(actor,e->actor);T_EQ(target,e->target);
+                T_EQ(couple_preparation_phase_ability,e->ability);
+                T_EQ(wc3_float_bits(x),e->x_word);T_EQ(wc3_float_bits(y),e->y_word);
+                T_EQ(wc3_float_bits(level.pathing_clock.time),e->clock_word);
+            }
+            couple_preparation_contexts++;
+        }
+        unsigned count=sizeof(couple_native_public244)/sizeof(couple_native_public244[0]);
+        T_ASSERT(couple_preparation_rows<count);
+        if(couple_preparation_rows<count) {
+            cstring_t expected=couple_native_public244[couple_preparation_rows];
+            if(strcmp(canonical,expected))fprintf(stderr,"ACOIPREP243 row%u expected:%s actual:%s\n",couple_preparation_rows,expected,canonical);
+            T_ASSERT(!strcmp(canonical,expected));
+        }
+        couple_preparation_rows++;
+        if(!strstr(message,"label=spellcontext ")) {
+            unsigned base_count=sizeof(couple_native_public243)/sizeof(couple_native_public243[0]);
+            T_ASSERT(couple_preparation_base_rows<base_count);
+            if(couple_preparation_base_rows<base_count)T_ASSERT(!strcmp(canonical,couple_native_public243[couple_preparation_base_rows]));
+            couple_preparation_base_rows++;
+        }
+        if(strstr(message,"label=complete "))couple_preparation_complete=true;
+    }
+    return couple_preparation_assert_original(j);
+}
+static void CouplePreparationRun(unsigned mode) {
+    couple_preparation_mode=mode;couple_preparation_item_endcasts=couple_preparation_barriers=0;
+    couple_preparation_potion=NULL;couple_preparation_save=NULL;
+    /* Native bindings are cached when the map VM loads common.j. */
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+        couple_preparation_assert_original=p->func;p->func=CouplePreparationAssert;break;
+    }
+    coupleInstantFixture_t f;
+    CoupleInstantBeginProfile(&f,&(coupleInstantSetup_t){.empty=true,.retail_profile=true,.preparation_profile=true,.peer_type="earc"});
+    slkTestData_t *items=parse_slk_string("ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;X2;K\"file\"\nC;X3;K\"abilList\"\nC;X4;K\"uses\"\nC;X5;K\"usable\"\nC;X6;K\"perishable\"\nC;X7;K\"droppable\"\nC;X8;K\"cooldownID\"\nC;X9;K\"HP\"\n"
+        "C;Y2;X1;K\"pman\"\nC;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\nC;X3;K\"AIm1\"\nC;X4;K1\nC;X5;K1\nC;X6;K1\nC;X7;K1\nC;X8;K\"AIma\"\nC;X9;K75\nE\n");
+    slkTestData_t *old_items=G_SetSLKRows("ItemData",items);
+    int old_controller=game.clients[1].jass.controller;
+    bool old_removed=game.clients[1].jass.removed;
+    typeof(game.clients[1].mapplayer) old_player=game.clients[1].mapplayer;
+    f.info.players[1].used=true;f.info.players[1].playerType=kPlayerTypeComputer;
+    game.clients[1].mapplayer=f.info.players+1;game.clients[1].jass.controller=1;game.clients[1].jass.removed=false;
+    G_BotInitPlayers();
+    if(mode>=3) {
+        /* Native249 inherits17x17 W3E vertices at0/0 and64x64 clear WPM.
+         * Preserve2048 bounds even for its deliberately out-of-bounds spawns. */
+        memset(&couple_ownership,0,sizeof(couple_ownership));
+        couple_ownership.intervened=mode==7;
+        while(!strstr(couple_native_public249[couple_ownership.expected],"scene=1 "))couple_ownership.expected++;
+        while(couple_native_context249[couple_ownership.next_context].scene!=1)couple_ownership.next_context++;
+    }
+    couple_preparation_rows=couple_preparation_base_rows=couple_preparation_contexts=0;couple_preparation_phase_ability=0;couple_preparation_complete=false;
+    couple_preparation_read_original=gi.ReadFile;gi.ReadFile=CouplePreparationRead;
+    /* GetTriggerEventId is not implemented by this host. Separate typed event
+     * callbacks observe the exact native roles without changing game behavior. */
+    T_ASSERT(CoupleInstantCompile(
+        "function CouplePreparationObserve takes string value returns nothing\ncall BJassAssert(true,value)\nendfunction\n"
+        "function CpModulo takes integer a,integer b returns integer\nreturn a-(a/b)*b\nendfunction\n"
+        "function CpRegister takes playerunitevent e,code f returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(1),e,null)\ncall TriggerAddAction(t,f)\nendfunction\n"));
+    snprintf(couple_preparation_script,sizeof(couple_preparation_script),"%s",mode>=3 ? couple_native_probe249 : couple_native_probe244);
+    CouplePreparationReplace("ModuloInteger(","CpModulo(");
+    /* The focused common.j omits these enum initializers. */
+    CouplePreparationReplace("UNIT_STATE_MAX_MANA","ConvertUnitState(3)");
+    CouplePreparationReplace("UNIT_STATE_MANA","ConvertUnitState(2)");
+    CouplePreparationReplace("function CpSpell takes nothing returns nothing",mode>=3 ? "function CpSpell takes integer observedEvent returns nothing" : "function CpSpell takes integer observedEvent returns nothing\nif cpScene==1 and GetSpellAbilityId()=='Aco3' then\ncall BJassAssert(GetSpellTargetUnit()==null,\"forced channel has no unit target\")\nendif");
+    CouplePreparationReplace("GetHandleId(GetTriggerEventId())","observedEvent");
+    CouplePreparationReplace("function PathProbeInit takes nothing returns nothing",
+        "function CpChannel takes nothing returns nothing\ncall CpSpell(272)\nendfunction\n"
+        "function CpCast takes nothing returns nothing\ncall CpSpell(273)\nendfunction\n"
+        "function CpEffect takes nothing returns nothing\ncall CpSpell(274)\nendfunction\n"
+        "function CpFinish takes nothing returns nothing\ncall CpSpell(275)\nendfunction\n"
+        "function CpEnd takes nothing returns nothing\ncall CpSpell(276)\nendfunction\n"
+        "function PathProbeInit takes nothing returns nothing");
+    CouplePreparationReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(1),EVENT_PLAYER_UNIT_SPELL_CHANNEL,null)","call CpRegister(ConvertPlayerUnitEvent(272),function CpChannel)");
+    CouplePreparationReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(1),EVENT_PLAYER_UNIT_SPELL_CAST,null)","call CpRegister(ConvertPlayerUnitEvent(273),function CpCast)");
+    CouplePreparationReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(1),EVENT_PLAYER_UNIT_SPELL_EFFECT,null)","call CpRegister(ConvertPlayerUnitEvent(274),function CpEffect)");
+    CouplePreparationReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(1),EVENT_PLAYER_UNIT_SPELL_ENDCAST,null)","call CpRegister(ConvertPlayerUnitEvent(276),function CpEnd)");
+    CouplePreparationReplace("call TriggerRegisterPlayerUnitEvent(ts,Player(1),EVENT_PLAYER_UNIT_SPELL_FINISH,null)","call CpRegister(ConvertPlayerUnitEvent(275),function CpFinish)");
+    CouplePreparationReplace("call TriggerAddAction(ts,function CpSpell)","");
+    if(mode>=3)CouplePreparationReplace("EVENT_PLAYER_UNIT_USE_ITEM","ConvertPlayerUnitEvent(50)");
+    if(mode==1)CouplePreparationReplace("and not cpNested then","and false then");
+    if(mode==7)CouplePreparationReplace(
+        "set accepted=IssueTargetOrder(cpHippo[cpScene],\"innerfire\",cpBuff[cpScene])",
+        "if cpScene==1 then\ncall BJassAssert(true,\"engine direct preparation cast\")\nset accepted=true\nelse\n"
+        "set accepted=IssueTargetOrder(cpHippo[cpScene],\"innerfire\",cpBuff[cpScene])\nendif");
+    T_ASSERT(CoupleInstantCompile(couple_preparation_script));CoupleInstantCall("PathProbeInit");
+    if(mode==2) {
+        couple_preparation_save=Test_TempPath("preparation-pending231.bin");
+        T_ASSERT(WriteGame(couple_preparation_save));
+        couple_preparation_save_hash=CouplePreparationFileHash(couple_preparation_save);
+    }
+    if(mode>=3) {
+        unsigned steps=0;
+        while(!couple_ownership.returned && steps++<2400)CoupleOwnershipStep();
+        T_ASSERT(couple_ownership.returned);
+        edict_t *source=couple_ownership.source;
+        if(mode==7) {
+            /* Direct AI/autocast entry keeps its existing immediate semantics.
+             * Its preparation callback still creates a real public Move. */
+            T_EQ(couple_ownership.issued_moves,1);
+            T_EQ(source->current_order_id,G_OrderId("move"));
+            T_FEQ(source->mana.value,100,0);
+            T_ASSERT(!source->channel || !source->channel->resume_move.order_id);
+            T_ASSERT(!S_SpellPreparationPending());
+            cstring_t path=Test_TempPath("preparation-direct-move231.bin");
+            vec2_t before=source->s.origin2;
+            T_ASSERT(WriteGame(path));S_ClearMoveGroups();
+            bool restored=ReadGame(path);T_ASSERT(restored);
+            if(restored) {
+                FOR_LOOP(frame,200) {CoupleInstantStep();}
+                T_ASSERT(source->s.origin2.x>before.x);
+                T_EQ(couple_ownership.issued_moves,1);
+            }
+            remove(path);goto preparation_cleanup;
+        }
+        if(mode==4 || mode==6) {
+            while(!couple_ownership.channel && steps++<2500)CoupleOwnershipStep();
+            T_ASSERT(couple_ownership.channel);T_ASSERT(!couple_ownership.endcast);
+        } else {
+            edict_t *receiver=S_UnitTargetApproachReceiver(source);
+            T_NOT_NULL(receiver);
+            if(receiver) {T_NOT_NULL(receiver->channel);if(receiver->channel)T_EQ(receiver->channel->resume_move.order_id,851986);}
+            T_ASSERT(!couple_ownership.channel);
+        }
+        cstring_t path=Test_TempPath(mode==4 ? "preparation-move-cast231.bin" : "preparation-move-facing231.bin");
+        T_ASSERT(WriteGame(path));
+        typeof(couple_ownership) checkpoint=couple_ownership;
+        unsigned saved_steps=steps;
+        if(mode>=5) {
+            /* Engine-only corruption and later-order tests, not additional
+             * native249 callback chronology claims. Serialize real structs
+             * through WriteGame; do not guess binary field offsets. */
+            cstring_t invalid=Test_TempPath("preparation-invalid-resume231.bin");
+            if(mode==5) {
+                edict_t *receiver=S_UnitTargetApproachReceiver(source);
+                T_NOT_NULL(receiver);
+                if(receiver && receiver->channel)receiver->channel->resume_move.point.x=NAN;
+            } else source->current_order_id=G_OrderId("stop");
+            T_ASSERT(WriteGame(invalid));
+            couple_ownership.intervened=true;
+            S_ClearMoveGroups();T_ASSERT(!ReadGame(invalid));
+            T_ASSERT(ReadGame(path));couple_ownership=checkpoint;
+            remove(invalid);
+            T_ASSERT(CoupleInstantCompile(
+                "function CpLaterStop takes nothing returns nothing\n"
+                "call BJassAssert(IssueImmediateOrder(cpHippo[1],\"stop\"),\"later Stop accepted\")\nendfunction\n"
+                "function CpLaterMove takes nothing returns nothing\n"
+                "call BJassAssert(IssuePointOrder(cpHippo[1],\"move\",1024.0,1536.0),\"later Move accepted\")\nendfunction\n"));
+            /* Compile before the checkpoint used for repeated reloads. */
+            T_ASSERT(WriteGame(path));
+            FOR_LOOP(replacement,2) {
+                couple_ownership.intervened=true;
+                S_ClearMoveGroups();T_ASSERT(ReadGame(path));couple_ownership=checkpoint;
+                couple_ownership.intervened=true;
+                CoupleInstantCall(replacement ? "CpLaterMove" : "CpLaterStop");
+                unsigned issued=checkpoint.issued_moves+(replacement ? 1 : 0);
+                T_EQ(couple_ownership.issued_moves,issued);
+                T_ASSERT(S_UnitTargetApproachReceiver(source)==NULL);
+                vec2_t stopped=source->s.origin2;
+                cstring_t replaced=Test_TempPath("preparation-replaced231.bin");
+                T_ASSERT(WriteGame(replaced));
+                typeof(couple_ownership) replaced_checkpoint=couple_ownership;
+                vec2_t final_point={0};uint32_t final_order=0;
+                FOR_LOOP(replay,2) {
+                    if(replay) {
+                        S_ClearMoveGroups();T_ASSERT(ReadGame(replaced));
+                        couple_ownership=replaced_checkpoint;
+                    }
+                    FOR_LOOP(frame,400) {
+                        CoupleInstantStep();
+                        T_EQ(couple_ownership.issued_moves,issued);
+                        if(source->current_order_id==G_OrderId("move") && source->goalentity &&
+                           (source->goalentity->svflags&SVF_MOVE_WAYPOINT))
+                            T_EQ(wc3_float_bits(source->goalentity->s.origin2.x),wc3_float_bits(1024.0f));
+                    }
+                    if(replacement)T_ASSERT(source->s.origin2.x<stopped.x-128);
+                    else {T_EQ(source->current_order_id,0);T_FEQ(source->s.origin2.x,stopped.x,0);T_FEQ(source->s.origin2.y,stopped.y,0);}
+                    T_ASSERT(!jass_rterror_pending(level.vm));
+                    if(!replay){final_point=source->s.origin2;final_order=source->current_order_id;}
+                    else {T_EQ(wc3_float_bits(source->s.origin2.x),wc3_float_bits(final_point.x));T_EQ(wc3_float_bits(source->s.origin2.y),wc3_float_bits(final_point.y));T_EQ(source->current_order_id,final_order);}
+                }
+                remove(replaced);
+            }
+            remove(path);goto preparation_cleanup;
+        }
+        while(!couple_ownership.settled && steps++<7000)CoupleOwnershipStep();
+        CoupleOwnershipCheck();
+        vec2_t final=source->s.origin2;uint32_t final_head=source->current_order_id;
+        unsigned final_expected=couple_ownership.expected,final_steps=steps;
+        S_ClearMoveGroups();T_ASSERT(ReadGame(path));couple_ownership=checkpoint;steps=saved_steps;
+        while(!couple_ownership.settled && steps++<7000)CoupleOwnershipStep();
+        CoupleOwnershipCheck();T_EQ(steps,final_steps);T_EQ(couple_ownership.expected,final_expected);
+        T_EQ(wc3_float_bits(source->s.origin2.x),wc3_float_bits(final.x));
+        T_EQ(wc3_float_bits(source->s.origin2.y),wc3_float_bits(final.y));T_EQ(source->current_order_id,final_head);
+        remove(path);goto preparation_cleanup;
+    }
+    move_test_group_arrival=CouplePollArrival;move_test_group_committed=CouplePollCommitted;
+    unsigned steps=0;while(!couple_preparation_complete && steps<3400){CoupleInstantStep();steps++;}
+    T_ASSERT(couple_preparation_complete);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(mode==1) {
+        T_EQ(couple_preparation_item_endcasts,1);
+        T_ASSERT(CoupleInstantCompile("function CpSuccessCheck takes nothing returns nothing\n"
+            "call BJassAssert(GetUnitState(cpHippo[1],ConvertUnitState(2))==100.0,\"preparation150 minus spell50\")\n"
+            "call BJassAssert(GetItemCharges(cpPotion)==0,\"successful preparation consumes charge\")\n"
+            "call BJassAssert(UnitItemInSlot(cpHippo[1],0)==null,\"last charge retires item after ENDCAST\")\nendfunction\n"));
+        CoupleInstantCall("CpSuccessCheck");
+    } else {
+        T_EQ(couple_preparation_rows,sizeof(couple_native_public244)/sizeof(couple_native_public244[0]));
+        T_EQ(couple_preparation_base_rows,sizeof(couple_native_public243)/sizeof(couple_native_public243[0]));
+        T_EQ(couple_preparation_contexts,sizeof(couple_native_context244)/sizeof(couple_native_context244[0]));
+    }
+    T_ASSERT(!S_SpellPreparationPending());
+    T_ASSERT(!S_SpellPreparationBypassesTarget(couple_poll_trace.roles[3]));
+    if(mode==2) {
+        T_EQ(couple_preparation_barriers,1);
+        T_ASSERT(WriteGame(couple_preparation_save));
+        S_ClearMoveGroups();T_ASSERT(ReadGame(couple_preparation_save));
+        T_ASSERT(!S_SpellPreparationPending());remove(couple_preparation_save);
+    }
+    unsigned ordinary=0,nested=0;
+    FOR_LOOP(i,couple_poll_trace.count)if(couple_poll_trace.rows[i].words[0]==0) {
+        if(couple_poll_trace.rows[i].words[1]==1 && couple_poll_trace.rows[i].scene==0)ordinary++;
+        if(couple_poll_trace.rows[i].words[1]==3 && couple_poll_trace.rows[i].scene==1)nested++;
+    }
+    /* Native scene0 has22 total polls: the first is a different Town mover
+     * at tick1/fine(48,32), before either Acoi producer. The ordinary Hippo
+     * at fine(48,16) owns exactly21, matching these21 primary clock words.
+     * Role3 scene0 background ownership is outside the forced scene1 count.
+     * All recorded rows remain intact. This is not a full numerical oracle. */
+    T_EQ(ordinary,21);T_EQ(nested,0);
+    T_ASSERT(!S_TargetApproachPublicationPending());
+    move_test_group_arrival=NULL;move_test_group_committed=NULL;
+preparation_cleanup:
+    gi.ReadFile=couple_preparation_read_original;G_BotStop(1);
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")){p->func=couple_preparation_assert_original;break;}
+    CoupleInstantEnd(&f);G_SetSLKRows("ItemData",old_items);free_slk_rows(items);
+    game.clients[1].jass.controller=old_controller;game.clients[1].jass.removed=old_removed;game.clients[1].mapplayer=old_player;
+}
+
+TEST(wc3_couple_instant_orders, native_preparatory_item_callback_forced_entry) {
+    CouplePreparationRun(0);
+}
+TEST(wc3_couple_instant_orders, preparatory_item_success_commits_after_endcast) {
+    CouplePreparationRun(1);
+}
+TEST(wc3_couple_instant_orders, preparatory_callback_blocks_partial_save_then_unwinds) {
+    CouplePreparationRun(2);
+}
+
+/* Native249 scene1 is the public oracle. Both snapshots replay its complete
+ * remaining marker sequence with actual primary clocks; movement assertions
+ * additionally guard the engine-owned private continuation. This is a
+ * path-cleared ReadGame suffix, not a full server-map reload. */
+TEST(wc3_couple_instant_orders, native_preparatory_move_continuation_saved_facing_and_cast) {
+    CouplePreparationRun(3);CouplePreparationRun(4);
+}
+
+TEST(wc3_couple_instant_orders, preparatory_move_later_orders_and_invalid_saved_owner) {
+    CouplePreparationRun(5);CouplePreparationRun(6);
+}
+
+TEST(wc3_couple_instant_orders, direct_preparatory_cast_does_not_orphan_move_staging) {
+    CouplePreparationRun(7);
 }
 
 #endif

@@ -651,6 +651,17 @@ Waygate377 and SupportGoal. Checkpoint241 also passes all 120 focused Python
 tests and validates the corpus with 614 entries and 3,316 pins. See `coupling_instant233_ready_projection.py`
 and `retail_couple_instant233_ready.provenance.json` for the native scope.
 
+### Full checkpoint242
+
+Full checkpoint242 validates committed `af9c1c5b8`: literal
+`make test TEST_JOBS=16` exits0 in 871.96 seconds, with 10,764 native tests,
+60,749,479 assertions and 3,332 pathfinding Python tests. All 1,138 source
+hashes remain unchanged. The launcher and WC3 module were rebuilt; their before
+and after hashes are recorded, not claimed identical. The asset check compares
+32 files captured during the run against the final files, not a pre-run asset
+freeze. See runtime `couple-instant242-validation/full-summary.json` and
+`independent-final-audit.json`. This full baseline predates the Save231 port.
+
 ### Bounded force and stop parameter audit
 
 The exact Acoi vtable `6fafc8dc+34c` resolves to `4358d0`, whose instruction bytes
@@ -671,13 +682,132 @@ its own preparation helper, so an ordinary outer Acoi producer does not gain
 that bypass from its own preparatory dispatch. Existing observer `unit.flags`
 reads `+5c`, not `+60`, and cannot prove this bypass's value.
 
-Transient dispatch publishes synchronous issued-order callbacks while bit8 is
-set. The inspected fresh Acoi admission path has no bit8 rejection, making a
-nested public Acoi command a concrete remaining producer candidate. The proposed
-native238 preparation/item-callback witness is **not yet accepted evidence**:
-public setup, admission and entry under the live bit must still be established.
-Do not declare the ordinary producer family complete or dismiss this reachable
-callback boundary as generic channel policy. Guarded original instructions,
-exports and the bounded design are retained in runtime `coupling-force237-audit`.
-Unrelated generic ability availability and channel-policy combinations remain
-ORDER-01.13. **25 leaves remain open; zero whole leaves close.**
+### Preparatory-item callback producer: accepted native evidence, pending port
+
+Native243 (`coupling-public243-setup-v4/stable-observer-v2`) accepts two
+observations and a fresh unhooked control: all 92 public markers agree, and the
+131 scoped native rows repeat exactly. Native244
+(`coupling-public244-target-context`) adds 12 spell-context records for 104
+public markers per run while preserving the complete243 baseline. A Town-owned
+Hippogryph with authored maximum mana 200, current mana 0, a mana potion and the
+required rank2 Rhpt research issues a costed outer spell. Its preparatory item order
+publishes a synchronous callback that successfully issues Acoi. The nested
+`40a7a0` entry observes actual caster `+60=8`; it produces no physical task or
+arrival poll. The ordinary comparison has **21 Acoi arrivals**. A separate Town
+AI arrival before Acoi accounts for the capture's 22 total rows; it is not an
+extra Acoi firing poll.
+
+Forced Acoi publishes CHANNEL, FINISH and ENDCAST, without CAST/EFFECT. The
+cause is the target-mode state, before range validation: `40a7a0` enters CHANNEL
+before setting `0x10000`; `402850` rejects the class-bit4/`0x8000` state without
+that mode, and `3fbc54..3fbc64` routes failed validation through `40e030`.
+`GetSpellTargetUnit` (`202d00 -> 2027b0 -> v3c8=435910`) returns NULL for this
+fresh state. This is a getter proof, not an inference from an unmatched role ID.
+The independent X/Y getters still expose cached Archer coordinates during
+CHANNEL, then zero during FINISH/ENDCAST. Potion phases target the caster with
+zero X/Y. Native244 preserves those distinct target and point semantics.
+
+The potion publishes all five spell phases but leaves mana 0 and its one charge
+unchanged after nested Acoi clears the user head. Original `3fa400` gates the
+effect on **any live current user head**, not the original order revision.
+AIma/AImr/AIre/AIra all resolve `v34c=0x00200001`; none has the `0x02000000`
+exception. Successful ordinary use executes the authored resource body.
+Charge commitment is armed only on the successful effect path and runs after
+ENDCAST: `65b6c0` decrements before publishing use-item events, retaining the
+last-charge item identity for their context. Authored `uses=0` sets the native
+unlimited flag; a depleted positive-use item is different. Supporting getters,
+constructor fields and instructions are retained in `coupling-force237-audit`.
+
+Rejected setup history remains separate: 238 had ineffective zero maximum mana
+and no Town flag;239 did not provide a human player and failed loading;241
+reached the missing-research gate;243's original inline observer did not finish.
+The accepted stable observer and fresh control do not establish the isolated
+cause of that earlier failure. None of those incomplete/rejected runs contributes
+to accepted counts.
+
+Engine246 originally matched the first 49 public rows before the outer Nomana
+rejection; its old 22-arrival fixture count also included the background Town
+row. Checkpoint248 now passes the complete 104-marker/12-context replay and 21
+owned Acoi arrivals in both editions. Its broader 22 processes pass 2,388 tests
+and 447,208 assertions, including all 27 Couple Instant tests per edition. This
+validates the243/244 subset before the following ownership corrections.
+
+Native249 (`coupling-public249-ownership-v1`) accepts two observations and a
+fresh control: 598 public markers, 737 scoped native rows, 35 contexts and 55 Move
+records, with 20 negative controls. Its six scenes establish:
+
+- Ordinary preparation restores mana 150 before FINISH/ENDCAST, where charge 1
+  remains. Synchronous USE_ITEM sees charge 0 while still held; the item is gone
+  before the outer spell's CHANNEL. The outer spell then spends 50, leaving 100.
+- Nested Move is accepted and preserves its public head; potion and outer spell
+  continue. Outer CHANNEL/CAST occur at 502, EFFECT 517 and FINISH/ENDCAST 543.
+  A revision-only abort would contradict this measured continuation.
+- Removing the source suppresses potion and outer phases. Its briefly retained
+  type/life handle does not establish continued world presence.
+- Removing the potion suppresses both sets of phases and leaves mana 0.
+- The transfer attempt returns false and the original carrier completes normal
+  use. Successful transfer is unmeasured.
+- Removing the outer Xinf ability still allows potion completion/consumption,
+  but no outer spell phases; settled mana is 150.
+
+Checkpoint252 verifies native249 scene1 in both editions, standalone and in
+the broader run: all 122 public records and 10 raw primary-clock phase records
+match. The actor does not translate during the cast, the private Move resumes
+without a second issued Move, and saves during facing and casting reproduce the
+suffix after clearing path state before ReadGame. This is not an SV_Map cold
+restart. The fixture now matches the 2048-unit world, 17×17 W3E and 64×64 WPM,
+including inherited hfoo repulse=2 and parameter/group/priority=17; stock earc,
+ehip and ehpr use repulse 0/1/1. Iteration251's mismatched fixture profile is retained as
+rejected replay evidence. Build252 is warning-free; 24 broader processes pass
+2,398 tests and 454,700 assertions with zero failures.
+
+Save231 stores the suspended Move as a pointer-free `moveContinuation_t`
+(destination, speed and public order ID). The approach channel transfers and
+clears its value when the scheduled cast takes ownership; cancellation discards
+it. Load rejects nonfinite values, unsupported order IDs, mismatched public
+heads or a continuation whose approach/cast owner is absent. Completion may
+resume it only while the finishing cast still owns the actor. The separate
+item-identity section follows the entity pools and validates row identities,
+free-list state and completeness against actual inventory attachments. See the
+[Save231 contract](save-load.md) for the persisted fields and validation scope.
+
+The Save231 candidate owns preparation resource
+dispatch, scoped bypass/epoch guards, carrier item effects and saved item-ability
+identities. The new USE_ITEM correction dispatches synchronously after decrement
+and removes an exhausted perishable only after the guarded callback. Candidate
+ordering uses retained identity slots, family priority and native LIFO reuse,
+with a snapshot before callbacks. The local identity domain does not claim
+literal native global agent ID numbers. Checkpoint253 reruns the 122-record/
+10-clock native249 replay and passes 24 focused processes: 2,400 tests and 464,334
+assertions, with zero failures. Both editions also pass explicit later Stop/Move
+cancellation and current-format malformed-save tests: a nonfinite facing
+continuation and a mismatched cast public head reject ReadGame, followed by a
+successful valid restore. These interventions are engine regressions, not
+additional native oracles. All five native gates pass as composite evidence:
+four 253 reports plus the 254 Itemdrop report (136 tests/11,495 assertions after
+the added AI restoration item case). The normal non-BZ_TESTS 253 module builds
+without warnings. Production sources are identical through 255; only the Couple
+Instant test file changed. This is not a claim that all five gates ran against
+the later test binary, nor a new full-suite result.
+
+The suspected successful-direct-cast staging leak was retracted. The new 255
+direct-API/item-callback-Move regression passes 34 assertions in each edition:
+`spell_commit -> S_SpellCancelChannel -> S_CancelSpellCast` already clears the
+temporary continuation. No production fix was made for that hypothesis.
+Other postvalidation rejection or EFFECT/save compositions are not proved by
+this test and remain within their broader ORDER-01.13 scope. The 255 broader
+focused run passes all 24 processes: 2,402 tests and 464,402 assertions, with
+zero failures. Final verification also passes all 120 focused Python tests in
+42.506 seconds and directly loads the corpus manifest: 614 entries and 3,316
+pins. The five native gates retain the composite253/254 provenance above.
+
+Native251 (`coupling-cantpath251-v1`) separately accepts 478 public markers,
+727 scoped rows and 38 typed records with 20 negative controls. A real blocking
+wall causes the Archer's terminal cannot-path inverse: explicit approach releases
+its reservation without peer Stop; auto approach releases both reservations and
+publishes one Hippo Stop. Fresh-actor eligibility and a later merge show retry
+remains possible. Native observer tick labels are not callback clocks. The
+portable projector preserves that scope; its engine port remains a draft, not a
+verified producer case. Unrelated availability/channel combinations remain
+ORDER-01.13.
+**TARGET-01.2 remains open: 25 open leaves, zero whole leaves closed.**

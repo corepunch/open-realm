@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 230; /* Ready logical completion follows producer publication/coordination. */
+static uint32_t const save_version = 231; /* Ordinary target spell packets retain pre-construction publication. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -777,6 +777,7 @@ static field_t const couple_instant_fields[] = {
     TF(coupleInstant_t, serial, F_INT),
     TF(coupleInstant_t, constructing, F_IGNORE, 0, FIELD_RUNTIME),
     TF(coupleInstant_t, ready_pending, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(coupleInstant_t, point_channel, F_IGNORE, 0, FIELD_RUNTIME),
     TF(coupleInstant_t, channel_owner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(coupleInstant_t, reservation.target, F_EDICT, 0, FIELD_NONE),
     TF(coupleInstant_t, reservation.target_spawn_time, F_INT),
@@ -1238,6 +1239,9 @@ static field_t const channel_fields[] = {
     TF(channel_t, owner_spawn_time, F_INT),
     TF(channel_t, target_spawn_time, F_INT),
     TF(channel_t, origin, F_VECTOR),
+    TF(channel_t, resume_move.point, F_VECTOR),
+    TF(channel_t, resume_move.speed, F_FLOAT),
+    TF(channel_t, resume_move.order_id, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -3543,7 +3547,7 @@ static FILE *G_OpenSaveTemporary(cstring_t filename, PATHSTR temporary) {
 bool WriteGame(cstring_t filename) {
     /* Public JASS saves/loads are deferred until command callbacks unwind.
      * A direct caller cannot persist or replace a partially published task. */
-    if(S_TargetApproachPublicationPending())return false;
+    if(S_TargetApproachPublicationPending() || S_SpellPreparationPending())return false;
     PATHSTR temporary = { 0 };
     FILE *f = NULL;
     saveHeader_t header = {
@@ -3602,6 +3606,7 @@ bool WriteGame(cstring_t filename) {
         }
     }
     if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
+    if (!S_WritePreparationItems(f)) { fprintf(stderr,"WC3 SaveGame: invalid item ability identities\n"); goto done; }
     if (!G_WriteCaptainState(f)) { fprintf(stderr,"WC3 SaveGame: failed at logical Captain state\n"); goto done; }
     if (!G_WriteTargetSubscriptions(f)) { fprintf(stderr,"WC3 SaveGame: invalid target event registry\n"); goto done; }
     if (!S_WriteSpellCasts(f)) { fprintf(stderr,"WC3 SaveGame: failed at spell cast records\n"); goto done; }
@@ -3677,7 +3682,7 @@ static void RebindEntityModels(edict_t *ent) {
 bool ReadGame(cstring_t filename) {
     /* Public JASS saves/loads are deferred until command callbacks unwind.
      * A direct caller cannot persist or replace a partially published task. */
-    if(S_TargetApproachPublicationPending())return false;
+    if(S_TargetApproachPublicationPending() || S_SpellPreparationPending())return false;
     FILE *f = fopen(filename, "rb");
     if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = { 0 };
@@ -3837,6 +3842,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!S_ReadPreparationItems(f)) { fprintf(stderr,"WC3 LoadGame: invalid item ability identities\n"); fclose(f); return false; }
     if (!S_ValidateMetamorphosisOwners()) { fprintf(stderr,"WC3 LoadGame: invalid concrete Morph status owners\n"); fclose(f); return false; }
     if (!G_ValidateMovePlacementLevels()) { fprintf(stderr,"WC3 LoadGame: invalid placement handles\n"); fclose(f); return false; }
     FILTER_EDICTS(unit,unit->inuse && unit->order_queue.capacity) {
@@ -3912,6 +3918,16 @@ bool ReadGame(cstring_t filename) {
         if (!ent->inuse) continue;
         if (ent->class_id) RebindEntityModels(ent);
         if (ent->destructable) G_RestoreDestructableData(ent);
+        if(ent->channel) {
+            moveContinuation_t const *resume=&ent->channel->resume_move;
+            edict_t *owner=resume->order_id ? S_SpellChannelOwner(ent) : NULL;
+            if(!S_ValidMoveContinuation(resume) || (resume->order_id &&
+               (!owner || !owner->inuse || G_IsDeferredFree(owner) || M_IsDead(owner) ||
+                owner->current_order_id!=resume->order_id ||
+                S_UnitTargetApproachReceiver(owner)!=ent))) {
+                fprintf(stderr,"WC3 LoadGame: invalid spell Move continuation owner\n"); fclose(f); return false;
+            }
+        }
         if (!S_RestoreCoupleInstantState(ent)) { fprintf(stderr,"WC3 LoadGame: invalid Couple Instant channel owner\n"); fclose(f); return false; }
         M_TrackMove(ent);
         S_TrackMoveTimers(ent);

@@ -300,6 +300,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeGoldMine(ent);
     G_FreeMineOverlay(ent);
     G_FreeAcolyteMine(ent);
+    if(ent->item)S_DetachPreparatoryItems(ent);
     G_FreeItem(ent);
     G_FreeDestructable(ent);
     G_FreeCargo(ent);

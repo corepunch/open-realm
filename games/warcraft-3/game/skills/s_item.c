@@ -375,9 +375,12 @@ BZ_ABILITY_PROC(CAbilityItemInvis) {
     }
 }
 
-BZ_ITEM_PROC(AbilityItemManaRestore) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
+BZ_ABILITY_PROC(CAbilityItemManaRestore) {
+    if (msg != A_ITEM_USE) return false;
+    /* Preparatory use is owned by the carrier, independently of UI selection. */
+    edict_t *target = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : ent;
+    uint32_t code = call && call->item ? call->item->code :
+        ent && ent->client ? S_SpellCurrentCode(ent, ID_ITEM_MANA) : ID_ITEM_MANA;
     float amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0 || target->mana.value >= target->mana.max_value) {
@@ -491,6 +494,27 @@ static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
     if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
     return NULL;
+}
+
+/* AIre keeps both authored resource amounts on the actual use recipient. */
+BZ_ABILITY_PROC(CAbilityItemRestore) {
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    edict_t *target = item_use_caster(ent, call);
+    uint32_t code = call->item->code;
+    float health = S_SpellData(code, 1, 1), mana = S_SpellData(code, 1, 2);
+    if (!target || !(health >= 0) || !(mana >= 0) ||
+        (health == 0 && mana == 0)) return false;
+    bool changed = false;
+    if (health > 0 && target->health.value < target->health.max_value) {
+        S_SpellHeal(target, health);
+        changed = true;
+    }
+    if (mana > 0 && target->mana.value < target->mana.max_value) {
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + mana);
+        changed = true;
+    }
+    if (changed) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return changed;
 }
 
 /* 672dd0 traverses profiles in UnitUI registration order. Count/select avoids

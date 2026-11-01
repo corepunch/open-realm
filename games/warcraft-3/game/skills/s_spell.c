@@ -809,7 +809,9 @@ static bool spell_activation_check(edict_t *clent, edict_t *caster, uint32_t cod
         if (clent) G_ShowCommandErrorKey(clent, "Cooldown", NULL);
         return false;
     }
-    if (!S_SpellCanPay(caster, code, level)) {
+    float cost=S_SpellNumber(code,ABILITY_NUMBER_COST,level);
+    if (!(cost<=0 || caster->mana.value>=cost ||
+          wc3_add(caster->mana.value,S_PreparatoryManaPotential(caster))>=cost)) {
         if (clent) G_ShowCommandErrorKey(clent, "Nomana", NULL);
         return false;
     }
@@ -830,6 +832,43 @@ static bool spell_validate_point(spellPointValidateParams_t const *params) {
     if (!params || !params->caster || !params->point ||
         !spell_activation_check(params->clent, params->caster, params->code, params->level, false)) return false;
     return !(params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range);
+}
+
+/* Preparation can publish a new Move while an older spell factory is on the
+ * stack. Its logical head survives; the spell temporarily owns physical work. */
+static void spell_retain_prepared_move(edict_t *caster,uint32_t revision) {
+    moveContinuation_t resume={0};
+    if(G_UnitMoveRevision(caster)==revision || !S_CaptureMoveContinuation(caster,&resume))return;
+    if(!caster->channel)caster->channel=G_AllocChannel();
+    caster->channel->resume_move=resume;
+}
+static moveContinuation_t spell_take_prepared_move(edict_t *caster,edict_t *approach) {
+    channel_t *channel=approach ? approach->channel : caster->channel;
+    moveContinuation_t resume=channel ? channel->resume_move : (moveContinuation_t){0};
+    if(channel)channel->resume_move=(moveContinuation_t){0};
+    return resume;
+}
+
+/* Construction snapshots the preparation bypass before any resource callback.
+ * A dispatched preparatory order requests a current-mana recheck. With no
+ * dispatch, native construction continues and CHANNEL owns later cost failure. */
+static bool spell_prepare_constructor(edict_t *caster, uint32_t code, uint32_t level,
+                                      edict_t *target, edict_t *source_item,
+                                      uint32_t source_item_spawn, bool *bypass) {
+    uint32_t spawn=caster->spawn_time, target_spawn=target ? target->spawn_time : 0;
+    *bypass=S_SpellPreparationBypassesTarget(caster);
+    uint32_t preparation_revision=G_UnitMoveRevision(caster);
+    uint64_t preparation_epoch=S_SpellPreparationEpoch();
+    bool prepared=S_PrepareSpellMana(caster,code,level);
+    if(S_SpellPreparationEpoch()!=preparation_epoch)return false;
+    if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) || M_IsDead(caster))return false;
+    if(target && (!target->inuse || target->spawn_time!=target_spawn || G_IsDeferredFree(target)))return false;
+    if(source_item && (!source_item->inuse || source_item->spawn_time!=source_item_spawn ||
+                       G_IsDeferredFree(source_item)))return false;
+    if((prepared && !S_SpellCanPay(caster,code,level)) ||
+       !spell_activation_check(NULL,caster,code,level,false))return false;
+    if(prepared)spell_retain_prepared_move(caster,preparation_revision);
+    return true;
 }
 
 static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);
@@ -879,6 +918,7 @@ bool S_DispatchSpellPhase(spellPhaseParams_t const *params) {
     edict_t *source=target->type==SPELL_TARGET_UNIT ? target->entity : NULL;
     vec2_t const *point=target->type==SPELL_TARGET_POINT ? &target->point :
         source ? &source->s.origin2 : NULL;
+    if(params->override_point)point=&params->point;
 
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
         .type=player_event,.source=source,.value=code,.point=point},unit_event,true);
@@ -952,6 +992,8 @@ static bool spell_begin_approach_cast(edict_t *caster, edict_t *target, uint32_t
 }
 
 static abilityOrderResult_t spell_start_ordered_cast(edict_t *,uint32_t,spellTarget_t const *,edict_t *,uint32_t,edict_t *);
+static abilityOrderResult_t spell_start_forced_channel(edict_t *,uint32_t,spellTarget_t const *);
+static abilityOrderResult_t spell_start_forced_channel_source(edict_t *,uint32_t,spellTarget_t const *,edict_t *,uint32_t);
 
 /* Commit a validated unit-target spell at the point where its cast range is reached. */
 static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edict_t *active_approach) {
@@ -1028,6 +1070,7 @@ typedef struct spellCast_s {
     edict_t *caster, *source_item;
     spellTarget_t target;
     spellCastProfile_t profile;
+    moveContinuation_t resume_move;
     wc3Clock_t deadline;
     uint32_t caster_spawn,target_spawn,item_spawn,code,rank,sequence,heap_position,depth;
     spellCastPhase_t phase, dispatch_phase;
@@ -1209,6 +1252,7 @@ static void SpellCastOwnerMessage(spellCast_t *cast,abilityMsg_t message) {
 }
 static void SpellCastCancel(spellCast_t *cast,bool release) {
     cast->depth++;
+    cast->resume_move=(moveContinuation_t){0};
     SpellCastRemoveRequest(cast);
     if(cast->active) {
         cast->active=false;
@@ -1232,6 +1276,7 @@ static void SpellCastCancel(spellCast_t *cast,bool release) {
 }
 void S_CancelSpellCast(edict_t *caster) {
     if(!caster || !g_edicts)return;
+    if(caster->channel)caster->channel->resume_move=(moveContinuation_t){0};
     spellCast_t *cast=spell_cast_active[caster-g_edicts];
     if(cast && !cast->executing)SpellCastCancel(cast,false);
 }
@@ -1257,6 +1302,8 @@ static bool SpellCastValid(spellCast_t const *cast) {
     if(!cast->active || !SpellCastCasterLive(cast) || cast->caster->stunned ||
        S_UnitIsCycloned(cast->caster) || S_UnitPolymorphed(cast->caster) || S_UnitIsSilenced(cast->caster) ||
        !spell_item_source_valid(cast->caster,cast->source_item,cast->item_spawn))return false;
+    if(cast->target.type==SPELL_TARGET_POINT &&
+       S_SpellTargetType(cast->caster,cast->code)==SPELL_TARGET_UNIT)return false;
     if(cast->target.type==SPELL_TARGET_UNIT) {
         edict_t *target=cast->target.entity;
         if(!target || !target->inuse || target->spawn_time!=cast->target_spawn || G_IsDeferredFree(target) ||
@@ -1293,7 +1340,10 @@ static void SpellCastFinish(spellCast_t *cast,bool success) {
     /* A completion callback's replacement owns its move and FIFO. */
     if(owned && SpellCastCasterLive(cast) && caster->currentmove==&ordered_spell_move &&
        !spell_cast_active[caster-g_edicts] && G_UnitMoveRevision(caster)==revision) {
-        S_SetMoveGoal(caster,&caster->goalentity,NULL);unit_stand(caster);
+        S_SetMoveGoal(caster,&caster->goalentity,NULL);
+        if(!S_ResumeMoveContinuation(caster,&cast->resume_move) && SpellCastCasterLive(cast) &&
+           caster->currentmove==&ordered_spell_move && G_UnitMoveRevision(caster)==revision)
+            unit_stand(caster);
     }
 }
 static void SpellCastPhase(spellCast_t *,spellCastPhase_t,bool);
@@ -1346,29 +1396,54 @@ bool S_InterceptSpellOrder(edict_t *caster,uint32_t code) {
     G_ClearUnitOrderQueue(caster);
     return true;
 }
-static abilityOrderResult_t spell_start_ordered_cast(edict_t *caster,uint32_t code,spellTarget_t const *target,
-                                     edict_t *source_item,uint32_t item_spawn,edict_t *approach) {
-    spellCastProfile_t profile;abilityitem_t item=S_AbilityItem(code);
-    abilityCall_t query={.item=&item,.cast_profile=&profile};
-    if(!S_AbilityMessage(caster,A_CAST_PROFILE,&query))return ABILITY_ORDER_UNHANDLED;
+static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t code,spellTarget_t const *target,
+                                     edict_t *source_item,uint32_t item_spawn,edict_t *approach,
+                                     spellCastProfile_t profile) {
     if(!isfinite(profile.channel_delay) || !isfinite(profile.cast_point) || !isfinite(profile.backswing))return ABILITY_ORDER_REJECTED;
     if(S_InterceptSpellOrder(caster,code))return ABILITY_ORDER_ACCEPTED;
+    moveContinuation_t resume=spell_take_prepared_move(caster,approach);
     S_CancelSpellCast(caster);
     spell_cancel_target_approaches(caster,approach);
     spellTarget_t packet=*target;
     if(approach && caster->goalentity==approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
     unit_setmove(caster,&ordered_spell_move);
-    caster->current_order_id=S_SpellOrderId(caster,code);
-    if(source_item)FOR_LOOP(slot,MAX_INVENTORY)
+    caster->current_order_id=resume.order_id ? resume.order_id : S_SpellOrderId(caster,code);
+    if(source_item && !resume.order_id)FOR_LOOP(slot,MAX_INVENTORY)
         if(caster->inventory[slot]==source_item) {caster->current_order_id=852008+slot;break;}
     spellCast_t *cast=SpellCastAlloc(caster);cast->target=packet;cast->code=code;
     cast->target_spawn=packet.type==SPELL_TARGET_UNIT ? packet.entity->spawn_time : 0;
     cast->source_item=source_item;cast->item_spawn=item_spawn;cast->rank=S_SpellLevel(caster,code);
+    cast->resume_move=resume;
     cast->profile=profile;cast->active=true;spell_cast_active[caster-g_edicts]=cast;
     SpellCastPhase(cast,CAST_CHANNEL,false);
     return ABILITY_ORDER_ACCEPTED;
 }
+static abilityOrderResult_t spell_start_ordered_cast(edict_t *caster,uint32_t code,spellTarget_t const *target,
+                                     edict_t *source_item,uint32_t item_spawn,edict_t *approach) {
+    spellCastProfile_t profile;abilityitem_t item=S_AbilityItem(code);
+    abilityCall_t query={.item=&item,.cast_profile=&profile};
+    if(!S_AbilityMessage(caster,A_CAST_PROFILE,&query)) {
+        bool retained=(approach && approach->channel && approach->channel->resume_move.order_id) ||
+            (!approach && caster->channel && caster->channel->resume_move.order_id);
+        if(!retained && S_SpellCanPay(caster,code,S_SpellLevel(caster,code)))return ABILITY_ORDER_UNHANDLED;
+        /* A potential-only admission with no dispatched preparation still
+         * constructs CHANNEL, whose actual-cost guard owns failed finish. */
+        S_DefaultSpellCastProfile(caster,code,&profile);
+    }
+    return spell_start_cast_profile(caster,code,target,source_item,item_spawn,approach,profile);
+}
+static abilityOrderResult_t spell_start_forced_channel_source(edict_t *caster,uint32_t code,
+        spellTarget_t const *point,edict_t *source_item,uint32_t item_spawn) {
+    spellCastProfile_t profile;abilityitem_t item=S_AbilityItem(code);
+    abilityCall_t query={.item=&item,.cast_profile=&profile};
+    if(!S_AbilityMessage(caster,A_CAST_PROFILE,&query))S_DefaultSpellCastProfile(caster,code,&profile);
+    return spell_start_cast_profile(caster,code,point,source_item,item_spawn,NULL,profile);
+}
+static abilityOrderResult_t spell_start_forced_channel(edict_t *caster,uint32_t code,spellTarget_t const *point) {
+    return spell_start_forced_channel_source(caster,code,point,NULL,0);
+}
 void S_ClearSpellCasts(void) {
+    S_ResetSpellPreparation();
     while(spell_cast_blocks) {
         spellCastBlock_t *next=spell_cast_blocks->next;gi.MemFree(spell_cast_blocks);spell_cast_blocks=next;
     }
@@ -1381,6 +1456,7 @@ void S_ClearSpellCasts(void) {
 typedef struct {
     wc3Clock_t deadline;
     spellCastProfile_t profile;
+    moveContinuation_t resume_move;
     vec2_t point;
     uint32_t code,rank,caster_spawn,target,target_spawn,item,item_spawn,sequence,phase,target_type,active,committed;
 } spellCastSave_t;
@@ -1392,7 +1468,7 @@ bool S_WriteSpellCasts(FILE *file) {
     }
     if(fwrite(&count,sizeof(count),1,file)!=1)return false;
     FOR_LOOP(i,globals.num_edicts)for(spellCast_t *cast=spell_cast_heads[i];cast;cast=cast->next) {
-        spellCastSave_t saved={.deadline=cast->deadline,.profile=cast->profile,
+        spellCastSave_t saved={.deadline=cast->deadline,.profile=cast->profile,.resume_move=cast->resume_move,
             .point=cast->target.type==SPELL_TARGET_POINT ? cast->target.point : (vec2_t){0},
             .code=cast->code,.rank=cast->rank,.caster_spawn=cast->caster_spawn,
             .target=cast->target.type==SPELL_TARGET_UNIT ? (uint32_t)(cast->target.entity-g_edicts)+1 : 0,
@@ -1412,6 +1488,10 @@ bool S_ReadSpellCasts(FILE *file) {
            fread(&saved,sizeof(saved),1,file)!=1 || !g_edicts[owner].inuse || saved.caster_spawn!=g_edicts[owner].spawn_time ||
            saved.phase<CAST_CAST || saved.phase>CAST_FAILED_FINISH || saved.target_type>SPELL_TARGET_UNIT_OR_POINT ||
            saved.target>globals.num_edicts || saved.item>globals.num_edicts || saved.active>1 || saved.committed>1 ||
+           !S_ValidMoveContinuation(&saved.resume_move) ||
+           (saved.resume_move.order_id && (!saved.active ||
+                g_edicts[owner].currentmove!=&ordered_spell_move ||
+                g_edicts[owner].current_order_id!=saved.resume_move.order_id)) ||
            !saved.sequence || saved.sequence>level.timer_sequence || !isfinite(saved.deadline.time) ||
            !isfinite(saved.deadline.span) || saved.deadline.span<=0 || !isfinite(saved.profile.channel_delay) ||
            !isfinite(saved.profile.cast_point) || !isfinite(saved.profile.backswing) ||
@@ -1421,6 +1501,7 @@ bool S_ReadSpellCasts(FILE *file) {
                 (saved.phase!=CAST_FAILED_FINISH && (!g_edicts[saved.target-1].inuse ||
                  saved.target_spawn!=g_edicts[saved.target-1].spawn_time)))))return false;
         spellCast_t *cast=SpellCastAlloc(g_edicts+owner);
+        cast->resume_move=saved.resume_move;
         cast->deadline=saved.deadline;cast->profile=saved.profile;cast->target=(spellTarget_t){.type=saved.target_type,.point=saved.point};
         if(saved.target_type==SPELL_TARGET_UNIT)cast->target.entity=g_edicts+saved.target-1;
         cast->target_spawn=saved.target_spawn;cast->source_item=saved.item ? g_edicts+saved.item-1 : NULL;
@@ -1625,12 +1706,14 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
 
     thinker = G_Spawn();
     if (!thinker) return false;
+    moveContinuation_t resume=spell_take_prepared_move(caster,NULL);
     goal = point ? thinker : target;
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
     S_SetMoveGoal(thinker, &thinker->goalentity, goal);
     if (!thinker->channel) thinker->channel = G_AllocChannel();
     assert(thinker->channel);
+    thinker->channel->resume_move=resume;
     thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->channel->target_spawn_time = target ? target->spawn_time : 0;
     thinker->class_id = code;
@@ -1658,7 +1741,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     }
     /* Retail40a7a0 constructs internal approach tasks under the spell's user
      * head. Every accepted shape publishes the same owning-command contract. */
-    caster->current_order_id=S_SpellOrderId(caster,code);
+    caster->current_order_id=resume.order_id ? resume.order_id : S_SpellOrderId(caster,code);
     return true;
 }
 
@@ -1694,6 +1777,19 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     if (!spell_validate(clent, caster, code, level, target, 0.0f)) return false;
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
+
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,target,source_item,source_item_spawn_time,&bypass) ||
+       !spell_item_source_valid(caster,source_item,source_item_spawn_time) ||
+       !S_SpellAllowsTarget(code,caster,target) || !spell_message(caster,A_VALIDATE,&item,&st))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=target->s.origin2};
+        bool accepted=(spell->flags&AB_TARGET_APPROACH) ?
+            spell_message(caster,A_SPELL_TARGET_COMPLETE,&item,&cached_point)!=0 :
+            spell_start_forced_channel_source(caster,code,&cached_point,source_item,source_item_spawn_time)==ABILITY_ORDER_ACCEPTED;
+        if(accepted)spell_order_accepted(caster,spell);
+        return accepted;
+    }
 
     if (!spell_unit_target_ready(caster, target, range)) {
         if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) return false;
@@ -1774,6 +1870,22 @@ static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *
                                 MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &st)) {
         return false;
+    }
+
+    vec2_t destination=*point;
+    point=&destination;
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,target,source_item,source_item_spawn_time,&bypass) ||
+       !spell_item_source_valid(caster,source_item,source_item_spawn_time) ||
+       !spell_message(caster,A_VALIDATE,&item,&st))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=destination};
+        if(spell_start_forced_channel_source(caster,code,&cached_point,source_item,source_item_spawn_time)!=ABILITY_ORDER_ACCEPTED)return false;
+        spell_order_accepted(caster,spell);
+        if(spell_is_tiny_structure(spell))spell_tiny_cursor_clear(clent);
+        else S_SpellCursorSplat(clent,0.0f);
+        G_SendPointConfirmation(clent,point,false);
+        return true;
     }
 
     if (range > 0.0f && !S_UnitPointInMoveRange(caster, point, range)) {
@@ -1871,6 +1983,15 @@ static void spell_no_target_execute(edict_t *clent) {
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,source_item,source_item_spawn_time,&bypass) ||
+       !spell_item_source_valid(caster,source_item,source_item_spawn_time) ||
+       !spell_message(caster,A_VALIDATE,&item,&st))return;
+    if(bypass) {
+        spell_start_forced_channel_source(caster,code,&st,source_item,source_item_spawn_time);
+        return;
+    }
+
     abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&st,source_item,source_item_spawn_time,NULL);
     if(ordered!=ABILITY_ORDER_UNHANDLED)return;
     if(!spell_dispatch_effect(caster,code,st))return;
@@ -1878,6 +1999,16 @@ static void spell_no_target_execute(edict_t *clent) {
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
         G_CompleteItemUse(caster, source_item);
+}
+
+bool S_ValidateNoTargetSpell(edict_t *caster,uint32_t code) {
+    if(!caster || !code || !G_UnitAbilityClassLevel(caster,code) || S_UnitPolymorphed(caster))return false;
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    if(!spell || S_SpellTargetType(caster,code)!=SPELL_TARGET_NONE || !S_AbilityHasCommand(spell))return false;
+    abilityitem_t item={.code=code,.ability=spell};
+    spellTarget_t target={.type=SPELL_TARGET_NONE};
+    return spell_validate(NULL,caster,code,S_SpellLevel(caster,code),NULL,0) &&
+        spell_message(caster,A_VALIDATE,&item,&target);
 }
 
 bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
@@ -1925,6 +2056,10 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
                 (unsigned)caster->s.number, level, caster->mana.value,
                 S_SpellNumber(code, ABILITY_NUMBER_COST, level), (unsigned)S_SpellCooldownReady(caster, code));
 
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,NULL,0,&bypass) ||
+       !S_ValidateNoTargetSpell(caster,code))return false;
+    if(bypass)return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
     abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&target,NULL,0,NULL);
     if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
     if(!spell_dispatch_effect(caster,code,target))return false;
@@ -1941,6 +2076,8 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     spellTarget_t target;
 
     if (!caster || !point || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    vec2_t destination=*point;
+    point=&destination;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_POINT &&
@@ -1955,6 +2092,15 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,NULL,0,&bypass) ||
+       !spell_message(caster,A_VALIDATE,&item,&target))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=*point};
+        return spell_start_forced_channel(caster,code,&cached_point)==ABILITY_ORDER_ACCEPTED;
+    }
+    if(!S_SpellCanPay(caster,code,level))
+        return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
     if(!spell_dispatch_effect(caster,code,target))return false;
     spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
@@ -1981,6 +2127,15 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,unit,NULL,0,&bypass) ||
+       !spell_message(caster,A_VALIDATE,&item,&target))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=unit->s.origin2};
+        return spell_start_forced_channel(caster,code,&cached_point)==ABILITY_ORDER_ACCEPTED;
+    }
+    if(!S_SpellCanPay(caster,code,level))
+        return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
     if(!spell_dispatch_effect(caster,code,target))return false;
     spell_commit(caster, code, level, NULL);
     if (S_PrepareUnitSpellEffect(caster, code, unit)) return true;
@@ -2375,23 +2530,47 @@ void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     unit_addstatus(unit, GetClassName(code), level);
 }
 
-bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
-    uint32_t level;
-    float range;
-    ability_t const *spell;
+bool S_ValidateUnitTargetSpell(edict_t *caster,uint32_t code,edict_t *unit) {
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
-
     if (!caster || !unit || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = spell_target_approach_ability(code);
+    ability_t const *spell=spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
                    S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
-    level = S_SpellLevel(caster, code);
-    range = S_SpellRange(code, level);
-    if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
+    if (!spell_validate(NULL, caster, code, S_SpellLevel(caster,code), unit, 0.0f) ||
         !S_SpellAllowsTarget(code, caster, unit)) return false;
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
+    return spell_message(caster,A_VALIDATE,&item,&target)!=0;
+}
+
+bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
+    bool bypass=S_SpellPreparationBypassesTarget(caster);
+    if(!S_ValidateUnitTargetSpell(caster,code,unit))return false;
+    uint32_t spawn=caster->spawn_time,target_spawn=unit->spawn_time;
+    uint32_t level=S_SpellLevel(caster,code);
+    float range=S_SpellRange(code,level);
+    ability_t const *spell=spell_target_approach_ability(code);
+    abilityitem_t item={.code=code,.ability=spell};
+    spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};
+    /* 40a7a0 snapshots the scoped bypass before running its own preparation.
+     * Resource callbacks can replace either actor; spending still uses current
+     * mana, never the potential used by public admission. */
+    uint32_t preparation_revision=G_UnitMoveRevision(caster);
+    uint64_t preparation_epoch=S_SpellPreparationEpoch();
+    bool prepared=S_PrepareSpellMana(caster,code,level);
+    if(S_SpellPreparationEpoch()!=preparation_epoch)return false;
+    if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) || M_IsDead(caster) ||
+       !unit->inuse || unit->spawn_time!=target_spawn || G_IsDeferredFree(unit) || M_IsDead(unit))return false;
+    if(prepared && (!S_SpellCanPay(caster,code,level) || !S_ValidateUnitTargetSpell(caster,code,unit)))return false;
+    if(prepared)spell_retain_prepared_move(caster,preparation_revision);
+    if(bypass) {
+        /* The retained identity and cached coordinates exist, but the direct
+         * CHANNEL branch precedes target-mode publication (10000). */
+        spellTarget_t point={.type=SPELL_TARGET_POINT,.point=unit->s.origin2};
+        if(spell->flags&AB_TARGET_APPROACH)
+            return spell_message(caster,A_SPELL_TARGET_COMPLETE,&item,&point)!=0;
+        return spell_start_forced_channel(caster,code,&point)==ABILITY_ORDER_ACCEPTED;
+    }
     if (!spell_unit_target_ready(caster, unit, range)) {
         if(!spell_begin_target_approach(caster,code,unit,NULL,NULL,0))return false;
         return !(spell->flags&AB_TARGET_APPROACH) || spell_message(caster,A_SPELL_TARGET_ACQUIRED,&item,&target);
@@ -2405,34 +2584,33 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     return true;
 }
 
+bool S_ValidatePointTargetSpell(edict_t *caster,uint32_t code,vec2_t const *point) {
+    if(!caster || !point || !code || !G_UnitAbilityClassLevel(caster,code) || S_UnitPolymorphed(caster))return false;
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    if(!spell || (S_SpellTargetType(caster,code)!=SPELL_TARGET_POINT &&
+                  S_SpellTargetType(caster,code)!=SPELL_TARGET_UNIT_OR_POINT) ||
+       !S_AbilityHasCommand(spell) || (spell->flags&AB_TOGGLE))return false;
+    abilityitem_t item={.code=code,.ability=spell};
+    spellTarget_t target={.type=SPELL_TARGET_POINT,.point=*point};
+    spellPointValidateParams_t val={.caster=caster,.code=code,.level=S_SpellLevel(caster,code),.point=point,.range=0};
+    return spell_validate_point(&val) && spell_message(caster,A_VALIDATE,&item,&target);
+}
+
 bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point) {
-    uint32_t level;
-    float range;
-    ability_t const *spell;
-    abilityitem_t item;
-    spellTarget_t target;
-    spellPointValidateParams_t val;
-
-    if (!caster || !point || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster))
-        return false;
-    spell = S_SpellAbilityForCode(code);
-    item = MAKE(abilityitem_t, .code = code, .ability = spell);
-    if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_POINT &&
-                   S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT) ||
-        !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
-    level = S_SpellLevel(caster, code);
-    range = S_SpellRange(code, level);
-    val = MAKE(spellPointValidateParams_t, .caster = caster, .code = code,
-               .level = level, .point = point, .range = 0.0f);
-    if (!spell_validate_point(&val)) return false;
-    target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
-
-    if (range > 0.0f && !S_UnitPointInMoveRange(caster, point, range))
-        return spell_begin_target_approach(caster, code, NULL, point, NULL, 0);
-
-    spell_execute_point_target(NULL, caster, code, level, spell, point, NULL, 0, NULL);
-    return true;
+    if(!S_ValidatePointTargetSpell(caster,code,point))return false;
+    /* Copy the public point before preparation can retire its source object. */
+    vec2_t destination=*point;
+    uint32_t level=S_SpellLevel(caster,code);
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    float range=S_SpellRange(code,level);
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,NULL,0,&bypass) ||
+       !S_ValidatePointTargetSpell(caster,code,&destination))return false;
+    spellTarget_t target={.type=SPELL_TARGET_POINT,.point=destination};
+    if(bypass)return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
+    if(range>0 && !S_UnitPointInMoveRange(caster,&destination,range))
+        return spell_begin_target_approach(caster,code,NULL,&destination,NULL,0);
+    return spell_execute_point_target(NULL,caster,code,level,spell,&destination,NULL,0,NULL);
 }
 
 /* Shared command entry point for all spell abilities.  Sets up the appropriate

@@ -1586,21 +1586,16 @@ static bool unit_issue_target_order(edict_t *self, cstring_t order, edict_t *tar
     if (!inside_mine) {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
-            bool accepted;
             /* Shift-queued spell casts need a spell-aware queue entry with a
              * stable target snapshot. Leave that unsupported rather than
              * silently enqueueing them as movement orders. */
             if (queue || fallback) return false;
             if(S_InterceptSpellOrder(self,spell_code))return true;
-            G_ClearUnitOrderQueue(self);
-            accepted = S_IssueUnitTargetSpell(self, spell_code, target);
-            if (accepted) {
-                G_CreepGuardExplicitOrder(self);
-                S_UnitAbilityOrderAccepted(self, order);
-                unit_set_active_order(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target, issuer_player, 0.0f);
-                G_PublishIssuedTargetOrder(self, order, target, issuer_player);
-            }
-            return accepted;
+            if(!S_ValidateUnitTargetSpell(self,spell_code,target))return false;
+            unitOrder_t packet;
+            if(!unit_prepare_order_packet(&packet,order,UNIT_ORDER_TARGET_ENTITY,&point,target,
+                                          issuer_player,0,G_OrderId(order)))return false;
+            return G_AdmitUnitOrder(self,&packet,true);
         }
     }
     bool held=inside_mine || S_UnitOrderExecutionHeld(self);
@@ -1668,19 +1663,13 @@ static bool unit_issue_point_order(edict_t *self, cstring_t order, vec2_t const 
     if (!inside_mine) {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
-            bool accepted;
             if (queue || fallback) return false;
             if(S_InterceptSpellOrder(self,spell_code))return true;
-            G_ClearUnitOrderQueue(self);
-            accepted = S_IssuePointTargetSpell(self, spell_code, point);
-            if (accepted) {
-                G_CreepGuardExplicitOrder(self);
-                S_UnitAbilityOrderAccepted(self, order);
-                unit_set_active_order(self, order, UNIT_ORDER_TARGET_POINT, point, NULL, issuer_player, group_speed);
-                G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
-                                          issuer_player, order);
-            }
-            return accepted;
+            if(!S_ValidatePointTargetSpell(self,spell_code,point))return false;
+            unitOrder_t packet;
+            if(!unit_prepare_order_packet(&packet,order,UNIT_ORDER_TARGET_POINT,point,NULL,
+                                          issuer_player,group_speed,G_OrderId(order)))return false;
+            return G_AdmitUnitOrder(self,&packet,true);
         }
     }
     ability_t const *owner=FindAbilityByOrder(order);
@@ -1808,14 +1797,35 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
         }
         return QUEUED_ORDER_REPLACED;
     }
-    if(queued->target_type==UNIT_ORDER_TARGET_POINT)
+    if(queued->target_type==UNIT_ORDER_TARGET_POINT) {
+        queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
+        if(result!=QUEUED_ORDER_UNHANDLED)return result;
+        uint32_t code=unit_spell_code_for_order(self,queued->order);
+        if(code) {
+            uint32_t spawn=self->spawn_time;
+            bool accepted=S_IssuePointTargetSpell(self,code,&queued->point);
+            if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self) ||
+               self->current_order_id!=queued->order_id)return QUEUED_ORDER_REPLACED;
+            if(accepted) {*owner_head=self->current_order_id;return QUEUED_ORDER_STARTED;}
+            return QUEUED_ORDER_UNHANDLED;
+        }
         return unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed,owner_head) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
+    }
     if(queued->target_type==UNIT_ORDER_TARGET_ENTITY) {
         /* Move owns visibility and its retained-point fallback. Other owners
          * see the same original target-or-point dispatch shape (67abe0). */
         queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
         if(result!=QUEUED_ORDER_UNHANDLED)return result;
         edict_t *target=unit_queued_target(queued);
+        uint32_t spell_code=target ? unit_spell_code_for_order(self,queued->order) : 0;
+        if(spell_code) {
+            uint32_t spawn=self->spawn_time;
+            bool accepted=S_IssueUnitTargetSpell(self,spell_code,target);
+            if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self) ||
+               self->current_order_id!=queued->order_id)return QUEUED_ORDER_REPLACED;
+            if(accepted) {*owner_head=self->current_order_id;return QUEUED_ORDER_STARTED;}
+            return QUEUED_ORDER_UNHANDLED;
+        }
         /* Unhandled non-unit widgets retain their existing target policy.
          * Their owner can supply a fallback above; the generic unit fallback
          * must not manufacture widget movement from an unsupported packet. */
@@ -1825,6 +1835,17 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
         return accepted ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
     }
     if(queued->target_type==UNIT_ORDER_TARGET_NONE) {
+        queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
+        if(result!=QUEUED_ORDER_UNHANDLED)return result;
+        uint32_t code=unit_spell_code_for_order(self,queued->order);
+        if(code) {
+            uint32_t spawn=self->spawn_time;
+            bool accepted=S_CastNoTargetSpell(self,code);
+            if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self) ||
+               self->current_order_id!=queued->order_id)return QUEUED_ORDER_REPLACED;
+            if(accepted) {*owner_head=self->current_order_id;return QUEUED_ORDER_STARTED;}
+            return QUEUED_ORDER_UNHANDLED;
+        }
         if(!strcmp(queued->order,"stop")) {order_stop_queued(self);return QUEUED_ORDER_STARTED;}
         if(!strcmp(queued->order,"holdposition"))return S_HoldPositionQueued(self) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
         /* Activated harvest heads re-resolve their drop-off/resource. */
@@ -1832,6 +1853,7 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
             return S_HarvestIssueImmediate(self,!strcmp(queued->order,"resumeharvesting")) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
         if(!strcmp(queued->order,"autoharvestgold") && S_HarvestOwnsAutoGold(self))
             return S_HarvestAutoGoldStart(self) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
+        return QUEUED_ORDER_UNHANDLED;
     }
     return S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
 }
@@ -2277,17 +2299,15 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         }
         if (spell_code) {
             if(S_InterceptSpellOrder(self,spell_code))return true;
-            bool const accepted = S_CastNoTargetSpell(self, spell_code);
+            if(!S_ValidateNoTargetSpell(self,spell_code))return false;
+            unitOrder_t packet;
+            if(!unit_prepare_order_packet(&packet,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,
+                                          self->s.player,0,G_OrderId(order)))return false;
+            bool const accepted=G_AdmitUnitOrder(self,&packet,true);
             if (WC3_MISHA_DEBUG_ENABLED() && !strcmp(order, "spiritwolf"))
                 fprintf(stderr, "WC3_MISHA order-result unit=%u ability=%.4s accepted=%u mana=%.1f/%.1f\n",
                         (unsigned)self->s.number, (cstring_t)&spell_code,
                         (unsigned)accepted, self->mana.value, self->mana.max_value);
-            if (accepted) {
-                G_CreepGuardExplicitOrder(self);
-                S_UnitAbilityOrderAccepted(self, order);
-                unit_set_active_order(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, self->s.player, 0.0f);
-            G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-            }
             return accepted;
         }
     }
