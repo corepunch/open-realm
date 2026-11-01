@@ -579,7 +579,22 @@ native gates in both editions, 120 focused Python tests and the614-entry,
 those checks. Full220 at `93d54c6d1` remains the earlier baseline; it does not
 include this Save229 correction. No full-suite rerun is claimed for this patch.
 
-The next comparison within Coupling uses the existing accepted193 near/facing
-and range-boundary streams. Its quarter-world offsets do not establish literal
-float-adjacent public-value coverage. **25 leaves remain open; zero whole leaves
-close.**
+Checkpoint231 adds the nine accepted193 authored-range333 scenes: all 532
+arrival/postcommit rows match in global order, with exact raw clocks and words,
+in both editions. The native/header/control projector also passes against both
+engine logs. All 22 Couple Instant tests pass per edition (44 tests and 111,180
+assertions combined). The fixture uses the actual retail Hippogryph turn rate
+0.4 and turn window 61, and preserves the original CpMark lifecycle. This is a
+test-fixture correction; production behavior is unchanged. Saved continuation
+uses ReadGame from a file after clearing the path state; it does not establish
+an SV_Map cold restart. No new full-suite or five-gate run is claimed.
+
+The remaining Coupling comparison is finite: replay the existing stock-v3 six
+scenes (540 ordered rows, stock ranges 0/99999), then cover in-range,
+already-facing admission for both roles and literal adjacent/equality range and
+heading boundaries. The accepted193 distances 373, 373.25 and 372.75 are
+quarter-world offsets, not adjacent IEEE754 values. Moving-partner214 coverage
+remains the verified 400-row checkpoint227/228 contract. Shared producer
+force/stop branches still require reachable-caller accounting; unrelated generic
+ability availability and channel-policy combinations remain ORDER-01.13.
+**25 leaves remain open; zero whole leaves close.**

@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "engine_parity": false,
+  "projection_sha256": "344d4826044e5c6c2bab9202ad29ecebea147ef8f452f66c265c4cc15aea5b17",
+  "capture_files_sha256": {
+    "TargetCouplingInstant193R333.json": "742f702350d30388cd4a4f11e66143020b2daf9e04ee612d90376c39c1b4cadb",
+    "TargetCouplingInstant193R333.w3m": "763cbd04e27901a0f44b1c7432cbbdd763540f945136a8b65e1ad6995d79ad5f",
+    "audit_range.py": "3869887d7d38958bd3620e088f637fb54d0a355c23303d4de30e99a5b88e28e7",
+    "capture-design.json": "cc500fa78b91a970a1b72d26c3a977dae7c7049eaf0d2516a2ceebea49437280",
+    "capture-launch.py": "7f0661033184c3ccbed4eb4fa4729f50fab744fdf25dfe8e0ed8a744d4500801",
+    "control1-preload.txt": "4ec27a571c0726883ede08722bfc21edbe022055fb30d08aa6e28f60de292286",
+    "control1.jsonl": "a3341f1d286ccab925d723d98f3a16da55ca833b90afeaf19e79ba24814c8641",
+    "frozen-sources.json": "37339446d5c170adbba1af95e887d9a430c0822ba21f8b0c19969cb7e38d2987",
+    "itemdrop_capture.py": "6a59c1f99c8a394b8a8a5e2a8e35d98634cfef293994c56949b5648df6168732",
+    "itemdrop_make_map.py": "535550e16d4483a191c4682be9f2c99ab68a47979cb75974e006afec13967811",
+    "itemdrop_observer.js": "f810c49af9119a999063332dbc22489562f9ee27f46403c057ab10f1b6cb2cdf",
+    "itemdrop_probe.j": "3fa5b23157dbc04729107d7c27dbf4766fdfb570563f82f07b6d6e0b124b26c8",
+    "observe1-preload.txt": "e05645cdcf2d532b12205917aad5f20e45c550bec847f4f7953c1216756746e9",
+    "observe1.jsonl": "905aca23e4f2ea296fb05bc6ad7ab188d88b28b9ae1b1e67dc7a676a1df929d2",
+    "observe3-preload.txt": "1196be3805ef7bdb61179408f0302c46c73ae86e1a306ac97193601bd8568f5b",
+    "observe3.jsonl": "339208476d699f8ff2de279b0deb1e7a39c5d51d751e0e43c38ca06a7fda7f64",
+    "source-before-map.json": "93992336d6754d608f59fe0e68a06df703aca314dac31782c7527974d8115b82",
+    "static-boundary.json": "eb9d38e287a907e8f117e86010ad2e958c2654fc80fa1deb8e66e299e8fb369f",
+    "validated-summary.json": "8496f08f9d970252ac641f21163fee28c7a10b848dfe2e1b5f29b1bf1b4b63c1"
+  },
+  "accepted_runs": [
+    "observe1",
+    "observe3",
+    "control1"
+  ],
+  "excluded_runs": {
+    "observe2": "initial Frida injection failed before any gameplay; original file preserved"
+  },
+  "ordered_rows": 532,
+  "public_markers_per_capture": 2300,
+  "public_sha256": "90321c41fdf225824511d5f29f9fc950ecf22b03c66404ccb7cd393433fa0874",
+  "limits": [
+    "Phase1 precommit excluded; global phase0/phase2 order and absolute raw clocks preserved.",
+    "Pointer to role association uses unique authored speed and initial XY; no sorting, offsets or tolerances.",
+    "Nine single-partner scenes; no nearest-candidate competition.",
+    "Boundary distances373/373.25/372.75 are quarter-world offsets, not adjacent IEEE754 floats.",
+    "Native provenance only; implementation parity requires separate engine tests."
+  ]
+}
