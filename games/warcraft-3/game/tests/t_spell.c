@@ -9111,7 +9111,7 @@ TEST(wc3_spell, troll_berserker_berserk_self_cast_shows_status_and_modifies_comb
         "ID;PWXL;N;E\nB;X4;Y2;D0\n"
         "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Buffart\"\nC;X4;K\"Bufftip\"\n"
         "C;X1;Y2;K\"Bbsk\"\nC;X2;K\"Bbsk\"\n"
-        "C;X3;K\"ReplaceableTextures\\\\CommandButtons\\\\BTNBerserkForTrolls.blp\"\n"
+        "C;X3;K\"ReplaceableTextures\\CommandButtons\\BTNBerserkForTrolls.blp\"\n"
         "C;X4;K\"Berserk\"\nE\n";
     static UnitAbilities_t const berserker_abilities = { .abilList = "Absk" };
     slkTestData_t *ability_rows, *old_abilities, *buff_rows, *old_buffs;
@@ -9212,11 +9212,21 @@ TEST(wc3_spell, shadow_hunter_hex_uses_an_authored_random_critter_form) {
         "C;X11;K\"npig\"\nC;X12;K\"nsea\"\nC;X13;K\"nrat\"\n"
         "C;X14;K\"nfro\"\nC;X15;K\"nech\"\nC;X16;K\"BOhx\"\nE\n";
     static UnitAbilities_t const abilities = { .abilList = "AOhx" };
+    static char const unit_ui_slk[] =
+        "ID;PWXL;N;EBB;Y6;X2\n"
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y2;X1;K\"npig\"\nC;Y2;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
+        "C;Y3;X1;K\"nsea\"\nC;Y3;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
+        "C;Y4;X1;K\"nrat\"\nC;Y4;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
+        "C;Y5;X1;K\"nfro\"\nC;Y5;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
+        "C;Y6;X1;K\"nech\"\nC;Y6;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\nE\n";
+    static UnitData_t const target_unit_data = { .moveTypeName = "foot" };
     static uint32_t const critters[] = {
         MAKEFOURCC('n','p','i','g'), MAKEFOURCC('n','s','e','a'), MAKEFOURCC('n','r','a','t'),
         MAKEFOURCC('n','f','r','o'), MAKEFOURCC('n','e','c','h')
     };
     slkTestData_t *rows, *old;
+    slkTestData_t *ui_rows, *old_ui;
     edict_t *caster, *target;
     polymorph_t const *morph;
     float original_health;
@@ -9226,11 +9236,14 @@ TEST(wc3_spell, shadow_hunter_hex_uses_an_authored_random_critter_form) {
     setup_test_world();
     rows = parse_slk_string(ability_slk);
     old = G_SetSLKRows("AbilityData", rows);
+    ui_rows = parse_slk_string(unit_ui_slk);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
     caster = alloc_test_unit(MAKEFOURCC('O','s','h','d'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
     caster->data.UnitAbilities = (UnitAbilities_t *)&abilities;
     caster->s.player = 0;
     target->s.player = 1;
+    target->data.UnitData = (UnitData_t *)&target_unit_data;
     caster->svflags |= SVF_MONSTER;
     target->svflags |= SVF_MONSTER;
     caster->mana.value = caster->mana.max_value = 500.0f;
@@ -9256,7 +9269,9 @@ TEST(wc3_spell, shadow_hunter_hex_uses_an_authored_random_critter_form) {
     T_FEQ(target->health.value, original_health, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
+    G_SetSLKRows("UnitUI", old_ui);
     free_slk_rows(rows);
+    free_slk_rows(ui_rows);
 }
 
 TEST(wc3_spell, shadow_hunter_big_bad_voodoo_protects_friends_for_authored_duration) {
@@ -10839,6 +10854,8 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	static UnitBalance_t const tauren = { .foodUsed = 5 }, hero = { .strength = 1 };
 	UnitData_t corpse_data = { .deathType = 3 };
 	UnitAbilities_t abilities = { .abilList = "Aast" };
+	static char const effect_config[] =
+		"[Aast]\nTargetArt=TestUI\\Models\\anim_projectile.mdx\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old;
 	edict_t *caster = make_hero(MAKEFOURCC('o','s','p','m'), 500, 1000, 0, 0);
 	edict_t *zero_health = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 10, 0);
@@ -10853,11 +10870,12 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	edict_t *distant = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 351, 0);
 	edict_t *return_effect = NULL;
 	uint32_t reincarnation_model = G_RegisterModel(
-		"Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl");
+		"TestUI\\Models\\anim_projectile.mdx");
 	uint32_t nearest_spawn = nearest->spawn_time;
     int32_t previous_rowt = G_GetPlayerTechResearchedLevel(&game.clients[0], MAKEFOURCC('R','o','w','t'));
 
 	old = G_SetSLKRows("AbilityData", rows);
+	T_ASSERT(G_TestPushAbilityConfig(effect_config));
 	caster->data.UnitAbilities = &abilities; caster->s.player = 0;
 	zero_health->data.UnitBalance = &tauren; zero_health->s.player = 0;
 	zero_health->svflags |= SVF_MONSTER; zero_health->health.value = 0; zero_health->health.max_value = 400;
@@ -10919,6 +10937,7 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	T_ASSERT(M_IsDead(zero_health)); T_ASSERT(!(zero_health->svflags & SVF_DEADMONSTER));
 	T_ASSERT(!M_IsDead(living)); T_ASSERT(M_IsDead(hero_corpse)); T_ASSERT(M_IsDead(other_corpse));
 	T_ASSERT(M_IsDead(allied_corpse)); T_ASSERT(M_IsDead(distant));
+	G_TestPopAbilityConfig();
 	G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','o','w','t'), previous_rowt);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

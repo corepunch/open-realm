@@ -1991,6 +1991,9 @@ TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_
         "C;Y1;X3;K\"Cool1\"\nC;Y1;X4;K\"Cost1\"\n"
         "C;Y2;X1;K\"Acpf\"\nC;Y2;X2;K\"Acpf\"\nC;Y2;X3;K30\nC;Y2;X4;K0\n"
         "C;Y3;X1;K\"Aetf\"\nC;Y3;X2;K\"Aetf\"\nC;Y3;X3;K30\nC;Y3;X4;K0\nE\n";
+    static cstring_t const presentation_config =
+        "[Acpf]\nArt=ReplaceableTextures\\CommandButtons\\BTNSpiritWalker.blp\nButtonpos=0,2\n"
+        "[Aetf]\nArt=ReplaceableTextures\\CommandButtons\\BTNSpiritWalker.blp\nButtonpos=0,2\n";
     static cstring_t const ui_slk =
         "ID;PWXL;N;EBB;Y3;X4\n"
         "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\n"
@@ -2018,6 +2021,7 @@ TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_
     reset_test_entities(); setup_test_world();
     ability_rows = parse_slk_string(ability_slk);
     old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    T_ASSERT(G_TestPushAbilityConfig(presentation_config));
     ui_rows = parse_slk_string(ui_slk);
     old_ui = G_SetSLKRows("UnitUI", ui_rows);
     units_rows = parse_slk_string(units_slk);
@@ -2086,6 +2090,7 @@ TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_
     G_SetSLKRows("UnitAbilities", old_units); free_slk_rows(units_rows);
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
     G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+    G_TestPopAbilityConfig();
 }
 
 static cstring_t crypt_fiend_burrow_test_cvar(cstring_t name, cstring_t fallback) {

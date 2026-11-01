@@ -3012,9 +3012,20 @@ TEST(wc3_building, troll_berserker_research_transforms_existing_headhunters) {
         "C;X1;Y2;K\"Robk\"\nC;X2;K1\nC;X3;K1\n"
         "C;X4;K\"rtma\"\nC;X5;K1\nC;X7;K\"ohun\"\n"
         "C;X8;K\"rtma\"\nC;X9;K-1\nC;X11;K\"otbk\"\nE\n";
+    static char const balance_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y3;D0\n"
+        "C;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"upgrades\"\n"
+        "C;X1;Y2;K\"ohun\"\nC;X2;K\"Robk\"\n"
+        "C;X1;Y3;K\"otbk\"\nC;X2;K\"Rxxx\"\nE\n";
+    static char const ui_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y3;D0\n"
+        "C;X1;Y1;K\"unitUIID\"\nC;X2;K\"file\"\nC;X3;K\"modelScale\"\n"
+        "C;X1;Y2;K\"ohun\"\nC;X2;K\"Units\\\\Orc\\\\HeadHunter\\\\HeadHunter.mdx\"\nC;X3;K1\n"
+        "C;X1;Y3;K\"otbk\"\nC;X2;K\"Units\\\\Orc\\\\TrollBerserker\\\\TrollBerserker.mdx\"\nC;X3;K1\nE\n";
     slkTestData_t *upgrade_rows, *old_upgrades;
+    slkTestData_t *balance_rows, *old_balance, *ui_rows, *old_ui;
     UnitBalance_t headhunter_balance = { .upgrades = "Robk" };
-    UnitBalance_t ordinary_balance = { .upgrades = "" };
+    UnitBalance_t ordinary_balance = { .upgrades = "Rxxx" };
     gameClient_t *owner;
     edict_t *headhunter, *ordinary_headhunter;
     uint32_t const berserker_research = MAKEFOURCC('R','o','b','k');
@@ -3023,6 +3034,10 @@ TEST(wc3_building, troll_berserker_research_transforms_existing_headhunters) {
     setup_test_world();
     upgrade_rows = parse_slk_string(upgrade_slk);
     old_upgrades = G_SetSLKRows("UpgradeData", upgrade_rows);
+    balance_rows = parse_slk_string(balance_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    ui_rows = parse_slk_string(ui_slk);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
     owner = &game.clients[0];
     memset(owner->tech, 0, sizeof(owner->tech));
     owner->ps.number = 0;
@@ -3033,6 +3048,12 @@ TEST(wc3_building, troll_berserker_research_transforms_existing_headhunters) {
     ordinary_headhunter->s.player = owner->ps.number;
     ordinary_headhunter->data.UnitBalance = &ordinary_balance;
 
+    T_EQ(G_UpgradeData(berserker_research)->effect[0], MAKEFOURCC('r','t','m','a'));
+    T_EQ(G_UpgradeData(berserker_research)->effectCode[0], MAKEFOURCC('o','h','u','n'));
+    T_EQ(G_UpgradeData(berserker_research)->effect[1], MAKEFOURCC('r','t','m','a'));
+    T_EQ(G_UpgradeData(berserker_research)->effectCode[1], MAKEFOURCC('o','t','b','k'));
+    T_ASSERT(G_UnitUsesUpgrade(headhunter, berserker_research));
+    T_ASSERT(!G_UnitUsesUpgrade(ordinary_headhunter, berserker_research));
     T_EQ(headhunter->class_id, MAKEFOURCC('o','h','u','n'));
     T_EQ(ordinary_headhunter->class_id, MAKEFOURCC('o','h','u','n'));
 
@@ -3043,6 +3064,8 @@ TEST(wc3_building, troll_berserker_research_transforms_existing_headhunters) {
     T_ASSERT(headhunter->inuse);
 
     G_SetPlayerTechResearched(owner, berserker_research, 0);
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
     G_SetSLKRows("UpgradeData", old_upgrades);
     free_slk_rows(upgrade_rows);
 }
