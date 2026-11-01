@@ -141,6 +141,42 @@ The broader [validation record](retail-pathfinding-attack-recovery-validation.js
 records 1,272 tests and 316,668 assertions as **composite** validation: 24 retained
 passing processes plus the two corrected complete lifecycle processes, with only
 the lifecycle test source changed between checkpoints. It is not a full-suite run
-or a complete C299 comparison. Ordinary recovery's resolved-alternative validation still needs a C-specific disposition against original4968e0; forced and inactive preservation checks do not establish that branch. The two lifecycle fixtures now execute primary
+or a complete C299 comparison. Ordinary recovery's resolved-alternative validation is implemented as described below; this does not establish the adjusted retained-target branch or full C299 parity. The two lifecycle fixtures now execute primary
 requests and physical owner updates before retaining their exact final Stand and
 queue assertions. See [saved recovery intent](save-load.md).
+
+## Ordinary alternative validation and item life
+
+Active ordinary recovery now validates a resolved alternative before retaining it.
+Forced recovery clears it. Inactive recovery and unresolved weak identities keep
+their existing words. Public AttackMove acquisition and an owner-change event
+establish the ranked alternative used by the fresh and saved regression cases.
+Those cases cover retaining a valid target, hidden/dead/invulnerable rejection,
+forced clearing, and a freed/reused entity slot.
+
+The predicate selects the first compatible enabled weapon, applies its complete
+target mask without an alliance restriction, checks Unit visibility, and uses
+actual flight for the minimum-range exemption. Expansion and
+`Misc.MagicImmunesResistDamage` jointly control the special magic/ethereal damage
+restrictions. Unit and Item hiding reject the candidate; the generic
+Destructable branch does not borrow that rejection. The minimum-range comparison
+preserves the original scalar near-equality threshold and signed authored input.
+The [original predicate evidence](../../../games/warcraft-3/game/tests/fixtures/retail_attack_recovery299_alternative_validation.json)
+contains 1,430 verified body, instruction and data guards. These are static
+evidence, not a live original alternative-ranking capture.
+
+The generic Item case exposed a constructor dependency: item life had never been
+initialized from `ItemData.HP`. `SP_SpawnItem` now initializes current and maximum
+life from the authored scalar. Negative/NaN current life clamps to zero; the
+maximum retains its authored value. Fractional SLK values and integer map
+overrides use the existing typed scalar conversion. Missing HP remains zero;
+there is no invented default. The [item-life evidence](../../../games/warcraft-3/game/tests/fixtures/retail_attack_recovery306_item_life.json)
+retains eleven original function bodies. Existing saved health fields already
+carry both scalars, and load-time data rebind does not run the constructor, so
+this change does not require a new save version.
+
+The native predicate's adjusted retained-target state at Attack offsets
+`2bc/2c0` remains a separate reachability limit. The current target is not used
+as a substitute. Temporary Invisibility's shared fade/contribution/suppression
+producer and the complete normal/saved C299 replay remain unfinished. B01 and
+TARGET-01.2 remain open.

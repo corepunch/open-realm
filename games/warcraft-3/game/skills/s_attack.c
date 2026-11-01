@@ -773,7 +773,7 @@ bool S_UnitMatchesTargetMask(edict_t const *target,uint32_t raw,edict_t const *s
         }
         if(!(mask&relation))return false;
     }
-    return (mask&WC3_TARGET_FLAG_HERO) || !attack_query_resistant_skin(target);
+    return !source || (mask&WC3_TARGET_FLAG_HERO) || !attack_query_resistant_skin(target);
 }
 
 /* Original9d72f0 tests attack damage type, not delivery style or slot admission.
@@ -1023,6 +1023,71 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
     attack_recover_target_task(attacker,target,false,false,reason);
 }
 
+/*4968e0 ordinary recovery validates a resolved alternative independently of
+ * current Attack ownership.496b80 selects the FIRST compatible enabled slot;
+ * no alliance filter is supplied to6a8170. The separately unproved adjusted
+ * owner2bc/2c0 branch is not represented by current attack_target. */
+static bool attack_recovery_alternative_valid(edict_t const *attacker,edict_t const *target) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) || target==attacker ||
+       M_IsDead((edict_t *)target))return false;
+    bool const item=G_IsItem(target),generic=item || G_IsDestructable(target);
+    bool const hidden=target->script_world_hidden ||
+        ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
+    /*13c is Unit5c100 or generic-widget life<=0. Hidden rejection is a
+     * separate Unit/ITEM branch (1f1ae0 casts 'item'), not Destructable. */
+    if(hidden && (!generic || item))return false;
+    cstring_t setting=Stb_IniCacheFind(&game.config.misc,"Misc","MagicImmunesResistDamage");
+    cstring_t version=gi.CvarString ? gi.CvarString("fs_expansion","0") : NULL;
+    bool const expansion=version && atoi(version)!=0;
+    bool const resist=expansion && setting && atoi(setting)!=0;
+    unitAttack_t const *selected=NULL;
+    FOR_LOOP(slot,2) {
+        if(!S_UnitAttackSlotEnabled(attacker,slot))continue;
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        uint32_t const raw=profile->targetsAllowed;
+        if(raw&WC3_TARGET_FLAG_NONE)continue;
+        if(generic) {
+            uint32_t const category=item ? WC3_TARGET_FLAG_ITEM :
+                (target->data.DestructableData ? G_ParseTargetMask(target->data.DestructableData->targetType) :
+                 G_TargetFlagForType(target->targtype));
+            uint32_t const facts=category |
+                WC3_TARGET_FLAG_ALIVE |
+                (G_UnitIsInvulnerable(target) ? WC3_TARGET_FLAG_INVULNERABLE : WC3_TARGET_FLAG_VULNERABLE);
+            uint32_t const common=facts&attack_query_normalize_mask(raw);
+            if(!(common&0x7feu) || !(common&0x03000000u) || !(common&0x00300000u))continue;
+        } else {
+            if(!S_UnitMatchesTargetMask(target,raw,NULL))continue;
+            if(resist && S_UnitSpellImmune(target) && profile->type==ATK_MAGIC)continue;
+            /*6a6fe0 native damage types1/2/3/5/6 are these C enums;
+             * native4 is magic, while native0 ('spells') bypasses both. */
+            bool const physical=profile->type==ATK_NORMAL || profile->type==ATK_PIERCE ||
+                profile->type==ATK_SIEGE || profile->type==ATK_CHAOS || profile->type==ATK_HERO;
+            if(resist && physical && (target->ethereal_depth>0 ||
+               unit_hasstatusstate(target,WC3_STATUS_STATE_ETHEREAL)))continue;
+        }
+        selected=profile;break;
+    }
+    if(!selected)return false;
+    if(!generic && !G_FowPlayerCanTrackUnit(attacker->s.player,target))return false;
+    /*23a740 tests physical flight and forced-ground ownership; an authored
+     * AIR target category alone does not bypass minimum range. Ensnare and
+     * the other grounding owners clear the engine's live AI_FLYING flag. */
+    if(generic || !(target->aiflags&AI_FLYING)) {
+        float const minimum=attacker->data.UnitWeapons ? attacker->data.UnitWeapons->minimumAttackRange : 0;
+        /*49cab0 retains the authored range below its scalar near-equality
+         * threshold;498520 then returns this first selected bound range. */
+        float range=selected->range,acquisition=G_AcquisitionRange(attacker);
+        if(acquisition<range && fabsf(wc3_sub(range,acquisition))>=wc3_float(0x3a83126f))
+            range=acquisition;
+        /*49cab0 sets8000 for every nonzero authored minimum, including
+         * negative values;05b580 owns the range input's own normalization. */
+        if(minimum!=0 && minimum<range &&
+           fabsf(wc3_sub(minimum,range))>=wc3_float(0x3a83126f) &&
+           S_UnitTargetInMoveRange(attacker,target,minimum))return false;
+    }
+    return true;
+}
+
 /* Original49d280: loss intent, task acquisition permission and an explicit
  * capture request are independent. d016f remains on the logical task chain
  * during reaction, chase, facing, swing and cooldown; physical group existence
@@ -1049,6 +1114,15 @@ static void attack_recover_target_task(edict_t *attacker, edict_t const *target,
     /*49d3ea consumes only an active recovery. Inactive entry preserves it. */
     if(active)attacker->attack_recovery_pending=false;
     if(active && forced)attack_set_alternative(attacker,NULL);
+    else if(active) {
+        edict_t *alternative=attacker->attack_alternative;
+        /*49d424: unresolved weak identities retain their words. Only a
+         * resolved but invalid candidate is cleared by ordinary recovery. */
+        if(alternative && alternative->inuse &&
+           alternative->spawn_time==attacker->attack_alternative_spawn_time &&
+           !attack_recovery_alternative_valid(attacker,alternative))
+            attack_set_alternative(attacker,NULL);
+    }
     if(capture) {
         uint32_t birth=attacker->spawn_time;
         S_EndUnitTargetChase(attacker,CAbilityAttack);

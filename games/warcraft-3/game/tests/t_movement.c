@@ -24671,6 +24671,306 @@ TEST(wc3_movement, target_recovery_attackonce_finish_keeps_swing_without_capture
     G_FowShutdown();reset_entities();setup_test_world();
 }
 
+/* Native49d424 resolves the weak alternative before4968e0(flags1): an
+ * invalid resolved widget is cleared, a valid or unresolved identity remains.
+ * Availability below is the real owner-change/ranking producer; only the last
+ * mode calls original298's forced service boundary directly. */
+TEST(wc3_movement, target_recovery_revalidates_ranked_alternative_and_saved_identity) {
+    FOR_LOOP(saved,2)FOR_LOOP(mode,6) {
+        edict_t *unit,*target;
+        target166_setup(&unit,&target);target222_arm(unit,target,137);
+        edict_t *alternative=alloc_test_unit(MAKEFOURCC('h','R','T','E'),800,256);
+        uint32_t const alternative_birth=alternative->spawn_time;
+        alternative->s.player=0;alternative->targtype=TARG_GROUND;
+        alternative->svflags=SVF_MONSTER;alternative->collision=31;
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        target->health.value=alternative->health.value=420;
+        target->defense_type=alternative->defense_type=unit->defense_type=2;
+        edict_t *actors[]={unit,target,alternative};
+        FOR_LOOP(i,3) {
+            actors[i]->s.model=G_RegisterModel("TestUI\\Models\\quad_sprite.mdx");
+            G_PublishMoveSpatialObject(actors[i]);
+        }
+        T_ASSERT(run_test_jass("globals\nunit target\nunit alternative\nendglobals\n"
+            "function publish takes nothing returns nothing\ncall SetUnitOwner(alternative,Player(1),false)\nendfunction\n"
+            "function hide_alternative takes nothing returns nothing\ncall ShowUnit(alternative,false)\nendfunction\n"
+            "function kill_alternative takes nothing returns nothing\ncall KillUnit(alternative)\nendfunction\n"
+            "function protect_alternative takes nothing returns nothing\ncall SetUnitInvulnerable(alternative,true)\nendfunction\n"
+            "function hide_target takes nothing returns nothing\ncall ShowUnit(target,false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+            "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+            "call GroupClear(g)\ncall GroupEnumUnitsInRange(g,800,256,1,null)\nset alternative=FirstOfGroup(g)\n"
+            "call DestroyGroup(g)\nendfunction\n"));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1536,256},false,0,0));
+        order_attack(unit,target);
+        jass_callbyname(level.vm,"publish",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(alternative->s.player,1);
+        T_EQ(unit->attack_target,target);T_EQ(unit->attack_alternative,alternative);
+        T_EQ(unit->attack_alternative_spawn_time,alternative_birth);
+        if(mode>=1 && mode<=3) {
+            jass_callbyname(level.vm,mode==1 ? "hide_alternative" :
+                mode==2 ? "kill_alternative" : "protect_alternative",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        if(mode==4) {
+            G_FreeEdict(alternative);
+            level.time+=1001;
+            /* Runtime creation owns incarnation assignment; the synthetic
+             * allocator leaves birth zero. Own-player creation cannot publish
+             * an enemy availability replacement for the retained weak row. */
+            edict_t *replacement=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){800,256},0);
+            T_NOT_NULL(replacement);
+            T_EQ(replacement,alternative);
+            if(replacement) {
+                T_NE(replacement->spawn_time,0);
+                T_NE(replacement->spawn_time,alternative_birth);
+                T_EQ(replacement->s.player,unit->s.player);
+            }
+        }
+        /* The alternative has no current-target subscription: these changes
+         * must not themselves consume its weak identity before recovery. */
+        T_EQ(unit->attack_alternative,alternative);
+        T_EQ(unit->attack_alternative_spawn_time,alternative_birth);
+        if(saved) {
+            UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-recovery-alternative.bin");
+            T_ASSERT(WriteGame(file));S_ClearMoveGroups();T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=weapons;
+            T_EQ(unit->attack_target,target);T_EQ(unit->attack_alternative,alternative);
+            T_EQ(unit->attack_alternative_spawn_time,alternative_birth);
+        }
+        if(mode==5)attack_recover_target_task(unit,target,true,false,"test_original298_forced_alternative");
+        else jass_callbyname(level.vm,"hide_target",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));T_NULL(unit->attack_target);
+        bool const cleared=(mode>=1 && mode<=3) || mode==5;
+        T_EQ(unit->attack_alternative,cleared ? NULL : alternative);
+        T_EQ(unit->attack_alternative_spawn_time,cleared ? 0 : alternative_birth);
+        T_NOT_NULL(unit->movement.attackmove_waypoint);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+static slkTestData_t *recovery_predicate_ability_rows(void) {
+    return parse_slk_string("ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"Arsk\"\nC;Y2;X2;K\"Arsk\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y3;X1;K\"Amim\"\nC;Y3;X2;K\"Amim\"\nC;Y3;X3;K\"1\"\nE\n");
+}
+
+/* Direct4968e0 predicate controls: these authored inputs exercise the helper
+ * contract, separately from the real availability/recovery cases above. */
+TEST(wc3_movement, target_recovery_predicate_masks_and_source_null_relationship) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,500);target223_script();
+    slkTestData_t *rows=recovery_predicate_ability_rows();
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+    profile->targetsAllowed=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_VULNERABLE;
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    target->invulnerable=true;
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    profile->targetsAllowed=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_INVULNERABLE;
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    target->invulnerable=false;
+    profile->targetsAllowed=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_ENEMY|WC3_TARGET_FLAG_NONHERO;
+    jass_callbyname(level.vm,"ally_owner",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(target->s.player,unit->s.player);
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','r','s','k')));
+    T_ASSERT(attack_query_resistant_skin(target));
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    /*13c rejects dead before the authored target mask is consulted. */
+    profile->targetsAllowed=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_DEAD;
+    jass_callbyname(level.vm,"kill",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target_recovery_predicate_minimum_boundary_and_flying_bypass) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,500);target223_script();
+    UnitWeapons_t weapons=*unit->data.UnitWeapons;
+    UnitWeapons_t const *old=unit->data.UnitWeapons;
+    weapons.minimumAttackRange=100;unit->data.UnitWeapons=&weapons;
+    unit->runtime.acquisition_range=600;
+    /* Both31-unit bodies contribute to the inclusive minimum predicate. */
+    float const edge=256+100+31+31;
+    S_SetUnitAxisPosition(target,0,edge);
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    S_SetUnitAxisPosition(target,0,wc3_float(wc3_float_bits(edge)+1));
+    /* One adjacent float still lies within05b580's squared tolerance. */
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    S_SetUnitAxisPosition(target,0,edge+.25f);
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    S_SetUnitAxisPosition(target,0,edge);
+    /* AIR targeting category alone does not establish actual flight. */
+    target->targtype=TARG_AIR;
+    S_AttackProfileWrite(unit,0)->targetsAllowed=WC3_TARGET_FLAG_AIR;
+    T_ASSERT(!(target->aiflags&AI_FLYING));T_EQ(target->movetype,MOVETYPE_STEP);
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    target->aiflags|=AI_FLYING;target->movetype=MOVETYPE_FLY;
+    T_EQ(G_UnitTargetType(target),TARG_AIR);
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    unit->data.UnitWeapons=old;
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target_recovery_predicate_requires_full_fog_visibility) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,500);target223_script();
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);
+    if(fog) {
+        *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=200};
+        G_FogModifierStart(fog);G_FowUpdate();
+        T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+        T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+        G_FogModifierStop(fog);G_FowUpdate();
+        T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* Direct native4968e0 scalar/selection controls, not public ranking cases. */
+TEST(wc3_movement, target_recovery_predicate_signed_minimum_and_first_slot) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,500);target223_script();
+    UnitWeapons_t weapons=*unit->data.UnitWeapons;
+    UnitWeapons_t const *old=unit->data.UnitWeapons;
+    unit->data.UnitWeapons=&weapons;unit->runtime.acquisition_range=600;
+    S_SetUnitAxisPosition(target,0,256);
+    float const minima[]={-100,wc3_float(1),0,wc3_float(0x80000000)};
+    FOR_LOOP(i,4) {
+        weapons.minimumAttackRange=minima[i];
+        T_EQ(attack_recovery_alternative_valid(unit,target),i>=2);
+    }
+    weapons.attacksEnabled=3;weapons.minimumAttackRange=333;
+    S_AttackProfileWrite(unit,0)->range=200;
+    *S_AttackProfileWrite(unit,1)=*S_AttackProfileRead(unit,0);
+    S_AttackProfileWrite(unit,1)->range=500;
+    T_ASSERT(attack_recovery_alternative_valid(unit,target));
+    weapons.attacksEnabled=2;
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    weapons.attacksEnabled=1;weapons.minimumAttackRange=100;
+    S_AttackProfileWrite(unit,0)->range=wc3_float(0x42c80084);
+    unit->runtime.acquisition_range=wc3_float(0x42c80042);
+    T_ASSERT(!attack_recovery_alternative_valid(unit,target));
+    unit->data.UnitWeapons=old;
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+static bool recovery_predicate_expansion;
+static cstring_t recovery_predicate_cvar(cstring_t name,cstring_t fallback) {
+    return !strcmp(name,"fs_expansion") ? (recovery_predicate_expansion ? "1" : "0") : fallback;
+}
+
+/* Direct predicate edition/Misc controls retain real immunity contributors.
+ * They do not assert that an availability producer selected this target. */
+TEST(wc3_movement, target_recovery_predicate_immunity_edition_and_misc) {
+    typeof(gi.CvarString) old_cvar=gi.CvarString;
+    stbIniCache_t old_misc=game.config.misc;
+    FOR_LOOP(expansion,2)FOR_LOOP(setting,3) {
+        edict_t *unit,*target;
+        target166_setup(&unit,&target);target222_arm(unit,target,500);target223_script();
+        slkTestData_t *rows=recovery_predicate_ability_rows();
+        slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+        UnitWeapons_t weapons=*unit->data.UnitWeapons;
+        UnitWeapons_t const *old_weapons=unit->data.UnitWeapons;
+        weapons.attacksEnabled=1;unit->data.UnitWeapons=&weapons;
+        T_EQ(unit->data.UnitWeapons->attacksEnabled,1);
+        T_ASSERT(S_UnitAttackSlotEnabled(unit,0));T_ASSERT(!S_UnitAttackSlotEnabled(unit,1));
+        stbIniCache_t custom={0};
+        T_ASSERT(Stb_IniCacheLoadBuffer(&custom,setting==0 ? "[Misc]\n" :
+            setting==1 ? "[Misc]\nMagicImmunesResistDamage=0\n" :
+                         "[Misc]\nMagicImmunesResistDamage=1\n"));
+        game.config.misc=custom;
+        recovery_predicate_expansion=expansion!=0;gi.CvarString=recovery_predicate_cvar;
+        bool const resist=expansion && setting==2;
+        T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','m','i','m')));
+        T_ASSERT(S_UnitSpellImmune(target));
+        S_AttackProfileWrite(unit,0)->type=ATK_MAGIC;
+        T_EQ(attack_recovery_alternative_valid(unit,target),!resist);
+        S_AttackProfileWrite(unit,0)->type=ATK_SPELLS;
+        T_ASSERT(attack_recovery_alternative_valid(unit,target));
+        T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','m','i','m')));
+        S_AcquireEthereal(target);
+        T_ASSERT(target->ethereal_depth>0);
+        S_AttackProfileWrite(unit,0)->type=ATK_NORMAL;
+        T_EQ(attack_recovery_alternative_valid(unit,target),!resist);
+        S_AttackProfileWrite(unit,0)->type=ATK_SPELLS;
+        T_ASSERT(attack_recovery_alternative_valid(unit,target));
+        S_ReleaseEthereal(target);
+        gi.CvarString=old_cvar;game.config.misc=old_misc;
+        Stb_IniCacheFree(&custom);
+        unit->data.UnitWeapons=old_weapons;
+        G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+    gi.CvarString=old_cvar;game.config.misc=old_misc;
+}
+
+/* Direct4968e0 generic-widget branch with actual Item/Destructable
+ * constructors. No Unit fog/classification shortcuts or explicit-tree Attack
+ * admission exceptions are substituted for this ordinary-recovery query. */
+TEST(wc3_movement, target_recovery_predicate_generic_widget_categories) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,500);target223_script();
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"HP\"\nC;Y1;X4;K\"targType\"\n"
+        "C;Y2;X1;K\"B004\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\n"
+        "C;Y2;X3;K\"50\"\nC;Y2;X4;K\"tree,wall\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old_rows=G_SetSLKRows("DestructableData",rows);
+    char const item_slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"HP\"\nC;Y2;X1;K\"spro\"\n"
+        "C;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"63\"\nE\n";
+    slkTestData_t *item_rows=parse_slk_string(item_slk);
+    slkTestData_t *old_items=G_SetSLKRows("ItemData",item_rows);
+    edict_t *item=SP_SpawnAtLocation(MAKEFOURCC('s','p','r','o'),0,&(vec2_t){672,304});
+    edict_t *dest=G_CreateDestructable(MAKEFOURCC('B','0','0','4'),672,352,0,0,1,0);
+    T_NOT_NULL(item);T_NOT_NULL(dest);
+    UnitWeapons_t weapons=*unit->data.UnitWeapons;
+    UnitWeapons_t const *old_weapons=unit->data.UnitWeapons;
+    weapons.attacksEnabled=1;unit->data.UnitWeapons=&weapons;
+    if(item && dest) {
+        T_ASSERT(G_IsItem(item));T_ASSERT(G_IsDestructable(dest));
+        T_EQ(item->health.value,63);T_EQ(item->health.max_value,63);T_EQ(dest->health.value,50);
+        fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);
+        if(fog) {
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,304},.radius=200};
+            G_FogModifierStart(fog);G_FowUpdate();
+            T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+            unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+            profile->targetsAllowed=WC3_TARGET_FLAG_ITEM;
+            T_ASSERT(attack_recovery_alternative_valid(unit,item));
+            T_ASSERT(!attack_recovery_alternative_valid(unit,dest));
+            profile->targetsAllowed=WC3_TARGET_FLAG_TREE;
+            T_ASSERT(attack_recovery_alternative_valid(unit,dest));
+            profile->targetsAllowed=WC3_TARGET_FLAG_WALL;
+            T_ASSERT(attack_recovery_alternative_valid(unit,dest));
+            profile->targetsAllowed=WC3_TARGET_FLAG_GROUND;
+            T_ASSERT(!attack_recovery_alternative_valid(unit,dest));
+            G_SetEntityHidden(item,true);G_SetEntityHidden(dest,true);
+            profile->targetsAllowed=WC3_TARGET_FLAG_ITEM|WC3_TARGET_FLAG_HIDDEN;
+            T_ASSERT(!attack_recovery_alternative_valid(unit,item));
+            profile->targetsAllowed=WC3_TARGET_FLAG_TREE;
+            T_ASSERT(attack_recovery_alternative_valid(unit,dest));
+            G_SetEntityHidden(item,false);
+            G_SetHealth(item,0);G_SetHealth(dest,0);
+            profile->targetsAllowed=WC3_TARGET_FLAG_ITEM|WC3_TARGET_FLAG_TREE|WC3_TARGET_FLAG_DEAD;
+            T_ASSERT(!attack_recovery_alternative_valid(unit,item));
+            T_ASSERT(!attack_recovery_alternative_valid(unit,dest));
+            G_FogModifierStop(fog);
+        }
+    }
+    unit->data.UnitWeapons=old_weapons;
+    G_FowShutdown();reset_entities();
+    G_SetSLKRows("ItemData",old_items);free_slk_rows(item_rows);
+    G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);setup_test_world();
+}
+
 TEST(wc3_movement, target223_invisibility_validates_detection_and_shared_vision_synchronously) {
     FOR_LOOP(policy,3) {
         edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);

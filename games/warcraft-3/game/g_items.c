@@ -150,6 +150,10 @@ void SP_SpawnItem(edict_t *self) {
     if (!self || !(model = self->data.ItemData->file)) {
         return;
     }
+    /* Retail6579b0 seeds both life scalars from ItemData.HP; 65ae40 clamps
+     * nonpositive/NaN current life while 65af00 retains the authored maximum. */
+    self->health.max_value = self->data.ItemData->HP;
+    self->health.value = self->health.max_value >= 0.0f ? self->health.max_value : 0.0f;
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
     scale = self->data.ItemData->scale;

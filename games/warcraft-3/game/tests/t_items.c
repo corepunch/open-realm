@@ -289,6 +289,36 @@ TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
     T_EQ(G_ItemCharges(item), 1);
 }
 
+TEST(wc3_items, spawn_uses_authored_scalar_life_without_fallback) {
+    char const slk[] = "ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\n"
+        "C;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\n"
+        "C;Y2;X1;K\"i001\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K63\n"
+        "C;Y3;X1;K\"i002\"\nC;Y3;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y3;X3;K63.5\n"
+        "C;Y4;X1;K\"i003\"\nC;Y4;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y4;X3;K-7\n"
+        "C;Y5;X1;K\"i004\"\nC;Y5;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y5;X3;K0\n"
+        "C;Y6;X1;K\"i005\"\nC;Y6;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nE\n";
+    /* Retail's decimal parser rounds the authored "63.5" one word above
+     * the host C literal. Keep that exact scalar instead of relaxing equality. */
+    float const maximum[] = {63, wc3_float(0x427e0001), -7, 0, 0};
+    setup_test_world();
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("ItemData", rows);
+    FOR_LOOP(i, 5) {
+        edict_t *item = SP_SpawnAtLocation(MAKEFOURCC('i','0','0','1'+i), 0,
+                                          &(vec2_t){32,64});
+        T_NOT_NULL(item);
+        if (!item) continue;
+        T_ASSERT(G_IsItem(item));
+        T_EQ(item->data.ItemData->HP, maximum[i]);
+        T_EQ(item->health.max_value, maximum[i]);
+        T_EQ(item->health.value, maximum[i] > 0 ? maximum[i] : 0);
+    }
+    reset_entities();
+    G_SetSLKRows("ItemData", old);
+    free_slk_rows(rows);
+    setup_test_world();
+}
+
 TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
     ability_t const *ability;
     edict_t *player;

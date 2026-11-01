@@ -378,7 +378,7 @@ typedef struct {
     cstring_t  itemClass;               /* TFT: item class; ROC: itemClass    */
     int32_t    armor;
     int32_t    goldcost, lumbercost;
-    int32_t    HP;
+    float      HP;
     int32_t    level;
     int32_t    prio;
     int32_t    stockMax, stockRegen, stockStart;

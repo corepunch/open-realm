@@ -1303,18 +1303,20 @@ TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
 TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
     uint32_t const base_id = MAKEFOURCC('s','p','r','o');
     uint32_t const custom_id = MAKEFOURCC('x','p','r','o');
-    uint32_t stock_max = 1, stock_regen = 7, stock_start = 3, gold = 321;
+    uint32_t stock_max = 1, stock_regen = 7, stock_start = 3, gold = 321, hp = 63;
     mapInfo_t const *saved_mapinfo;
     ItemData_t const *base;
     int32_t saved_stock_max, saved_stock_regen, saved_stock_start, saved_gold;
+    float saved_hp;
     unitModification_t mods[] = {
         { .modID = MAKEFOURCC('i','s','t','o'), .type = mod_int, .data = &stock_max },
         { .modID = MAKEFOURCC('i','s','t','r'), .type = mod_int, .data = &stock_regen },
         { .modID = MAKEFOURCC('i','s','s','t'), .type = mod_int, .data = &stock_start },
         { .modID = MAKEFOURCC('i','g','o','l'), .type = mod_int, .data = &gold },
+        { .modID = MAKEFOURCC('i','h','t','p'), .type = mod_int, .data = &hp },
     };
     unitData_t original = {
-        .originalUnitID = base_id, .numbeOfModifications = 4, .modifications = mods
+        .originalUnitID = base_id, .numbeOfModifications = 5, .modifications = mods
     };
     unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
     mapInfo_t mapinfo = {
@@ -1329,6 +1331,7 @@ TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
     saved_stock_regen = base->stockRegen;
     saved_stock_start = base->stockStart;
     saved_gold = base->goldcost;
+    saved_hp = base->HP;
     level.mapinfo = &mapinfo;
     G_SetMapUnitOverrides(&mapinfo);
 
@@ -1341,6 +1344,8 @@ TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
     T_EQ(G_ItemData(custom_id)->stockRegen, 7);
     T_EQ(G_ItemData(custom_id)->stockStart, 3);
     T_EQ(G_ItemData(custom_id)->goldcost, 321);
+    T_EQ(G_ItemData(base_id)->HP, 63);
+    T_EQ(G_ItemData(custom_id)->HP, 63);
     {
         edict_t item = { .class_id = custom_id };
         G_BindEntityData(&item);
@@ -1354,6 +1359,7 @@ TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
     T_EQ(G_ItemData(base_id)->stockRegen, saved_stock_regen);
     T_EQ(G_ItemData(base_id)->stockStart, saved_stock_start);
     T_EQ(G_ItemData(base_id)->goldcost, saved_gold);
+    T_EQ(G_ItemData(base_id)->HP, saved_hp);
 }
 
 TEST(wc3_slk, map_destructable_overrides_inherit_and_normalize_armor) {

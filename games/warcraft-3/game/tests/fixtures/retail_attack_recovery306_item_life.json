@@ -1,0 +1,253 @@
+{
+  "schema": "retail-attack-recovery306-item-life-v1",
+  "status": "Original static item-life dependency evidence; no public capture or full C recovery parity claim.",
+  "binary": {
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "0x6f000000"
+  },
+  "findings": [
+    "6b05b0 binds the ItemData HP column; 656550 reads it through scalar getter6ad1b0 into row+a4.",
+    "659be0 returns that scalar;6579b0 seeds both current and maximum life from it.",
+    "658c10/652620 applies maximum via virtual144 then current life via virtual124.",
+    "65ae40 clamps negative and NaN current life to zero, retaining nonnegative values including signed zero.65af00 stores the authored maximum.",
+    "199610 preserves float cells, converts integer cells through the original scalar integer conversion, and returns zero for absent/other cell types.",
+    "6ad1b0 resolves map overrides/inherited parent before base SLK; no Misc fallback is read."
+  ],
+  "original_function_exports": [
+    {
+      "function_rva": "0x6b05b0",
+      "original_bytes_hex": "558bec56ff75088bf1e8022999ff685cacb76f8d46108bce50ff7604e83f66ffff6864acb76f8d46188bce50ff7604e82c66ffff6808e6aa6f8d46208bce50ff7604e81966ffff68287db76f8d46288bce50ff7604e80666ffff68e8b3b76f8d46308bce50ff7604e8f365ffff68f4b3b76f8d46388bce50ff7604e8e065ffff6814b4b76f8d46408bce50ff7604e8cd65ffff6870acb76f8d46488bce50ff7604e8ba65ffff6878acb76f8d46508bce50ff7604e8a765ffff688cacb76f8d46588bce50ff7604e89465ffff68c07cb76f8d46608bce50ff7604e88165ffff6898acb76f8d46688bce50ff7604e86e65ffff68a4acb76f8d46708bce50ff7604e85b65ffff68b0acb76f8d46788bce50ff7604e84865ffff680087b76f8d86800000008bce50ff7604e83265ffff6820b4b76f8d86880000008bce50ff7604e81c65ffff682cb4b76f8d86900000008bce50ff7604e80665ffff68ccb3b76f8d86980000008bce50ff7604e8f064ffff68ecacb76f8d86a00000008bce50ff7604e8da64ffff68c4b3b76f8d86a80000008bce50ff7604e8c464ffff6850b1b76f8d86b00000008bce50ff7604e8ae64ffff68b8acb76f8d86b80000008bce50ff7604e89864ffff68b07eab6f8d86c00000008bce50ff7604e88264ffff68c0acb76f8d86c80000008bce50ff7604e86c64ffff685405be6f8d86d00000008bce50ff7604e85664ffff68ccacb76f8d86d80000008bce50ff7604e84064ffff68d8acb76f8d86e000000050ff76048bcee82a64ffff68e0acb76f8d86e80000008bce50ff7604e81464ffff68f4acb76f8d86f00000008bce50ff7604e8fe63ffff6884acb76f8d86f80000008bce50ff7604e8e863ffff687cb3b76f8d86000100008bce50ff7604e8d263ffff6884b3b76f8d86080100008bce50ff7604e8bc63ffff688cb3b76f8d86100100008bce50ff7604e8a663ffff5e5dc20400",
+      "original_bytes_sha256": "32019ffdb8acf9ccaab3a1d15805b56ad80dd1d48908b3435961847ae7e05b50",
+      "ghidra": {
+        "name": "FUN_6f6b05b0",
+        "size": 703,
+        "address": "6f6b05b0",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nvoid __thiscall FUN_6f6b05b0(int param_1,undefined4 param_2)\n\n{\n  FUN_6f042ec0(param_2);\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x10,\"itemID\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x18,\"scriptname\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x20,&DAT_6faae608);\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x28,&DAT_6fb77d28);\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x30,\"goldcost\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x38,\"lumbercost\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x40,\"stockMax\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x48,\"usable\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x50,\"perishable\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x58,\"droppable\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x60,\"powerup\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x68,\"sellable\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x70,\"pawnable\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x78,&DAT_6fb7acb0);\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x80,&DAT_6fb78700);\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x88,\"stockRegen\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x90,\"stockStart\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x98,\"targType\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xa0,\"armor\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xa8,&DAT_6fb7b3c4);\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xb0,\"abilList\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xb8,\"Level\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xc0,\"morph\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 200,\"pickRandom\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xd0,\"version\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xd8,\"oldLevel\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xe0,\"class\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xe8,\"cooldownID\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xf0,\"ignoreCD\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0xf8,\"scale\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x100,\"colorR\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x108,\"colorG\");\n  FUN_6f6a6c10(*(undefined4 *)(param_1 + 4),param_1 + 0x110,\"colorB\");\n  return;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x656550",
+      "original_bytes_hex": "558bec83ec0c5356894dfc8d4dfc578955f8e8b91eb4ff8bf8a1c407d76f83f8ff74318b1dbc07d76f23c78d34408b54b30885d27e1e8b45fc8da42400000000393a750539421474358b0cb38b54110485d27fec8b4df88b5d088d81d00000005053e8c96605008bc88945f4e84f099fff85c075145f5e5b8be55dc204005f5e8bc25b8be55dc204006a006a0057b9a007d76fe8182b0000ff05c807d76f8bf053893e8b4dfc8b7df8894e148bcfe87dc305008946188bcf8b45f48946688d87a00000005053e8f56805008bc8e8ae9effff89461c8bcf8d47305053e84f6605008946208bcf8d47385053e8406605008946248bcf8d47405053e8316605008946288bcf8d878800000050538d45f450e84b6b05008b45f48bcf89462c8d879000000050538d45f450e8326b05008b45f48bcf8946308d87a80000005053e8ed6505008946348bcf8d87b80000005053e8db6505008946388bcf8d87e00000005053e8596805008bc8e85219000089463c8d87d80000008bcf5053e8b06505008946408bcf8d87c00000005053e89e6505008946448bcf8d87c80000005053e88c6505008946488bcf8d47605053e87d65050089464c8bcf8d47685053e86e6505008946508bcf8d47705053e85f6505008946548bcf8d47485053e8506505008946588bcf8d47505053e84165050089465c8bcf8d47585053e8326505008946608bcf8d47785053e8236505008946648bcf8d47285053e81465050089466c8bcf8d87e80000005053e8926705008bc8e8ab5ba1ff8946708bcf8d87f00000005053e8e9640500f7d81bc0f7d88bcf8946748d47185053e864670500508d4e78e83b7da1ff8d47208bcf5053e84f670500508d8e84000000e8237da1ff8d87f80000008bcf5053e8146205008d87100100008bcf5053d99e90000000e88f6405008d8f080100008945f451538bcfe87d6405008d8f000100008bd851ff75088bcfe86a6405000fb6c881c900ffffff0fb6c38b5d08c1e1080bc88b45f4c1e1080fb6c00bc88d87b000000050898e940000008bcf53e8c6660500508d8e98000000e89a7ca1ff8d87800000008bcf50538d450850e8476905008b45088986a40000008bc65f5e5b8be55dc20400",
+      "original_bytes_sha256": "eb8352b6d1796f1e74aec39120bd88519e3e6eaddb2573b4d28bf1b3933873b7",
+      "ghidra": {
+        "name": "FUN_6f656550",
+        "size": 813,
+        "address": "6f656550",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nuint * __fastcall FUN_6f656550(undefined4 param_1,int param_2,uint param_3)\n\n{\n  uint uVar1;\n  uint uVar2;\n  int iVar3;\n  uint *puVar4;\n  int iVar5;\n  undefined4 uVar6;\n  uint uVar7;\n  float10 fVar8;\n  uint local_10;\n  int local_c;\n  uint local_8;\n  \n  local_c = param_2;\n  uVar2 = FUN_6f198420();\n  uVar1 = param_3;\n  if (DAT_6fd707c4 != 0xffffffff) {\n    for (puVar4 = *(uint **)(DAT_6fd707bc + 8 + (DAT_6fd707c4 & uVar2) * 0xc); 0 < (int)puVar4;\n        puVar4 = *(uint **)(*(int *)(DAT_6fd707bc + (DAT_6fd707c4 & uVar2) * 0xc) + 4 + (int)puVar4)\n        ) {\n      if ((*puVar4 == uVar2) && (puVar4[5] == local_8)) {\n        return puVar4;\n      }\n    }\n  }\n  local_10 = FUN_6f6acc80(param_3,local_c + 0xd0);\n  iVar3 = FUN_6f046f10();\n  if (iVar3 == 0) {\n    return (uint *)0x0;\n  }\n  puVar4 = (uint *)FUN_6f659100(uVar2,0,0);\n  iVar3 = local_c;\n  DAT_6fd707c8 = DAT_6fd707c8 + 1;\n  *puVar4 = uVar2;\n  puVar4[5] = local_8;\n  uVar2 = FUN_6f6b2980(uVar1);\n  puVar4[6] = uVar2;\n  puVar4[0x1a] = local_10;\n  FUN_6f6acf10(uVar1,iVar3 + 0xa0);\n  uVar2 = FUN_6f6504d0();\n  puVar4[7] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x30);\n  puVar4[8] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x38);\n  puVar4[9] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x40);\n  puVar4[10] = uVar2;\n  FUN_6f6ad1b0(&local_10,uVar1,iVar3 + 0x88);\n  puVar4[0xb] = local_10;\n  FUN_6f6ad1b0(&local_10,uVar1,iVar3 + 0x90);\n  puVar4[0xc] = local_10;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0xa8);\n  puVar4[0xd] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0xb8);\n  puVar4[0xe] = uVar2;\n  FUN_6f6acf10(uVar1,iVar3 + 0xe0);\n  uVar2 = FUN_6f658010();\n  puVar4[0xf] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0xd8);\n  puVar4[0x10] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0xc0);\n  puVar4[0x11] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 200);\n  puVar4[0x12] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x60);\n  puVar4[0x13] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x68);\n  puVar4[0x14] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x70);\n  puVar4[0x15] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x48);\n  puVar4[0x16] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x50);\n  puVar4[0x17] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x58);\n  puVar4[0x18] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x78);\n  puVar4[0x19] = uVar2;\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x28);\n  puVar4[0x1b] = uVar2;\n  FUN_6f6acf10(uVar1,iVar3 + 0xe8);\n  uVar2 = FUN_6f06c330();\n  puVar4[0x1c] = uVar2;\n  iVar5 = FUN_6f6acc80(uVar1,iVar3 + 0xf0);\n  puVar4[0x1d] = (uint)(iVar5 != 0);\n  uVar6 = FUN_6f6acf10(uVar1,iVar3 + 0x18);\n  FUN_6f06e4f0(uVar6);\n  uVar6 = FUN_6f6acf10(uVar1,iVar3 + 0x20);\n  FUN_6f06e4f0(uVar6);\n  fVar8 = (float10)FUN_6f6ac9f0(uVar1,iVar3 + 0xf8);\n  puVar4[0x24] = (uint)(float)fVar8;\n  local_10 = FUN_6f6acc80(uVar1,iVar3 + 0x110);\n  uVar2 = FUN_6f6acc80(uVar1,iVar3 + 0x108);\n  uVar7 = FUN_6f6acc80(param_3,iVar3 + 0x100);\n  uVar1 = param_3;\n  puVar4[0x25] = ((uVar7 & 0xff | 0xffffff00) << 8 | uVar2 & 0xff) << 8 | local_10 & 0xff;\n  uVar6 = FUN_6f6acf10(param_3,iVar3 + 0xb0);\n  FUN_6f06e4f0(uVar6);\n  FUN_6f6ad1b0(&param_3,uVar1,iVar3 + 0x80);\n  puVar4[0x29] = param_3;\n  return puVar4;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x659be0",
+      "original_bytes_hex": "558bec515356578bf98955fc8d4dfce82ce8b3ff8bf0a1c407d76f83f8ff742b8b0dbc07d76f23c68d14408d1c918b4b0885c97e168b45fc39317505394114741a8b138b4c0a0485c97feda144c7d36f89078bc75f5e5b8be55dc38b81a400000089078bc75f5e5b8be55dc3",
+      "original_bytes_sha256": "88f9cb58bf379662a6f02cf01f2017b2e7494746bbc0cbc79af5c5f6e609a6d2",
+      "ghidra": {
+        "name": "FUN_6f659be0",
+        "size": 108,
+        "address": "6f659be0",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nWC3PathScalar * __fastcall FUN_6f659be0(WC3PathScalar *param_1,uint param_2)\n\n{\n  int *piVar1;\n  uint *puVar2;\n  uint uVar3;\n  \n  uVar3 = FUN_6f198420();\n  if (DAT_6fd707c4 != 0xffffffff) {\n    piVar1 = (int *)(DAT_6fd707bc + (DAT_6fd707c4 & uVar3) * 0xc);\n    for (puVar2 = (uint *)piVar1[2]; 0 < (int)puVar2; puVar2 = *(uint **)(*piVar1 + 4 + (int)puVar2)\n        ) {\n      if ((*puVar2 == uVar3) && (puVar2[5] == param_2)) {\n        *param_1 = puVar2[0x29];\n        return param_1;\n      }\n    }\n  }\n  *param_1 = Math_RuntimeZero;\n  return param_1;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x6579b0",
+      "original_bytes_hex": "558bec83ec0856578bfa8bf1e8af18000085c075065f5e8be55dc38bcee8ee2300008bc8e8f764a1ff508d4f2ce80e6ba1ff834f24048d4df8c747280f000000e8bb09bdff684454cd6f8bd08d4dfce8bc7fa1ff8b45fc8bce89470ce80f2400008bd68d4df8d95f10e8d22200008bd68d4df88b00894714c7471800000000c7472000000000e8a52100008bce8b0089473c894738a144c7d36f894740a1c453cd6f894744c7474800000000c7474c00000000c747580f000000e8d13c00008bce89475ce8a71a00008bce894760e8cd1800008bce894764e8731700008bce894768e8091700008bce89476ce80f1900008bce894770e8451800008bce894774e8ebe3ffff8bc8e81464a1ff894778b8010000005f5e8be55dc3",
+      "original_bytes_sha256": "9fa3e3ccfbb607db04fea27abd4836a31486380cdd035e56d79f7c838841b88b",
+      "ghidra": {
+        "name": "FUN_6f6579b0",
+        "size": 282,
+        "address": "6f6579b0",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nundefined4 __fastcall FUN_6f6579b0(undefined4 param_1,int param_2)\n\n{\n  int iVar1;\n  undefined4 uVar2;\n  WC3PathScalar *left;\n  undefined4 *puVar3;\n  float10 fVar4;\n  WC3PathScalar local_8;\n  \n  iVar1 = FUN_6f659270();\n  if (iVar1 == 0) {\n    return 0;\n  }\n  FUN_6f659dc0();\n  uVar2 = thunk_FUN_6f06e8d0();\n  FUN_6f06e4f0(uVar2);\n  *(uint *)(param_2 + 0x24) = *(uint *)(param_2 + 0x24) | 4;\n  *(undefined4 *)(param_2 + 0x28) = 0xf;\n  left = (WC3PathScalar *)FUN_6f2283b0();\n  Math_Multiply(&local_8,left,&Math_DegreesScale);\n  *(WC3PathScalar *)(param_2 + 0xc) = local_8;\n  fVar4 = (float10)FUN_6f659e20();\n  *(float *)(param_2 + 0x10) = (float)fVar4;\n  puVar3 = (undefined4 *)FUN_6f659cf0();\n  *(undefined4 *)(param_2 + 0x14) = *puVar3;\n  *(undefined4 *)(param_2 + 0x18) = 0;\n  *(undefined4 *)(param_2 + 0x20) = 0;\n  puVar3 = (undefined4 *)FUN_6f659be0();\n  uVar2 = *puVar3;\n  *(undefined4 *)(param_2 + 0x3c) = uVar2;\n  *(undefined4 *)(param_2 + 0x38) = uVar2;\n  *(WC3PathScalar *)(param_2 + 0x40) = Math_RuntimeZero;\n  *(undefined4 *)(param_2 + 0x44) = DAT_6fcd53c4;\n  *(undefined4 *)(param_2 + 0x48) = 0;\n  *(undefined4 *)(param_2 + 0x4c) = 0;\n  *(undefined4 *)(param_2 + 0x58) = 0xf;\n  uVar2 = FUN_6f65b740();\n  *(undefined4 *)(param_2 + 0x5c) = uVar2;\n  uVar2 = FUN_6f659520();\n  *(undefined4 *)(param_2 + 0x60) = uVar2;\n  uVar2 = FUN_6f659350();\n  *(undefined4 *)(param_2 + 100) = uVar2;\n  uVar2 = FUN_6f659200();\n  *(undefined4 *)(param_2 + 0x68) = uVar2;\n  uVar2 = FUN_6f6591a0();\n  *(undefined4 *)(param_2 + 0x6c) = uVar2;\n  uVar2 = FUN_6f6593b0();\n  *(undefined4 *)(param_2 + 0x70) = uVar2;\n  uVar2 = FUN_6f6592f0();\n  *(undefined4 *)(param_2 + 0x74) = uVar2;\n  FUN_6f655ea0();\n  uVar2 = thunk_FUN_6f06e8d0();\n  *(undefined4 *)(param_2 + 0x78) = uVar2;\n  return 1;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x658c10",
+      "original_bytes_hex": "558bec83ec18568b750c576aff6a008b46048bf98b166a006aff6a006a0089450c8945e88945f08b076a016a028955fc8955ec8955f4ff9064010000506848c7d36f8d450c508d55fc8d4de8e86f00a0ff85c0740b8b45fc89068b450c894604f30f10450c33d26a0083ec088d4afef30f11442404f30f1045fcf30f110424e84c4513006aff6a0056ff7508d95df88b45f88bcf894608e87499ffff8b078bcf6a016a016a01ff90480100006a018bcfe88bd6ffff8bcfe8f4cfd1ff8b5674b9001000008b4670f7da1bd281e200200000f7d81bc025000800000bd08b4668f7d81bc025000400000bd08b4660f7d81bc025000200000bd08b466cf7d81bc025800000000bd08b4664f7d81bc083e0400bd033c039465c0f44c10bd00957208b465c8987840000008b46588947748b4e78e8ea35a1ff8d4f64898788000000e86c32a0ff8b078bcfff903c01000085c0740a6a018d4f64e80432a0ff5f5e8be55dc20800",
+      "original_bytes_sha256": "e5d2d51ecb66fca959337bc16e21b6e12f5c59803df7f81d0f3de4872d2d7a9d",
+      "ghidra": {
+        "name": "CItem_CreateAuthored",
+        "size": 356,
+        "address": "6f658c10",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\n// Payoff134 constructor calls058cd0 with query from item virtual164=10, radius Math_RuntimeOne=1,\n// scan policy2/integer admission and NULL support callback; later Widget_ApplyPathing(1,1,1)\n// publishes independent fine object. Engine creates item before fine publication and retains this\n// constructor/reposition distinction.\n\nvoid __thiscall CItem_CreateAuthored(uint self,uint arg_04,uint arg_08)\n\n{\n  uint arg_08_00;\n  uint uVar1;\n  undefined4 uVar2;\n  int iVar3;\n  float10 fVar4;\n  uint arg_10;\n  uint arg_14;\n  uint arg_18;\n  uint arg_1c;\n  uint arg_20;\n  uint arg_24;\n  uint arg_28;\n  uint arg_2c;\n  uint local_1c;\n  undefined4 local_18;\n  uint local_14;\n  undefined4 local_10;\n  float local_c;\n  undefined4 local_8;\n  \n  arg_08_00 = arg_08;\n  arg_2c = 0xffffffff;\n  arg_28 = 0;\n  local_1c = *(uint *)(arg_08 + 4);\n  local_18 = *(undefined4 *)arg_08;\n  arg_24 = 0;\n  arg_20 = 0xffffffff;\n  arg_1c = 0;\n  arg_18 = 0;\n  arg_14 = 1;\n  arg_10 = 2;\n  arg_08 = local_1c;\n  local_14 = local_1c;\n  local_10 = local_18;\n  local_8 = local_18;\n  uVar1 = (**(code **)(*(int *)self + 0x164))();\n  uVar1 = UnitMover_AdmitWorldPoint\n                    ((uint)&local_1c,(uint)&local_8,(uint)&arg_08,0x6fd3c748,uVar1,arg_10,arg_14,\n                     arg_18,arg_1c,arg_20,arg_24,arg_28,arg_2c);\n  if (uVar1 != 0) {\n    *(undefined4 *)arg_08_00 = local_8;\n    *(uint *)(arg_08_00 + 4) = arg_08;\n  }\n  fVar4 = (float10)Terrain_GetSupportHeightWithDeck(local_8,arg_08,0);\n  local_c = (float)fVar4;\n  *(float *)(arg_08_00 + 8) = local_c;\n  Widget_InitializePhysicalCreationProfile(self,arg_04,arg_08_00,0,0xffffffff);\n  (**(code **)(*(int *)self + 0x148))(1,1,1);\n  FUN_6f656350(1);\n  FUN_6f375cc0();\n  uVar1 = 0;\n  if (*(int *)(arg_08_00 + 0x5c) == 0) {\n    uVar1 = 0x1000;\n  }\n  *(uint *)(self + 0x20) =\n       *(uint *)(self + 0x20) |\n       -(uint)(*(int *)(arg_08_00 + 0x74) != 0) & 0x2000 |\n       -(uint)(*(int *)(arg_08_00 + 0x70) != 0) & 0x800 |\n       -(uint)(*(int *)(arg_08_00 + 0x68) != 0) & 0x400 |\n       -(uint)(*(int *)(arg_08_00 + 0x60) != 0) & 0x200 |\n       -(uint)(*(int *)(arg_08_00 + 0x6c) != 0) & 0x80 |\n       -(uint)(*(int *)(arg_08_00 + 100) != 0) & 0x40 | uVar1;\n  *(undefined4 *)(self + 0x84) = *(undefined4 *)(arg_08_00 + 0x5c);\n  *(undefined4 *)(self + 0x74) = *(undefined4 *)(arg_08_00 + 0x58);\n  uVar2 = FUN_6f06c330();\n  *(undefined4 *)(self + 0x88) = uVar2;\n  FUN_6f05bfc0();\n  iVar3 = (**(code **)(*(int *)self + 0x13c))();\n  if (iVar3 != 0) {\n    FUN_6f05bf70(1);\n  }\n  return;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x652620",
+      "original_bytes_hex": "558bec83ec6c53568b45088bd9578b7d0c6a006aff8943308b138d770c566a016a006a00ff75148d47046a01ff75105057ff92d8000000578bcbe861be06008b038bcb6a0156ff90b80000008bc8e82d81a0ff8b4b28baffff00006a00e81e26b5ffa144c7d36f8bcb8945dc8945e0a148c7d36f8945e48b03c745b80000803fc745bc00000000c745c000000000c745c400000000c745c80000803fc745cc00000000c745d000000000c745d400000000c745d80000803fff90b80000008d4d08518bc88b10ff521c6a018d45dc508d4508508d4db8e8359635008b45d08945dc8b45d48945e08b45d88945e48b45c48945e88b45c88945ec8b45cc8945f08b45b88945f48b45bc8945f8f30f1045f483ec248b45c08bccf30f114594f30f1045f8f30f1145988945fcf30f1045fcf30f11459cf30f1045e8f30f1145a0f30f1045ecf30f1145a4f30f1045f0f30f1145a8f30f1045dcf30f1145acf30f1045e0f30f1145b0f30f1045e4f30f1145b4f30f6f45948b45b4f30f7f01f30f6f45a4f30f7f41108941208b4b28e82f24b5ff8b138d4740508bcbff92c00000008b138d4744508bcbff92c40000008b138bcb0fb6474850ff92c80000008b038bcbff774cff90cc0000008b038bcb6844c7d36fff90400100008b138d473c508bcbff92440100008b138d4738508bcbff9224010000c74338ffffffffc7433c000000008b4750894340837f5400740d834b20105f5e5b8be55dc21000836320ef5f5e5b8be55dc21000",
+      "original_bytes_sha256": "bd08d0c8840d9075a94abd7e193309346d43b8bd50068c60ce8e8bfaa06291b2",
+      "ghidra": {
+        "name": "Widget_InitializePhysicalCreationProfile",
+        "size": 552,
+        "address": "6f652620",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\n// Creation initializer captures the input data block, publishes category through virtualC8 from\n// byte48 then formation rank through virtualCC from DWORD4c before later setup. Payoff108 two\n// public mixed-rank creation captures show six installed ranks0/1/2/3/0/1. Unknown full data-block\n// layout/prototype unchanged.\n// Recovered descriptive name, not an original debug symbol. See\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\nuint __thiscall\nWidget_InitializePhysicalCreationProfile(uint self,uint arg_04,uint arg_08,uint arg_0c,uint arg_10)\n\n{\n  uint uVar1;\n  int *piVar2;\n  uint uVar3;\n  int iVar4;\n  undefined4 uVar5;\n  WC3PathScalar local_28;\n  WC3PathScalar local_24;\n  WC3PathScalar local_20;\n  undefined4 local_1c;\n  undefined4 local_18;\n  undefined4 local_14;\n  undefined4 local_10;\n  undefined4 local_c;\n  undefined4 local_8;\n  \n  uVar1 = arg_08;\n  *(uint *)(self + 0x30) = arg_04;\n  iVar4 = arg_08 + 0xc;\n  (**(code **)(*(int *)self + 0xd8))(arg_08,arg_08 + 4,arg_0c,1,arg_10,0,0,1,iVar4,0xffffffff,0);\n  FUN_6f6be4c0(uVar1);\n  uVar5 = 1;\n  (**(code **)(*(int *)self + 0xb8))(iVar4,1);\n  FUN_6f05a7a0(iVar4,uVar5);\n  FUN_6f1a4ca0(0);\n  local_28 = Math_RuntimeZero;\n  local_24 = Math_RuntimeZero;\n  local_20 = Math_RuntimeOne;\n  piVar2 = (int *)(**(code **)(*(int *)self + 0xb8))();\n  (**(code **)(*piVar2 + 0x1c))(&arg_04);\n  FUN_6f9abd30(&arg_04,&local_28,1);\n  local_28 = 0;\n  local_24 = 0;\n  local_20 = 0x3f800000;\n  local_1c = 0;\n  local_18 = 0x3f800000;\n  local_14 = 0;\n  local_10 = 0x3f800000;\n  local_c = 0;\n  local_8 = 0;\n  FUN_6f1a4be0(0x3f800000,0,0,0,0x3f800000,0,0,0,0x3f800000);\n  (**(code **)(*(int *)self + 0xc0))(uVar1 + 0x40);\n  (**(code **)(*(int *)self + 0xc4))(uVar1 + 0x44);\n  (**(code **)(*(int *)self + 200))(*(undefined1 *)(uVar1 + 0x48));\n  (**(code **)(*(int *)self + 0xcc))(*(undefined4 *)(uVar1 + 0x4c));\n  (**(code **)(*(int *)self + 0x140))(&Math_RuntimeZero);\n  (**(code **)(*(int *)self + 0x144))(uVar1 + 0x3c);\n  (**(code **)(*(int *)self + 0x124))(uVar1 + 0x38);\n  *(undefined4 *)(self + 0x38) = 0xffffffff;\n  *(undefined4 *)(self + 0x3c) = 0;\n  uVar3 = *(uint *)(uVar1 + 0x50);\n  *(uint *)(self + 0x40) = *(uint *)(uVar1 + 0x50);\n  if (*(int *)(uVar1 + 0x54) == 0) {\n    *(uint *)(self + 0x20) = *(uint *)(self + 0x20) & 0xffffffef;\n    return uVar3;\n  }\n  *(uint *)(self + 0x20) = *(uint *)(self + 0x20) | 0x10;\n  return uVar3;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x65ae40",
+      "original_bytes_hex": "558bec83ec0c8b5508f30f100544c7d36f538bd90f2f0256578b43588d4b548b73548945f8b844c7d36f6a010f46c250ff168b4b58a1e853cd6f894d08f30f1045088945fc0f2f45fc762d8945088d55fc8d4508894dfc508d4df4e8f04ba1fff30f1005a053cd6f8b0025ffffff7f8945080f2f45087615f30f1005e853cd6f0f2f45f873078bcbe853caffff5f5e5b8be55dc20400",
+      "original_bytes_sha256": "7db483c2a185527de827459bec80fc6c55cfdc1a85cb60172f2ada9e4347a8bb",
+      "ghidra": {
+        "name": "FUN_6f65ae40",
+        "size": 150,
+        "address": "6f65ae40",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nvoid __thiscall FUN_6f65ae40(int param_1,float *param_2)\n\n{\n  float fVar1;\n  float *pfVar2;\n  WC3PathScalar local_10;\n  float local_c;\n  float local_8;\n  \n  local_c = *(float *)(param_1 + 0x58);\n  pfVar2 = (float *)&Math_RuntimeZero;\n  if ((float)Math_RuntimeZero < *param_2 || (float)Math_RuntimeZero == *param_2) {\n    pfVar2 = param_2;\n  }\n  (*(code *)**(undefined4 **)(param_1 + 0x54))(pfVar2,1);\n  fVar1 = *(float *)(param_1 + 0x58);\n  local_8 = DAT_6fcd53e8;\n  param_2 = (float *)fVar1;\n  if (DAT_6fcd53e8 < fVar1) {\n    param_2 = (float *)DAT_6fcd53e8;\n    local_8 = fVar1;\n    pfVar2 = (float *)Math_Subtract(&local_10,(WC3PathScalar *)&local_8,(WC3PathScalar *)&param_2);\n    param_2 = (float *)ABS(*pfVar2);\n    if ((float)Math_PublicNearZeroThreshold <= (float)param_2) {\n      return;\n    }\n  }\n  if (DAT_6fcd53e8 < local_c) {\n    FUN_6f657920();\n  }\n  return;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x65af00",
+      "original_bytes_hex": "558bec8b415c83c1546a018941088b45088b0089410c8d41048b1150ff125dc20400",
+      "original_bytes_sha256": "e49b46359c2ee8b60fb25ef67817134ec509c2cf74d56fb13b6d6331075771bf",
+      "ghidra": {
+        "name": "FUN_6f65af00",
+        "size": 34,
+        "address": "6f65af00",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nvoid __thiscall FUN_6f65af00(int param_1,undefined4 *param_2)\n\n{\n  *(undefined4 *)(param_1 + 0x5c) = *(undefined4 *)(param_1 + 0x5c);\n  *(undefined4 *)(param_1 + 0x60) = *param_2;\n  (*(code *)**(undefined4 **)(param_1 + 0x54))(param_1 + 0x58,1);\n  return;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x6ad1b0",
+      "original_bytes_hex": "558bec83ec0c5356578bd9e880f1ffff8b7d108bc88b750c6a006a00ff77048945fcff7604e8169b000085c074218b4dfc6a006a00ff7704ff76048b750856e80c1600005f8bc65e5b8be55dc20c008d45f4c745f40000000050568bcbc745f800000000e837f5ffff85c0742c578d45f48bcb508d451050e883ffffff8d45f48bcb50e8a8b9ffff8b45088b4d105f5e89085b8be55dc20c00ff378b168b4d08e8abccaeff8b45085f5e5b8be55dc20c00",
+      "original_bytes_sha256": "cc10a1c6c5217b470375655dd12ae42b9fb7358edb89ca240c57aa8fbde436d5",
+      "ghidra": {
+        "name": "FUN_6f6ad1b0",
+        "size": 177,
+        "address": "6f6ad1b0",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nundefined4 * FUN_6f6ad1b0(undefined4 *param_1,int param_2,undefined4 *param_3)\n\n{\n  undefined4 *puVar1;\n  int iVar2;\n  undefined4 local_10;\n  undefined4 local_c;\n  undefined4 local_8;\n  \n  local_8 = FUN_6f6ac340();\n  puVar1 = param_3;\n  iVar2 = FUN_6f6b6cf0(*(undefined4 *)(param_2 + 4),param_3[1],0,0);\n  if (iVar2 != 0) {\n    FUN_6f6ae800(param_1,*(undefined4 *)(param_2 + 4),puVar1[1],0,0);\n    return param_1;\n  }\n  local_10 = 0;\n  local_c = 0;\n  iVar2 = FUN_6f6ac750(param_2,&local_10);\n  if (iVar2 == 0) {\n    FUN_6f199f00(*puVar1);\n    return param_1;\n  }\n  FUN_6f6ad1b0(&param_3,&local_10,puVar1);\n  FUN_6f6a8be0(&local_10);\n  *param_1 = param_3;\n  return param_1;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x199f00",
+      "original_bytes_hex": "558bec8b450856ff72248bf18b4a20ff702456e8f8f6ffff8bc65e5dc20400",
+      "original_bytes_sha256": "d37f3350f9ae467f6b87f444b8d5cd33875a74ae3615335632f7ec3e986cfd12",
+      "ghidra": {
+        "name": "FUN_6f199f00",
+        "size": 31,
+        "address": "6f199f00",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nundefined4 __fastcall FUN_6f199f00(undefined4 param_1,int param_2,int param_3)\n\n{\n  FUN_6f199610(param_1,*(undefined4 *)(param_3 + 0x24),*(undefined4 *)(param_2 + 0x24));\n  return param_1;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    },
+    {
+      "function_rva": "0x199610",
+      "original_bytes_hex": "558becff75108b01ff750cff501485c07516a144c7d36f8d4d108945108b45088b0989085dc20c008a0880f946750cf30f104004f30f114510eb2280f949750d8b50048d4d10e82577edffeb0ba144c7d36f8945108d45108b008945108d45108b008d4d108945108b45088b0989085dc20c00",
+      "original_bytes_sha256": "eba763e7dd453d897018de7a9f37ec79490be878336cf2ee063e9f86f658c9f5",
+      "ghidra": {
+        "name": "FUN_6f199610",
+        "size": 115,
+        "address": "6f199610",
+        "language_id": "x86:LE:32:default",
+        "variant": "default",
+        "decompiled_code": "\nvoid __thiscall\nFUN_6f199610(int *param_1,WC3PathScalar *param_2,undefined4 param_3,WC3PathScalar param_4)\n\n{\n  char *pcVar1;\n  WC3PathScalar *pWVar2;\n  \n  pcVar1 = (char *)(**(code **)(*param_1 + 0x14))(param_3,param_4);\n  if (pcVar1 == (char *)0x0) {\n    *param_2 = Math_RuntimeZero;\n    return;\n  }\n  if (*pcVar1 == 'F') {\n    param_4 = *(WC3PathScalar *)(pcVar1 + 4);\n  }\n  else {\n    if (*pcVar1 == 'I') {\n      pWVar2 = Math_FromIntegerTruncated(&param_4,*(int *)(pcVar1 + 4));\n    }\n    else {\n      param_4 = Math_RuntimeZero;\n      pWVar2 = &param_4;\n    }\n    param_4 = *pWVar2;\n  }\n  *param_2 = param_4;\n  return;\n}\n\n",
+        "revision": {
+          "token": "1793548212865:095422a7:3",
+          "epoch": "095422a7",
+          "modification_number": 3,
+          "saved_time": 1793548212865,
+          "unsaved_changes": false,
+          "decompiled": true
+        }
+      }
+    }
+  ],
+  "validation": {
+    "functions": 11,
+    "disassembled_instructions": 0
+  }
+}
