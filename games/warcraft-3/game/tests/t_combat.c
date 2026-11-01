@@ -1301,17 +1301,24 @@ TEST(wc3_combat, troll_regeneration_research_speeds_up_troll_hp_regen) {
     static char const upgrade_slk[] =
         "ID;PWXL;N;E\nB;X4;Y2;D0\n"
         "C;X1;Y1;K\"\"\nC;X2;K\"effect1\"\nC;X3;K\"base1\"\nC;X4;K\"mod1\"\n"
-        "C;X1;Y2;K\"Rotr\"\nC;X2;K\"rhpr\"\nC;X3;K0.8\nC;X4;K1\nE\n";
+        "C;X1;Y2;K\"Rotr\"\nC;X2;K\"rhpr\"\nC;X3;K1.25\nC;X4;K1\nE\n";
     static UnitBalance_t troll_balance = {
-        .healthRegen = 0.5f, .healthRegenType = "always", .upgrades = "Rotr"
+        .healthRegen = 0.25f, .healthRegenType = "always", .upgrades = "Rotr"
     };
     static UnitBalance_t grunt_balance = {
-        .healthRegen = 0.5f, .healthRegenType = "always", .upgrades = ""
+        .healthRegen = 0.25f, .healthRegenType = "always", .upgrades = ""
     };
     slkTestData_t *rows, *old;
     gameClient_t *owner;
-    edict_t *troll, *grunt;
-    float base_health, base_grunt;
+    edict_t *trolls[4], *grunt;
+    uint32_t const trolls_count = 4;
+    uint32_t const troll_ids[4] = {
+        MAKEFOURCC('o','h','u','n'), /* Troll Headhunter */
+        MAKEFOURCC('o','t','b','k'), /* Troll Berserker */
+        MAKEFOURCC('o','d','w','2'), /* Witch Doctor */
+        MAKEFOURCC('o','t','b','r')  /* Troll Batrider */
+    };
+    float const frame_seconds = FRAMETIME / 1000.0f;
 
     reset_entities();
     setup_test_world();
@@ -1319,28 +1326,35 @@ TEST(wc3_combat, troll_regeneration_research_speeds_up_troll_hp_regen) {
     old = G_SetSLKRows("UpgradeData", rows);
     owner = &game.clients[0];
     owner->ps.number = 0;
-    troll = alloc_test_unit(MAKEFOURCC('o','h','u','n'), 0, 0);
     grunt = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
-    troll->data.UnitBalance = &troll_balance;
     grunt->data.UnitBalance = &grunt_balance;
-    troll->s.player = grunt->s.player = owner->ps.number;
-    troll->movetype = grunt->movetype = MOVETYPE_NONE;
-    troll->health.max_value = grunt->health.max_value = 500.0f;
-    troll->health.value = grunt->health.value = 100.0f;
-
-    G_RunEntity(troll);
+    grunt->s.player = owner->ps.number;
+    grunt->movetype = MOVETYPE_NONE;
+    grunt->health.max_value = 500.0f;
+    grunt->health.value = 100.0f;
+    FOR_LOOP(i, trolls_count) {
+        trolls[i] = alloc_test_unit(troll_ids[i], (float)(i * 64), 0);
+        trolls[i]->data.UnitBalance = &troll_balance;
+        trolls[i]->s.player = owner->ps.number;
+        trolls[i]->movetype = MOVETYPE_NONE;
+        trolls[i]->health.max_value = 500.0f;
+        trolls[i]->health.value = 100.0f;
+    }
+    FOR_LOOP(i, ARRAY_COUNT(trolls)) G_RunEntity(trolls[i]);
     G_RunEntity(grunt);
-    base_health = troll->health.value;
-    base_grunt = grunt->health.value;
-    T_FEQ(base_health, base_grunt, 0.0001f);
+    FOR_LOOP(i, trolls_count)
+        T_FEQ(trolls[i]->health.value, 100.0f + 0.25f * frame_seconds, 0.0001f);
+    T_FEQ(grunt->health.value, 100.0f + 0.25f * frame_seconds, 0.0001f);
 
     G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','t','r'), 1);
-    troll->health.value = grunt->health.value = 100.0f;
-    G_RunEntity(troll);
+    FOR_LOOP(i, trolls_count) trolls[i]->health.value = 100.0f;
+    grunt->health.value = 100.0f;
+    FOR_LOOP(i, trolls_count) G_RunEntity(trolls[i]);
     G_RunEntity(grunt);
-    T_FEQ(troll->health.value, 100.0f + (0.5f + 0.8f) * (FRAMETIME / 1000.0f), 0.0001f);
-    T_FEQ(grunt->health.value, 100.0f + 0.5f * (FRAMETIME / 1000.0f), 0.0001f);
-    T_ASSERT(troll->health.value > grunt->health.value);
+    FOR_LOOP(i, trolls_count)
+        T_FEQ(trolls[i]->health.value, 100.0f + 1.5f * frame_seconds, 0.0001f);
+    T_FEQ(grunt->health.value, 100.0f + 0.25f * frame_seconds, 0.0001f);
+    FOR_LOOP(i, trolls_count) T_ASSERT(trolls[i]->health.value > grunt->health.value);
 
     G_SetSLKRows("UpgradeData", old);
     free_slk_rows(rows);
