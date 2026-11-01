@@ -483,6 +483,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
 
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
     S_LocustSwarmCancelForCaster(self);
+    S_LavaSpawnRelease(self);
 #ifdef WC3_SC2API
     WC3_SC2API_RecordDeath(self);
 #endif

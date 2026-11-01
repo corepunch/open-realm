@@ -17,6 +17,7 @@ void incinerate_explode_think(edict_t *ent) {
             if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
         }
     }
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &ent->s.origin2, true);
     G_FreeEdict(ent);
 }
 
@@ -26,7 +27,13 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     heroabilitystatus_t *slot;
     cstring_t buff;
     uint32_t stacks, code, rank;
-    if (!ability.alias) ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE);
+    /* The mana-paid arrow is optional. If owned but disabled/without mana,
+     * attacks remain ordinary: never silently fall back to passive ANic. */
+    if (ability.alias && ability.level) {
+        if (!G_UnitAutocastIsOn(attacker, ability.alias) ||
+            !target || !S_SpellAllowsTarget(ability.alias, attacker, target) ||
+            !S_SpellSpendMana(attacker, ability.alias, ability.level)) return;
+    } else ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE);
     code = ability.alias; rank = ability.level;
     if (!code || !rank || !target || !S_SpellAllowsTarget(code, attacker, target)) return;
     buff = S_SpellBuffId(code, rank);
@@ -37,6 +44,7 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     if (!slot) return;
     slot->data = code; slot->source_ability = code; slot->rank = rank;
     slot->source = attacker; slot->source_spawn_time = attacker->spawn_time;
+    if (stacks == 1) unit_status_enabletargetart(target, slot, "chest");
     S_SpellDamage(target, attacker, (int)(MAX(0.0f, S_SpellData(code, rank, 1)) * stacks));
 }
 
@@ -44,7 +52,13 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
 BZ_ABILITY_PROC(CAbilityIncinerate) {
     heroabilitystatus_t *slot = call ? call->status.slot : NULL;
     edict_t *blast, *source;
-    if (msg != A_STATUS_DEATH || !slot) return CAbilityPassive(ent, msg, call);
+    uint32_t const code = call && call->item ? call->item->code : 0;
+    if (msg == A_TOGGLE_ON || msg == A_AUTOCAST_ON)
+        return ent && ent->unit_state && ent->unit_state->autocast == code;
+    if (msg == A_AUTOCAST_SET) return true;
+    /* Attack modifiers are consumed by confirmed hits, not periodic target acquisition. */
+    if (msg == A_AUTOCAST_ACQUIRE) return false;
+    if (msg != A_STATUS_DEATH || !slot) return CAbilitySimpleSpell(ent, msg, call);
     source = S_SpellStatusSource(slot);
     if (!source) {
         /* An invalidated source cannot explode; retire the mark normally. */

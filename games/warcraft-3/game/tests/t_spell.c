@@ -1292,12 +1292,12 @@ TEST(wc3_spell, creep_incinerate_stacks_and_explodes_from_authored_rows) {
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
 		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"BuffID1\"\n"
 		"C;Y1;X7;K\"DataC1\"\n"
-		"C;Y2;X1;K\"ANia\"\nC;Y2;X2;K\"ANia\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"BNic\"\nC;Y2;X7;K\"80\"\nE\n";
+		"C;Y2;X1;K\"ANic\"\nC;Y2;X2;K\"ANic\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"BNic\"\nC;Y2;X7;K\"80\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	edict_t *attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
 	edict_t *victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
 	edict_t *nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
-	UnitAbilities_t abilities = { .abilList = "ANia" };
+	UnitAbilities_t abilities = { .abilList = "ANic" };
 
 	attacker->data.UnitAbilities = &abilities;
 	attacker->s.player = 0; victim->s.player = nearby->s.player = PLAYER_NEUTRAL_AGGRESSIVE;

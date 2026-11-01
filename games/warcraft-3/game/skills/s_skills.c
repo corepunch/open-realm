@@ -402,7 +402,7 @@ static ability_t abilitylist[] = {
 
     /* NeutralAbilityStrings.txt */
     { "ANic", CAbilityIncinerate, AB_PASSIVE },  /* Incinerate */
-    { "ANia", CAbilityIncinerate, AB_PASSIVE },  /* Incinerate Arrow */
+    { "ANia", CAbilityIncinerate, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Incinerate Arrow */
     { "ANso", CAbilitySoulBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Soul Burn */
     { "ANlm", CAbilityWaterElemental, AB_SPELL },  /* Summon Lava Spawn */
     { "ANvc", CAbilityVolcano, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Volcano */
