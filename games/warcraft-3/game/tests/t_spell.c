@@ -1359,22 +1359,27 @@ TEST(wc3_spell, creep_attack_passives_and_death_aoe_use_authored_rows) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_units_entering_fire) {
+TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_peons_in_fire) {
     static UnitAbilities_t const abilities = { .abilList = "Abof" };
     static UnitBalance_t const balance = { .upgrades = "Robf" };
     static cstring_t const ability_config =
-        "[Abof]\nEffectart=TestUI\\Models\\burning-oil-fire.mdx\n"
-        "[Bbof]\nTargetart=TestUI\\Models\\burning-oil-status.mdx\n";
+        "[Abof]\nEffectart=TestUI\\Models\\anim_pulse.mdx\n"
+        "[Bbof]\nTargetart=TestUI\\Models\\anim_pulse.mdx\n";
+    artillery_t profile = { .attack_type = ATK_SIEGE,
+        .area_targets = WC3_TARGET_FLAG_GROUND, .targets_allowed = WC3_TARGET_FLAG_GROUND };
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
         "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"targs1\"\n"
         "C;Y2;X1;K\"Abof\"\nC;Y2;X2;K\"Abof\"\nC;Y2;X3;K\"100\"\n"
-        "C;Y2;X4;K\"2.51\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"ground,enemy\"\nE\n";
+        "C;Y2;X4;K\"2.51\"\nC;Y2;X5;K\"6\"\n"
+        "C;Y2;X6;K\"ground,enemy,friend,self,neutral,structure\"\nE\n";
     slkTestData_t *rows, *old;
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     gameClient_t *owner;
-    edict_t *demolisher, *passing, *outside, *fire = NULL;
+    edict_t *demolisher, *primary, *passing, *outside, *fire = NULL;
+    edict_t *ground_effect = NULL, *status_effect = NULL;
+    uint32_t ground_effect_model;
     playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
     vec2_t impact = { 300.0f, 300.0f };
 
@@ -1386,32 +1391,52 @@ TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_units_entering_f
     G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','b','f'), 1);
     gi.CvarString = spell_tft_expansion_cvar;
     T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    ground_effect_model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
     demolisher = alloc_test_unit(MAKEFOURCC('o','c','a','t'), 0, 0);
     demolisher->s.player = 0; demolisher->data.UnitAbilities = (UnitAbilities_t *)&abilities;
     demolisher->data.UnitBalance = (UnitBalance_t *)&balance;
-    passing = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 301, 300);
-    outside = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 700, 500);
-    passing->s.player = outside->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    primary = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 300);
+    passing = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 301, 300);
+    outside = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 700, 500);
+    primary->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    passing->s.player = outside->s.player = demolisher->s.player;
+    primary->svflags |= SVF_MONSTER;
     passing->svflags |= SVF_MONSTER; outside->svflags |= SVF_MONSTER;
     passing->targtype = outside->targtype = TARG_GROUND;
     passing->health.value = passing->health.max_value = 100;
     outside->health.value = outside->health.max_value = 100;
 
-    S_BurningOilImpact(demolisher, &impact);
+    S_ResolveArtilleryPointHit(demolisher, primary, &impact, 1, &profile);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('A','b','o','f') && ent->owner == demolisher) {
         fire = ent; break;
     }
     T_NOT_NULL(fire);
+    FILTER_EDICTS(ent, ent->inuse && ent->s.model == ground_effect_model &&
+                  Vector2_distance(&ent->s.origin2, &impact) < 0.01f) {
+        ground_effect = ent; break;
+    }
+    T_NOT_NULL(ground_effect);
+    if (ground_effect) T_EQ(ground_effect->owner, fire);
+    T_EQ(G_UnitStatusLevel(passing, MAKEFOURCC('B','b','o','f')), 1);
+    FILTER_EDICTS(ent, ent->inuse && ent->status_effect_code == MAKEFOURCC('B','b','o','f') &&
+                  ent->goalentity == passing) { status_effect = ent; break; }
+    T_NOT_NULL(status_effect);
     if (fire) {
         /* The second unit walks into the fire after impact; both are examined
          * by the persistent ground-area thinker on its next simulation tick. */
         outside->s.origin2 = impact;
+        level.time = (uint32_t)fire->wait;
         fire->think(fire);
     }
     T_EQ(G_UnitStatusLevel(passing, MAKEFOURCC('B','b','o','f')), 1);
     T_EQ(G_UnitStatusLevel(outside, MAKEFOURCC('B','b','o','f')), 1);
 
-    if (fire) G_FreeEdict(fire);
+    if (fire) {
+        level.time = fire->freetime;
+        fire->think(fire);
+        T_ASSERT(!fire->inuse);
+        if (ground_effect) T_ASSERT(ground_effect->owner == NULL);
+    }
     memcpy(owner->tech, old_tech, sizeof(old_tech));
     gi.CvarString = old_cvar;
     G_TestPopAbilityConfig();
