@@ -999,6 +999,13 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
      * units, then activate food only after placement succeeds. */
     unit_ent = SP_SpawnAtLocationNoBirth(unit_id, client->ps.number, &shop->s.origin2);
     if (!unit_ent) return false;
+    if (G_UnitIsHero(unit_ent)) {
+        cstring_t proper_name = G_SelectHeroProperName(unit_ent);
+        if (proper_name) {
+            G_InitUnitState(unit_ent);
+            unit_ent->unit_state->proper_name = proper_name;
+        }
+    }
     if (!SP_FindUnitExitPosition(shop, unit_ent, &exit_origin, &exit_angle)) {
         G_FreeEdict(unit_ent);
         return false;

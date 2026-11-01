@@ -86,7 +86,7 @@ static void RefundTrainingCost(edict_t *item) {
 /* A hero trained from an altar receives one runtime name from the authored
  * Propernames list. Store the choice on the hero so simultaneous heroes of
  * the same type can keep different names for the duration of the game. */
-static cstring_t SelectTrainedHeroProperName(edict_t const *hero) {
+cstring_t G_SelectHeroProperName(edict_t const *hero) {
     cstring_t names;
     cstring_t cursor;
     uint32_t count = 0, selected, index = 0;
@@ -662,7 +662,7 @@ void unit_build(edict_t *self, uint32_t class_id) {
     was_empty = self->build == NULL;
     ent = SP_SpawnAtLocation(class_id, self->s.player, &self->s.origin2);
     if (G_UnitIsHero(ent)) {
-        cstring_t proper_name = SelectTrainedHeroProperName(ent);
+        cstring_t proper_name = G_SelectHeroProperName(ent);
         if (proper_name) {
             G_InitUnitState(ent);
             ent->unit_state->proper_name = proper_name;

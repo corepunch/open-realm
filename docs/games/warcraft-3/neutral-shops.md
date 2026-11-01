@@ -96,7 +96,8 @@ Map-created item stock IDs inherit command-button art lookup from the item ID th
 
 A successful mercenary or Tavern Hero hire is immediate rather than a training queue. The new unit is created directly for the
 purchasing player without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units,
-then has food activated. Tavern Heroes receive normal level-one Hero progression. Gold/lumber and shared stock are deducted only after
+then has food activated. Tavern Heroes receive normal level-one Hero progression and a runtime name selected from their authored
+`Propernames` list, using the same selector as altar-trained Heroes. Gold/lumber and shared stock are deducted only after
 spawn/placement succeeds. Failures leave resources and stock unchanged. Hero hires do not increment mercenary-hired score.
 
 ## JASS Stock Overrides
@@ -151,7 +152,7 @@ is not inserted into the shop's authored merchandise or stock.
 - map-local `war3map.w3t` ItemData stock overrides and custom-item inheritance;
 - non-inventory mercenary patron resolution;
 - immediate mercenary ownership, resource deduction, and food activation;
-- Tavern Hero stock inclusion, instant Hero spawn/progression, resource/food deduction, and exclusion from mercenary score;
+- Tavern Hero stock inclusion, instant Hero spawn/progression and proper-name selection, resource/food deduction, and exclusion from mercenary score;
 - unit `stockStart` / `stockRegen` / `stockMax` command availability;
 - runtime `AddUnitToStock` current/max overrides, replenishment, removal, and all-shop native registration;
 - map-local `war3map.w3u` UnitBalance stock overrides and custom-unit inheritance;
