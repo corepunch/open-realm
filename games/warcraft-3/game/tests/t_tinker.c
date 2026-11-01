@@ -252,6 +252,64 @@ TEST(wc3_tinker, engineering_rank_selects_authored_variants_and_demolish) {
     G_SetSLKRows("AbilityData", previous); free_slk_rows(rows);
 }
 
+/* Engineering's +2 attack damage must reach Robo-Goblin's building hit after
+ * the authored Demolish multiplier is applied in the shared attack pipeline. */
+TEST(wc3_tinker, engineering_adds_two_damage_to_robo_goblin_demolish_attack) {
+    static UnitBalance_t const tinker_balance = {
+        .maxHealth = 1000.0f,
+        .strength = 18,
+        .primaryAttribute = "STR"
+    };
+    static UnitWeapons_t const tinker_weapons = {
+        .attacksEnabled = 1,
+        .attack1 = { .damageBase = 10 }
+    };
+    slkTestData_t *rows = parse_slk_string(tinker_test_slk);
+    slkTestData_t *previous = G_SetSLKRows("AbilityData", rows);
+    edict_t *tinker, *building;
+    uint32_t base_attack_without_engineering, base_attack_with_engineering;
+    int32_t attack_damage_without_engineering, attack_damage_with_engineering;
+    float effective_multiplier;
+    int32_t expected_engineering_damage;
+
+    reset_entities(); setup_test_world();
+    tinker = tinker_test_unit(0, 0);
+    building = tinker_test_unit(1, 100);
+    tinker->class_id = MAKEFOURCC('N','r','o','b');
+    tinker->data.UnitBalance = &tinker_balance;
+    tinker->data.UnitWeapons = &tinker_weapons;
+    tinker->data.UnitAbilities = &tinker_unit_abilities;
+    tinker->unit_state->hero.str = tinker_balance.strength;
+    tinker->unit_state->attack1.type = ATK_NORMAL;
+    tinker->unit_state->attack1.targetsAllowed = UINT32_MAX;
+    building->s.flags |= EF_BUILDING;
+    building->unit_state->armor_value = 0.0f;
+    building->unit_state->defense_type = 0;
+
+    G_RecomputeHeroStats(tinker);
+    base_attack_without_engineering = tinker->unit_state->attack1.damageBase;
+    tinker->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','N','e','g'), .level = 1);
+    G_RecomputeHeroStats(tinker);
+    base_attack_with_engineering = tinker->unit_state->attack1.damageBase;
+    T_EQ(base_attack_with_engineering, base_attack_without_engineering + 2);
+    T_FEQ(S_TinkerDemolishMultiplier(tinker, building), 2.5f, .001f);
+
+    attack_damage_without_engineering = G_AttackDamage(
+        tinker, building, (int32_t)base_attack_with_engineering - 2);
+    attack_damage_with_engineering = G_AttackDamage(
+        tinker, building, (int32_t)base_attack_with_engineering);
+    effective_multiplier = S_TinkerDemolishMultiplier(tinker, building) *
+        G_AttackTypeDamageMultiplier(ATK_NORMAL, building->unit_state->defense_type);
+    expected_engineering_damage = (int32_t)((float)base_attack_with_engineering * effective_multiplier) -
+        (int32_t)(((float)base_attack_with_engineering - 2.0f) * effective_multiplier);
+    T_EQ(attack_damage_with_engineering - attack_damage_without_engineering,
+         expected_engineering_damage);
+    T_ASSERT(attack_damage_with_engineering > attack_damage_without_engineering);
+
+    G_SetSLKRows("AbilityData", previous); free_slk_rows(rows);
+}
+
 TEST(wc3_tinker, cluster_rockets_four_independent_damage_intervals) {
     slkTestData_t *rows = parse_slk_string(tinker_test_slk);
     slkTestData_t *previous = G_SetSLKRows("AbilityData", rows);
