@@ -46,10 +46,25 @@ static void unstable_concoction_kill_caster(edict_t *caster) {
 	else unit_die(caster, caster);
 }
 
+static bool unstable_concoction_validate(edict_t *caster, spellTarget_t target,
+                                         abilityitem_t const *spell) {
+    /* Retail explicitly disables this suicide spell during Banish. */
+    return caster && !S_UnitHasStatus(caster, MAKEFOURCC('B','H','b','n')) &&
+        spell && target.type == SPELL_TARGET_UNIT && target.entity &&
+        S_SpellAllowsTarget(spell->code, caster, target.entity);
+}
+
+static void unstable_concoction_execute(edict_t *caster, spellTarget_t st,
+                                        abilityitem_t const *spell);
+
 /* Name=Unstable Concoction — TFT Auco. DataB primary, DataC/D air splash, caster dies.
  * DataA full secondary ring; DataE splash cap; DataF charge movespeed not applied on instant execute.
  */
-BZ_SIMPLE_SPELL_PROC(AbilityUnstableConcoction) {
+BZ_VALIDATED_SPELL_PROC(AbilityUnstableConcoction, unstable_concoction_validate,
+                        unstable_concoction_execute)
+
+static void unstable_concoction_execute(edict_t *caster, spellTarget_t st,
+                                        abilityitem_t const *spell) {
 	uint32_t code;
 	if (!caster || !spell || !st.entity) return;
 	code = spell->code;

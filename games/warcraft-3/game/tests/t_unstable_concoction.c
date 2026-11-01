@@ -95,6 +95,52 @@ TEST(wc3_spell, unstable_concoction_splash_respects_datac_radius) {
 	uc_done(&fix);
 }
 
+TEST(wc3_spell, unstable_concoction_stock_damage_and_two_hundred_radius) {
+	static char const stock_slk[] =
+		"ID;PWXL;N;EBB;Y2;X14\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+		"C;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\nC;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\n"
+		"C;Y1;X9;K\"HeroDur1\"\nC;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+		"C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"DataE1\"\n"
+		"C;Y2;X1;K\"Auco\"\nC;Y2;X2;K\"Auco\"\nC;Y2;X3;K\"1\"\n"
+		"C;Y2;X4;K\"air,neutral,enemy\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\n"
+		"C;Y2;X7;K\"400\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"0\"\n"
+		"C;Y2;X10;K\"0\"\nC;Y2;X11;K\"600\"\nC;Y2;X12;K\"200\"\nC;Y2;X13;K\"140\"\n"
+		"C;Y2;X14;K\"0\"\nE\n";
+	ucFix_t fix;
+	slkTestData_t *stock_rows, *old_stock;
+	uc_setup(&fix);
+	stock_rows = parse_slk_string(stock_slk);
+	old_stock = G_SetSLKRows("AbilityData", stock_rows);
+	fix.ground->targtype = TARG_AIR;
+	fix.splash->s.origin2.x = fix.splash->s.origin.x = 264.0f; /* exactly 200 from primary */
+	fix.ground->s.origin2.x = fix.ground->s.origin.x = 264.1f;
+	fix.primary->health.value = fix.primary->health.max_value = 1000.0f;
+	fix.splash->health.value = fix.splash->health.max_value = 1000.0f;
+	fix.ground->health.value = fix.ground->health.max_value = 1000.0f;
+	fix.ally->health.value = fix.ally->health.max_value = 1000.0f;
+	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUCO, fix.primary));
+	T_ASSERT(M_IsDead(fix.caster));
+	T_FEQ(fix.primary->health.value, 400.0f, 0.001f);
+	T_FEQ(fix.splash->health.value, 860.0f, 0.001f);
+	T_FEQ(fix.ground->health.value, 1000.0f, 0.001f);
+	T_FEQ(fix.ally->health.value, 1000.0f, 0.001f);
+	G_SetSLKRows("AbilityData", old_stock);
+	free_slk_rows(stock_rows);
+	uc_done(&fix);
+}
+
+TEST(wc3_spell, unstable_concoction_cannot_be_cast_while_banished) {
+	ucFix_t fix;
+	uc_setup(&fix);
+	unit_addstatus(fix.caster, "BHbn", 1);
+	T_ASSERT(S_UnitHasStatus(fix.caster, MAKEFOURCC('B','H','b','n')));
+	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_AUCO, fix.primary));
+	T_ASSERT(!M_IsDead(fix.caster));
+	T_FEQ(fix.primary->health.value, 500.0f, 0.001f);
+	uc_done(&fix);
+}
+
 /* Ground primary is rejected without spending mana (cost is 0; still no cast). */
 TEST(wc3_spell, unstable_concoction_rejects_ground_target) {
 	ucFix_t fix;
