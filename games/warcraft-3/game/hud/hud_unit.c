@@ -241,9 +241,26 @@ static cstring_t G_CleanTooltipString(cstring_t text, uint32_t level) {
         G_ProcessTooltipString(G_StringForLevel(text, level)), level));
 }
 
-static cstring_t G_UIArtPath(cstring_t art) {
+static cstring_t G_RallyArtForPlayerRace(playerRace_t race) {
+    switch (race) {
+        case kPlayerRaceOrc: return "ReplaceableTextures\\CommandButtons\\BTNOrcRallyPoint.blp";
+        case kPlayerRaceNightElf: return "ReplaceableTextures\\CommandButtons\\BTNRallyPointNightElf.blp";
+        case kPlayerRaceUndead: return "ReplaceableTextures\\CommandButtons\\BTNRallyPointUndead.blp";
+        default: return "ReplaceableTextures\\CommandButtons\\BTNRallyPoint.blp";
+    }
+}
+
+cstring_t G_UIArtPath(cstring_t art) {
     if (!art || !*art) {
         return art;
+    }
+    /* CommonAbilityFunc authors Rally art as one comma-separated path for
+     * all races. A few secondary HUD surfaces consume Art without building
+     * a command button, so normalize that authored list here as well. */
+    if (strchr(art, ',') && strstr(art, "BTNRallyPoint")) {
+        playerRace_t const race = ui_current_client ? ui_current_client->ps.race : kPlayerRaceNone;
+        cstring_t const selected = G_RallyArtForPlayerRace(race);
+        art = selected;
     }
     return Theme_String(art, art);
 }
@@ -1245,7 +1262,7 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
             UI_CopyString(queue[0].art, sizeof(queue[0].art), button.art);
         } else {
             UI_CopyString(queue[0].art, sizeof(queue[0].art),
-                          FindConfigValue(GetClassName(study->upgrade), STR_ART));
+                          G_UIArtPath(FindConfigValue(GetClassName(study->upgrade), STR_ART)));
         }
         queue[0].starttime = elapsed <= cursor ? cursor - elapsed : cursor;
         queue[0].endtime = queue[0].starttime + duration;
@@ -1303,7 +1320,8 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
                 }
                 food_blocked = G_UnitHasFlag(build, UNIT_FLAG_TRAINING) && cost > 0 && (!ledger || ledger->used == 0) && G_FoodLimitsEnabled();
             }
-            UI_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
+            UI_CopyString(queue[count].art, sizeof(queue[count].art),
+                          G_UIArtPath(FindConfigValue(build_name, STR_ART)));
         }
 
         if (food_blocked) {
