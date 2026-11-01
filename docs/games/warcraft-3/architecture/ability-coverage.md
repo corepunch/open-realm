@@ -421,3 +421,13 @@ Beastmaster/Rexxar beast summons (`ANsg`, `ANsq`, `ANsw`, `Arsg`, `Arsq`) share 
 `AUim` and `ACmp` use a saveable, time-swept line for one-hit damage and authored target masks. `BUim` now owns the timed stun and a separate victim component controls the `DataD` airborne visual offset without overwriting other flight heights; stun and landing expire independently. Patch 3 renders authored CasterArt, BUim hit art and progressive SpecialArt miss spikes through temporary MDX entities. Visual sample spacing is provisional. Patch 4 reads DataE/DataF for movement interruption and airborne damage/targetability, while blocking new targeted spells mid-lift. **Remaining:** retail spike spacing and edge-case airborne overlap/cast animation parity. See [Impale](../impale.md).
 
 Firelord (TFT): `ANlm` attack-driven split marker with DataB-F and BTLF extension; `ANia` mana-gated autocast; `ANvc` presentation-only rock missiles. See [Firelord](../firelord.md).
+
+### Pandaren Brewmaster (TFT)
+
+`ANbf`/`ANcf` use directional cone damage with `BNdh` ignition, a `BNbf`
+status-owned burn and saveable tick controller. `ANdh`/`Acdh` use a homing
+bottle, area splash, authored slow and attack miss chance. Drunken Brawler
+`ANdb`/`Acdb` reuse the combat passive hooks. `ANef`/`Acef` create three
+linked elemental units instead of treating their missing `UnitID` as a summon
+lookup; a saveable controller hides/returns/kills the original hero. See
+[Pandaren Brewmaster](../pandaren-brewmaster.md) for remaining retail gaps.

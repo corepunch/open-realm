@@ -605,7 +605,7 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
      * Such a hit must not produce a second Dark Minion. */
     if (!attacker || !target || M_IsDead(target) ||
         !S_AttackHitAllowed(attacker, target, target)) return;
-    if (S_EvasionRoll(target)) return;
+    if (S_EvasionRoll(target) || S_BrewmasterHazeMiss(attacker)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
     S_PermanentInvisibilityReveal(attacker);

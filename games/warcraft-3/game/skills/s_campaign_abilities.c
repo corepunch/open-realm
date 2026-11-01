@@ -493,9 +493,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     S_StormBoltCampaignLaunch(caster, st, spell);
 }
-BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire) { S_SummonAbilityUnits(caster, spell->code, &st); }
+BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { S_BrewmasterBreathOfFire(caster, &st.point, spell->code); }
+BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { S_BrewmasterDrunkenHaze(caster, st.entity, spell->code); }
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySerpentWard) { S_SummonAbilityUnits(caster, spell->code, &st); }
