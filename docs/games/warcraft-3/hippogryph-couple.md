@@ -506,3 +506,80 @@ launcher, whose before/after hashes are recorded separately in runtime
 `couple-instant220-validation/checkpoint.json`. This baseline excludes the
 in-progress221 trace/observer changes. TARGET-01.2 remains open with 25 leaves;
 full-suite success does not establish the remaining native firing-poll coverage.
+
+## Complete firing polls and physical owner order (221–226)
+
+The range333214 observer already recorded every firing: 200 `16e910` arrival
+calls and 200 `16fe20` velocity commits, with no event cap. Investigation221–226
+preserves their global order, actor association, absolute primary-clock words,
+arrival inputs/error/inside/result and committed fine pose/velocity/facing.
+Marker age is not the owner clock. The ordinary engine fixture first matched
+all 72 stationary-scene polls and commits; moving-pair timer placement then
+needed the original 20 ms JASS callback before owner processing. Those clock
+corrections did not establish the remaining motion equivalence.
+
+The earliest remaining difference is global row164, counter1368: native visits
+A2, H2, then old A1; the candidate visited H2, A2, then A1. Comparing each actor
+separately hid this cause until H2's seventeenth postcommit diverged. Original
+physical construction publishes H2 before A2; `PathGroup_Activate` (`169840`)
+calls `16c880` at `1698fc` with the owner-list sentinel at `PathWorld_Owner+3b0`.
+The insertion places each new group immediately after that sentinel, producing
+the observed newest-first order. `16c390` is the later completion scan, not
+the registration operation.
+
+Native225 shows that H2 counter1385 accepts the refreshed destination and
+steers toward fine waypoint `(28.5,40.5)`. Native226 records target A2's stored
+rectangle as YX `[38,25,41,28]`; the earlier candidate instead read the previous
+committed rectangle `[38,24,41,27]`. Native target detection first flips at
+queried cell `(27,39)`, yielding 15 fine points at index0. The candidate's stale
+rectangle yields 16 points at index0, starting at `(27.5,40.5)`. This is not a
+reason to replace stored occupancy with predicted occupancy or skip a waypoint.
+A bounded GDB counterfactual changing only the candidate cohort order passes
+the strict comparison of all 400 globally ordered rows. It is diagnostic
+evidence, not a production implementation or validation checkpoint.
+
+Both225 and226 have two observations and fresh unhooked controls. All 1,525
+public markers and all 400 original poll/commit rows remain identical to214;
+226 also preserves225's route decisions. Its 552 cell queries repeat with the
+same geometry, links, endpoint decisions and route buffers, except for volatile
+per-cell eligibility visit stamps. Raw stamps remain in the captures; identical
+global spatial-query history is not claimed. The projection compares captured
+fields only and excludes C's additional precommit diagnostic phase.
+
+Durable runtime artifacts are [the strict projection](/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-polls224-strict/native214-strict.json),
+[first global mismatch](/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-polls224-strict/first-global-order-difference.json),
+[225 route audit](/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-route225/validated-route-summary.json),
+[226 spatial audit](/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-route226/validated-spatial-summary.json),
+and [original insertion assembly](/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-order226-static/insert.asm).
+These are external research artifacts. The repository also retains the literal
+native400-row C/JSON fixture, pinned capture provenance and portable verifier
+`tools/ghidra/research/coupling_instant214_poll_projection.py`. Its read-only
+`--check --capture-dir <range333-v1>` verifies both native observations, the fresh
+control audit and the compiled C header's ordered literal rows. No clock shift,
+tolerance, sorting or selective-row omission is allowed.
+
+The game now retains a provisional target-approach cohort during synchronous
+coordination. It is absent from the active owner list, including derived-list
+rebuilds. Finalization validates the source incarnation/revision, group
+identity/generation and receiver before publishing through the ordinary
+newest-first insertion. Replaced or removed owners cannot republish; an obsolete
+surviving provisional generation is retired without touching its successor.
+Save229 rejects direct synchronous ReadGame/WriteGame during publication; public
+JASS save requests keep their deferred frame-boundary behavior. The pending flag
+is runtime-only and loaded physical order is reconstructed from saved admission
+sequences. Committed spatial occupancy and path arithmetic are unchanged.
+
+Checkpoint227 passes 2,062 focused tests and 319,710 assertions across both
+editions. Ordinary public execution now matches all400 globally ordered native
+arrival/postcommit rows exactly, followed by every engine row in the cold-save
+suffix. Public callback tests execute the pending-list rebuild, direct save/load
+rejection, Move successor and removal checks. Checkpoint228 passes all five
+native gates in both editions, 120 focused Python tests and the614-entry,
+3,316-pin corpus manifest. Frozen source and binaries remain unchanged through
+those checks. Full220 at `93d54c6d1` remains the earlier baseline; it does not
+include this Save229 correction. No full-suite rerun is claimed for this patch.
+
+The next comparison within Coupling uses the existing accepted193 near/facing
+and range-boundary streams. Its quarter-world offsets do not establish literal
+float-adjacent public-value coverage. **25 leaves remain open; zero whole leaves
+close.**

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "engine_parity": false,
+  "projection_sha256": "234c6961c2350ab42ad93c52d2cce42b910e293c2b7d466efc590877e2e9af0b",
+  "capture_files_sha256": {
+    "RS-TARGET214-reservation333-v1.json": "d7871d37f805c4222a73de0dee4de5053dac85aa084ba1e3679eb707b54347df",
+    "RS-TARGET214-reservation333-v1.w3m": "5df3b606201382599f068b20e5c98580e86e8976225351da43ed30d20f5990e6",
+    "audit_reservation.py": "da8d957ca0aa0e8d4dadd6b50c33979e351bca88ab53d8f0629832972e09e4f8",
+    "capture-design.json": "3d7909788746dc9002fc4ba5dcdb78190ee9be44702854e3915a090e3b26f4ca",
+    "capture-launch.py": "6dd89b951f7e441943631739b9313e81fccbfeeee0aa66d4866b4700dc14ec9a",
+    "control1-preload.txt": "ce5e7b365b4e44806d3d166f240d4b38583af1a01d8fbabd8fa1bbdfe10bbcfc",
+    "control1.jsonl": "62c2e7eb35598f52854cc5522fe99f0a683b592868f5a26f97df26a22b5a976d",
+    "frozen-sources.json": "1002c291a9575cb3a83e125057cd335741307f741df8fbbc91dc434bd79f15b2",
+    "itemdrop_capture.py": "9c1f6509f4d3c907b29d2b934bbbf20e454a6fdc0ec3b70f290c904b2dcdfc38",
+    "itemdrop_make_map.py": "938532dac2f3cb1046644de997604155f326e210d28b0d8512c6cffd56830ba0",
+    "itemdrop_observer.js": "58cf0a30c1ab61a688786e26cbcfdaddedc81ccec7667696678e815ac3e535ce",
+    "itemdrop_probe.j": "6ebb7b537b2f0cb1d4c03a1a753a269a383468a283f94d48c878f6551fdf3845",
+    "observe1-preload.txt": "0c7b1e417a724baa4943ccdf78b5f3895379a99d25487df0f0b1347d2d90918d",
+    "observe1.jsonl": "876e1030526b42eedba5f1924074a6e799cbaea2adff38b1603dc13ae6a75b8a",
+    "observe2-preload.txt": "ce5e7b365b4e44806d3d166f240d4b38583af1a01d8fbabd8fa1bbdfe10bbcfc",
+    "observe2.jsonl": "bf5dc3d80112dafc32a761cae6f999bcc4665db0d7ac99ab87498f4a8cc88860",
+    "validated-summary.json": "f32d11edde7f53bf0a3409dfd240d510f5c274637a5f1d09f770560c9dcb206e"
+  },
+  "observations": [
+    "observe1",
+    "observe2"
+  ],
+  "control": "control1",
+  "ordered_rows": 400,
+  "public_markers_per_capture": 1525,
+  "public_sha256": "8e15c48f9a2b51c5dcd85308db7796d651c8e16c56f3ff74d52310ea270969ed",
+  "scope": "Native range333 reservation witness only. Global phase0/phase2 order and raw clocks retained; phase1 not captured and excluded. Pointer identity is mapped only to authored roles; no sorting, time offsets, tolerance or path normalization."
+}

@@ -1390,4 +1390,187 @@ TEST(wc3_couple_instant_orders, reservation_target_slot_reuse_does_not_retain_ol
     CoupleInstantEnd(&f);
 }
 
+/* Actual public214 range333 scene streams: compare the complete ordered native
+ * arrival/post-commit projection, then every engine row in the cold-save suffix. */
+#include "fixtures/retail_couple_instant214_polls.h"
+typedef struct {uint32_t words[20];} couplePollRow_t;
+static struct {edict_t *roles[4];couplePollRow_t rows[1024];unsigned count,scene;bool print;} couple_poll_trace;
+static int CouplePollRole(edict_t const *unit) {
+    FOR_LOOP(i,4)if(couple_poll_trace.roles[i]==unit)return i;
+    return -1;
+}
+static void CouplePollRoute(edict_t const *unit,moveGroup_t const *group,unsigned phase) {
+    if(!couple_poll_trace.print || couple_poll_trace.scene!=1 || CouplePollRole(unit)!=3)return;
+    moveFineRoute_t const *route=&unit->movement.fine_route;
+    uint32_t words[]={phase,wc3_float_bits(level.pathing_clock.time),group->flags,
+        wc3_float_bits(group->goal.x),wc3_float_bits(group->goal.y),wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),
+        group->target_refresh,group->route.group_admission.time,group->route.group_index,
+        route->count,route->index,route->adaptive_count,route->adaptive_index,
+        wc3_float_bits(route->adaptive_goal.x),wc3_float_bits(route->adaptive_goal.y),route->adaptive_admission.time,
+        unit->movement.fine_request_time,unit->movement.wait_delay,unit->movement.retry_count,
+        unit->movement.path.valid,wc3_float_bits(unit->movement.heading)};
+    fprintf(stderr,"ACOIROUTE");FOR_LOOP(i,sizeof(words)/sizeof(words[0]))fprintf(stderr," %u",words[i]);
+    fprintf(stderr," fine");FOR_LOOP(i,route->count)fprintf(stderr," %u %u",wc3_float_bits(route->points[i].x),wc3_float_bits(route->points[i].y));
+    fprintf(stderr," adaptive");FOR_LOOP(i,route->adaptive_count)fprintf(stderr," %u %u",wc3_float_bits(route->adaptive_points[i].x),wc3_float_bits(route->adaptive_points[i].y));fprintf(stderr,"\n");
+}
+static void CouplePollTurn(edict_t *unit,float target,wc3Motion_t const *motion) {
+    if(!couple_poll_trace.print || couple_poll_trace.scene!=1 || CouplePollRole(unit)!=3)return;
+    fprintf(stderr,"ACOITURN %u %u %u %u %u %u\n",wc3_float_bits(level.pathing_clock.time),wc3_float_bits(target),
+        wc3_float_bits(motion->heading),wc3_float_bits(motion->error),wc3_float_bits(motion->turn),wc3_float_bits(motion->window));
+}
+static void CouplePollRecord(moveGroup_t const *group,moveGroupMember_t const *member,unsigned commit,float speed,wc3Arrival_t const *arrival) {
+    int role=CouplePollRole(member->unit);if(role<0)return;
+    if(!member->unit->couple_instant || !member->unit->couple_instant->active)return;
+    T_ASSERT(couple_poll_trace.count<1024);if(couple_poll_trace.count>=1024)return;
+    edict_t *unit=member->unit;wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    couplePollRow_t row={{commit,role,wc3_float_bits(level.pathing_clock.time),
+        wc3_float_bits(pose.grid[0]),wc3_float_bits(pose.grid[1]),
+        wc3_float_bits(member->destination.x),wc3_float_bits(member->destination.y),
+        wc3_float_bits(commit==2?unit->s.angle:commit?member->heading:move_member_heading(unit)),
+        wc3_float_bits(member->arrival_range),member->forced_arrival || (group->flags&0x200),
+        member->in_range,member->arrived,wc3_float_bits(speed),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_mul(unit->movement.velocity.x,1.0f/32)),
+        wc3_float_bits(wc3_mul(unit->movement.velocity.y,1.0f/32)),unit->current_order_id}};
+    if(arrival){row.words[3]=wc3_float_bits(arrival->source[0]);row.words[4]=wc3_float_bits(arrival->source[1]);
+        row.words[5]=wc3_float_bits(arrival->target[0]);row.words[6]=wc3_float_bits(arrival->target[1]);
+        row.words[7]=wc3_float_bits(arrival->heading);row.words[8]=wc3_float_bits(arrival->range);
+        row.words[9]=arrival->flags;row.words[18]=wc3_float_bits(arrival->error);row.words[19]=wc3_float_bits(arrival->distance);}
+    CouplePollRoute(unit,group,commit);
+    couple_poll_trace.rows[couple_poll_trace.count++]=row;
+    if(couple_poll_trace.print){fprintf(stderr,"ACOIPOLL scene=%u",couple_poll_trace.scene);FOR_LOOP(i,20)fprintf(stderr," %u",row.words[i]);fprintf(stderr,"\n");}
+}
+static void CouplePollArrival(moveGroup_t const *group,moveGroupMember_t const *member,wc3Arrival_t const *arrival) {
+    CouplePollRecord(group,member,false,0,arrival);
+}
+static void CouplePollCommit(moveGroup_t const *group,moveGroupMember_t const *member,moveGroupCommitTrace_t const *trace) {
+    CouplePollRecord(group,member,true,trace->speed,NULL);
+}
+static void CouplePollCommitted(moveGroup_t const *group,moveGroupMember_t const *member) {
+    CouplePollRecord(group,member,2,0,NULL);
+}
+static void CouplePollCheckNative214(unsigned scene) {
+    unsigned expected_index=0,compared=0,expected_count=0;
+    unsigned const arrival_indices[]={2,3,4,5,6,7,8,18,10,11};
+    unsigned const committed_indices[]={2,13,14,15,16,7};
+    unsigned const native_count=sizeof(couple_native_polls214)/sizeof(couple_native_polls214[0]);
+    T_EQ(native_count,400);
+    FOR_LOOP(i,native_count)if(couple_native_polls214[i].scene==scene)expected_count++;
+    FOR_LOOP(i,couple_poll_trace.count) {
+        couplePollRow_t const *row=&couple_poll_trace.rows[i];
+        if(row->words[0]==1)continue; /* Native schema samples phases0 and2 only. */
+        while(expected_index<native_count && couple_native_polls214[expected_index].scene!=scene)expected_index++;
+        T_ASSERT(expected_index<native_count);
+        if(expected_index>=native_count)break;
+        coupleNativePoll214_t const *expected=&couple_native_polls214[expected_index++];
+        T_EQ(row->words[0],expected->phase);T_EQ(row->words[1],expected->role);
+        unsigned const count=row->words[0]==0 ? 10 : 6;
+        unsigned const *indices=row->words[0]==0 ? arrival_indices : committed_indices;
+        T_EQ(expected->count,count);
+        FOR_LOOP(j,count)T_EQ(row->words[indices[j]],expected->words[j]);
+        compared++;
+    }
+    T_EQ(compared,expected_count);
+}
+TEST(wc3_couple_instant_orders, complete_public_reservation_poll_stream_and_saved_suffix) {
+    FOR_LOOP(scene,2){
+        coupleInstantFixture_t f;CoupleInstantBegin(&f,704,true);
+        T_ASSERT(CoupleInstantCompile(
+            "globals\nunit cpA2\nunit cpH2\ninteger cpScene=0\ninteger cpTick=0\ntimer cpPollTimer=null\nendglobals\n"
+            "function cpSpawn takes nothing returns nothing\n"
+            "set cpA2=CreateUnit(Player(0),'earc',704.0,1216.0,0.0)\ncall SetUnitAcquireRange(cpA2,0.0)\n"
+            "if cpScene==1 then\nset cpH2=CreateUnit(Player(0),'ehip',1536.0,1536.0,180.0)\ncall SetUnitAcquireRange(cpH2,0.0)\nendif\nendfunction\n"
+            "function cpIssue takes nothing returns nothing\ncall BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"initial reservation\")\nendfunction\n"
+            "function cpCompete takes nothing returns nothing\n"
+            "call BJassAssert(IssuePointOrder(cpA2,\"move\",512.0,1216.0),\"prior Move\")\n"
+            "call BJassAssert(not IssueTargetOrder(cpA2,\"coupletarget\",ciHippo),\"occupied target\")\n"
+            "call BJassAssert(IssueImmediateOrder(cpA2,\"coupleinstant\")== (cpScene==1),\"automatic selection\")\n"
+            "if cpScene==0 then\ncall BJassAssert(IssueImmediateOrder(ciArcher,\"stop\"),\"release\")\n"
+            "call BJassAssert(IssueTargetOrder(cpA2,\"coupletarget\",ciHippo),\"retry\")\nendif\nendfunction\n"
+            "function cpClock takes nothing returns nothing\n"
+            "if cpTick==cpScene*400 then\ncall cpSpawn()\n"
+            "elseif cpTick==cpScene*400+100 then\ncall cpIssue()\n"
+            "elseif cpTick==cpScene*400+115 then\ncall cpCompete()\n"
+            "elseif cpTick==cpScene*400+398 then\ncall PauseTimer(cpPollTimer)\nendif\n"
+            "set cpTick=cpTick+1\nendfunction\n"
+            "function cpStartClock takes nothing returns nothing\nset cpPollTimer=CreateTimer()\n"
+            "call TimerStart(cpPollTimer,0.02,true,function cpClock)\nendfunction\n"));
+        if(scene)T_ASSERT(CoupleInstantCompile("function cpSetScene takes nothing returns nothing\nset cpScene=1\nendfunction\n"));
+        if(scene)CoupleInstantCall("cpSetScene");CoupleInstantCall("cpStartClock");
+        /* Execute the same periodic JASS callback before any equal-deadline
+         * owner tick, rather than issuing after RunFrame already drained it. */
+        FOR_LOOP(i,4+scene*1600)CoupleInstantStep();
+        memset(&couple_poll_trace,0,sizeof(couple_poll_trace));couple_poll_trace.scene=scene;couple_poll_trace.print=false;
+        couple_poll_trace.roles[0]=f.archer;couple_poll_trace.roles[1]=f.hippo;
+        FILTER_EDICTS(e,e->inuse){if(e!=f.archer && e->class_id==MAKEFOURCC('e','a','r','c'))couple_poll_trace.roles[2]=e;if(e!=f.hippo && e->class_id==MAKEFOURCC('e','h','i','p'))couple_poll_trace.roles[3]=e;}
+        move_test_group_arrival=CouplePollArrival;move_test_group_commit=CouplePollCommit;move_test_group_committed=CouplePollCommitted;move_test_turn_request=CouplePollTurn;
+        FOR_LOOP(i,400+60)CoupleInstantStep();
+        FOR_LOOP(i,20)CoupleInstantStep();
+        cstring_t path=Test_TempPath("couple-instant221-polls.bin");T_ASSERT(WriteGame(path));
+        unsigned const prefix=couple_poll_trace.count;
+        FOR_LOOP(i,1120)CoupleInstantStep();
+        unsigned const total=couple_poll_trace.count;T_ASSERT(total>prefix);
+        CouplePollCheckNative214(scene);
+        couplePollRow_t *expected=malloc(sizeof(couple_poll_trace.rows));memcpy(expected,couple_poll_trace.rows,sizeof(couple_poll_trace.rows));
+        T_ASSERT(ReadGame(path));couple_poll_trace.count=prefix;couple_poll_trace.print=false;
+        FOR_LOOP(i,1120)CoupleInstantStep();T_EQ(couple_poll_trace.count,total);
+        FOR_LOOP(i,total-prefix)FOR_LOOP(j,20)T_EQ(couple_poll_trace.rows[prefix+i].words[j],expected[prefix+i].words[j]);
+        free(expected);remove(path);move_test_group_arrival=NULL;move_test_group_commit=NULL;move_test_group_committed=NULL;move_test_turn_request=NULL;CoupleInstantEnd(&f);
+    }
+}
+
+
+static jassCFunction_t couple_publication_assert_original;
+static cstring_t couple_publication_save;
+static unsigned couple_publication_observed;
+static uint32_t CouplePublicationAssert(jass_t *j) {
+    cstring_t message=jass_checkstring(j,2);
+    if(message && !strcmp(message,"publication pending")) {
+        edict_t *unit=jass_getcontext(j)->unit;
+        moveGroup_t *pending=unit ? CoupleInstantGroup(unit) : NULL;
+        T_NOT_NULL(pending);T_ASSERT(S_TargetApproachPublicationPending());
+        if(pending) {
+            T_ASSERT(pending->publication_pending);
+            /* A derived-list rebuild must not make the provisional owner runnable. */
+            move_group_order_valid=false;move_prepare_group_order();
+            for(moveGroup_t *group=move_group_head;group;group=group->older)T_ASSERT(group!=pending);
+        }
+        T_ASSERT(!WriteGame(couple_publication_save));T_ASSERT(!ReadGame(couple_publication_save));
+        couple_publication_observed++;
+    }
+    return couple_publication_assert_original(j);
+}
+TEST(wc3_couple_instant_orders, provisional_target_publication_preserves_callback_successors) {
+    FOR_LOOP(mode,3) {
+        /* jassFunc_t captures nativefunc while the fixture VM is compiled. */
+        for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+            couple_publication_assert_original=p->func;p->func=CouplePublicationAssert;break;
+        }
+        coupleInstantFixture_t f;CoupleInstantBegin(&f,704,true);
+        char script[2400];snprintf(script,sizeof(script),
+            "globals\nboolean cpPublicationSeen=false\nendglobals\n"
+            "function cpPublicationCallback takes nothing returns nothing\n"
+            "if GetIssuedOrderId()==852508 and not cpPublicationSeen then\nset cpPublicationSeen=true\n"
+            "call BJassAssert(true,\"publication pending\")\n%s\nendif\nendfunction\n"
+            "function cpPublicationInstall takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterUnitEvent(t,ciArcher,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+            "call TriggerAddAction(t,function cpPublicationCallback)\nendfunction\n"
+            "function cpPublicationIssue takes nothing returns nothing\n"
+            "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"automatic admission\")\nendfunction\n",
+            mode==1 ? "call BJassAssert(IssuePointOrder(ciArcher,\"move\",512.0,768.0),\"callback Move\")" :
+            mode==2 ? "call RemoveUnit(ciArcher)" : "");
+        T_ASSERT(CoupleInstantCompile(script));CoupleInstantCall("cpPublicationInstall");
+        couple_publication_save=Test_TempPath("couple-instant229-publication.bin");
+        T_ASSERT(WriteGame(couple_publication_save));couple_publication_observed=0;
+        CoupleInstantCall("cpPublicationIssue");
+        for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {p->func=couple_publication_assert_original;break;}
+        T_EQ(couple_publication_observed,1);T_ASSERT(!S_TargetApproachPublicationPending());
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))if(level.move_groups[i]->inuse)T_ASSERT(!level.move_groups[i]->publication_pending);
+        if(mode==1){T_EQ(f.archer->current_order_id,851986);FOR_LOOP(i,60)CoupleInstantStep();T_ASSERT(f.archer->s.origin2.x<704);}
+        if(mode==2)T_ASSERT(!f.archer->inuse || G_IsDeferredFree(f.archer));
+        T_ASSERT(WriteGame(couple_publication_save));T_ASSERT(ReadGame(couple_publication_save));
+        T_ASSERT(!S_TargetApproachPublicationPending());remove(couple_publication_save);CoupleInstantEnd(&f);
+    }
+}
+
 #endif

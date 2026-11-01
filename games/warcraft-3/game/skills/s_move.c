@@ -77,6 +77,9 @@ static void (*move_test_motion_commit)(edict_t *unit);
 static void (*move_test_visual_commit)(edict_t *unit,float before_facing,float before_speed);
 static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
 static void (*move_test_group_begin)(moveGroup_t const *group);
+static void (*move_test_group_arrival)(moveGroup_t const *group, moveGroupMember_t const *member, wc3Arrival_t const *arrival);
+static void (*move_test_group_committed)(moveGroup_t const *group, moveGroupMember_t const *member);
+static void (*move_test_turn_request)(edict_t *unit, float target, wc3Motion_t const *motion);
 enum { MOVE_PHASE_SCHEDULER, MOVE_PHASE_PUBLISH, MOVE_PHASE_RADIUS, MOVE_PHASE_GROUP, MOVE_PHASE_DECIDE, MOVE_PHASE_COMMIT, MOVE_PHASE_SEPARATE };
 static void (*move_test_owner_phase)(unsigned phase,uint64_t id);
 /* Observe logical membership and physical retirement independently. These
@@ -171,6 +174,8 @@ typedef struct { moveGroup_t *group; uint64_t sequence; } moveGroupVisit_t;
 static moveGroupVisit_t *move_group_visits;
 static uint32_t move_group_visit_capacity;
 static moveGroup_t *move_group_head;
+static uint32_t move_target_publications;
+static uint64_t move_target_publication_epoch=1;
 static uint32_t move_group_first_free;
 static bool move_group_order_valid;
 static int move_compare_group_visits(void const *,void const *);
@@ -185,8 +190,8 @@ static void move_prepare_group_order(void) {
     FOR_LOOP(i,count) {
         moveGroup_t *group=level.move_groups[i];group->slot=i;
         group->newer=group->older=NULL;
-        if(group->inuse)owners[visits++]=(moveGroupVisit_t){group,group->sequence};
-        else move_group_first_free=MIN(move_group_first_free,i);
+        if(group->inuse && !group->publication_pending)owners[visits++]=(moveGroupVisit_t){group,group->sequence};
+        else if(!group->inuse)move_group_first_free=MIN(move_group_first_free,i);
     }
     if(visits)qsort(owners,visits,sizeof(*owners),move_compare_group_visits);
     FOR_LOOP(i,visits) {
@@ -755,16 +760,17 @@ static void move_release_group(moveGroup_t *group) {
         if (!shared->references) gi.error("Move: shared parameter reference underflow");
         shared->references--;
     }
-    if(move_group_order_valid) {
+    if(move_group_order_valid && !group->publication_pending) {
         if(group->newer)group->newer->older=group->older;
         else move_group_head=group->older;
         if(group->older)group->older->newer=group->newer;
-        move_group_first_free=MIN(move_group_first_free,group->slot);
     }
+    if(move_group_order_valid)move_group_first_free=MIN(move_group_first_free,group->slot);
     move_free_group_routes(group); memset(group,0,sizeof(*group));
 }
 
 void S_ClearMoveGroups(void) {
+    if(++move_target_publication_epoch==0)gi.error("Move: publication epoch exhausted");
     S_ClearMoveCoarseRequests();
     memset(move_unit_groups,0,sizeof(move_unit_groups));
     move_group_id_bound=0;move_group_id_bound_valid=false;
@@ -3034,6 +3040,9 @@ static void unit_turn_toward(edict_t *self, float target) {
     wc3Motion_t motion = { .heading = self->s.angle, .error = wc3_turn_error(target, self->s.angle),
         .turn = move_deciding_group && move_deciding_group->turning ?
             move_deciding_group->turn_rate : unit_turnspeed(self), .window = unit_propwindow(self) };
+#ifdef BZ_TESTS
+    if(move_test_turn_request)move_test_turn_request(self,target,&motion);
+#endif
     /* Retail stops from the error before turning; testing the new angle allowed premature travel. */
     self->movement.turn_blocked = !wc3_motion_update(&motion);
     self->s.angle = motion.heading;
@@ -5662,6 +5671,62 @@ static bool move_begin_target_approach(edict_t *unit, edict_t *target, float ran
     return true;
 }
 
+/* Native target tasks retain their logical receiver during synchronous order
+ * callbacks; physical group activation follows the producer stack unwind.
+ * Nested producers therefore activate before their still-pending parent, while
+ * the ordinary group list remains newest-first (169840 ->16c880). */
+moveTargetPublication_t S_BeginTargetApproachPublication(edict_t *unit) {
+    moveGroup_t *group=unit ? move_unit_group(unit) : NULL;
+    if(!group || group->initialized || group->publication_pending || !group->target || !group->receiver || !group->complete)
+        return (moveTargetPublication_t){0};
+    if(move_target_publications==UINT32_MAX)gi.error("Move: target publication depth exhausted");
+    move_prepare_group_order();
+    if(group->newer)group->newer->older=group->older;
+    else move_group_head=group->older;
+    if(group->older)group->older->newer=group->newer;
+    group->newer=group->older=NULL;group->publication_pending=true;
+    move_target_publications++;
+    return (moveTargetPublication_t){.unit=unit,.receiver=group->receiver,.group=group,
+        .epoch=move_target_publication_epoch,
+        .spawn=unit->spawn_time,.revision=G_UnitMoveRevision(unit),.group_id=group->id,
+        .receiver_spawn=group->receiver_spawn,.sequence=group->sequence,.open=true};
+}
+
+bool S_TargetApproachPublicationPending(void) {return move_target_publications!=0;}
+
+void S_EndTargetApproachPublication(moveTargetPublication_t *publication) {
+    if(!publication || !publication->open)return;
+    moveTargetPublication_t const held=*publication;*publication=(moveTargetPublication_t){0};
+    assert(move_target_publications);
+    if(held.epoch!=move_target_publication_epoch)goto closed;
+    moveGroup_t *group=held.group;edict_t *unit=held.unit;
+    if(!group->inuse || group->id!=held.group_id || group->sequence!=held.sequence || !group->publication_pending)goto closed;
+    bool actor=unit->inuse && unit->spawn_time==held.spawn && !G_IsDeferredFree(unit);
+    if(!actor || G_UnitMoveRevision(unit)!=held.revision || unit->movement.group_id!=held.group_id ||
+       group->initialized || group->receiver!=held.receiver || group->receiver_spawn!=held.receiver_spawn ||
+       !held.receiver->inuse || held.receiver->spawn_time!=held.receiver_spawn || G_IsDeferredFree(held.receiver) ||
+       !group->target || !group->target->inuse || group->target->spawn_time!=group->target_spawn) {
+        /* Cancellation normally detaches the receiver already. Retire only
+         * this still-pending generation; never clear a callback's new binding. */
+        if(actor && unit->movement.group_id==held.group_id) {
+            unit->movement.group_id=0;move_unit_groups[unit-g_edicts]=NULL;
+        }
+        move_cancel_receiver(group,actor ? unit : NULL,false);
+        if(held.epoch==move_target_publication_epoch && group->inuse &&
+           group->id==held.group_id && group->sequence==held.sequence)move_release_group(group);
+        goto closed;
+    }
+    move_prepare_group_order();
+    if(level.next_move_group_sequence==UINT64_MAX)gi.error("Move: physical owner sequence exhausted");
+    group->publication_pending=false;
+    group->sequence=++level.next_move_group_sequence;
+    group->newer=NULL;group->older=move_group_head;
+    if(move_group_head)move_group_head->newer=group;
+    move_group_head=group;
+closed:
+    move_target_publications--;
+}
+
 bool S_BeginUnitTargetApproach(edict_t *unit,edict_t *target,float range,
                               edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
     return move_begin_target_approach(unit,target,range,false,receiver,complete);
@@ -6691,6 +6756,9 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
         return;
     }
     member->arrived=wc3_arrival_update(&arrival); member->in_range=arrival.in_range;
+#ifdef BZ_TESTS
+    if(move_test_group_arrival)move_test_group_arrival(group,member,&arrival);
+#endif
     if (member->arrived) {
         member->flags|=0x10000; member->forced_arrival=false;
         member->speed=0; member->heading=heading;
@@ -7155,6 +7223,9 @@ static void move_run_group_updates(void) {
             if (move_test_group_commit) move_test_group_commit(group,member,&trace);
 #endif
             wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
+#ifdef BZ_TESTS
+            if(move_test_group_committed)move_test_group_committed(group,member);
+#endif
             /* Native16c390 suppresses persistent completion for the first32
              * hidden visits.5fa7a0/5ff8b0 validate when completion dispatches. */
             if (member->arrived && !group->route.group_index &&

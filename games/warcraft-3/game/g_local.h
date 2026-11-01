@@ -102,6 +102,7 @@ typedef struct moveGroup_s {
     uint64_t sequence; /* Creation order survives slot reuse and save/load. */
     uint64_t shared_id; /* Native group7c shared parameters, zero when unbound. */
     bool inuse, initialized, ticking;
+    bool publication_pending; /* Runtime target-task producer transaction; not scheduler-visible. */
     bool individual; /* Physical singleton schedules the unit-owned route. */
     bool turning; /* Bridge-owned angular cohort, independent of the public task. */
     float turn_rate; /* Native request+fc/group+74 per-decision angular override. */
@@ -4197,6 +4198,17 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
 void S_RestoreMoveGroupBinding(edict_t *,moveGroup_t *);
+/* Stack-owned target-task admission; never serialized across callbacks. */
+typedef struct {
+    edict_t *unit,*receiver;
+    moveGroup_t *group;
+    uint32_t spawn,revision,group_id,receiver_spawn;
+    uint64_t sequence,epoch;
+    bool open;
+} moveTargetPublication_t;
+moveTargetPublication_t S_BeginTargetApproachPublication(edict_t *);
+void S_EndTargetApproachPublication(moveTargetPublication_t *);
+bool S_TargetApproachPublicationPending(void);
 bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 bool S_BeginUnitEntityPointApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 bool S_BeginUnitPointTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));

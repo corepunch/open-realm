@@ -214,6 +214,7 @@ static queuedOrderResult_t instant_activate(edict_t *unit,unitOrder_t const *pac
     unit->couple_instant->constructing=false;
     if(!accepted) {unit->couple_instant->active=false;unit_stand(unit);return QUEUED_ORDER_REPLACED;}
     uint32_t revision=G_UnitMoveRevision(unit);
+    moveTargetPublication_t publication=S_BeginTargetApproachPublication(unit);
     if(automatic) {
         G_PublishIssuedTargetOrderId(unit,INSTANT_COUPLE_AUTO,"coupleinstant",target,packet->issuer_player);
         /*423d90 continues coordination after the synthetic notification even
@@ -223,6 +224,7 @@ static queuedOrderResult_t instant_activate(edict_t *unit,unitOrder_t const *pac
            S_SpellData(code,S_SpellLevel(unit,code),2)==0)
             G_IssueUnitTargetOrder(target,"coupletarget",unit,false,packet->issuer_player);
     }
+    S_EndTargetApproachPublication(&publication);
     return instant_alive(unit,spawn) && G_UnitMoveRevision(unit)==revision ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }
 BZ_ABILITY_PROC(CAbilityCoupleInstant) {

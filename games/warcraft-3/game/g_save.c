@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 228; /* Configured-alias target reservation leases. */
+static uint32_t const save_version = 229; /* Target-task physical publication follows producer unwind. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1054,6 +1054,7 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, turning, F_INT),
     TF(moveGroup_t, turn_rate, F_FLOAT),
     TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveGroup_t, publication_pending, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, newer, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, older, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, slot, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3539,6 +3540,9 @@ static FILE *G_OpenSaveTemporary(cstring_t filename, PATHSTR temporary) {
 }
 
 bool WriteGame(cstring_t filename) {
+    /* Public JASS saves/loads are deferred until command callbacks unwind.
+     * A direct caller cannot persist or replace a partially published task. */
+    if(S_TargetApproachPublicationPending())return false;
     PATHSTR temporary = { 0 };
     FILE *f = NULL;
     saveHeader_t header = {
@@ -3670,6 +3674,9 @@ static void RebindEntityModels(edict_t *ent) {
 }
 
 bool ReadGame(cstring_t filename) {
+    /* Public JASS saves/loads are deferred until command callbacks unwind.
+     * A direct caller cannot persist or replace a partially published task. */
+    if(S_TargetApproachPublicationPending())return false;
     FILE *f = fopen(filename, "rb");
     if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = { 0 };
