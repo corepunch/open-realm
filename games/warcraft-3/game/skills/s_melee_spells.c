@@ -7,6 +7,7 @@ static cstring_t melee_buff_fallback(uint32_t code) {
         { MAKEFOURCC('A', 'C', 'b', 'l'), "Bblo" },
         { MAKEFOURCC('A', 'C', 'b', 'b'), "Bblo" },
         { MAKEFOURCC('A', 'f', 'a', 'e'), "Bfae" },
+        { MAKEFOURCC('A', 'b', 's', 'k'), "Bbsk" },
         { MAKEFOURCC('A', 'f', 'a', '2'), "Bfae" },
         { MAKEFOURCC('A', 'r', 'e', 'j'), "Brej" },
         { MAKEFOURCC('A', 'r', 'o', 'a'), "Broa" },
@@ -235,6 +236,23 @@ BZ_ABILITY_PROC(CAbilityFrenzy) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     uint32_t code = call && call->item ? call->item->code : 0;
+    if (code == MAKEFOURCC('A','b','s','k')) {
+        switch (msg) {
+        case A_VALIDATE:
+            return target.type == SPELL_TARGET_NONE && S_SpellIsAliveTarget(ent);
+        case A_EXECUTE: {
+            uint32_t const level = S_SpellLevel(ent, code);
+            heroabilitystatus_t *status;
+            cstring_t const buff = melee_buff(call ? call->item : NULL, level);
+            if (!buff) return false;
+            status = S_SpellApplyTimedStatusFromAbility(ent, code, level, buff,
+                S_SpellHeroDuration(code, level, ent));
+            if (status) status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
+            return status != NULL;
+        }
+        default: return CAbilitySimpleSpell(ent, msg, call);
+        }
+    }
     switch (msg) {
     case A_VALIDATE: return bloodlust_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;

@@ -1757,6 +1757,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
     switch (slot->code) {
     case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
+    case MAKEFOURCC('B','b','s','k'):
     case MAKEFOURCC('B','s','l','o'): case MAKEFOURCC('B','c','s','d'):
     case MAKEFOURCC('B','f','r','o'): case MAKEFOURCC('B','f','z','y'):
     case MAKEFOURCC('B','U','h','f'):
@@ -1778,6 +1779,11 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         if (!ability) ability = MAKEFOURCC('A','b','l','o');
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','b','s','k'):
+        ability = MAKEFOURCC('A','b','s','k');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT, S_SpellData(ability, rank, 3));
         break;
     case MAKEFOURCC('B','s','l','o'):
         /* A shared stock BuffID does not replace the casting alias's data. */

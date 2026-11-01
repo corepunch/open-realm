@@ -521,6 +521,8 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     }
     damage = S_SpiritLinkRedirect(target, attacker, damage);
     if (damage <= 0) return;
+    damage = MAX(1, (int)ceilf((float)damage *
+        (1.0f + unit_status_modifier_total(target, WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT))));
     /* Primary attack only: shields, Spirit Link, damage immunities and overkill
      * have already been resolved. Award before death can free this edict. */
     if (primary_attack && attacker)
