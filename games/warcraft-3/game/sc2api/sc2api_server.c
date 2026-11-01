@@ -570,7 +570,7 @@ static bool sc2_send_data(uint32_t id, bool abilities, bool units, bool upgrades
             uint32_t const code = i < g_AbilityDataCount ? g_AbilityData[i].id :
                 level.mapinfo->userCreatedAbilities[i - g_AbilityDataCount].newUnitID;
             abilityitem_t const item = S_AbilityItem(code);
-            if (code && item.ability && item.ability->orders[0])
+            if (code && item.ability && item.ability->orders && item.ability->orders[0])
                 sc2_write_ability_data(&writer, code, GetClassName(code), item.ability, code, false);
         }
         FOR_LOOP(i, G_OrderDefinitionCount()) {
