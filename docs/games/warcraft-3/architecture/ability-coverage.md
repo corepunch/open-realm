@@ -33,6 +33,16 @@ See [Obsidian Statue and Destroyer](../obsidian-statue-destroyer.md) for
 mechanical contracts, confirmed MPQ mappings, regression tests and unresolved
 retail visual/impact timing.
 
+## Beastmaster Stampede (`ANst` / `Arsp`)
+
+Both aliases now dispatch through `CAbilityStampede` as authored point-targeted
+channels. `s_stampede.c` replaces the old once-per-second area damage and
+campaign summon approximation with individual fixed-target lizard projectiles,
+first-contact detection, `DataE` delayed explosions, `DataC` damage and `DataD`
+splash; emission uses `DataA`, and `Area` controls the spawn line and travel
+length. Existing saved channel identity and projectile presentation are reused.
+See [Stampede](../stampede.md) for evidence, tests and unresolved retail timing.
+
 ## Orc Pillage (`Asal` / `Ropg`)
 
 Pillage is a passive attack-damage consumer, not a spell cast. `Asal` remains
