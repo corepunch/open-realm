@@ -127,50 +127,71 @@ TEST(wc3_brewmaster, breath_of_fire_cone_ignites_haze_and_limits_initial_damage)
 }
 
 TEST(wc3_brewmaster, storm_elemental_command_card_includes_dispel_magic) {
+    static UnitAbilities_t const storm_abilities = { .abilList = "Adsm,ACcy,ACrk,ANwk" };
     static cstring_t const ability_config =
         "[Adsm]\nArt=ReplaceableTextures\\CommandButtons\\BTNDispelMagic.blp\n"
-        "Buttonpos=0,2\nTip=Dispel Magic\n";
+        "Buttonpos=0,2\nTip=Dispel Magic\n"
+        "[ACcy]\nArt=ReplaceableTextures\\CommandButtons\\BTNResurrect.blp\n"
+        "Buttonpos=1,2\nTip=Cyclone\n"
+        "[ACrk]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNResistantSkin.blp\n"
+        "Buttonpos=3,2\nTip=Resistant Skin\n"
+        "[ANwk]\nArt=ReplaceableTextures\\CommandButtons\\BTNWindWalkOn.blp\n"
+        "Buttonpos=0,2\nTip=Wind Walk\n";
     gameCommandButton_t buttons[16];
     edict_t *storm;
     uint8_t count;
-    bool found = false;
+    gameCommandButton_t *dispel = NULL, *wind_walk = NULL;
 
     reset_entities(); setup_test_world();
     T_ASSERT(G_TestPushAbilityConfig(ability_config));
-    /* Exercise the Storm class command-card fallback used when map data has
-     * not attached the stock Adsm row to the spawned unit instance. */
     storm = alloc_test_unit(MAKEFOURCC('n','p','n','2'), 0, 0);
+    storm->data.UnitAbilities = (UnitAbilities_t *)&storm_abilities;
     count = G_GetCommandButtons(storm, buttons, sizeof(buttons) / sizeof(buttons[0]));
-    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Adsm")) {
-        found = true;
-        T_STREQ(buttons[i].art, "ReplaceableTextures\\CommandButtons\\BTNDispelMagic.blp");
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "Adsm")) dispel = &buttons[i];
+        if (!strcmp(buttons[i].command, "ANwk")) wind_walk = &buttons[i];
     }
-    T_ASSERT(found);
+    T_NOT_NULL(dispel);
+    T_NOT_NULL(wind_walk);
+    if (dispel && wind_walk) {
+        T_STREQ(dispel->art, "ReplaceableTextures\\CommandButtons\\BTNDispelMagic.blp");
+        T_ASSERT(dispel->x != wind_walk->x || dispel->y != wind_walk->y);
+    }
     G_TestPopAbilityConfig();
 }
 
 TEST(wc3_brewmaster, earth_elemental_command_card_shows_pulverize_indicator) {
-    static UnitAbilities_t const earth_abilities = { .abilList = "ACpv" };
+    static UnitAbilities_t const earth_abilities = { .abilList = "ACpv,ANta" };
     static cstring_t const ability_config =
         "[ACpv]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNSeaGiantPulverize.blp\n"
-        "Buttonpos=0,2\nTip=Pulverize\n";
+        "Buttonpos=0,2\nTip=Pulverize\n"
+        "[ANta]\nArt=ReplaceableTextures\\CommandButtons\\BTNWarStomp.blp\n"
+        "Buttonpos=0,2\nTip=Taunt\n";
     gameCommandButton_t buttons[16];
     edict_t *earth;
     uint8_t count;
     bool found = false;
+    gameCommandButton_t *pulverize = NULL, *taunt = NULL;
 
     reset_entities(); setup_test_world();
     T_ASSERT(G_TestPushAbilityConfig(ability_config));
     earth = alloc_test_unit(MAKEFOURCC('n','p','n','3'), 0, 0);
     earth->data.UnitAbilities = (UnitAbilities_t *)&earth_abilities;
     count = G_GetCommandButtons(earth, buttons, sizeof(buttons) / sizeof(buttons[0]));
-    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "ACpv")) {
-        found = true;
-        T_ASSERT(buttons[i].disabled);
-        T_ASSERT(buttons[i].indicator);
-        T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNSeaGiantPulverize.blp");
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "ACpv")) {
+            found = true;
+            pulverize = &buttons[i];
+            T_ASSERT(buttons[i].disabled);
+            T_ASSERT(buttons[i].indicator);
+            T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNSeaGiantPulverize.blp");
+        }
+        if (!strcmp(buttons[i].command, "ANta")) taunt = &buttons[i];
     }
     T_ASSERT(found);
+    T_NOT_NULL(taunt);
+    if (pulverize && taunt)
+        T_ASSERT(pulverize->x != taunt->x || pulverize->y != taunt->y);
     G_TestPopAbilityConfig();
 }
 
