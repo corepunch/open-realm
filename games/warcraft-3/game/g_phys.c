@@ -204,7 +204,8 @@ void SV_Physics_Toss(edict_t *ent) {
 void SV_Physics_Link(edict_t *ent) {
     vec3_t const old = ent->s.origin;
     ent->s.origin = ent->goalentity->s.origin;
-    ent->s.angle = ent->goalentity->s.angle;
+    if (ent->status_effect_code != WC3_EFFECT_SHOP_PATRON_ARROW)
+        ent->s.angle = ent->goalentity->s.angle;
     if ((ent->s.flags & EF_FOW_BLOCKER) && memcmp(&old, &ent->s.origin, sizeof(old))) G_FowMarkBlockersDirty();
 }
 

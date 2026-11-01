@@ -893,6 +893,8 @@ typedef enum {
     WC3_EFFECT_LIGHTNING = 6,
 } wc3EffectType_t;
 
+#define WC3_EFFECT_SHOP_PATRON_ARROW MAKEFOURCC('S','h','o','p') // presentation tag; linked yaw stays at the authored southeast-facing orientation
+
 typedef struct ability_s ability_t;
 typedef struct ability_call_s abilityCall_t;
 typedef struct heroabilitystatus_s heroabilitystatus_t;
