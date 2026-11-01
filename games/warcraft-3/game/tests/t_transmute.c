@@ -140,4 +140,116 @@ TEST(wc3_spell, transmute_rejects_invalid_targets_without_mana_spend) {
     tm_done(&fix);
 }
 
+
+/* Stock-like ANab with non-stock damage/armor and a short duration.  Both
+ * projectile and status paths run against synthetic archive definitions. */
+static cstring_t alchemist_acid_slk =
+    "ID;PWXL;N;EBB;Y2;X14\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+    "C;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+    "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Area1\"\n"
+    "C;Y1;X9;K\"Dur1\"\nC;Y1;X10;K\"HeroDur1\"\n"
+    "C;Y1;X11;K\"DataC1\"\nC;Y1;X12;K\"DataD1\"\n"
+    "C;Y1;X13;K\"DataE1\"\nC;Y1;X14;K\"BuffID1\"\n"
+    "C;Y2;X1;K\"ANab\"\nC;Y2;X2;K\"ANab\"\nC;Y2;X3;K1\n"
+    "C;Y2;X4;K\"air,ground,enemy,neutral,organic\"\n"
+    "C;Y2;X5;K0\nC;Y2;X6;K0\nC;Y2;X7;K700\n"
+    "C;Y2;X8;K120\nC;Y2;X9;K4\nC;Y2;X10;K4\n"
+    "C;Y2;X11;K4\nC;Y2;X12;K9\nC;Y2;X13;K5.5\n"
+    "C;Y2;X14;K\"BNab\"\nE\n";
+
+TEST(wc3_spell, alchemist_acid_bomb_splashes_debuffs_and_stops_after_dispel) {
+    tmFix_t fix; tm_setup(&fix);
+    edict_t *splash = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 82, 0);
+    edict_t *missile = NULL, *primary_dot = NULL;
+    float const full_health = 500;
+    slkTestData_t *acid = parse_slk_string(alchemist_acid_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", acid);
+    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = FS_SLKKey("ANab"), .level = 1);
+    splash->s.player = 1;
+    splash->svflags |= SVF_MONSTER;
+    splash->targtype = TARG_GROUND;
+    splash->data.UnitBalance = &fix.enemy_bal;
+    splash->health.value = splash->health.max_value = full_health;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, FS_SLKKey("ANab"), fix.enemy));
+    T_FEQ(fix.enemy->health.value, full_health, 0.001f); /* impact deferred */
+    FILTER_EDICTS(ent, ent->owner == fix.caster && ent->class_id == FS_SLKKey("ANab") &&
+                  ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile && missile->currentmove && missile->currentmove->endfunc)
+        missile->currentmove->endfunc(missile);
+    T_FEQ(unit_status_modifier_total(fix.enemy, WC3_STATUS_MOD_ARMOR_FLAT), -4, 0.001f);
+    T_FEQ(unit_status_modifier_total(splash, WC3_STATUS_MOD_ARMOR_FLAT), -4, 0.001f);
+    T_FEQ(unit_status_modifier_total(fix.ally, WC3_STATUS_MOD_ARMOR_FLAT), 0, 0.001f);
+    FILTER_EDICTS(ent, ent->owner == fix.caster && ent->goalentity == fix.enemy &&
+                  ent->think == acid_bomb_think) { primary_dot = ent; break; }
+    T_NOT_NULL(primary_dot);
+    level.time += 1000;
+    if (primary_dot) G_RunEntity(primary_dot);
+    T_ASSERT(fix.enemy->health.value < full_health);
+    T_FEQ(fix.ally->health.value, full_health, 0.001f);
+    heroabilitystatus_t *status = unit_findstatus(fix.enemy, FS_SLKKey("BNab"));
+    T_NOT_NULL(status);
+    if (status) unit_removestatus(fix.enemy, status, STATUS_REMOVE_DISPEL);
+    T_FEQ(unit_status_modifier_total(fix.enemy, WC3_STATUS_MOD_ARMOR_FLAT), 0, 0.001f);
+    float const after_dispel = fix.enemy->health.value;
+    level.time += 1000;
+    if (primary_dot && primary_dot->inuse) G_RunEntity(primary_dot);
+    T_FEQ(fix.enemy->health.value, after_dispel, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(acid);
+    tm_done(&fix);
+}
+
+TEST(wc3_spell, alchemist_acid_bomb_thinker_survives_save_load_with_status_identity) {
+    cstring_t const filename = Test_TempPath("alchemist-acid-bomb.bin");
+    tmFix_t fix; tm_setup(&fix);
+    slkTestData_t *acid = parse_slk_string(alchemist_acid_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", acid);
+    edict_t *missile = NULL, *dot = NULL;
+    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = FS_SLKKey("ANab"), .level = 1);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, FS_SLKKey("ANab"), fix.enemy));
+    FILTER_EDICTS(ent, ent->owner == fix.caster && ent->movetype == MOVETYPE_FLYMISSILE)
+        { missile = ent; break; }
+    if (missile && missile->currentmove && missile->currentmove->endfunc)
+        missile->currentmove->endfunc(missile);
+    FILTER_EDICTS(ent, ent->think == acid_bomb_think && ent->goalentity == fix.enemy)
+        { dot = ent; break; }
+    T_NOT_NULL(dot);
+    if (dot) {
+        uint32_t const instance = dot->variation;
+        T_ASSERT(WriteGame(filename));
+        dot->variation = 0;
+        dot->think = NULL;
+        T_ASSERT(ReadGame(filename));
+        T_ASSERT(dot->think == acid_bomb_think);
+        T_EQ(dot->variation, instance);
+        T_FEQ(unit_status_modifier_total(fix.enemy, WC3_STATUS_MOD_ARMOR_FLAT), -4, 0.001f);
+    }
+    remove(filename);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(acid);
+    tm_done(&fix);
+}
+
+TEST(wc3_spell, alchemist_transmute_datad_zero_suppresses_normal_kill_bounty) {
+    tmFix_t fix; tm_setup(&fix);
+    char slk[1024];
+    char *flag;
+    slkTestData_t *rows, *old;
+    strlcpy(slk, transmute_slk, sizeof(slk));
+    flag = strstr(slk, "C;Y2;X11;K\"1\"");
+    T_NOT_NULL(flag);
+    if (!flag) { tm_done(&fix); return; }
+    flag[strlen("C;Y2;X11;K\"")] = '0';
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    fix.enemy_bal.goldBountyBase = 31;
+    game.clients[1].ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.enemy));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 200);
+    T_ASSERT(M_IsDead(fix.enemy));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    tm_done(&fix);
+}
+
 #endif

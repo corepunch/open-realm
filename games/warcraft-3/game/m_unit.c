@@ -566,7 +566,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_CancelHeroRevives(self);
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     /* Bounty is credited to the killer owner, independently of nearby Hero XP. */
-    G_AwardKillBounty(self, attacker);
+    if (!(self->aiflags & AI_TRANSMUTE_NO_BOUNTY)) G_AwardKillBounty(self, attacker);
     /* Award experience to the killer's nearby heroes (enemy kills only). */
     if (attacker && attacker != self && attacker->s.player != self->s.player) {
         G_GrantKillXP(self, attacker);

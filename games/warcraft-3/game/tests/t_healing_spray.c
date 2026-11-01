@@ -158,4 +158,25 @@ TEST(wc3_spell, healing_spray_caster_move_cancels_remaining_waves) {
     hs_done(&fix);
 }
 
+/* Every wave launches DataC authored visual bottles, with healing still
+ * applied exactly once when the scheduled wave fires. */
+TEST(wc3_spell, healing_spray_launches_authored_visual_bottle_count) {
+    hsFix_t fix; hs_setup(&fix);
+    vec2_t point = fix.ally->s.origin2;
+    edict_t *bottle = NULL;
+    uint32_t count = 0;
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
+    FILTER_EDICTS(ent, ent->owner == fix.caster &&
+                  ent->class_id == BZ_ANHS && ent->movetype == MOVETYPE_FLYMISSILE) {
+        count++;
+        bottle = ent;
+    }
+    T_EQ(count, 6u);
+    T_FEQ(fix.ally->health.value, 125.0f, 0.001f);
+    if (bottle && bottle->currentmove && bottle->currentmove->endfunc)
+        bottle->currentmove->endfunc(bottle);
+    T_FEQ(fix.ally->health.value, 125.0f, 0.001f); /* visual only */
+    hs_done(&fix);
+}
+
 #endif

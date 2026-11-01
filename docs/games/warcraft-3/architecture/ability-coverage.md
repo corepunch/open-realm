@@ -244,7 +244,12 @@ The current selected-block implementation also covers `AHfa` (Searing Arrows)
 through the missile attack hook, `AEar` (Trueshot Aura) through the ranged
 attack bonus hook, `AOre` (Reincarnation) through the unit death/revival
 lifecycle, `AOhw` (Healing Wave), `AOhx` (Hex), `AOvd` (Big Bad Voodoo), `AEsv`
-(Vengeance), and `ANab` (Acid Bomb). `AOwd` (Serpent Ward) remains unresolved:
+(Vengeance), and `ANab` (Acid Bomb: delayed homing impact,
+`BNab` armor reduction, primary/splash DOT). The Goblin Alchemist also has
+`ANhs` Healing Spray bottles and friendly healing, `ANcr` timed rank-specific
+Chemical Rage forms, and `ANtm` homing Transmute with authored bounty handling;
+see [Goblin Alchemist](../goblin-alchemist.md) for implementation and retail
+parity gaps. `AOwd` (Serpent Ward) remains unresolved:
 the ROC and TFT AbilityData archives contain no `AOwd` row, so no authoritative
 summoned unit or level data exists for a faithful registration.
 
