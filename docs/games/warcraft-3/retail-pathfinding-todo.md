@@ -6,7 +6,7 @@ research before declaring the full faithful OpenRealm replacement. Independently
 verified slices can be integrated earlier; the [scalar/turn integration](retail-pathfinding-engine.md)
 has exact C/live evidence without closing the whole-replacement READY gates.
 
-## Current serial execution order (2026-10-20)
+## Current serial execution order (2026-11-01)
 
 **25 open. Active leaf: TARGET-01.2.** This queue supersedes the historical
 lane/agent scheduling below. Finish the active leaf's full documented criterion,
@@ -14,10 +14,17 @@ required retail/engine/save verification and integration before advancing.
 A verified partial slice is progress within that leaf and does not close it.
 Work outside the active leaf is limited to dependencies required to complete it.
 
-TARGET-01.2 currently starts with the recovered point/item-drop owner. Continue
-through its remaining producer inventory, command/target range, heading,
-force/stop parameters, adjacent/equality boundaries and complete firing polls.
-Finishing item drop alone does not authorize moving to the next leaf.
+TARGET-01.2 currently continues the Couple Instant (`Acoi`) producer. Commits
+`a8e5dcc9c` and `c114321c7` integrate corrected spell phases, signed busy ownership
+and Save228 target reservations. Stock waiting and authored range333 approach
+captures cover reservation admission/release; focused engine checks include
+save/load and target-slot reuse. See the [current Coupling checkpoint](hippogryph-couple.md#public-reissue-and-spell-lifecycle-corrected-native-evidence)
+for the validated scope and remaining evidence limits. Next, audit the native
+complete firing polls for a moving partner and range/heading boundaries before
+choosing the required captures. Continue within this producer; do not jump to
+Patrol on the strength of these partial checkpoints. The leaf's remaining
+producer inventory, force/stop parameters and adjacent/equality boundaries are
+unchanged. **25 open; zero whole leaves closed.**
 
 1. `TARGET-01.2` — command/target parameters and complete firing polls.
 2. `BASE-02.3` — valid public input domains.
@@ -2214,7 +2221,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 ### TARGET-01 — Arrival inputs
 
 - [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
-- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks. Point371: synchronous raw point Attack producer and saved physical owner verified by six native captures,3,216 guards and29 tests/11,306 assertions per edition; Ground and broader producer inventory remain open. Ground371 adds selected-range physical admission, minimum rejection, immobile completion and blocked human/computer recovery; classic: 43 tests/11838 assertions; tft: 43 tests/11838 assertions. Wider producer inventory and complete firing polls remain in this leaf. Waygate377 adds ordinary entrance/cached-exit point ownership, live-edge retargeting, warm/cold continuation and checked callback startup; classic: 39 tests/229803 assertions; tft: 39 tests/229803 assertions. Wider target-producer inventory remains in this leaf. Coupling now has frozen zero-range reciprocal producer, interruption/pause and JASS event witnesses; the game-owned pair, Save224 continuation and callback regression suite are integrated. [Coupling contract](hippogryph-couple.md#original-target-order-producer-and-lifecycle). Full checkpoint175 passes10,158 native and3,141 pathfinding Python tests before coupling changes.
+- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks. Point371: synchronous raw point Attack producer and saved physical owner verified by six native captures,3,216 guards and29 tests/11,306 assertions per edition; Ground and broader producer inventory remain open. Ground371 adds selected-range physical admission, minimum rejection, immobile completion and blocked human/computer recovery; classic: 43 tests/11838 assertions; tft: 43 tests/11838 assertions. Wider producer inventory and complete firing polls remain in this leaf. Waygate377 adds ordinary entrance/cached-exit point ownership, live-edge retargeting, warm/cold continuation and checked callback startup; classic: 39 tests/229803 assertions; tft: 39 tests/229803 assertions. Wider target-producer inventory remains in this leaf. Legacy Coupling's zero-range reciprocal producer remains a separate validated contract. Couple Instant (`Acoi`) commits `a8e5dcc9c` and `c114321c7` add corrected public reissue/spell-phase ownership, signed busy counts and Save228 counted target reservations. Accepted stock-wait and range333-approach captures establish reservation admission/release; checkpoints218/219 pass 2,058 tests and 287,862 assertions across both editions, including save/load and target-slot reuse. Runtime-class reservation preference remains supported by bounded original-code predicates, not a new public competition capture. [Current Coupling checkpoint](hippogryph-couple.md#public-reissue-and-spell-lifecycle-corrected-native-evidence). Next within Coupling: complete firing polls with a moving partner and range/heading boundaries, starting with static audit. No full-suite rerun is claimed for these focused checkpoints. TARGET-01.2 remains open; 25 open and zero whole leaves closed.
 - [x] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands. Payoff185 integrates actual ground Holy Light: authored unbuffered range, nonpersistent physical approach, exact50-row fine motion and retail final public stop; repeated/control producer evidence, non-stock schemas, cancellation and Save146 pass. Target Move retains its distinct configured persistent range. See [spell approaches](retail-pathfinding-engine.md#spell-approaches-capture-a-physical-stopping-range-payoff185). Complete spell timing, perimeter and other target families remain in their existing tasks.
 - [x] **TARGET-01.4** Split ordinary zero-range point Move from01.2: capture actual range publication, predicted-pose predicate and final stop; port them into the owning Move ability. Evidence: [point Move arrival](retail-pathfinding-engine.md#point-move-arrival),2342 complete original/C predicate cases, two identical183-evaluation/commit live witnesses, failing actual-order engine regressions then corrected range/heading gate and previous-velocity final step. Full world/grid/clock phases, other owners and force producers remain01.2/3/NUM-02.3; the rejected first observer capture stays explicit.
 
