@@ -35,15 +35,22 @@ static void burning_oil_ground_think(edict_t *fire) {
     edict_t *source;
     uint32_t const level = fire ? MAX(1u, fire->resources) : 1;
     if (!fire || !fire->inuse || G_Time() >= fire->freetime) {
-        if (fire && fire->inuse) G_FreeEdict(fire);
+        if (fire && fire->inuse) {
+            G_DestroyOwnedEffects(fire);
+            G_FreeEdict(fire);
+        }
         return;
     }
     source = S_SpellChannelOwner(fire);
-    if (!source) { G_FreeEdict(fire); return; }
+    if (!source) {
+        G_DestroyOwnedEffects(fire);
+        G_FreeEdict(fire);
+        return;
+    }
     if (G_Time() < (uint32_t)MAX(0.0f, fire->wait)) return;
     fire->wait = (float)(G_Time() + BURNING_OIL_TICK_MS);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && target != source &&
-                  S_SpellIsEnemy(source, target) && G_UnitTargetType(target) == TARG_GROUND &&
+                  G_UnitTargetType(target) == TARG_GROUND &&
                   S_SpellAllowsAreaTarget(ID_BURNING_OIL, source, target) &&
                   Vector2_distance(&target->s.origin2, &fire->s.origin2) <=
                       fire->collision + MAX(0.0f, target->collision)) {
@@ -81,7 +88,12 @@ void S_BurningOilImpact(edict_t *attacker, vec2_t const *impact) {
     fire->think = burning_oil_ground_think;
     effect_code = G_AbilityEffectCode(ID_BURNING_OIL, level);
     if (!effect_code) effect_code = ID_BURNING_OIL;
-    G_SpawnAbilityEffectAtPoint(effect_code, WC3_EFFECT_EFFECT, 0, impact, true);
+    /* The ground patch must remain visible for the same lifetime as its
+     * damaging area; the fire thinker retires this owned presentation effect. */
+    G_SpawnOwnedAbilityEffectAtPoint(fire, effect_code, WC3_EFFECT_EFFECT, 0, impact);
+    /* Artillery resolves at the end of an entity frame; apply the first fire
+     * sample now so units already standing in the blast cannot be skipped. */
+    burning_oil_ground_think(fire);
 }
 
 static void burning_oil_status_tick(edict_t *target, heroabilitystatus_t *slot) {
