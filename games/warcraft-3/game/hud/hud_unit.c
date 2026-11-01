@@ -427,17 +427,12 @@ static void G_AddCommandButton(edict_t *ent,
     }
 }
 
-/* Campaign Naga production rows reuse Buttonpos=0,0 for every trained unit.
- * Keep the first authored occupant and move later colliding commands into
- * free command-card cells so all production choices remain reachable. */
-static void G_ResolveNagaCommandButtonCollisions(edict_t *ent,
-                                                gameCommandButton_t *buttons,
-                                                uint8_t count) {
-    UnitData_t const *data;
-
-    if (!ent || !ent->data.UnitData || !buttons || !count) return;
-    data = ent->data.UnitData;
-    if (WC3_RaceFromString(data->race) != RACE_NAGA) return;
+/* Some stock producers reuse a Buttonpos across trained units. Move each later
+ * collision to a free cell so a valid production command cannot be covered. */
+static void G_ResolveProducerCommandButtonCollisions(edict_t *ent,
+                                                     gameCommandButton_t *buttons,
+                                                     uint8_t count) {
+    if (!ent || !ent->data.UnitProfile || !ent->data.UnitProfile->trains || !count) return;
 
     FOR_LOOP(i, count) {
         bool collision = false;
@@ -1113,7 +1108,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
     }
 
-    G_ResolveNagaCommandButtonCollisions(ent, buttons, count);
+    G_ResolveProducerCommandButtonCollisions(ent, buttons, count);
     if (S_ManaFlareActive(ent)) {
         FOR_LOOP(i, count) {
             /* Keep only the active Mana Flare toggle usable until Bmfl ends. */

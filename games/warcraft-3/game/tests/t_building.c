@@ -2452,6 +2452,46 @@ TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
     free_slk_rows(profile_rows);
 }
 
+TEST(wc3_building, orc_barracks_demolisher_does_not_overlap_grunt) {
+    static char const profile_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y6;D0\n"
+        "C;X1;Y1;K\"id\"\nC;X2;K\"Trains\"\n"
+        "C;X1;Y2;K\"obar\"\nC;X2;K\"ogru,ohun,otbk,ocat\"\n"
+        "C;X1;Y3;K\"ogru\"\nC;X1;Y4;K\"ohun\"\n"
+        "C;X1;Y5;K\"otbk\"\nC;X1;Y6;K\"ocat\"\nE\n";
+    static char const ability_config[] =
+        "[ogru]\nArt=BTNGrunt.blp\nButtonpos=0,0\n"
+        "[ohun]\nArt=BTNHeadhunter.blp\nButtonpos=1,0\n"
+        "[otbk]\nArt=BTNTaurenBerserker.blp\nButtonpos=2,0\n"
+        "[ocat]\nArt=BTNDemolisher.blp\nButtonpos=0,0\n";
+    slkTestData_t *profile_rows = parse_slk_string(profile_slk);
+    slkTestData_t *old_profile = G_SetProfileRows(profile_rows);
+    gameClient_t *client;
+    edict_t *barracks;
+    gameCommandButton_t buttons[16], grunt, demolisher;
+    uint8_t count;
+
+    setup_test_world();
+    client = &game.clients[0];
+    client->connected = true;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    barracks = alloc_test_unit(MAKEFOURCC('o','b','a','r'), 0, 0);
+    barracks->s.player = client->ps.number;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+
+    count = G_GetCommandButtons(barracks, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "ogru", &grunt));
+    T_ASSERT(building_find_command(buttons, count, "ocat", &demolisher));
+    T_ASSERT(grunt.x != demolisher.x || grunt.y != demolisher.y);
+
+    G_TestPopAbilityConfig();
+    G_SetProfileRows(old_profile);
+    free_slk_rows(profile_rows);
+}
+
 TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {
     gameClient_t *client;
     edict_t *sorceress;
