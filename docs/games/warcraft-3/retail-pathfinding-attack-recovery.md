@@ -69,22 +69,44 @@ Four ordinary loss scenes create D051 point tasks, with identical literal point 
 
 The older observers record public rounded positions and physical-group snapshots, **not complete arrival-evaluation and velocity-commit rows with heading**. Zero such full-poll rows are present. Their missing suffix length cannot be calculated from those snapshots. Existing C save, Stop, queue and subscription tests remain useful bounded engine proofs; they do not manufacture omitted native numeric evidence.
 
-## Active forced-capture candidate and remaining work
+## Active forced capture and remaining engine work
 
 The exact caller table identifies a public-candidate route through `628a10`: dispatcher `642dd0` handles event `d01de` in both `CBuffInvisibility` and `CBuffWindWalk` (original RTTI/vtable linkage). With its own buff flag `0x100`, it increments Attack suppression through `495740`, then calls forced recovery with capture requested when there is no pending user successor.
 
-The recovered notification producer is `679db0` (event write `679de3`, Unit virtual dispatch at `679dfa`). Calls include overlapping invisibility contribution `66971c` and nonzero-count refresh `68b7da`. Setup `63ce40` registers the listener at `63ce6d`, sets its `0x100` state and adds the contribution at `63ce7e`. Positive fade reaches refresh through `d01d4`; zero fade is immediate. An allied Invisibility cast on a far, still-chasing attacker with no queued successor is therefore a statically supported candidate. It is not yet an accepted public trace.
+The recovered notification producer is `679db0` (event write `679de3`, Unit virtual dispatch at `679dfa`). Calls include overlapping invisibility contribution `66971c` and nonzero-count refresh `68b7da`. Setup `63ce40` registers the listener at `63ce6d`, sets its `0x100` state and adds the contribution at `63ce7e`. Positive fade reaches refresh through `d01d4`; zero fade is immediate. The accepted299 batch now observes this route: allied Invisibility on the far chasing source enters 49d280 with active flag4, forced=1 and capture word=1 at tick1265, then creates D051. This is public native evidence, not C replay parity.
 
 This explicit capture word is distinct from a forced call with a retained `0x40000` flag. Sequentially hiding the target and then removing `Aatk` does not establish that combination: ordinary target-loss recovery synchronously clears the bit before the public Hide call returns. An inactive loss can retain it, but ordinary new Attack construction at `49aa18` and automatic publication at `494420` clear it. No direct flag injection may be counted as public reachability.
 
 The bounded original-byte check is complete; the public capture and engine comparison remain open:
 
 - Completed bounded evidence: the original-byte `49d280`/`497190` service-boundary oracle covers active/inactive, forced/capture-word distinctions, source `0x200`, generic widget versus Blink Unit, alternative validity and task-pop outcomes. The portable [recovery298 fixture](../../../games/warcraft-3/game/tests/fixtures/retail_attack_recovery298.json) now contains 81 producer cases, seven actual task-pop cases and nine negative controls; [its provenance](../../../games/warcraft-3/game/tests/fixtures/retail_attack_recovery298.provenance.json) identifies the synthetic services. The original `001cd0` initializes RuntimeFifty after poisoning, and original scalar addition and two-slot maximum selection execute. Equal/adjacent range words around 333 exercise both slot orders. This is not live public or scheduler parity. The adjusted-range branch is excluded: its setter `49c4d0` has no recovered direct xrefs, constructor state is invalid, and restore capability alone does not establish public reachability. Release/stop stubs deliberately retain active `0x4`; they do not prove callback reentrancy.
-- Use one enhanced 223-style public batch for ordinary target loss, owner change, and a genuine active forced producer. Direct public `Aatk` removal establishes the forced-detach route; the Invisibility candidate can establish explicitly requested forced capture only after its actual entry state is observed. Preserve existing controls instead of repeating their old claims.
+- The enhanced299 native batch is accepted for its observed ordinary loss, owner change, active forced detach, automatic acquisition loss and explicitly requested forced Invisibility capture. It does not establish active retained-flag recovery in the paused scene. Implement and compare the corresponding C paths; preserve the older223/224 controls.
 - Record complete global ordered arrival/velocity polls, raw clocks, heading, actual point/range arguments, identities, task phases and public callbacks through the declared end. Require two frozen-source observations and a fresh unhooked control, then compare the entire normal and saved C suffix. Keep literal arithmetic and ordering; pointer-to-role mapping does not authorize numeric normalization.
 
 Reusable existing tools are `tools/frida/research/target223_{probe.j,make_map.py,capture.py,observer.js}`, `tools/ghidra/research/Target223Evidence.java`, `tools/ghidra/verify_wc3_pathing_attack_recovery223.py`, and `tools/ghidra/research/attack_recovery298_oracle.py`. New observers and probes belong in a separate frozen capture directory. Existing 223/224 bytes and expectations remain unchanged.
 
-## Prepared public probe: not yet accepted evidence
+## Accepted public batch299
 
-The separate `tools/frida/research/attack_recovery299_probe.j`, `attack_recovery299_observer.js`, `attack_recovery299_make_map.py`, `attack_recovery299_capture.py` and `attack_recovery299_plan.json` are prepared but unbuilt and unlaunched. Their six scenes are explicit Attack/target Hide, current-target owner change, active Aatk removal, automatic acquisition/target Hide, allied Invisibility on a far chasing attacker, and paused target loss/resume. Each scene must pass its recorded preconditions. Two observed runs, a fresh unhooked control and complete normal/saved C comparisons remain required. The prepared files are not a retail result.
+The [portable specification](../../../tools/ghidra/fixtures/retail-attack-recovery299-1.27.json) and [literal compressed bundle](../../../tools/ghidra/fixtures/retail-attack-recovery299-1.27.json.gz) preserve two complete observations, a fresh unhooked control, both preload files per run, and the exact frozen source bytes. All three public streams contain the same 2,066 markers. Both ordered native streams contain exactly 9,058 records, including 2,671 arrival and 2,671 velocity records. Only process pointers are mapped between observations; clocks, headings, positions, ranges, identities and order stay literal.
+
+| Scene | Observed active recovery input | D051 result |
+| --- | --- | --- |
+| 0: explicit Attack, target Hide | flags `0xc0195`, source widget `0x1446`, forced0, capture0 | Creates point at tick60, range word `0x432b0000` (171) |
+| 1: target becomes source player's unit | flags `0x80195`, source widget `0x1446`, forced0, capture0 | No point |
+| 2: active `Aatk` removal | flags `0x8019d`, source widget `0x1446`, forced1, capture0 | No point |
+| 3: automatic acquisition, target Hide | flags `0x20c4115`, source widget `0x1646`, forced0, capture0 | No point: source Unit200 is set |
+| 4: allied Invisibility on chasing source | flags `0x80195`, source widget `0x1446`, forced1, capture1 | Creates point at tick1265, range171 |
+| 5: pause, target Hide, resume | No active recovery entry observed | Not proof of retained40000 active recovery |
+
+The native task-lifetime export is [retail_attack_recovery299_task_phases.json](../../../games/warcraft-3/game/tests/fixtures/retail_attack_recovery299_task_phases.json). Its 11 original functions and 1,505 instructions show that d016f survives arrival, facing, windup and cooldown. `497190` pops d016f at `49720c`; recovery clears active4 at `49d468`. Finishing d016a is distinct and cannot create another recovery point.
+
+The frozen observer has one explicit schema defect: the642dd0 payload uses `event` for four event words, replacing that row's string discriminator. The checker accepts only that exact schema, requires d01de and the Unit-pointer relationship, and preserves all four words. Footer event counts still name the event correctly. No numerical normalization or row filtering repairs it. The first incomplete v1 attempt is rejected and excluded; its provenance is retained separately.
+
+Reproduce the complete native evidence check without Warcraft, Frida or external Python packages:
+
+```sh
+python tools/ghidra/research/attack_recovery299_evidence.py
+python -m unittest discover -s tests -p test_wc3_pathfinding_attack_recovery299.py
+```
+
+The checker and ten mutation/rejection tests pass. Complete C normal/saved299 replay and the public temporary-Invisibility recovery frontier remain unfinished. This accepted native batch does not close F19/D051.
