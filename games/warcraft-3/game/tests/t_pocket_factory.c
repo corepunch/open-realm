@@ -7,6 +7,13 @@
 #define BZ_ANS2 MAKEFOURCC('A', 'N', 's', '2') // rawcode; Pocket Factory alias L2 interval table
 #define BZ_ANS3 MAKEFOURCC('A', 'N', 's', '3') // rawcode; Pocket Factory alias L3 interval table
 #define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // rawcode; timed-life status on factory and Clockwerks
+#define BZ_ANEG MAKEFOURCC('A', 'N', 'e', 'g') // rawcode; Goblin Tinker Engineering
+#define BZ_ASDG MAKEFOURCC('A', 's', 'd', 'g') // rawcode; Clockwerk Kaboom tier 1
+#define BZ_ASD2 MAKEFOURCC('A', 's', 'd', '2') // rawcode; Clockwerk Kaboom tier 2
+#define BZ_ASD3 MAKEFOURCC('A', 's', 'd', '3') // rawcode; Clockwerk Kaboom tier 3
+#define BZ_NCGB MAKEFOURCC('n', 'c', 'g', 'b') // unitCode; Clockwerk Goblin level 1
+#define BZ_NCG1 MAKEFOURCC('n', 'c', 'g', '1') // unitCode; Clockwerk Goblin level 2
+#define BZ_NCG2 MAKEFOURCC('n', 'c', 'g', '2') // unitCode; Clockwerk Goblin level 3
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; fixture factory UnitID (non-stock)
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture DataB Clockwerk (non-stock)
 
@@ -20,11 +27,12 @@ typedef struct { slkTestData_t *rows, *old; edict_t *caster; } pfFix_t;
 
 /* Non-stock DataA/Dur/DataC/DataE and hfoo/ogru UnitID/DataB prove the execute path is data-driven. */
 static char const pf_slk[] =
-    "ID;PWXL;N;EBB;Y3;X15\n"
+    "ID;PWXL;N;EBB;Y9;X16\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
     "C;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\nC;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\n"
     "C;Y1;X9;K\"HeroDur1\"\nC;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
     "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"DataE1\"\nC;Y1;X15;K\"UnitID1\"\n"
+    "C;Y1;X16;K\"DataF1\"\n"
     "C;Y2;X1;K\"ANsy\"\nC;Y2;X2;K\"ANsy\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"\"\n"
     "C;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"500\"\nC;Y2;X8;K\"25\"\n"
     "C;Y2;X9;K\"25\"\nC;Y2;X10;K\"2\"\nC;Y2;X11;K\"ogru\"\nC;Y2;X12;K\"8\"\n"
@@ -32,7 +40,27 @@ static char const pf_slk[] =
     "C;Y3;X1;K\"ANs1\"\nC;Y3;X2;K\"ANsy\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"\"\n"
     "C;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"500\"\nC;Y3;X8;K\"25\"\n"
     "C;Y3;X9;K\"25\"\nC;Y3;X10;K\"1\"\nC;Y3;X11;K\"ogru\"\nC;Y3;X12;K\"8\"\n"
-    "C;Y3;X13;K\"64\"\nC;Y3;X14;K\"200\"\nC;Y3;X15;K\"hfoo\"\nE\n";
+    "C;Y3;X13;K\"64\"\nC;Y3;X14;K\"200\"\nC;Y3;X15;K\"hfoo\"\n"
+    /* Each Engineering variant produces the Clockwerk matching its Kaboom tier. */
+    "C;Y4;X1;K\"ANs2\"\nC;Y4;X2;K\"ANsy\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"\"\n"
+    "C;Y4;X5;K\"0\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"500\"\nC;Y4;X8;K\"1\"\n"
+    "C;Y4;X9;K\"1\"\nC;Y4;X10;K\"1\"\nC;Y4;X11;K\"ncg2\"\nC;Y4;X12;K\"8\"\n"
+    "C;Y4;X13;K\"64\"\nC;Y4;X14;K\"200\"\nC;Y4;X15;K\"hfoo\"\n"
+    "C;Y5;X1;K\"ANs3\"\nC;Y5;X2;K\"ANsy\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\"\"\n"
+    "C;Y5;X5;K\"0\"\nC;Y5;X6;K\"0\"\nC;Y5;X7;K\"500\"\nC;Y5;X8;K\"1\"\n"
+    "C;Y5;X9;K\"1\"\nC;Y5;X10;K\"1\"\nC;Y5;X11;K\"ncg2\"\nC;Y5;X12;K\"8\"\n"
+    "C;Y5;X13;K\"64\"\nC;Y5;X14;K\"200\"\nC;Y5;X15;K\"hfoo\"\n"
+    /* Kaboom's authored full-radius damage is 30/60/80 for the three Clockwerk tiers. */
+    "C;Y6;X1;K\"Asdg\"\nC;Y6;X2;K\"Asds\"\nC;Y6;X3;K\"1\"\nC;Y6;X4;K\"ground,structure,debris,enemy,neutral\"\n"
+    "C;Y6;X10;K\"100\"\nC;Y6;X11;K\"30\"\nC;Y6;X12;K\"100\"\nC;Y6;X13;K\"30\"\n"
+    "C;Y6;X14;K\"1\"\nC;Y6;X16;K\"1\"\n"
+    "C;Y7;X1;K\"Asd2\"\nC;Y7;X2;K\"Asds\"\nC;Y7;X3;K\"1\"\nC;Y7;X4;K\"ground,structure,debris,enemy,neutral\"\n"
+    "C;Y7;X10;K\"100\"\nC;Y7;X11;K\"60\"\nC;Y7;X12;K\"100\"\nC;Y7;X13;K\"60\"\n"
+    "C;Y7;X14;K\"1\"\nC;Y7;X16;K\"1\"\n"
+    "C;Y8;X1;K\"Asd3\"\nC;Y8;X2;K\"Asds\"\nC;Y8;X3;K\"1\"\nC;Y8;X4;K\"ground,structure,debris,enemy,neutral\"\n"
+    "C;Y8;X10;K\"100\"\nC;Y8;X11;K\"80\"\nC;Y8;X12;K\"100\"\nC;Y8;X13;K\"80\"\n"
+    "C;Y8;X14;K\"1\"\nC;Y8;X16;K\"1\"\n"
+    "C;Y9;X1;K\"Asds\"\nC;Y9;X2;K\"Asds\"\nC;Y9;X3;K\"1\"\nE\n";
 
 static pfFix_t pf_setup(uint32_t code) {
     pfFix_t fix;
@@ -213,6 +241,54 @@ TEST(wc3_spell, pocket_factory_datae_leash_returns_clockwerk) {
     T_FEQ(goblin->goalentity->s.origin2.x, factory->s.origin2.x, .001f);
     T_FEQ(goblin->goalentity->s.origin2.y, factory->s.origin2.y, .001f);
     pf_done(fix);
+}
+
+/* Engineering selects the Factory variant, which creates the matching Clockwerk;
+ * its normal death path must use that tier's authored Kaboom damage (30/60/80). */
+TEST(wc3_spell, pocket_factory_engineering_levels_scale_clockwerk_kaboom_damage) {
+    static uint32_t const factory_codes[] = { BZ_ANSY, BZ_ANS1, BZ_ANS2 };
+    static uint32_t const clockwerk_codes[] = { BZ_NCGB, BZ_NCG1, BZ_NCG2 };
+    static uint32_t const kaboom_codes[] = { BZ_ASDG, BZ_ASD2, BZ_ASD3 };
+    static float const expected_damage[] = { 30.0f, 60.0f, 80.0f };
+
+    FOR_LOOP(rank, sizeof(factory_codes) / sizeof(factory_codes[0])) {
+        pfFix_t fix = pf_setup(BZ_ANSY);
+        vec2_t const point = { 128.0f, 128.0f };
+        edict_t *factory, *goblin, *enemy;
+        uint32_t const factory_code = factory_codes[rank];
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+        memset(level.alliances, 0, sizeof(level.alliances));
+
+        /* The factory fixture authors tier-specific produced unit ids. */
+        ((abilityLevel_t *)G_AbilityLevel(BZ_ANSY, 1))->data[1].id = BZ_NCGB;
+        ((abilityLevel_t *)G_AbilityLevel(BZ_ANS1, 1))->data[1].id = BZ_NCG1;
+        if (rank) fix.caster->unit_state->ranks[1] = MAKE(heroability_t,
+            .code = BZ_ANEG, .level = rank);
+        T_EQ(S_TinkerVariant(fix.caster, BZ_ANSY), factory_code);
+        T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
+        factory = pf_find(BZ_HFOO);
+        T_NOT_NULL(factory);
+        if (!factory) { pf_done(fix); continue; }
+        pf_tick((uint32_t)(S_SpellData(factory_code, 1, 1) * 1000.0f));
+        goblin = pf_find(clockwerk_codes[rank]);
+        T_NOT_NULL(goblin);
+        if (!goblin) { pf_done(fix); continue; }
+
+        enemy = alloc_test_unit(BZ_HFOO, goblin->s.origin2.x, goblin->s.origin2.y);
+        enemy->s.player = 1;
+        enemy->svflags |= SVF_MONSTER;
+        enemy->targtype = TARG_GROUND;
+        enemy->health.value = enemy->health.max_value = 200.0f;
+        enemy->unit_state->armor_value = 0.0f;
+        goblin->s.player = 0;
+        goblin->health.value = goblin->health.max_value = 100.0f;
+        goblin->unit_state->armor_value = 0.0f;
+        goblin->die = unit_die;
+        T_ASSERT(G_ActorAddSkill(goblin, kaboom_codes[rank]));
+        unit_die(goblin, NULL);
+        T_FEQ(enemy->health.value, 200.0f - expected_damage[rank], 0.001f);
+        pf_done(fix);
+    }
 }
 
 #endif
