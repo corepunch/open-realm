@@ -9,6 +9,9 @@ Batrider unit-target suicide: on cast completion the caster detonates at the
 primary air target, dealing authored full damage to that target and partial
 splash to nearby enemy/neutral air units, then dies. This is **not** Self
 Destruct (`Asds`/`Asdg`); do not register `Auco` on `CAbilitySelfDestruct`.
+Retail data uses `DataC=200` for the partial-damage radius; tests keep this
+authored world-unit value explicit. The caster cannot activate the ability
+while carrying the Banish buff (`BHbn`).
 
 `BuffID` is empty. Charge-time invulnerability and `DataF` move-speed bonus are
 owned by the ability class (no status buff row). Focused tests drive
