@@ -598,13 +598,6 @@ static void G_InitUnitStock(edict_t *shop) {
             fprintf(stderr, "WC3 shop: unit %.4s on unit %.4s has no model\n", unit_name, (cstring_t)&shop->class_id);
             continue;
         }
-        /* Taverns also use Sellunits, but Hero availability/limits are a
-         * separate neutral-Hero contract. Do not silently sell them as ordinary mercenaries. */
-        if (unit->strength > 0 || unit->agility > 0 || unit->intelligence > 0) {
-            fprintf(stderr, "WC3 shop: Hero %.4s on %.4s needs Tavern support\n", unit_name, (cstring_t)&shop->class_id);
-            continue;
-        }
-
         index = wares->unit_count++;
         wares->units[index].id = unit_id;
         wares->units[index].maximum = MAX(0, unit->stockMax);
@@ -1025,7 +1018,8 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     G_RefreshResourceBar(clent);
     wares->units[stock_index].current--;
     G_StartUnitRestock(shop, (uint32_t)stock_index);
-    G_PlayerScoreMercenaryHired(client);
+    if (unit->strength <= 0 && unit->agility <= 0 && unit->intelligence <= 0)
+        G_PlayerScoreMercenaryHired(client);
     G_InvalidateCommands(client);
     return true;
 }
