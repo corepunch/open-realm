@@ -110,3 +110,37 @@ python -m unittest discover -s tests -p test_wc3_pathfinding_attack_recovery299.
 ```
 
 The checker and ten mutation/rejection tests pass. Complete C normal/saved299 replay and the public temporary-Invisibility recovery frontier remain unfinished. This accepted native batch does not close F19/D051.
+
+## Remaining public Invisibility integration: exact owner and data flow
+
+The original [fade export](../../../games/warcraft-3/game/tests/fixtures/retail_attack_recovery299_invisibility_fade.json) establishes the next C work. These findings are static evidence accompanying native299; the following engine work is not complete.
+
+1. `CAbilityInvisibility` execute `62f050` obtains the current-level scalar through `414b50`. Loader `6a74b0` fills level-row offset20 from **DataA**. Use the configured ability/level value; native299's half-second delay is not a global constant or the animation cast point.
+2. New Binv setup calls virtual354 → `63ce40`, marks buff100 pending, registers d01de and adds an invisibility contribution. Existing Binv refresh calls virtual350 → `531a80`, which extends duration without creating or restarting that contribution.
+3. First positive contribution `6696e0` installs reciprocal fade slope on Unit118, modifier128 and listener12c. Scalar upward threshold d01d4 reaches `68b780` through core dispatch `6906de`. Zero fade publishes synchronously. An overlapping contribution with count other than one emits d01de immediately; one independent fade timer per buff would give the wrong result.
+4. `68b780` cancels the scalar owner, publishes the nonzero-count invisible bit, delivers TargetLost, then emits d01de through `679db0`. Preserve this order.
+5. Buff dispatcher `642dd0` calls `628a10` only while buff100 is pending. It increments Attack suppression through `495740`, disables the scan owner without deleting the Attack ability, then calls `49d280` with forced1 and capture requested only when no pending user successor exists. It then clears buff100.
+6. Detach `6314d0` removes the invisibility contribution and unregisters d01de. It decrements Attack suppression through `495750` only after the buff has activated and cleared100. Removing a pending fade must not decrement a suppression contribution it never held.
+7. Replace the temporary-Invisibility engine's immediate hidden-flag shortcut with a shared Unit contribution/fade owner and per-buff pending/held ownership. The existing `s_wards.c` scalar/primary timer machinery supplies clock arithmetic and save/heap patterns, but its permanent-only flag and suspension inverse cannot be reused unchanged. Add saved deadline/sequence and contribution identities with exact detach/refresh inverses. Keep this in the WC3 game module.
+8. Drive the real configured Aivs cast in C, with a nonstock DataA value as well as the captured stock profile. Compare all native299 public callbacks and complete arrival/velocity rows through uninterrupted and saved replay. Preserve the same-target refresh, overlap, pending removal, active removal and queued-successor distinctions above; internal direct recovery-helper tests alone do not satisfy this public producer.
+
+## Common C recovery and Save233
+
+The game module now saves loss intent independently from acquisition permission.
+Owner change consumes only existing intent; it does not synthesize target loss.
+Automatic loss with acquisition permitted does not create a captured point.
+Logical d016f ownership during reaction, facing, windup and cooldown no longer
+requires an extant physical movement group. A forced capture request is separate
+from loss history. Inactive forced entry preserves the alternative and pending
+intent; committed AttackOnce d016a preserves its independent swing/FIFO and does
+not insert a captured point.
+
+The failing-first owner-change regression produced six assertion failures before
+the fix. Six new recovery regressions and 250 Save233 tests pass in both editions.
+The broader [validation record](retail-pathfinding-attack-recovery-validation.json)
+records 1,272 tests and 316,668 assertions as **composite** validation: 24 retained
+passing processes plus the two corrected complete lifecycle processes, with only
+the lifecycle test source changed between checkpoints. It is not a full-suite run
+or a complete C299 comparison. Ordinary recovery's resolved-alternative validation still needs a C-specific disposition against original4968e0; forced and inactive preservation checks do not establish that branch. The two lifecycle fixtures now execute primary
+requests and physical owner updates before retaining their exact final Stand and
+queue assertions. See [saved recovery intent](save-load.md).

@@ -1,8 +1,16 @@
-Save232 stores Attack's initial-acquisition state, independent damage-point
+Save233 adds `attack_recovery_pending`, the independent Attack loss-intent bit
+corresponding to original flag40000. Invalid target loss sets it; current-target
+owner change does not. New explicit/automatic target admission clears it. Active
+recovery consumes it; inactive recovery preserves it, even without a retained
+target. The saved word must be zero or one. Save232 and earlier versions are
+rejected without migration. The inactive saved-state regression is a serializer
+contract, not proof of a publicly reachable inactive-loss sequence.
+
+The prior Save232 change stores Attack's initial-acquisition state, independent damage-point
 request, and eight failed-target weak identities with per-slot primary timers.
 Each timer retains deadline time/epoch/span, registration sequence and active
 state. Load rebuilds queue membership and rebases clocks; runtime list pointers
-are never serialized. Save231 and earlier versions are rejected without migration.
+are never serialized.
 
 An unfired initial acquisition request retains its deadline through pause,
 death and save/load. Later Patrol activation uses the measured 0.01-second

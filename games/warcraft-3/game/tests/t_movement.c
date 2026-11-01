@@ -24446,6 +24446,7 @@ static void target223_script(void) {
     T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
         "function hide takes nothing returns nothing\ncall ShowUnit(target,false)\nendfunction\n"
         "function show takes nothing returns nothing\ncall ShowUnit(target,true)\nendfunction\n"
+        "function ally_owner takes nothing returns nothing\ncall SetUnitOwner(target,Player(0),false)\nendfunction\n"
         "function kill takes nothing returns nothing\ncall KillUnit(target)\nendfunction\n"
         "function remove takes nothing returns nothing\ncall RemoveUnit(target)\nendfunction\n"
         "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
@@ -24477,6 +24478,197 @@ TEST(wc3_movement, target223_loss_during_attack_chase_retains_head_for_point_rec
         }
         G_FowShutdown();reset_entities();setup_test_world();
     }
+}
+
+/* Original49b160 does not set the loss-capture bit40000. For a fresh
+ * explicit Attack with d016f active, 49d280/497190 retire that task and
+ * dispatch its successor without inserting a captured-point d016c.
+ * This is a bounded original298 branch regression, not a public poll oracle. */
+TEST(wc3_movement, target_recovery_owner_change_dispatches_queued_move_without_capture) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);
+    target222_arm(unit,target,137);
+    target223_script();
+    T_EQ(unit->s.player,0);
+    T_NE(target->s.player,unit->s.player);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    unit->currentmove->think(unit);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_EQ(unit->attack_target,target);
+    target166_tick();
+    vec2_t const successor={1280,1536};
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&successor,true,0,0));
+    T_EQ(unit->order_queue.count,1);
+    T_EQ(unit->current_order_id,G_OrderId("attack"));
+    uint32_t const counter=level.pathing_counter;
+    jass_callbyname(level.vm,"ally_owner",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(target->s.player,unit->s.player);
+    T_EQ(level.pathing_counter,counter);
+    T_NULL(unit->attack_target);
+    T_EQ(unit->attack_target_sequence,0);
+    T_ASSERT(unit->currentmove!=&attack_move_recovery);
+    T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_EQ(unit->order_queue.count,0);
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_NOT_NULL(unit->goalentity);
+    if(unit->goalentity) {
+        T_EQ(unit->goalentity->s.origin2.x,successor.x);
+        T_EQ(unit->goalentity->s.origin2.y,successor.y);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* Internal automatic admission establishes the task permission; the loss
+ * itself uses public ShowUnit. This is not a new public acquisition oracle. */
+TEST(wc3_movement, target_recovery_automatic_loss_does_not_capture_point) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
+    T_ASSERT(!unit->attack_acquisition_suppressed);
+    order_attack(unit,target);
+    unit->currentmove->think(unit);
+    T_EQ(unit->attack_target,target);
+    T_ASSERT(!unit->attack_acquisition_suppressed);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    jass_callbyname(level.vm,"hide",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(unit->attack_target);
+    T_ASSERT(unit->currentmove!=&attack_move_recovery);
+    T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_EQ(unit->movement.group_id,0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* d016f remains below the weapon windup even after its physical chase ends.
+ * Move the still-bound target away before loss so the captured point requires
+ * travel and cannot disappear through immediate in-range completion. */
+TEST(wc3_movement, target_recovery_windup_loss_captures_without_physical_chase) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
+    S_AttackProfileWrite(unit,0)->damagePoint=.3f;
+    S_SetUnitAxisPosition(unit,0,576);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    unit->currentmove->think(unit);
+    T_EQ(unit->currentmove,&attack_move_melee);
+    T_ASSERT(unit->attack_damage.active);
+    T_EQ(unit->attack_target,target);
+    T_EQ(unit->movement.group_id,0);
+    T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+    S_SetUnitAxisPosition(target,0,1280);
+    jass_callbyname(level.vm,"hide",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(unit->attack_target);
+    T_ASSERT(!unit->attack_damage.active);
+    T_EQ(unit->currentmove,&attack_move_recovery);
+    moveGroup_t *group=move_unit_group(unit);
+    T_NOT_NULL(group);
+    if(group) {
+        T_NULL(group->target);
+        T_EQ(group->goal.x,move_point_fine(&(vec2_t){1280,256}).x);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* Original298 service-boundary case: explicit capture word on an active
+ * reaction, with no loss history or physical group. This does not claim the
+ * public Invisibility producer or its event timing has been reproduced. */
+TEST(wc3_movement, target_recovery_forced_capture_word_during_reaction) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
+    attack_begin_reaction(unit,target);
+    T_EQ(unit->currentmove,&attack_move_reaction);
+    T_ASSERT(unit->attack_reaction.active);
+    T_EQ(unit->attack_target,target);
+    T_ASSERT(!unit->attack_recovery_pending);
+    T_ASSERT(!unit->attack_acquisition_suppressed);
+    T_EQ(unit->movement.group_id,0);
+    attack_recover_target_task(unit,target,true,true,"test_original298_capture_word");
+    T_NULL(unit->attack_target);
+    T_ASSERT(!unit->attack_reaction.active);
+    T_EQ(unit->currentmove,&attack_move_recovery);
+    moveGroup_t *group=move_unit_group(unit);
+    T_NOT_NULL(group);
+    if(group) {
+        T_NULL(group->target);
+        T_EQ(group->goal.x,move_point_fine(&(vec2_t){672,256}).x);
+        T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(137,31),50)));
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* Original298 synthetic inactive-entry contract: pending40000 and the weak
+ * alternative survive forced recovery. The crafted pending bit is explicitly
+ * a service-boundary input, not a claimed public inactive-loss sequence. */
+TEST(wc3_movement, target_recovery_inactive_forced_preserves_pending_and_alternative) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    unit->currentmove->think(unit);
+    jass_callbyname(level.vm,"hide",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(unit->currentmove,&attack_move_recovery);
+    T_NULL(unit->attack_target);
+    attack_set_alternative(unit,target);
+    uint32_t const alternative_birth=unit->attack_alternative_spawn_time;
+    unit->attack_recovery_pending=1;
+    attack_recover_target_task(unit,unit->goalentity,true,false,"test_original298_inactive");
+    T_EQ(unit->attack_recovery_pending,1);
+    T_EQ(unit->attack_alternative,target);
+    T_EQ(unit->attack_alternative_spawn_time,alternative_birth);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* A committed public AttackOnce owns d016a, not another poppable d016f.
+ * Losing its retained target must keep the independent swing/FIFO ordering,
+ * without inserting a captured d016c even when the target has moved away. */
+TEST(wc3_movement, target_recovery_attackonce_finish_keeps_swing_without_capture) {
+    edict_t *unit,*target;
+    target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
+    level.timer_clock_valid=false;
+    unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+    profile->damagePoint=.03f;profile->backswingPoint=.5f;
+    S_SetUnitAxisPosition(unit,0,576);
+    T_ASSERT(unit_issuetargetorder(unit,"attackonce",target));
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->attack_damage.active);
+    float const health=target->health.value;
+    FOR_LOOP(i,40) {
+        if(!unit->attack_damage.active)break;
+        level.time+=5;wc3_clock_advance(&level.pathing_clock,.005f,0);
+        target168_run_timers();
+    }
+    T_ASSERT(target->health.value<health);
+    T_EQ(unit->currentmove,&attack_move_finish);
+    T_EQ(unit->attack_target,target);
+    T_ASSERT(unit->attack_swing.active);
+    abilityPrimaryTimer_t const swing=unit->attack_swing;
+    vec2_t const successor={1280,1536};
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&successor,true,0,0));
+    S_SetUnitAxisPosition(target,0,1280);
+    jass_callbyname(level.vm,"hide",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(unit->attack_target);
+    T_EQ(unit->currentmove,&attack_move_finish);
+    T_EQ(unit->movement.group_id,0);
+    T_ASSERT(unit->attack_swing.active);
+    T_EQ(unit->attack_swing.sequence,swing.sequence);
+    T_EQ(unit->attack_swing.deadline.time,swing.deadline.time);
+    T_EQ(unit->order_queue.count,1);
+    T_EQ(unit->current_order_id,G_OrderId("attackonce"));
+    FOR_LOOP(i,300) {
+        if(!unit->attack_swing.active)break;
+        level.time+=5;wc3_clock_advance(&level.pathing_clock,.005f,0);
+        target168_run_timers();
+    }
+    T_ASSERT(!unit->attack_swing.active);
+    T_EQ(unit->order_queue.count,0);
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_NOT_NULL(unit->goalentity);
+    if(unit->goalentity) {
+        T_EQ(unit->goalentity->s.origin2.x,successor.x);
+        T_EQ(unit->goalentity->s.origin2.y,successor.y);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
 }
 
 TEST(wc3_movement, target223_invisibility_validates_detection_and_shared_vision_synchronously) {

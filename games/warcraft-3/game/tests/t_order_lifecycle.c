@@ -1351,6 +1351,37 @@ TEST(wc3_order_lifecycle, explicit_attack_replaces_persistent_follow) {
     T_NULL(unit->movement.follow_target);
 }
 
+/* Native223/299 retain d016f through target loss and insert the captured
+ * d016c before final Stand. Drain its real physical owner rather than treating
+ * the synchronous death notification as completed travel. */
+static void lifecycle_finish_captured_recovery(edict_t *unit,edict_t const *target) {
+    T_NULL(unit->attack_target);
+    T_EQ(unit->attack_target_sequence,0);
+    umove_t const *recovery=unit->currentmove;
+    T_NOT_NULL(recovery);
+    if(recovery)T_EQ(recovery->proc,CAbilityAttack);
+    T_NOT_NULL(unit->goalentity);
+    if(unit->goalentity) {
+        T_ASSERT(unit->goalentity->svflags&SVF_MOVE_WAYPOINT);
+        T_FEQ(unit->goalentity->s.origin2.x,target->s.origin2.x,0);
+        T_FEQ(unit->goalentity->s.origin2.y,target->s.origin2.y,0);
+    }
+    FOR_LOOP(i,1000) {
+        if(unit->currentmove!=recovery)break;
+        lifecycle_primary_step();
+        /* Physical Move owners run at their 30 ms visit cadence, separately
+         * from the scalar primary requests drained above. */
+        if((i+1)%6==0) {
+            level.pathing_counter++;
+            bool const scheduled_think=level.scheduled_think;
+            level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            level.scheduled_think=scheduled_think;
+        }
+    }
+    T_ASSERT(unit->currentmove!=recovery);
+}
+
 TEST(wc3_order_lifecycle, queued_attack_preserves_follow_until_follow_completes) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *ally = review_order_unit(500, 0);
@@ -1366,6 +1397,7 @@ TEST(wc3_order_lifecycle, queued_attack_preserves_follow_until_follow_completes)
     T_NULL(unit->movement.follow_target);
     T_EQ(G_UnitQueuedOrderCount(unit), 0);
     T_Damage(enemy, unit, (int)enemy->health.value);
+    lifecycle_finish_captured_recovery(unit,enemy);
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
@@ -1388,6 +1420,7 @@ TEST(wc3_order_lifecycle, auto_attack_resumes_patrol_but_smart_attack_replaces_i
     T_NULL(unit->movement.patrol_a);
     T_NULL(unit->movement.patrol_b);
     T_NULL(unit->movement.patrol_target);
+    lifecycle_finish_captured_recovery(unit,second);
     T_STREQ(unit->currentmove->animation, "stand");
 }
 

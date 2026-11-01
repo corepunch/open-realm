@@ -2727,7 +2727,8 @@ struct edict_s {
     uint32_t attack_target_spawn_time; /* active CAbilityAttack target incarnation */
     edict_t *attack_alternative; /* Weak rejected candidate; resolves only at its saved incarnation. */
     uint32_t attack_alternative_spawn_time;
-    uint32_t attack_acquisition_suppressed; /* Explicit target owner clears retail Attack20.4000. */
+    uint32_t attack_acquisition_suppressed; /* Task d014c clears Unit widget20.200; independent of Attack scan20.4000. */
+    uint32_t attack_recovery_pending; /* Attack20.40000: invalid loss intent, consumed only by active recovery. */
     edict_t *item_drop; /* item retained by an Inventory pickup, drop or handoff */
     uint32_t item_drop_spawn_time; /* retained Inventory item incarnation */
     uint32_t item_drop_target_spawn_time;

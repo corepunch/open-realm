@@ -48,8 +48,11 @@ static void attack_swing_complete(edict_t *unit);
 static bool attack_damage_owner(edict_t const *unit);
 static void attack_reaction_fire(edict_t *unit);
 static umove_t attack_move_finish = { "stand ready", NULL, NULL, CAbilityAttack };
+static umove_t attack_move_recovery;
 static void attack_resume_after_combat(edict_t *attacker);
 static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason);
+static void attack_recover_target_task(edict_t *attacker, edict_t const *target,
+    bool forced, bool capture_requested, cstring_t reason);
 static void attack_set_cooldown(edict_t *ent, float seconds);
 static unitAttack_t const *attack_ground_profile(edict_t const *ent);
 
@@ -102,6 +105,9 @@ static void attack_set_target(edict_t *unit,edict_t *target) {
     uint16_t id=attack_target_identity(unit),other=attack_target_identity(target);
     if(id)attack_target_unlink(id);
     unit->attack_target=target;unit->attack_target_spawn_time=target ? target->spawn_time : 0;
+    /*49aa18/494420 clear pending loss for new explicit/automatic targets.
+     * Releasing a target alone is not the active recovery consume frontier. */
+    if(target)unit->attack_recovery_pending=false;
     if(target && level.next_attack_target_sequence==UINT64_MAX)gi.error("Attack: exhausted target subscription sequence");
     unit->attack_target_sequence=target ? ++level.next_attack_target_sequence : 0;
     if(id && other)attack_target_link(id,other);
@@ -125,6 +131,7 @@ bool S_ValidateAttackTargets(void) {
     FOR_LOOP(i,globals.num_edicts) {
         edict_t const *unit=g_edicts+i,*target=unit->attack_target;
         if(!unit->inuse)continue;
+        if(unit->attack_recovery_pending>1)return false;
         FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
             attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
             if(slot->target) {
@@ -1013,8 +1020,52 @@ static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target)
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
 static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason) {
+    attack_recover_target_task(attacker,target,false,false,reason);
+}
+
+/* Original49d280: loss intent, task acquisition permission and an explicit
+ * capture request are independent. d016f remains on the logical task chain
+ * during reaction, chase, facing, swing and cooldown; physical group existence
+ * is neither necessary nor sufficient. Finishing d016a may retain its target
+ * until swing expiry, but497190 cannot pop it to publish another point task. */
+static void attack_recover_target_task(edict_t *attacker, edict_t const *target,
+    bool forced, bool capture_requested, cstring_t reason) {
     if (!attacker || M_IsDead(attacker) || !attacker->currentmove ||
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
+    bool active=attacker->attack_target && attacker->attack_target==target;
+    bool capture=active && attacker->currentmove!=&attack_move_finish && (capture_requested ||
+        (attacker->attack_recovery_pending && attacker->attack_acquisition_suppressed));
+    vec2_t point={0};float range=0;
+    if(capture && target->inuse && attacker->attack_target_spawn_time==target->spawn_time &&
+       !target->target_loss_transient) {
+        float fine[2];S_PredictUnitFinePointAt(target,&level.pathing_clock,fine);
+        box2_t bounds=CM_GetWorldBounds();
+        point=(vec2_t){wc3_world_coordinate(fine[0],bounds.min.x,32),
+            wc3_world_coordinate(fine[1],bounds.min.y,32)};
+        FOR_LOOP(slot,2)if(S_UnitAttackSlotEnabled(attacker,slot))
+            range=MAX(range,S_AttackProfileRead(attacker,slot)->range);
+        range=wc3_add(wc3_add(range,target->collision),ATTACK_TARGET_RECOVERY_MARGIN);
+    } else capture=false;
+    /*49d3ea consumes only an active recovery. Inactive entry preserves it. */
+    if(active)attacker->attack_recovery_pending=false;
+    if(active && forced)attack_set_alternative(attacker,NULL);
+    if(capture) {
+        uint32_t birth=attacker->spawn_time;
+        S_EndUnitTargetChase(attacker,CAbilityAttack);
+        attack_set_target(attacker,NULL);
+        unit_leavecombat(attacker);
+        S_SetMoveGoal(attacker,&attacker->goalentity,Waypoint_add(&point));
+        edict_t *goal=attacker->goalentity;
+        uint32_t revision=G_UnitMoveRevision(attacker);
+        unit_setmove(attacker,&attack_move_recovery);
+        if(!attacker->inuse || attacker->spawn_time!=birth || G_IsDeferredFree(attacker) ||
+           G_UnitMoveRevision(attacker)!=revision+1 ||
+           attacker->currentmove!=&attack_move_recovery || attacker->goalentity!=goal)return;
+        if(S_UnitPointInMoveRange(attacker,&point,range) ||
+           !S_BeginUnitPointApproach(attacker,&point,range,CAbilityAttack,S_AttackRecoveryComplete))
+            S_AttackRecoveryComplete(attacker,attacker,true);
+        return;
+    }
     G_BotTraceAssaultUnit(attacker, "assault_attack_ended",
         "reason=%s target=%u target_inuse=%d target_alive=%d target_type=%c%c%c%c target_spawn_matches=%d distance=%.1f retained_attackmove=%d patrol=%d follow=%d",
         reason ? reason : "unspecified", target ? target->s.number : UINT32_MAX,
@@ -1876,7 +1927,6 @@ void S_AttackRecoveryComplete(edict_t *receiver,edict_t *unit,bool arrived) {
 }
 
 static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed) {
-    if(!unit->currentmove || unit->currentmove->proc!=CAbilityAttack || unit->goalentity!=target)return;
     /*49b51a..55a: Blink alone tests committed centers with both radii.
      *49d353..35a excludes the transient target from point capture even when
      * the later task chain could admit it. Retain the independent swing wait. */
@@ -1887,26 +1937,9 @@ static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed)
     /*49b420 validates detection, not fog. A valid target keeps the same owner. */
     if(!owner_changed && !G_IsDeferredFree(target) && S_AttackCanTarget(unit,target) &&
        unit->attack_target_spawn_time==target->spawn_time)return;
-    if(!target->target_loss_transient && S_UnitTargetChaseActive(unit,CAbilityAttack) && target->inuse &&
-       unit->attack_target_spawn_time==target->spawn_time) {
-        /*49d280 queries the actual predicted pose, never Move's fog-frozen
-         * sample or the order's issue-time coordinate. Add target radius only;
-         *05b440 adds source radius to admission,05b970 does not to arrival. */
-        float fine[2];S_PredictUnitFinePointAt(target,&level.pathing_clock,fine);
-        box2_t bounds=CM_GetWorldBounds();
-        vec2_t point={wc3_world_coordinate(fine[0],bounds.min.x,32),
-            wc3_world_coordinate(fine[1],bounds.min.y,32)};float range=0;
-        FOR_LOOP(slot,2)if(S_UnitAttackSlotEnabled(unit,slot))range=MAX(range,S_AttackProfileRead(unit,slot)->range);
-        range=wc3_add(wc3_add(range,target->collision),ATTACK_TARGET_RECOVERY_MARGIN);
-        S_EndUnitTargetChase(unit,CAbilityAttack);attack_set_target(unit,NULL);
-        unit_leavecombat(unit);
-        S_SetMoveGoal(unit,&unit->goalentity,Waypoint_add(&point));
-        unit_setmove(unit,&attack_move_recovery);
-        if(S_UnitPointInMoveRange(unit,&point,range) ||
-           !S_BeginUnitPointApproach(unit,&point,range,CAbilityAttack,S_AttackRecoveryComplete))
-            S_AttackRecoveryComplete(unit,unit,true);
-        return;
-    }
+    /*49b582 sets loss intent;49b160 owner change does not manufacture it.
+     * The common recovery consumes existing intent, not the event's name. */
+    if(!owner_changed)unit->attack_recovery_pending=true;
     /*497190 retains d016a while +200 is armed; the existing finishing move
      * completes that independent swing before advancing the public queue. */
     attack_finish_after_combat(unit,target,"target_lost");
@@ -3110,7 +3143,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
                ent->currentmove==&attack_ground_move_hold)
                 attack_ground_stop(ent); /*497190 pops committed Ground d0169. */
             else if(ent->attack_target)
-                attack_finish_after_combat(ent,ent->goalentity,"ability_detached");
+                attack_recover_target_task(ent,ent->goalentity,true,false,"ability_detached");
         }
         return false;
     case A_TARGET_OWNER_CHANGED:
