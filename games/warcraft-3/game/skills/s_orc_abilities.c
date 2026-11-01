@@ -66,10 +66,19 @@ BZ_ABILITY_PROC(CAbilitySpiritWalkerForm) {
             SPIRIT_WALKER_CORPOREAL : SPIRIT_WALKER_ETHEREAL;
         if (!active_code || !call || !call->item || call->item->code != active_code ||
             !G_TransformUnitType(ent, target)) return false;
-        /* Entering Ethereal uses Aetf's authored cooldown. Returning to
-         * Corporeal is immediate; clear Acpf's ordinary spell cooldown. */
-        if (active_code == SPIRIT_WALKER_CORPOREAL_SPELL)
+        /* The transform replaces the command button. Move Aetf's authored
+         * cooldown onto the visible Acpf button in Ethereal form; returning
+         * to Corporeal clears Acpf so the newly visible Aetf button is ready. */
+        if (active_code == SPIRIT_WALKER_ETHEREAL_SPELL) {
+            float const cooldown = S_SpellNumber(active_code, ABILITY_NUMBER_COOLDOWN,
+                                                  MAX(1u, G_UnitAbilityLevel(ent, active_code)));
             S_SpellEndCooldown(ent, active_code);
+            if (cooldown > 0.0f)
+                S_SpellStartCooldownDuration(ent, SPIRIT_WALKER_CORPOREAL_SPELL,
+                                              cooldown);
+        } else if (active_code == SPIRIT_WALKER_CORPOREAL_SPELL) {
+            S_SpellEndCooldown(ent, active_code);
+        }
         G_SpawnAbilityEffectTarget(active_code, WC3_EFFECT_CASTER, 0, ent, "chest", true);
         G_PlayAbilityEffectSound(active_code, &ent->s.origin2);
         ent->goalentity = NULL;
