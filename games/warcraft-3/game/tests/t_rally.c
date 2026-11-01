@@ -91,6 +91,7 @@ TEST(wc3_rally, command_button_art_matches_unit_race) {
     static UnitData_t const orc = { .race = STR_ORC };
     static UnitData_t const night_elf = { .race = STR_NIGHTELF };
     static UnitData_t const undead = { .race = STR_UNDEAD };
+    static UnitData_t const creep = { .race = STR_CREEPS };
     static struct {
         UnitData_t const *data;
         cstring_t art;
@@ -109,6 +110,26 @@ TEST(wc3_rally, command_button_art_matches_unit_race) {
         producer->data.UnitData = cases[i].data;
         T_ASSERT(G_BuildCommandButton(producer, STR_CmdRally, false, 0, &button));
         T_STREQ(button.art, cases[i].art);
+    }
+    {
+        static struct {
+            playerRace_t race;
+            cstring_t art;
+        } const owner_cases[] = {
+            { kPlayerRaceHuman, "ReplaceableTextures\\CommandButtons\\BTNRallyPoint.blp" },
+            { kPlayerRaceOrc, "ReplaceableTextures\\CommandButtons\\BTNOrcRallyPoint.blp" },
+            { kPlayerRaceNightElf, "ReplaceableTextures\\CommandButtons\\BTNRallyPointNightElf.blp" },
+            { kPlayerRaceUndead, "ReplaceableTextures\\CommandButtons\\BTNRallyPointUndead.blp" },
+        };
+        producer->data.UnitData = &creep;
+        producer->s.player = 0;
+        FOR_LOOP(i, sizeof(owner_cases) / sizeof(*owner_cases)) {
+            gameCommandButton_t button;
+            game.clients[0].ps.number = 0;
+            game.clients[0].ps.race = owner_cases[i].race;
+            T_ASSERT(G_BuildCommandButton(producer, STR_CmdRally, false, 0, &button));
+            T_STREQ(button.art, owner_cases[i].art);
+        }
     }
 }
 

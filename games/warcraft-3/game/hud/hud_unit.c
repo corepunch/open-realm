@@ -103,8 +103,23 @@ static cstring_t G_CommandArtCode(edict_t *ent, cstring_t code) {
 }
 
 static cstring_t G_RallyCommandArt(edict_t const *ent) {
-    unitRace_t const race = ent && ent->data.UnitData ?
+    unitRace_t race = ent && ent->data.UnitData ?
         WC3_RaceFromString(ent->data.UnitData->race) : RACE_UNKNOWN;
+
+    /* Pocket Factory units are authored as creeps, but are owned by the
+     * player's race. Use that race for their command-card Rally icon. */
+    if (race != RACE_HUMAN && race != RACE_ORC && race != RACE_NIGHTELF && race != RACE_UNDEAD) {
+        gameClient_t const *owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
+        if (owner) {
+            switch (owner->ps.race) {
+                case kPlayerRaceHuman: race = RACE_HUMAN; break;
+                case kPlayerRaceOrc: race = RACE_ORC; break;
+                case kPlayerRaceNightElf: race = RACE_NIGHTELF; break;
+                case kPlayerRaceUndead: race = RACE_UNDEAD; break;
+                default: break;
+            }
+        }
+    }
 
     switch (race) {
         case RACE_ORC: return "ReplaceableTextures\\CommandButtons\\BTNOrcRallyPoint.blp";

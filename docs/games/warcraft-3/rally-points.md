@@ -19,7 +19,7 @@ The runtime target forms are:
 ## Orders and command UI
 
 `CmdRally` is registered as an engine command ability in `skills/s_skills.c`. Activating it enters the normal server-owned point/entity target mode through `gameClient_t::menu`.
-The command button uses the stock race-specific icon: Human/default `BTNRallyPoint`, Orc `BTNOrcRallyPoint`, Night Elf `BTNRallyPointNightElf`, and Undead `BTNRallyPointUndead`.
+The command button uses the stock race-specific icon: Human/default `BTNRallyPoint`, Orc `BTNOrcRallyPoint`, Night Elf `BTNRallyPointNightElf`, and Undead `BTNRallyPointUndead`. Units with neutral/creep race data, including Pocket Factory, use their owning player's race.
 
 Both explicit `setrally` and Smart/right-click are accepted by rally-capable producers:
 
