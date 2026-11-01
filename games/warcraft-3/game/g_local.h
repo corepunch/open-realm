@@ -4367,6 +4367,7 @@ bool G_ShopSellsItem(edict_t *shop, uint32_t item_id);
 bool G_ShopSellsUnit(edict_t *shop, uint32_t unit_id);
 bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id);
 bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id);
+cstring_t G_SelectHeroProperName(edict_t const *hero);
 bool G_ShopPawnItem(shopPawnItemParams_t *params);
 
 // g_destructable.c

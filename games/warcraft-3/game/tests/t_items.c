@@ -2352,23 +2352,29 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
         "ID;PWXL;N;EBB;Y2;X3\n"
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"targType\"\nC;Y1;X3;K\"movetp\"\n"
         "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\nE\n";
+    static char const unit_profile_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"\"\nC;Y1;X2;K\"Propernames\"\n"
+        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"Aegis, Thundar, Maiev\"\nE\n";
     static UnitAbilities_t const tavern_abilities = { .abilList = "Aneu,Asud" };
     static UnitProfile_t tavern_profile = { .sellUnits = "Nalc" };
     uint32_t const hero_id = MAKEFOURCC('N','a','l','c');
     edict_t *player, *patron, *tavern, *hired = NULL;
     gameClient_t *client;
-    slkTestData_t *ability_rows, *balance_rows, *ui_rows, *data_rows;
-    slkTestData_t *old_ability, *old_balance, *old_ui, *old_data;
+    slkTestData_t *ability_rows, *balance_rows, *ui_rows, *data_rows, *profile_rows;
+    slkTestData_t *old_ability, *old_balance, *old_ui, *old_data, *old_profile;
 
     setup_test_world();
     ability_rows = parse_slk_string(ability_slk);
     balance_rows = parse_slk_string(unit_balance_slk);
     ui_rows = parse_slk_string(unit_ui_slk);
     data_rows = parse_slk_string(unit_data_slk);
+    profile_rows = parse_slk_string(unit_profile_slk);
     old_ability = G_SetSLKRows("AbilityData", ability_rows);
     old_balance = G_SetSLKRows("UnitBalance", balance_rows);
     old_ui = G_SetSLKRows("UnitUI", ui_rows);
     old_data = G_SetSLKRows("UnitData", data_rows);
+    old_profile = G_SetSLKRows("UnitProfile", profile_rows);
     player = &g_edicts[0];
     client = player->client;
     client->ps.number = 0;
@@ -2396,6 +2402,10 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
         T_ASSERT(G_UnitIsHero(hired));
         T_EQ(hired->unit_state->hero.level, 1);
         T_EQ(hired->unit_state->hero.skillpoints, 1);
+        T_ASSERT(hired->unit_state->proper_name != NULL);
+        T_ASSERT(!strcmp(hired->unit_state->proper_name, "Aegis") ||
+                 !strcmp(hired->unit_state->proper_name, "Thundar") ||
+                 !strcmp(hired->unit_state->proper_name, "Maiev"));
     }
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 575);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 400);
@@ -2403,6 +2413,7 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 0);
 
     G_SetSLKRows("UnitData", old_data); free_slk_rows(data_rows);
+    G_SetSLKRows("UnitProfile", old_profile); free_slk_rows(profile_rows);
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
     G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
     G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
