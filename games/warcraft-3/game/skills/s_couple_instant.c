@@ -171,10 +171,10 @@ BZ_ABILITY_PROC(CAbilityCoupleInstant) {
             ent->couple_instant->order_id : INSTANT_COUPLE_TARGET,SPELL_TARGET_UNIT};return true;
     case A_ORDER_REPLACE_PREPARE: {
         coupleInstant_t *state=ent->couple_instant;
-        /* 4ef810 still releases the old approach, but v348 exempts an
-         * incoming coupletarget packet from the peer inverse. The wait
-         * owner's separate 4cc890 inverse has no such exemption. */
-        if(state && state->active && !state->waiting && call && call->queued_order &&
+        /* 4ef810 and nested 438fd0/439160 recognize incoming v348 before
+         * releasing the old owner. The matching coupletarget packet also
+         * skips the waiting owner's v388/4cc890 peer inverse. */
+        if(state && state->active && call && call->queued_order &&
            call->queued_order->order_id==INSTANT_COUPLE_TARGET) {
             state->active=false;
             state->linked=false;

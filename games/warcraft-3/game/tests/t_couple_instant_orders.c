@@ -1144,9 +1144,10 @@ TEST(wc3_couple_instant_orders, immediate_reissue_keeps_approach_peer_inverse) {
 }
 
 
-/* The waiting source first runs 4cc890, which has no replacement-ID check;
- * its peer inverse is not undone by the later 4ef810 approach exemption. */
-TEST(wc3_couple_instant_orders, explicit_wait_reissue_keeps_peer_inverse) {
+/* Original 4ef810 -> 438fd0 -> 439160 checks incoming 852507 before
+ * invoking the waiting owner's v388/4cc890, so its peer inverse is skipped.
+ * This is an owner-preservation check, not an exact public event chronology. */
+TEST(wc3_couple_instant_orders, explicit_wait_reissue_preserves_peer) {
     coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
     T_ASSERT(CoupleInstantCompile(
         "globals\ninteger cwPeerStops=0\nendglobals\n"
@@ -1169,7 +1170,10 @@ TEST(wc3_couple_instant_orders, explicit_wait_reissue_keeps_peer_inverse) {
     T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
     T_NOT_NULL(CoupleInstantGroup(f.hippo));
     CoupleInstantCall("cwReissue");
-    T_ASSERT(f.hippo->user_data>0);
+    T_EQ(f.hippo->user_data,0);
+    T_EQ(f.hippo->current_order_id,852507);
+    T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
+    T_NOT_NULL(CoupleInstantGroup(f.hippo));
     CoupleInstantEnd(&f);
 }
 

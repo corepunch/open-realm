@@ -370,25 +370,34 @@ unmeasured callback mutation parity is claimed. TARGET-01.2 remains open with
 25 leaves; this implementation does not close the broader producer inventory or
 complete firing-poll requirement.
 
-### Explicit target reissue: approach and wait inverses
+### Explicit target reissue: nested cleanup guards
 
-Original `4ef810` releases an old approach but exempts an incoming
+Original `4ef810` and its nested `438fd0`/`439160` cleanup exempt an incoming
 `coupletarget` (852507), obtained through getter `4ee9c0`, from the peer inverse.
-`coupleinstant` (852508), Move and Stop have no such ordinary exemption. The
-waiting owner's separate `4cc890` cleanup still cancels its peer. The game sends
-the admitted replacement packet through an opt-in owner notification before
-physical cleanup; Acoi releases its approaching logical owner without stopping
-the peer only for 852507. Save226 needs no additional field.
+The nested guard runs before the active-wait flag and virtual `388` callback,
+so it also bypasses the waiting `4cc890` inverse. `coupleinstant` (852508), Move
+and Stop retain their ordinary inverses. The game passes the admitted replacement
+packet to an opt-in owner notification before physical cleanup; both approach
+and wait owners preserve the peer for 852507. Save226 needs no additional field.
 
-The bounded original-byte harness in `coupling-instant206-reissue/` under the
-TARGET-01.2 runtime passes ten controls, including real order getters, stack,
-SEH and reference-count checks. Its resolver, class service, common cleanup and
-peer inverse are controlled stubs; it does not prove a complete reissue timeline.
-`wait-phase-provenance.json` separately retains the original waiting cleanup and
-accepted lifecycle scene1/2 trace references. The explicit approach reissue
-first failed three assertions in each edition. Checkpoint207 passes the repaired
-case and immediate/waiting inverse controls together with the adjacent Couple,
-Entangle, dispatch, order, save and spell suites: 2036 tests across both editions.
-Source and tested binary hashes remain unchanged after execution. Reserved
-candidate preference and the wider TARGET-01.2 matrix remain open; corpus guard
-refresh and full-suite checks remain assigned to the next commit batch.
+Checkpoint207's waiting-reissue expectation was incorrect. Its bounded original
+harness stubbed common cleanup, and Stop-phase traces did not establish same-order
+waiting behavior. `coupling-instant208-reservation/verify_nested_cleanup.py`
+executes the original nested cleanup and real getters for both approach and
+active-wait flags; both retain the peer and skip its inverse. Resolver/class
+services remain controlled; this is not a full public reissue timeline claim.
+The corrected waiting regression first failed four assertions in each edition.
+Checkpoint209 passes all 2,036 focused tests across both editions, including the
+corrected case, explicit approach reissue, immediate inverse, existing Stop/Move
+lifecycles, legacy Couple, Entangle, dispatch, orders, save/load and spells.
+Source and tested binary hashes remain unchanged after execution.
+
+Reserved-candidate preference remains open. Nine bounded original selector
+controls establish target-attached `ATrg` markers keyed by runtime ability class
+and player, with counted acquisition/release. The additional relationship is
+Shared Spells (type4), from marker owner to querying owner, without a Passive
+or reciprocal requirement. Original exports, byte controls and scope limits are
+retained in `coupling-instant208-reservation/`; engine marker ownership and public
+competition/lifetime witnesses are not implemented or claimed. Wider TARGET-01.2
+coverage remains open; current-source corpus guards and full-suite checks are
+assigned to the validation batch following checkpoint209.
