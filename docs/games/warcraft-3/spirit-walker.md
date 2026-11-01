@@ -7,8 +7,10 @@ using the SpiritWalker model and both listing `Acpf,Aspl,Adcn,Aast,Aion,ACsk`.
 The producer's authored `Trains` rawcode determines which form a newly trained
 unit starts in; runtime preserves that rawcode. `Acpf` turns `ospm` into
 `ospw`; the reciprocal `Aetf` turns `ospw` into `ospm`. Both are no-target
-spells with no mana cost and authored 30-second cooldowns, but runtime clears
-the `Acpf` cooldown so returning to Corporeal is immediate. `Dur=0.7` is
+spells with no mana cost and authored 30-second cooldowns. On entering Ethereal,
+the `Aetf` cooldown is shown on the newly visible `Acpf` button; returning to
+Corporeal clears the `Acpf` cooldown so the newly visible `Aetf` button is ready.
+`Dur=0.7` is
 an authored gameplay field; the MDX `Spell Morph` clip is 1.267 seconds. The
 exact retail frame at which combat state changes remains to be measured.
 

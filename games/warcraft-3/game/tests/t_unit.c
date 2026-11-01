@@ -2007,6 +2007,9 @@ TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_
     static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
     slkTestData_t *ui_rows, *old_ui, *ability_rows, *old_ability, *units_rows, *old_units;
     edict_t *walker, *corporeal_walker;
+    gameCommandButton_t buttons[16];
+    uint8_t button_count;
+    bool found_form_button;
     abilityitem_t corporeal = S_AbilityItem(MAKEFOURCC('A','c','p','f'));
     abilityitem_t ethereal = S_AbilityItem(MAKEFOURCC('A','e','t','f'));
     abilityCall_t corporeal_call = MAKE(abilityCall_t, .item = &corporeal);
@@ -2035,6 +2038,13 @@ TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_
     T_ASSERT(!unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
     T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
     T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
+    button_count = G_GetCommandButtons(walker, buttons, 16);
+    found_form_button = false;
+    FOR_LOOP(i, button_count) if (!strcmp(buttons[i].command, "Aetf")) {
+        found_form_button = true;
+        T_FEQ(buttons[i].cooldown, 0.0f, 0.001f);
+    }
+    T_ASSERT(found_form_button);
     T_ASSERT(CAbilitySpiritWalkerForm(walker, A_VALIDATE, &ethereal_call));
     T_ASSERT(!CAbilitySpiritWalkerForm(walker, A_VALIDATE, &corporeal_call));
     S_SpellStartCooldownDuration(walker, MAKEFOURCC('A','e','t','f'),
@@ -2042,8 +2052,25 @@ TEST(wc3_unit, spirit_walker_form_respects_authored_start_and_only_ethereal_has_
     T_ASSERT(CAbilitySpiritWalkerForm(walker, A_EXECUTE, &ethereal_call));
     T_EQ(walker->class_id, MAKEFOURCC('o','s','p','m'));
     T_ASSERT(unit_hasstatusstate(walker, WC3_STATUS_STATE_ETHEREAL));
-    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
+    T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
+    T_ASSERT(!S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+    T_FEQ(S_SpellCooldownLength(walker, MAKEFOURCC('A','c','p','f')), 30.0f, 0.001f);
+    button_count = G_GetCommandButtons(walker, buttons, 16);
+    found_form_button = false;
+    FOR_LOOP(i, button_count) if (!strcmp(buttons[i].command, "Acpf")) {
+        found_form_button = true;
+        T_ASSERT(buttons[i].cooldown > 0.0f);
+        T_ASSERT(buttons[i].cooldown_end_time > G_Time());
+    }
+    T_ASSERT(found_form_button);
+
+    level.time += 30000;
     T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+    S_SpellStartCooldownDuration(walker, MAKEFOURCC('A','c','p','f'), 30.0f);
+    T_ASSERT(CAbilitySpiritWalkerForm(walker, A_EXECUTE, &corporeal_call));
+    T_EQ(walker->class_id, MAKEFOURCC('o','s','p','w'));
+    T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','c','p','f')));
+    T_ASSERT(S_SpellCooldownReady(walker, MAKEFOURCC('A','e','t','f')));
 
     /* A producer/map authored to create ospw must retain that starting form;
      * runtime must not force every newly created Spirit Walker to ospm. */
