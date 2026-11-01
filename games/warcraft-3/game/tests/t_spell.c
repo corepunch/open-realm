@@ -8818,6 +8818,124 @@ TEST(wc3_spell, banshee_curse_blocks_attack_damage_at_authored_miss_chance) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, shadow_hunter_hex_uses_an_authored_random_critter_form) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X16;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+        "C;X7;K\"Cool1\"\nC;X8;K\"Cost1\"\nC;X9;K\"Rng1\"\n"
+        "C;X10;K\"DataA1\"\nC;X11;K\"DataB1\"\nC;X12;K\"DataC1\"\n"
+        "C;X13;K\"DataD1\"\nC;X14;K\"DataE1\"\nC;X15;K\"DataF1\"\nC;X16;K\"BuffID1\"\n"
+        "C;X1;Y2;K\"AOhx\"\nC;X2;K\"AOhx\"\nC;X3;K1\n"
+        "C;X4;K\"air,ground,enemy,organic,neutral\"\nC;X5;K15\nC;X6;K4\n"
+        "C;X7;K7\nC;X8;K70\nC;X9;K800\nC;X10;K99\n"
+        "C;X11;K\"npig\"\nC;X12;K\"nsea\"\nC;X13;K\"nrat\"\n"
+        "C;X14;K\"nfro\"\nC;X15;K\"nech\"\nC;X16;K\"BOhx\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "AOhx" };
+    static uint32_t const critters[] = {
+        MAKEFOURCC('n','p','i','g'), MAKEFOURCC('n','s','e','a'), MAKEFOURCC('n','r','a','t'),
+        MAKEFOURCC('n','f','r','o'), MAKEFOURCC('n','e','c','h')
+    };
+    slkTestData_t *rows, *old;
+    edict_t *caster, *target;
+    polymorph_t const *morph;
+    float original_health;
+    bool selected_authored_critter = false;
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('O','s','h','d'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    caster->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    caster->s.player = 0;
+    target->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER;
+    caster->mana.value = caster->mana.max_value = 500.0f;
+    target->targtype = TARG_GROUND;
+    original_health = target->health.value;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    srand(42);
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','O','h','x'), target));
+    morph = G_GetPolymorph(target);
+    T_NOT_NULL(morph);
+    if (morph) {
+        heroabilitystatus_t *status = unit_findstatus(target, MAKEFOURCC('B','O','h','x'));
+        FOR_LOOP(i, sizeof(critters) / sizeof(critters[0]))
+            if (morph->form_type == critters[i]) selected_authored_critter = true;
+        T_ASSERT(selected_authored_critter);
+        T_EQ(morph->buff, MAKEFOURCC('B','O','h','x'));
+        T_NOT_NULL(status);
+        if (status) T_FEQ((float)(status->timestamp - G_Time()) / 1000.0f, 15.0f, 0.001f);
+    }
+    T_FEQ(target->health.value, original_health, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, shadow_hunter_big_bad_voodoo_protects_friends_for_authored_duration) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X10;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+        "C;X7;K\"Cool1\"\nC;X8;K\"Cost1\"\nC;X9;K\"Area1\"\nC;X10;K\"BuffID1\"\n"
+        "C;X1;Y2;K\"AOvd\"\nC;X2;K\"AOvd\"\nC;X3;K1\n"
+        "C;X4;K\"air,ground,friend,vuln,invu\"\nC;X5;K30\nC;X6;K30\n"
+        "C;X7;K180\nC;X8;K200\nC;X9;K800\nC;X10;K\"BOvd,BOvc\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "AOvd" };
+    slkTestData_t *rows, *old;
+    edict_t *caster, *friend, *enemy;
+    heroabilitystatus_t *status;
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('O','s','h','d'), 0, 0);
+    friend = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+    caster->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    caster->s.player = friend->s.player = 0;
+    enemy->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    friend->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER;
+    caster->mana.value = caster->mana.max_value = 500.0f;
+    friend->health.value = friend->health.max_value = 500.0f;
+    caster->health.value = caster->health.max_value = 500.0f;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+
+    T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','O','v','d')));
+    status = unit_findstatus(friend, MAKEFOURCC('B','O','v','d'));
+    T_NOT_NULL(status);
+    T_ASSERT(unit_hasstatusstate(friend, WC3_STATUS_STATE_INVULNERABLE));
+    if (status) T_FEQ((float)(status->timestamp - G_Time()) / 1000.0f, 30.0f, 0.001f);
+    T_NULL(unit_findstatus(caster, MAKEFOURCC('B','O','v','d')));
+    T_NULL(unit_findstatus(enemy, MAKEFOURCC('B','O','v','d')));
+
+    T_Damage(friend, enemy, 100);
+    T_FEQ(friend->health.value, 500.0f, 0.001f);
+    T_Damage(caster, enemy, 100);
+    T_FEQ(caster->health.value, 400.0f, 0.001f);
+
+    level.time += 30000;
+    unit_updatestatuses(friend);
+    T_ASSERT(!unit_hasstatusstate(friend, WC3_STATUS_STATE_INVULNERABLE));
+    T_Damage(friend, enemy, 100);
+    T_FEQ(friend->health.value, 400.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* ROC omits BuffID; apply the TFT fourcc so Bloodlust/Faerie/Roar/Curse still land. */
 TEST(wc3_spell, melee_status_roc_empty_buffid_applies_default_fourcc) {
 	const char slk[] =

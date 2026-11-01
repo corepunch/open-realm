@@ -284,6 +284,20 @@ static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint3
     uint32_t data_slot = BZ_POLYMORPH_GROUND_SLOT;
 
     if (!target || !target->data.UnitData) return 0;
+    {
+        ability_t const *ability = S_SpellAbilityForCode(code);
+        if (ability && ability->proc == CAbilityHex) {
+            uint32_t candidates[5], count = 0;
+            /* Hex authors its critter choices in DataB through DataF. Ignore
+             * empty or unavailable rows, then choose one valid map unit form. */
+            for (uint32_t slot = 2; slot <= 6; slot++) {
+                uint32_t const candidate = S_SpellDataId(code, level, slot);
+                UnitUI_t const *ui = candidate ? G_UnitUI(candidate) : NULL;
+                if (ui && ui->modelFile) candidates[count++] = candidate;
+            }
+            return count ? candidates[(uint32_t)rand() % count] : 0;
+        }
+    }
     movetp = target->data.UnitData->moveTypeName;
     if (movetp) {
         FOR_LOOP(i, polymorph_move_types_count)
@@ -318,6 +332,8 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
     if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || S_UnitIsResistant(st.entity) ||
         st.entity->summon_ability || (st.entity->aiflags & AI_ILLUSION) ||
         st.entity->targtype == TARG_MECHANICAL) return false;
+    if (S_SpellAbilityForCode(spell->code)->proc == CAbilityHex &&
+        !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
     max_creep_level = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1)); /* Ply1 */
     balance = st.entity->data.UnitBalance;
@@ -808,6 +824,16 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
 }
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
+
+BZ_ABILITY_PROC(CAbilityHex) {
+    spellTarget_t target = call && call->target ? *call->target :
+        MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    switch (msg) {
+    case A_VALIDATE: return polymorph_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: polymorph_execute(ent, target, call ? call->item : NULL); return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 /* Name=Avatar */
 BZ_ABILITY_PROC(CAbilityAvatar) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?

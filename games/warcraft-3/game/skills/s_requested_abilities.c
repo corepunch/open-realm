@@ -1655,10 +1655,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityHealingWave) {
         source = visited[i];
     }
 }
-/* Name=Hex
- * Ubertip="Transforms an enemy unit into a random critter for <ANhx,Dur1> seconds."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityHex) { target_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySpiritOfVengeance) { S_SummonAbilityUnits(caster, spell->code, NULL); }
 
 /* Spirit of Vengeance (Avng) raises a temporary invulnerable spirit from a
@@ -1732,9 +1728,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityVoodoo) {
     cstring_t buff = spell_buff(spell, level);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     if (!buff) return;
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        S_SpellApplyTimedStatus(target, buff, level, S_SpellDuration(spell->code, level, false));
+    {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level,
+            S_SpellDuration(spell->code, level, false));
+        if (status && status->code == MAKEFOURCC('B','O','v','d'))
+            status->state_mask |= WC3_STATUS_STATE_INVULNERABLE;
+    }
 }
 BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     uint32_t level = S_SpellLevel(caster, spell->code);
