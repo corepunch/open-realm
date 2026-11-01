@@ -243,6 +243,7 @@ void G_PoolsReset(void) {
     G_ResetMilitiaPool();
     G_ResetCouplePool();
     G_ResetCoupleInstantPool();
+    S_ResetTargetReservations();
     G_ResetPolymorphPool();
     G_ResetShadowStrikePool();
     G_ResetHealthRegenPool();

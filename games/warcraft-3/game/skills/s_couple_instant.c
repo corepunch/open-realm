@@ -20,7 +20,9 @@ static bool instant_phase(edict_t *unit,coupleInstant_t const *state,instantPhas
  * attachment independently of the unit's live availability registry. */
 void S_ReleaseCoupleInstantState(edict_t *unit) {
     coupleInstant_t *state=unit->couple_instant;
-    if(!state || !state->channel_owner)return;
+    if(!state)return;
+    S_ReleaseTargetReservation(&state->reservation);
+    if(!state->channel_owner)return;
     S_ReleaseAbilityAvailability(state->channel_owner);
     state->channel_owner=NULL;
 }
@@ -65,6 +67,10 @@ static bool instant_validate(edict_t *unit,edict_t *target,uint32_t code) {
     uint32_t rank=S_SpellLevel(unit,code),other=instant_alias(target);
     if(unit->couple_instant && unit->couple_instant->active && unit->couple_instant->partner!=target)return false;
     if(target->couple_instant && target->couple_instant->active && target->couple_instant->partner!=unit)return false;
+    uint32_t reserved=S_CountTargetReservations(target,code,unit->s.player);
+    bool retained=unit->couple_instant && unit->couple_instant->active &&
+        unit->couple_instant->partner==target && unit->couple_instant->partner_spawn_time==target->spawn_time;
+    if(reserved>1 || (reserved && !retained))return false;
     return S_SpellUnitId(code,rank) && target->class_id==S_SpellDataId(code,rank,1) && other &&
         !S_AbilityExecutionDisabled(target,other) && G_UnitAbilityResearchAvailable(target,other) &&
         (S_UnitCanTranslate(unit) || S_SpellTargetInRange(unit,target,S_SpellRange(code,rank)));
@@ -74,6 +80,7 @@ typedef struct {
     uint32_t code;
     vec2_t center;
     float area,best_squared;
+    bool best_reserved;
 } instantCandidateQuery_t;
 
 static void instant_visit_candidate(void *data,edict_t const *candidate) {
@@ -87,8 +94,10 @@ static void instant_visit_candidate(void *data,edict_t const *candidate) {
     if(squared>wc3_mul(reach,reach))return;
     /*402060 retains the later visited candidate at equal center distance.
      * The spatial query owns visitation order, independently of edict IDs. */
-    if(!query->result || squared<=query->best_squared) {
-        query->result=target;query->best_squared=squared;
+    bool reserved=S_HasTargetReservation(target,MAKEFOURCC('A','c','o','i'),query->source->s.player);
+    if(!query->result || (query->best_reserved && !reserved) ||
+       (query->best_reserved==reserved && squared<=query->best_squared)) {
+        query->result=target;query->best_squared=squared;query->best_reserved=reserved;
     }
 }
 static edict_t *instant_candidate(edict_t *unit,uint32_t code) {
@@ -114,14 +123,16 @@ static void instant_cancel(edict_t *unit) {
      * Thus Stop of the waiting initiator can recurse A-H-A, while Stop of
      * the approaching peer produces A-H. */
     bool waited=state->waiting || state->channel_open;state->waiting=false;state->linked=false;
-    if(!waited)state->active=false;
+    if(!waited) {state->active=false;S_ReleaseTargetReservation(&state->reservation);}
     instant_end_channel(unit);
     if(!unit->inuse || unit->spawn_time!=spawn || !unit->couple_instant || unit->couple_instant->serial!=serial)return;
     if(instant_alive(partner,partner_spawn) && instant_alias(partner) && partner->couple_instant && partner->couple_instant->active &&
        partner->couple_instant->partner==unit && partner->couple_instant->partner_spawn_time==spawn)
         S_IssueOwnerStopOrder(partner);
-    if(unit->inuse && unit->spawn_time==spawn && unit->couple_instant && unit->couple_instant->serial==serial)
+    if(unit->inuse && unit->spawn_time==spawn && unit->couple_instant && unit->couple_instant->serial==serial) {
+        S_ReleaseTargetReservation(&unit->couple_instant->reservation);
         unit->couple_instant->active=false;
+    }
 }
 
 static umove_t instant_wait_move={.animation="stand",.proc=CAbilityCoupleInstant};
@@ -232,6 +243,13 @@ BZ_ABILITY_PROC(CAbilityCoupleInstant) {
         if(!call || !call->queued_order ||
            (call->queued_order->order_id!=INSTANT_COUPLE_AUTO && call->queued_order->order_id!=INSTANT_COUPLE_TARGET))return QUEUED_ORDER_UNHANDLED;
         return instant_activate(ent,call->queued_order);
+    case A_SPELL_TARGET_ACQUIRED: {
+        coupleInstant_t *state=ent->couple_instant;
+        if(!state || !state->active || !state->constructing || !call || !call->item || !call->target ||
+           state->ability!=call->item->code || state->partner!=call->target->entity ||
+           !instant_alive(state->partner,state->partner_spawn_time))return false;
+        return S_AcquireTargetReservation(&state->reservation,&(targetReservationParams_t){.target=state->partner,.code=state->ability,.player=ent->s.player});
+    }
     case A_SPELL_COMMAND_PROFILE:
         if(!call || !call->spell_command)return false;
         *call->spell_command=(spellCommandProfile_t){ent->couple_instant && ent->couple_instant->active ?

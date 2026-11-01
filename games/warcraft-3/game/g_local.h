@@ -1220,6 +1220,7 @@ typedef enum {
     A_COMMAND_OWNER_LEAVE, /* Opt-in logical command inverse before replacement publication. */
     A_UNIT_SUSPEND_PREPARE, /* Logical owner inverse before suspension head publication. */
     A_SPELL_TARGET_COMPLETE, /* Opt-in owner consumes target approach completion before generic stand/commit. */
+    A_SPELL_TARGET_ACQUIRED, /* Opt-in owner leases the constructed approach before terminal callbacks. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -2187,11 +2188,31 @@ typedef struct {
     bool active, reciprocal, ready, suspended;
 } couple_t;
 
+/* A retained target marker is keyed by configured alias and acquiring player.
+ * Its generation identifies a single contribution, independently of slot reuse. */
+typedef struct {
+    edict_t *target;
+    uint32_t target_spawn_time,code,player;
+    uint64_t generation;
+    bool held;
+} targetReservationLease_t;
+typedef struct {
+    edict_t *target;
+    uint32_t code,player;
+} targetReservationParams_t;
+bool S_AcquireTargetReservation(targetReservationLease_t *,targetReservationParams_t const *);
+void S_ReleaseTargetReservation(targetReservationLease_t *);
+uint32_t S_CountTargetReservations(edict_t const *,uint32_t code,uint32_t player);
+bool S_HasTargetReservation(edict_t const *,uint32_t runtime_class,uint32_t query_player);
+void S_ResetTargetReservations(void);
+bool S_RestoreTargetReservation(targetReservationLease_t const *);
+
 /* Stock/configured Acoi uses the ordinary spell approach and a one-actor wait. */
 typedef struct {
     edict_t *partner;
     uint32_t partner_spawn_time, ability, order_id, serial;
     unitAbilityDisable_t *channel_owner; /* Retained exact attachment; rebuilt after load. */
+    targetReservationLease_t reservation;
     bool active, waiting, constructing, linked, retiring, resume, channel_open;
 } coupleInstant_t;
 

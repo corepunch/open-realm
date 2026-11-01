@@ -1292,4 +1292,102 @@ TEST(wc3_couple_instant_orders, native_channel_stop_ends_then_finishes_without_e
     CoupleInstantEnd(&f);CoupleInstantPhaseHook(false);
 }
 
+/* Integration coverage of208 alias+owner reservation-count eligibility.
+ * This is not a native public chronology or402060 priority witness. */
+TEST(wc3_couple_instant_orders, standalone_target_reservation_gates_fresh_source) {
+    FOR_LOOP(approaching,2)FOR_LOOP(saved,2) {
+        coupleInstantFixture_t f;CoupleInstantBegin(&f,704,approaching!=0);
+        T_ASSERT(CoupleInstantCompile(
+            "globals\nunit ceA2\nunit ceH2\ninteger ceEvents=0\nunit ceChosen=null\nendglobals\n"
+            "function ceObserve takes nothing returns nothing\n"
+            "set ceEvents=ceEvents+1\n"
+            "if GetIssuedOrderId()==852508 then\nset ceChosen=GetOrderTargetUnit()\nendif\nendfunction\n"
+            "function ceReserve takes nothing returns nothing\n"
+            "call SetUnitFacing(ciArcher,0.0)\n"
+            "call BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"standalone A1 reservation accepted\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(ciHippo)==0,\"H1 receives no reciprocal order\")\nendfunction\n"
+            "function ceRejectAndChoose takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set ceA2=CreateUnit(Player(0),'earc',704.0,1216.0,0.0)\n"
+            "call SetUnitAcquireRange(ceA2,0.0)\n"
+            "call BJassAssert(GetUnitX(ceA2)==704.0 and GetUnitY(ceA2)==1216.0,\"A2 area fixture pose\")\n"
+            "call BJassAssert(GetUnitX(ciHippo)==1536.0 and GetUnitY(ciHippo)==1024.0,\"H1 area fixture pose\")\n"
+            "call TriggerRegisterUnitEvent(t,ceA2,EVENT_UNIT_ISSUED_ORDER)\n"
+            "call TriggerRegisterUnitEvent(t,ceA2,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+            "call TriggerRegisterUnitEvent(t,ceA2,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+            "call TriggerAddAction(t,function ceObserve)\n"
+            "call BJassAssert(IssuePointOrder(ceA2,\"move\",512.0,1216.0),\"A2 prior Move accepted\")\n"
+            "set ceEvents=0\n"
+            "call BJassAssert(not IssueTargetOrder(ceA2,\"coupletarget\",ciHippo),\"same-alias reservation rejects fresh explicit source\")\n"
+            "call BJassAssert(ceEvents==0 and GetUnitCurrentOrder(ceA2)==851986,\"explicit rejection preserves Move without issued event\")\n"
+            "call BJassAssert(not IssueImmediateOrder(ceA2,\"coupleinstant\"),\"only reserved candidate rejects automatic source\")\n"
+            "call BJassAssert(ceEvents==0 and GetUnitCurrentOrder(ceA2)==851986,\"automatic rejection preserves Move without issued event\")\n"
+            "set ceH2=CreateUnit(Player(0),'ehip',1536.0,1536.0,0.0)\n"
+            "call SetUnitAcquireRange(ceH2,0.0)\n"
+            "call BJassAssert(GetUnitX(ceH2)==1536.0 and GetUnitY(ceH2)==1536.0,\"H2 area fixture pose\")\n"
+            "set ceChosen=null\n"
+            "call BJassAssert(IssueImmediateOrder(ceA2,\"coupleinstant\"),\"free farther H2 permits automatic source\")\n"
+            "call BJassAssert(ceChosen==ceH2,\"eligible H2 selected instead of reserved H1\")\nendfunction\n"
+            "function ceRelease takes nothing returns nothing\n"
+            "call BJassAssert(IssueImmediateOrder(ceA2,\"stop\"),\"release A2 chosen pair\")\n"
+            "call BJassAssert(IssueImmediateOrder(ciArcher,\"stop\"),\"release A1 reservation\")\n"
+            "call BJassAssert(IssueTargetOrder(ceA2,\"coupletarget\",ciHippo),\"fresh source accepts H1 after reservation release\")\nendfunction\n"));
+        CoupleInstantCall("ceReserve");
+        FOR_LOOP(i,40)CoupleInstantStep();
+        T_NOT_NULL(f.archer->couple_instant);
+        if(f.archer->couple_instant) {
+            T_ASSERT(f.archer->couple_instant->active);
+            T_EQ(f.archer->couple_instant->waiting,!approaching);
+        }
+        T_EQ(f.hippo->current_order_id,0);
+        T_ASSERT(!f.hippo->couple_instant || !f.hippo->couple_instant->active);
+        if(saved) {
+            uint32_t const a=f.archer-g_edicts,h=f.hippo-g_edicts;
+            uint32_t const a_birth=f.archer->spawn_time,h_birth=f.hippo->spawn_time;
+            cstring_t path=Test_TempPath("couple-instant228-held-reservation.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));
+            f.archer=g_edicts+a;f.hippo=g_edicts+h;
+            T_EQ(f.archer->spawn_time,a_birth);T_EQ(f.hippo->spawn_time,h_birth);
+            T_ASSERT(f.archer->couple_instant && f.archer->couple_instant->active);
+            if(f.archer->couple_instant)T_EQ(f.archer->couple_instant->waiting,!approaching);
+        }
+        CoupleInstantCall("ceRejectAndChoose");
+        CoupleInstantCall("ceRelease");
+        CoupleInstantEnd(&f);
+    }
+}
+
+/* Slot reuse is an engine lifetime regression, not a claimed native public
+ * RemoveUnit timeline. Drive admission through JASS after actual allocator reuse. */
+TEST(wc3_couple_instant_orders, reservation_target_slot_reuse_does_not_retain_old_claim) {
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
+    T_ASSERT(CoupleInstantCompile(
+        "globals\nunit crFresh\nendglobals\n"
+        "function crReserve takes nothing returns nothing\n"
+        "set crFresh=CreateUnit(Player(0),'earc',704.0,1216.0,0.0)\n"
+        "call SetUnitAcquireRange(crFresh,0.0)\n"
+        "call SetUnitFacing(ciArcher,0.0)\n"
+        "call BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"old incarnation reserved\")\nendfunction\n"
+        "function crRecreate takes nothing returns nothing\n"
+        "set ciHippo=CreateUnit(Player(0),'ehip',1536.0,1024.0,0.0)\n"
+        "call SetUnitAcquireRange(ciHippo,0.0)\n"
+        "call BJassAssert(IssueTargetOrder(crFresh,\"coupletarget\",ciHippo),\"new incarnation has no stale reservation\")\n"
+        "call IssueImmediateOrder(ciArcher,\"stop\")\n"
+        "call BJassAssert(not IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"old source cleanup cannot release fresh claim\")\n"
+        "call IssueImmediateOrder(crFresh,\"stop\")\n"
+        "call BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"fresh claim releases normally\")\nendfunction\n"));
+    CoupleInstantCall("crReserve");FOR_LOOP(i,40)CoupleInstantStep();
+    T_ASSERT(f.archer->couple_instant && f.archer->couple_instant->waiting);
+    edict_t *old=f.hippo;uint32_t const incarnation=old->spawn_time;
+    G_FreeEdict(old);level.time+=1001;
+    CoupleInstantCall("crRecreate");
+    T_ASSERT(old->inuse);T_EQ(old->class_id,MAKEFOURCC('e','h','i','p'));
+    T_NE(old->spawn_time,incarnation);
+    T_NOT_NULL(f.archer->couple_instant);
+    if(f.archer->couple_instant) {
+        T_EQ(f.archer->couple_instant->partner,old);
+        T_EQ(f.archer->couple_instant->partner_spawn_time,old->spawn_time);
+    }
+    CoupleInstantEnd(&f);
+}
+
 #endif

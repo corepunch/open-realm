@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 227; /* Per-ability signed cast-busy ownership (+44). */
+static uint32_t const save_version = 228; /* Configured-alias target reservation leases. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -777,6 +777,11 @@ static field_t const couple_instant_fields[] = {
     TF(coupleInstant_t, serial, F_INT),
     TF(coupleInstant_t, constructing, F_IGNORE, 0, FIELD_RUNTIME),
     TF(coupleInstant_t, channel_owner, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(coupleInstant_t, reservation.target, F_EDICT, 0, FIELD_NONE),
+    TF(coupleInstant_t, reservation.target_spawn_time, F_INT),
+    TF(coupleInstant_t, reservation.code, F_INT),
+    TF(coupleInstant_t, reservation.player, F_INT),
+    TF(coupleInstant_t, reservation.generation, F_INT, 2),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -3876,6 +3881,13 @@ bool ReadGame(cstring_t filename) {
             fgetc(f) != EOF || ferror(f)) {
             fprintf(stderr, "WC3 LoadGame: payload does not match the current save layout\n");
             fclose(f); return false;
+        }
+    }
+    /* Rebuild all target marker counts before restoring any active owner. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent=g_edicts+i;
+        if(ent->inuse && ent->couple_instant && !S_RestoreTargetReservation(&ent->couple_instant->reservation)) {
+            fprintf(stderr,"WC3 LoadGame: invalid target reservation lease\n");fclose(f);return false;
         }
     }
     G_ResetSelectionSoundState();

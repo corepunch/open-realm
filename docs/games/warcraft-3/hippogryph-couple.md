@@ -448,7 +448,7 @@ spell and save suites also pass. No full-suite rerun was performed for this
 correction; previous green checkpoints remain historical evidence only.
 TARGET-01.2 remains open; these checks do not establish wider callback parity.
 
-Reserved-candidate preference remains open. Target-attached `ATrg` markers
+The configured-key reservation contract uses target-attached `ATrg` markers that
 use the configured raw ability ID from field `+0x34` and the acquiring player,
 with counted acquisition/release. The four original configured-key controls in
 `coupling-instant208-reservation/configured-key-results.json` execute initializer
@@ -461,6 +461,37 @@ relationship is Shared Spells (type 4), from marker owner to querying owner,
 without a Passive or reciprocal requirement. These bounded original controls
 seed marker attachment and stub unrelated profile services; they do not establish
 public competition or general marker lifetime behavior. The211 observer-v3
-reissue captures establish the specific release/reacquire sequence above. Engine
-marker ownership remains unimplemented. Wider TARGET-01.2 coverage remains open;
-the reservation implementation and its current-source validation remain pending.
+reissue captures establish the specific release/reacquire sequence above.
+
+The accepted stock214 witness adds two observations and an unhooked control,
+with 1,533 identical public records across the three streams. A standalone Archer
+wait holds one `Aco2`/player marker on an inactive Hippogryph. A fresh Archer's
+explicit and automatic orders reject without issued events or replacement of
+its prior Move. Stopping the first Archer releases the marker and permits retry;
+with a free second Hippogryph present, automatic selection chooses that eligible
+candidate. This proves admission filtering, not runtime-class reservation
+preference. Sources, map, streams and audit are retained in
+`coupling-instant214-public-reservation-v1/`; the accepted map is v2, while the
+unrun provisional v1 is excluded. The separate `range333-v1/` approach capture
+also passes two observations and a fresh control, matching 1,525 public markers.
+No source terminal event occurs before its intervention, and the runtime ability
+cache and physical task both carry the authored range333. It establishes the
+same rejection, release/retry and free-candidate outcomes during approach.
+Neither capture alone proves the separate runtime-class preference comparator.
+
+The engine owns a counted reservation lease in each Acoi state,
+keyed by target incarnation, configured ability ID and acquiring player. Its
+generation makes repeated release harmless. Admission uses the exact raw key;
+selector preference separately queries runtime `Acoi` and directional Shared
+Spells. Derived lookup indexes serve these queries without scanning all world
+entities. Save228 persists the held lease and rebuilds the indexes after load;
+process-owned indexes are not serialized. Checkpoints218/219 pass 2,058 tests
+and 287,862 assertions across 16 focused RoC/TFT processes, with no failures or
+errors and unchanged source/binary hashes. They include public rejection,
+free-candidate selection, release, save/load and target-slot reuse regressions;
+registry tests additionally cover raw-key/owner separation, captured incarnation,
+stale release tokens, index reconstruction and directional Shared Spells. The
+associated ability/order/spell/save suites also pass. Runtime-class preference
+has bounded-original-code predicate evidence, not a new public competition
+capture. No full-suite rerun was performed for this patch. The green216/217
+checkpoint above predates it. Wider TARGET-01.2 coverage remains open.

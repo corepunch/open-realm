@@ -2392,8 +2392,11 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
         !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
-    if (!spell_unit_target_ready(caster, unit, range))
-        return spell_begin_target_approach(caster, code, unit, NULL, NULL, 0);
+    if (!spell_unit_target_ready(caster, unit, range)) {
+        if(!spell_begin_target_approach(caster,code,unit,NULL,NULL,0))return false;
+        return !(spell->flags&AB_TARGET_APPROACH) || spell_message(caster,A_SPELL_TARGET_ACQUIRED,&item,&target);
+    }
+    if((spell->flags&AB_TARGET_APPROACH) && !spell_message(caster,A_SPELL_TARGET_ACQUIRED,&item,&target))return false;
 
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = unit
