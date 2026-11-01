@@ -6,6 +6,7 @@
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
 #define WC3_BUILD_DISPLACE_MARGIN_CELLS 4.0f /* retail clears the four-cell construction approach lane */
 #define WC3_BUILD_SITE_INDICATOR_ALPHA 128
+#define WC3_PLAYER_HERO_LIMIT 3 // heroes; standard melee limit shared by Altar and Tavern recruitment
 
 /* Construction Site Indicator. RoC and TFT both show a translucent copy of the
  * normal building model while the worker travels to the accepted site. The
@@ -1017,6 +1018,61 @@ static bool G_UnitTypeSatisfiesRequirement(uint32_t type_id, uint32_t requiremen
     return G_UnitTypeSatisfiesRequirement_r(type_id, requirement_id, visited, 0);
 }
 
+static bool G_PlayerRequirementSatisfied(gameClient_t *client, uint32_t requirement_id) {
+    cstring_t alternatives;
+    char token[64];
+
+    if (G_PlayerRequirementCount(client, requirement_id) > 0) return true;
+    alternatives = FindConfigValue(GetClassName(requirement_id), "DependencyOr");
+    for (uint32_t i = 0; G_CsvToken(alternatives, i, token, sizeof(token)); i++) {
+        uint32_t alternative_id;
+        if (strlen(token) != 4) continue;
+        memcpy(&alternative_id, token, sizeof(alternative_id));
+        if (G_PlayerRequirementCount(client, alternative_id) > 0) return true;
+    }
+    return false;
+}
+
+static unitRace_t G_RequirementPlayerRace(gameClient_t const *client) {
+    if (!client) return RACE_UNKNOWN;
+    switch (client->ps.race) {
+        case kPlayerRaceHuman: return RACE_HUMAN;
+        case kPlayerRaceOrc: return RACE_ORC;
+        case kPlayerRaceUndead: return RACE_UNDEAD;
+        case kPlayerRaceNightElf: return RACE_NIGHTELF;
+        default: return RACE_UNKNOWN;
+    }
+}
+
+static cstring_t G_RequirementDisplayName(gameClient_t const *client, uint32_t requirement_id) {
+    cstring_t alternatives = FindConfigValue(GetClassName(requirement_id), "DependencyOr");
+    unitRace_t const race = G_RequirementPlayerRace(client);
+    char token[64];
+
+    if (alternatives && race != RACE_UNKNOWN) {
+        for (uint32_t i = 0; G_CsvToken(alternatives, i, token, sizeof(token)); i++) {
+            uint32_t alternative_id;
+            UnitData_t const *data;
+            UnitProfile_t const *profile;
+            cstring_t name;
+
+            if (strlen(token) != 4) continue;
+            memcpy(&alternative_id, token, sizeof(alternative_id));
+            data = G_UnitData(alternative_id);
+            if (WC3_RaceFromString(data ? data->race : NULL) != race) continue;
+            profile = G_UnitProfile(alternative_id);
+            name = profile ? G_LevelString(profile->name) : NULL;
+            if (!name || !*name) name = FindConfigValue(GetClassName(alternative_id), "Name");
+            return name && *name ? name : GetClassName(alternative_id);
+        }
+    }
+
+    UnitProfile_t const *profile = G_UnitProfile(requirement_id);
+    cstring_t name = profile ? G_LevelString(profile->name) : NULL;
+    if (!name || !*name) name = FindConfigValue(GetClassName(requirement_id), "Name");
+    return name && *name ? name : GetClassName(requirement_id);
+}
+
 int32_t G_PlayerRequirementCount(gameClient_t *client, uint32_t techid) {
     int32_t count;
     uint32_t player;
@@ -1066,8 +1122,7 @@ static bool G_UpgradeRequirementsSatisfied(gameClient_t *client, uint32_t upgrad
         if (G_PlayerRequirementCount(client, rawcode) >= required) continue;
 
         if (reason && reason_size) {
-            name = G_LevelString(G_UnitProfile(rawcode)->name);
-            if (!name || !*name) name = FindConfigValue(GetClassName(rawcode), "Name");
+            name = G_RequirementDisplayName(client, rawcode);
             if (required > 1) {
                 snprintf(reason, reason_size, "Requires %s x%d",
                          name && *name ? name : requirement, required);
@@ -1096,8 +1151,11 @@ static bool G_RequirementsListSatisfied(gameClient_t *client, uint32_t type_id, 
         memcpy(&rawcode, requirement, sizeof(rawcode));
         required = G_RequirementAmount(amounts, i);
         if (G_PlayerRequirementCount(client, rawcode) < required) {
+            /* A DependencyOr alias such as TALT/TWN2 has no concrete unit row;
+             * one matching race building satisfies its ordinary single-count requirement. */
+            if (required == 1 && G_PlayerRequirementSatisfied(client, rawcode)) continue;
             if (reason && reason_size) {
-                cstring_t name = G_LevelString(G_UnitProfile(rawcode)->name);
+                cstring_t name = G_RequirementDisplayName(client, rawcode);
                 if (required > 1) {
                     snprintf(reason, reason_size, "Requires %s x%d",
                              name && *name ? name : requirement, required);
@@ -1119,8 +1177,13 @@ static bool G_RequirementsSatisfied(gameClient_t *client, uint32_t type_id, stri
 
     if (!G_RequirementsListSatisfied(client, type_id, profile->requires, profile->requiresAmount,
                                      reason, reason_size)) return false;
-    if (!G_UnitTypeIsHero(type_id) || !profile->requiresCount) return true;
+    if (!G_UnitTypeIsHero(type_id)) return true;
     hero_count = G_PlayerHeroCount(client);
+    if (hero_count >= WC3_PLAYER_HERO_LIMIT) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Maximum of %u Heroes reached.", WC3_PLAYER_HERO_LIMIT);
+        return false;
+    }
+    if (!profile->requiresCount) return true;
     tier_count = MIN(sizeof(profile->requiresLevel) / sizeof(profile->requiresLevel[0]),
                      (uint32_t)MAX(0, atoi(profile->requiresCount)));
     if (!hero_count || hero_count > tier_count) return true;
@@ -1128,6 +1191,12 @@ static bool G_RequirementsSatisfied(gameClient_t *client, uint32_t type_id, stri
     if (!profile->requiresLevel[tier - 1] || !*profile->requiresLevel[tier - 1]) return true;
     return G_RequirementsListSatisfied(client, type_id, profile->requiresLevel[tier - 1], NULL,
                                        reason, reason_size);
+}
+
+bool G_HeroRecruitmentAllowed(gameClient_t *client, uint32_t hero_id, string_t reason, uint32_t reason_size) {
+    if (reason && reason_size) reason[0] = '\0';
+    if (!client || !G_UnitTypeIsHero(hero_id)) return false;
+    return G_RequirementsSatisfied(client, hero_id, reason, reason_size);
 }
 
 static bool G_ProductionResourcesAvailable(gameClient_t *client, uint32_t type_id, string_t reason, uint32_t reason_size) {

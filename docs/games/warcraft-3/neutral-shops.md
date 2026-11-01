@@ -99,7 +99,10 @@ A successful mercenary or Tavern Hero hire is immediate rather than a training q
 purchasing player without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units,
 then has food activated. Tavern Heroes receive normal level-one Hero progression and a runtime name selected from their authored
 `Propernames` list, using the same selector as altar-trained Heroes. Gold/lumber and shared stock are deducted only after
-spawn/placement succeeds. Failures leave resources and stock unchanged. Hero hires do not increment mercenary-hired score.
+spawn/placement succeeds. Before spawn, Tavern Hero admission uses the same authored `Requires`, `Requires1`/`Requires2` hall-tier
+checks and player-wide three-Hero limit as Altar recruitment. `DependencyOr` aliases such as `TALT`, `TWN2`, and `TWN3` resolve
+against the player's completed race buildings. Locked Tavern Heroes remain visible but disabled, and the purchase path rechecks
+eligibility. Failures leave resources and stock unchanged. Hero hires do not increment mercenary-hired score.
 
 ## JASS Stock Overrides
 
@@ -133,8 +136,7 @@ is not inserted into the shop's authored merchandise or stock.
 - OpenRealm reacquires the nearest eligible patron when the focused shop presentation is rebuilt; it does not yet run Aneu's periodic
   acquisition independently of UI/order updates.
 - Walking an out-of-range Hero to the shop before pawning is not implemented; pawn targeting succeeds only when already in range.
-- Tavern Hero entries in `Sellunits` can be displayed and hired. Shared hero availability across separate Taverns and retail-specific
-  duplicate-hero restrictions still need validation.
+- Shared hero availability across separate Taverns and retail-specific duplicate-hero restrictions still need validation.
 - Unit-sale trigger events (`EVENT_UNIT_SELL` / player-unit sale context) are not published yet.
 - Power-up/auto-use-on-acquire item semantics remain part of the broader item lifecycle and are not special-cased by the shop.
 - Item `Requires` / `DependencyOr` processing currently uses completed unit-type counts; other requirement categories and amount semantics need separate evidence before expanding the contract.
@@ -153,7 +155,7 @@ is not inserted into the shop's authored merchandise or stock.
 - map-local `war3map.w3t` ItemData stock overrides and custom-item inheritance;
 - non-inventory mercenary patron resolution;
 - immediate mercenary ownership, resource deduction, and food activation;
-- Tavern Hero stock inclusion, instant Hero spawn/progression and proper-name selection, resource/food deduction, and exclusion from mercenary score;
+- Tavern Hero stock inclusion, tier and three-Hero admission, disabled requirement presentation, instant Hero spawn/progression and proper-name selection, resource/food deduction, and exclusion from mercenary score;
 - unit `stockStart` / `stockRegen` / `stockMax` command availability;
 - runtime `AddUnitToStock` current/max overrides, replenishment, removal, and all-shop native registration;
 - map-local `war3map.w3u` UnitBalance stock overrides and custom-unit inheritance;

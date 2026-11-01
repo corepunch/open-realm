@@ -1529,7 +1529,9 @@ static void G_UpdateClientCommandCards(void) {
         gameClient_t *client = game.clients + i;
         edict_t *clent;
 
-        if (!client->connected || !client->commands_dirty) continue;
+        if (!client->connected) continue;
+        G_UpdateSelectedShopStock(client);
+        if (!client->commands_dirty) continue;
         if (client->menu.on_entity_selected || client->menu.on_location_selected) continue;
         clent = G_GetPlayerEntityByNumber(client->ps.number);
         if (!clent || clent->client != client) continue;

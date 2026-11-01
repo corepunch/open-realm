@@ -2332,6 +2332,14 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
 }
 
 TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
+    static char const unit_config[] =
+        "[Nalc]\nArt=ReplaceableTextures\\CommandButtons\\BTNHeroPitLord.blp\n"
+        "Buttonpos=0,0\nTip=Pit Lord\n"
+        "[TALT]\nDependencyOr=halt,ogre,etol,unpl\n"
+        "[TWN2]\nDependencyOr=hkee,ostr,etoa,unp1\n"
+        "[TWN3]\nDependencyOr=hcas,ofrt,etem,unp2\n"
+        "[halt]\nName=Altar of Kings\n"
+        "[hkee]\nName=Keep\n";
     static char const ability_slk[] =
         "ID;PWXL;N;EBB;Y2;X5\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
@@ -2343,24 +2351,32 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
         "C;Y1;X4;K\"fused\"\nC;Y1;X5;K\"stockMax\"\nC;Y1;X6;K\"stockRegen\"\n"
         "C;Y1;X7;K\"stockStart\"\nC;Y1;X8;K\"realHP\"\nC;Y1;X9;K\"STR\"\n"
         "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K425\nC;Y2;X3;K100\nC;Y2;X4;K5\n"
-        "C;Y2;X5;K1\nC;Y2;X6;K0\nC;Y2;X7;K0\nC;Y2;X8;K500\nC;Y2;X9;K18\nE\n";
+        "C;Y2;X5;K1\nC;Y2;X6;K1\nC;Y2;X7;K0\nC;Y2;X8;K500\nC;Y2;X9;K18\nE\n";
     static char const unit_ui_slk[] =
         "ID;PWXL;N;EBB;Y2;X3\n"
         "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"modelScale\"\n"
         "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"Units\\Creeps\\PitLord\\PitLord.mdx\"\nC;Y2;X3;K1\nE\n";
     static char const unit_data_slk[] =
-        "ID;PWXL;N;EBB;Y2;X3\n"
+        "ID;PWXL;N;EBB;Y5;X3\n"
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"targType\"\nC;Y1;X3;K\"movetp\"\n"
-        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\nE\n";
+        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\n"
+        "C;Y3;X1;K\"hkee\"\nC;Y3;X2;K\"ground\"\nC;Y3;X3;K\"human\"\n"
+        "C;Y4;X1;K\"hcas\"\nC;Y4;X2;K\"ground\"\nC;Y4;X3;K\"human\"\n"
+        "C;Y5;X1;K\"halt\"\nC;Y5;X2;K\"ground\"\nC;Y5;X3;K\"human\"\nE\n";
     static char const unit_profile_slk[] =
-        "ID;PWXL;N;EBB;Y2;X2\n"
-        "C;Y1;X1;K\"\"\nC;Y1;X2;K\"Propernames\"\n"
-        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"Aegis, Thundar, Maiev\"\nE\n";
+        "ID;PWXL;N;EBB;Y5;X6\n"
+        "C;Y1;X1;K\"\"\nC;Y1;X2;K\"Propernames\"\nC;Y1;X3;K\"Requires\"\n"
+        "C;Y1;X4;K\"Requirescount\"\nC;Y1;X5;K\"Requires1\"\nC;Y1;X6;K\"Requires2\"\n"
+        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"Aegis, Thundar, Maiev\"\nC;Y2;X3;K\"TALT\"\n"
+        "C;Y2;X4;K3\nC;Y2;X5;K\"TWN2,TALT\"\nC;Y2;X6;K\"TWN3,TALT\"\nE\n";
     static UnitAbilities_t const tavern_abilities = { .abilList = "Aneu,Asud" };
     static UnitProfile_t tavern_profile = { .sellUnits = "Nalc" };
     uint32_t const hero_id = MAKEFOURCC('N','a','l','c');
-    edict_t *player, *patron, *tavern, *hired = NULL;
+    edict_t *player, *patron, *tavern, *altar, *tier2, *tier3, *hired = NULL;
     gameClient_t *client;
+    gameCommandButton_t buttons[4];
+    shopItemButtonsParams_t button_params;
+    uint8_t button_count;
     slkTestData_t *ability_rows, *balance_rows, *ui_rows, *data_rows, *profile_rows;
     slkTestData_t *old_ability, *old_balance, *old_ui, *old_data, *old_profile;
 
@@ -2375,12 +2391,14 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     old_ui = G_SetSLKRows("UnitUI", ui_rows);
     old_data = G_SetSLKRows("UnitData", data_rows);
     old_profile = G_SetProfileRows(profile_rows);
+    T_ASSERT(G_TestPushAbilityConfig(unit_config));
     player = &g_edicts[0];
     client = player->client;
     client->ps.number = 0;
-    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.race = kPlayerRaceHuman;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 5000;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
-    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 30;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
     patron = make_unit_shop_patron(100, 0, 0);
     tavern = alloc_test_unit(MAKEFOURCC('n','t','a','v'), 0, 0);
@@ -2394,6 +2412,15 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     T_ASSERT(G_ShopSellsUnit(tavern, hero_id));
     T_EQ(G_GetStock(tavern)->unit_count, 1);
     T_EQ(G_GetStock(tavern)->units[0].current, 1);
+    T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id)); /* No Altar: TALT prerequisite. */
+    G_SelectEntity(client, tavern);
+    button_params = MAKE(shopItemButtonsParams_t, .client = client, .shop = tavern,
+                         .buttons = buttons, .max_buttons = 4);
+    button_count = G_GetShopButtons(&button_params);
+    T_EQ(button_count, 1);
+    T_ASSERT(buttons[0].disabled);
+    altar = alloc_test_unit(MAKEFOURCC('h','a','l','t'), 256, 0);
+    altar->s.player = 0;
     T_ASSERT(G_ShopPurchaseUnit(player, tavern, hero_id));
     FILTER_EDICTS(unit, unit->inuse && unit != tavern && unit != patron &&
                   unit->class_id == hero_id && unit->s.player == 0) { hired = unit; break; }
@@ -2407,11 +2434,47 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
                  !strcmp(hired->unit_state->proper_name, "Thundar") ||
                  !strcmp(hired->unit_state->proper_name, "Maiev"));
     }
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 575);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 4575);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 400);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 5);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 0);
 
+    /* A Tavern remains selected while its unit stock is cooling down. When
+     * the deadline expires, the server must dirty and rebuild the command
+     * card so the refreshed stock count is visible without reselection. */
+    G_SelectEntity(client, tavern);
+    client->commands_dirty = false;
+    level.time += 1000; // milliseconds; authored fixture stockRegen is one second
+    G_UpdateSelectedShopStock(client);
+    T_ASSERT(client->commands_dirty);
+    T_EQ(G_GetStock(tavern)->units[0].current, 1);
+    button_params = MAKE(shopItemButtonsParams_t, .client = client, .shop = tavern,
+                         .buttons = buttons, .max_buttons = 4);
+    button_count = G_GetShopButtons(&button_params);
+    T_EQ(button_count, 1);
+    T_EQ(buttons[0].number, 1u);
+    T_ASSERT(buttons[0].disabled); /* Second hero needs Tier 2 plus an Altar. */
+    T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id));
+    tier2 = alloc_test_unit(MAKEFOURCC('h','k','e','e'), 320, 0);
+    tier2->s.player = 0;
+    T_ASSERT(G_ShopPurchaseUnit(player, tavern, hero_id));
+
+    T_ASSERT(G_AddUnitStock(tavern, hero_id, 1, 1));
+    button_count = G_GetShopButtons(&button_params);
+    T_EQ(button_count, 1);
+    T_ASSERT(buttons[0].disabled); /* Third hero needs Tier 3 plus an Altar. */
+    T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id));
+    tier3 = alloc_test_unit(MAKEFOURCC('h','c','a','s'), 384, 0);
+    tier3->s.player = 0;
+    T_ASSERT(G_ShopPurchaseUnit(player, tavern, hero_id));
+
+    T_ASSERT(G_AddUnitStock(tavern, hero_id, 1, 1));
+    button_count = G_GetShopButtons(&button_params);
+    T_EQ(button_count, 1);
+    T_ASSERT(buttons[0].disabled); /* Three existing Heroes hit the player-wide cap. */
+    T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id));
+
+    G_TestPopAbilityConfig();
     G_SetSLKRows("UnitData", old_data); free_slk_rows(data_rows);
     G_SetProfileRows(old_profile); free_slk_rows(profile_rows);
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
