@@ -8,6 +8,9 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Current serial execution order (2026-11-01)
 
+[TARGET-01.2: nine closable execution blocks](target-01.2-closure.md)
+are the current completion checklist.
+
 **25 open. Active leaf: TARGET-01.2.** This queue supersedes the historical
 lane/agent scheduling below. Finish the active leaf's full documented criterion,
 required retail/engine/save verification and integration before advancing.
