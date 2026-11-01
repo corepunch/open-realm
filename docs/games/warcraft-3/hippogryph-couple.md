@@ -493,5 +493,16 @@ registry tests additionally cover raw-key/owner separation, captured incarnation
 stale release tokens, index reconstruction and directional Shared Spells. The
 associated ability/order/spell/save suites also pass. Runtime-class preference
 has bounded-original-code predicate evidence, not a new public competition
-capture. No full-suite rerun was performed for this patch. The green216/217
-checkpoint above predates it. Wider TARGET-01.2 coverage remains open.
+capture. The green216/217 checkpoint above predates the reservation patch.
+
+Full checkpoint220 validates commit `93d54c6d1`, including reservation commit
+`c114321c7`, in an isolated worktree. `make test TEST_JOBS=16` exited zero in
+846.94 seconds: 36 fresh JUnit reports contain 10,750 native tests with no
+failures/errors, and all 3,332 pathfinding Python tests pass. All five native
+gates (Captain473, Group012, Itemdrop, Waygate377 and SupportGoal), 120 focused
+Python checks and direct corpus validation also pass. Source, native evidence,
+test assets and the WC3 test module stayed unchanged; make rebuilt the test
+launcher, whose before/after hashes are recorded separately in runtime
+`couple-instant220-validation/checkpoint.json`. This baseline excludes the
+in-progress221 trace/observer changes. TARGET-01.2 remains open with 25 leaves;
+full-suite success does not establish the remaining native firing-poll coverage.
