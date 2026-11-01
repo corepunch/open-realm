@@ -21,7 +21,10 @@ bool G_UnitHasRally(edict_t const *producer) {
     if (!producer || !producer->data.UnitProfile) return false;
     if (S_AncientHasRootAbility(producer) && !S_AncientIsRooted(producer)) return false;
     trains = producer->data.UnitProfile->trains;
-    return (trains && *trains) || G_UnitCanReviveHeroes(producer);
+    /* Some non-producers such as Pocket Factory have an authored Rally ability
+     * but no training list. Preserve their command and rally state anyway. */
+    return (trains && *trains) || G_UnitCanReviveHeroes(producer) ||
+           G_ActorHasSkill(producer, "ARal");
 }
 
 void G_ResetRallyTarget(edict_t *producer) {

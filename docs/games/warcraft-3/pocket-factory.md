@@ -11,6 +11,8 @@ ROC `AbilityData.slk` has no `ANsy` row (`AbilityData: not found`).
 
 Point cast summons a timed factory at the target point. The factory periodically spawns
 Clockwerk goblins. Production is owned by `ANsy`, not by an ability on the factory unit.
+The factory's authored `ARal` command stores a point or entity rally target; each
+Clockwerk receives that order as it spawns.
 
 ## Authoritative Fields
 
@@ -58,6 +60,7 @@ CAbilityPocketFactory
 G_RunEntities / ent->think
   -> leash: factory-owned DataB units beyond DataE order_move home
   -> S_SummonAt(factory, DataB, offset, DataC) // clockwerk.owner = factory
+  -> apply factory rally point/entity order to the new Clockwerk
 G_FreeEdict(factory)
   -> next think sees !factory->inuse and frees itself
 ```
@@ -81,6 +84,7 @@ already has that home as its goal.
 
 - Clockwerk death explosion is owned by Self Destruct (`Asdg` / `Asd2` / `Asd3`);
   see [self-destruct.md](self-destruct.md).
+- Rally orders are applied when a Clockwerk spawns; verify entity-target rally behavior against retail.
 
 ## Diagnostic Workflow
 
