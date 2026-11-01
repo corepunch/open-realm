@@ -5,6 +5,43 @@
 #define INSTANT_COUPLE_TARGET 852507u
 #define INSTANT_COUPLE_AUTO 852508u
 
+typedef struct { EVENTTYPE player,unit; } instantPhase_t;
+static instantPhase_t const instant_channel={EVENT_PLAYER_UNIT_SPELL_CHANNEL,EVENT_UNIT_SPELL_CHANNEL};
+static instantPhase_t const instant_cast={EVENT_PLAYER_UNIT_SPELL_CAST,EVENT_UNIT_SPELL_CAST};
+static instantPhase_t const instant_effect={EVENT_PLAYER_UNIT_SPELL_EFFECT,EVENT_UNIT_SPELL_EFFECT};
+static instantPhase_t const instant_endcast={EVENT_PLAYER_UNIT_SPELL_ENDCAST,EVENT_UNIT_SPELL_ENDCAST};
+static instantPhase_t const instant_finish={EVENT_PLAYER_UNIT_SPELL_FINISH,EVENT_UNIT_SPELL_FINISH};
+
+static bool instant_phase(edict_t *unit,coupleInstant_t const *state,instantPhase_t const *phase) {
+    return S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=state->ability,.target={.type=SPELL_TARGET_UNIT,.entity=state->partner},.player_event=phase->player,.unit_event=phase->unit},state->serial);
+}
+
+/* Pool teardown has no public spell callbacks, but still releases the retained
+ * attachment independently of the unit's live availability registry. */
+void S_ReleaseCoupleInstantState(edict_t *unit) {
+    coupleInstant_t *state=unit->couple_instant;
+    if(!state || !state->channel_owner)return;
+    S_ReleaseAbilityAvailability(state->channel_owner);
+    state->channel_owner=NULL;
+}
+bool S_RestoreCoupleInstantState(edict_t *unit) {
+    coupleInstant_t *state=unit->couple_instant;
+    if(!state || !state->channel_open)return true;
+    if(!state->active || !state->ability || !S_AbilityOrderBusy(unit,state->ability))return false;
+    state->channel_owner=S_RetainAbilityAvailability(unit,state->ability,0);
+    return state->channel_owner!=NULL;
+}
+static void instant_end_channel(edict_t *unit) {
+    coupleInstant_t *state=unit->couple_instant;
+    if(!state || !state->channel_open)return;
+    coupleInstant_t packet=*state;
+    state->channel_open=false;state->channel_owner=NULL;
+    S_AdjustAbilityBusy(packet.channel_owner,-1);
+    instant_phase(unit,&packet,&instant_endcast);
+    S_ClearOwnedSpellEventTarget(unit,packet.ability,packet.serial);
+    S_ReleaseAbilityAvailability(packet.channel_owner);
+}
+
 static bool instant_alive(edict_t const *unit,uint32_t spawn) {
     return unit && unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) && !M_IsDead(unit);
 }
@@ -19,7 +56,7 @@ static uint32_t instant_alias(edict_t const *unit) {
     return 0;
 }
 static bool instant_available(edict_t *unit,uint32_t code) {
-    return unit && unit->inuse && code && !S_AbilityExecutionDisabled(unit,code) && G_ActorHasAbilityCode(unit,code) && G_UnitAbilityResearchAvailable(unit,code) &&
+    return unit && unit->inuse && code && !S_AbilityOrderBusy(unit,code) && !S_AbilityExecutionDisabled(unit,code) && G_ActorHasAbilityCode(unit,code) && G_UnitAbilityResearchAvailable(unit,code) &&
         S_SpellCanActivate(unit,code,S_SpellLevel(unit,code),false);
 }
 static bool instant_validate(edict_t *unit,edict_t *target,uint32_t code) {
@@ -69,15 +106,17 @@ static edict_t *instant_candidate(edict_t *unit,uint32_t code) {
 }
 static void instant_cancel(edict_t *unit) {
     coupleInstant_t *state=unit->couple_instant;
-    if(!state || !state->active || (state->constructing && !state->retiring))return;
+    if(!state || !state->active || (state->constructing && !state->retiring && !state->channel_open))return;
     uint32_t spawn=unit->spawn_time,serial=state->serial;
     edict_t *partner=state->partner;uint32_t partner_spawn=state->partner_spawn_time;
     /* The indefinite wait cleanup retains its logical target through the
      * first peer inverse. Approach cleanup releases before that inverse.
      * Thus Stop of the waiting initiator can recurse A-H-A, while Stop of
      * the approaching peer produces A-H. */
-    bool waited=state->waiting;state->waiting=false;state->linked=false;
+    bool waited=state->waiting || state->channel_open;state->waiting=false;state->linked=false;
     if(!waited)state->active=false;
+    instant_end_channel(unit);
+    if(!unit->inuse || unit->spawn_time!=spawn || !unit->couple_instant || unit->couple_instant->serial!=serial)return;
     if(instant_alive(partner,partner_spawn) && instant_alias(partner) && partner->couple_instant && partner->couple_instant->active &&
        partner->couple_instant->partner==unit && partner->couple_instant->partner_spawn_time==spawn)
         S_IssueOwnerStopOrder(partner);
@@ -95,6 +134,34 @@ static bool instant_complete(edict_t *unit,abilityCall_t const *call) {
     uint32_t spawn=unit->spawn_time,serial=state->serial,code=state->ability,rank=S_SpellLevel(unit,code);
     edict_t *target=state->partner;uint32_t target_spawn=state->partner_spawn_time;
     if(!instant_alive(target,target_spawn)) {instant_cancel(unit);unit_stand(unit);return true;}
+    /* 3fbb80 publishes CHANNEL before v384 acquires its signed +44
+     * contribution. Retain the exact attachment across reentrant inverse and
+     * detach; a trailing acquire belongs to that old owner, never a new alias. */
+    state->channel_open=true;
+    state->channel_owner=S_RetainAbilityAvailability(unit,code,0);
+    unitAbilityDisable_t *owner=S_RetainAbilityAvailability(unit,code,0);
+    coupleInstant_t packet=*state;
+    bool current=instant_phase(unit,&packet,&instant_channel);
+    S_AdjustAbilityBusy(owner,1);
+    S_ReleaseAbilityAvailability(owner);
+    if(!current || !instant_alive(unit,spawn) || !unit->couple_instant ||
+       unit->couple_instant->serial!=serial || !unit->couple_instant->channel_open) {
+        /* A CHANNEL callback can cancel before the trailing acquire. Native
+         * phase-1 rejection then finishes the old spell with a cleared target. */
+        if(instant_alive(unit,spawn) && unit->couple_instant && unit->couple_instant->serial==serial &&
+           !unit->couple_instant->channel_open) {
+            packet.partner=NULL;
+            instant_phase(unit,&packet,&instant_finish);
+        }
+        return true;
+    }
+    if(!instant_phase(unit,&packet,&instant_cast))return true;
+    if(!instant_alive(unit,spawn) || !unit->couple_instant || unit->couple_instant->serial!=serial ||
+       !unit->couple_instant->channel_open || !instant_alive(target,target_spawn))return true;
+    if(!instant_phase(unit,&packet,&instant_effect))return true;
+    if(!instant_alive(unit,spawn) || !unit->couple_instant || unit->couple_instant->serial!=serial ||
+       !unit->couple_instant->channel_open || !instant_alive(target,target_spawn))return true;
+    state=unit->couple_instant;
     if(S_SpellData(code,rank,2)!=0) {
         vec2_t origin=unit->s.origin2;float angle=unit->s.angle;
         uint32_t result=S_SpellUnitId(code,rank),player=unit->s.player;
@@ -149,7 +216,7 @@ static queuedOrderResult_t instant_activate(edict_t *unit,unitOrder_t const *pac
 }
 BZ_ABILITY_PROC(CAbilityCoupleInstant) {
     switch(msg) {
-    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_ORDER_REPLACE_PREPARE,A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START,A_MOVE_LEAVE,A_UNIT_REMOVE_PREPARE,A_COMMAND_OWNER_LEAVE,A_UNIT_SUSPEND_PREPARE,A_ORDER_RESUME,A_UNIT_SUSPEND,A_DEATH,A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START,A_MOVE_LEAVE,A_UNIT_REMOVE_PREPARE,A_COMMAND_OWNER_LEAVE,A_UNIT_SUSPEND_PREPARE,A_ORDER_RESUME,A_UNIT_SUSPEND,A_DEATH,A_UNIT_REMOVING,A_UNIT_REMOVE);
     case A_COMMAND: {
         if(!call || !call->client)return false;
         edict_t *unit=G_GetMainSelectedUnit(call->client->client);
@@ -169,18 +236,6 @@ BZ_ABILITY_PROC(CAbilityCoupleInstant) {
         if(!call || !call->spell_command)return false;
         *call->spell_command=(spellCommandProfile_t){ent->couple_instant && ent->couple_instant->active ?
             ent->couple_instant->order_id : INSTANT_COUPLE_TARGET,SPELL_TARGET_UNIT};return true;
-    case A_ORDER_REPLACE_PREPARE: {
-        coupleInstant_t *state=ent->couple_instant;
-        /* 4ef810 and nested 438fd0/439160 recognize incoming v348 before
-         * releasing the old owner. The matching coupletarget packet also
-         * skips the waiting owner's v388/4cc890 peer inverse. */
-        if(state && state->active && call && call->queued_order &&
-           call->queued_order->order_id==INSTANT_COUPLE_TARGET) {
-            state->active=false;
-            state->linked=false;
-        }
-        return false;
-    }
     case A_COMMAND_OWNER_LEAVE:instant_cancel(ent);return false;
     case A_MOVE_LEAVE:
         if(call && call->next_move_proc!=CAbilityCoupleInstant)instant_cancel(ent);
@@ -244,7 +299,22 @@ BZ_ABILITY_PROC(CAbilityCoupleInstant) {
             unit_stand(ent);
         return false;
     }
-    case A_UNIT_SUSPEND:case A_DEATH:case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+    case A_DEATH: {
+        /* d01a0 invokes the peer inverse before the dying actor's task is
+         * retired. Ordinary v388 Stop cleanup instead ends its own cast first. */
+        coupleInstant_t *state=ent->couple_instant;
+        if(state && state->active) {
+            uint32_t spawn=ent->spawn_time,serial=state->serial;
+            edict_t *peer=state->partner;
+            if(instant_alive(peer,state->partner_spawn_time) && peer->couple_instant &&
+               peer->couple_instant->active && peer->couple_instant->partner==ent &&
+               peer->couple_instant->partner_spawn_time==spawn)S_IssueOwnerStopOrder(peer);
+            if(!ent->inuse || ent->spawn_time!=spawn || !ent->couple_instant ||
+               ent->couple_instant->serial!=serial)return false;
+        }
+        instant_cancel(ent);return false;
+    }
+    case A_UNIT_SUSPEND:case A_UNIT_REMOVING:case A_UNIT_REMOVE:
         instant_cancel(ent);return false;
     case A_TARGET_REMOVED:
         if(call && ent->couple_instant && ent->couple_instant->active &&

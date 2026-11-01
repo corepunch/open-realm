@@ -1079,24 +1079,25 @@ TEST(wc3_couple_instant_orders, merge_removes_applied_bloodlust_preserves_timed_
 }
 
 
-/* Original 6f4ef810 executes common approach cleanup but suppresses the peer
- * inverse for a replacement COrder whose ID equals Acoi v348 (852507).
- * This covers an approaching actor; the separate wait inverse has no exemption. */
-TEST(wc3_couple_instant_orders, explicit_reissue_keeps_approach_peer_owner) {
+/* Public680320 does not intercept an approaching owner. Its cancellation
+ * constructs action0, not the ability-tagged tskO used by internal phases. */
+TEST(wc3_couple_instant_orders, explicit_reissue_cancels_approach_peer_owner) {
     coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
     T_ASSERT(CoupleInstantCompile(
-        "globals\ninteger crStops=0\nendglobals\n"
+        "globals\ninteger crStops=0\ninteger crEvents=0\nendglobals\n"
         "function crObserve takes nothing returns nothing\n"
-        "if GetIssuedOrderId()==851972 then\nset crStops=crStops+1\nendif\nendfunction\n"
+        "if GetIssuedOrderId()==851972 and GetTriggerUnit()==ciArcher then\nset crStops=crStops+1\nset crEvents=crEvents*10+1\nendif\n"
+        "if GetIssuedOrderId()==852507 and GetTriggerUnit()==ciHippo and GetOrderTargetUnit()==ciArcher then\nset crEvents=crEvents*10+2\nendif\nendfunction\n"
         "function crBegin takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
         "call TriggerRegisterUnitEvent(t,ciArcher,EVENT_UNIT_ISSUED_ORDER)\n"
         "call TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
         "call TriggerAddAction(t,function crObserve)\n"
         "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"initial pair accepted\")\nendfunction\n"
         "function crReissue takes nothing returns nothing\n"
-        "set crStops=0\n"
+        "set crStops=0\nset crEvents=0\n"
         "call BJassAssert(IssueTargetOrder(ciHippo,\"coupletarget\",ciArcher),\"explicit approach replacement accepted\")\n"
-        "call SetUnitUserData(ciArcher,crStops)\nendfunction\n"));
+        "call SetUnitUserData(ciArcher,crStops)\ncall SetUnitUserData(ciHippo,crEvents)\nendfunction\n"));
     CoupleInstantCall("crBegin");
     FOR_LOOP(i,60)CoupleInstantStep();
     T_NOT_NULL(f.archer->couple_instant);T_NOT_NULL(f.hippo->couple_instant);
@@ -1105,17 +1106,14 @@ TEST(wc3_couple_instant_orders, explicit_reissue_keeps_approach_peer_owner) {
     T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
     T_NOT_NULL(CoupleInstantGroup(f.hippo));
     CoupleInstantCall("crReissue");
-    T_EQ(f.archer->user_data,0);
-    T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
-    T_ASSERT(f.archer->couple_instant->active && f.archer->couple_instant->waiting);
-    T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
-    T_NOT_NULL(CoupleInstantGroup(f.hippo));
+    T_ASSERT(f.archer->user_data > 0);
+    T_EQ(f.hippo->user_data,12);
+    T_EQ(f.archer->current_order_id,0);
+    T_ASSERT(!f.archer->couple_instant->active);
     CoupleInstantEnd(&f);
 }
 
-/* Integration positive control for the original4ef810 replacement predicate.
- * 852508 is not exempt: require observable peer Stop, without assigning a
- * whole-game native event sequence, exact count, or replacement outcome. */
+/* Immediate852508 is not intercepted and retains ordinary peer inverse. */
 TEST(wc3_couple_instant_orders, immediate_reissue_keeps_approach_peer_inverse) {
     coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
     T_ASSERT(CoupleInstantCompile(
@@ -1144,24 +1142,33 @@ TEST(wc3_couple_instant_orders, immediate_reissue_keeps_approach_peer_inverse) {
 }
 
 
-/* Original 4ef810 -> 438fd0 -> 439160 checks incoming 852507 before
- * invoking the waiting owner's v388/4cc890, so its peer inverse is skipped.
- * This is an owner-preservation check, not an exact public event chronology. */
-TEST(wc3_couple_instant_orders, explicit_wait_reissue_preserves_peer) {
+/* Live211 repeated/control captures: waiting Archer rejects both public
+ * reissues before events; existing heads and owner remain unchanged. */
+TEST(wc3_couple_instant_orders, waiting_reissues_reject_and_preserve_owner) {
+    for(int immediate=0;immediate<2;++immediate) {
     coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
     T_ASSERT(CoupleInstantCompile(
-        "globals\ninteger cwPeerStops=0\nendglobals\n"
+        "globals\ninteger cwPeerStops=0\ninteger cwTargets=0\nendglobals\n"
         "function cwObserve takes nothing returns nothing\n"
         "if GetTriggerUnit()==ciHippo and GetIssuedOrderId()==851972 then\n"
         "set cwPeerStops=cwPeerStops+1\nendif\nendfunction\n"
-        "function cwBegin takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "function cwTarget takes nothing returns nothing\nset cwTargets=cwTargets+1\nendfunction\n"
+        "function cwBegin takes nothing returns nothing\nlocal trigger t=CreateTrigger()\nlocal trigger u=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(u,ciArcher,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+        "call TriggerRegisterUnitEvent(u,ciArcher,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerRegisterUnitEvent(u,ciHippo,EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+        "call TriggerRegisterUnitEvent(u,ciHippo,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerAddAction(u,function cwTarget)\n"
         "call TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_ORDER)\n"
         "call TriggerAddAction(t,function cwObserve)\n"
         "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"initial pair accepted\")\nendfunction\n"
         "function cwReissue takes nothing returns nothing\n"
-        "set cwPeerStops=0\n"
-        "call BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"explicit wait replacement accepted\")\n"
-        "call SetUnitUserData(ciHippo,cwPeerStops)\nendfunction\n"));
+        "set cwPeerStops=0\nset cwTargets=0\n"
+        "call BJassAssert(not IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"explicit wait replacement rejected\")\n"
+        "call SetUnitUserData(ciHippo,cwPeerStops)\ncall SetUnitUserData(ciArcher,cwTargets)\nendfunction\n"
+        "function cwImmediate takes nothing returns nothing\nset cwPeerStops=0\nset cwTargets=0\n"
+        "call BJassAssert(not IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"immediate wait replacement rejected\")\n"
+        "call SetUnitUserData(ciHippo,cwPeerStops)\ncall SetUnitUserData(ciArcher,cwTargets)\nendfunction\n"));
     CoupleInstantCall("cwBegin");
     FOR_LOOP(i,60)CoupleInstantStep();
     T_NOT_NULL(f.archer->couple_instant);T_NOT_NULL(f.hippo->couple_instant);
@@ -1169,12 +1176,120 @@ TEST(wc3_couple_instant_orders, explicit_wait_reissue_preserves_peer) {
     T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
     T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
     T_NOT_NULL(CoupleInstantGroup(f.hippo));
-    CoupleInstantCall("cwReissue");
+    uint32_t const serial=f.archer->couple_instant->serial;
+    uint32_t const revision=G_UnitMoveRevision(f.archer);
+    CoupleInstantCall(immediate ? "cwImmediate" : "cwReissue");
+    T_EQ(f.archer->user_data,0);
+    T_EQ(f.archer->current_order_id,852508);
+    T_EQ(f.archer->couple_instant->serial,serial);
+    T_EQ(G_UnitMoveRevision(f.archer),revision);
+    T_ASSERT(f.archer->couple_instant->active && f.archer->couple_instant->waiting);
     T_EQ(f.hippo->user_data,0);
     T_EQ(f.hippo->current_order_id,852507);
     T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
     T_NOT_NULL(CoupleInstantGroup(f.hippo));
     CoupleInstantEnd(&f);
+    }
+}
+
+/* Observe the real JASS spell callbacks through a test-local assertion wrapper.
+ * This keeps phase delivery public while sampling the signed game-owned counter. */
+extern jassModule_t jass_funcs[];
+static jassCFunction_t ci_phase_assert_original;
+static unsigned ci_phase_count;
+static int ci_phase_events[32],ci_phase_busy[32];
+static uint32_t CoupleInstantPhaseAssert(jass_t *j) {
+    cstring_t message=jass_checkstring(j,2);
+    if(message && !strncmp(message,"ciPhase",7)) {
+        edict_t *unit=jass_getcontext(j)->unit;
+        int const phase=atoi(message+7);
+        T_NOT_NULL(unit);
+        if(unit && ci_phase_count<(sizeof(ci_phase_events)/sizeof(ci_phase_events[0]))) {
+            uint32_t const code=unit->class_id==MAKEFOURCC('e','a','r','c') ? MAKEFOURCC('A','c','o','2') : MAKEFOURCC('A','c','o','3');
+            int busy=0;
+            for(unitAbilityDisable_t *p=unit->ability_disables;p;p=p->next)
+                if(p->code==code && !p->class_code)busy=p->busy_depth;
+            ci_phase_events[ci_phase_count]=(code==MAKEFOURCC('A','c','o','2') ? 10 : 20)+phase;
+            ci_phase_busy[ci_phase_count++]=busy;
+            T_EQ(S_AbilityOrderBusy(unit,code),busy>0);
+        } else T_ASSERT(false);
+    }
+    return ci_phase_assert_original(j);
+}
+static void CoupleInstantPhaseHook(bool enable) {
+    for(jassModule_t *p=jass_funcs;p->name;p++)if(!strcmp(p->name,"BJassAssert")) {
+        if(enable){ci_phase_assert_original=p->func;p->func=CoupleInstantPhaseAssert;ci_phase_count=0;}
+        else p->func=ci_phase_assert_original;
+        return;
+    }
+    T_ASSERT(false);
+}
+static void CoupleInstantPhaseInstall(bool interrupt) {
+    char script[6500];size_t used=0;
+    used+=snprintf(script+used,sizeof(script)-used,"globals\nboolean ciPhaseStop=%s\nendglobals\n",interrupt ? "true" : "false");
+    /* Fixture common.j uses the RoC event IDs; JassUnitEventType maps them
+     * to canonical engine IDs. It defines no EVENT_UNIT_SPELL_* globals. */
+    unsigned const events[]={289,290,291,293,292};
+    FOR_LOOP(i,5) {
+        used+=snprintf(script+used,sizeof(script)-used,
+            "function ciPhase%u takes nothing returns nothing\ncall BJassAssert(true,\"ciPhase%u\")\n",i+1,i+1);
+        if(i==0)used+=snprintf(script+used,sizeof(script)-used,
+            "if ciPhaseStop and GetTriggerUnit()==ciArcher then\nset ciPhaseStop=false\n"
+            "call BJassAssert(IssueImmediateOrder(ciArcher,\"stop\"),\"channel Stop admitted\")\n"
+            "call BJassAssert(GetSpellTargetUnit()==null,\"resumed CHANNEL target cleared\")\nendif\n");
+        if(i==4)used+=snprintf(script+used,sizeof(script)-used,
+            "call BJassAssert(GetSpellTargetUnit()==null,\"interrupted FINISH target cleared\")\n");
+        used+=snprintf(script+used,sizeof(script)-used,"endfunction\n");
+    }
+    used+=snprintf(script+used,sizeof(script)-used,"function ciPhaseSetup takes nothing returns nothing\nlocal trigger t\n");
+    FOR_LOOP(i,5)used+=snprintf(script+used,sizeof(script)-used,
+        "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,ciArcher,ConvertUnitEvent(%u))\n"
+        "call TriggerRegisterUnitEvent(t,ciHippo,ConvertUnitEvent(%u))\ncall TriggerAddAction(t,function ciPhase%u)\n",events[i],events[i],i+1);
+    snprintf(script+used,sizeof(script)-used,
+        "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"phase initial admission\")\nendfunction\n"
+        "function ciPhaseStopNow takes nothing returns nothing\ncall IssueImmediateOrder(ciArcher,\"stop\")\nendfunction\n");
+    T_ASSERT(CoupleInstantCompile(script));CoupleInstantCall("ciPhaseSetup");
+}
+TEST(wc3_couple_instant_orders, native_channel_phase_order_and_busy_depth) {
+    CoupleInstantPhaseHook(true);
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);CoupleInstantPhaseInstall(false);
+    FOR_LOOP(i,900)CoupleInstantStep();
+    int const events[]={11,12,13,21,22,23,14,24},busy[]={0,1,1,0,1,1,0,0};
+    T_EQ(ci_phase_count,(sizeof(events)/sizeof(events[0])));
+    FOR_LOOP(i,(sizeof(events)/sizeof(events[0]))){T_EQ(ci_phase_events[i],events[i]);T_EQ(ci_phase_busy[i],busy[i]);}
+    T_EQ(CoupleInstantRiders(),1);
+    CoupleInstantEnd(&f);CoupleInstantPhaseHook(false);
+}
+TEST(wc3_couple_instant_orders, waiting_channel_owner_survives_save_and_stop) {
+    CoupleInstantPhaseHook(true);
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);CoupleInstantPhaseInstall(false);
+    FOR_LOOP(i,60)CoupleInstantStep();
+    T_EQ(ci_phase_count,3);T_ASSERT(f.archer->couple_instant->waiting);
+    T_ASSERT(f.archer->couple_instant->channel_open);T_NOT_NULL(f.archer->couple_instant->channel_owner);
+    T_ASSERT(S_AbilityOrderBusy(f.archer,MAKEFOURCC('A','c','o','2')));
+    uint32_t const a=f.archer-g_edicts,h=f.hippo-g_edicts;
+    cstring_t path=Test_TempPath("couple-instant227-channel.bin");
+    T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));f.archer=g_edicts+a;f.hippo=g_edicts+h;
+    T_ASSERT(f.archer->couple_instant->waiting);T_ASSERT(f.archer->couple_instant->channel_open);
+    T_NOT_NULL(f.archer->couple_instant->channel_owner);
+    T_ASSERT(S_AbilityOrderBusy(f.archer,MAKEFOURCC('A','c','o','2')));
+    if(f.archer->couple_instant->channel_owner)T_EQ(f.archer->couple_instant->channel_owner->busy_depth,1);
+    CoupleInstantCall("ciPhaseStopNow");
+    T_EQ(ci_phase_count,4);T_EQ(ci_phase_events[3],14);T_EQ(ci_phase_busy[3],0);
+    T_ASSERT(!S_AbilityOrderBusy(f.archer,MAKEFOURCC('A','c','o','2')));
+    T_ASSERT(!f.archer->couple_instant->channel_open);T_EQ(CoupleInstantRiders(),0);
+    CoupleInstantEnd(&f);CoupleInstantPhaseHook(false);
+}
+TEST(wc3_couple_instant_orders, native_channel_stop_ends_then_finishes_without_effect) {
+    CoupleInstantPhaseHook(true);
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);CoupleInstantPhaseInstall(true);
+    FOR_LOOP(i,900)CoupleInstantStep();
+    T_EQ(ci_phase_count,3);
+    int const events[]={11,14,15},busy[]={0,-1,0};
+    FOR_LOOP(i,3){T_EQ(ci_phase_events[i],events[i]);T_EQ(ci_phase_busy[i],busy[i]);}
+    T_EQ(f.archer->current_order_id,0);T_EQ(f.hippo->current_order_id,0);
+    T_EQ(CoupleInstantRiders(),0);T_ASSERT(!S_AbilityOrderBusy(f.archer,MAKEFOURCC('A','c','o','2')));
+    CoupleInstantEnd(&f);CoupleInstantPhaseHook(false);
 }
 
 #endif

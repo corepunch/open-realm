@@ -1543,7 +1543,7 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
         unit_dispatch_engine_event_abilities(ent,msg,payload);
         S_AcquireScriptedAbilityDisables(ent);return true;
     }
-    if (msg == A_ORDER_REPLACE_PREPARE || msg == A_UNIT_REMOVE_PREPARE || msg == A_COMMAND_OWNER_LEAVE || msg == A_UNIT_SUSPEND_PREPARE || msg == A_ORDER_RESUME)
+    if (msg == A_UNIT_REMOVE_PREPARE || msg == A_COMMAND_OWNER_LEAVE || msg == A_UNIT_SUSPEND_PREPARE || msg == A_ORDER_RESUME)
         return unit_dispatch_approach_command(ent,msg,payload);
     if (msg == A_REQUIREMENTS_CHANGED)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;
@@ -1876,6 +1876,31 @@ static void ability_disable_release(unitAbilityDisable_t *state) {
     while(state && !--state->references) {
         unitAbilityDisable_t *next=state->next;free(state);state=next;
     }
+}
+
+unitAbilityDisable_t *S_RetainAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
+    if(!ent || !ent->inuse || !code)return NULL;
+    unitAbilityDisable_t *owner=ability_disable_typed_owner(ent,code,class_code);
+    owner->references++;
+    return owner;
+}
+
+void S_ReleaseAbilityAvailability(unitAbilityDisable_t *owner) {
+    ability_disable_release(owner);
+}
+
+/* 407740/40bba0 mutate +44 independently of the execution/order counters.
+ * CHANNEL callbacks can invoke the inverse before the trailing acquisition:
+ * the intermediate negative count is intentional, not an underflow to clamp.
+ * The caller retains this exact owner until its trailing write completes. */
+void S_AdjustAbilityBusy(unitAbilityDisable_t *owner,int32_t delta) {
+    if(owner)owner->busy_depth=(int32_t)((uint32_t)owner->busy_depth+(uint32_t)delta);
+}
+
+bool S_AbilityOrderBusy(edict_t const *ent,uint32_t code) {
+    for(unitAbilityDisable_t const *owner=ent ? ent->ability_disables : NULL;owner;owner=owner->next)
+        if(!owner->class_code && owner->code==code)return owner->busy_depth>0;
+    return false;
 }
 
 static void ability_disable_unlink(edict_t *ent,unitAbilityDisable_t *state) {
@@ -3058,6 +3083,30 @@ static intptr_t order_result_proc(edict_t *ent,abilityMsg_t msg,abilityCall_t co
     if(msg==A_QUEUE_ORDER_START)return QUEUED_ORDER_REPLACED;
     return CAbilityPassive(ent,msg,call);
 }
+TEST(wc3_ability_dispatch, busy_owner_survives_early_inverse_and_attachment_replacement) {
+    edict_t unit={.inuse=true};
+    uint32_t code=MAKEFOURCC('A','c','o','i');
+    unitAbilityDisable_t *old=S_RetainAbilityAvailability(&unit,code,0);
+    T_NOT_NULL(old);
+    S_AdjustAbilityBusy(old,-1);
+    T_EQ(old->busy_depth,-1);T_ASSERT(!S_AbilityOrderBusy(&unit,code));
+    S_AdjustAbilityBusy(old,1);
+    T_EQ(old->busy_depth,0);
+    S_ClearAbilityDisables(&unit);
+    unitAbilityDisable_t *replacement=S_RetainAbilityAvailability(&unit,code,0);
+    T_ASSERT(old!=replacement);
+    S_AdjustAbilityBusy(old,1);
+    T_EQ(old->busy_depth,1);T_EQ(replacement->busy_depth,0);
+    T_ASSERT(!S_AbilityOrderBusy(&unit,code));
+    S_AdjustAbilityBusy(replacement,1);
+    T_ASSERT(S_AbilityOrderBusy(&unit,code));
+    S_AdjustAbilityBusy(replacement,-1);
+    T_ASSERT(!S_AbilityOrderBusy(&unit,code));
+    S_ReleaseAbilityAvailability(old);
+    S_ReleaseAbilityAvailability(replacement);
+    S_ClearAbilityDisables(&unit);
+}
+
 TEST(wc3_ability_dispatch, shared_order_queries_preserve_owner_enum_results) {
     InitAbilities();
     ability_t const *move=FindAbilityByClassname("Amov"),*inv=FindAbilityByClassname("AInv");

@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 226; /* Stock Couple Instant approach/wait ownership; retains upstream gameplay fields. */
+static uint32_t const save_version = 227; /* Per-ability signed cast-busy ownership (+44). */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -776,6 +776,7 @@ static field_t const couple_instant_fields[] = {
     TF(coupleInstant_t, order_id, F_INT),
     TF(coupleInstant_t, serial, F_INT),
     TF(coupleInstant_t, constructing, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(coupleInstant_t, channel_owner, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -3036,7 +3037,7 @@ typedef struct {
 
 typedef struct {
     uint32_t code,class_code,exclusive_inventory;
-    int32_t depth,order_depth;
+    int32_t depth,order_depth,busy_depth;
     bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned,morph_owned,burrow_initialized,burrow_owned;
 } savedAbilityDisable_t;
 
@@ -3048,7 +3049,7 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
+        savedAbilityDisable_t saved={.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.busy_depth=s->busy_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -3067,7 +3068,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
         for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
             if(s->code==saved.code && s->class_code==saved.class_code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
-        state->code=saved.code;state->class_code=saved.class_code;state->depth=saved.depth;state->order_depth=saved.order_depth;
+        state->code=saved.code;state->class_code=saved.class_code;state->depth=saved.depth;state->order_depth=saved.order_depth;state->busy_depth=saved.busy_depth;
         state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;state->morph_owned=saved.morph_owned;state->burrow_initialized=saved.burrow_initialized;state->burrow_owned=saved.burrow_owned;
         state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->exclusive_owned=saved.exclusive_owned;state->exclusive_inventory=saved.exclusive_inventory;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
@@ -3891,6 +3892,7 @@ bool ReadGame(cstring_t filename) {
         if (!ent->inuse) continue;
         if (ent->class_id) RebindEntityModels(ent);
         if (ent->destructable) G_RestoreDestructableData(ent);
+        if (!S_RestoreCoupleInstantState(ent)) { fprintf(stderr,"WC3 LoadGame: invalid Couple Instant channel owner\n"); fclose(f); return false; }
         M_TrackMove(ent);
         S_TrackMoveTimers(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
@@ -5130,6 +5132,31 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
     T_ASSERT(!G_GetSaveMap(bad_filename, map, sizeof(map)));
     T_ASSERT(!ReadGame(bad_filename));
     remove(filename); remove(bad_filename);
+}
+
+TEST(wc3_save, signed_ability_busy_depth_round_trip) {
+    InitAbilities();
+    int32_t const depths[]={-1,2};
+    FOR_LOOP(i,(sizeof(depths)/sizeof(depths[0]))) {
+        edict_t source={.inuse=true},restored={.inuse=true};
+        uint32_t code=MAKEFOURCC('A','c','o','i');
+        unitAbilityDisable_t *owner=S_RetainAbilityAvailability(&source,code,0);
+        S_AdjustAbilityBusy(owner,depths[i]);
+        FILE *file=tmpfile();T_NOT_NULL(file);
+        if(file) {
+            T_ASSERT(WriteAbilityDisables(file,&source));rewind(file);
+            T_ASSERT(ReadAbilityDisables(file,&restored));
+            T_NOT_NULL(restored.ability_disables);
+            if(restored.ability_disables) {
+                T_EQ(restored.ability_disables->busy_depth,depths[i]);
+                T_EQ(restored.ability_disables->references,1);
+                T_EQ(S_AbilityOrderBusy(&restored,code),depths[i]>0);
+            }
+            fclose(file);
+        }
+        S_ReleaseAbilityAvailability(owner);
+        S_ClearAbilityDisables(&source);S_ClearAbilityDisables(&restored);
+    }
 }
 
 TEST(wc3_save, rejects_prior_save_versions) {

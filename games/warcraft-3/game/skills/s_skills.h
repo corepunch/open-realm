@@ -764,4 +764,20 @@ void S_FreezingBreathOnHit(edict_t *,edict_t *);
 heroabilitystatus_t *S_ApplyFreezeStatus(edict_t *,edict_t *,uint32_t,uint32_t,cstring_t,float,bool);
 void possession_projectile_death_think(edict_t *missile);
 
+/* A specialized spell owner retains its own scheduler while publishing the
+ * same frozen player/unit phase packet as ordinary ordered spells. */
+typedef struct {
+    edict_t *caster;
+    uint32_t code;
+    spellTarget_t target;
+    EVENTTYPE player_event,unit_event;
+} spellPhaseParams_t;
+bool S_DispatchSpellPhase(spellPhaseParams_t const *);
+/* Synchronous owner frames expose live target clearing to resumed callbacks,
+ * without storing stack addresses in entity or save state. */
+bool S_DispatchOwnedSpellPhase(spellPhaseParams_t const *,uint32_t owner_serial);
+void S_ClearOwnedSpellEventTarget(edict_t const *,uint32_t code,uint32_t owner_serial);
+void S_ReleaseCoupleInstantState(edict_t *);
+bool S_RestoreCoupleInstantState(edict_t *);
+
 #endif

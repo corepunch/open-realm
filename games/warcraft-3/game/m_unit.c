@@ -1929,11 +1929,8 @@ static bool unit_player_order_held(edict_t *self) {
 
 /* Retire the previous physical task before publishing the replacement head.
  * Region/owner cleanup callbacks can suspend or recycle the source at any step. */
-static bool unit_release_player_order_owner(edict_t *self,unitOrder_t const *packet) {
+static bool unit_release_player_order_owner(edict_t *self) {
     uint32_t const spawn=self->spawn_time;
-    abilityCall_t const replacement={.queued_order=packet};
-    S_UnitAbilityEventWithCall(self,A_ORDER_REPLACE_PREPARE,&replacement);
-    if(!unit_packet_source_alive(self,spawn))return false;
     if(unit_player_order_held(self))return true;
     S_SpellCancelChannel(self);
     if(!unit_packet_source_alive(self,spawn))return false;
@@ -1980,7 +1977,7 @@ bool G_IssuePlayerTargetOrder(playerOrderSelection_t const *selection,uint32_t i
     }
     if(!append)G_ClearUnitOrderQueue(self);
     if(!unit_packet_source_alive(self,spawn))return false;
-    if(!unit_player_order_held(self) && G_UnitHasActiveOrder(self) && !unit_release_player_order_owner(self,&packet))return false;
+    if(!unit_player_order_held(self) && G_UnitHasActiveOrder(self) && !unit_release_player_order_owner(self))return false;
     if(unit_player_order_held(self))return unit_retain_suspended_packet(self,&packet,append);
     /* Cancellation may recycle the common target after the candidate was admitted. */
     target=packet.target_number<globals.num_edicts ? g_edicts+packet.target_number : NULL;
@@ -2002,11 +1999,6 @@ bool G_AdmitUnitOrder(edict_t *self,unitOrder_t const *packet,bool replace) {
         if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
         held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
         if(!held && G_UnitHasActiveOrder(self)) {
-            abilityCall_t const replacement={.queued_order=&order};
-            S_UnitAbilityEventWithCall(self,A_ORDER_REPLACE_PREPARE,&replacement);
-            if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
-            held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);
-            if(held)return unit_retain_suspended_packet(self,&order,false);
             S_SpellCancelChannel(self);
             if(!self->inuse || self->spawn_time!=spawn || M_IsDead(self))return false;
             held=G_IsDeferredFree(self) || self->construction_held || S_UnitOrderExecutionHeld(self);

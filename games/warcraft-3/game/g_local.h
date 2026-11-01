@@ -949,7 +949,7 @@ void order_stop_internal(edict_t *);
 typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
     uint32_t code, class_code, references, exclusive_inventory; /* class0: ordinary authored ability. */
-    int32_t depth, order_depth;
+    int32_t depth, order_depth, busy_depth; /* Native ability +3c/+40/+44; independently signed. */
     bool pause_owned, retire_owned, exclusive_owned, linked;
     bool burrow_initialized, burrow_owned; /* Attachment source; aggregate survives a base-form detach. */
     bool morph_owned; /* Alternate-form all-owner availability contribution. */
@@ -1220,7 +1220,6 @@ typedef enum {
     A_COMMAND_OWNER_LEAVE, /* Opt-in logical command inverse before replacement publication. */
     A_UNIT_SUSPEND_PREPARE, /* Logical owner inverse before suspension head publication. */
     A_SPELL_TARGET_COMPLETE, /* Opt-in owner consumes target approach completion before generic stand/commit. */
-    A_ORDER_REPLACE_PREPARE, /* Opt-in current owner sees incoming packet before physical release. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -2192,7 +2191,8 @@ typedef struct {
 typedef struct {
     edict_t *partner;
     uint32_t partner_spawn_time, ability, order_id, serial;
-    bool active, waiting, constructing, linked, retiring, resume;
+    unitAbilityDisable_t *channel_owner; /* Retained exact attachment; rebuilt after load. */
+    bool active, waiting, constructing, linked, retiring, resume, channel_open;
 } coupleInstant_t;
 
 typedef struct {
@@ -4123,6 +4123,12 @@ void S_AcquireScriptedAbilityDisables(edict_t *);
 void S_AcquireBuffAbilityDisables(edict_t *,bool orders);
 void S_ReleaseBuffAbilityDisables(edict_t *,bool orders);
 bool S_AbilityExecutionDisabled(edict_t const *,uint32_t);
+/* Retain the concrete attachment across callbacks; adjustments may target an
+ * unlinked old owner and must never migrate to a replacement attachment. */
+unitAbilityDisable_t *S_RetainAbilityAvailability(edict_t *,uint32_t,uint32_t);
+void S_ReleaseAbilityAvailability(unitAbilityDisable_t *);
+void S_AdjustAbilityBusy(unitAbilityDisable_t *,int32_t);
+bool S_AbilityOrderBusy(edict_t const *,uint32_t);
 void S_AcquireExclusiveAbilityDisables(edict_t *,uint32_t);
 void S_SetMorphAbilityDisables(edict_t *,uint32_t,bool);
 bool S_InitializeBurrowAbility(edict_t *,uint32_t);

@@ -370,34 +370,97 @@ unmeasured callback mutation parity is claimed. TARGET-01.2 remains open with
 25 leaves; this implementation does not close the broader producer inventory or
 complete firing-poll requirement.
 
-### Explicit target reissue: nested cleanup guards
+### Public reissue and spell lifecycle: corrected native evidence
 
-Original `4ef810` and its nested `438fd0`/`439160` cleanup exempt an incoming
-`coupletarget` (852507), obtained through getter `4ee9c0`, from the peer inverse.
-The nested guard runs before the active-wait flag and virtual `388` callback,
-so it also bypasses the waiting `4cc890` inverse. `coupleinstant` (852508), Move
-and Stop retain their ordinary inverses. The game passes the admitted replacement
-packet to an opt-in owner notification before physical cleanup; both approach
-and wait owners preserve the peer for 852507. Save226 needs no additional field.
+The public reissue conclusions used by commits `86583c980` and `194a55333`
+are withdrawn. Their bounded original-code harnesses supplied controlled task
+class/resolution inputs; the internal task tag is not interchangeable with the
+public order ID. Passing checkpoint209 tests therefore does not validate the
+old public `852507` inverse exemption or waiting-reissue admission expectations.
 
-Checkpoint207's waiting-reissue expectation was incorrect. Its bounded original
-harness stubbed common cleanup, and Stop-phase traces did not establish same-order
-waiting behavior. `coupling-instant208-reservation/verify_nested_cleanup.py`
-executes the original nested cleanup and real getters for both approach and
-active-wait flags; both retain the peer and skip its inverse. Resolver/class
-services remain controlled; this is not a full public reissue timeline claim.
-The corrected waiting regression first failed four assertions in each edition.
-Checkpoint209 passes all 2,036 focused tests across both editions, including the
-corrected case, explicit approach reissue, immediate inverse, existing Stop/Move
-lifecycles, legacy Couple, Entangle, dispatch, orders, save/load and spells.
-Source and tested binary hashes remain unchanged after execution.
+Live witness211 runs the real public orders in four stock scenes, with two
+read-only observations and an unhooked control. All three match 1,692 public
+markers. Reissuing `coupletarget` (852507) on the approaching Hippogryph returns
+true and publishes Archer Stop before the Hippogryph target event. Reissuing
+`coupleinstant` (852508) also returns true, publishing Archer Stop, Hippogryph
+immediate order, then its synthetic target event. Either reissue on the waiting
+Archer returns false, publishes no intervention order event and leaves the
+existing heads unchanged. All four pairs subsequently merge.
 
-Reserved-candidate preference remains open. Nine bounded original selector
-controls establish target-attached `ATrg` markers keyed by runtime ability class
-and player, with counted acquisition/release. The additional relationship is
-Shared Spells (type4), from marker owner to querying owner, without a Passive
-or reciprocal requirement. Original exports, byte controls and scope limits are
-retained in `coupling-instant208-reservation/`; engine marker ownership and public
-competition/lifetime witnesses are not implemented or claimed. Wider TARGET-01.2
-coverage remains open; current-source corpus guards and full-suite checks are
-assigned to the validation batch following checkpoint209.
+The accepted observer-v3 repeat uses the unchanged211 map/probe and matches its
+complete unhooked public stream. The waiting Archer has signed ability counters
+`+0x3c/+0x40/+0x44 = [0,0,1]`; validator `3fc460` returns `0xb9` for both
+reissues. Its source flag `+0x5c & 0x40000000` is clear. The approaching
+Hippogryph has all three counters zero. Its explicit and immediate reissues
+release the existing Aco3 reservation on the Archer and Aco2 reservation on the
+Hippogryph, then acquire a fresh Aco3 reservation with count zero to one.
+Failed observer-v2 captures are preserved and excluded: adjacent interior hooks
+were unsafe. These results come from observer-v3, not that failed run.
+
+Witness212 adds passive public spell listeners and a fresh control. Both
+observations and control match 1,724 markers; removing the 32 spell-event records
+exactly restores211's 1,692-marker stream. Each actor emits CHANNEL, CAST, EFFECT
+and ENDCAST, with no FINISH in these four uninterrupted/reissue paths. The
+actor's `+0x44` is zero during CHANNEL, one during CAST/EFFECT and zero during
+ENDCAST. The waiting Archer retains an open spell lifecycle. This is a signed
+ability busy contribution, not evidence for a separate blanket waiting predicate
+or an authored timed cooldown.
+
+Witness213 interrupts the first Archer CHANNEL callback with one public Stop.
+Two observations and a fresh unhooked control match 433 markers. The original
+inverse `40bba0` decrements `+0x44` from zero to minus one before ENDCAST; that
+callback observes minus one. Issued Stop events follow Archer, Hippogryph,
+Archer. The nested Stop returns true with both heads zero. The outer CHANNEL
+continuation then calls `407740`, incrementing minus one to zero, and emits
+FINISH without CAST or EFFECT. No rider appears. Neither clamping the counter
+at zero nor skipping the post-callback increment reproduces this sequence.
+
+CHANNEL and nested ENDCAST retain the original Hippo target. After Stop,
+resumed CHANNEL and FINISH have a null target. The public role-zero marker alone
+only means neither watched actor; null is established by the original getter and
+captured cleared identity. Stop cleanup writes `+0xe4/+0xe8 = -1` at
+`4390f3/4390fa`, after ENDCAST. Completion clears these fields again at
+`40e312/40e31c`, then `40e3a0` publishes FINISH through `67d130` before its active
+owner guard. Acoi getter `435910`, with profile `4358d0` returning `0x100004`,
+returns null for that invalid identity and has no self-target fallback.
+
+Frozen sources, maps, raw streams, audits, summaries and hashes are retained
+under TARGET-01.2 runtime directories `coupling-instant211-public-reissue-v1/`
+(including `observer-v3/`), `coupling-instant212-channel-v1/` and
+`coupling-instant213-channel-stop-v1/`. The213 callback evidence covers Stop;
+Move/removal and arbitrary callback mutations are not inferred from it.
+
+The engine now removes the unsupported public reissue exemption and admits
+new Acoi orders through a separate signed busy counter. Its specialized approach
+publishes the shared spell phase packets, retaining the exact availability owner
+across callbacks. ENDCAST precedes peer inverse for ordinary cancellation; death
+publishes peer inverse before retiring its own spell. Owned event frames expose
+the live target after nested cleanup without storing stack pointers in saves.
+Save227 serializes signed busy counts and the open channel, clears the runtime
+availability pointer and rebuilds its retained reference on load.
+
+Checkpoints216/217 pass 2,046 tests and 284,604 assertions across 14 focused
+RoC/TFT processes, with zero failures/errors and unchanged source/binary hashes.
+Coverage includes public approach/wait reissues, the212 phase/counter sequence,
+213 CHANNEL Stop with ENDCAST at minus one and FINISH at zero, null live targets,
+and waiting-channel save/load followed by Stop. The associated ability, order,
+spell and save suites also pass. No full-suite rerun was performed for this
+correction; previous green checkpoints remain historical evidence only.
+TARGET-01.2 remains open; these checks do not establish wider callback parity.
+
+Reserved-candidate preference remains open. Target-attached `ATrg` markers
+use the configured raw ability ID from field `+0x34` and the acquiring player,
+with counted acquisition/release. The four original configured-key controls in
+`coupling-instant208-reservation/configured-key-results.json` execute initializer
+`41ad80`/reader `6ac5b0` and marker initializer `59ccd0`: `Aco2`, `Aco3`, `X001`
+and base `Acoi` retain their respective raw keys. Admission count gate `48bed0`
+queries that raw key, whereas selector `402060` queries runtime class `Acoi`.
+Thus stock alias markers affect admission but do not match the selector's
+reservation preference; the base `Acoi` key does match. The additional owner
+relationship is Shared Spells (type 4), from marker owner to querying owner,
+without a Passive or reciprocal requirement. These bounded original controls
+seed marker attachment and stub unrelated profile services; they do not establish
+public competition or general marker lifetime behavior. The211 observer-v3
+reissue captures establish the specific release/reacquire sequence above. Engine
+marker ownership remains unimplemented. Wider TARGET-01.2 coverage remains open;
+the reservation implementation and its current-source validation remain pending.

@@ -867,8 +867,11 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
 /* Original40b380 delivers the frozen EFFECT families before3f7b00.
  * A callback may replace the order, remove the caster or spend its remaining
  * mana. Retain the packet, then check ownership rather than affordability. */
-static bool spell_dispatch_phase(edict_t *caster, uint32_t code, spellTarget_t const *target,
-                                  EVENTTYPE player_event, EVENTTYPE unit_event) {
+bool S_DispatchSpellPhase(spellPhaseParams_t const *params) {
+    edict_t *caster=params->caster;
+    uint32_t code=params->code;
+    spellTarget_t const *target=&params->target;
+    EVENTTYPE player_event=params->player_event,unit_event=params->unit_event;
     uint32_t const spawn=caster->spawn_time, revision=G_UnitMoveRevision(caster);
     uint32_t const order=caster->current_order_id,group=caster->movement.group_id;
     umove_t *move=caster->currentmove;
@@ -883,6 +886,10 @@ static bool spell_dispatch_phase(edict_t *caster, uint32_t code, spellTarget_t c
         !M_IsDead(caster) && caster->current_order_id==order && caster->currentmove==move &&
         caster->goalentity==goal && caster->movement.group_id==group &&
         G_UnitMoveRevision(caster)==revision;
+}
+
+static bool spell_dispatch_phase(edict_t *caster,uint32_t code,spellTarget_t const *target,EVENTTYPE player_event,EVENTTYPE unit_event) {
+    return S_DispatchSpellPhase(&(spellPhaseParams_t){.caster=caster,.code=code,.target=*target,.player_event=player_event,.unit_event=unit_event});
 }
 
 static bool spell_dispatch_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
@@ -1031,7 +1038,13 @@ static spellCast_t *spell_cast_heads[MAX_ENTITIES],*spell_cast_active[MAX_ENTITI
 static spellCastBlock_t *spell_cast_blocks;
 static spellCast_t **spell_cast_heap;
 static uint32_t spell_cast_count,spell_cast_capacity;
-typedef struct spellCastEvent_s {struct spellCastEvent_s *previous;spellCast_t *cast;} spellCastEvent_t;
+typedef struct spellCastEvent_s {
+    struct spellCastEvent_s *previous;
+    spellCast_t *cast;
+    edict_t const *caster;
+    uint32_t caster_spawn,code,owner_serial;
+    spellTarget_t target;
+} spellCastEvent_t;
 static spellCastEvent_t *spell_cast_events;
 static umove_t ordered_spell_move={.animation="spell",.proc=CAbilitySpellCast};
 
@@ -1153,16 +1166,38 @@ static void SpellCastRetire(spellCast_t *cast) {
     cast->active=false;cast->retired=true;
 }
 bool S_QuerySpellEventTarget(edict_t const *caster,uint32_t code,spellTarget_t *target) {
-    for(spellCastEvent_t const *event=spell_cast_events;event;event=event->previous)
-        if(event->cast->caster==caster && event->cast->code==code) {*target=event->cast->target;return true;}
+    for(spellCastEvent_t const *event=spell_cast_events;event;event=event->previous) {
+        if(event->cast) {
+            if(event->cast->caster==caster && event->cast->code==code) {*target=event->cast->target;return true;}
+        } else if(event->caster==caster && caster && event->caster_spawn==caster->spawn_time && event->code==code) {
+            *target=event->target;return true;
+        }
+    }
     return false;
+}
+
+bool S_DispatchOwnedSpellPhase(spellPhaseParams_t const *params,uint32_t owner_serial) {
+    spellCastEvent_t event={.previous=spell_cast_events,.caster=params->caster,
+        .caster_spawn=params->caster->spawn_time,.code=params->code,
+        .owner_serial=owner_serial,.target=params->target};
+    spell_cast_events=&event;
+    bool result=S_DispatchSpellPhase(params);
+    spell_cast_events=event.previous;
+    return result;
+}
+
+void S_ClearOwnedSpellEventTarget(edict_t const *caster,uint32_t code,uint32_t owner_serial) {
+    for(spellCastEvent_t *event=spell_cast_events;event;event=event->previous)
+        if(!event->cast && event->caster==caster && caster && event->caster_spawn==caster->spawn_time &&
+           event->code==code && event->owner_serial==owner_serial)
+            event->target=(spellTarget_t){0};
 }
 static bool SpellCastCasterLive(spellCast_t const *cast) {
     return cast->caster->inuse && cast->caster->spawn_time==cast->caster_spawn &&
         !G_IsDeferredFree(cast->caster) && !M_IsDead(cast->caster);
 }
 static void SpellCastEmit(spellCast_t *cast,EVENTTYPE player_event,EVENTTYPE unit_event) {
-    spellCastEvent_t event={spell_cast_events,cast};spell_cast_events=&event;
+    spellCastEvent_t event={.previous=spell_cast_events,.cast=cast};spell_cast_events=&event;
     spell_dispatch_phase(cast->caster,cast->code,&cast->target,player_event,unit_event);
     spell_cast_events=event.previous;
 }

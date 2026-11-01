@@ -188,7 +188,7 @@ void G_PoolsReset(void) {
     S_ResetLandMineThinkers();
     if (g_edicts) {
         FOR_LOOP(i, globals.max_edicts) {
-            S_ClearTransientAbilityOrders(g_edicts+i);S_ClearAbilityDisables(g_edicts+i);
+            S_ReleaseCoupleInstantState(g_edicts+i);S_ClearTransientAbilityOrders(g_edicts+i);S_ClearAbilityDisables(g_edicts+i);
             g_edicts[i].ability_pause_depth=0;
             g_edicts[i].ability_exclusive_depth=0;
             g_edicts[i].construction = NULL;
@@ -268,7 +268,7 @@ void G_PoolsReset(void) {
 }
 
 void G_PoolsReleaseEdict(edict_t *ent) {
-    S_ClearTransientAbilityOrders(ent);S_ClearAbilityDisables(ent);
+    S_ReleaseCoupleInstantState(ent);S_ClearTransientAbilityOrders(ent);S_ClearAbilityDisables(ent);
     assert(ent);
     S_ReleaseTimedLives(ent);
     G_FreeConstruction(ent);
