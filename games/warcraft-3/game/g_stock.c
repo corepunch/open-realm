@@ -356,6 +356,45 @@ edict_t *G_FindUnitShopPatron(gameClient_t *client, edict_t *shop) {
     return G_FindShopPatronInternal(client, shop, false);
 }
 
+/* Keep the Aneu customer arrow attached to the patron for the player's
+ * currently focused shop. The effect is presentation-only; patron choice and
+ * purchase validation remain derived from the authoritative shop rules. */
+void G_UpdateShopPatronEffect(gameClient_t *client) {
+    static uint32_t const effect_tag = MAKEFOURCC('S','h','o','p');
+    edict_t *client_entity, *shop, *patron = NULL, *existing = NULL;
+    cstring_t art;
+
+    if (!client || client->ps.number >= MAX_PLAYERS) return;
+    client_entity = G_GetPlayerEntityByNumber(client->ps.number);
+    if (!client_entity || client_entity->client != client) return;
+    shop = G_GetMainSelectedUnit(client);
+    if (G_CanUseItemShop(client, shop))
+        patron = G_FindShopPatron(client, shop);
+    else if (G_CanUseUnitShop(client, shop))
+        patron = G_FindUnitShopPatron(client, shop);
+
+    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == effect_tag &&
+                  effect->owner == client_entity) {
+        existing = effect;
+        break;
+    }
+    if (existing && existing->goalentity == patron && patron &&
+        existing->damage == patron->spawn_time) return;
+    if (existing) G_FreeEdict(existing);
+    if (!patron) return;
+
+    /* AbilityFunc TargetArt permits map-authored overrides; the stock asset
+     * is the fallback because minimal archives may omit AbilityFunc rows. */
+    art = G_AbilityEffectArt(MAKEFOURCC('A','n','e','u'), WC3_EFFECT_TARGET, 0);
+    if (!art || !*art)
+        art = "Abilities\\Spells\\Other\\Aneu\\AneuTarget.mdx";
+    existing = G_SpawnModelEffect(art, NULL, patron, "overhead", false);
+    if (existing) {
+        existing->status_effect_code = effect_tag;
+        existing->owner = client_entity;
+    }
+}
+
 static uint32_t G_StockDelayMs(int32_t seconds) {
     if (seconds <= 0) return 0;
     if ((uint32_t)seconds > UINT_MAX / 1000u) return UINT_MAX;

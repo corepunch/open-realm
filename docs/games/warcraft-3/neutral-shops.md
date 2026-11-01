@@ -71,7 +71,8 @@ defaults. No `F_EDICT` pointer fixups are required.
 ## Patron Selection
 
 Warsmash's `CAbilityNeutralBuilding` retains one selected interaction unit per player and periodically reacquires it. OpenRealm's
-current implementation resolves the patron deterministically when UI/purchase state is requested. It reads Aneu/Aall `DataA` for
+current implementation resolves the patron deterministically when UI/purchase state is requested and attaches the authored Aneu target
+arrow above the focused shop's eligible patron. The effect is removed or retargeted when the focused shop/patron changes. It reads Aneu/Aall `DataA` for
 activation radius and `DataB` for the authored interaction type (inventory unit, non-building, or any unit), then chooses the nearest
 eligible living player-owned **unit** with entity number as a stable tie-break. Item shops without Aneu/Aall preserve their older
 inventory-carrier rule; `Sellunits` has no safe interaction fallback and therefore requires valid Aneu/Aall `DataB` data.
@@ -129,8 +130,8 @@ is not inserted into the shop's authored merchandise or stock.
 ## Known Gaps
 
 - `Aall` shop-sharing/allied-building policy is not implemented.
-- OpenRealm does not yet retain/select a patron with Aneu's explicit `neutralinteract` button or persistent selection indicator; it
-  reacquires deterministically from range instead.
+- OpenRealm reacquires the nearest eligible patron when the focused shop presentation is rebuilt; it does not yet run Aneu's periodic
+  acquisition independently of UI/order updates.
 - Walking an out-of-range Hero to the shop before pawning is not implemented; pawn targeting succeeds only when already in range.
 - Tavern Hero entries in `Sellunits` can be displayed and hired. Shared hero availability across separate Taverns and retail-specific
   duplicate-hero restrictions still need validation.

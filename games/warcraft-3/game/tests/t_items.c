@@ -2611,6 +2611,48 @@ TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     level.mapinfo = old_mapinfo;
 }
 
+TEST(wc3_items, selected_neutral_shop_shows_and_clears_authored_patron_arrow) {
+    static cstring_t const ability_config =
+        "[Aneu]\nTargetArt=TestUI\\Models\\anim_projectile.mdx\n";
+    gameClient_t *client;
+    edict_t *player, *patron, *shop, *arrow = NULL;
+    bool lingering = false;
+    uint32_t const effect_tag = MAKEFOURCC('S','h','o','p');
+
+    reset_entities();
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    patron = make_unit_shop_patron(100, 0, 0);
+    patron->s.radius = 48.0f;
+    shop = make_unit_test_shop(0, 0);
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    G_SelectEntity(client, shop);
+    G_UpdateShopPatronEffect(client);
+
+    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == effect_tag) {
+        arrow = effect;
+        break;
+    }
+    T_NOT_NULL(arrow);
+    if (arrow) {
+        T_EQ(arrow->goalentity, patron);
+        T_EQ(arrow->owner, player);
+        T_EQ(arrow->s.model, G_RegisterModel("TestUI\\Models\\anim_projectile.mdx"));
+        T_FEQ(arrow->wait, 120.0f, 0.001f);
+        T_ASSERT(arrow->s.flags & EF_NOT_SELECTABLE);
+    }
+
+    G_DeselectEntity(client, shop);
+    G_UpdateShopPatronEffect(client);
+    T_ASSERT(!arrow || !arrow->inuse);
+    FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == effect_tag)
+        lingering = true;
+    T_ASSERT(!lingering);
+    G_TestPopAbilityConfig();
+}
+
 TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replenishes) {
     edict_t *player;
     gameClient_t *client;

@@ -4363,6 +4363,7 @@ bool G_CanUseUnitShop(gameClient_t *client, edict_t const *shop);
 float G_ShopActivationRadius(edict_t const *shop);
 edict_t *G_FindShopPatron(gameClient_t *client, edict_t *shop);
 edict_t *G_FindUnitShopPatron(gameClient_t *client, edict_t *shop);
+void G_UpdateShopPatronEffect(gameClient_t *client);
 uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params);
 uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params);
 uint8_t G_GetShopButtons(shopItemButtonsParams_t *params);
