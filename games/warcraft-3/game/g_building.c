@@ -39,6 +39,12 @@ edict_t *G_CreateBuildPreview(edict_t *builder, uint32_t building_id, vec2_t con
     preview->s.collision = 0.0f;
     preview->s.flags |= EF_NOT_SELECTABLE;
     preview->s.renderfx |= RF_NO_UBERSPLAT;
+    /* SP_CallSpawn binds the normal building sight radius. A construction
+     * preview is only an order marker; it must not reveal terrain before the
+     * worker reaches the site and starts the real building. */
+    preview->s.flags &= ~EF_FOW_REVEALER;
+    preview->runtime.sight_radius.day = 0.0f;
+    preview->runtime.sight_radius.night = 0.0f;
     gi.LinkEntity(preview);
 
     /* Retail's Construction Site Indicator is the normal building model made
