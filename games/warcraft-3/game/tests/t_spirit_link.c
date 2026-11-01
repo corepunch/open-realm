@@ -86,6 +86,44 @@ TEST(wc3_spell, spirit_link_links_datab_nearest_in_area) {
 	spl_done(&fix);
 }
 
+/* Aspl's zap is cast presentation; Bspl's authored target art is the lasting
+ * chest overlay on every linked unit. */
+TEST(wc3_spell, spirit_link_renders_cast_zap_and_persistent_buff_target_art) {
+	splFix_t fix;
+	uint32_t zap_model, buff_model, buff_art_count = 0;
+	bool caster_zap = false, target_zap = false, lightning = false;
+	spl_setup(&fix);
+	memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+	zap_model = G_RegisterModel("Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkZapTarget.mdl");
+	buff_model = G_RegisterModel("Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkTarget.mdl");
+	T_STREQ(G_AbilityEffectArt(BZ_ASPL, WC3_EFFECT_CASTER, 0),
+	        "Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkZapTarget.mdl");
+	T_STREQ(G_AbilityEffectArt(BZ_BSPL, WC3_EFFECT_TARGET, 0),
+	        "Abilities\\Spells\\Orc\\SpiritLink\\SpiritLinkTarget.mdl");
+	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
+	FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+		gLightning_t const *beam = level.lightning_effects + i;
+		if (!beam->inuse || beam->state.effect_id != MAKEFOURCC('S','P','L','K')) continue;
+		lightning = true;
+		T_EQ(beam->state.end_time, G_Time() + 300u);
+	}
+	T_ASSERT(lightning);
+	FILTER_EDICTS(effect, effect->inuse && effect->s.model == zap_model && effect->goalentity) {
+		if (effect->goalentity == fix.caster) caster_zap = true;
+		if (effect->goalentity == fix.a) target_zap = true;
+	}
+	T_ASSERT(caster_zap);
+	T_ASSERT(target_zap);
+	FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == BZ_BSPL && effect->s.model) {
+		T_EQ(effect->s.model, buff_model);
+		T_ASSERT(effect->s.flags & EF_NAMED_ATTACHMENT);
+		if (effect->goalentity == fix.a || effect->goalentity == fix.b || effect->goalentity == fix.c)
+			buff_art_count++;
+	}
+	T_EQ(buff_art_count, 3u);
+	spl_done(&fix);
+}
+
 /* DataA=0.25 with 3 linked: 100 dmg -> shared 25 / 3 each; primary keeps 75+portion. */
 TEST(wc3_spell, spirit_link_splits_authored_damage_among_linked) {
 	splFix_t fix; spl_setup(&fix);

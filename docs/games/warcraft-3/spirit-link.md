@@ -27,6 +27,12 @@ Linked units. All living allied units that currently hold `Bspl` share with
 each other (not a per-cast clique ID). Redirected share damage is never fatal:
 it clamps the victim to 1 HP and clears `Bspl`.
 
+The point cast plays `Aspl`'s authored `CasterArt` and `TargetArt` zap models
+and its `SPLK` lightning between caster and selected unit. Each recipient gets
+the persistent `Bspl` target model on its authored chest attachment; this is
+separate from the one-shot cast zap. The rune applies the persistent buff art
+without a point-target cast beam.
+
 ## Data Flow
 
 ```text
@@ -61,5 +67,9 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.spirit_link*'
 ```
 
 Focused tests cover procedure lookup, authored DataA/DataB (non-stock), area
-cap, damage split to linked allies, unlinked immunity, expiry, and recast
-refresh. `Aspp` uses the same Spirit Link status and damage redistribution, but activates immediately around the collecting unit, using its own authored area, count, duration, target flags and buff. It consumes even if no eligible unit can receive a buff.
+cap, damage split to linked allies, unlinked immunity, expiry, recast refresh,
+and the zap models, `SPLK` beam, and persistent `Bspl` target art. `Aspp` uses
+the same Spirit Link status and damage redistribution, but activates
+immediately around the collecting unit, using its own authored area, count,
+duration, target flags and buff. It consumes even if no eligible unit can
+receive a buff.

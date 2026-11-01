@@ -2,6 +2,7 @@
 
 #define BZ_BSPL MAKEFOURCC('B', 's', 'p', 'l') // rawcode; Spirit Link buff
 #define SPL_MAX_CANDS 64 // units; static scratch capacity for DataB nearest selection
+#define SPL_CAST_ZAP_MS 300u // milliseconds; short authored Spirit Link cast lightning flash
 
 /* Bounded nearest-N insertion over the full eligible population. Only
  * strictly-closer candidates displace the retained farthest, so equal
@@ -53,9 +54,25 @@ static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t
 			dists[i] = dists[j]; cands[i] = cands[j]; dists[j] = td; cands[j] = te;
 		}
 	if (n > maxn) n = maxn;
+	if (!powerup) {
+		/* Aspl authors both zap models and SPLK; show the point-target cast
+		 * connection once, independent of how many units receive the buff. */
+		(void)G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+		(void)G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+		(void)G_SpawnAbilityLightning(&(abilityLightningParams_t){
+			.ability_id = spell->code, .index = 0, .source = caster,
+			.target = st.entity, .duration_ms = SPL_CAST_ZAP_MS,
+		});
+	}
 	FOR_LOOP(i, n) {
-		heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(cands[i], spell->code, level, buffstr, dur);
-		if (status) status->data = spell->code;
+		heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(
+			cands[i], spell->code, level, buffstr, dur);
+		if (status) {
+			status->data = spell->code;
+			/* The ability's TargetArt is a one-shot zap. Bspl owns the
+			 * persistent Spirit Link model and its authored chest socket. */
+			unit_status_enabletargetart(cands[i], status, NULL);
+		}
 	}
 }
 
