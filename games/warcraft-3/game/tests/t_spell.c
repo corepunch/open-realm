@@ -4249,7 +4249,8 @@ TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
 	enemy->unitinfo.MoveSpeed = 270.0f;
 	(void)unit_movedistance(enemy);
 	attack_melee(enemy);
-	T_FEQ(enemy->wait, 0.3f, 0.001f);
+	T_ASSERT(enemy->attack_damage.active);
+	T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f, 0.001f);
 	test_execute_code(caster, "Aslo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o'))); T_EQ(enemy->movement.speed_factor_initialized, 1); T_FEQ(enemy->movement.speed_factor, 0.4f, 0.001f);
 
@@ -4299,10 +4300,12 @@ TEST(wc3_spell, human_support_aliases_preserve_authored_modifiers) {
         T_FEQ(S_HumanMoveFactor(enemy), 1.0f, 0.001f);
         T_FEQ(unit_movedistance(enemy), normal_move_distance * 0.4f, 0.01f);
         attack_melee(enemy);
-        T_FEQ(enemy->wait, 0.3f / 0.55f, 0.001f);
+        T_ASSERT(enemy->attack_damage.active);
+        T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f / 0.55f, 0.001f);
         unit_removestatus(enemy, unit_findstatus(enemy, MAKEFOURCC('B','s','l','o')), STATUS_REMOVE_DISPEL);
         attack_melee(enemy);
-        T_FEQ(enemy->wait, 0.3f, 0.001f);
+        T_ASSERT(enemy->attack_damage.active);
+        T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f, 0.001f);
         T_FEQ(unit_movedistance(enemy), normal_move_distance, 0.01f);
         G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     }
@@ -6860,8 +6863,12 @@ TEST(wc3_spell, metamorphosis_keeps_abilities_adds_ranged_attack_and_reverts_bon
         demon->wait = 0.0f;
         T_ASSERT(S_AttackCanTarget(demon, enemy));
         attack_ranged(demon);
-        demon->wait = 0.01f;
-        demon->currentmove->think(demon);
+        /* Damage commits through the primary request; animation thinks no
+         * longer consume wait. Keep presentation unadvanced to inspect Birth. */
+        T_ASSERT(demon->attack_damage.active);
+        if (demon->attack_damage.active)
+            spell_metamorph_advance(demon->attack_damage.deadline.time);
+        T_ASSERT(!demon->attack_damage.active);
         FILTER_EDICTS(candidate, candidate->owner == demon && candidate->movetype == MOVETYPE_FLYMISSILE) {
             missile = candidate;
             break;
@@ -7049,7 +7056,8 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 		S_AttackProfileWrite(ally, 0)->damagePoint = 0.3f;
 		attack_melee(ally);
 		T_FEQ(unit_movedistance(ally), normal_move_distance * 1.25f, 0.01f);
-		T_FEQ(ally->wait, 0.3f / 1.4f, 0.001f);
+		T_ASSERT(ally->attack_damage.active);
+		T_FEQ(wc3_sub(ally->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f / 1.4f, 0.001f);
 	}
 	test_execute_code(caster, "Afae", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e')));
@@ -7365,7 +7373,8 @@ TEST(wc3_spell, unholy_frenzy_accepts_enemy_and_reads_tft_buffid) {
 	S_AttackProfileWrite(enemy, 0)->cooldown = 1.0f;
 	S_AttackProfileWrite(enemy, 0)->damagePoint = 0.3f;
 	attack_melee(enemy);
-	T_FEQ(enemy->wait, 0.3f / 1.75f, 0.001f);
+	T_ASSERT(enemy->attack_damage.active);
+	T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f / 1.75f, 0.001f);
 	FOR_LOOP(i, 10) G_RunEntity(enemy);
 	T_FEQ(enemy->health.value, 196.0f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -7552,7 +7561,8 @@ TEST(wc3_spell, cripple_reduces_enemy_movement_attack_rate_and_damage_from_data)
 	T_FEQ(S_CrippleDamageReduction(enemy), 0.5f, 0.001f);
 	T_FEQ(unit_movedistance(enemy), normal_move_distance * 0.25f, 0.01f);
 	attack_melee(enemy);
-	T_FEQ(enemy->wait, 0.6f, 0.001f);
+	T_ASSERT(enemy->attack_damage.active);
+	T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.6f, 0.001f);
 	S_ResolveAttackHit(enemy, victim, 40);
 	T_FEQ(victim->health.value, 180.0f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);

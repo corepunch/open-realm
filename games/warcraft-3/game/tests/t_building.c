@@ -6809,9 +6809,10 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
 TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
     edict_t *worker;
     edict_t *enemy;
-    uint32_t stagger;
 
-    setup_test_world();
+    reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -6825,14 +6826,35 @@ TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
     enemy->s.player = 1;
     enemy->svflags |= SVF_MONSTER;
     enemy->targtype = TARG_GROUND;
+    /* Allocator-only units need real spatial and idle owner publication.
+     * This is deliberately a no-autocast worker, not a repair-order fixture. */
+    worker->collision=enemy->collision=16;
+    /* A real archive fixture supplies non-hollow spatial membership. */
+    worker->s.model=enemy->s.model=G_RegisterModel("TestUI\\Models\\quad_sprite.mdx");
+    T_ASSERT(worker->s.model!=0);
+    worker->movetype=enemy->movetype=MOVETYPE_STEP;
+    worker->stand=unit_stand;
     gi.LinkEntity(worker);
     gi.LinkEntity(enemy);
+    G_PublishMoveSpatialObject(worker);G_PublishMoveSpatialObject(enemy);
 
-    stagger = (uint32_t)(worker - g_edicts) % 300;
-    level.time = (300 - stagger) % 300;
-    ai_stand(worker);
-
+    S_UnitAbilityEvent(worker,A_UNIT_INIT);
+    unit_stand(worker);
+    T_ASSERT(worker->attack_scan.active);
+    T_ASSERT(worker->currentmove && worker->currentmove->think==ai_stand);
+    /* Ordinary acquisition belongs to Attack's primary timer, independently
+     * of the legacy ai_stand autocast stagger. Do not directly fire its hook. */
+    bool scheduled=level.scheduled_frame;
+    FOR_LOOP(i,200) {
+        if(worker->attack_target==enemy)break;
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        level.time+=5;level.pathing_msec+=5;level.scheduled_frame=true;
+        G_RunTimers();
+    }
+    level.scheduled_frame=scheduled;
+    T_ASSERT(worker->attack_target==enemy);
     T_ASSERT(worker->goalentity == enemy);
+    T_NULL(worker->build);
 }
 
 TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {

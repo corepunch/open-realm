@@ -60611,7 +60611,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ca98675d28cf42079f4ac2a1d9f6b57d53773d240553dc6552ac83c60db4a979"
+      "sha256": "3fa9acd4defdd3a09ddd538a5aeb2525e17b2f2dcd36ca8a6230093f73bc921f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
@@ -61415,7 +61415,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "bcb173616f804ba2dcd35a0524915463c593b696dade97b8acd5e12d4bfe815b"
+      "sha256": "35426d6ee234cd39017a05e29963d1a4ed96e323a21a5e1e2054496b9a33003c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -61695,7 +61695,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "8328f1cf60b795276fad3616dc2cabe227d1b825a652c61d5f4bc51a0bbcf0c4"
+      "sha256": "104df55700143e75c417e36948e17b0c3922e2fa0c64cb316371c6002f26c2da"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",

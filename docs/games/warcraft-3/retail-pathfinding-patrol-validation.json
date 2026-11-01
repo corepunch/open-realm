@@ -1762,5 +1762,85 @@
       "fixture_guards": 3317,
       "passed": true
     }
+  },
+  "full_suite_attempt_295": {
+    "commit": "6453035d5",
+    "state": "stopped_after_confirmed_failures",
+    "process_exit": 143,
+    "full_suite_passed": false,
+    "completed_reports": 18,
+    "failed_cases": [
+      "wc3_building.idle_acquisition_without_autocast_still_auto_attacks",
+      "wc3_spell.cripple_reduces_enemy_movement_attack_rate_and_damage_from_data",
+      "wc3_spell.human_support_spells_use_authored_status_and_heal_values",
+      "wc3_spell.metamorphosis_keeps_abilities_adds_ranged_attack_and_reverts_bonus_health",
+      "wc3_spell.unholy_frenzy_accepts_enemy_and_reads_tft_buffid",
+      "wc3_spell.human_support_aliases_preserve_authored_modifiers"
+    ],
+    "source_files": 1156,
+    "source_changes_during_run": [],
+    "log_sha256": "9be11409accaa8b79e0b771eaabe0c92d397e361dd3fdd64a40b71b80d0f2494",
+    "summary_sha256": "4ec5926ac7ee5a3fa220cd051032314ee6ab8d4aeafb471547f5fb4e2fb67e69",
+    "scope": "Only classic WC3 shards0/1/2 completed; no TFT WC3 result. Remaining independent full-suite work was stopped after confirmed failures, before fixture repair."
+  },
+  "fixture_correction_297": {
+    "scope": "Test setup and assertions only; production source unchanged. Complete Building and Spell suites in both editions. This is not a complete make test result.",
+    "results": [
+      {
+        "edition": "roc",
+        "pattern": "wc3_building.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_building_all",
+          "tests": "208",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "5685"
+        }
+      },
+      {
+        "edition": "roc",
+        "pattern": "wc3_spell.*",
+        "exit": 0,
+        "junit": {
+          "name": "roc-wc3_spell_all",
+          "tests": "600",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "16879"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_building.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_building_all",
+          "tests": "208",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "5685"
+        }
+      },
+      {
+        "edition": "tft",
+        "pattern": "wc3_spell.*",
+        "exit": 0,
+        "junit": {
+          "name": "tft-wc3_spell_all",
+          "tests": "600",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "assertions": "16879"
+        }
+      }
+    ],
+    "tests": 1616,
+    "assertions": 45128,
+    "changed_sources_during_run": []
   }
 }

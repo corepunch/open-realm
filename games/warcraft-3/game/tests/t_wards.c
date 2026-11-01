@@ -160,7 +160,16 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_
 	T_EQ(tower->goalentity, fix.enemy);
 	T_NOT_NULL(tower->currentmove);
 	tower->currentmove->think(tower);
-	tower->currentmove->think(tower);
+	T_ASSERT(tower->attack_damage.active);
+	if (tower->attack_damage.active) {
+		/* Damage commits at the primary deadline, independently of animation think. */
+		level.pathing_clock = tower->attack_damage.deadline;
+		bool scheduled = level.scheduled_frame;
+		level.scheduled_frame = true;
+		G_RunTimers();
+		level.scheduled_frame = scheduled;
+		T_ASSERT(!tower->attack_damage.active);
+	}
 	T_ASSERT(fix.enemy->health.value < fix.enemy->health.max_value);
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
 	/* Alliance direction: owner 0 shares its vision with ally 2. */

@@ -950,6 +950,17 @@ existing Follow target-removal checkpoint failure remain open.
 
 ### Patrol producer candidate: native265/272/274, Save232
 
+Full-suite attempt 295 at `6453035d5` exposed stale test scheduling in six
+completed classic-shard cases. It was stopped after those confirmed failures;
+no successful full-suite result or TFT WC3 run is claimed. Fixture checkpoint
+297 advances the real acquisition and weapon-damage requests, preserving the
+original timing values, enemy selection, damage and projectile Birth assertions.
+Its full Building/Spell groups pass in both editions: 1,616 test executions and
+45,128 assertions. A detector-tower fixture also advances its real damage timer;
+allocator-only worker actors use a real archive model and spatial publication
+rather than hollow model-zero placeholders. Production code is unchanged by
+these fixture corrections. The next batched full suite remains required.
+
 Checkpoint 294 extends the detach inverse: cancel all six Attack controls,
 retire active target combat and committed Ground, then continue the retained
 parent without rearming removed Attack acquisition. Unit-owned help suppression
