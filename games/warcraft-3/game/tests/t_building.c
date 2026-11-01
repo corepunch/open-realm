@@ -1102,6 +1102,51 @@ TEST(wc3_building, freezing_breath_indicator_is_disabled_until_researched) {
     G_TestPopAbilityConfig();
 }
 
+TEST(wc3_building, demolisher_burning_oil_indicator_is_disabled_until_researched) {
+    static UnitAbilities_t const abilities = { .abilList = "Abof" };
+    static UnitBalance_t const balance = { .upgrades = "Robf" };
+    static cstring_t const ability_config =
+        "[Abof]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNFireRocks.blp\n"
+        "Buttonpos=0,2\nTip=Burning Oil\nUbertip=Burns enemy units that cross the impact area.\n"
+        "[Robf]\nName=Burning Oil\nTip=Research Burning Oil\n";
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner;
+    edict_t *demolisher;
+    gameCommandButton_t buttons[16], oil;
+    uint8_t count;
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    uint32_t const research = MAKEFOURCC('R','o','b','f');
+
+    reset_entities(); setup_test_world();
+    owner = &game.clients[0]; owner->ps.number = 0;
+    memcpy(old_tech, owner->tech, sizeof(old_tech)); memset(owner->tech, 0, sizeof(owner->tech));
+    G_SetPlayerTechMaxAllowed(owner, research, 1);
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    gi.CvarString = building_freezing_breath_roc_cvar;
+    demolisher = alloc_test_unit(MAKEFOURCC('o','c','a','t'), 64, 64);
+    demolisher->s.player = 0; demolisher->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    demolisher->data.UnitBalance = (UnitBalance_t *)&balance;
+    count = G_GetCommandButtons(demolisher, buttons, 16);
+    T_ASSERT(!building_find_command(buttons, count, "Abof", NULL));
+
+    gi.CvarString = building_freezing_breath_tft_cvar;
+    count = G_GetCommandButtons(demolisher, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Abof", &oil));
+    T_ASSERT(oil.indicator && oil.disabled && oil.indicator_dimmed);
+    T_NOT_NULL(strstr(oil.ubertip, "Requires:"));
+    T_NOT_NULL(strstr(oil.ubertip, "Burning Oil"));
+
+    G_SetPlayerTechResearched(owner, research, 1);
+    count = G_GetCommandButtons(demolisher, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Abof", &oil));
+    T_ASSERT(oil.indicator && !oil.disabled && !oil.indicator_dimmed);
+    T_ASSERT(!strstr(oil.ubertip, "Requires:"));
+
+    memcpy(owner->tech, old_tech, sizeof(old_tech));
+    gi.CvarString = old_cvar;
+    G_TestPopAbilityConfig();
+}
+
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
     gameClient_t *client = &game.clients[0];
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');

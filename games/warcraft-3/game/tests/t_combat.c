@@ -3511,6 +3511,62 @@ TEST(wc3_combat, impaling_bolt_direct_tree_impact_survives_research_revocation) 
     T_ASSERT(tree->health.value < 500.0f);
 }
 
+static cstring_t combat_burning_oil_tft(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
+TEST(wc3_combat, researched_demolisher_burning_oil_attack_uses_authored_missile) {
+    static UnitAbilities_t const abilities = { .abilList = "Abof" };
+    static UnitBalance_t const balance = { .upgrades = "Robf" };
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
+    static cstring_t const ability_config =
+        "[Abof]\nMissileart=TestUI\\Models\\burning-oil-missile.mdx\nMissilespeed=900\n";
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    edict_t *attacker, *target, *missile = NULL;
+    gameClient_t *owner;
+    cstring_t missile_art;
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    uint32_t const research = MAKEFOURCC('R','o','b','f');
+
+    setup_test_world(); reset_entities();
+    owner = &game.clients[0]; owner->ps.number = 0;
+    memcpy(old_tech, owner->tech, sizeof(old_tech));
+    attacker = make_combat_unit(MAKEFOURCC('o','c','a','t'), 500.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    attacker->s.player = 0; target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    attacker->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    attacker->data.UnitBalance = (UnitBalance_t *)&balance;
+    attacker->data.UnitWeapons = (UnitWeapons_t *)&weapons;
+    attacker->unit_state->attack1.type = ATK_SIEGE;
+    attacker->unit_state->attack1.weapon = WPN_ARTILLERY;
+    attacker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->unit_state->attack1.range = 500.0f;
+    attacker->unit_state->attack1.damageBase = 50;
+    attacker->unit_state->attack1.damagePoint = 0.1f;
+    attacker->unit_state->attack1.cooldown = 3.0f;
+    attacker->unit_state->attack1.projectile.speed = 700.0f;
+    attacker->unit_state->attack1.projectile.model = G_RegisterModel("TestUI\\Models\\normal-demolisher.mdx");
+    target->targtype = TARG_GROUND;
+    gi.CvarString = combat_burning_oil_tft;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    G_SetPlayerTechResearched(owner, research, 1);
+    T_ASSERT(S_BurningOilEnabled(attacker));
+    missile_art = S_BurningOilMissileArt(attacker);
+    T_NOT_NULL(missile_art);
+    attacker->goalentity = target;
+    attack_ranged(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile && missile_art) T_EQ(missile->s.model, G_RegisterModel(missile_art));
+    if (missile) T_FEQ(missile->velocity, 0.9f, 0.001f);
+
+    memcpy(owner->tech, old_tech, sizeof(old_tech));
+    gi.CvarString = old_cvar;
+    G_TestPopAbilityConfig();
+}
+
 TEST(wc3_combat, impaling_bolt_hits_behind_primary_only_once_without_tree_followthrough) {
     edict_t *attacker, *primary, *splash, *behind, *off_line, *ahead, *tree;
     artillery_t profile = { .attack_type = ATK_NORMAL, .area_targets = WC3_TARGET_FLAG_GROUND,

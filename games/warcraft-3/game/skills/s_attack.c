@@ -262,6 +262,16 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
             if (isfinite(speed) && speed > 0.0f) rocket->velocity = speed / 1000.0f;
         }
     }
+    /* Burning Oil is a unit upgrade, so make its projectile choice at the
+     * final attack-projectile construction point. This keeps the authored
+     * missile/model and speed stable after all other launch modifiers. */
+    if (S_BurningOilEnabled(ent)) {
+        cstring_t const art = S_BurningOilMissileArt(ent);
+        cstring_t const speed_text = FindConfigValue("Abof", "Missilespeed");
+        float const speed = speed_text ? (float)atof(speed_text) : 0.0f;
+        if (art && *art) rocket->s.model = G_RegisterModel(art);
+        if (isfinite(speed) && speed > 0.0f) rocket->velocity = speed / 1000.0f;
+    }
     rocket->owner = ent;
     rocket->movetype = MOVETYPE_FLYMISSILE;
     G_StartProjectilePresentation(rocket);
@@ -759,6 +769,7 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
     if (!missile_splash) {
         artillery_spawn_meat_wagon_impact(attacker, impact);
         artillery_spawn_meat_wagon_plague_cloud(attacker, impact);
+        S_BurningOilImpact(attacker, impact);
     }
     max_radius = MAX(profile->area_full, MAX(profile->area_medium, profile->area_small));
     if (max_radius < 0.0f) return;

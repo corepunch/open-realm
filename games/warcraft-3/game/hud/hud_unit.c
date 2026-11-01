@@ -641,6 +641,25 @@ static void G_AddFreezingBreathIndicator(edict_t *ent, gameCommandButton_t *butt
     }
 }
 
+static void G_AddBurningOilIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                    uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A','b','o','f');
+    static uint32_t const research = MAKEFOURCC('R','o','b','f');
+    uint8_t index;
+
+    if (!ent || ent->class_id != MAKEFOURCC('o','c','a','t') || !buttons || !count ||
+        *count >= max_buttons || !G_UnitAbilityLevel(ent, ability) ||
+        !G_UnitAbilityResearchVisible(ent, ability) || G_HasCommandRawcode(buttons, *count, ability)) return;
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, "Abof", false, 0);
+    if (*count <= index) return;
+    buttons[index].disabled = !G_UnitAbilityResearchAvailable(ent, ability);
+    buttons[index].indicator = 1;
+    buttons[index].indicator_dimmed = buttons[index].disabled;
+    if (buttons[index].indicator_dimmed)
+        G_AddResearchRequirementTooltip(&buttons[index], research, 1);
+}
+
 static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *buttons,
                                         uint8_t max_buttons, uint8_t *count,
                                         uint32_t owned_ability, uint32_t button_ability) {
@@ -967,6 +986,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
      * disabled command while Mark of the Claw is available but unresearched. */
     if (ent->class_id == MAKEFOURCC('e','d','c','m'))
         G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Aroa");
+    G_AddBurningOilIndicator(ent, buttons, max_buttons, &count);
     FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
         char abil[5] = {0};
         uint32_t const code = ent->unit_state->overrides.added[i];

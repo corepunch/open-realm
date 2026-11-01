@@ -12,7 +12,88 @@
 #define ID_HARDENED_SKIN_NAGA MAKEFOURCC('A','n','s','k')
 #define ID_MANA_REGEN_AURA MAKEFOURCC('A','a','r','m')
 #define ID_ORB_ANNIHILATION MAKEFOURCC('A','N','a','k')
+#define ID_BURNING_OIL MAKEFOURCC('A','b','o','f')
+#define ID_BURNING_OIL_RESEARCH MAKEFOURCC('R','o','b','f')
+#define BURNING_OIL_TICK_MS 1000u /* milliseconds; ground fire reacquisition and Burning Oil damage cadence */
 #define LIQUID_FIRE_TICK_MS 1000
+
+bool S_BurningOilEnabled(edict_t const *attacker) {
+    gameClient_t *owner;
+    if (!attacker || attacker->class_id != MAKEFOURCC('o','c','a','t') ||
+        !G_UnitAbilityLevel((edict_t *)attacker, ID_BURNING_OIL) ||
+        !gi.CvarString || atoi(gi.CvarString("fs_expansion", "0")) == 0) return false;
+    owner = G_GetPlayerClientByNumber(attacker->s.player);
+    return owner && owner->ps.number == attacker->s.player &&
+        G_GetPlayerTechResearchedLevel(owner, ID_BURNING_OIL_RESEARCH) > 0;
+}
+
+cstring_t S_BurningOilMissileArt(edict_t const *attacker) {
+    return S_BurningOilEnabled(attacker) ? G_AbilityEffectArt(ID_BURNING_OIL, WC3_EFFECT_MISSILE, 0) : NULL;
+}
+
+static void burning_oil_ground_think(edict_t *fire) {
+    edict_t *source;
+    uint32_t const level = fire ? MAX(1u, fire->resources) : 1;
+    if (!fire || !fire->inuse || G_Time() >= fire->freetime) {
+        if (fire && fire->inuse) G_FreeEdict(fire);
+        return;
+    }
+    source = S_SpellChannelOwner(fire);
+    if (!source) { G_FreeEdict(fire); return; }
+    if (G_Time() < (uint32_t)MAX(0.0f, fire->wait)) return;
+    fire->wait = (float)(G_Time() + BURNING_OIL_TICK_MS);
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && target != source &&
+                  S_SpellIsEnemy(source, target) && G_UnitTargetType(target) == TARG_GROUND &&
+                  S_SpellAllowsAreaTarget(ID_BURNING_OIL, source, target) &&
+                  Vector2_distance(&target->s.origin2, &fire->s.origin2) <=
+                      fire->collision + MAX(0.0f, target->collision)) {
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(
+            target, ID_BURNING_OIL, level, "Bbof", S_SpellDuration(ID_BURNING_OIL, level, false));
+        if (status) {
+            status->source = source;
+            status->source_spawn_time = source->spawn_time;
+            status->next_tick = G_Time() + BURNING_OIL_TICK_MS;
+        }
+    }
+}
+
+void S_BurningOilImpact(edict_t *attacker, vec2_t const *impact) {
+    edict_t *fire;
+    uint32_t level, effect_code;
+    float duration, radius;
+    if (!impact || !S_BurningOilEnabled(attacker)) return;
+    level = MAX(1u, G_UnitAbilityLevel(attacker, ID_BURNING_OIL));
+    duration = S_SpellDuration(ID_BURNING_OIL, level, false);
+    radius = S_SpellNumber(ID_BURNING_OIL, ABILITY_NUMBER_AREA, level);
+    if (duration <= 0.0f || radius <= 0.0f) return;
+    fire = G_Spawn();
+    if (!fire) return;
+    fire->owner = attacker;
+    G_AddChannel(fire)->owner_spawn_time = attacker->spawn_time;
+    fire->class_id = ID_BURNING_OIL;
+    fire->resources = level;
+    fire->s.origin2 = *impact;
+    fire->s.origin.x = impact->x;
+    fire->s.origin.y = impact->y;
+    fire->collision = radius;
+    fire->freetime = G_Time() + (uint32_t)(duration * 1000.0f);
+    fire->wait = (float)G_Time();
+    fire->think = burning_oil_ground_think;
+    effect_code = G_AbilityEffectCode(ID_BURNING_OIL, level);
+    if (!effect_code) effect_code = ID_BURNING_OIL;
+    G_SpawnAbilityEffectAtPoint(effect_code, WC3_EFFECT_EFFECT, 0, impact, true);
+}
+
+static void burning_oil_status_tick(edict_t *target, heroabilitystatus_t *slot) {
+    edict_t *source = S_SpellStatusSource(slot);
+    float damage;
+    if (!target || !slot || !source) { if (target && slot) unit_expirestatus(target, slot); return; }
+    damage = MAX(0.0f, S_SpellData(ID_BURNING_OIL, slot->rank, 1));
+    while (unit_status_take_due_tick(slot, BURNING_OIL_TICK_MS, G_Time())) {
+        if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
+        if (M_IsDead(target)) break;
+    }
+}
 
 
 static bool unit_has_proc_ability(edict_t const *ent, abilityProc_t proc) {
@@ -339,7 +420,17 @@ BZ_ABILITY_PROC(CAbilityScout) {
     }
     return CAbilitySimpleSpell(ent, msg, call);
 }
-BZ_ABILITY_PROC(CAbilityBallsOfFire) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityBallsOfFire) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        burning_oil_status_tick(ent, call->status.slot);
+        return true;
+    }
+    if (msg == A_STATUS_DEATH && call && call->status.slot) {
+        unit_expirestatus(ent, call->status.slot);
+        return true;
+    }
+    return CAbilityPassive(ent, msg, call);
+}
 /* Pillage (Asal): the passive handler itself never polls; actual primary-hit
  * damage calls here from T_DamageInternal after mitigation and Spirit Link.
  * DataA=Sal1 salvage ratio; DataB=Sal2 accumulated HP per award step.

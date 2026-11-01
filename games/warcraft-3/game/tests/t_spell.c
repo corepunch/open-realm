@@ -7,6 +7,7 @@ void attack_melee(edict_t *self);
 void attack_ranged(edict_t *self);
 void whirlwind_think(edict_t *ent);
 void morph_end(edict_t *thinker);
+static cstring_t spell_tft_expansion_cvar(cstring_t name, cstring_t fallback);
 
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
@@ -1355,6 +1356,65 @@ TEST(wc3_spell, creep_attack_passives_and_death_aoe_use_authored_rows) {
     T_FEQ(S_CreepAttackSpeedReduction(target), 0.25f, 0.001f);
     S_AbilityMessage(dead, A_DEATH, &call);
     T_FEQ(nearby->health.value, 90, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, researched_burning_oil_impact_applies_status_to_units_entering_fire) {
+    static UnitAbilities_t const abilities = { .abilList = "Abof" };
+    static UnitBalance_t const balance = { .upgrades = "Robf" };
+    static cstring_t const ability_config =
+        "[Abof]\nEffectart=TestUI\\Models\\burning-oil-fire.mdx\n"
+        "[Bbof]\nTargetart=TestUI\\Models\\burning-oil-status.mdx\n";
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"Abof\"\nC;Y2;X2;K\"Abof\"\nC;Y2;X3;K\"100\"\n"
+        "C;Y2;X4;K\"2.51\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"ground,enemy\"\nE\n";
+    slkTestData_t *rows, *old;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner;
+    edict_t *demolisher, *passing, *outside, *fire = NULL;
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    vec2_t impact = { 300.0f, 300.0f };
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    owner = &game.clients[0]; owner->ps.number = 0;
+    memcpy(old_tech, owner->tech, sizeof(old_tech));
+    G_SetPlayerTechMaxAllowed(owner, MAKEFOURCC('R','o','b','f'), 1);
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','o','b','f'), 1);
+    gi.CvarString = spell_tft_expansion_cvar;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    demolisher = alloc_test_unit(MAKEFOURCC('o','c','a','t'), 0, 0);
+    demolisher->s.player = 0; demolisher->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    demolisher->data.UnitBalance = (UnitBalance_t *)&balance;
+    passing = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 301, 300);
+    outside = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 700, 500);
+    passing->s.player = outside->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    passing->svflags |= SVF_MONSTER; outside->svflags |= SVF_MONSTER;
+    passing->targtype = outside->targtype = TARG_GROUND;
+    passing->health.value = passing->health.max_value = 100;
+    outside->health.value = outside->health.max_value = 100;
+
+    S_BurningOilImpact(demolisher, &impact);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('A','b','o','f') && ent->owner == demolisher) {
+        fire = ent; break;
+    }
+    T_NOT_NULL(fire);
+    if (fire) {
+        /* The second unit walks into the fire after impact; both are examined
+         * by the persistent ground-area thinker on its next simulation tick. */
+        outside->s.origin2 = impact;
+        fire->think(fire);
+    }
+    T_EQ(G_UnitStatusLevel(passing, MAKEFOURCC('B','b','o','f')), 1);
+    T_EQ(G_UnitStatusLevel(outside, MAKEFOURCC('B','b','o','f')), 1);
+
+    if (fire) G_FreeEdict(fire);
+    memcpy(owner->tech, old_tech, sizeof(old_tech));
+    gi.CvarString = old_cvar;
+    G_TestPopAbilityConfig();
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
