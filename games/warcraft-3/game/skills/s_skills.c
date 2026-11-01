@@ -740,9 +740,9 @@ static ability_t abilitylist[] = {
     { "AIxs", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-magic Shield */
     { "Amgr", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive (Naisha) */
     { "Asds", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! */
-    { "Asdg", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct (Clockwerk Goblins) */
-    { "Asd2", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct 2 (Clockwerk Goblins) */
-    { "Asd3", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct 3 (Clockwerk Goblins) */
+    { "Asdg", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! (Clockwerk Goblins) */
+    { "Asd2", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! 2 (Clockwerk Goblins) */
+    { "Asd3", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! 3 (Clockwerk Goblins) */
     { "Srtt", CAbilityPassive, AB_PASSIVE },  /* Tank Upgrade */
     /* END GENERATED TODO ABILITIES */
 

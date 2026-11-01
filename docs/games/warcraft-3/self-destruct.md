@@ -19,17 +19,16 @@ Clockwerk FOURCC special cases in `unit_die`.
 explode when killed.
 
 Kaboom! is an autocast command-card spell (Hotkey B, Untip right-click
-autocast). Its click command uses entity targeting without a spell-area
-overlay. The approach retains the selected entity and its incarnation,
-follows its current position, and revalidates its eligibility each tick. A dead,
-removed or reused target cancels the pending cast; Stop or a replacement order
-also cancels it. Since stock `Rng` is zero, the Goblin walks until it is within `DataA` (the full
-damage radius), then detonates at its own position. Intentional cast always
-deals DataA–E blast and kills the caster, independent of `DataF`. Stock `Asds`
-is registered `AB_SPELL | AB_AUTOCAST` with `SPELL_TARGET_POINT` so the blast
-still executes as a point cast. Clockwerk aliases stay `AB_PASSIVE` death-only
-(they share Untip/Hotkey strings but this leftover keeps click on the Sapper
-row).
+autocast) on Sappers and Clockwerk Goblins. Its click command uses entity
+targeting without a spell-area overlay. The approach retains the selected entity
+and its incarnation, follows its current position, and revalidates its eligibility
+each tick. A dead, removed or reused target cancels the pending cast; Stop or a
+replacement order also cancels it. Since stock `Rng` is zero, the Goblin walks
+until it is within `DataA` (the full damage radius), then detonates at its own
+position. Intentional cast always deals DataA–E blast and kills the caster,
+independent of `DataF`. `Asds`, `Asdg`, `Asd2`, and `Asd3` are registered
+`AB_SPELL | AB_AUTOCAST` with `SPELL_TARGET_POINT`; the aliases keep their
+individual authored data while sharing this cast and death behavior.
 
 ## Authoritative Fields
 
@@ -56,8 +55,8 @@ armor applies; spell immunity does not block it. Buildings multiply by `DataE`. 
 ```text
 UnitAbilities.abilList (Asdg / Asd2 / Asd3 / Asds)
   -> unit carries Self Destruct
-Click / autocast (Asds only):
-  click Asds -> select entity -> follow its current position to DataA range
+Click / autocast (Asds / Asdg / Asd2 / Asd3):
+  click Kaboom -> select entity -> follow its current position to DataA range
     -> point-target execute -> detonate at the Goblin's position
     -> CAbilitySelfDestruct(A_EXECUTE)
        self_destruct_explode(DataA–E)
@@ -83,9 +82,9 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.self_destruct*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.pocket_factory*'
 ```
 
-Register `Asds` on `CAbilitySelfDestruct` with `AB_SPELL | AB_AUTOCAST` and
-`SPELL_TARGET_POINT`. Register `Asdg`/`Asd2`/`Asd3` with `AB_PASSIVE`. Do not
-register abstract `AAat`.
+Register `Asds`/`Asdg`/`Asd2`/`Asd3` on `CAbilitySelfDestruct` with
+`AB_SPELL | AB_AUTOCAST` and `SPELL_TARGET_POINT`. Do not register abstract
+`AAat`.
 
 Command-card regression tests advance `globals.RunFrame` through a moving
 target, target death, slot reuse, Stop, and save/load during the approach. The

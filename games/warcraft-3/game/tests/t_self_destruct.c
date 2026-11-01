@@ -241,18 +241,20 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     sd_done(fix);
 }
 
-/* Right-click autocast toggles on the Asds row; Clockwerk classname rows stay passive. */
+/* Kaboom is a clickable autocast command on both Sappers and Clockwerk Goblins. */
 TEST(wc3_spell, self_destruct_asds_autocast_toggle) {
 	sdFix_t fix = sd_setup(BZ_ASDS);
-	ability_t const *asdg = FindAbilityByClassname("Asdg");
+	static cstring_t const codes[] = { "Asds", "Asdg", "Asd2", "Asd3" };
 	T_ASSERT(G_SetUnitAutocast(fix.goblin, BZ_ASDS, true));
 	T_ASSERT(G_UnitAutocastIsOn(fix.goblin, BZ_ASDS));
 	T_ASSERT(G_SetUnitAutocast(fix.goblin, BZ_ASDS, false));
 	T_ASSERT(!G_UnitAutocastIsOn(fix.goblin, BZ_ASDS));
-	/* S_AbilityItem(Asdg) follows code=Asds; exact classname rows stay death-only. */
-	T_NOT_NULL(asdg);
-	T_ASSERT(!(asdg->flags & AB_SPELL));
-	T_ASSERT(asdg->flags & AB_PASSIVE);
+	FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) {
+		ability_t const *ability = FindAbilityByClassname(codes[i]);
+		T_NOT_NULL(ability);
+		T_ASSERT(ability->flags & AB_SPELL);
+		T_ASSERT(ability->flags & AB_AUTOCAST);
+	}
 	sd_done(fix);
 }
 
