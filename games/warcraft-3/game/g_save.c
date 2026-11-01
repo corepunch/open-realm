@@ -1062,6 +1062,7 @@ static field_t const unit_state_fields[] = {
     TF(unitState_t, permanent_health_bonus, F_FLOAT),
     TF(unitState_t, temporary_health_bonus, F_FLOAT),
     TF(unitState_t, temporary_mana_bonus, F_FLOAT),
+    TF(unitState_t, health_regen_bonus, F_FLOAT),
     TF(unitState_t, mana_regen_bonus, F_FLOAT),
     TF(unitState_t, proper_name, F_ANIMSTRING),
 

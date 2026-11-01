@@ -87,6 +87,7 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
 #define ID_UPGRADE_EFFECT_HIT_POINTS    MAKEFOURCC('r', 'h', 'p', 'x')
+#define ID_UPGRADE_EFFECT_HEALTH_REGEN  MAKEFOURCC('r', 'h', 'p', 'r')
 #define ID_UPGRADE_EFFECT_SPELL_LEVEL   MAKEFOURCC('r', 'l', 'e', 'v')
 #define ID_UPGRADE_EFFECT_MANA_REGEN    MAKEFOURCC('r', 'm', 'n', 'r') // fourcc; mana-regeneration upgrade effect
 
@@ -606,6 +607,10 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
                 G_ApplyPermanentMaxHealthBonus(unit, delta);
                 changed = true;
             }
+        } else if (effect == ID_UPGRADE_EFFECT_HEALTH_REGEN) {
+            unit->unit_state->health_regen_bonus += G_UpgradeEffectValue(upgrade, i, new_level) -
+                                                   G_UpgradeEffectValue(upgrade, i, old_level);
+            changed = true;
         } else if (effect == ID_UPGRADE_EFFECT_SPELL_LEVEL) {
             uint32_t const ability_id = upgrade->effectCode[i];
             /* Warsmash's rlev contract sets the affected ability to

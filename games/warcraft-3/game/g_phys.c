@@ -303,7 +303,8 @@ void G_RunEntity(edict_t *ent) {
         bool const natural = G_UnitRegeneratesHP(ent);
         if (natural)
             rate += ent->data.UnitBalance->healthRegen +
-                    (float)(ent->unit_state ? ent->unit_state->hero.str : 0) * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
+                    (float)(ent->unit_state ? ent->unit_state->hero.str : 0) * STR_REGEN_BONUS +
+                    S_UnholyHealthRegen(ent) + (ent->unit_state ? ent->unit_state->health_regen_bonus : 0.0f);
         if (rate != 0.0f) {
             G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
             /* Negative authored regen (Phoenix: -25 HP/sec) must be lethal;
