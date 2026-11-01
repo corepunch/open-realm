@@ -21,7 +21,7 @@ selected neutral item shop
 
 selected neutral unit shop
     -> resolve nearby Aneu-eligible patron for local player
-    -> build non-Hero unit buttons from Sellunits
+    -> build unit buttons from Sellunits, including Tavern Heroes
     -> validate stock/resources/food
     -> SP_SpawnAtLocationNoBirth(unit)
     -> find deterministic legal building exit
@@ -39,7 +39,7 @@ Pawn/sell-back reuses inventory drag target mode. Dropping a pawnable carried it
 | Behavior | Source |
 | --- | --- |
 | Item merchandise list | `UnitProfile.sellItems` (`Sellitems` / `usei`) and `UnitProfile.makeItems` (`Makeitems` / `umki`) |
-| Unit merchandise list | `UnitProfile.sellUnits` (`Sellunits` / `useu`), non-Hero units only |
+| Unit merchandise list | `UnitProfile.sellUnits` (`Sellunits` / `useu`), including Tavern Heroes |
 | Shop item-slot capacity | `SetAllItemTypeSlots` / `SetItemTypeSlots`, stored in `edict.stock.item_slots` |
 | Shop unit-slot capacity | `SetAllUnitTypeSlots` / `SetUnitTypeSlots`, stored in `edict.stock.unit_slots` |
 | Item gold/lumber price | `ItemData.goldcost`, `ItemData.lumbercost` |
@@ -94,9 +94,10 @@ Merchandise uses the unit profile's `Sellitems` and `Makeitems` lists, including
 
 Map-created item stock IDs inherit command-button art lookup from the item ID they were based on. The button command retains the map-created ID so JASS sale triggers can still distinguish the offered choice.
 
-A successful mercenary hire is immediate rather than a training queue. The new unit is created directly for the purchasing player
-without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units, then has food activated.
-Gold/lumber and shared stock are deducted only after spawn/placement succeeds. Failures leave resources and stock unchanged.
+A successful mercenary or Tavern Hero hire is immediate rather than a training queue. The new unit is created directly for the
+purchasing player without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units,
+then has food activated. Tavern Heroes receive normal level-one Hero progression. Gold/lumber and shared stock are deducted only after
+spawn/placement succeeds. Failures leave resources and stock unchanged. Hero hires do not increment mercenary-hired score.
 
 ## JASS Stock Overrides
 
@@ -130,7 +131,8 @@ is not inserted into the shop's authored merchandise or stock.
 - OpenRealm does not yet retain/select a patron with Aneu's explicit `neutralinteract` button or persistent selection indicator; it
   reacquires deterministically from range instead.
 - Walking an out-of-range Hero to the shop before pawning is not implemented; pawn targeting succeeds only when already in range.
-- Neutral Hero/Tavern sales are not implemented; Hero entries in `Sellunits` are deliberately excluded from the mercenary path.
+- Tavern Hero entries in `Sellunits` can be displayed and hired. Shared hero availability across separate Taverns and retail-specific
+  duplicate-hero restrictions still need validation.
 - Unit-sale trigger events (`EVENT_UNIT_SELL` / player-unit sale context) are not published yet.
 - Power-up/auto-use-on-acquire item semantics remain part of the broader item lifecycle and are not special-cased by the shop.
 - Item `Requires` / `DependencyOr` processing currently uses completed unit-type counts; other requirement categories and amount semantics need separate evidence before expanding the contract.
@@ -149,6 +151,7 @@ is not inserted into the shop's authored merchandise or stock.
 - map-local `war3map.w3t` ItemData stock overrides and custom-item inheritance;
 - non-inventory mercenary patron resolution;
 - immediate mercenary ownership, resource deduction, and food activation;
+- Tavern Hero stock inclusion, instant Hero spawn/progression, resource/food deduction, and exclusion from mercenary score;
 - unit `stockStart` / `stockRegen` / `stockMax` command availability;
 - runtime `AddUnitToStock` current/max overrides, replenishment, removal, and all-shop native registration;
 - map-local `war3map.w3u` UnitBalance stock overrides and custom-unit inheritance;

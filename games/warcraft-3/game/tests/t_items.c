@@ -2331,6 +2331,83 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 1);
 }
 
+TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"levels\"\n"
+        "C;Y2;X1;K\"Aneu\"\nC;Y2;X2;K\"Aneu\"\nC;Y2;X3;K450\nC;Y2;X4;K2\nC;Y2;X5;K1\nE\n";
+    static char const unit_balance_slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"goldcost\"\nC;Y1;X3;K\"lumbercost\"\n"
+        "C;Y1;X4;K\"fused\"\nC;Y1;X5;K\"stockMax\"\nC;Y1;X6;K\"stockRegen\"\n"
+        "C;Y1;X7;K\"stockStart\"\nC;Y1;X8;K\"realHP\"\nC;Y1;X9;K\"STR\"\n"
+        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K425\nC;Y2;X3;K100\nC;Y2;X4;K5\n"
+        "C;Y2;X5;K1\nC;Y2;X6;K0\nC;Y2;X7;K0\nC;Y2;X8;K500\nC;Y2;X9;K18\nE\n";
+    static char const unit_ui_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"modelScale\"\n"
+        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"Units\\Creeps\\PitLord\\PitLord.mdx\"\nC;Y2;X3;K1\nE\n";
+    static char const unit_data_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"targType\"\nC;Y1;X3;K\"movetp\"\n"
+        "C;Y2;X1;K\"Nalc\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\nE\n";
+    static UnitAbilities_t const tavern_abilities = { .abilList = "Aneu,Asud" };
+    static UnitProfile_t tavern_profile = { .sellUnits = "Nalc" };
+    uint32_t const hero_id = MAKEFOURCC('N','a','l','c');
+    edict_t *player, *patron, *tavern, *hired = NULL;
+    gameClient_t *client;
+    slkTestData_t *ability_rows, *balance_rows, *ui_rows, *data_rows;
+    slkTestData_t *old_ability, *old_balance, *old_ui, *old_data;
+
+    setup_test_world();
+    ability_rows = parse_slk_string(ability_slk);
+    balance_rows = parse_slk_string(unit_balance_slk);
+    ui_rows = parse_slk_string(unit_ui_slk);
+    data_rows = parse_slk_string(unit_data_slk);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+    patron = make_unit_shop_patron(100, 0, 0);
+    tavern = alloc_test_unit(MAKEFOURCC('n','t','a','v'), 0, 0);
+    tavern->data.UnitProfile = &tavern_profile;
+    tavern->data.UnitAbilities = &tavern_abilities;
+    tavern->s.player = PLAYER_NEUTRAL_PASSIVE;
+    tavern->collision = 32.0f;
+    tavern->spawn_time = G_Time();
+    G_SetStockSlots(tavern, false, 11);
+    gi.LinkEntity(tavern);
+    T_ASSERT(G_ShopSellsUnit(tavern, hero_id));
+    T_EQ(G_GetStock(tavern)->unit_count, 1);
+    T_EQ(G_GetStock(tavern)->units[0].current, 1);
+    T_ASSERT(G_ShopPurchaseUnit(player, tavern, hero_id));
+    FILTER_EDICTS(unit, unit->inuse && unit != tavern && unit != patron &&
+                  unit->class_id == hero_id && unit->s.player == 0) { hired = unit; break; }
+    T_NOT_NULL(hired);
+    if (hired) {
+        T_ASSERT(G_UnitIsHero(hired));
+        T_EQ(hired->unit_state->hero.level, 1);
+        T_EQ(hired->unit_state->hero.skillpoints, 1);
+    }
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 575);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 400);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 5);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 0);
+
+    G_SetSLKRows("UnitData", old_data); free_slk_rows(data_rows);
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
 TEST(wc3_items, map_custom_reward_stock_uses_base_item_art_in_shop_buttons) {
     static UnitAbilities_t const sell_items = { .abilList = "Asid", .heroAbilList = "" };
     static uint32_t const stock_ids[] = {
