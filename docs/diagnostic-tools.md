@@ -323,3 +323,13 @@ native speed improvement is claimed. Existing Ghidra/JDK prerequisites pass;
 no Codex registration or engine installation was needed for the portable query.
 The scoped assessment, commands and limits are preserved at
 `/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/rea-assessment.json`.
+
+The host launchers in `/GitHub/wc3-analysis` now default to Ghidra 12.2 and
+full Temurin JDK 25.0.5+8 under `/GitHub/re-tools`. They accept
+`GHIDRA_INSTALL_DIR` and `JAVA_HOME` overrides; the MCP launcher also accepts
+`GHIDRA_MCP_JAR` and loads one selected bridge JAR. The local
+[upgrade and rollback guide](/GitHub/wc3-analysis/GHIDRA_12_2_UPGRADE.md)
+records project backup, audit and analysis results. The optional `retail_tools`
+sandbox recipe pins the same Ghidra/JDK archives and verifies their SHA256
+checksums; its launcher uses the full JDK, including `javac`.
+
