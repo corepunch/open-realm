@@ -149,7 +149,7 @@ static queuedOrderResult_t instant_activate(edict_t *unit,unitOrder_t const *pac
 }
 BZ_ABILITY_PROC(CAbilityCoupleInstant) {
     switch(msg) {
-    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START,A_MOVE_LEAVE,A_UNIT_REMOVE_PREPARE,A_COMMAND_OWNER_LEAVE,A_UNIT_SUSPEND_PREPARE,A_ORDER_RESUME,A_UNIT_SUSPEND,A_DEATH,A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_ORDER_REPLACE_PREPARE,A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START,A_MOVE_LEAVE,A_UNIT_REMOVE_PREPARE,A_COMMAND_OWNER_LEAVE,A_UNIT_SUSPEND_PREPARE,A_ORDER_RESUME,A_UNIT_SUSPEND,A_DEATH,A_UNIT_REMOVING,A_UNIT_REMOVE);
     case A_COMMAND: {
         if(!call || !call->client)return false;
         edict_t *unit=G_GetMainSelectedUnit(call->client->client);
@@ -169,6 +169,18 @@ BZ_ABILITY_PROC(CAbilityCoupleInstant) {
         if(!call || !call->spell_command)return false;
         *call->spell_command=(spellCommandProfile_t){ent->couple_instant && ent->couple_instant->active ?
             ent->couple_instant->order_id : INSTANT_COUPLE_TARGET,SPELL_TARGET_UNIT};return true;
+    case A_ORDER_REPLACE_PREPARE: {
+        coupleInstant_t *state=ent->couple_instant;
+        /* 4ef810 still releases the old approach, but v348 exempts an
+         * incoming coupletarget packet from the peer inverse. The wait
+         * owner's separate 4cc890 inverse has no such exemption. */
+        if(state && state->active && !state->waiting && call && call->queued_order &&
+           call->queued_order->order_id==INSTANT_COUPLE_TARGET) {
+            state->active=false;
+            state->linked=false;
+        }
+        return false;
+    }
     case A_COMMAND_OWNER_LEAVE:instant_cancel(ent);return false;
     case A_MOVE_LEAVE:
         if(call && call->next_move_proc!=CAbilityCoupleInstant)instant_cancel(ent);

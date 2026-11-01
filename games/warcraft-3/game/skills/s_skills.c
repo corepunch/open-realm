@@ -1543,7 +1543,7 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
         unit_dispatch_engine_event_abilities(ent,msg,payload);
         S_AcquireScriptedAbilityDisables(ent);return true;
     }
-    if (msg == A_UNIT_REMOVE_PREPARE || msg == A_COMMAND_OWNER_LEAVE || msg == A_UNIT_SUSPEND_PREPARE || msg == A_ORDER_RESUME)
+    if (msg == A_ORDER_REPLACE_PREPARE || msg == A_UNIT_REMOVE_PREPARE || msg == A_COMMAND_OWNER_LEAVE || msg == A_UNIT_SUSPEND_PREPARE || msg == A_ORDER_RESUME)
         return unit_dispatch_approach_command(ent,msg,payload);
     if (msg == A_REQUIREMENTS_CHANGED)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;

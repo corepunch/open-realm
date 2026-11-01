@@ -1220,6 +1220,7 @@ typedef enum {
     A_COMMAND_OWNER_LEAVE, /* Opt-in logical command inverse before replacement publication. */
     A_UNIT_SUSPEND_PREPARE, /* Logical owner inverse before suspension head publication. */
     A_SPELL_TARGET_COMPLETE, /* Opt-in owner consumes target approach completion before generic stand/commit. */
+    A_ORDER_REPLACE_PREPARE, /* Opt-in current owner sees incoming packet before physical release. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 

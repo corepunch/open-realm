@@ -369,3 +369,26 @@ No full trajectory, arbitrary alias configuration, universal tie ordering or
 unmeasured callback mutation parity is claimed. TARGET-01.2 remains open with
 25 leaves; this implementation does not close the broader producer inventory or
 complete firing-poll requirement.
+
+### Explicit target reissue: approach and wait inverses
+
+Original `4ef810` releases an old approach but exempts an incoming
+`coupletarget` (852507), obtained through getter `4ee9c0`, from the peer inverse.
+`coupleinstant` (852508), Move and Stop have no such ordinary exemption. The
+waiting owner's separate `4cc890` cleanup still cancels its peer. The game sends
+the admitted replacement packet through an opt-in owner notification before
+physical cleanup; Acoi releases its approaching logical owner without stopping
+the peer only for 852507. Save226 needs no additional field.
+
+The bounded original-byte harness in `coupling-instant206-reissue/` under the
+TARGET-01.2 runtime passes ten controls, including real order getters, stack,
+SEH and reference-count checks. Its resolver, class service, common cleanup and
+peer inverse are controlled stubs; it does not prove a complete reissue timeline.
+`wait-phase-provenance.json` separately retains the original waiting cleanup and
+accepted lifecycle scene1/2 trace references. The explicit approach reissue
+first failed three assertions in each edition. Checkpoint207 passes the repaired
+case and immediate/waiting inverse controls together with the adjacent Couple,
+Entangle, dispatch, order, save and spell suites: 2036 tests across both editions.
+Source and tested binary hashes remain unchanged after execution. Reserved
+candidate preference and the wider TARGET-01.2 matrix remain open; corpus guard
+refresh and full-suite checks remain assigned to the next commit batch.

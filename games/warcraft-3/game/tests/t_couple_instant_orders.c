@@ -1078,4 +1078,99 @@ TEST(wc3_couple_instant_orders, merge_removes_applied_bloodlust_preserves_timed_
     CoupleInstantEnd(&f);
 }
 
+
+/* Original 6f4ef810 executes common approach cleanup but suppresses the peer
+ * inverse for a replacement COrder whose ID equals Acoi v348 (852507).
+ * This covers an approaching actor; the separate wait inverse has no exemption. */
+TEST(wc3_couple_instant_orders, explicit_reissue_keeps_approach_peer_owner) {
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
+    T_ASSERT(CoupleInstantCompile(
+        "globals\ninteger crStops=0\nendglobals\n"
+        "function crObserve takes nothing returns nothing\n"
+        "if GetIssuedOrderId()==851972 then\nset crStops=crStops+1\nendif\nendfunction\n"
+        "function crBegin takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(t,ciArcher,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerAddAction(t,function crObserve)\n"
+        "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"initial pair accepted\")\nendfunction\n"
+        "function crReissue takes nothing returns nothing\n"
+        "set crStops=0\n"
+        "call BJassAssert(IssueTargetOrder(ciHippo,\"coupletarget\",ciArcher),\"explicit approach replacement accepted\")\n"
+        "call SetUnitUserData(ciArcher,crStops)\nendfunction\n"));
+    CoupleInstantCall("crBegin");
+    FOR_LOOP(i,60)CoupleInstantStep();
+    T_NOT_NULL(f.archer->couple_instant);T_NOT_NULL(f.hippo->couple_instant);
+    T_ASSERT(f.archer->couple_instant->active && f.archer->couple_instant->waiting);
+    T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
+    T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
+    T_NOT_NULL(CoupleInstantGroup(f.hippo));
+    CoupleInstantCall("crReissue");
+    T_EQ(f.archer->user_data,0);
+    T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
+    T_ASSERT(f.archer->couple_instant->active && f.archer->couple_instant->waiting);
+    T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
+    T_NOT_NULL(CoupleInstantGroup(f.hippo));
+    CoupleInstantEnd(&f);
+}
+
+/* Integration positive control for the original4ef810 replacement predicate.
+ * 852508 is not exempt: require observable peer Stop, without assigning a
+ * whole-game native event sequence, exact count, or replacement outcome. */
+TEST(wc3_couple_instant_orders, immediate_reissue_keeps_approach_peer_inverse) {
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
+    T_ASSERT(CoupleInstantCompile(
+        "globals\ninteger cpPeerStops=0\nendglobals\n"
+        "function cpObserve takes nothing returns nothing\n"
+        "if GetTriggerUnit()==ciArcher and GetIssuedOrderId()==851972 then\n"
+        "set cpPeerStops=cpPeerStops+1\nendif\nendfunction\n"
+        "function cpBegin takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(t,ciArcher,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerAddAction(t,function cpObserve)\n"
+        "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"initial pair accepted\")\nendfunction\n"
+        "function cpReissue takes nothing returns nothing\n"
+        "set cpPeerStops=0\n"
+        "call BJassAssert(IssueImmediateOrder(ciHippo,\"coupleinstant\"),\"immediate approach replacement accepted\")\n"
+        "call SetUnitUserData(ciArcher,cpPeerStops)\nendfunction\n"));
+    CoupleInstantCall("cpBegin");
+    FOR_LOOP(i,60)CoupleInstantStep();
+    T_NOT_NULL(f.archer->couple_instant);T_NOT_NULL(f.hippo->couple_instant);
+    T_ASSERT(f.archer->couple_instant->active && f.archer->couple_instant->waiting);
+    T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
+    T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
+    T_NOT_NULL(CoupleInstantGroup(f.hippo));
+    CoupleInstantCall("cpReissue");
+    T_ASSERT(f.archer->user_data > 0);
+    CoupleInstantEnd(&f);
+}
+
+
+/* The waiting source first runs 4cc890, which has no replacement-ID check;
+ * its peer inverse is not undone by the later 4ef810 approach exemption. */
+TEST(wc3_couple_instant_orders, explicit_wait_reissue_keeps_peer_inverse) {
+    coupleInstantFixture_t f;CoupleInstantBegin(&f,704,false);
+    T_ASSERT(CoupleInstantCompile(
+        "globals\ninteger cwPeerStops=0\nendglobals\n"
+        "function cwObserve takes nothing returns nothing\n"
+        "if GetTriggerUnit()==ciHippo and GetIssuedOrderId()==851972 then\n"
+        "set cwPeerStops=cwPeerStops+1\nendif\nendfunction\n"
+        "function cwBegin takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(t,ciHippo,EVENT_UNIT_ISSUED_ORDER)\n"
+        "call TriggerAddAction(t,function cwObserve)\n"
+        "call BJassAssert(IssueImmediateOrder(ciArcher,\"coupleinstant\"),\"initial pair accepted\")\nendfunction\n"
+        "function cwReissue takes nothing returns nothing\n"
+        "set cwPeerStops=0\n"
+        "call BJassAssert(IssueTargetOrder(ciArcher,\"coupletarget\",ciHippo),\"explicit wait replacement accepted\")\n"
+        "call SetUnitUserData(ciHippo,cwPeerStops)\nendfunction\n"));
+    CoupleInstantCall("cwBegin");
+    FOR_LOOP(i,60)CoupleInstantStep();
+    T_NOT_NULL(f.archer->couple_instant);T_NOT_NULL(f.hippo->couple_instant);
+    T_ASSERT(f.archer->couple_instant->active && f.archer->couple_instant->waiting);
+    T_ASSERT(f.hippo->couple_instant->active && !f.hippo->couple_instant->waiting);
+    T_EQ(f.archer->current_order_id,852508);T_EQ(f.hippo->current_order_id,852507);
+    T_NOT_NULL(CoupleInstantGroup(f.hippo));
+    CoupleInstantCall("cwReissue");
+    T_ASSERT(f.hippo->user_data>0);
+    CoupleInstantEnd(&f);
+}
+
 #endif
