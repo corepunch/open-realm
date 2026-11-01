@@ -328,8 +328,9 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     art = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNART) : NULL, toggle_on);
-    /* Rally is an engine command whose stock button art is race-specific. */
-    if (!research && !strcmp(code, STR_CmdRally)) art = G_RallyCommandArt(ent);
+    /* CommonAbilityFunc authors Rally art as a comma-separated race list. Resolve
+     * it to one icon for every command-card path before handing it to the client. */
+    if (!strcmp(code, STR_CmdRally)) art = G_RallyCommandArt(ent);
     buttonpos = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNBUTTONPOS) : NULL, toggle_on);
@@ -705,6 +706,7 @@ static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *butto
 
 static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *buttons,
                                          uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const demolish = MAKEFOURCC('A','N','d','e');
     static uint32_t const feedback[] = { MAKEFOURCC('A','f','b','k') };
     static uint32_t const critical_strike[] = {
         MAKEFOURCC('A','C','c','t'), /* Critical Strike (creep) */
@@ -758,6 +760,7 @@ static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *butt
         MAKEFOURCC('A','d','t','g'), MAKEFOURCC('A','t','r','u'));
     FOR_LOOP(i, sizeof(spell_immunity) / sizeof(spell_immunity[0]))
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, spell_immunity[i], spell_immunity[i]);
+    G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, demolish, demolish);
 }
 
 /* Unit morph commands are available only on their authored source form. Some
