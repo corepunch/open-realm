@@ -22415,6 +22415,11 @@ inside/outside/inside and FLT_MAX/333/FLT_MAX publication at the cast boundary.
 The 54 focused evidence checks keep native observations separate from engine
 parity. A separate lifecycle corpus adds 8,706 public records and 31 focused
 checks for role-specific interruption, pause/resume and ability removal. The
-current engine Acoi handler remains a stub; callback interleavings and saved
-continuation remain open. See [Couple Instant details](hippogryph-couple.md#couple-instant-native-producer).
+engine Acoi handler was still a stub at that evidence checkpoint. Commit
+`ab64fbe51` subsequently integrates its approach/wait owner, role-specific
+inverse, callback guards and Save226 continuation. Integrated checkpoint205
+passes 2,030 focused tests and 284,102 assertions across RoC/TFT. Same-coupling
+replacement and reserved-candidate preference still require their own bounded
+native witnesses; this result does not complete the producer/firing-poll matrix.
+See [Couple Instant details](hippogryph-couple.md#couple-instant-native-producer).
 No whole leaf closes; TARGET-01.2 remains active with 25 open leaves.
