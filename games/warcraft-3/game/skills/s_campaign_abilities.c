@@ -491,10 +491,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
         if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellDuration(spell->code, level, false));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
-    S_SpellDamage(st.entity, caster, (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
-    if (!M_IsDead(st.entity)) S_SpellApplyStun(st.entity, S_SpellResistantDuration(spell->code, level, st.entity));
+    S_StormBoltCampaignLaunch(caster, st, spell);
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }

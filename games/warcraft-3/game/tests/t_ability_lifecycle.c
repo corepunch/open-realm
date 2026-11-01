@@ -1607,6 +1607,53 @@ TEST(wc3_ability_lifecycle, avatar_blocks_storm_bolt_stun_at_impact) {
     T_ASSERT(cast); T_NOT_NULL(missile); T_FEQ(hp, 1000, .001f); T_EQ(stun, 0);
 }
 
+TEST(wc3_ability_lifecycle, rexxar_storm_bolt_launches_authored_missile_before_damage_and_stun) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Rng1\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"levels\"\n"
+        "C;Y2;X1;K\"ANsb\"\nC;Y2;X2;K\"ANsb\"\nC;Y2;X3;K\"ground,enemy\"\n"
+        "C;Y2;X4;K\"800\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"1.5\"\n"
+        "C;Y2;X7;K\"100\"\nC;Y2;X8;K\"Bstu\"\nC;Y2;X9;K1\nE\n";
+    static char const effect_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Missileart\"\n"
+        "C;Y2;X1;K\"ANsb\"\nC;Y2;X2;K\"ANsb\"\n"
+        "C;Y2;X3;K\"TestUI\\Models\\StormBoltMissile.mdx\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "ANsb" };
+    uint32_t const storm_bolt = MAKEFOURCC('A','N','s','b');
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
+    slkTestData_t *effect_rows = parse_slk_string(effect_slk);
+    slkTestData_t *old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    slkTestData_t *old_effect = G_SetSLKRows("AbilityBuffData", effect_rows);
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100), *missile = NULL;
+    float health_before = enemy->health.value;
+
+    caster->data.UnitAbilities = &abilities;
+    gi.ModelIndex = review_capture_model;
+    blizzard_effect_model[0] = '\0';
+    T_ASSERT(S_CastUnitTargetSpell(caster, storm_bolt, enemy));
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == storm_bolt &&
+                  ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile) {
+        T_EQ(missile->goalentity, enemy);
+        T_EQ(missile->s.model, 77);
+        T_STREQ(blizzard_effect_model, "TestUI\\Models\\StormBoltMissile.mdx");
+        T_FEQ(enemy->health.value, health_before, 0.001f);
+        T_EQ(G_UnitStatusLevel(enemy, FS_SLKKey("Bstu")), 0);
+        missile->currentmove->endfunc(missile);
+        T_FEQ(enemy->health.value, health_before - 100.0f, 0.001f);
+        T_EQ(G_UnitStatusLevel(enemy, FS_SLKKey("Bstu")), 1);
+    }
+
+    gi.ModelIndex = old_model_index;
+    G_SetSLKRows("AbilityBuffData", old_effect); free_slk_rows(effect_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
 /* Resurrection's stock tooltip promises ordinary friendly corpses, not exclusively Heroes. */
 TEST(wc3_ability_lifecycle, resurrection_revives_friendly_footman) {
     edict_t *caster = review_setup(), *ally = review_unit(0, 100);

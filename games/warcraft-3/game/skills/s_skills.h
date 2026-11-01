@@ -318,6 +318,7 @@ BZ_ABILITY_PROC(CAbilitySummonMisha);
 BZ_ABILITY_PROC(CAbilityStampedeCampaign);
 BZ_ABILITY_PROC(CAbilityBattleRoar);
 BZ_ABILITY_PROC(CAbilityStormBoltCampaign);
+void S_StormBoltCampaignLaunch(edict_t *, spellTarget_t, abilityitem_t const *);
 BZ_ABILITY_PROC(CAbilityBreathOfFireCampaign);
 BZ_ABILITY_PROC(CAbilityDrunkenHazeCampaign);
 BZ_ABILITY_PROC(CAbilityStormEarthFire);

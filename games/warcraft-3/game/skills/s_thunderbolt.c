@@ -11,7 +11,9 @@ static void thunderbolt_projectile_hit(edict_t *missile);
 
 static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityThunderBolt };
 static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityFireBolt };
+static umove_t stormbolt_campaign_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityStormBoltCampaign };
 static umove_t spell_cast_move = { "spell", ai_idle, NULL, CAbilityThunderBolt };
+static umove_t stormbolt_campaign_cast_move = { "spell", ai_idle, NULL, CAbilityStormBoltCampaign };
 
 static float bolt_missile_speed(uint32_t code) {
     float speed = code == ID_FIRE_BOLT ? firebolt_missile_speed : thunderbolt_missile_speed;
@@ -49,6 +51,27 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     missile = S_SpawnUnitTargetSpellMissile(caster, code, target, speed, move);
     if (!missile) return;
     missile->damage = (uint32_t)S_SpellData(code, level, 1);
+    missile->wait = duration;
+}
+
+void S_StormBoltCampaignLaunch(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t *target = st.entity;
+    uint32_t level;
+    edict_t *missile;
+    float duration, speed;
+    char classname[5] = { 0 };
+
+    if (!caster || !spell || !target || !S_SpellIsAliveTarget(target)) return;
+    level = S_SpellLevel(caster, spell->code);
+    duration = S_SpellResistantDuration(spell->code, level, target);
+    S_SpellCodeString(spell->code, classname);
+    speed = ConfigNumber(classname, "Missilespeed");
+    if (speed <= 0.0f) speed = 1000.0f; // units per second; standard bolt fallback when the ability has no authored speed
+    unit_setmove(caster, &stormbolt_campaign_cast_move);
+    missile = S_SpawnUnitTargetSpellMissile(caster, spell->code, target, speed,
+                                            &stormbolt_campaign_projectile_move);
+    if (!missile) return;
+    missile->damage = (uint32_t)S_SpellData(spell->code, level, 1);
     missile->wait = duration;
 }
 

@@ -475,7 +475,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
 bool S_SpellShieldImpactDeferred(uint32_t code) {
     ability_t const *ability = S_SpellAbilityForCode(code);
     return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt ||
-                       ability->proc == CAbilityDeathCoil);
+                       ability->proc == CAbilityStormBoltCampaign || ability->proc == CAbilityDeathCoil);
 }
 
 /* The authored targs mask without the unit-target visibility rule: area effects reach
