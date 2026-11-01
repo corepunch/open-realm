@@ -3727,7 +3727,7 @@ TEST(wc3_api, tint_datagram_reserves_pending_blight_mask_before_staging) {
     T_ASSERT(size >= offset + sizeof(terrainMaskChunk_t));
 }
 
-TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
+TEST(wc3_api, owner_ghost_and_spirit_walker_get_presentation_alpha) {
     uint8_t data[128];
     edict_t *client_ent, *unit;
     uint32_t size, offset;
@@ -3759,6 +3759,29 @@ TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
     T_EQ(size, sizeof(header) + sizeof(count) + sizeof(number) + sizeof(color));
 
     unit->runtime.flags &= ~UNIT_BALANCE_GHOST_INVISIBLE;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    memcpy(&count, data + sizeof(header), sizeof(count));
+    T_EQ(count, 0u);
+    T_EQ(size, sizeof(header) + sizeof(count));
+
+    /* Spirit Walkers are intrinsically Ethereal by unit type, so they retain
+     * Banish's half-alpha presentation without a timed BHbn status. */
+    unit->class_id = MAKEFOURCC('o','s','p','m');
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1u);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color));
+    T_EQ(number, (uint16_t)unit->s.number);
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_EQ(color.a, 128);
+
+    unit->class_id = MAKEFOURCC('o','s','p','w');
     size = G_WriteClientDatagram(client_ent, data, sizeof(data));
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
