@@ -320,7 +320,7 @@ static bool brewmaster_split_start(edict_t *hero, uint32_t code) {
         vec2_t point = { origin.x + cosf(angle) * 96.0f,
                          origin.y + sinf(angle) * 96.0f };
         SP_FindEmptySpaceAround(hero, ids[i], &point, &angle);
-        spawned[i] = S_SummonAbilityAt(hero, code, ids[i], &point, 0.0f);
+        spawned[i] = S_SummonAbilityAt(hero, code, ids[i], &point, duration);
         if (!spawned[i]) {
             FOR_LOOP(j, i) if (spawned[j] && spawned[j]->inuse) G_FreeEdict(spawned[j]);
             G_FreeEdict(controller);

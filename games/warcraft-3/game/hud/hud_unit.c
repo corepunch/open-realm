@@ -730,6 +730,7 @@ static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *butt
         MAKEFOURCC('A','C','c','t'), /* Critical Strike (creep) */
         MAKEFOURCC('A','O','c','r')  /* Critical Strike */
     };
+    static uint32_t const pulverize[] = { MAKEFOURCC('A','C','p','v') }; /* Pulverize (Sea Giant) */
     static uint32_t const liquid_fire[] = { MAKEFOURCC('A','l','i','q') };
     static uint32_t const slow_poison[] = { MAKEFOURCC('A','s','p','o') };
     static uint32_t const spiked_shell[] = {
@@ -760,6 +761,8 @@ static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *butt
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, feedback[i], feedback[i]);
     FOR_LOOP(i, sizeof(critical_strike) / sizeof(critical_strike[0]))
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, critical_strike[i], critical_strike[i]);
+    FOR_LOOP(i, sizeof(pulverize) / sizeof(pulverize[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, pulverize[i], pulverize[i]);
     FOR_LOOP(i, sizeof(liquid_fire) / sizeof(liquid_fire[0]))
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, liquid_fire[i], liquid_fire[i]);
     FOR_LOOP(i, sizeof(slow_poison) / sizeof(slow_poison[0]))
@@ -1045,6 +1048,13 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
      * disabled command while Mark of the Claw is available but unresearched. */
     if (ent->class_id == MAKEFOURCC('e','d','c','m'))
         G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Aroa");
+    /* The retail Storm elemental (npn2) has Dispel Magic (Adsm). Some
+     * map/object-data combinations omit the creep ability from the resolved
+     * UnitAbilities row even though the spawned Storm still uses the stock
+     * unit class. Keep its command available from the unit's canonical row;
+     * the ability helper handles availability and duplicate buttons. */
+    if (ent->class_id == MAKEFOURCC('n','p','n','2'))
+        G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Adsm");
     G_AddBurningOilIndicator(ent, buttons, max_buttons, &count);
     FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
         char abil[5] = {0};

@@ -1,5 +1,6 @@
 #ifdef BZ_TESTS
 #include "shared/test.h"
+#include "../g_local.h"
 #include "../skills/s_skills.h"
 
 edict_t *alloc_test_unit(uint32_t, float, float);
@@ -123,6 +124,54 @@ TEST(wc3_brewmaster, breath_of_fire_cone_ignites_haze_and_limits_initial_damage)
     }
     G_TestPopAbilityConfig();
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_brewmaster, storm_elemental_command_card_includes_dispel_magic) {
+    static cstring_t const ability_config =
+        "[Adsm]\nArt=ReplaceableTextures\\CommandButtons\\BTNDispelMagic.blp\n"
+        "Buttonpos=0,2\nTip=Dispel Magic\n";
+    gameCommandButton_t buttons[16];
+    edict_t *storm;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities(); setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    /* Exercise the Storm class command-card fallback used when map data has
+     * not attached the stock Adsm row to the spawned unit instance. */
+    storm = alloc_test_unit(MAKEFOURCC('n','p','n','2'), 0, 0);
+    count = G_GetCommandButtons(storm, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Adsm")) {
+        found = true;
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\CommandButtons\\BTNDispelMagic.blp");
+    }
+    T_ASSERT(found);
+    G_TestPopAbilityConfig();
+}
+
+TEST(wc3_brewmaster, earth_elemental_command_card_shows_pulverize_indicator) {
+    static UnitAbilities_t const earth_abilities = { .abilList = "ACpv" };
+    static cstring_t const ability_config =
+        "[ACpv]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNSeaGiantPulverize.blp\n"
+        "Buttonpos=0,2\nTip=Pulverize\n";
+    gameCommandButton_t buttons[16];
+    edict_t *earth;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities(); setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    earth = alloc_test_unit(MAKEFOURCC('n','p','n','3'), 0, 0);
+    earth->data.UnitAbilities = (UnitAbilities_t *)&earth_abilities;
+    count = G_GetCommandButtons(earth, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "ACpv")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_ASSERT(buttons[i].indicator);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNSeaGiantPulverize.blp");
+    }
+    T_ASSERT(found);
+    G_TestPopAbilityConfig();
 }
 
 TEST(wc3_brewmaster, ultimate_returns_same_hero_if_one_elemental_survives) {
