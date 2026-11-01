@@ -18,6 +18,9 @@ Ignition is owned by a dispellable `BNbf` status and a saveable one-second
 thinker keyed to the status instance. New applications replace the previous
 status: its old thinker retires without applying extra damage. Dispel, target
 death and expiration stop damage. `BNbf` target art is owned by the status.
+`ANbf`'s authored `BreathOfFireMissile.mdl` travels toward the selected point as
+presentation only; the cone damage still resolves through the gameplay path.
+The persistent `BreathOfFireDamage.mdl` target effect appears on ignited units.
 
 Drunken Haze (`ANdh`, `Acdh`) launches the authored homing bottle and samples
 its `Area` at impact. The resulting `BNdh` status owns its duration, target art,

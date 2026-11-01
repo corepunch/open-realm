@@ -11,6 +11,58 @@ static uint32_t brewmaster_haze_ability(heroabilitystatus_t const *status) {
     return status && status->source_ability ? status->source_ability : MAKEFOURCC('A','N','d','h');
 }
 
+static umove_t brewmaster_breath_move = {
+    .animation = "Stand",
+    .endfunc = G_FreeEdict
+};
+
+/* Breath of Fire damage resolves over the cone immediately; this point missile
+ * is its independent, authored flame presentation. */
+static void brewmaster_breath_projectile(edict_t *caster, uint32_t code, vec2_t const *point) {
+    cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
+    cstring_t speed_text = S_SpellString(code, "Missilespeed", 0);
+    uint32_t const base_code = G_AbilityCode(code);
+    float speed = speed_text ? (float)atof(speed_text) : 0.0f;
+    vec2_t offset, direction;
+    float horizontal_distance, spatial_distance;
+    vec3_t endpoint;
+    edict_t *missile;
+    channel_t *flight;
+
+    if (!caster || !point || !art || !*art) return;
+    if ((!isfinite(speed) || speed <= 0.0f) && base_code != code) {
+        speed_text = S_SpellString(base_code, "Missilespeed", 0);
+        speed = speed_text ? (float)atof(speed_text) : 0.0f;
+    }
+    if (!isfinite(speed) || speed <= 0.0f) return;
+    offset = Vector2_sub(point, &caster->s.origin2);
+    horizontal_distance = Vector2_len(&offset);
+    if (horizontal_distance <= 0.001f) return;
+    direction = Vector2_scale(&offset, 1.0f / horizontal_distance);
+    missile = G_Spawn();
+    if (!missile) return;
+    missile->class_id = code;
+    missile->owner = caster;
+    missile->s.player = caster->s.player;
+    missile->s.origin = caster->s.origin;
+    missile->s.origin2 = caster->s.origin2;
+    missile->s.angle = atan2f(direction.y, direction.x);
+    missile->s.model = G_RegisterModel(art);
+    if (!missile->s.model) { G_FreeEdict(missile); return; }
+    G_InheritUnitTeamColor(missile, caster);
+    flight = G_AddChannel(missile);
+    if (!flight) { G_FreeEdict(missile); return; }
+    flight->owner_spawn_time = caster->spawn_time;
+    flight->origin = *point;
+    endpoint = MAKE(vec3_t, point->x, point->y, CM_GetHeightAtPoint(point->x, point->y));
+    spatial_distance = Vector3_distance(&missile->s.origin, &endpoint);
+    missile->velocity = speed / 1000.0f * spatial_distance / horizontal_distance;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->aiflags |= AI_PROJECTILE_FIXED_TARGET;
+    missile->currentmove = &brewmaster_breath_move;
+    G_StartProjectilePresentation(missile);
+}
+
 bool S_BrewmasterHazeMiss(edict_t const *victim) {
     heroabilitystatus_t const *status = unit_findstatus((edict_t *)victim, BREW_HAZE);
     uint32_t rank, code;
@@ -79,6 +131,7 @@ void S_BrewmasterBreathOfFire(edict_t *caster, vec2_t const *point, uint32_t cod
     float distance = Vector2_distance(point, &start);
     if (distance <= 0.001f) return;
     direction = Vector2_scale(&direction, 1.0f / distance);
+    brewmaster_breath_projectile(caster, code, point);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
     FILTER_EDICTS(victim, remaining >= 1.0f && victim != caster &&
                   S_SpellIsAliveTarget(victim) && S_SpellIsEnemy(caster, victim) &&

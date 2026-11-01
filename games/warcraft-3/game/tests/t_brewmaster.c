@@ -12,6 +12,10 @@ void free_slk_rows(slkTestData_t *);
 #define BREW_HAZE_CODE MAKEFOURCC('A','N','d','h')
 #define BREW_SPLIT_CODE MAKEFOURCC('A','N','e','f')
 
+static char const brewmaster_presentation_config[] =
+    "[ANbf]\nMissileArt=TestUI\\Models\\anim_projectile.mdx\nMissilespeed=1050\n"
+    "[BNbf]\nTargetArt=TestUI\\Models\\anim_pulse.mdx\n";
+
 /* Nonstock cone, damage budget and 100% Haze miss chance expose hardcoding.
  * The campaign row retains its own slow/miss values and casting rawcode. */
 static char const brewmaster_test_slk[] =
@@ -84,12 +88,40 @@ TEST(wc3_brewmaster, breath_of_fire_cone_ignites_haze_and_limits_initial_damage)
     T_FEQ(S_SpellData(BREW_FIRE_CODE, 1, 1), 40.0f, .001f);
     T_FEQ(S_SpellData(BREW_FIRE_CODE, 1, 3), 300.0f, .001f);
     float front_before = front->health.value, side_before = side->health.value, behind_before = behind->health.value;
+    T_ASSERT(G_TestPushAbilityConfig(brewmaster_presentation_config));
     S_BrewmasterBreathOfFire(caster, &aim, BREW_FIRE_CODE);
     T_FEQ(front->health.value, front_before - 40.0f, .001f);
     T_FEQ(side->health.value, side_before, .001f);
     T_FEQ(behind->health.value, behind_before, .001f);
     T_NOT_NULL(unit_findstatus(front, FS_SLKKey("BNbf")));
     T_NULL(unit_findstatus(side, FS_SLKKey("BNbf")));
+    {
+        int const missile_model = G_RegisterModel("TestUI\\Models\\anim_projectile.mdx");
+        int const fire_model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+        edict_t *missile = NULL;
+        bool fire_target = false;
+        FILTER_EDICTS(ent, ent->inuse && ent->class_id == BREW_FIRE_CODE &&
+                      ent->owner == caster && (ent->aiflags & AI_PROJECTILE_FIXED_TARGET)) {
+            missile = ent;
+            break;
+        }
+        T_NOT_NULL(missile);
+        if (missile) {
+            channel_t const *flight = G_GetChannel(missile);
+            T_EQ(missile->s.model, missile_model);
+            T_EQ(missile->movetype, MOVETYPE_FLYMISSILE);
+            T_ASSERT(missile->velocity > 0.0f);
+            T_NOT_NULL(flight);
+            if (flight) {
+                T_FEQ(flight->origin.x, aim.x, .001f);
+                T_FEQ(flight->origin.y, aim.y, .001f);
+            }
+        }
+        FILTER_EDICTS(effect, effect->inuse && effect->s.model == fire_model &&
+                      effect->goalentity == front) fire_target = true;
+        T_ASSERT(fire_target);
+    }
+    G_TestPopAbilityConfig();
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
