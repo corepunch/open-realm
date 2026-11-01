@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 
 typedef struct {
     edict_t *ent;
@@ -61,6 +62,7 @@ void G_FreeEdict(edict_t *ent) {
     cargo_t *hold = G_GetCargo(ent);
     mineOverlay_t *ovl = G_GetMineOverlay(ent);
     if (!ent) return;
+    S_LavaSpawnRelease(ent);
     S_DevourUnitExit(ent);
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);

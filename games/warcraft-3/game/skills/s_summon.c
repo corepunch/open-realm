@@ -1,5 +1,166 @@
 #include "s_skills.h"
 
+/* A separate, saveable controller owns each summoned Lava Spawn's successful-hit
+ * count, generation and pending split deadline. Idle controllers have no think
+ * callback: combat is event-driven, not an every-frame scan. The live entity
+ * pointers are validated with their saved incarnation IDs. */
+#define ID_LAVA_SPAWN MAKEFOURCC('A','N','l','m')
+#define ID_LAVA_CONTROLLER MAKEFOURCC('L','v','S','p')
+#define ID_TIMED_LIFE MAKEFOURCC('B','T','L','F')
+
+static edict_t *lava_controller(edict_t const *unit) {
+    if (!unit || !unit->inuse) return NULL;
+    FILTER_EDICTS(marker, marker->class_id == ID_LAVA_CONTROLLER &&
+                  marker->owner == unit && G_GetChannel(marker) &&
+                  G_GetChannel(marker)->owner_spawn_time == unit->spawn_time)
+        return marker;
+    return NULL;
+}
+
+static edict_t *lava_attach(edict_t *unit, edict_t *caster, uint32_t code, uint32_t rank, uint32_t generation) {
+    edict_t *marker;
+    channel_t *identity;
+    if (!unit || !caster) return NULL;
+    marker = G_Spawn();
+    if (!marker) return NULL;
+    marker->class_id = ID_LAVA_CONTROLLER;
+    marker->svflags |= SVF_NOCLIENT;
+    marker->owner = unit;
+    marker->goalentity = caster;
+    marker->resources = generation;
+    marker->variation = code; /* preserve the authored alias for custom maps */
+    marker->wait = (float)rank;
+    identity = G_AddChannel(marker);
+    if (!identity) { G_FreeEdict(marker); return NULL; }
+    identity->owner_spawn_time = unit->spawn_time;
+    identity->target_spawn_time = caster->spawn_time;
+    return marker;
+}
+
+static edict_t *lava_caster(edict_t const *marker) {
+    channel_t *identity = G_GetChannel((edict_t *)marker);
+    edict_t *caster = marker ? marker->goalentity : NULL;
+    return identity && caster && caster->inuse &&
+        caster->spawn_time == identity->target_spawn_time ? caster : NULL;
+}
+
+/* Extend the authoritative BTLF clock instead of creating a second expiry.
+ * Child's lifetime inherits the parent's remaining time plus DataE seconds. */
+static float lava_extend_timed_life(edict_t *unit, float bonus) {
+    heroabilitystatus_t *life = unit_findstatus(unit, ID_TIMED_LIFE);
+    uint32_t const now = G_Time();
+    uint32_t extension = (uint32_t)(MAX(0.0f, bonus) * 1000.0f);
+    uint32_t remaining;
+    if (!life || !life->timestamp || life->timestamp <= now) return 0.0f;
+    remaining = life->timestamp - now;
+    life->timestamp += extension;
+    life->duration_ms += extension;
+    return (remaining + extension) / 1000.0f;
+}
+
+void lava_spawn_split_think(edict_t *marker) {
+    edict_t *parent = marker ? marker->owner : NULL;
+    edict_t *caster = lava_caster(marker);
+    channel_t *identity = G_GetChannel(marker);
+    uint32_t rank, unit_id, max_generations, code;
+    float bonus, factor, life;
+    vec2_t loc;
+    float angle = 0.0f;
+    edict_t *child;
+    if (!parent || !parent->inuse || !identity ||
+        parent->spawn_time != identity->owner_spawn_time || M_IsDead(parent)) {
+        G_FreeEdict(marker);
+        return;
+    }
+    if (G_Time() < marker->freetime) return;
+    /* The original may remain summoned after its caster dies; it cannot
+     * generate a new child with a stale owner/player incarnation. */
+    if (!caster) { G_FreeEdict(marker); return; }
+    rank = (uint32_t)marker->wait;
+    code = marker->variation;
+    max_generations = (uint32_t)MAX(0.0f, S_SpellData(code, rank, 6));
+    if (marker->resources >= max_generations) { marker->think = NULL; return; }
+    unit_id = parent->class_id;
+    bonus = S_SpellData(code, rank, 5);
+    factor = MAX(0.0f, S_SpellData(code, rank, 4));
+    /* Collision-safe placement, preserving the ordinary summon events. */
+    loc = parent->s.origin2;
+    loc.x += MAX(32.0f, parent->collision + 24.0f);
+    if (!SP_FindEmptySpaceAround(parent, unit_id, &loc, &angle)) {
+        marker->freetime = G_Time() + 100;
+        return;
+    }
+    { heroabilitystatus_t const *clock = unit_findstatus(parent, ID_TIMED_LIFE);
+      if (!clock || !clock->timestamp || clock->timestamp <= G_Time()) {
+          G_FreeEdict(marker);
+          return;
+      }
+      life = (clock->timestamp - G_Time()) / 1000.0f + MAX(0.0f, bonus);
+    }
+    child = S_SummonAbilityAt(caster, code, unit_id, &loc, life);
+    if (child) {
+        (void)lava_extend_timed_life(parent, bonus);
+        cstring_t buff = S_SpellBuffId(code, rank);
+        /* DataD restores health, without reducing either unit's maximum HP. */
+        G_AddHealth(parent, MIN(parent->health.max_value - parent->health.value,
+                                parent->health.max_value * factor));
+        G_SetHealth(child, MIN(child->health.max_value, child->health.max_value * factor));
+        if (buff && strlen(buff) >= 4) unit_addstatus(child, buff, rank);
+        (void)lava_attach(child, caster, code, rank, marker->resources + 1);
+        G_SetUnitAnimation(child, "birth");
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_SPECIAL, 0, child, NULL, true);
+        marker->resources++;
+        marker->damage = 0;
+        marker->freetime = 0;
+        marker->think = NULL;
+        G_SetUnitAnimation(parent, "stand alternate");
+    } else {
+        /* A failed placement must not permanently lock replication. */
+        marker->freetime = G_Time() + 100;
+    }
+}
+
+void S_LavaSpawnRegister(edict_t *unit, edict_t *caster, uint32_t code, uint32_t rank) {
+    if (unit && code && G_AbilityCode(code) == ID_LAVA_SPAWN &&
+        !lava_controller(unit))
+        (void)lava_attach(unit, caster, code, rank, 0);
+}
+
+void S_LavaSpawnRelease(edict_t *unit) {
+    edict_t *marker;
+    if (!unit || !unit->summon_ability ||
+        G_AbilityCode(unit->summon_ability) != ID_LAVA_SPAWN) return;
+    marker = lava_controller(unit);
+    if (marker) G_FreeEdict(marker);
+}
+
+bool S_LavaSpawnIsSplitting(edict_t const *unit) {
+    edict_t *marker;
+    if (!unit || !unit->summon_ability ||
+        G_AbilityCode(unit->summon_ability) != ID_LAVA_SPAWN) return false;
+    marker = lava_controller(unit);
+    return marker && marker->think == lava_spawn_split_think;
+}
+
+void S_LavaSpawnAttackHit(edict_t *unit) {
+    edict_t *marker;
+    uint32_t threshold, generations, rank, code;
+    if (!unit || !unit->summon_ability || M_IsDead(unit) ||
+        G_AbilityCode(unit->summon_ability) != ID_LAVA_SPAWN) return;
+    marker = lava_controller(unit);
+    if (!marker || marker->think) return;
+    rank = (uint32_t)marker->wait;
+    code = marker->variation;
+    generations = (uint32_t)MAX(0.0f, S_SpellData(code, rank, 6));
+    if (marker->resources >= generations) return;
+    threshold = (uint32_t)MAX(1.0f, S_SpellData(code, rank, 3));
+    if (++marker->damage < threshold) return;
+    marker->freetime = G_Time() + (uint32_t)(MAX(0.0f,
+        S_SpellData(code, rank, 2)) * 1000.0f);
+    marker->think = lava_spawn_split_think;
+    G_SetUnitAnimation(unit, "morph");
+}
+
 /* Spirit/beast summons vanish in a magical burst when killed or expired.
  * Keep ordinary summoned units on their existing death path. */
 static bool summon_magical_death(uint32_t code) {
@@ -307,6 +468,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
          * authored status supplies the correct buff identity/presentation for
          * Water Elemental without creating a second expiry clock. */
         if (buff && strlen(buff) >= 4) unit_addstatus(summon, buff, level);
+        if (G_AbilityCode(spell->code) == ID_LAVA_SPAWN) S_LavaSpawnRegister(summon, caster, spell->code, level);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
     }
 }

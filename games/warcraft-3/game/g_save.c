@@ -166,7 +166,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 134 persists Locust target attack deadlines and return damage credit. */
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
-static uint32_t const save_version = 137;
+/* Version 138 registers the Lava Spawn split controller callback. */
+static uint32_t const save_version = 138;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -255,6 +256,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(stampede_beast_prethink),
     SAVE_CFUNCTION(stampede_blast_think),
     SAVE_CFUNCTION(tinker_rockets_think),
+    SAVE_CFUNCTION(lava_spawn_split_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

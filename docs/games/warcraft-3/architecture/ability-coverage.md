@@ -419,3 +419,5 @@ Beastmaster/Rexxar beast summons (`ANsg`, `ANsq`, `ANsw`, `Arsg`, `Arsq`) share 
 ### Crypt Lord Impale travelling-wave and lift stages
 
 `AUim` and `ACmp` use a saveable, time-swept line for one-hit damage and authored target masks. `BUim` now owns the timed stun and a separate victim component controls the `DataD` airborne visual offset without overwriting other flight heights; stun and landing expire independently. Patch 3 renders authored CasterArt, BUim hit art and progressive SpecialArt miss spikes through temporary MDX entities. Visual sample spacing is provisional. Patch 4 reads DataE/DataF for movement interruption and airborne damage/targetability, while blocking new targeted spells mid-lift. **Remaining:** retail spike spacing and edge-case airborne overlap/cast animation parity. See [Impale](../impale.md).
+
+Firelord (TFT): `ANlm` attack-driven split marker with DataB-F and BTLF extension; `ANia` mana-gated autocast; `ANvc` presentation-only rock missiles. See [Firelord](../firelord.md).

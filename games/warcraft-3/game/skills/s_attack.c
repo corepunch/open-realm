@@ -333,7 +333,7 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 }
 
 static bool can_attack(edict_t const *ent) {
-    if (S_UnitIsFreezingBreathFrozen(ent) || unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
+    if (S_LavaSpawnIsSplitting(ent) || S_UnitIsFreezingBreathFrozen(ent) || unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
         S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
@@ -345,7 +345,7 @@ static bool can_attack(edict_t const *ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
-    if (!attacker || S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
+    if (!attacker || S_LavaSpawnIsSplitting(attacker) || S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
         (S_ImpaleIsAirborne(target) && !S_ImpaleAirborneVulnerable(target)) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
@@ -638,6 +638,9 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
     T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level);
+    /* Lava Spawn counts confirmed landed attacks, not projectile launches,
+     * misses, evades or an attack that was prevented before damage. */
+    if (attacker->inuse && !M_IsDead(attacker)) S_LavaSpawnAttackHit(attacker);
     if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
         target->health.value < initial_health) {
         static uint32_t const ability = MAKEFOURCC('A','f','r','z');

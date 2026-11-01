@@ -1,5 +1,58 @@
 #include "s_skills.h"
 
+/* DataA is visual rock-ring count. Rock missiles never damage independently:
+ * the existing area wave owns all damage, stun and destructable interactions. */
+static void volcano_rock_impact(edict_t *rock) {
+    vec2_t const point = rock->s.origin2;
+    G_SpawnAbilityEffectAtPoint(rock->class_id, WC3_EFFECT_SPECIAL, 0, &point, true);
+    if (!G_StartProjectileDeathPresentation(rock)) G_FreeEdict(rock);
+}
+static umove_t volcano_rock_move = { "birth", NULL, volcano_rock_impact };
+
+static uint32_t volcano_visual_random(uint32_t *state) {
+    uint32_t x = *state ? *state : 0x6d2b79f5u;
+    x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+    return *state = x;
+}
+
+static void volcano_spawn_rock(edict_t *wave, edict_t *caster, uint32_t rank,
+                               uint32_t ring, uint32_t rings) {
+    uint32_t const effect_code = G_AbilityEffectCode(wave->class_id, rank);
+    cstring_t art = G_AbilityEffectArt(wave->class_id, WC3_EFFECT_MISSILE, 0);
+    cstring_t speed_text = S_SpellString(wave->class_id, "Missilespeed", 0);
+    float speed;
+    if ((!art || !*art) && effect_code) art = G_AbilityEffectArt(effect_code, WC3_EFFECT_MISSILE, 0);
+    if ((!speed_text || !*speed_text) && effect_code)
+        speed_text = S_SpellString(effect_code, "Missilespeed", 0);
+    speed = speed_text ? (float)atof(speed_text) : 0.0f;
+    float const a = (2.0f * (float)M_PI * (float)ring) / (float)rings +
+        (float)volcano_visual_random(&wave->variation) / (float)UINT32_MAX;
+    float const dist = wave->collision * (0.2f +
+        0.8f * (float)volcano_visual_random(&wave->variation) / (float)UINT32_MAX);
+    vec2_t const point = { wave->s.origin2.x + cosf(a) * dist,
+                           wave->s.origin2.y + sinf(a) * dist };
+    edict_t *rock;
+    channel_t *flight;
+    if (!caster || !art || !*art || speed <= 0.0f) return;
+    rock = S_SpellIdentityThinker(caster, wave->class_id, NULL);
+    if (!rock) return;
+    rock->s.model = G_RegisterModel(art);
+    if (!rock->s.model) { G_FreeEdict(rock); return; }
+    rock->s.player = caster->s.player;
+    rock->s.origin2 = wave->s.origin2;
+    rock->s.origin = (vec3_t){ wave->s.origin2.x, wave->s.origin2.y,
+        CM_GetHeightAtPoint(wave->s.origin2.x, wave->s.origin2.y) + 180.0f };
+    rock->s.angle = a;
+    G_InheritUnitTeamColor(rock, caster);
+    rock->velocity = speed / 1000.0f;
+    flight = G_GetChannel(rock);
+    flight->origin = point;
+    rock->aiflags |= AI_PROJECTILE_FIXED_TARGET;
+    rock->movetype = MOVETYPE_FLYMISSILE;
+    rock->currentmove = &volcano_rock_move;
+    G_StartProjectilePresentation(rock);
+}
+
 /* Living ground/structure units in the blast, including spell-immune (DAMAGE_TYPE_NORMAL). */
 static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || target == caster || !S_SpellIsAliveTarget(target)) return false;
@@ -24,6 +77,7 @@ static float volcano_wave_damage(edict_t *ent, float dist) {
 }
 
 static void volcano_finish(edict_t *ent) {
+    S_SpellEndAreaPresentation(ent);
     if (ent->goalentity && ent->goalentity->inuse) G_FreeEdict(ent->goalentity);
     ent->goalentity = NULL;
     S_SpellEndChannel(ent);
@@ -38,6 +92,10 @@ void volcano_think(edict_t *ent) {
     if (!S_SpellChannelActive(ent)) { volcano_finish(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     level = S_SpellLevel(caster, code);
+    { uint32_t const rings = (uint32_t)MAX(0.0f, S_SpellData(code, level, 1));
+      FOR_LOOP(i, MIN(rings, 32u)) volcano_spawn_rock(ent, caster, level, i, rings);
+      /* Visual missiles are deliberately independent of damage waves. */
+    }
     FILTER_EDICTS(target, volcano_hits(caster, target, ent->collision, &origin)) {
         float dmg = volcano_wave_damage(ent, Vector2_distance(&target->s.origin2, &origin));
         if (G_UnitIsStructure(target)) dmg *= factor;
@@ -75,6 +133,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityVolcano) {
         if (doodad) thinker->goalentity = doodad;
         else fprintf(stderr, "WC3 Volcano: failed to spawn UnitID %.4s\n", (cstring_t)&unit_id);
     }
+    thinker->variation = caster->spawn_time ^ (uint32_t)st.point.x ^
+                         ((uint32_t)st.point.y << 16);
+    (void)S_SpellBeginAreaPresentation(thinker, spell->code, level, &st.point);
     thinker->think = volcano_think;
     volcano_think(thinker); /* first wave immediately; stock 8*5s ends at 35s */
 }
