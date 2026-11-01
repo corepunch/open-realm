@@ -1673,6 +1673,7 @@ void Get_Commands_f(edict_t *ent) {
     uint8_t count;
 
     if (!ent || !ent->client) return;
+    G_UpdateShopPatronEffect(ent->client);
     G_UpdateRallyIndicator(ent->client);
     ent->client->commands_dirty = false;
     /* A command-card rebuild replaces server-owned build targeting. Clear the
