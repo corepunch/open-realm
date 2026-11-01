@@ -7864,6 +7864,49 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
     T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
 }
 
+TEST(wc3_building, build_preview_does_not_reveal_fog_before_construction_starts) {
+    vec2_t const worker_point = { -512.0f, -512.0f };
+    vec2_t const site_point = { 512.0f, 512.0f };
+    edict_t *worker, *preview, *building;
+
+    reset_entities();
+    setup_test_world();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), worker_point.x, worker_point.y);
+    worker->s.player = 0;
+    worker->svflags |= SVF_MONSTER;
+    worker->runtime.sight_radius.day = 96.0f;
+    worker->runtime.sight_radius.night = 96.0f;
+    preview = G_CreateBuildPreview(worker, MAKEFOURCC('h','b','a','r'), &site_point);
+    T_NOT_NULL(preview);
+    if (!preview) {
+        G_FowShutdown();
+        return;
+    }
+
+    G_FowUpdate();
+    T_FEQ(preview->runtime.sight_radius.day, 0.0f, 0.001f);
+    T_FEQ(preview->runtime.sight_radius.night, 0.0f, 0.001f);
+    T_ASSERT(!G_FowPointIsVisible(0, &site_point));
+
+    /* The real building edict appears only when construction begins and owns
+     * the normal building sight radius from this point onward. */
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), site_point.x, site_point.y);
+    building->s.player = 0;
+    building->runtime.sight_radius.day = 192.0f;
+    building->runtime.sight_radius.night = 192.0f;
+    T_ASSERT(G_StartHumanConstruction(worker, building));
+    G_FowUpdate();
+    T_ASSERT(G_FowPointIsVisible(0, &site_point));
+
+    G_FreeEdict(preview);
+    G_StopConstruction(building);
+    G_FowShutdown();
+}
+
 TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     cstring_t filename = Test_TempPath("wc3-save-queued-build.bin");
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
