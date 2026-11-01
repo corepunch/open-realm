@@ -485,7 +485,7 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
     float const armor_coefficient = game.constants.combatConstantsLoaded
                                   ? game.constants.defenseArmor
                                   : 0.06f;
-    float dmg = (float)base * mult;
+    float dmg = (float)base * S_TinkerDemolishMultiplier(attacker, target) * mult;
     /* Ethereal receivers reject physical attack damage, and amplify magic attacks.
      * Source: Blizzard Warcraft III spell basics (66% bonus). */
     if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) {

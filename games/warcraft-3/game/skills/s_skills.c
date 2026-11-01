@@ -410,10 +410,19 @@ static ability_t abilitylist[] = {
     { "ANs1", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 1) */
     { "ANs2", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 2) */
     { "ANs3", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 3) */
-    { "ANcs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Cluster Rockets */
+    { "ANcs", CAbilityClusterRockets, AB_SPELL, SPELL_TARGET_POINT },  /* Cluster Rockets */
+    { "ANc1", CAbilityClusterRockets, AB_SPELL, SPELL_TARGET_POINT },
+    { "ANc2", CAbilityClusterRockets, AB_SPELL, SPELL_TARGET_POINT },
+    { "ANc3", CAbilityClusterRockets, AB_SPELL, SPELL_TARGET_POINT },
     { "ANeg", CAbilityEngineeringUpgrade, AB_PASSIVE },  /* Engineering Upgrade */
-    { "ANrg", CAbilityMetamorphosis, AB_SPELL },  /* Robo-Goblin */
+    { "ANrg", CAbilityRoboGoblin, AB_SPELL },  /* Robo-Goblin */
+    { "ANg1", CAbilityRoboGoblin, AB_SPELL },
+    { "ANg2", CAbilityRoboGoblin, AB_SPELL },
+    { "ANg3", CAbilityRoboGoblin, AB_SPELL },
     { "ANde", CAbilityDemolish, AB_PASSIVE },  /* Demolish */
+    { "ANd1", CAbilityDemolish, AB_PASSIVE },
+    { "ANd2", CAbilityDemolish, AB_PASSIVE },
+    { "ANd3", CAbilityDemolish, AB_PASSIVE },
     { "ANfy", CAbilityFactory, AB_PASSIVE },  /* Factory */
     { "ANhs", CAbilityHealingSpray, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Healing Spray */
     { "ANcr", CAbilityMetamorphosis, AB_SPELL },  /* Chemical Rage */
