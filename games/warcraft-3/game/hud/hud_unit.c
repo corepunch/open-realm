@@ -513,6 +513,46 @@ static void G_ResolveProducerCommandButtonCollisions(edict_t *ent,
     }
 }
 
+/* Neutral-elemental ability data reuses button positions across abilities
+ * that are simultaneously present (Storm: Adsm/ANwk; Earth: ACpv/ANta). Keep
+ * each command reachable by moving only the later duplicate to a free cell,
+ * preferring the same bottom-row ability area. */
+static void G_ResolveBrewmasterButtonCollisions(edict_t *ent,
+                                                gameCommandButton_t *buttons,
+                                                uint8_t count) {
+    if (!ent || (ent->class_id != MAKEFOURCC('n','p','n','2') &&
+                 ent->class_id != MAKEFOURCC('n','p','n','3'))) return;
+
+    FOR_LOOP(i, count) {
+        bool collision = false;
+        FOR_LOOP(j, i) {
+            if (buttons[i].x == buttons[j].x && buttons[i].y == buttons[j].y) {
+                collision = true;
+                break;
+            }
+        }
+        if (!collision) continue;
+
+        bool placed = false;
+        for (int y = 2; y >= 0 && !placed; y--) {
+            FOR_LOOP(x, 4) {
+                bool occupied = false;
+                FOR_LOOP(j, count) {
+                    if (i != j && buttons[j].x == x && buttons[j].y == y) {
+                        occupied = true;
+                        break;
+                    }
+                }
+                if (occupied) continue;
+                buttons[i].x = (uint8_t)x;
+                buttons[i].y = (uint8_t)y;
+                placed = true;
+                break;
+            }
+        }
+    }
+}
+
 static bool G_IsImplementedAbility(cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
     return S_AbilityHasCommand(ability);
@@ -1198,6 +1238,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     }
 
     G_ResolveProducerCommandButtonCollisions(ent, buttons, count);
+    G_ResolveBrewmasterButtonCollisions(ent, buttons, count);
     if (S_ManaFlareActive(ent)) {
         FOR_LOOP(i, count) {
             /* Keep only the active Mana Flare toggle usable until Bmfl ends. */
