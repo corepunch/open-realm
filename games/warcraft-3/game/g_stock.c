@@ -685,6 +685,45 @@ static void G_StartUnitRestock(edict_t *shop, uint32_t index) {
         G_StartStockRestock(&wares->units[index], unit->stockRegen);
 }
 
+static bool G_ShopStockDeadlineReached(shopStockItem_t const *entries, uint32_t count,
+                                       uint32_t now) {
+    FOR_LOOP(i, count) {
+        if (entries[i].delay_end && now >= entries[i].delay_end) return true;
+    }
+    return false;
+}
+
+/* Stock is lazily advanced when a shop card is queried. While a shop is
+ * selected, also advance matured timers from the simulation loop and dirty
+ * that player's command card so the renewed count is sent without requiring
+ * a reselection or another click. */
+void G_UpdateSelectedShopStock(gameClient_t *client) {
+    edict_t *shop;
+    stock_t *wares;
+    uint32_t const now = G_Time();
+    bool changed = false;
+
+    if (!client) return;
+    shop = G_GetMainSelectedUnit(client);
+    if (G_CanUseItemShop(client, shop)) {
+        G_InitItemStock(shop);
+        wares = G_GetStock(shop);
+        if (wares && G_ShopStockDeadlineReached(wares->items, wares->item_count, now)) {
+            G_UpdateShopItemStock(shop);
+            changed = true;
+        }
+    }
+    if (G_CanUseUnitShop(client, shop)) {
+        G_InitUnitStock(shop);
+        wares = G_GetStock(shop);
+        if (wares && G_ShopStockDeadlineReached(wares->units, wares->unit_count, now)) {
+            FOR_LOOP(i, wares->unit_count) G_UpdateUnitStockEntry(shop, i);
+            changed = true;
+        }
+    }
+    if (changed) G_InvalidateCommands(client);
+}
+
 static int32_t G_FindUnitStockEntry(edict_t *shop, uint32_t unit_id) {
     stock_t *wares = G_GetStock(shop);
     if (!shop) return -1;
@@ -846,6 +885,7 @@ uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params) {
 
     FOR_LOOP(i, wares->unit_count) {
         char code[5] = {0};
+        char requirement_reason[128] = {0};
         gameCommandButton_t *button;
         UnitBalance_t const *unit;
         uint32_t now;
@@ -862,6 +902,10 @@ uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params) {
 
         if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
+        } else if (unit && (unit->strength > 0 || unit->agility > 0 || unit->intelligence > 0) &&
+                   !G_HeroRecruitmentAllowed(client, wares->units[i].id,
+                                             requirement_reason, sizeof(requirement_reason))) {
+            G_DisableShopButton(button, requirement_reason);
         } else if (wares->units[i].current <= 0) {
             G_DisableShopButton(button, "Out of stock.");
             if (wares->units[i].delay_end > wares->units[i].delay_start) {
@@ -1014,6 +1058,13 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     unit = G_UnitBalance(unit_id);
     ui = G_UnitUI(unit_id);
     if (!unit || unit->id != unit_id || !ui || !ui->modelFile || !*ui->modelFile) return false;
+    if ((unit->strength > 0 || unit->agility > 0 || unit->intelligence > 0)) {
+        char requirement_reason[128] = {0};
+        if (!G_HeroRecruitmentAllowed(client, unit_id, requirement_reason, sizeof(requirement_reason))) {
+            G_ShowCommandErrorText(clent, requirement_reason);
+            return false;
+        }
+    }
     if (wares->units[stock_index].current <= 0) {
         G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;

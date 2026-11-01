@@ -3877,6 +3877,7 @@ TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
 }
 
 TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
+    static char const requirement_names[] = "[hkee]\nName=Keep\n[hcas]\nName=Castle\n";
     static const char balance_slk[] =
         "C;Y1;X1;K\"unitBalanceID\"\n"
         "C;Y1;X2;K\"STR\"\n"
@@ -3894,7 +3895,7 @@ TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
         "C;Y2;X4;K\"hcas\"\n"
         "E\n";
     gameClient_t *client = &game.clients[0];
-    edict_t *producer, *hero1, *hero2, *keep, *castle;
+    edict_t *producer, *hero1, *hero2, *hero3, *keep, *castle;
     UnitProfile_t producer_profile = { .trains = "H001" };
     slkTestData_t *balance_rows = parse_slk_string(balance_slk);
     slkTestData_t *profile_rows = parse_slk_string(profile_slk);
@@ -3903,6 +3904,8 @@ TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
     uint32_t const hero = MAKEFOURCC('H','0','0','1');
     char reason[128];
 
+    T_ASSERT(G_TestPushAbilityConfig(requirement_names));
+
     producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     producer->data.UnitProfile = &producer_profile;
     producer->s.player = client->ps.number;
@@ -3910,18 +3913,23 @@ TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
 
     hero1 = alloc_test_unit(hero, 0, 0); hero1->s.player = client->ps.number;
     T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
-    T_STREQ(reason, "Requires hkee");
+    T_STREQ(reason, "Requires Keep");
 
     keep = alloc_test_unit(MAKEFOURCC('h','k','e','e'), 0, 0); keep->s.player = client->ps.number;
     T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
 
     hero2 = alloc_test_unit(hero, 0, 0); hero2->s.player = client->ps.number;
     T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
-    T_STREQ(reason, "Requires hcas");
+    T_STREQ(reason, "Requires Castle");
 
     castle = alloc_test_unit(MAKEFOURCC('h','c','a','s'), 0, 0); castle->s.player = client->ps.number;
     T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
 
+    hero3 = alloc_test_unit(hero, 0, 0); hero3->s.player = client->ps.number;
+    T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_STREQ(reason, "Maximum of 3 Heroes reached.");
+
+    G_TestPopAbilityConfig();
     G_SetProfileRows(old_profile); G_SetSLKRows("UnitBalance", old_balance);
     free_slk_rows(profile_rows); free_slk_rows(balance_rows);
 }
