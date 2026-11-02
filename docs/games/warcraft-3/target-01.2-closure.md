@@ -113,12 +113,25 @@ B01 and all 25 whole leaves remain open.
 from two observations and a fresh unhooked control. All four scenes prove actual
 Sleep/guard; three Wind Walk setups verify 4/0.75/0.25. The portable checker has
 eight negative controls. C uses only spell-code FourCC byte-order representation adaptation
-and currently emits 877/899 rows with 805 positional mismatches, first at row 8
-birth visibility; later Wind Walk/paused-Sleep head differences remain. Computing
+and currently emits 877/899 rows with 802 positional mismatches after 332, first at
+row 67 Wind Walk acceptance versus native EFFECT291 at tick 2; later Wind Walk/paused-Sleep head differences remain. Computing
 fog for all mapped, used, nonremoved participants has 40 focused assertions per edition
 (Human/Computer/Neutral/Rescuable, query non-composition and delivery flags), not
 full replay acceptance. Save247 is unchanged; no full-suite result or B01/whole-
 leaf closure is claimed.
+
+**Checkpoint332 bounded match:** [same-cell332v2 reference](../../../tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json) contains 148 identical public rows
+from two observations and a fresh control. Same-cell 1136/432 queries prove
+masked-before/visible-after CreateUnit, before the second birth. TFT C matches
+all 148 rows (7/7 assertions); the component check passes 13/13 per edition. Publication adds only the newborn's canonical
+sight kernel at its admitted position to completed coverage, not other poses or
+time owners. V1's unequal query positions are not causal same-cell evidence.
+Full331/B01 remain open, with Wind Walk phase profile next; all 25 whole leaves
+remain open and Save247 is unchanged.
+
+Focused332 checks pass 42 tests/428,372 assertions across both editions; all
+five gates pass 1,474 tests/7,096,974 assertions. Normal and saved299 retain
+exact 2,066 public/5,342 motion rows. No full332 suite is claimed yet.
 
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 

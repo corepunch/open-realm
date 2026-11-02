@@ -319,10 +319,30 @@ comparison uses only the declared spell-code FourCC byte-order representation ad
 as in 299; it does not adjust clocks, positions, flags or order.
 
 C331 remains red: the current all-participants run emits 877 of 899 expected rows
-with 805 positional mismatches, first differing at row 8 birth visibility. Later
+with 802 positional mismatches after 332, first differing at row 67: C reports
+Wind Walk acceptance where native reports EFFECT291 at the same tick 2. Later
 Wind Walk heads and paused-Sleep heads also differ. The small fog-owner change
 computes planes for every mapped, used, nonremoved participant rather than only
 connected clients; its 40 new assertions per edition cover Human, Computer, Neutral and
 Rescuable participants, query non-composition and delivery flags. That focused
 coverage does not establish full331 parity. Save247 is unchanged; no full suite
 or B01/whole-leaf closure is claimed.
+
+## Immediate birth visibility: checkpoint332
+
+The [same-cell332v2 reference](../../../tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json) checks the actual admitted source position 1136/432 before creation
+and immediately afterward, before a second unit is created. Both players' point
+queries change from masked (visible0/fogged0) to visible1; unit queries also
+report visible1. Two observations and a fresh unhooked control match all 148
+public rows. The [portable checker](../../../tools/ghidra/research/invisibility332_birth_check.py) preserves v1 separately: its before/after coordinates
+differ, so v1 alone did not prove same-cell publication.
+
+The engine now adds the newborn source's canonical sight kernel at its actual
+admitted point to completed visibility coverage. It does not recompose other
+units' poses or advance their time owners. The TFT C runner matches all 148 rows
+and passes 7/7 assertions; the focused component check passes 13/13 per edition. Full331 still fails as above; the next
+boundary is Wind Walk's phase profile. B01 and all 25 whole leaves remain open.
+
+Focused332 checks pass 42 tests/428,372 assertions across both editions; all
+five gates pass 1,474 tests/7,096,974 assertions. Normal and saved299 retain
+exact 2,066 public/5,342 motion rows. No full332 suite is claimed yet.

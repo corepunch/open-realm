@@ -349,6 +349,15 @@ discards zero fog samples, and that the fog sampler resolves to texture unit 2 f
 Mapped simulation participants own completed fog planes even without a network
 client. `G_FowUpdate` includes every used, nonremoved map participant, including
 Neutral and Rescuable controllers. The client connection flag still controls
-delivery; queries read completed planes and do not trigger composition. The331
-retail comparison still exposes a separate visibility difference immediately
-after unit creation; this change does not claim that birth boundary is fixed.
+delivery; queries read completed planes and do not trigger composition. Checkpoint332 separately fixes the captured birth boundary: source publication
+adds the canonical sight kernel at the admitted actual position to completed
+coverage. It does not advance other time owners or recompose other unit poses.
+
+The [same-cell332v2 reference](../../../tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json) preserves 148 identical rows from two observations and a fresh
+unhooked control: actual cell 1136/432 is masked before CreateUnit and visible
+immediately after, before caster creation; both unit and point queries agree.
+The TFT C runner matches all 148 rows with 7/7 assertions. The component check
+passes 13/13 per edition. The [portable checker](../../../tools/ghidra/research/invisibility332_birth_check.py) preserves
+the earlier 145-row v1 whose different pre/post coordinates alone were not causal
+same-cell evidence. This bounded match does not close the still-red331 mixed-
+owner replay or assert a broader global recomposition policy.

@@ -2410,6 +2410,9 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     G_PlayerScoreUnitTrained(unit); /* immediately entered play, not queued */
     G_BotUnitReady(unit);
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_AI, unit, NULL);
+    /* Public CreateUnit publishes the admitted location, not the requested
+     * point used by the earlier no-birth constructor. */
+    G_FowPublishUnitSight(unit);
     gi.FrameCheckpoint();
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_CHECKPOINT, unit, NULL);
     return unit;

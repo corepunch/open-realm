@@ -978,9 +978,24 @@ claimed. Prior full329 at `71126adb4` passed 9,476 tests/60,733,200 assertions.
 and a fresh unhooked control, actual Sleep/initial guard in all four scenes, and
 effective Wind Walk 4/0.75/0.25 in all three setups. Eight mutation controls pass.
 The C comparison adapts spell-code FourCC byte-order representation only, as in 299. It
-remains red: 877/899 rows, 805 positional mismatches, first at row 8 birth visibility;
+remains red: 877/899 rows, 802 positional mismatches after 332, first at row 67 Wind Walk
+acceptance versus native EFFECT291 at tick 2;
 later Wind Walk and paused-Sleep head differences remain open. The fog-owner
 change covers all mapped, used, nonremoved participants, with 40 focused assertions per edition
 including all four controller types, query non-composition and delivery flags.
 This is not full331 parity or a full-suite result. Save247, B01 and the 25 open
 whole leaves are unchanged.
+
+Checkpoint332 closes the isolated birth visibility mismatch: [same-cell332v2 reference](../../../tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json) retains
+148 identical rows across two observations and a fresh control; the same actual
+1136/432 cell is masked before CreateUnit and visible immediately after, before
+creating the caster. The TFT C comparison matches all 148 rows (7/7 assertions);
+the component check passes 13/13 per edition.
+Birth adds only the admitted source's canonical sight kernel to completed
+coverage, without recomposing other poses/time owners. V1's differing query
+coordinates remain a documented limit. Full331/B01 remain open; Wind Walk phase
+profile is next. Save247 is unchanged and no full-suite result is claimed.
+
+Focused332 checks pass 42 tests/428,372 assertions across both editions; all
+five gates pass 1,474 tests/7,096,974 assertions. Normal and saved299 retain
+exact 2,066 public/5,342 motion rows. No full332 suite is claimed yet.

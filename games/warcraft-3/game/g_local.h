@@ -3645,6 +3645,7 @@ void G_FowShutdown(void);
 void G_FowConnectPlayer(uint32_t player);
 bool G_FowPointIsVisible(uint32_t player, vec2_t const *point);
 void G_FowUpdate(void);
+void G_FowPublishUnitSight(edict_t const *unit);
 void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(edict_t *ent);

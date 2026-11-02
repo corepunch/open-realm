@@ -34,7 +34,12 @@ static bool Invisibility331Read(cstring_t path) {
         if(!len || line[len-1]!='\n') {valid=false;break;}
         line[--len]=0;if(len && line[len-1]=='\r')line[--len]=0;
         if(!len || invisibility331.count>=100000) {valid=false;break;}
-        if(!invisibility331.count)strcpy(invisibility331.prefix,"I331 ");
+        if(!invisibility331.count) {
+            char *space=strchr(line,' ');
+            size_t prefix=space ? (size_t)(space-line)+1 : 0;
+            if(!prefix || prefix>=sizeof(invisibility331.prefix)) {valid=false;break;}
+            memcpy(invisibility331.prefix,line,prefix);invisibility331.prefix[prefix]=0;
+        }
         if(strncmp(line,invisibility331.prefix,strlen(invisibility331.prefix))) {valid=false;break;}
         char *row=malloc(len+1);
         if(!row) {valid=false;break;}
@@ -45,8 +50,9 @@ static bool Invisibility331Read(cstring_t path) {
     }
     if(ferror(file))valid=false;
     fclose(file);
-    return valid && invisibility331.count &&
-        !strcmp(invisibility331.rows[invisibility331.count-1],"I331 tick=96 scene=4 label=complete");
+    char const *complete=invisibility331.count ?
+        strstr(invisibility331.rows[invisibility331.count-1]," label=complete") : NULL;
+    return valid && complete && !strcmp(complete," label=complete");
 }
 /* Match C299's declared FourCC representation adapter. Game storage is
  * little-endian rawcode; native JASS prints the same four-character identity
@@ -71,7 +77,7 @@ static void Invisibility331Marker(cstring_t text) {
     }
     /* Keep journaling the rest of this frame, including unexpected trailing
      * markers; reaching the end never suppresses extra public output. */
-    if(!strcmp(text,"I331 tick=96 scene=4 label=complete"))invisibility331.complete=true;
+    if(!strcmp(text,invisibility331.rows[invisibility331.count-1]))invisibility331.complete=true;
 }
 TEST(stress_wc3_invisibility331,full_public_protocol) {
     cstring_t map=getenv("WC3_INVISIBILITY331_MAP");

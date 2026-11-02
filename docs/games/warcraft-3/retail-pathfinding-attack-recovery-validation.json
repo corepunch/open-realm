@@ -7804,5 +7804,104 @@
       "guarded_files": 3367
     },
     "next_action": "Compare native unit and point visibility before/after CreateUnit to locate the first birth-publication boundary; do not change the already-proved visibility-query inversion or refresh fog from read-only queries."
+  },
+  "phase332": {
+    "scope": "Additive publication of the newly admitted public CreateUnit sight source, preserving other completed sources and independent timed reveal owners.",
+    "save_version": 247,
+    "full_suite_run": false,
+    "native": {
+      "passed": true,
+      "reference": "tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json",
+      "observations": 2,
+      "fresh_unhooked_controls": 1,
+      "public_records": 148,
+      "native_records_per_observation": 173,
+      "negative_controls": 8,
+      "same_cell_transition": {
+        "x": 1136,
+        "y": 432,
+        "before_visible": [
+          0,
+          0
+        ],
+        "after_visible": [
+          1,
+          1
+        ],
+        "before_caster_created": true
+      },
+      "v1_reference": "tools/ghidra/fixtures/research/invisibility332-birth-original.json",
+      "v1_limit": "Requested pre-birth coordinates differ from actual placement; v1 alone does not prove a same-cell transition."
+    },
+    "c332": {
+      "passed": true,
+      "edition": "tft",
+      "public_records": 148,
+      "mismatches": 0,
+      "assertions": 7,
+      "report": "build/tests/invisibility332/v2/c-first.summary.json",
+      "library_sha256": "9bf5b62ddb56ecd461a282e09694e252a3587c4ba28bc48593b8167c6f6f3dae",
+      "source_file_count": 607
+    },
+    "component": {
+      "passed": true,
+      "assertions_per_edition": 13,
+      "test": "wc3_fow.birth_sight_adds_to_completed_planes_without_resampling_other_sources"
+    },
+    "focused": {
+      "passed": true,
+      "tests": 42,
+      "assertions": 428372,
+      "report": "build/tests/invisibility332/focused/summary.json"
+    },
+    "gates": {
+      "passed": true,
+      "tests": 1474,
+      "assertions": 7096974,
+      "directory": "build/tests/invisibility332/gates",
+      "audit": "build/tests/invisibility332/gates/audit-summary.json"
+    },
+    "c331": {
+      "passed": false,
+      "report": "build/tests/invisibility332/c331-first.summary.json",
+      "actual_public_rows": 877,
+      "expected_public_rows": 899,
+      "positional_mismatches": 802,
+      "matching_prefix": 67,
+      "previous_prefix": 8,
+      "first_difference": "C returns windwalk result before native EFFECT291 at tick2, scene0.",
+      "remaining": [
+        "AOwk instant cast admission and timing ownership.",
+        "Paused Sleep order-head retention."
+      ]
+    },
+    "c299": {
+      "c299": {
+        "passed": true,
+        "public_rows": 2066,
+        "motion_rows": 5342,
+        "mismatches": 0,
+        "report": "build/tests/invisibility332/c299.summary.json"
+      },
+      "c299-saved": {
+        "passed": true,
+        "public_rows": 2066,
+        "motion_rows": 5342,
+        "mismatches": 0,
+        "report": "build/tests/invisibility332/c299-saved.summary.json"
+      }
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "next_action": "Implement the original AOwk instant-admission owner, including its no-ordinary-physical-task branch; do not fix only the observed delays. Preserve channel-delay semantics until original initialization is established.",
+    "python_checks": {
+      "passed": true,
+      "tests": 76
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3376
+    }
   }
 }

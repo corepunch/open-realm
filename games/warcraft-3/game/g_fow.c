@@ -1942,16 +1942,8 @@ void G_FowConnectPlayer(uint32_t player) {
         level.fow.players[player].client_connected = true;
 }
 
-void G_FowUpdate(void) {
-    uint32_t owner_viewers[MAX_PLAYERS] = { 0 };
-    uint32_t dirty[FOW_PREFIX_SLOTS] = { 0 };
-    uint32_t viewers = 0;
-    bool reuse_sight=true;
-
-    if (!G_FowReady()) {
-        return;
-    }
-
+static uint32_t G_FowSimulationViewers(void) {
+    uint32_t viewers=0;
     FOR_LOOP(player, MAX_PLAYERS) {
         gameClient_t const *client=G_GetPlayerClientByNumber(player);
         mapPlayer_t const *participant=client ? client->mapplayer : NULL;
@@ -1962,6 +1954,66 @@ void G_FowUpdate(void) {
         if (level.fow.players[player].client_connected || playing)
             viewers |= 1u << player;
     }
+    return viewers;
+}
+
+/*332: runtime creation publishes only the newly placed sight source. Other
+ * sources retain their completed positions until the scheduled fog owner runs. */
+void G_FowPublishUnitSight(edict_t const *unit) {
+    if(!G_FowReady() || !unit || !unit->inuse || G_IsDeferredFree(unit) ||
+       !G_FowEntityIsRevealer(unit))return;
+    uint32_t index=(uint32_t)(unit-g_edicts);
+    if(index>=globals.num_edicts || index>=MAX_ENTITIES)return;
+    uint32_t consumers=G_FowSimulationViewers(),viewers=0;
+    FOR_LOOP(player,MAX_PLAYERS)
+        if((consumers&(1u<<player)) && (G_FowPlayersShareVision(player,unit->s.player) ||
+           (unit->shared_vision&(1u<<player))))viewers|=1u<<player;
+    if(!viewers)return;
+    fowSight_t sight={.viewers=viewers,
+        .x=G_FowWorldToCellX(unit->s.origin.x),.y=G_FowWorldToCellY(unit->s.origin.y),
+        .radius=G_FowRadiusCells(G_FowEntitySightRadius(unit)),
+        .unoccluded=unit->summon_ability==MAKEFOURCC('A','e','s','n')};
+    if(sight.x==FOW_INVALID_CELL || sight.y==FOW_INVALID_CELL)return;
+#ifdef WC3_FOW_PACKED_MASK
+    g_fow_fast=atoi(gi.CvarString("wc3_fow_fast","0"));
+#endif
+    if(G_FowBlockersChanged()) {
+        G_FowRebuildBlockers();
+        if(G_FowInvalidateCasts())fow_sight_valid=0;
+    }
+    FOR_LOOP(player,MAX_PLAYERS)if(viewers&(1u<<player)) {
+        G_FowSelectCover(player);
+        memset(fow_cover_current,0,(size_t)fow_cover_stride*level.fow.height*sizeof(*fow_cover_current));
+        fowPlayerGrid_t const *grid=&level.fow.players[player];
+        /* Fog modifiers/direct writes can invalidate the coverage left by the
+         * previous unit pass. Rim propagation must read the completed plane. */
+        FOR_LOOP(y,level.fow.height)FOR_LOOP(x,level.fow.width) {
+            bool visible=grid->visible[y*level.fow.width+x]!=0;
+#ifdef WC3_FOW_PACKED_MASK
+            if(g_fow_fast)visible=G_FowPackedAt(grid->packed_visible,grid,x,y);
+#endif
+            if(visible)fow_cover_current[y*fow_cover_stride+(x>>6)]|=UINT64_C(1)<<(x&63);
+        }
+    }
+    G_FowRevealForViewers(index,&sight,viewers);
+    fow_cover_grid=NULL;fow_cover_current=NULL;
+    fow_sight_valid&=~viewers;
+    /* Retain modifier precedence without resampling any old sight source or
+     * advancing a timed Far Sight/omniscience owner's expiry. */
+    G_FowApplyModifiers(viewers);
+}
+
+void G_FowUpdate(void) {
+    uint32_t owner_viewers[MAX_PLAYERS] = { 0 };
+    uint32_t dirty[FOW_PREFIX_SLOTS] = { 0 };
+    uint32_t viewers = 0;
+    bool reuse_sight=true;
+
+    if (!G_FowReady()) {
+        return;
+    }
+
+    viewers=G_FowSimulationViewers();
     if (!viewers)
         return;
 #ifdef WC3_FOW_PACKED_MASK
@@ -2513,6 +2565,49 @@ TEST(wc3_fow, mapped_participants_without_clients_own_completed_visibility) {
         client->mapplayer=old_player;client->jass.removed=old_removed;
         G_FowShutdown();reset_entities();setup_test_world();
     }
+}
+/* Component test of the birth publisher; full331 loads the original map and
+ * exercises its public CreateUnit wiring without these fixture sight values. */
+TEST(wc3_fow,birth_sight_adds_to_completed_planes_without_resampling_other_sources) {
+    reset_entities();setup_test_world();G_FowInit();
+    G_FowConnectPlayer(0);G_FowConnectPlayer(1);
+    level.alliances[0][1]|=1u<<ALLIANCE_SHARED_VISION;
+    edict_t *old=alloc_test_unit(MAKEFOURCC('h','f','o','o'),-768,256);
+    old->s.player=0;old->health.value=old->health.max_value=100;
+    old->runtime.sight_radius.day=old->runtime.sight_radius.night=96;
+    G_FowUpdate();
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,old));
+    old->s.origin.x=old->s.origin2.x=512;
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,old));
+    edict_t *birth=alloc_test_unit(MAKEFOURCC('h','f','o','o'),-256,256);
+    birth->s.player=0;birth->health.value=birth->health.max_value=100;
+    birth->runtime.sight_radius.day=birth->runtime.sight_radius.night=96;
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,birth));
+    G_FowPublishUnitSight(birth);
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,birth));
+    T_ASSERT(G_FowPlayerCanTrackUnit(1,birth));
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,old));
+    T_EQ(G_FowPointState(0,&(vec2_t){-768,256},0),WC3_FOG_STATE_VISIBLE);
+    /* Leave stale unit-pass coverage deliberately: a new overlapping birth
+     * must reveal cells masked by a later direct fog write. */
+    G_FowSetStateRadius(&(fogWrite_t){0,WC3_FOG_STATE_MASKED,false},&(vec2_t){-768,256},160);
+    T_ASSERT(G_FowPointState(0,&(vec2_t){-768,256},0)!=WC3_FOG_STATE_VISIBLE);
+    edict_t *overlap=alloc_test_unit(MAKEFOURCC('h','f','o','o'),-768,256);
+    overlap->s.player=0;overlap->health.value=overlap->health.max_value=100;
+    overlap->runtime.sight_radius.day=overlap->runtime.sight_radius.night=96;
+    G_FowPublishUnitSight(overlap);
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,overlap));
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,old));
+    fogModifier_t *mask=G_FogModifierCreate();T_NOT_NULL(mask);
+    if(mask) {
+        *mask=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_MASKED,.center={-768,256},.radius=160};
+        G_FogModifierStart(mask);
+        G_FowPublishUnitSight(overlap);
+        T_ASSERT(!G_FowPlayerCanTrackUnit(0,overlap));
+        G_FogModifierDestroy(mask);
+    }
+    G_FowUpdate();T_ASSERT(G_FowPlayerCanTrackUnit(0,old));
+    G_FowShutdown();reset_entities();setup_test_world();
 }
 TEST(wc3_fow, packed_identity_predicate_matches_scalar_rim_neighbors_across_words) {
     uint64_t *saved_cover = fow_cover_current;

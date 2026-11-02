@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the full frozen 331 public protocol using read-only retail MPQs.
+"""Run a full frozen public protocol (331 by default) using read-only retail MPQs.
 
 Exports expected rows only through the checked native evidence bundle. Uses TFT
 and a temporary writable overlay outside build/tests; never launches retail.
@@ -56,12 +56,17 @@ def main():
     ap.add_argument('--data', type=Path, required=True, help='Read-only retail installation containing MPQs')
     ap.add_argument('--log', type=Path, required=True)
     ap.add_argument('--timeout', type=int, default=600)
+    ap.add_argument('--reference', type=Path, default=SPEC, help='Accepted public protocol specification')
+    ap.add_argument('--capture-checker', type=Path, default=CHECKER, help='Matching native capture verifier/exporter')
     args = ap.parse_args()
     test = TEST
-    spec = json.loads(SPEC.read_text())
+    reference, checker = args.reference.resolve(), args.capture_checker.resolve()
+    reference_before, checker_before = sha(reference), sha(checker)
+    spec = json.loads(reference.read_text())
+    expected_count = spec['public_records']
     MAP_SHA256 = spec['map_sha256']
-    if spec['public_records'] != 899:
-        ap.error('unexpected native public record count')
+    if type(expected_count) is not int or expected_count <= 0:
+        ap.error('native public record count must be a positive integer')
     binary, native_map, data, log = [p.resolve() for p in (args.binary, args.map, args.data, args.log)]
     if sha(native_map) != MAP_SHA256:
         ap.error('wrong native331 map SHA256')
@@ -85,7 +90,7 @@ def main():
     env.pop('TEST_SHARD', None)
     env['LD_LIBRARY_PATH'] = str(library.parent) + os.pathsep + env.get('LD_LIBRARY_PATH', '')
     env.update(WC3_INVISIBILITY331_MAP='Maps/Invisibility331.w3m', TEST_JUNIT=str(report),
-               TEST_JUNIT_SUITE='native331-full-public-motion')
+               TEST_JUNIT_SUITE='native-public-protocol')
     error = None
     code = None
     command = []
@@ -97,9 +102,9 @@ def main():
             if overlay.is_relative_to(ROOT / 'build/tests'):
                 raise ValueError('retail overlay must be outside build/tests')
             expected = overlay / 'native-public.txt'
-            subprocess.run([sys.executable, str(CHECKER), '--check', '--write-public', str(expected)],
+            subprocess.run([sys.executable, str(checker), '--spec', str(reference), '--check', '--write-public', str(expected)],
                            check=True, capture_output=True, text=True)
-            if sha(expected) != spec['public_sha256'] or len(expected.read_text().splitlines()) != 899:
+            if sha(expected) != spec['public_sha256'] or len(expected.read_text().splitlines()) != expected_count:
                 raise ValueError('exported native stream mismatch')
             env['WC3_INVISIBILITY331_EXPECTED'] = str(expected)
             for archive in archives:
@@ -122,8 +127,8 @@ def main():
             raise ValueError('C331 must complete exactly seven assertions')
         contents = log.read_text()
         counts = re.findall(r'INVISIBILITY331 COUNTS public=(\d+) expected=(\d+) mismatches=(\d+) complete=(\d+)', contents)
-        if counts != [('899','899','0','1')]:
-            raise ValueError('missing or mismatching complete 899-row protocol')
+        if counts != [(str(expected_count),str(expected_count),'0','1')]:
+            raise ValueError('missing or mismatching complete public protocol')
         if re.findall(r'=== (\d+)/(\d+) assertions passed in (\d+) test\(s\) ===', contents) != [('7','7','1')]:
             raise ValueError('stdout did not confirm one seven-assertion test')
         if sha(binary) != before:
@@ -133,6 +138,8 @@ def main():
     if sha(binary) != before:
         error = (error + '; ' if error else '') + 'test binary changed during execution'
     try:
+        if sha(reference) != reference_before or sha(checker) != checker_before:
+            raise ValueError('reference or capture checker changed during execution')
         library_after = sha(library)
         source_after = {str(p.relative_to(ROOT)): sha(p) for p in
                         sorted((ROOT / 'games/warcraft-3/game').rglob('*'))
@@ -143,7 +150,9 @@ def main():
         error = (error + '; ' if error else '') + str(exc)
     summary.write_text(json.dumps({'test': test, 'mode': 'normal', 'passed': error is None,
         'error': error, 'exit_code': code, 'command': command,
-        'map_sha256': MAP_SHA256, 'public_sha256': spec['public_sha256'], 'public_records': 899,
+        'map_sha256': MAP_SHA256, 'public_sha256': spec['public_sha256'], 'public_records': expected_count,
+        'reference_path': str(reference), 'reference_sha256': reference_before,
+        'capture_checker_path': str(checker), 'capture_checker_sha256': checker_before,
         'comparison_adapter': 'C code= FourCC byte-order only; no other normalization', 'binary_sha256': before, 'edition': 'tft',
         'library_path': str(library), 'library_sha256': library_before,
         'source_sha256': source_before, 'source_file_count': len(source_before),

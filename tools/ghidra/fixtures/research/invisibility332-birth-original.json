@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "df45100e1fd53f0359fed25bc572ed3664796afd5eb0d484d470bc05adbe96b6",
+  "bundle_sha256": "e77d6ea876fff6d1b4128a2349fc7a06e2333bb2935cd1e32e45d630383013dc",
+  "files": {
+    "observe.jsonl": "efa9eb5b828df55148b1a519281cc34289d22fe794c970a35e54a180fac1c588",
+    "observe-start-preload.txt": "c3cfd7363ac6ac7e66dabbb26d72bc2bfed04d794f7e53ac3703cfaa8af9a311",
+    "observe-preload.txt": "367ada2b1b6b1561d7f0a71b0feb8e2853efc4b9b1eb69266eaddb0324e4ef8c",
+    "repeat.jsonl": "1d2375088277c21c05baa85cf517a277fac995e1f1604472ed9c7a593a875650",
+    "repeat-start-preload.txt": "b31cee7a556e02862e7b16dd1bcaf03705bdbad56246b7923667918f093f0d66",
+    "repeat-preload.txt": "367ada2b1b6b1561d7f0a71b0feb8e2853efc4b9b1eb69266eaddb0324e4ef8c",
+    "control.jsonl": "99bdc61c5b22aa3daee20858c00d8caf3255edb7acfe2c5c360598a956975051",
+    "control-start-preload.txt": "5e5b5657801b171c197892d9a505778479674efb54f765b056cb0340dcb36d8b",
+    "control-preload.txt": "367ada2b1b6b1561d7f0a71b0feb8e2853efc4b9b1eb69266eaddb0324e4ef8c",
+    "source-freeze.json": "a7d1c7719501a162022fa77a8b2557b817d10d882ce750b5f48529a1561827fe",
+    "sources/invisibility332_birth_probe.j": "180531195f7edeba81506a6b7ef1f47ab198009001635e361268956aa44360cc",
+    "sources/invisibility332_birth_make_map.py": "204a5975fd29738c538d11af88d4fa6584d35808a736add5c72335af046bee1a",
+    "sources/invisibility331_observer.js": "4ddae5f8d50a418410d0826e1e2b4845bd8d70b0b19fdbb0c8c7518920178764",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "authored/Invisibility332.j": "c7f4d024d446fa2f503e7fecd646d31a6f3b44ac2c6922595882644bd1aaadbc",
+    "authored/Invisibility332.w3a": "c8bc7643de8cd36c7cae716bb43915cb12ebe72a487470a0187f25f3330d920e",
+    "authored/Invisibility332.json": "28607f2f5c1a75e8daf6052be8d4e00ca84110dfcc7d9588929870aa800a3152"
+  },
+  "readable_sources": {
+    "sources/invisibility332_birth_probe.j": "180531195f7edeba81506a6b7ef1f47ab198009001635e361268956aa44360cc",
+    "sources/invisibility332_birth_make_map.py": "204a5975fd29738c538d11af88d4fa6584d35808a736add5c72335af046bee1a",
+    "sources/invisibility331_observer.js": "4ddae5f8d50a418410d0826e1e2b4845bd8d70b0b19fdbb0c8c7518920178764",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee"
+  },
+  "capture_source_sha256": {
+    "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "invisibility331_observer.js": "4ddae5f8d50a418410d0826e1e2b4845bd8d70b0b19fdbb0c8c7518920178764",
+    "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+    "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+    "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+    "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+    "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+    "map": "df45100e1fd53f0359fed25bc572ed3664796afd5eb0d484d470bc05adbe96b6"
+  },
+  "native_counts": {
+    "module": 1,
+    "marker": 145,
+    "recovery-enter": 2,
+    "unit-state": 22
+  },
+  "public_records": 145,
+  "public_sha256": "69dc929b385dca0fa9572743e88d791ee099d0a175a64559ddb3e92a2983118e",
+  "limits": [
+    "Native public repeat/control evidence only; no engine parity or universal global-recomposition policy.",
+    "No full private-row equality claim; pointers remain literal per observation.",
+    "Inherited299 metadata builder/probe names are not actual332 source names; source-freeze separately pins actual332 sources, authored data and map.",
+    "Original DLL/map/helper executable bytes are external provenance pins, not shipped.",
+    "Before-source and after-source positions differ; literal positions retained, not a same-cell before/after assertion."
+  ]
+}
