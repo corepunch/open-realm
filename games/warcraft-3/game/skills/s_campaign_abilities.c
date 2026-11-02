@@ -455,7 +455,57 @@ BZ_ABILITY_PROC(CAbilityWeb) {
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorCampaign) { campaign_status_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityParasiteCampaign) { campaign_status_execute(caster, st, spell); }
+/* Parasite (ANpa/ACpa) is a timed hostile infection, not a cosmetic buff.
+ * DataA is damage per second; a victim that dies while infected spawns the
+ * UnitID minion for the original caster. The victim's status keeps the source
+ * generation, level and tick deadline, including across save/load. */
+#define PARASITE_TICK_MS 1000u
+BZ_ABILITY_PROC(CAbilityParasiteCampaign) {
+    heroabilitystatus_t *slot;
+    edict_t *source;
+    uint32_t code, rank;
+    if ((msg == A_STATUS_TICK || msg == A_STATUS_DEATH) && call && call->status.slot) {
+        slot = call->status.slot;
+        source = S_SpellStatusSource(slot);
+        code = slot->source_ability ? slot->source_ability : slot->data;
+        rank = slot->rank ? slot->rank : MAX(1u, slot->level);
+        if (msg == A_STATUS_DEATH) {
+            uint32_t unitid = code ? S_SpellUnitId(code, rank) : 0;
+            if (source && unitid)
+                S_SummonAbilityAt(source, code, unitid, &ent->s.origin2,
+                                  MAX(0.0f, S_SpellData(code, rank, 2)));
+            unit_expirestatus(ent, slot);
+            return true;
+        }
+        if (!source || !code) { unit_expirestatus(ent, slot); return true; }
+        while (unit_status_take_due_tick(slot, PARASITE_TICK_MS, G_Time())) {
+            /* The deadline advances before damage because lethal hits invoke
+             * A_STATUS_DEATH recursively through unit_die. */
+            float damage = MAX(0.0f, S_SpellData(code, rank, 1));
+            if (damage > 0.0f) S_SpellDamage(ent, source, (int)damage);
+            if (M_IsDead(ent)) break;
+        }
+        return true;
+    }
+    if (msg == A_EXECUTE && call && call->target && call->item && call->target->entity) {
+        uint32_t level = S_SpellLevel(ent, call->item->code);
+        cstring_t buff = S_SpellBuffId(call->item->code, level);
+        if (!buff) return false;
+        slot = S_SpellApplyTimedTargetStatus(call->target->entity, call->item->code, level,
+                                              buff, S_SpellHeroDuration(call->item->code, level,
+                                                                         call->target->entity));
+        if (!slot) return false;
+        slot->data = call->item->code;
+        slot->source_ability = call->item->code;
+        slot->rank = level;
+        slot->source = ent;
+        slot->source_spawn_time = ent->spawn_time;
+        slot->next_tick = G_Time() + PARASITE_TICK_MS;
+        slot->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
 BZ_SIMPLE_SPELL_PROC(AbilityCycloneCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySummoningRitual) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilitySummonQuilbeastCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }

@@ -161,3 +161,29 @@ field-level verification export `Units\UnitAbilities.slk`,
 relevant tables from both ROC and TFT archives, recording overlay provenance.
 
 No compile or test execution was performed when preparing this incremental patch.
+
+## Focused classic-shard follow-up (26 assertions, 19 cases)
+
+The reported classic run is the only executed evidence for this follow-up;
+TFT behavior remains unknown. The contract fixtures now distinguish immediate
+casts from projectile impacts (Firebolt, Hurl Boulder, Possession) and delayed
+Chain Lightning hops. Carrion Swarm/Crushing Wave/Breath of Fire use distinct
+travel/width and damage-cap cells, while Cleaving Attack uses a real melee hit
+rather than the unrelated Pulverize function. Devotion's DataB flag must be
+zero when testing a flat three-armor bonus. Disease Cloud uses the *creep*
+`Aap3` synthetic alias with `code=Aapl`, not the research-gated Abomination
+`Aap1`. These labels are still not proof of a unit's retail `abilList`.
+
+Periodic Devour tests hold their healthy ally at full HP to avoid ordinary
+regeneration invalidating a no-friendly-damage assertion. Rain of Fire is an
+exception: it **does** harm friendly units in its blast radius in the current
+retail-aligned implementation, so the contract explicitly expects friendly fire.
+
+Gameplay additions include automatic `ANpi`/`Apig` permanent immolation without
+mana upkeep and `ANpa`/`ACpa` Parasite periodic damage/minion creation through
+existing timed-status and death callbacks. Synthetic values test the field
+contract; confirmed ROC/TFT object tables remain authoritative for exact unit
+assignments and real damage/mana/summon values.
+
+This revision was checked for patch application only. It has **not** been
+compiled or test-run here; the next test results may reveal further defects.

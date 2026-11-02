@@ -41,10 +41,20 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
     case CE_AURA_TRUESHOT: case CE_AURA_COMMAND: case CE_AURA_VAMPIRIC:
     case CE_AURA_THORNS: a = 0.20f; break;
     case CE_AURA_UNHOLY: case CE_AURA_ENDURANCE: a = 0.10f; b = 0.5f; break;
-    case CE_AURA_DEVOTION: a = 3.0f; break;
+    case CE_AURA_DEVOTION: a = 3.0f; b = 0.0f; break; /* DataB is percentage mode, not bonus */
     case CE_AURA_BRILLIANCE: a = 1.0f; break;
     case CE_HIT_CRITICAL: a = 100.0f; b = 2.0f; break;
-    case CE_HIT_SPLASH: a = 100.0f; b = 23.0f; c = 64.0f; d = 96.0f; break;
+    case CE_HIT_SPLASH:
+        if (strcmp(alias, "ACpv") == 0) {
+            a = 100.0f; b = 23.0f; c = 64.0f; d = 96.0f;
+        } else {
+            a = 0.35f; /* Cleaving Attack DataA is damage fraction */
+        }
+        break;
+    case CE_UNIT_CHAIN: a = 37.0f; b = 3.0f; c = 0.25f; break; /* hits, loss per bounce */
+    case CE_POINT_DAMAGE:
+        a = 37.0f; b = 0.0f; c = 280.0f; d = 150.0f;
+        break; /* Cone/wave DataC=travel, DataD=terminal width; no damage cap */
     case CE_HIT_REFLECT: a = 0.30f; b = 3.0f; break;
     case CE_HIT_POISON: a = 2.0f; break;
     case CE_HIT_SLOW_POISON: a = 5.0f; b = 0.25f; c = 0.15f; break;
@@ -64,6 +74,12 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
     snprintf(data_c, sizeof(data_c), "%g", c);
     if (kind == CE_SUMMON_CORPSE && strcmp(alias, "Arai") == 0)
         strcpy(data_c, "hfoo"); /* fixture skeleton, not retail uske */
+    if (kind == CE_POINT_DAMAGE &&
+        (strcmp(alias, "ANrf") == 0 || strcmp(alias, "ACrf") == 0 ||
+         strcmp(alias, "ACrg") == 0)) {
+        /* Rain of Fire: DataA=waves, DataB=wave damage, not wave travel. */
+        strcpy(data_a, "3"); strcpy(data_b, "17");
+    }
     snprintf(out, len,
         "ID;PWXL;N;EBB;Y2;X20\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -155,7 +171,12 @@ static void contract_extended(creepExtendedCase_t const *c) {
 
     /* Existing registry parent code is a *fixture selection*. The attached
      * verified alias (if any) remains a separate, explicit contract. */
-    contract_extended_slk(slk, sizeof(slk), code, c->base_code,
+    contract_extended_slk(slk, sizeof(slk), code,
+                          k == CE_PASSIVE_DISEASE ? "Aapl" :
+                          (k == CE_SELF_IMMOLATION && strcmp(c->ability, "Permanent Immolation") == 0)
+                              ? "AEim" :
+                          (k == CE_HIT_SPLASH && strcmp(c->ability, "Pulverize") == 0)
+                              ? "Awar" : c->base_code,
                           contract_ext_buff(k),
                           (k == CE_AURA_TRUESHOT || k == CE_AURA_COMMAND ||
                            k == CE_AURA_UNHOLY || k == CE_AURA_ENDURANCE ||
@@ -176,8 +197,41 @@ static void contract_extended(creepExtendedCase_t const *c) {
     }
     contract_setup(&f, code, slk);
     f.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = id, .level = 1);
+    if (k == CE_SELF_IMMOLATION && strcmp(c->ability, "Permanent Immolation") == 0)
+        f.abilities.abilList = "ANpi";
     T_ASSERT(G_ActorHasSkill(f.caster, code));
-    T_EQ(S_ResolveAbilityAlias(f.caster, FS_SLKKey(c->base_code)).alias, id);
+    T_EQ(S_ResolveAbilityAlias(f.caster, FS_SLKKey(
+        k == CE_PASSIVE_DISEASE ? "Aapl" :
+        (k == CE_SELF_IMMOLATION && strcmp(c->ability, "Permanent Immolation") == 0)
+            ? "AEim" :
+        (k == CE_HIT_SPLASH && strcmp(c->ability, "Pulverize") == 0)
+            ? "Awar" : c->base_code)).alias, id);
+    if (k == CE_UNIT_DEVOUR || k == CE_POINT_DAMAGE || k == CE_UNIT_CHAIN ||
+        k == CE_UNIT_STUN_DAMAGE || k == CE_UNIT_POSSESSION) {
+        /* Healthy control: normal health regeneration must not masquerade as
+         * spell-friendly-fire during a frame-stepped projectile/digest test. */
+        f.ally->health.max_value = f.ally->health.value = 100;
+    }
+    if (k == CE_POINT_DAMAGE || k == CE_UNIT_CHAIN || k == CE_HIT_SPLASH)
+        f.summon->owner = NULL; /* An ordinary second enemy, not a conjured ally. */
+    if (k == CE_HIT_SPLASH && strcmp(c->ability, "Pulverize") == 0) {
+        f.summon->owner = NULL;
+        f.enemy->s.player = f.summon->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+        f.summon->svflags |= SVF_MONSTER;
+        f.summon->targtype = TARG_GROUND;
+        f.summon->s.origin2.x = 500.0f;
+        f.enemy->s.origin2.x = 500.0f;
+        f.caster->unit_state->armor_value = 0.0f;
+        f.enemy->unit_state->armor_value = f.summon->unit_state->armor_value = 0.0f;
+        T_FEQ(S_SpellData(id, 1, 1), 100.0f, 0.001f);
+        T_FEQ(S_SpellData(id, 1, 2), 23.0f, 0.001f);
+        T_FEQ(S_SpellData(id, 1, 3), 64.0f, 0.001f);
+        T_FEQ(S_SpellData(id, 1, 4), 96.0f, 0.001f);
+        T_ASSERT(S_SpellIsEnemy(f.caster, f.summon));
+        T_ASSERT(S_SpellIsAliveTarget(f.summon));
+        T_EQ(G_UnitTargetType(f.summon), TARG_GROUND);
+        T_EQ(S_ResolveAbilityAlias(f.caster, FS_SLKKey("Awar")).alias, id);
+    }
     if (k == CE_AURA_TRUESHOT) {
         f.ally->unit_state->attack1.type = ATK_NORMAL;
         f.ally->unit_state->attack1.weapon = WPN_MISSILE;
@@ -202,6 +256,7 @@ static void contract_extended(creepExtendedCase_t const *c) {
 
     case CE_UNIT_STUN_DAMAGE:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
+        contract_ext_tick(1500, f.caster); /* Hurl Boulder/Firebolt impact is delayed. */
         T_ASSERT(f.enemy->health.value < 500);
         T_ASSERT(S_UnitHasStatus(f.enemy, buff) ||
                  unit_hasstatusstate(f.enemy, WC3_STATUS_STATE_STUNNED));
@@ -230,6 +285,7 @@ static void contract_extended(creepExtendedCase_t const *c) {
     case CE_UNIT_CHAIN:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
         T_ASSERT(f.enemy->health.value < 500);
+        contract_ext_tick(600, f.caster); /* Next hop occurs 250 ms later. */
         T_ASSERT(f.summon->health.value < 500);
         T_FEQ(far->health.value, 500, 0.001f);
         break;
@@ -280,6 +336,14 @@ static void contract_extended(creepExtendedCase_t const *c) {
         before = f.enemy->health.value;
         contract_ext_tick(1000, f.enemy);
         T_ASSERT(f.enemy->health.value < before);
+        if (!strcmp(c->ability, "Parasite")) {
+            /* Authored UnitID is synthetic hfoo here. The parasite minion
+             * belongs to the applying caster, not the dead victim's player. */
+            f.enemy->die = unit_die;
+            G_SetHealth(f.enemy, 0.0f);
+            unit_die(f.enemy, f.caster);
+            T_ASSERT(contract_ext_count_summons(f.caster) >= 1);
+        }
         break;
     case CE_UNIT_DEVOUR:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
@@ -333,6 +397,8 @@ static void contract_extended(creepExtendedCase_t const *c) {
         break;
     case CE_UNIT_POSSESSION: case CE_UNIT_CHARM:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
+        if (k == CE_UNIT_POSSESSION)
+            contract_ext_tick(2000, f.enemy); /* Possession missile takes flight. */
         T_EQ(f.enemy->s.player, f.caster->s.player);
         break;
 
@@ -341,7 +407,10 @@ static void contract_extended(creepExtendedCase_t const *c) {
         contract_ext_tick(3000, f.caster);
         T_ASSERT(f.enemy->health.value < 500);
         T_FEQ(far->health.value, 500, 0.001f);
-        T_FEQ(f.ally->health.value, 100, 0.001f);
+        if (!strcmp(c->ability, "Rain of Fire"))
+            T_ASSERT(f.ally->health.value < 100); /* Retail: friendly fire. */
+        else
+            T_FEQ(f.ally->health.value, 100, 0.001f);
         break;
     case CE_POINT_SILENCE:
         T_ASSERT(S_CastPointTargetSpell(f.caster, id, &point));
@@ -382,7 +451,17 @@ static void contract_extended(creepExtendedCase_t const *c) {
          * require an explicit cast; ordinary Immolation must activate first. */
         if (strcmp(c->ability, "Permanent Immolation") != 0)
             T_ASSERT(S_CastNoTargetSpell(f.caster, id));
-        contract_ext_tick(1000, f.caster);
+        if (strcmp(c->ability, "Permanent Immolation") == 0) {
+            abilityitem_t item = S_AbilityItem(id);
+            abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+            T_ASSERT(item.ability && item.ability->proc == CAbilityImmolation);
+            T_ASSERT(CAbilityImmolation(f.caster, A_UPDATE, &call));
+            T_ASSERT(S_UnitHasStatus(f.caster, FS_SLKKey("BEim")));
+            level.time += 1000;
+            T_ASSERT(CAbilityImmolation(f.caster, A_UPDATE, &call));
+        } else {
+            contract_ext_tick(1000, f.caster);
+        }
         T_ASSERT(f.enemy->health.value < 500);
         T_FEQ(far->health.value, 500, 0.001f);
         break;
@@ -462,7 +541,14 @@ static void contract_extended(creepExtendedCase_t const *c) {
                  (k == CE_HIT_COLD_ARROW && S_UnitHasStatus(f.enemy, buff)));
         break;
     case CE_HIT_SPLASH:
-        S_PulverizeAttack(f.caster, f.enemy);
+        if (strcmp(c->ability, "Pulverize") == 0) {
+            /* Deterministic chance fixture exercises the shared proc itself;
+             * Cleaving Attack above continues through the ordinary hit path. */
+            S_PulverizeAttack(f.caster, f.enemy);
+        } else {
+            /* Cleave happens only on a successful ordinary melee attack. */
+            S_ResolveAttackHit(f.caster, f.enemy, 20);
+        }
         T_ASSERT(f.summon->health.value < 500);
         T_FEQ(f.ally->health.value, 100, 0.001f);
         break;
@@ -486,8 +572,10 @@ static void contract_extended(creepExtendedCase_t const *c) {
         T_ASSERT(S_UnitIsResistant(f.caster));
         break;
     case CE_PASSIVE_DISEASE:
-        contract_ext_tick(2000, f.caster);
+        S_RunAbilityUpdates(f.caster); /* Creep cloud is a passive A_UPDATE. */
         T_ASSERT(S_UnitHasStatus(f.enemy, buff));
+        contract_ext_tick(2000, f.caster);
+        T_ASSERT(f.enemy->health.value < 500);
         break;
     case CE_SHADOW_MELD: case CE_HIDE:
         G_SetTimeOfDay(game.constants.duskTimeGameHours);

@@ -59,7 +59,7 @@ static ability_t abilitylist[] = {
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
-    { "ANpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite */
+    { "ANpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
     { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
@@ -447,8 +447,8 @@ static ability_t abilitylist[] = {
     { "Achd", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold Death */
     { "Asla", CAbilitySleepAlways, AB_PASSIVE | AB_INNATE },  /* Sleep Always */
     { "Advc", CAbilityCargoLoad, AB_COMMAND },  /* Devour Cargo */
-    { "ANpi", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Permanent Immolation */
-    { "Apig", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Permanent Immolation */
+    { "ANpi", CAbilityImmolation, AB_PASSIVE | AB_UPDATE },  /* Permanent Immolation */
+    { "Apig", CAbilityImmolation, AB_PASSIVE | AB_UPDATE },  /* Permanent Immolation */
     { "Andt", CAbilityFarSight, AB_SPELL, SPELL_TARGET_POINT },  /* Reveal */
     { "ANin", CAbilityInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
     { "Anhe", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (creep) */
@@ -636,7 +636,7 @@ static ability_t abilitylist[] = {
     { "ACmo", CAbilityMonsoon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Monsoon (creep) */
     { "ACmp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale (Creep) */
     { "ACnr", CAbilityAuraRegenLife, AB_PASSIVE },  /* Neutral Regen (health only) */
-    { "ACpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite (eredar) */
+    { "ACpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite (eredar) */
     { "ACpu", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (Creep) */
     { "ACpv", CAbilityPulverize, AB_PASSIVE },  /* Pulverize (Sea Giant) */
     { "ACr1", CAbilityRoar, AB_SPELL },  /* Roar (Skeletal Orc) */
