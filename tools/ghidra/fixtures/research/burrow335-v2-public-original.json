@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "version": 2,
+  "engine_parity": false,
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "72b09e49e28fcaede2f9b637f61e44f312c36f5c926afc10b4e4214ca1fc80c7",
+  "public_records": 1290,
+  "public_sha256": "e5e1373b03ba333a710e0d01b5fbe5f3d8496e8a25a3585efed7fe9425bc6660",
+  "native_counts": {
+    "module": 1,
+    "marker": 1290,
+    "recovery-enter": 12,
+    "unit-state": 210,
+    "unit-enter": 18,
+    "unit-leave": 18,
+    "buff-enter": 32,
+    "buff-leave": 32,
+    "windwalk-setup": 1
+  },
+  "native_rows_sha256": {
+    "observe": "3f70aa10ea5eac28f9ed96d2bc6aab45d379a3a361562259495b0489671220e9",
+    "repeat": "e2a447eb3ff7c68a033b94e1e799ee0b22f33401457bad7c6f5b184b65b08400"
+  },
+  "capture_source_sha256": {
+    "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "burrow335_observer.js": "ae77e55bf9eb90c9dfa4832bff067dc59afd629ad75ce118e5e9e115788031dd",
+    "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+    "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+    "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+    "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+    "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+    "map": "72b09e49e28fcaede2f9b637f61e44f312c36f5c926afc10b4e4214ca1fc80c7"
+  },
+  "readable_sources": {
+    "sources/burrow335_v2_probe.j": "6af8e22ec975b28cede918572cf83346c34f4b5525f8bf7bf5171af6cbc8990b",
+    "sources/burrow335_v2_make_map.py": "3d68fbf789c84b1d0c858512120b8da5b505a6643cb89d9c9ba97b6aa4bd8bc4",
+    "sources/burrow335_observer.js": "ae77e55bf9eb90c9dfa4832bff067dc59afd629ad75ce118e5e9e115788031dd",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee"
+  },
+  "files": {
+    "observe.jsonl": "01541f2c09b3c63e8cf0a91242b71fcf8cab6f6947103fd062a1f9d46db22713",
+    "observe-start-preload.txt": "8f93c993bebfb4cb86756d01656cc038ae812e21cdb1549219865cd6c4730430",
+    "observe-preload.txt": "771de83c1f6761c50013c8ea8c2a71c7d5478cc357ebc3e4624f67cbb44dcc19",
+    "repeat.jsonl": "cae7c8b92a418aced24b07dddac3221529bfbf89b9f35d184ddc20e948317f95",
+    "repeat-start-preload.txt": "0f9c4c1eedd41d8f90790eb6aaa47d580c8d9ededc483c1d1af6ffdb18e4bdf0",
+    "repeat-preload.txt": "771de83c1f6761c50013c8ea8c2a71c7d5478cc357ebc3e4624f67cbb44dcc19",
+    "control.jsonl": "92d45a01e27d41623bec56afe762be6af29a5c6c4cd32a029e9c3a34ac9be634",
+    "control-start-preload.txt": "dce7766d72f5820db3d58ded812c72fab9d53157fe859a1fd549334b3278084a",
+    "control-preload.txt": "771de83c1f6761c50013c8ea8c2a71c7d5478cc357ebc3e4624f67cbb44dcc19",
+    "source-freeze.json": "3e9e10646c259dadf4581e6af4580e893b5f4881f79ded181e33da4154e95ee8",
+    "sources/burrow335_v2_probe.j": "6af8e22ec975b28cede918572cf83346c34f4b5525f8bf7bf5171af6cbc8990b",
+    "sources/burrow335_v2_make_map.py": "3d68fbf789c84b1d0c858512120b8da5b505a6643cb89d9c9ba97b6aa4bd8bc4",
+    "sources/burrow335_observer.js": "ae77e55bf9eb90c9dfa4832bff067dc59afd629ad75ce118e5e9e115788031dd",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "authored/Burrow335.json": "a1ce99a6ad4a4d184509fa981e0a9bc9a2046017a0943ebb5c68afb543a0f66d",
+    "authored/war3map.j": "d7443386278551aa344dbf562d2b350a83a97c1e990a71983d97614dc849b233",
+    "authored/war3map.w3a": "989ce3a7885d18745f87a306c4d10956f8d610953eb162b1ec3ac44a61c8d53f",
+    "authored/war3map.w3u": "21a3d4e62eb57336ec7ee88898caab0d7dfa7c7b46b595f9d99dac7fc2c353d1"
+  },
+  "scope": "Live Binv/Burrow and BOwk/Burrow overlap observed. BOwk .75 fade precedes zero-fade Burrow acquisition; Binv effect follows Burrow acquisition. Removing Burrow while paused rebinds to base and removes both contributions; no retained-positive inverse claim.",
+  "limits": [
+    "Raw observations remain literal and independently hashed; no full private pointer-normalized equality claim.",
+    "Inherited299 metadata source labels are capture-runner dependencies; actual335 probe/builder pins are separately frozen.",
+    "No engine parity claim."
+  ],
+  "bundle_sha256": "a16663c090f284fabc05ec528128a6748de8df6de626f42f3f02d5b4392fc0ab"
+}

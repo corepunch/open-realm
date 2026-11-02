@@ -18,10 +18,9 @@ static bool ground_morph_is_burrow(abilityitem_t const *item) {
 bool S_UnitIsBurrowed(edict_t const *unit) {
     return unit && unit->inuse && unit->morph && unit->morph->burrow_invisibility_depth>0;
 }
-static void ground_morph_category(edict_t *unit,uint32_t code,bool hidden) {
-    bool before=S_UnitHasInvisibilityState(unit);
+static bool ground_morph_category(edict_t *unit,uint32_t code,bool hidden) {
     if(!unit->morph) {
-        if(!hidden)return;
+        if(!hidden)return true;
         unit->morph=G_AllocMorph();assert(unit->morph);
         abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
         unit->morph->code=code;unit->morph->base_type=data->data[0].id;
@@ -29,13 +28,11 @@ static void ground_morph_category(edict_t *unit,uint32_t code,bool hidden) {
     }
     /*4ba8d0 changes occupancy only: hide clears2, inverse sets2; stock
      * Burrow keeps the building-blocker bit8 and leaves its query untouched. */
-    S_SetBurrowInvisibilityContribution(unit,code,hidden);
+    if(!S_SetBurrowInvisibilityContribution(unit,code,hidden))return false;
     unit->morph->category_clear=hidden ? 2 : 0;
     unit->morph->category_set=hidden ? 8 : 10;
     gi.LinkEntity(unit);
-    bool after=S_UnitHasInvisibilityState(unit);
-    if(!before && after)S_UnitTargetLost(unit);
-    else if(before && !after)S_UnitTargetAvailable(unit);
+    return true;
 }
 static bool ground_morph_begin(edict_t *unit,abilityitem_t const *item,bool reverse) {
     uint32_t code=item->code;
@@ -49,7 +46,7 @@ static bool ground_morph_begin(edict_t *unit,abilityitem_t const *item,bool reve
     unit->current_order_id=data->dur==0 ? 0 : G_OrderId(item->ability->orders[reverse ? 1 : 0]);
     /*4c85b0 removes114 and republishes occupancy before the reverse hold. */
     bool burrow_reverse=reverse && ground_morph_is_burrow(item);
-    if(burrow_reverse)ground_morph_category(unit,code,false);
+    if(burrow_reverse && !ground_morph_category(unit,code,false))return true;
     S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
     if(burrow_reverse) {unit->morph->category_clear=0;unit->morph->category_set=10;}
     return true;
@@ -95,7 +92,7 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
             S_ScheduleMorphExpiration(ent,data->heroDur);
         }
         if(ent && ground_morph_is_burrow(call->item)) {
-            if(initialize) {S_SetMorphAbilityDisables(ent,code,true);ground_morph_category(ent,code,true);}
+            if(initialize) {S_SetMorphAbilityDisables(ent,code,true);if(!ground_morph_category(ent,code,true))return true;}
             else if(ent->class_id!=data->unitID && ent->morph && ent->morph->code==code) {
                 ent->morph->category_clear=0;ent->morph->category_set=0;gi.LinkEntity(ent);
             }
@@ -104,7 +101,7 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
     case A_MORPH_COMPLETE:
         if(ground_morph_is_configured(call->item))S_CompleteConfiguredMorphAvailability(ent,call);
         if(ground_morph_is_burrow(call->item)) {
-            if(!call->enabled) {S_SetMorphAbilityDisables(ent,code,true);ground_morph_category(ent,code,true);}
+            if(!call->enabled) {S_SetMorphAbilityDisables(ent,code,true);if(!ground_morph_category(ent,code,true))return true;}
             else S_SetMorphAbilityDisables(ent,code,false);
             if(call->enabled) {ent->morph->category_clear=0;ent->morph->category_set=0;gi.LinkEntity(ent);}
         }
@@ -119,7 +116,7 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
         if(ground_morph_is_burrow(call->item))S_CompleteMorphDetachTransition(ent,code);
         {
             bool release=ground_morph_is_burrow(call->item) && ent && ent->class_id==data->unitID;
-            if(release && ent->morph)ground_morph_category(ent,code,false);
+            if(release && ent->morph && !ground_morph_category(ent,code,false))return true;
             /* Type rebind refreshes retained invisibility. Keep the passive
              * suspended through base restoration, then restart its fade. */
             S_RemoveMorphAbility(ent,code);

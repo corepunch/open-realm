@@ -2225,12 +2225,19 @@ bool S_InitializeBurrowAbility(edict_t *ent,uint32_t code) {
     if(owner->burrow_initialized)return false;
     owner->burrow_initialized=true;return true;
 }
-void S_SetBurrowInvisibilityContribution(edict_t *ent,uint32_t code,bool held) {
-    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
-    if(owner->burrow_owned==held)return;
+bool S_SetBurrowInvisibilityContribution(edict_t *ent,uint32_t code,bool held) {
+    unitAbilityDisable_t *owner=S_RetainAbilityAvailability(ent,code,0);
+    if(!owner)return false;
+    if(owner->burrow_owned==held) {S_ReleaseAbilityAvailability(owner);return true;}
+    uint64_t epoch=S_SpellPreparationEpoch();uint32_t birth=ent->spawn_time,type=ent->class_id;
+    morph_t *morph=ent->morph;assert(morph);
     owner->burrow_owned=held;
-    assert(ent->morph);
-    ent->morph->burrow_invisibility_depth=(int32_t)((uint32_t)ent->morph->burrow_invisibility_depth+(held ? 1u : UINT32_MAX));
+    morph->burrow_invisibility_depth=(int32_t)((uint32_t)morph->burrow_invisibility_depth+(held ? 1u : UINT32_MAX));
+    S_BurrowInvisibilityChanged(ent,held);
+    bool live=epoch==S_SpellPreparationEpoch() && ent->inuse && ent->spawn_time==birth &&
+        !G_IsDeferredFree(ent) && ent->class_id==type && ent->morph==morph && owner->linked &&
+        owner->burrow_owned==held;
+    S_ReleaseAbilityAvailability(owner);return live;
 }
 
 /*54eb80/54cb50 exempt the current Morph, Move, Attack, Hero and Inventory

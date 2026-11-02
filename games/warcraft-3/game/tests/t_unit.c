@@ -4170,6 +4170,173 @@ TEST(wc3_unit, burrow366_alias_detach_from_base_retains_other_invisibility_sourc
     }
 }
 
+/* Shared-owner component composition: public Burrow transitions plus the
+ * real Binv/BOwk constructor API. No claim that a burrowed unit can cast AOwk,
+ * and no new native Pause/Sleep composition claim. */
+static slkTestData_t *burrow335_rows(void) {
+    static char text[3000];
+    bool const tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    snprintf(text,sizeof(text),
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+        "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+        "C;X7;K\"BuffID1\"\nC;X8;K\"levels\"\nC;X9;K\"Cost1\"\nC;X10;K\"Cool1\"\n"
+        "C;X1;Y2;K\"Ab61\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\nC;X8;K1\n"
+        "C;X1;Y3;K\"Ab62\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\nC;X8;K1\n"
+        "C;X1;Y4;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K0.75\nC;X5;K2\nC;X6;K2\nC;X7;K\"Binv\"\nC;X8;K1\nC;X9;K0\nC;X10;K0\n"
+        "C;X1;Y5;K\"AOwk\"\nC;X2;K\"AOwk\"\nC;X3;K0.75\nC;X5;K2\nC;X6;K2\nC;X7;K\"BOwk\"\nC;X8;K1\nC;X9;K0\nC;X10;K0\nE\n",
+        tft?"DataA1":"Data11");
+    return parse_slk_string(text);
+}
+
+TEST(wc3_unit, burrow335_temporary_join_and_either_last_inverse_survive_save) {
+    for(unsigned family=0;family<2;family++)for(unsigned reverse=0;reverse<2;reverse++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        slkTestData_t *composition=burrow335_rows();G_SetSLKRows("AbilityData",composition);
+        uint32_t const burrow=FS_SLKKey("Ab61"),base=FS_SLKKey("hpea"),alt=FS_SLKKey("hfoo");
+        uint32_t const code=FS_SLKKey(family?"AOwk":"Aivs"),concrete=FS_SLKKey(family?"BOwk":"Binv");
+        edict_t *unit=alloc_test_unit(base,64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,burrow));T_ASSERT(G_ActorSetSkillPermanent(unit,burrow,true));
+        T_ASSERT(unit_issueimmediateorder(unit,"burrow"));morph330_advance(1.375f);
+        T_EQ(unit->class_id,alt);T_EQ(unit->morph->burrow_invisibility_depth,1);
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        /* Constructor boundary shared by the actual spell effect bodies. */
+        T_ASSERT(S_ApplyTypedTemporaryInvisibility(unit,unit,code,1,
+            family?"BOwk":"Binv",concrete,2,.75f,NULL));
+        heroabilitystatus_t *status=unit_findstatusclass(unit,concrete);T_NOT_NULL(status);
+        T_ASSERT(status && status->invisibility_owned && status->class_timer.active);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        T_ASSERT(!unit->permanent_invisibility_fade.request.active); /* Join must not restart fade. */
+        uint32_t const number=unit-g_edicts,instance=status?status->instance_id:0;
+        cstring_t path=Test_TempPath("burrow335-composition.bin");
+        morph330_advance(1.75f);T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+number;
+        status=unit_findstatusclass(unit,concrete);T_NOT_NULL(status);
+        if(status)T_EQ(status->instance_id,instance);
+        T_EQ(unit->morph->burrow_invisibility_depth,1);
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        if(reverse) {
+            /* Isolate the exact owner inverse. Public unburrow additionally
+             * dispatches action/CAST, which removes Binv/BOwk first. This is
+             * a service-boundary composition, not that public timeline. */
+            T_ASSERT(S_SetBurrowInvisibilityContribution(unit,burrow,false));
+            T_EQ(unit->morph->burrow_invisibility_depth,0);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+            T_ASSERT(unit->permanent_invisibility_fade.published);
+            T_EQ(unit->class_id,alt);
+        }
+        morph330_advance(3.374f);T_NOT_NULL(unit_findstatusclass(unit,concrete));
+        morph330_advance(3.375f);T_NULL(unit_findstatusclass(unit,concrete));
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+        T_EQ(unit->permanent_invisibility_fade.published,!reverse);
+        T_EQ(S_UnitHasInvisibilityState(unit),!reverse);
+        if(!reverse) {
+            T_EQ(unit->morph->burrow_invisibility_depth,1);
+            T_ASSERT(unit_issueimmediateorder(unit,"unburrow"));
+            T_EQ(unit->morph->burrow_invisibility_depth,0);
+            T_ASSERT(!unit->permanent_invisibility_fade.published);
+            T_ASSERT(!S_UnitHasInvisibilityState(unit));
+            morph330_advance(3.75f);
+        }
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(composition);
+    }
+}
+
+/* Initial-alternate attachment joins an already pending real Binv owner;
+ * neither owner may restart or prematurely publish the common fade. */
+TEST(wc3_unit, burrow335_initial_alternate_joins_pending_fade_and_saved_expiry) {
+    reset_test_entities();setup_test_world();
+    slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+    install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+    slkTestData_t *composition=burrow335_rows();G_SetSLKRows("AbilityData",composition);
+    edict_t *unit=alloc_test_unit(FS_SLKKey("hfoo"),64,64);
+    unit->s.player=0;unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+    uint32_t const burrow=FS_SLKKey("Ab61"),binv=FS_SLKKey("Binv"),number=unit-g_edicts;
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(S_ApplyTemporaryInvisibility(unit,unit,FS_SLKKey("Aivs"),1,"Binv",2,.75f));
+    T_ASSERT(unit->permanent_invisibility_fade.request.active);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    wc3Clock_t const origin=unit->permanent_invisibility_fade.origin;
+    wc3Clock_t const deadline=unit->permanent_invisibility_fade.request.deadline;
+    uint32_t const sequence=unit->permanent_invisibility_fade.request.sequence;
+    T_ASSERT(G_ActorAddSkill(unit,burrow));
+    T_ASSERT(G_ActorSetSkillPermanent(unit,burrow,true));
+    T_EQ(unit->morph->burrow_invisibility_depth,1);
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    T_ASSERT(unit->permanent_invisibility_fade.request.active);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.origin.time),wc3_float_bits(origin.time));
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+    T_EQ(unit->permanent_invisibility_fade.request.sequence,sequence);
+    morph330_advance(1.375f);
+    cstring_t path=Test_TempPath("burrow335-pending-join.bin");
+    T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+number;
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    T_ASSERT(unit->permanent_invisibility_fade.request.active);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.origin.time),wc3_float_bits(origin.time));
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+    T_EQ(unit->permanent_invisibility_fade.request.sequence,sequence);
+    morph330_advance(deadline.time-.001f);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    morph330_advance(deadline.time);
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+    T_ASSERT(!G_FowPlayersShareVision(1,0));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(unit,1));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(unit,1));
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(unit,0));
+    morph330_advance(3);
+    T_NULL(unit_findstatusclass(unit,binv));
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    T_EQ(unit->morph->burrow_invisibility_depth,1);
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    T_ASSERT(S_UnitIsInvisibleToPlayer(unit,1));
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(unit,0));
+    T_ASSERT(G_ActorRemoveSkill(unit,burrow));
+    T_EQ(unit->class_id,FS_SLKKey("hpea"));
+    T_EQ(unit->morph->burrow_invisibility_depth,0);
+    T_ASSERT(!unit->permanent_invisibility_fade.published);
+    T_ASSERT(!S_UnitHasInvisibilityState(unit));
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(unit,1));
+    reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(composition);
+}
+
+TEST(wc3_unit, burrow335_retained_base_alias_owner_keeps_common_publication) {
+    reset_test_entities();setup_test_world();
+    slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+    install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+    slkTestData_t *composition=burrow335_rows();G_SetSLKRows("AbilityData",composition);
+    edict_t *unit=alloc_test_unit(FS_SLKKey("hfoo"),64,64);
+    unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Ab61")));
+    T_ASSERT(G_ActorSetSkillPermanent(unit,FS_SLKKey("Ab61"),true));
+    T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Ab62")));
+    T_ASSERT(G_ActorSetSkillPermanent(unit,FS_SLKKey("Ab62"),true));
+    T_EQ(unit->morph->burrow_invisibility_depth,2);
+    T_ASSERT(G_ActorRemoveSkill(unit,FS_SLKKey("Ab61")));
+    T_EQ(unit->class_id,FS_SLKKey("hpea"));T_EQ(unit->morph->burrow_invisibility_depth,1);
+    T_ASSERT(G_ActorRemoveSkill(unit,FS_SLKKey("Ab62")));
+    T_EQ(unit->morph->burrow_invisibility_depth,1); /* Captured366 base-form retention. */
+    T_ASSERT(S_ApplyTemporaryInvisibility(unit,unit,FS_SLKKey("Aivs"),1,"Binv",2,.75f));
+    T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+    uint32_t const number=unit-g_edicts;
+    cstring_t path=Test_TempPath("burrow335-retained-base.bin");
+    T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+number;
+    morph330_advance(3);
+    T_NULL(unit_findstatusclass(unit,FS_SLKKey("Binv")));
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    T_EQ(unit->morph->burrow_invisibility_depth,1);
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    T_ASSERT(S_UnitHasInvisibilityState(unit));
+    reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(composition);
+}
+
 static unsigned burrow366_suspend_count,burrow366_premature_hidden;
 static intptr_t burrow366_observe_suspend(edict_t *unit,abilityMsg_t msg,abilityCall_t const *call) {
     if(msg==A_UNIT_SUSPEND) {

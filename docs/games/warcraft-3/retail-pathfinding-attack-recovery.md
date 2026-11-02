@@ -1039,3 +1039,22 @@ B01 remains open for the named Abur/Ahid overlap dispositions, adjusted retained
 range reachability, release-callback reentrancy and the full incoming-caller
 dispositions. This bounded replay match does not close TARGET-01.2 or any of the
 25 whole leaves.
+
+
+Checkpoint335 connects Burrow's existing per-alias source and retained depth to
+the shared zero-transition invisibility owner (Save249). First/nonfirst joins,
+last release, pending fade, owner/enemy visibility and saved expiry pass the
+component checks; the original retained-base alias behavior is preserved.
+Both-edition focused checks pass 1,784 tests/176,286 assertions; six gates pass
+1,528 tests/7,106,578 assertions. Earlier331/333 and normal/saved299 stay exact.
+
+The [335v1](../../../tools/ghidra/fixtures/research/burrow335-v1-public-original.json)
+and [335v2](../../../tools/ghidra/fixtures/research/burrow335-v2-public-original.json)
+references preserve 1,416 and 1,290 public rows from repeated observations and
+fresh controls. V1 proves that public Burrow removes the positive contributor
+before its own completion. V2 proves actual positive/Burrow overlap with Sleep
+and Pause. C v2 matches through row284, then incorrectly retains Binv/BOwk at
+paused detach. Native `5698a0 → 48ba80 → 691210` supplies the missing internal
+CAST/ACTION notification before the subtype inverse; that is the next change.
+V1 also exposes the separate public Morph order/phase gap. Neither complete335
+replay nor B01 closure is claimed.

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Sleep334 ordinary cast ownership restores all899 mixed-owner331 public rows, with zero mismatches. Wind Walk333 retains591/591; C299 normal and saved remain exact. Fourline Sleep profile change passes focused1438 tests and original Group367 gate. Full batch has not been repeated after332 fixture corrections. B01 remains open.",
-  "save_version": 248,
+  "status": "Burrow335 joins the shared invisibility owner using existing attachment/depth storage; focused checks and six gates pass. New native v2 matches284 public rows before missing Morph reverse CAST/ACTION notification; v1 exposes public Morph admission/phase gaps. Earlier331899,333591 and normal/saved299 remain exact. B01 remains open.",
+  "save_version": 249,
   "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
@@ -7962,7 +7962,7 @@
       "full_batch_repeated": false
     }
   },
-  "current_phase": 334,
+  "current_phase": 335,
   "full_suite_passed": false,
   "latest_full_source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
   "latest_full_known_failures_corrected": true,
@@ -8157,5 +8157,83 @@
       "Complete explicit dispositions for all17 incoming callers.",
       "Later Move/Stop during delayed Wind Walk requires native evidence before claiming those branches."
     ]
+  },
+  "phase335": {
+    "scope": "Burrow shared zero-transition source, first/last-owner lifetime and published per-player visibility. No whole-leaf closure.",
+    "save_version": 249,
+    "shared_owner_increment_verified": true,
+    "full_suite_run": false,
+    "native_reference": [
+      "tools/ghidra/fixtures/research/burrow335-v1-public-original.json",
+      "tools/ghidra/fixtures/research/burrow335-v2-public-original.json"
+    ],
+    "native": {
+      "observations_per_version": 2,
+      "fresh_controls_per_version": 1,
+      "public_per_version": [
+        1416,
+        1290
+      ],
+      "native_per_observation": [
+        1772,
+        1614
+      ],
+      "negative_controls_per_version": 10,
+      "v1_scope": "Public Burrow removes Binv/BOwk before alternate completion; actual Sleep/Pause. Rejected as retained-positive overlap setup.",
+      "v2_scope": "Initial-alternate attachment produces actual Binv/BOwk plus Burrow overlap, including Sleep/Pause; paused detach removes both sources in original."
+    },
+    "c335": {
+      "v1_passed": false,
+      "v1_report": "build/tests/burrow335/c335-v1.summary.json",
+      "v1_matching_prefix": 110,
+      "v1_actual": 1306,
+      "v1_expected": 1416,
+      "v1_first_gap": "Public Morph order/head/phase owner missing.",
+      "v2_passed": false,
+      "v2_report": "build/tests/burrow335/c335-v2.summary.json",
+      "v2_matching_prefix": 284,
+      "v2_actual": 1290,
+      "v2_expected": 1290,
+      "v2_positional_mismatches": 101,
+      "v2_first_gap": "Paused Abur detach leaves Binv/BOwk in C; original shared Morph reverse notifies CAST then ACTION before subtype inverse."
+    },
+    "focused": {
+      "passed": true,
+      "tests": 1784,
+      "assertions": 176286,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "report": "build/tests/burrow335/focused-final/summary.json",
+      "scope": "Real public Burrow plus explicit temporary/shared-service component joins, either inverse order, pending fade and saved expiry. No fabricated public-unburrow retention."
+    },
+    "gates": {
+      "passed": true,
+      "tests": 1528,
+      "assertions": 7106578,
+      "directory": "build/tests/burrow335/gates",
+      "original_burrow_maps": 4,
+      "original_burrow_scenes": 15
+    },
+    "retained_replays": {
+      "c331_public": 899,
+      "c333_public": 591,
+      "c299_normal_and_saved_public": 2066,
+      "c299_normal_and_saved_motion": 5342,
+      "passed": true
+    },
+    "python_checks": {
+      "passed": true,
+      "tests": 76
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guards": 3394
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "next_action": "Port original guarded Morph reverse CAST/ACTION notification before subtype inverse, then replay unchanged1290-row reference."
   }
 }

@@ -477,8 +477,15 @@ bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t con
 	return false;
 }
 
+static bool invisibility_burrow_active(edict_t const *unit) {
+    return S_UnitIsBurrowed(unit) && unit->permanent_invisibility_fade.published;
+}
+static bool invisibility_has_contributions(edict_t const *unit) {
+    return unit->permanent_invisibility_fade.passive_contributions ||
+        unit->permanent_invisibility_fade.temporary_contributions || S_UnitIsBurrowed(unit);
+}
 bool S_UnitHasInvisibilityState(edict_t const *unit) {
-	return S_UnitIsBurrowed(unit) || S_PermanentInvisibilityActive(unit) || S_GhostActive(unit) ||
+	return invisibility_burrow_active(unit) || S_PermanentInvisibilityActive(unit) || S_GhostActive(unit) ||
 	       S_ShadowMeldActive(unit) || S_UnitUsesInvisibilityRenderFlag(unit);
 }
 
@@ -723,6 +730,20 @@ static void invisibility_last_release(edict_t *unit) {
     invisibility_sync_passive_flags(unit);
     S_UnitTargetAvailable(unit);
 }
+/* Burrow4c8480/4c85b0 call6696e0(zero)/694b20 after its attachment
+ * toggles the existing retained aggregate. No temporary expiry or passive80. */
+void S_BurrowInvisibilityChanged(edict_t *unit,bool acquired) {
+    if(acquired) {
+        bool first=unit->morph->burrow_invisibility_depth==1 &&
+            !unit->permanent_invisibility_fade.passive_contributions &&
+            !unit->permanent_invisibility_fade.temporary_contributions;
+        if(first) {
+            unit->permanent_invisibility_fade.origin=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+            unit->permanent_invisibility_fade.slope=0;
+            invisibility_publish(unit);
+        } else invisibility_notify(unit);
+    } else if(!invisibility_has_contributions(unit))invisibility_last_release(unit);
+}
 /*631360/62e600 own one contribution and one held80 bit per attachment.
  * The Attack bit intentionally is not reference counted and has no generation
  * binding: either inverse clears the currently attached Attack's bit. */
@@ -734,7 +755,7 @@ static void passive_invisibility_release(edict_t *unit,unitAbilityDisable_t *nod
         unit->permanent_invisibility_fade.passive_contributions--;
         unit->permanent_invisibility_fade.permanent_owned=unit->permanent_invisibility_fade.passive_contributions!=0;
         invisibility_sync_passive_flags(unit);
-        if(!unit->permanent_invisibility_fade.permanent_owned && !unit->permanent_invisibility_fade.temporary_contributions)
+        if(!invisibility_has_contributions(unit))
             invisibility_last_release(unit);
     }
     /* Removal queues the actor before dispatching this inverse. The same
@@ -753,8 +774,7 @@ static void passive_invisibility_acquire(edict_t *unit,unitAbilityDisable_t *nod
     uint32_t rank=passive_invisibility_level(unit,node->code),birth=unit->spawn_time;
     if(!rank)return;
     float transition=S_SpellDuration(node->code,rank,false);
-    bool first=!unit->permanent_invisibility_fade.passive_contributions &&
-        !unit->permanent_invisibility_fade.temporary_contributions;
+    bool first=!invisibility_has_contributions(unit);
     node->passive_invisibility_owned=true;
     unit->permanent_invisibility_fade.passive_contributions++;
     unit->permanent_invisibility_fade.permanent_owned=true;
@@ -802,8 +822,7 @@ BZ_ABILITY_PROC(S_PassiveInvisibilityEvent) {
 }
 void S_TemporaryInvisibilityAcquire(edict_t *unit,heroabilitystatus_t *status,float transition) {
     if(!unit || !status || status->invisibility_owned)return;
-    bool first=!unit->permanent_invisibility_fade.permanent_owned &&
-        !unit->permanent_invisibility_fade.temporary_contributions;
+    bool first=!invisibility_has_contributions(unit);
     status->invisibility_owned=true;status->invisibility_pending=true;
     unit->permanent_invisibility_fade.temporary_contributions++;
     temporary_expiry_forget(unit);temporary_expiry_insert(unit);
@@ -840,8 +859,7 @@ void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
     if(!unit->permanent_invisibility_fade.temporary_contributions && unhide &&
        !S_UnitHasTemporaryInvisibility(unit,status) && !invisibility_intrinsic_render_owner(unit))
         G_SetEntityHidden(unit,false);
-    if(!unit->permanent_invisibility_fade.temporary_contributions &&
-       !unit->permanent_invisibility_fade.permanent_owned)invisibility_last_release(unit);
+    if(!invisibility_has_contributions(unit))invisibility_last_release(unit);
     if(held && invisibility_live(unit,birth))S_AttackInvisibilityRelease(unit,generation);
 }
 
@@ -984,9 +1002,14 @@ bool S_ValidateInvisibilityOwners(void) {
         if(!unit->inuse)continue;
         if(unit->ability_clock_depth<0 || unit->ability_clock_depth!=unit->ability_pause_depth)return false;
         uint32_t contributions=0,held=0,owners[2]={0},nodes[2]={0};
-        uint32_t passives=0;bool apiv=false,ghost=false;
+        uint32_t passives=0,burrows=0;bool apiv=false,ghost=false;
         if(*(uint8_t const *)&unit->attack_passive_invisibility_blocked>1)return false;
         for(unitAbilityDisable_t const *node=unit->ability_disables;node;node=node->next) {
+            if(node->burrow_owned) {
+                if(!node->linked || !node->burrow_initialized || node->class_code || node->attachment_slot ||
+                   G_AbilityCode(node->code)!=MAKEFOURCC('A','b','u','r'))return false;
+                burrows++;
+            }
             if(*(uint8_t const *)&node->passive_invisibility_owned>1 ||
                *(uint8_t const *)&node->passive_invisibility_attack_held>1)return false;
             if(node->passive_invisibility_owned || node->passive_invisibility_attack_held) {
@@ -1047,7 +1070,10 @@ bool S_ValidateInvisibilityOwners(void) {
         if(*(uint8_t const *)&unit->permanent_invisibility_fade.permanent_owned>1 ||
            *(uint8_t const *)&unit->permanent_invisibility_fade.published>1 ||
            *(uint8_t const *)&unit->permanent_invisibility_fade.request.active>1)return false;
-        bool owned=contributions || unit->permanent_invisibility_fade.permanent_owned;
+        /* Base-form detach may retain native114 after its node is gone. */
+        if((unit->morph && unit->morph->burrow_invisibility_depth<0) ||
+           burrows>(unit->morph ? (uint32_t)unit->morph->burrow_invisibility_depth : 0))return false;
+        bool owned=invisibility_has_contributions(unit);
         abilityPrimaryTimer_t const *request=&unit->permanent_invisibility_fade.request;
         if((request->active || unit->permanent_invisibility_fade.published) && !owned)return false;
         if(owned && (!isfinite(unit->permanent_invisibility_fade.slope) ||
@@ -1219,7 +1245,7 @@ bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player) {
 	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
 	if (G_UnitIsForcedVisibleToPlayer(unit, player)) return false;
 	if (unit->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, unit->s.player)) return false;
-	if (!S_PermanentInvisibilityActive(unit) && !S_GhostActive(unit) && !S_ShadowMeldActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
+	if (!invisibility_burrow_active(unit) && !S_PermanentInvisibilityActive(unit) && !S_GhostActive(unit) && !S_ShadowMeldActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
 	return !S_UnitIsDetectedByPlayer(unit, player);
 }
 
