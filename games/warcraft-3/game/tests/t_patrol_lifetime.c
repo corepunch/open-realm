@@ -613,4 +613,69 @@ TEST(wc3_patrol_lifetime, ground_damage_owner_resumes_after_public_pause) {
     level.started=false;reset_entities();setup_test_world();
     FOR_LOOP(i,4){G_SetSLKRows(names[i],old[i]);free_slk_rows(rows[i]);}
 }
+
+/* Native299 scene3: runtime-created map-neutral player0 starts its automatic
+ * Attack on its first owner scan. Map slot classification is not natural Sleep. */
+TEST(wc3_patrol_lifetime, runtime_neutral_owner_first_scan_and_natural_sleep) {
+    FOR_LOOP(sleeping,2) {
+        reset_entities();setup_test_world();
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){0,0,300};
+        uint32_t flags=level.setup.map_flags,seed=level.setup.random_seed;
+        level.setup.map_flags=0;level.setup.random_seed=0x77617233u;G_InitMapRandom();
+        bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+        cstring_t names[]={"UnitData","UnitBalance","UnitWeapons"};
+        cstring_t texts[]={tft?patrol_tft_UnitData:patrol_roc_UnitData,
+            tft?patrol_tft_UnitBalance:patrol_roc_UnitBalance,
+            tft?patrol_tft_UnitWeapons:patrol_roc_UnitWeapons};
+        slkTestData_t *rows[3],*old[3];
+        FOR_LOOP(i,3){rows[i]=parse_slk_string(texts[i]);old[i]=G_SetSLKRows(names[i],rows[i]);}
+        unsigned player=sleeping?PLAYER_NEUTRAL_AGGRESSIVE:0;
+        unsigned old_type=level.mapinfo->players[player].playerType;
+        ((mapInfo_t *)level.mapinfo)->players[player].playerType=kPlayerTypeNeutral;
+        char script[1024];snprintf(script,sizeof(script),
+            "function main takes nothing returns nothing\n"
+            "local unit u=CreateUnit(Player(%u),'hfoo',512.0,512.0,0.0)\n"
+            "local unit v=CreateUnit(Player(1),'hfoo',624.0,512.0,180.0)\n"
+            "call PauseUnit(v,true)\ncall SetUnitAcquireRange(u,600.0)\n"
+            "call SetPlayerAlliance(Player(%u),Player(1),ConvertAllianceType(0),false)\n"
+            "call FogEnable(false)\ncall FogMaskEnable(false)\nendfunction\n",player,player);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL,*target=NULL;
+        FILTER_EDICTS(u,u->inuse && u->class_id==MAKEFOURCC('h','f','o','o')) {
+            if(u->s.player==player)unit=u;else if(u->s.player==1)target=u;
+        }
+        T_NOT_NULL(unit);T_NOT_NULL(target);
+        if(unit && target) {
+            T_ASSERT(unit->attack_scan.active);T_ASSERT(unit->attack_scan_initial_pending);
+            if(sleeping) {
+                G_UnitSetCanSleep(unit,true);
+                game.clients[player].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP]=0;
+                G_SetTimeOfDay(game.constants.duskTimeGameHours);G_UpdateTimeOfDay();
+                ai_stand(unit);T_ASSERT(G_UnitIsSleeping(unit));
+            }
+            /* Drain the actual primary owner, without invoking legacy idle
+             * proximity polling before that first request. No deadline edit. */
+            FOR_LOOP(i,120) {
+                level.time+=5;level.pathing_msec+=5;
+                level.pathing_clock.time=wc3_add(level.pathing_clock.time,.005f);
+                bool const scheduled=level.scheduled_frame;
+                level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+                if(!unit->attack_scan_initial_pending)break;
+            }
+            if(sleeping) {
+                T_ASSERT(G_UnitIsSleeping(unit));T_NULL(unit->attack_target);
+                T_ASSERT(!unit->attack_reaction.active);G_UnitWakeUp(unit);
+            } else {
+                T_ASSERT(!unit->attack_scan_initial_pending);
+                T_ASSERT(unit->attack_target==target);T_ASSERT(unit->attack_reaction.active);
+            }
+        }
+        G_SetTimeOfDay(12);G_UpdateTimeOfDay();
+        reset_entities();setup_test_world();
+        ((mapInfo_t *)level.mapinfo)->players[player].playerType=old_type;
+        level.setup.map_flags=flags;level.setup.random_seed=seed;
+        FOR_LOOP(i,3){G_SetSLKRows(names[i],old[i]);free_slk_rows(rows[i]);}
+    }
+}
 #endif

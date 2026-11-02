@@ -14,7 +14,7 @@
     "wc3_movement.retail_gate*"
   ],
   "pins": {
-    "games/warcraft-3/game/g_local.h": "98350f4bc9592f309d31181a635b033a259ea3d11cf26ba458c8d459b18cfd46",
+    "games/warcraft-3/game/g_local.h": "8cb9055fe0a0335353f4deedd78b73810bf060358dace78c0d45826f3e2e4e23",
     "games/warcraft-3/game/g_save.c": "8d3e924dd2f3e8885a5c2a30da8ffa90d8e2d390269472677229f9af08fae1e1",
     "games/warcraft-3/game/m_unit.c": "f133c2a992dc6c00c69f358d9055169bb4cb0a15b9d3f3d88f2e4b0f34d3413c",
     "games/warcraft-3/game/skills/s_move.c": "cb28d9a5a1d07ea02fa8ae1cba4f70a70c61244a1e6a6923c2340d892942489d",

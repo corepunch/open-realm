@@ -3050,7 +3050,7 @@ static void attack_acquire_fire(edict_t *unit) {
     bool returning=unit->movement.guard_state==GUARD_RETURNING &&
         unit->currentmove && unit->currentmove->proc==CAbilityMove;
     if(idle && (!(unit->svflags&SVF_MONSTER) || G_BuildingUpgradeActive(unit) ||
-       unit->movement.creep_guard_phase==CREEP_GUARD_RETURNING || (unit->aiflags&AI_SLEEPING)))return;
+       unit->movement.creep_guard_phase==CREEP_GUARD_RETURNING))return;
     if((!S_UnitUsesAIPointMove(unit) && !patrol && !idle && !returning) || unit->paused || unit->attack_acquisition_suppressed ||
        !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')) ||
        S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')) ||

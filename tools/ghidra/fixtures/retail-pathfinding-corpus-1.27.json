@@ -60107,7 +60107,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "98350f4bc9592f309d31181a635b033a259ea3d11cf26ba458c8d459b18cfd46"
+      "sha256": "8cb9055fe0a0335353f4deedd78b73810bf060358dace78c0d45826f3e2e4e23"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -60623,7 +60623,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "9c421314f2e09ee97e0aaac46426a9b69f4a155c0550a1922043e6cb7efe7b08"
+      "sha256": "06fe7d63a67a983c14cac2b6925a56d2c5e70ac0fdd6c14a695c629cfc5fd338"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -63435,7 +63435,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_monster.c",
-      "sha256": "7c604f7dfaaa2e98fbcc0ff224f6adb863378af7a98b8a0569ed6c37525096d6"
+      "sha256": "aae61d291dfa32a975d8053c2732ff369cc43ebe720f788f48d8af9a108c42b8"
     },
     {
       "path": "games/warcraft-3/game/api/api_math.h",
@@ -69743,7 +69743,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "a94f3cc011155ac7339afafff3929a31d159d36da0cb72195386de1986f34b6c"
+      "sha256": "225c55407196c6d8c8130a8d617327beb2e27fb64c32023f382ebb29d93e17d0"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "e705d5c058b98f3097976b4fb79761bc73c96b595e0aab01af0cb4ce205dd1dc"
+      "sha256": "5a2344dd1f3687929e76c32ecab6de6d43bce8355053917040679179cf109bad"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "fe42d9df33615f92dd97535ad2348a07f5672edfd099d684060c4c130ea2218f"
+      "sha256": "d99f9c854c9e461592bd927febce681441802640de39c2f5f915425bedef6122"
     },
     {
       "path": "tests/test_wc3_pathfinding_militia_lifecycle.py",

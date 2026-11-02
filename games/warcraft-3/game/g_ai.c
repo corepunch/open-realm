@@ -366,16 +366,6 @@ void ai_stand(edict_t *self) {
     /* Retail returning creeps ignore enemies until they are home. */
     if (self->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
         return;
-    /* Neutral creeps sleep until an enemy enters acquisition range, then wake
-     * permanently and fight normally.  Campaign defenders that were made hostile
-     * by script have already had AI_SLEEPING cleared and use regular acquisition. */
-    if (level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral) {
-        if (self->aiflags & AI_SLEEPING) {
-            if (!G_ShouldAcquireThisFrame(self)) return;
-            if (!G_FindNearestEnemy(self, G_AcquisitionRange(self))) return;
-            self->aiflags &= ~AI_SLEEPING;
-        }
-    }
     if (!G_ShouldAcquireThisFrame(self))
         return;
 

@@ -750,11 +750,6 @@ static void unit_construct_lifecycle(unitConstruction_t *construction) {
      * never collide with ground units and vice-versa. */
     if (S_UnitMovementType(d) == UNIT_MOVE_FLY)
         self->aiflags |= AI_FLYING;
-    /* Neutral creeps sleep until a hero enters acquisition range; non-neutral
-     * units (including camp defenders made hostile by script) start awake. */
-    if (self->s.player < MAX_PLAYERS &&
-        level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral)
-        self->aiflags |= AI_SLEEPING;
 
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_LIFECYCLE, self, &construction->captured);
 }

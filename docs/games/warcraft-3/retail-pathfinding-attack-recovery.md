@@ -415,3 +415,38 @@ natural night Sleep and scripted Sleep. Removing that obsolete gate is the next
 correction. Complete normal/saved C299 and the whole leaf remain open.
 The 76 refreshed corpus/item-drop Python checks pass. The corpus validates
 614 entries and 3,325 guarded files.
+
+
+## First automatic scan: checkpoint315
+
+Runtime creation no longer sets the legacy `AI_SLEEPING` dormancy bit from map
+player classification. `ai_stand` no longer runs its staggered nearest-enemy
+wake query, and Attack's own scan no longer rejects that bit. The bit6 position
+remains reserved; Save237's entity flag representation does not change. Natural
+night Sleep, scripted Sleep, their suspension owners and `A_NO_ACQUIRE` remain
+the actual sleep policies.
+
+The old first scene3 Source scan rejected solely because that legacy bit was
+set. Its next scan admitted the target half a second later. The accepted native
+trace instead constructs automatic tasks at 90.273598 and starts the physical
+request at 90.433510. Removing the false gate restores that first admission;
+no deadline, RNG value, actor pose or native expected row is transplanted.
+
+The public runtime-CreateUnit regression uses parsed stock profiles and drains
+the actual first request under a map-neutral player0. Its second control uses
+real natural nighttime Sleep and remains unable to acquire. Both editions pass.
+All 38 focused processes pass 3,956 test executions and 868,188 assertions,
+including natural Sleep, autocast, ownership and save/load coverage. All five
+fresh parity gates pass. The full native suite last passed at checkpoint313;
+it is deferred until more commits accumulate.
+
+The unchanged full C299 comparison now matches the first 3,338 ordered motion
+rows and 1,100 public rows. Totals are 2,060 public rows versus 2,066, with 940
+mismatches; 5,310 motion rows versus 5,342, with 1,972 mismatches. The next missing
+public event is scene3 Source's new Move at tick1012, followed by its numeric
+d0013/851987 continuation at1014. This is independent guard evaluation after
+the private d016c50 return has finished nearby; changing that private return's
+range would address the wrong task. The complete normal/saved replay and whole
+leaf remain open.
+The 76 refreshed corpus/item-drop Python checks pass; the corpus validates
+614 entries and 3,325 guarded files.

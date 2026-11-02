@@ -47,10 +47,10 @@
   "scope": "Inventory public point-drop admission, silent specialized order class, replacement cancellation, stock/authored ranges, 14 exact-clock mover trajectories, terminal item incarnation, Stop/item loss/reuse and in-process save continuations. Immobile near/far, paused/dead rejection, runtime-added Inventory and real cursor ingress are exercised. TARGET-01.2 remains open for the complete producer and firing-poll matrix.",
   "pins": {
     "games/warcraft-3/game/api/api_unit.h": "55911e7024df4bfab939c4be710df3bcf343b24202b16a40c88dcff87cdaa66d",
-    "games/warcraft-3/game/g_ai.c": "48f42a104c1b006c5e89b6c98f4befb58177f3387b327be9b5868a7a0e5a0d24",
+    "games/warcraft-3/game/g_ai.c": "1857b98076155f8906bd4a8d4f153b476f514e1b1b192d7ec2663b8a7818b888",
     "games/warcraft-3/game/g_commands.c": "d55b719a26e8df365afa4a3a2bc004e9a7734b12f43d514a56ea88d5cba1a71b",
     "games/warcraft-3/game/g_items.c": "051e5942a347477a959dc03d21ba6a6f5fbe685f802fb9047c7d49a2b646d5be",
-    "games/warcraft-3/game/g_local.h": "98350f4bc9592f309d31181a635b033a259ea3d11cf26ba458c8d459b18cfd46",
+    "games/warcraft-3/game/g_local.h": "8cb9055fe0a0335353f4deedd78b73810bf060358dace78c0d45826f3e2e4e23",
     "games/warcraft-3/game/g_save.c": "8d3e924dd2f3e8885a5c2a30da8ffa90d8e2d390269472677229f9af08fae1e1",
     "games/warcraft-3/game/m_unit.c": "f133c2a992dc6c00c69f358d9055169bb4cb0a15b9d3f3d88f2e4b0f34d3413c",
     "games/warcraft-3/game/sc2api/sc2api_raw.c": "bb4817b0af8d8c39818e31e1ba62bec43e19da1408cc243c3eb7cbcaabe3644f",

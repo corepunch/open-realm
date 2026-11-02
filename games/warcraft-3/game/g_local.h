@@ -340,7 +340,7 @@ enum {
     AI_AUTOCAST_REPAIR = 1 << 3, /* persisted Repair-family autocast toggle */
     AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
     AI_ILLUSION    = 1 << 5,  /* summoned copy created by illusion abilities */
-    AI_SLEEPING    = 1 << 6,  /* neutral creep is dormant; wakes on enemy proximity */
+    /* Bit6 reserved: obsolete staggered neutral-acquisition dormancy. */
     AI_CORPSE_UNRAISABLE = 1 << 7, /* corpse lifecycle; sacrifice or temporary summon cannot be raised */
     AI_CORPSE_NO_DECAY = 1 << 8, /* corpse lifecycle; remove after death animation instead of corpse window */
     AI_CORPSE_RESERVED = 1 << 9, /* corpse lifecycle; an active consuming ability owns this corpse */
