@@ -36,7 +36,7 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
                                   cstring_t parent, cstring_t buff, cstring_t targets,
                                   creepExpectation_t kind) {
     float a = 37.0f, b = 2.0f, c = 1.0f, d = 1.0f, e = 0.25f;
-    char data_c[24];
+    char data_a[24], data_b[24], data_c[24];
     switch (kind) {
     case CE_AURA_TRUESHOT: case CE_AURA_COMMAND: case CE_AURA_VAMPIRIC:
     case CE_AURA_THORNS: a = 0.20f; break;
@@ -48,6 +48,8 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
     case CE_HIT_REFLECT: a = 0.30f; b = 3.0f; break;
     case CE_HIT_POISON: a = 2.0f; break;
     case CE_HIT_SLOW_POISON: a = 5.0f; b = 0.25f; c = 0.15f; break;
+    case CE_SHADOW_MELD: case CE_HIDE: a = 1.5f; break;
+    case CE_PASSIVE_REINCARNATION: a = 1.0f; break;
     case CE_SELF_IMMOLATION: a = 11.0f; b = 7.0f; break;
     case CE_UNIT_MANA_BURN: a = 37.0f; break;
     case CE_SUMMON_NO_TARGET: a = 2.0f; break;
@@ -55,6 +57,10 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
     case CE_SUMMON_CORPSE: a = 2.0f; b = 0.0f; break;
     default: break;
     }
+    snprintf(data_a, sizeof(data_a), "%g", a);
+    if (kind == CE_UNIT_POLYMORPH) strlcpy(data_a, "hfoo", sizeof(data_a));
+    snprintf(data_b, sizeof(data_b), "%g", b);
+    if (kind == CE_UNIT_POLYMORPH) strlcpy(data_b, "hfoo", sizeof(data_b));
     snprintf(data_c, sizeof(data_c), "%g", c);
     if (kind == CE_SUMMON_CORPSE && strcmp(alias, "Arai") == 0)
         strcpy(data_c, "hfoo"); /* fixture skeleton, not retail uske */
@@ -70,12 +76,12 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
         "C;Y2;X1;K\"%s\"\nC;Y2;X2;K\"%s\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"%s\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\n"
         "C;Y2;X7;K\"600\"\nC;Y2;X8;K\"6\"\nC;Y2;X9;K\"3\"\n"
-        "C;Y2;X10;K\"%g\"\nC;Y2;X11;K\"%g\"\nC;Y2;X12;K\"%s\"\n"
+        "C;Y2;X10;K\"%s\"\nC;Y2;X11;K\"%s\"\nC;Y2;X12;K\"%s\"\n"
         "C;Y2;X13;K\"%g\"\nC;Y2;X14;K\"%g\"\n"
         "C;Y2;X15;K\"hfoo\"\nC;Y2;X16;K\"%s\"\n"
         "C;Y2;X17;K\"240\"\nC;Y2;X18;K\"0\"\n"
         "C;Y2;X19;K\"\"\nC;Y2;X20;K\"creep test fixture\"\nE\n",
-        alias, parent, targets, a, b, data_c, d, e, buff ? buff : "");
+        alias, parent, targets, data_a, data_b, data_c, d, e, buff ? buff : "");
 }
 
 static uint32_t contract_ext_count_summons(edict_t const *caster) {
@@ -86,21 +92,22 @@ static uint32_t contract_ext_count_summons(edict_t const *caster) {
 }
 
 static void contract_ext_tick(uint32_t millis, edict_t *unit) {
-    level.time += millis;
-    if (unit) { S_RunAbilityUpdates(unit); unit_updatestatuses(unit); }
-    G_RunEntities();
+    (void)unit; /* G_RunEntities owns ability updates and status scheduling. */
+    contract_run_for(millis);
 }
 
 static cstring_t contract_ext_buff(creepExpectation_t expectation) {
     switch (expectation) {
-    case CE_UNIT_SLEEP: return "Bslp";
+    /* AUsl/ACsl sleep is the dispellable spell status BUsl. Bslp is the
+     * separate natural creep-sleep status and does not describe this cast. */
+    case CE_UNIT_SLEEP: return "BUsl";
     case CE_UNIT_CYCLONE: return "Bcyc";
-    case CE_UNIT_ROOT: return "Broo";
+    case CE_UNIT_ROOT: return "BEer";
     case CE_UNIT_CRIPPLE: return "Bcri";
     case CE_UNIT_PURGE: return "Bprg";
     case CE_UNIT_WEB: return "Bwea";
     case CE_UNIT_FRIEND_BUFF: return "Binf";
-    case CE_UNIT_FRIEND_ARMOR: return "Bfro";
+    case CE_UNIT_FRIEND_ARMOR: return "BUfa";
     case CE_UNIT_FRIEND_FRENZY: return "BUhf";
     case CE_UNIT_POLYMORPH: return "Bply";
     case CE_UNIT_DOT: return "Bpoi";
@@ -110,6 +117,7 @@ static cstring_t contract_ext_buff(creepExpectation_t expectation) {
     case CE_POINT_SILENCE: return "BNsi";
     case CE_HIT_POISON: return "Bpoi";
     case CE_HIT_SLOW_POISON: return "Bspo";
+    case CE_PASSIVE_DISEASE: return "Bapl";
     default: return "Bcre"; /* intentionally synthetic, not asserted as a retail buff */
     }
 }
@@ -137,6 +145,7 @@ static void contract_extended(creepExtendedCase_t const *c);
 static void contract_extended(creepExtendedCase_t const *c) {
     creepContractFix_t f;
     char slk[4096];
+    slkTestData_t *old_ui = NULL, *ui_rows = NULL;
     cstring_t code = c->verified_alias ? c->verified_alias : c->base_code;
     creepExpectation_t k = c->expectation;
     uint32_t id = FS_SLKKey(code), buff = FS_SLKKey(contract_ext_buff(k));
@@ -148,12 +157,31 @@ static void contract_extended(creepExtendedCase_t const *c) {
      * verified alias (if any) remains a separate, explicit contract. */
     contract_extended_slk(slk, sizeof(slk), code, c->base_code,
                           contract_ext_buff(k),
-                          (k == CE_UNIT_FRIEND_BUFF || k == CE_UNIT_FRIEND_ARMOR ||
+                          (k == CE_AURA_TRUESHOT || k == CE_AURA_COMMAND ||
+                           k == CE_AURA_UNHOLY || k == CE_AURA_ENDURANCE ||
+                           k == CE_AURA_THORNS || k == CE_AURA_DEVOTION ||
+                           k == CE_AURA_BRILLIANCE || k == CE_AURA_VAMPIRIC ||
+                           k == CE_UNIT_FRIEND_BUFF || k == CE_UNIT_FRIEND_ARMOR ||
                            k == CE_UNIT_FRIEND_FRENZY || k == CE_UNIT_DOT_AOE ||
                            k == CE_UNIT_HEAL_CHAIN) ? "air,ground,friend,organic" :
                           "air,ground,enemy,neutral,organic", k);
+    if (k == CE_UNIT_POLYMORPH) {
+        static char const unit_ui[] =
+            "ID;PWXL;N;EBB;Y2;X4\n"
+            "C;Y1;X1;K\"unitUI\"\nC;Y1;X2;K\"file\"\n"
+            "C;Y2;X1;K\"hfoo\"\n"
+            "C;Y2;X2;K\"Units\\\\Human\\\\Footman\\\\Footman\"\nE\n";
+        ui_rows = parse_slk_string(unit_ui);
+        old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    }
     contract_setup(&f, code, slk);
     f.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = id, .level = 1);
+    T_ASSERT(G_ActorHasSkill(f.caster, code));
+    T_EQ(S_ResolveAbilityAlias(f.caster, FS_SLKKey(c->base_code)).alias, id);
+    if (k == CE_AURA_TRUESHOT) {
+        f.ally->unit_state->attack1.type = ATK_NORMAL;
+        f.ally->unit_state->attack1.weapon = WPN_MISSILE;
+    }
     /* An out-of-range hostile control distinguishes area effects from accidental
      * global damage. A second nearby hostile verifies bounce/splash. */
     edict_t *far = alloc_test_unit(FS_SLKKey("ogru"), 900, 0);
@@ -212,9 +240,9 @@ static void contract_extended(creepExtendedCase_t const *c) {
         break;
     case CE_UNIT_SLEEP:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
-        T_ASSERT(unit_hasstatusstate(f.enemy, WC3_STATUS_STATE_SLEEPING));
+        T_ASSERT(S_UnitHasStatus(f.enemy, buff));
         S_ResolveAttackHit(f.caster, f.enemy, 10);
-        T_ASSERT(!unit_hasstatusstate(f.enemy, WC3_STATUS_STATE_SLEEPING));
+        T_ASSERT(!S_UnitHasStatus(f.enemy, buff));
         break;
     case CE_UNIT_CYCLONE:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
@@ -255,8 +283,11 @@ static void contract_extended(creepExtendedCase_t const *c) {
         break;
     case CE_UNIT_DEVOUR:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
-        T_ASSERT(!f.enemy->inuse || f.enemy->owner == f.caster ||
-                 f.enemy->health.value < 500);
+        T_ASSERT(S_DevourHasVictim(f.caster));
+        T_ASSERT((f.enemy->aiflags & AI_DEVOURED) != 0);
+        T_ASSERT((f.enemy->s.renderfx & RF_HIDDEN) != 0);
+        contract_ext_tick(1000, f.enemy);
+        T_ASSERT(f.enemy->health.value < 500);
         T_FEQ(f.ally->health.value, 100, 0.001f);
         break;
     case CE_UNIT_PURGE:
@@ -454,11 +485,15 @@ static void contract_extended(creepExtendedCase_t const *c) {
     case CE_SHADOW_MELD: case CE_HIDE:
         G_SetTimeOfDay(game.constants.duskTimeGameHours);
         G_UpdateTimeOfDay();
-        if (k == CE_HIDE) T_ASSERT(unit_issueimmediateorder(f.caster, "hide"));
+        if (k == CE_HIDE) T_ASSERT(unit_issueimmediateorder(f.caster, "ambush"));
         contract_ext_tick(1600, f.caster);
         T_ASSERT(S_UnitIsInvisibleToPlayer(f.caster, 1));
         break;
     }
     G_SetTimeOfDay(old_daytime); G_UpdateTimeOfDay();
+    if (old_ui) {
+        G_SetSLKRows("UnitUI", old_ui);
+        free_slk_rows(ui_rows);
+    }
     contract_done(&f);
 }

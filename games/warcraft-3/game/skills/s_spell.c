@@ -1764,6 +1764,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
+    case MAKEFOURCC('B','U','f','a'):
     case MAKEFOURCC('B','H','t','c'): case MAKEFOURCC('B','N','d','h'): case MAKEFOURCC('B','N','h','t'):
         break;
     default: return;
@@ -1818,6 +1819,11 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
          * classic slow magnitudes are intrinsic to this buff. */
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -0.5f);
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -0.25f);
+        break;
+    case MAKEFOURCC('B','U','f','a'):
+        if (!ability) ability = MAKEFOURCC('A','U','f','a');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT,
+                                 S_SpellData(ability, rank, 1));
         break;
     case MAKEFOURCC('B','i','n','f'):
         if (!ability) ability = MAKEFOURCC('A','i','n','f');
