@@ -2851,6 +2851,77 @@ TEST(wc3_order_lifecycle, returning_creep_ignores_enemy_and_settles_beside_occup
     T_ASSERT(enemy->inuse);
 }
 
+/*493d20 rejects ordinary world-hidden sources before querying candidates;
+ *493ff0 still rearms. Adjusted retained identity2bc/2c0 has no public producer
+ * in the recovered image and remains a separate B01 restoration limit. */
+TEST(wc3_order_lifecycle, hidden_source_finishes_move_without_acquiring_then_show_resumes) {
+    creep_guard_setup_frame_world();
+    level.show_map_cheat=true;
+    edict_t *source=review_order_unit_at(256,256,0);
+    edict_t *enemy=review_order_unit_at(512,256,1);
+    source->think=monster_think;source->s.model=enemy->s.model=1;
+    source->collision=enemy->collision=16;
+    lifecycle_publish_acquisition_world(source,enemy);
+    T_ASSERT(unit_issueimmediateorder(enemy,"holdposition"));
+    T_ASSERT(run_test_jass(
+        "globals\nunit hidden313Source\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "local group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,256,256,1,null)\n"
+        "set hidden313Source=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\n"
+        "call BJassAssert(hidden313Source!=null,\"source fixture\")\n"
+        "call BJassAssert(IssuePointOrder(hidden313Source,\"move\",384,256),\"Move admitted\")\n"
+        "call ShowUnit(hidden313Source,false)\nendfunction\n"
+        "function show313Source takes nothing returns nothing\n"
+        "call ShowUnit(hidden313Source,true)\nendfunction\n"));
+    T_ASSERT(source->script_world_hidden);
+    unsigned frame;
+    for(frame=0;frame<100 && source->current_order_id==G_OrderId("move");frame++)
+        creep_guard_run_frames(1);
+    T_ASSERT(frame<100);
+    T_ASSERT(source->s.origin2.x>256);
+    T_EQ(source->attack_target,NULL);
+    float const angle=source->s.angle;
+    uint64_t const sequence=source->attack_scan.sequence;
+    FOR_LOOP(i,15) {
+        creep_guard_run_frames(1);
+        T_EQ(source->attack_target,NULL);
+        T_ASSERT(!source->attack_reaction.active);
+        T_EQ(wc3_float_bits(source->s.angle),wc3_float_bits(angle));
+    }
+    T_ASSERT(source->attack_scan.active);
+    T_ASSERT(source->attack_scan.sequence>sequence);
+    jass_callbyname(level.vm,"show313Source",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!source->script_world_hidden);
+    for(frame=0;frame<30 && source->attack_target!=enemy;frame++)creep_guard_run_frames(1);
+    T_EQ(source->attack_target,enemy);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, ghost_source_remains_eligible_for_idle_acquisition) {
+    creep_guard_setup_frame_world();level.show_map_cheat=true;
+    static char const text[]=
+        "ID;PWXL;N;E\nB;X3;Y2\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"Agho\"\nC;Y2;X2;K\"Agho\"\nC;Y2;X3;K\"1\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *source=review_order_unit_at(256,256,0),*enemy=review_order_unit_at(512,256,1);
+    source->think=monster_think;source->s.model=enemy->s.model=1;
+    lifecycle_publish_acquisition_world(source,enemy);
+    T_ASSERT(unit_issueimmediateorder(enemy,"holdposition"));
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "local unit u\ncall GroupEnumUnitsInRange(g,256,256,1,null)\n"
+        "set u=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "call BJassAssert(UnitAddAbility(u,'Agho'),\"authored Ghost acquired\")\nendfunction\n"));
+    T_ASSERT(S_GhostActive(source));T_ASSERT(!source->script_world_hidden);
+    T_ASSERT(G_UnitHasWorldPresence(source));
+    FOR_LOOP(i,30) {if(source->attack_target==enemy)break;creep_guard_run_frames(1);}
+    T_EQ(source->attack_target,enemy);
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 /* An Ensnared returning creep stands in acquisition range of an enemy. Retail
  * returning creeps ignore enemies; the root only delays the return, and once it
  * expires the creep walks home and goes idle with no attack order. */

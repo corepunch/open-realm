@@ -330,5 +330,43 @@ pass across both editions in a 40-process composite. The sole change after the
 initial 38 green scopes is the corrected spell fixture; its complete family
 passes again in both editions. All five gates pass on the final build.
 The complete C299 diagnostic still fails as recorded above; no whole leaf closes.
-The 115 Python evidence checks pass. The corpus check passes all614 entries
-and3,323 guarded files.
+The 115 Python evidence checks pass. The corpus check passes all 614 entries
+and 3,323 guarded files.
+
+
+## Hidden source acquisition: checkpoint313
+
+A unit hidden through `ShowUnit(false)` can finish an already admitted Move,
+but its ordinary idle scan must not acquire a new target. The scan still rearms;
+`ShowUnit(true)` permits acquisition again. Gameplay invisibility remains a
+separate state: the configured Ghost regression stays world-present and acquires.
+
+This removes the hidden Target's extra chase after scene0 Move completion. The
+unchanged full C299 comparison now matches the first 2,346 ordered motion rows,
+up from 878. Its first motion difference is scene3's initial Source request.
+The first public difference moves from 114 to 398: owner transfer in scene1 is
+missing a Target `undefend` order852056. Actual totals remain 2,059 public rows
+versus 2,066 expected, with 1,657 mismatches; motion totals are 5,356 versus 5,342,
+with 2,992 mismatches. Full normal/saved replay parity remains open.
+
+[Three original bodies](../../../games/warcraft-3/game/tests/fixtures/retail_attack_hidden313_static.json)
+are byte-checked:493d20 source admission,493ff0 rearm-before-scan, and49c4d0's
+separate adjusted-owner setter. The native hidden-source exception resolves
+adjusted identity2bc/2c0, not current target6c/70 or alternative78/7c. C still has
+no mapped adjusted owner. The constructor invalidates that identity; no setter
+caller is recovered, while native loader restoration remains an explicit B01
+gap. This patch implements the ordinary invalid-adjusted-identity case and does
+not claim the exception or complete Ghost overlap behavior.
+
+The two public scheduler regressions pass in both editions. The surrounding
+12 focused processes pass 1,006 test executions and 549,160 assertions. Original
+native299 public/motion rows remain unchanged. Save237 is unchanged.
+
+The full native batch passes all eight shards: 9,414 test executions and
+60,729,322 assertions, with no failures, errors or skips. The command is
+`make -j8 BUILD=debug TEST_JOBS=8 TEST_JUNIT_DIR=build/tests/full313-native/junit test-wc3-engine`.
+All five parity gates also pass on this build. The opt-in complete C299 replay
+still fails at the differences above; the native suite does not establish its
+full parity. No whole leaf closes.
+The 76 refreshed corpus/item-drop Python checks pass; the corpus validates
+614 entries and 3,324 guarded files.

@@ -2932,6 +2932,9 @@ edict_t *S_AttackAlternativeTarget(edict_t *unit) {
  * then strict committed-center distance. The generic AI nearest query has a
  * different policy and cannot stand in for this Attack-owned selector. */
 static edict_t *attack_scan_point_target(edict_t *unit) {
+    /*493d20 source Widget20.1; adjusted retained2bc/2c0 has no mapped
+     * public producer. Keep493ff0 scan rearming independent of this gate. */
+    if(unit->script_world_hidden)return NULL;
     uint32_t birth=unit->spawn_time;
     bool mobile=G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) && S_UnitCanTranslate(unit);
     float range=G_AcquisitionRange(unit),maximum=0;

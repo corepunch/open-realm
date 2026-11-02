@@ -60623,7 +60623,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "ba0c308697700ecba118ed41f7e814b0d24d167891621383c30db764111a118f"
+      "sha256": "9c421314f2e09ee97e0aaac46426a9b69f4a155c0550a1922043e6cb7efe7b08"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -61699,7 +61699,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "b5b426b87e4cbbf231e559f98c0f0bcd2dbdf012ed9b65e2b82c545e21a68335"
+      "sha256": "45aaf55ae5e5d651bba00ffff45343e57a273afb12ec1c89396754194704ae67"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -71204,6 +71204,10 @@
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_attack_cooldown312_static.json",
       "sha256": "c29368cb78e8d5f9f18c1a87bfd83cd94fd4737eb308a03aa847661a8f967ed6"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_attack_hidden313_static.json",
+      "sha256": "367f255f28e76479b99740fb56e4aea66c8d7aaf9741dc1f017f22152db02286"
     }
   ]
 }
