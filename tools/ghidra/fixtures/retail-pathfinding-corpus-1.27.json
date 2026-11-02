@@ -60355,7 +60355,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "dde6fbf67171c8d899c0d6c7d169b4bcb695bbee31022f92bea36baaa0981d12"
+      "sha256": "71b58d7844453a1a646f66489760779ec3a303229ab5acfd54bee7f6a8bacaba"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -61819,7 +61819,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_human_abilities.c",
-      "sha256": "2b4fef8569e9889c728402ba41fad8a91b8edd92cc5f0b1c8e8d047b8225fa53"
+      "sha256": "c8cd01643eac8c217eb321e0bd532c0f77c2bd76236017beefcba43fc946d849"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
@@ -70107,7 +70107,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "0ceed3332781808bdfb43d7f118bf94620a61c06441b256a69b6755b78dbbedf"
+      "sha256": "42eb9e7ed7ab0cff195685aa368867cd99aee9a591c791ea717ae4f241f1b44d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "aacdaf0373d2e5488b7de51a2dc982aa11698339e6105a6df54e1b9b23e6137b"
+      "sha256": "197bd6d796c040c2b795bcf25fdba0a1a2166bcd8e27ba8031b578b346cf765b"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",

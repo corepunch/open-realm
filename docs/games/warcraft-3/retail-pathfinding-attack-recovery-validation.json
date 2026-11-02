@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Callback event identity saved; native299 channel matches. Invisibility cast admission and complete normal/saved replay remain open.",
+  "status": "Public Invisibility uses the shared cast scheduler and matches native scene4. Scene5 paused Attack packet replay and complete normal/saved C299 remain open.",
   "save_version": 239,
   "full_suite_run": false,
   "native299_engine_parity": false,
@@ -5757,6 +5757,211 @@
       "entries": 614,
       "guarded_files": 3329,
       "report": "build/tests/trigger318/corpus-check.log"
+    }
+  },
+  "phase319": {
+    "whole_leaves_closed": 0,
+    "save_version": 239,
+    "preflight": {
+      "tests": 2,
+      "assertions": 20,
+      "report": "build/tests/phase319/preflight-second/summary.json"
+    },
+    "focused": {
+      "processes": 14,
+      "tests": 3426,
+      "assertions": 18166652,
+      "report": "build/tests/phase319/focused/summary.json"
+    },
+    "full_native_rerun": false,
+    "last_full_native_checkpoint": 316,
+    "native_scene4_spell_markers": [
+      {
+        "event": "marker",
+        "seq": 6600,
+        "tick": 1261,
+        "scene": 4,
+        "value": "AR299 tick=1261 scene=4 label=spell role=3 event=289 code=1097430643",
+        "clock": {
+          "counter": 5229,
+          "primary": [
+            1123830187,
+            0,
+            1133903872,
+            4096
+          ]
+        }
+      },
+      {
+        "event": "marker",
+        "seq": 6601,
+        "tick": 1261,
+        "scene": 4,
+        "value": "AR299 tick=1261 scene=4 label=spell role=3 event=290 code=1097430643",
+        "clock": {
+          "counter": 5229,
+          "primary": [
+            1123830187,
+            0,
+            1133903872,
+            4096
+          ]
+        }
+      },
+      {
+        "event": "marker",
+        "seq": 6656,
+        "tick": 1265,
+        "scene": 4,
+        "value": "AR299 tick=1265 scene=4 label=spell role=3 event=291 code=1097430643",
+        "clock": {
+          "counter": 5244,
+          "primary": [
+            1123889137,
+            0,
+            1133903872,
+            4096
+          ]
+        }
+      },
+      {
+        "event": "marker",
+        "seq": 6782,
+        "tick": 1276,
+        "scene": 4,
+        "value": "AR299 tick=1276 scene=4 label=spell role=3 event=292 code=1097430643",
+        "clock": {
+          "counter": 5280,
+          "primary": [
+            1124030617,
+            0,
+            1133903872,
+            4096
+          ]
+        }
+      },
+      {
+        "event": "marker",
+        "seq": 6783,
+        "tick": 1276,
+        "scene": 4,
+        "value": "AR299 tick=1276 scene=4 label=spell role=3 event=293 code=1097430643",
+        "clock": {
+          "counter": 5280,
+          "primary": [
+            1124030617,
+            0,
+            1133903872,
+            4096
+          ]
+        }
+      }
+    ],
+    "normal_replay": {
+      "passed": false,
+      "edition": "tft",
+      "first_public_mismatch": 1858,
+      "first_motion_mismatch": 5058,
+      "public_actual": 2065,
+      "public_expected": 2066,
+      "public_mismatches": 205,
+      "motion_actual": 5360,
+      "motion_expected": 5342,
+      "motion_mismatches": 284,
+      "report": "build/tests/phase319/normal-first.summary.json"
+    },
+    "gates": {
+      "captain473": {
+        "report": "build/tests/phase319/gates/captain473.json",
+        "report_sha256": "b862d4195395a5149d559c4c133a2afd2da3ff3f4fcc2ee3bb079e240b46f03e",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      },
+      "group012": {
+        "report": "build/tests/phase319/gates/group012.json",
+        "report_sha256": "d2c1d28153279b610198a7f24cc06df85a07733f48821d08deb6b1141b98d1db",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "waygate377": {
+        "report": "build/tests/phase319/gates/waygate377.json",
+        "report_sha256": "1efd07f6711e2d839e1b8ebb3424f7f43df84688f283de241d8b594404a229d7",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "itemdrop": {
+        "report": "build/tests/phase319/gates/itemdrop.json",
+        "report_sha256": "f90d0dddc40f96f83630ff9ac552f49bbebfac51d584c73f8d3cc7e1eaeb0a5d",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 138,
+            "assertions": 11568
+          },
+          "tft": {
+            "tests": 138,
+            "assertions": 11568
+          }
+        }
+      },
+      "supportgoal": {
+        "report": "build/tests/phase319/gates/supportgoal.json",
+        "report_sha256": "765e806219ebabfd626fa143e5cf4c6310ed6f21ab2df470da060d1694ff25af",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 513,
+            "assertions": 2001976
+          },
+          "tft": {
+            "tests": 513,
+            "assertions": 2001976
+          }
+        }
+      }
+    },
+    "source_files_frozen": 1158,
+    "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+    "library_sha256": "9b2820e32a1012ccd8e3f2776c923bc4fe349c9b362e77118a8df544de5f73e2",
+    "next": "Scene5 resume at1590 then retained Attack851983 at1591 constructs point d016b at original1456,288 via49ada2. C has pause_order_id but no retained original target packet or Attack A_ORDER_RESUME constructor. Preserve original point/weak target and replay normal activation; do not substitute moved hidden target pose.",
+    "python_evidence_tests": {
+      "passed": true,
+      "total": 76,
+      "corpus": 38,
+      "itemdrop": 38
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3329,
+      "report": "build/tests/phase319/corpus-check.log"
     }
   }
 }

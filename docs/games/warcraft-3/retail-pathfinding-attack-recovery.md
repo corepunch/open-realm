@@ -529,3 +529,36 @@ All 14 focused processes pass 3,206 test executions and 17,800,992 assertions
 across both editions. All five fresh parity gates pass. The full native batch
 last passed at checkpoint316; it is not repeated for this single commit.
 The 76 corpus/item-drop Python checks pass; the corpus validates 614 entries and 3,329 guarded files.
+
+
+## Public Invisibility cast admission: checkpoint319
+
+CAbilityInvisibility now supplies A_CAST_PROFILE through the existing default
+profile. Its ordered casts enter the shared scheduler, using the authored
+ability delay and caster castPoint/backSwing. The previous missing response
+sent affordable Aivs through the immediate approach fallback, which emitted
+Channel then Effect and skipped Cast/Finish ownership.
+
+The accepted native299 scene4 sequence is Channel 289 and Cast 290 at tick1261,
+Effect 291 at tick1265, then Finish 292 and Endcast 293 at tick1276. The public regression
+checks that order and target context, Effect before Binv application, an
+authored 0.1-second cast point, 0.2-second backswing and 0.5-second fade. It drains
+the actual zero-delay Cast request at the current primary clock, then advances
+the real scheduler. Both editions pass.
+
+The full comparison now matches the first 1,858 public rows and 5,058 motion
+rows. It still fails: 2,065 public rows versus 2,066 (205 mismatches), 5,360 motion
+rows versus 5,342 (284 mismatches). The first missing public row is scene5's
+Attack851983 at tick1591 after scripted Resume; the first motion difference is
+row 5,058. Native reconstructs a point task from the retained original click
+(1456,288), not the hidden target's moved location. C currently saves only a
+paused order ID and has no Attack A_ORDER_RESUME constructor. Retaining and
+replaying the actual admitted packet, including its original point and weak
+target identity, is the next required port. Replay must activate that packet through the normal constructor and publish
+its issued event. Complete normal/saved
+C299 and TARGET-01.2 remain open.
+
+All 14 focused processes pass 3,426 test executions and 18,166,652 assertions
+across both editions. All five fresh parity gates pass. Save239 is unchanged;
+the full native batch last passed at checkpoint316 and is not repeated here.
+The 76 corpus/item-drop Python checks pass; the corpus validates 614 entries and 3,329 guarded files.

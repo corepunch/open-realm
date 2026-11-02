@@ -959,6 +959,9 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
 
     switch (msg) {
+    case A_CAST_PROFILE:
+        if(!call || !call->cast_profile || !call->item)return false;
+        S_DefaultSpellCastProfile(ent,call->item->code,call->cast_profile);return true;
     case A_VALIDATE:
         return invisibility_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE:

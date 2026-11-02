@@ -30995,4 +30995,67 @@ TEST(wc3_movement, target312_ground_cooldown_uses_enabled_delivery_class) {
     }
 }
 
+/* Native299 Aivs publishes CHANNEL/CAST before its cast-point EFFECT. This
+ * public-producer regression authors timing; it is not the full299 suffix. */
+TEST(wc3_movement,invisibility319_public_cast_phases_precede_effect_and_fade) {
+    edict_t *target,*unused;target166_setup(&target,&unused);
+    target->targtype=TARG_GROUND;target->s.player=0;
+    slkTestData_t *rows=target307_rows(.5f),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *caster=target307_caster();
+    UnitWeapons_t weapons=*caster->data.UnitWeapons;
+    weapons.castPoint=.1f;weapons.castBackSwing=.2f;caster->data.UnitWeapons=&weapons;
+    caster->s.angle=0;
+    T_ASSERT(run_test_jass(
+        /* The minimal common.j fixture omits eventid and unit spell enums. */
+        "type eventid extends handle\n"
+        "globals\nconstant unitevent EVENT_UNIT_SPELL_CHANNEL=ConvertUnitEvent(289)\n"
+        "constant unitevent EVENT_UNIT_SPELL_CAST=ConvertUnitEvent(290)\n"
+        "constant unitevent EVENT_UNIT_SPELL_EFFECT=ConvertUnitEvent(291)\n"
+        "constant unitevent EVENT_UNIT_SPELL_FINISH=ConvertUnitEvent(292)\n"
+        "constant unitevent EVENT_UNIT_SPELL_ENDCAST=ConvertUnitEvent(293)\n"
+        "unit caster319\nunit target319\ninteger phase319=0\nendglobals\n"
+        "function phaseEvent319 takes nothing returns nothing\n"
+        "call BJassAssert(GetSpellAbilityId()=='Aivs',\"configured Aivs phase\")\n"
+        "if GetTriggerEventId()==EVENT_UNIT_SPELL_CHANNEL then\n"
+        "call BJassAssert(phase319==0,\"CHANNEL first\")\nset phase319=1\n"
+        "elseif GetTriggerEventId()==EVENT_UNIT_SPELL_CAST then\n"
+        "call BJassAssert(phase319==1,\"CAST after CHANNEL\")\nset phase319=2\n"
+        "elseif GetTriggerEventId()==EVENT_UNIT_SPELL_EFFECT then\n"
+        "call BJassAssert(phase319==2,\"EFFECT after CAST\")\n"
+        "call BJassAssert(GetUnitAbilityLevel(target319,'Binv')==0,\"EFFECT precedes status application\")\nset phase319=3\n"
+        "elseif GetTriggerEventId()==EVENT_UNIT_SPELL_FINISH then\n"
+        "call BJassAssert(phase319==3,\"FINISH after EFFECT\")\nset phase319=4\n"
+        "elseif GetTriggerEventId()==EVENT_UNIT_SPELL_ENDCAST then\n"
+        "call BJassAssert(phase319==4,\"ENDCAST after FINISH\")\nset phase319=5\nendif\n"
+        "if phase319<=3 then\ncall BJassAssert(GetSpellTargetUnit()==target319,\"retained target context\")\nendif\nendfunction\n"
+        "function pending319 takes nothing returns nothing\n"
+        "call BJassAssert(phase319==2,\"cast point defers effect\")\nendfunction\n"
+        "function done319 takes nothing returns nothing\ncall BJassAssert(phase319==5,\"all five phases\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger t=CreateTrigger()\n"
+        "call GroupEnumUnitsInRange(g,128.,256.,1.,null)\nset caster319=FirstOfGroup(g)\ncall GroupClear(g)\n"
+        "call GroupEnumUnitsInRange(g,256.,256.,1.,null)\nset target319=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "call TriggerRegisterUnitEvent(t,caster319,EVENT_UNIT_SPELL_CHANNEL)\n"
+        "call TriggerRegisterUnitEvent(t,caster319,EVENT_UNIT_SPELL_CAST)\n"
+        "call TriggerRegisterUnitEvent(t,caster319,EVENT_UNIT_SPELL_EFFECT)\n"
+        "call TriggerRegisterUnitEvent(t,caster319,EVENT_UNIT_SPELL_FINISH)\n"
+        "call TriggerRegisterUnitEvent(t,caster319,EVENT_UNIT_SPELL_ENDCAST)\n"
+        "call TriggerAddAction(t,function phaseEvent319)\n"
+        "call BJassAssert(IssueTargetOrder(caster319,\"invisibility\",target319),\"public Aivs admitted\")\nendfunction\n"));
+    /* Drain the zero-delay CAST at this same primary clock. */
+    target168_run_timers();jass_runevents(level.vm);
+    jass_callbyname(level.vm,"pending319",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(unit_findstatus(target,MAKEFOURCC('B','i','n','v')));
+    FOR_LOOP(i,12)target307_step();
+    jass_callbyname(level.vm,"done319",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    heroabilitystatus_t *status=unit_findstatus(target,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);
+    T_ASSERT(status && status->invisibility_pending);
+    T_ASSERT(!target->permanent_invisibility_fade.published);
+    FOR_LOOP(i,12)target307_step();
+    T_ASSERT(target->permanent_invisibility_fade.published);
+    G_FowShutdown();reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);setup_test_world();
+}
+
 #endif

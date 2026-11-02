@@ -4549,7 +4549,7 @@
     "games/warcraft-3/game/tests/fixtures/retail_preparedwater_ramp_kernels.h": "df1b14eedf61aeca4a1bdf32a642046549cf4ea4890020a5f537b3f711d3e3d9",
     "games/warcraft-3/game/tests/fixtures/retail_support_metadata.h": "cde258a626129b3b8ea1781ac11a0cfac6debf2d2a1c03dba773c2203cc798b9",
     "games/warcraft-3/game/tests/fixtures/retail_widgetgoal_water.h": "d4c5e96353c18c05791e109370f3dc34d8b42e7e4470962263f5a5cf67fbf0f1",
-    "games/warcraft-3/game/tests/t_movement.c": "dde6fbf67171c8d899c0d6c7d169b4bcb695bbee31022f92bea36baaa0981d12",
+    "games/warcraft-3/game/tests/t_movement.c": "71b58d7844453a1a646f66489760779ec3a303229ab5acfd54bee7f6a8bacaba",
     "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
     "tools/frida/research/preparedwater_ramp_make_map.py": "ee1a989a5c8d6528c4c51d8a1da4b61e669b5a54ae9979b4520040b0a9b2ae3a",
     "tools/frida/research/preparedwater_ramp_observer.js": "5934eea511835cae8c7de3969c5cbf8dbc2e93c05410e3ea4ff095a38984c16c",
