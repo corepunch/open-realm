@@ -298,6 +298,259 @@ void ai_stand(edict_t *self) {
     }
 }
 
+/* Shared tactical spell selection for autonomous Neutral Hostile and computer
+ * units. Unlike the explicit AI-script orders, this is unit-local combat AI:
+ * it never changes movement goals and only commits casts whose normal spell
+ * pipeline accepts them. The retail decision thresholds below are provisional
+ * (BZ_COMPAT_GUESS); Warcraft's exact scores/cadence are not documented. */
+#define AI_TACTICAL_RADIUS 900.0f
+#define AI_TACTICAL_NEARBY_MAX 64
+#define AI_TACTICAL_CLUSTER_MIN 2
+
+typedef struct {
+    edict_t *enemies[AI_TACTICAL_NEARBY_MAX];
+    edict_t *friends[AI_TACTICAL_NEARBY_MAX];
+    uint32_t enemy_count, friend_count;
+} tacticalNearby_t;
+
+static bool tactical_ai_controller(edict_t const *unit) {
+    uint32_t owner;
+    if (!unit || !level.mapinfo || !game.clients) return false;
+    owner = unit->s.player;
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) return true;
+    /* JASS SetPlayerController changes this at runtime; never infer computer
+     * control solely from the immutable W3I player type. */
+    return owner < PLAYER_NEUTRAL_AGGRESSIVE &&
+           game.clients[owner].jass.controller == 1; /* MAP_CONTROL_COMPUTER */
+}
+
+static bool tactical_visible_unit(edict_t *caster, edict_t *target) {
+    return target && target->inuse && S_SpellIsAliveTarget(target) &&
+           !S_UnitIsHiddenFromPlayer(target, caster->s.player) &&
+           !G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) &&
+           !unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE);
+}
+
+static void tactical_find_nearby(edict_t *caster, tacticalNearby_t *nearby) {
+    float radius = AI_TACTICAL_RADIUS;
+    /* An idle unit must not acquire a fight solely because tactical spells
+     * have a wider range than its authored automatic acquisition radius. */
+    if (caster->currentmove && caster->currentmove->think == ai_stand &&
+        G_AcquisitionRange(caster) > 0.0f)
+        radius = MIN(radius, G_AcquisitionRange(caster));
+    memset(nearby, 0, sizeof(*nearby));
+    /* Enumerate once per staggered think, not once per ability. Entity index
+     * order gives deterministic selection and bounded policy evaluation. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *other = g_edicts + i;
+        if (!tactical_visible_unit(caster, other) ||
+            Vector2_distance(&caster->s.origin2, &other->s.origin2) > radius)
+            continue;
+        if (S_SpellIsEnemy(caster, other)) {
+            if (nearby->enemy_count < AI_TACTICAL_NEARBY_MAX)
+                nearby->enemies[nearby->enemy_count++] = other;
+        } else if (S_SpellIsFriend(caster, other)) {
+            if (nearby->friend_count < AI_TACTICAL_NEARBY_MAX)
+                nearby->friends[nearby->friend_count++] = other;
+        }
+    }
+}
+
+static uint32_t tactical_enemy_cluster(tacticalNearby_t const *nearby, vec2_t const *point,
+                                       float area) {
+    uint32_t count = 0;
+    FOR_LOOP(i, nearby->enemy_count)
+        if (Vector2_distance(&nearby->enemies[i]->s.origin2, point) <= area) count++;
+    return count;
+}
+
+/* Fast policy gate: most ordinary footmen, workers and towers have no
+ * tactical spell, so never perform a world scan for them. */
+static bool tactical_supported_proc(abilityProc_t proc) {
+    return proc == CAbilityStomp || proc == CAbilityThunderClap ||
+           proc == CAbilityRoar || proc == CAbilityBattleRoar ||
+           proc == CAbilitySpiritWolf || proc == CAbilityWaterElemental ||
+           proc == CAbilitySpiritBeast || proc == CAbilityRejuvination ||
+           proc == CAbilityHealingWave ||
+           proc == CAbilityChainLightning || proc == CAbilityFrostNova ||
+           proc == CAbilityForkedLightning || proc == CAbilityShockwave ||
+           proc == CAbilityImpale || proc == CAbilityBlizzard ||
+           proc == CAbilityRainOfFire || proc == CAbilityFlameStrike ||
+           proc == CAbilityFlameStrikeNeutral || proc == CAbilitySleep ||
+           proc == CAbilityThunderBolt || proc == CAbilityFireBolt ||
+           proc == CAbilityHex || proc == CAbilityCripple ||
+           proc == CAbilityEnsnare || proc == CAbilityBanish ||
+           proc == CAbilityShadowStrike || proc == CAbilityPurge;
+}
+
+static bool tactical_supported_code(edict_t *unit, uint32_t code) {
+    ability_t const *ability;
+    if (!code || !G_UnitAbilityLevel(unit, code)) return false;
+    ability = S_SpellAbilityForCode(code);
+    return ability && !(ability->flags & (AB_AUTOCAST | AB_TOGGLE)) &&
+           tactical_supported_proc(ability->proc);
+}
+
+static bool tactical_has_spell(edict_t *unit) {
+    if (unit->data.UnitAbilities && unit->data.UnitAbilities->abilList) {
+        PARSE_LIST(unit->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) != 4) continue;
+            memcpy(&code, token, 4);
+            if (tactical_supported_code(unit, code)) return true;
+        }
+    }
+    if (unit->unit_state) {
+        FOR_LOOP(i, ARRAY_COUNT(unit->unit_state->overrides.added))
+            if (tactical_supported_code(unit, unit->unit_state->overrides.added[i])) return true;
+        FOR_LOOP(i, MAX_HERO_ABILITIES)
+            if (unit->unit_state->ranks[i].level &&
+                tactical_supported_code(unit, unit->unit_state->ranks[i].code)) return true;
+    }
+    return false;
+}
+
+static bool tactical_try_ability(edict_t *caster, uint32_t code,
+                                 tacticalNearby_t const *nearby) {
+    ability_t const *ability;
+    abilityProc_t proc;
+    uint32_t level;
+    float range, area;
+    edict_t *best = NULL;
+    uint32_t best_cluster = 0;
+    float best_distance = FLT_MAX;
+    bool friendly = false, group = false, point = false;
+    bool self_area = false, summon = false, heal = false;
+
+    if (!code || !nearby->enemy_count || !(level = G_UnitAbilityLevel(caster, code))) return false;
+    ability = S_SpellAbilityForCode(code);
+    if (!ability || (ability->flags & (AB_AUTOCAST | AB_TOGGLE)) ||
+        !G_IsUnitAbilityAvailable(caster, code) ||
+        !G_UnitAbilityResearchAvailable(caster, code) ||
+        !S_AncientAbilityAvailable(caster, ability) ||
+        !S_SpellCanActivate(caster, code, level, false)) return false;
+    /* Channelled spells may only start from idle; never interrupt an existing
+     * attacking, moving, or explicitly scripted action. */
+    if ((ability->flags & AB_CHANNEL) &&
+        (!caster->currentmove || caster->currentmove->think != ai_stand)) return false;
+
+    proc = ability->proc; /* AbilityData aliases inherit their base AI policy. */
+    range = S_SpellRange(code, level);
+    if (range <= 0.0f) range = 650.0f;
+    area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    if (area <= 0.0f) area = 250.0f;
+
+    if (proc == CAbilityStomp || proc == CAbilityThunderClap) {
+        self_area = true;
+    } else if (proc == CAbilityRoar || proc == CAbilityBattleRoar) {
+        /* A fresh Roar should not immediately refresh an existing roar buff. */
+        if (G_UnitStatusLevel(caster, MAKEFOURCC('B','r','o','a'))) return false;
+        /* Roar is useful only with multiple allies near an active fight. */
+        uint32_t allies = 0;
+        FOR_LOOP(i, nearby->friend_count)
+            if (Vector2_distance(&caster->s.origin2,
+                                 &nearby->friends[i]->s.origin2) <= area) allies++;
+        return allies >= AI_TACTICAL_CLUSTER_MIN &&
+               tactical_enemy_cluster(nearby, &caster->s.origin2, range) > 0 &&
+               S_CastNoTargetSpell(caster, code);
+    } else if (proc == CAbilitySpiritWolf || proc == CAbilityWaterElemental ||
+               proc == CAbilitySpiritBeast) {
+        summon = true;
+    } else if (proc == CAbilityRejuvination || proc == CAbilityHealingWave) {
+        friendly = true;
+        heal = true;
+    } else if (proc == CAbilityChainLightning || proc == CAbilityFrostNova ||
+               proc == CAbilityForkedLightning) {
+        group = true;
+    } else if (proc == CAbilityShockwave || proc == CAbilityImpale ||
+               proc == CAbilityBlizzard || proc == CAbilityRainOfFire ||
+               proc == CAbilityFlameStrike || proc == CAbilityFlameStrikeNeutral) {
+        group = point = true;
+    } else if (!tactical_supported_proc(proc)) {
+        /* Never blindly cast every AB_SPELL: many spells have bespoke AI
+         * constraints or are deliberately script-only. */
+        return false;
+    }
+
+    if (self_area)
+        return tactical_enemy_cluster(nearby, &caster->s.origin2, area) >=
+                   AI_TACTICAL_CLUSTER_MIN && S_CastNoTargetSpell(caster, code);
+    if (summon)
+        return tactical_enemy_cluster(nearby, &caster->s.origin2, range) > 0 &&
+               S_CastNoTargetSpell(caster, code);
+
+    uint32_t count = friendly ? nearby->friend_count : nearby->enemy_count;
+    FOR_LOOP(i, count) {
+        edict_t *candidate = friendly ? nearby->friends[i] : nearby->enemies[i];
+        float const distance = Vector2_distance(&candidate->s.origin2, &caster->s.origin2);
+        uint32_t cluster = 0;
+        if (distance > range || (!point && !S_SpellAllowsTarget(code, caster, candidate))) continue;
+        if (heal && (candidate->health.max_value <= 0.0f ||
+                     candidate->health.value > candidate->health.max_value * 0.65f)) continue;
+        if (proc == CAbilityRejuvination &&
+            G_UnitStatusLevel(candidate, MAKEFOURCC('B','r','e','j'))) continue;
+        if (proc == CAbilitySleep && G_UnitIsSleeping(candidate)) continue;
+        if (group) {
+            cluster = tactical_enemy_cluster(nearby, &candidate->s.origin2, area);
+            if (cluster < AI_TACTICAL_CLUSTER_MIN) continue;
+        }
+        /* Prefer the densest legal cluster, then the closest eligible target.
+         * All casts re-run the usual ability-specific A_VALIDATE checks. */
+        if (!best || cluster > best_cluster ||
+            (cluster == best_cluster && distance < best_distance)) {
+            best = candidate;
+            best_cluster = cluster;
+            best_distance = distance;
+        }
+    }
+    if (!best) return false;
+    return point ? S_CastPointTargetSpell(caster, code, &best->s.origin2) :
+                   S_CastUnitTargetSpell(caster, code, best);
+}
+
+bool G_TryUnitTacticalCast(edict_t *unit) {
+    tacticalNearby_t nearby;
+    /* This scheduler runs outside ai_stand so attacking casters can respond
+     * during cooldowns. Do not supersede build/harvest/move/cinematic orders. */
+    if (!unit || !(unit->svflags & SVF_MONSTER) || !tactical_ai_controller(unit) ||
+        M_IsDead(unit) || G_BuildingUpgradeActive(unit) ||
+        (unit->runtime.flags & UNIT_BALANCE_BUILDING) ||
+        (unit->aiflags & AI_SLEEPING) ||
+        G_UnitHasFlag(unit, UNIT_FLAG_PAUSED) ||
+        unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED) ||
+        S_SpellIsChanneling(unit) || G_UnitQueuedOrderCount(unit) ||
+        !unit->currentmove ||
+        (unit->currentmove->think != ai_stand &&
+         unit->currentmove->proc != CAbilityAttack) ||
+        (unit->orders && unit->orders->creep_guard_phase == CREEP_GUARD_RETURNING) ||
+        !G_ShouldAcquireThisFrame(unit) ||
+        !tactical_has_spell(unit) ||
+        S_UnitAbilityEvent(unit, A_NO_ACQUIRE)) return false;
+    tactical_find_nearby(unit, &nearby);
+    if (!nearby.enemy_count) return false;
+    /* An authored ability may have been removed/morphed/learned this tick.
+     * Query current ownership rather than keeping a persisted spell cache. */
+#define TRY_TACTICAL(code_) do { if (tactical_try_ability(unit, (code_), &nearby)) return true; } while (0)
+    if (unit->data.UnitAbilities && unit->data.UnitAbilities->abilList) {
+        PARSE_LIST(unit->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) != 4) continue;
+            memcpy(&code, token, 4);
+            TRY_TACTICAL(code);
+        }
+    }
+    if (unit->unit_state) {
+        FOR_LOOP(i, ARRAY_COUNT(unit->unit_state->overrides.added))
+            if (unit->unit_state->overrides.added[i])
+                TRY_TACTICAL(unit->unit_state->overrides.added[i]);
+        FOR_LOOP(i, MAX_HERO_ABILITIES)
+            if (unit->unit_state->ranks[i].level)
+                TRY_TACTICAL(unit->unit_state->ranks[i].code);
+    }
+#undef TRY_TACTICAL
+    return false;
+}
+
 void ai_birth(edict_t *self) {
 }
 

@@ -179,6 +179,10 @@ void monster_think(edict_t *self) {
     if (self->currentmove->think) {
         self->currentmove->think(self);
     }
+    /* Tactical spells are checked on the same staggered acquisition cadence,
+     * even while ordinary attacks are running. Explicit movement/build orders
+     * and channels are protected by G_TryUnitTacticalCast's eligibility gate. */
+    if (self->inuse && self->currentmove) G_TryUnitTacticalCast(self);
 }
 
 void monster_start(edict_t *self) {
