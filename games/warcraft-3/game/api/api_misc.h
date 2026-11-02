@@ -1992,7 +1992,7 @@ uint32_t GetBJPlayerNeutralExtra(jass_t *j) {
     return jass_pushinteger(j, PLAYER_NEUTRAL_EXTRA);
 }
 uint32_t GetBJMaxPlayerSlots(jass_t *j) {
-    return jass_pushinteger(j, 12);
+    return jass_pushinteger(j, MAX_PLAYERS);
 }
 uint32_t ConvertVersion(jass_t *j) {
     API_ALLOC(uint32_t, version);
