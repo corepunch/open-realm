@@ -3,7 +3,7 @@
   "target": "TARGET-01.2 F19/D051",
   "status": "Aivs and AIvi share concrete Binv with authored display context, item transition2, saved primary expiry and strict refresh. B01 compositions and caller dispositions remain open.",
   "save_version": 242,
-  "full_suite_run": false,
+  "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -6673,12 +6673,14 @@
       "build/lib/libgame-wc3-test.so": "68d55885bf5e52821c0d2d43caf91067bd85d873c0644893e20670603a438809"
     },
     "full_suite": {
-      "status": "Classic passed; TFT running",
-      "report_directory": "build/tests/invisibility323/full",
-      "classic_tests": 4729,
-      "classic_assertions": 30365682,
-      "classic_passed": true,
-      "tft_passed": null
+      "status": "passed",
+      "source_commit": "4ce3ed9ae",
+      "report": "build/tests/invisibility323/full/summary.json",
+      "processes": 8,
+      "tests": 9458,
+      "assertions": 60731364,
+      "passed": true,
+      "limit": "This frozen323 binary predates the new324 tests."
     }
   }
 }

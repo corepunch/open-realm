@@ -731,6 +731,6 @@ Verification: the four new cases pass in both editions within the fresh
 Itemdrop gate (146 tests/11,936 assertions per edition). The original-byte
 clock oracle passes eight cases and nine rejecting controls. All five fresh
 pathfinding gates, the uninterrupted/nine-checkpoint saved C299 replay,
-115 Python tests, corpus integrity and the SC2API CI command pass. The full
-Classic suite passes4,729 tests/30,365,682 assertions; the full TFT run was
-still running when this code change was committed.
+115 Python tests, corpus integrity and the SC2API CI command pass. The frozen323 full
+suite subsequently passed both editions:9,458 executions/60,731,364 assertions
+across eight shards, with no failures or skips. This run predates324 tests.
