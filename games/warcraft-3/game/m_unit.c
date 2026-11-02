@@ -1906,7 +1906,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
     if (!self || M_IsDead(self) || (G_IsDeferredFree(self) || self->construction_held) ||
         S_UnitOrderExecutionHeld(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
-        if (queued.owner_context && !unit_is_ai_core_order(&queued)) {
+        if (queued.owner_context && !unit_is_ai_core_order(&queued) && strcmp(queued.order,"itemuse")) {
             queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START);
             if (result!=QUEUED_ORDER_UNHANDLED) {
                 if(result==QUEUED_ORDER_STARTED)S_UnitAbilityOrderAccepted(self,queued.order);

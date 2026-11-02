@@ -923,6 +923,7 @@ typedef struct {
     uint32_t target_number;
     uint32_t target_spawn_time;
     uint32_t item_number, item_spawn_time; /* Independent Inventory packet payload. */
+    uint32_t item_ability_slot,item_ability_generation; /* Weak attachment, independent of item lifetime. */
     bool target_is_unit; /* Captured class survives removal and slot reuse. */
     uint32_t issuer_player;
     uint32_t order_id; /* Retained identity/explicit payload (Build rawcode); zero resolves order name. */
@@ -5142,8 +5143,11 @@ bool S_SpellPreparationBypassesTarget(edict_t const *);
 bool S_SpellPreparationPending(void);
 uint64_t S_SpellPreparationEpoch(void);
 void S_ResetSpellPreparation(void);
-void S_AttachPreparatoryItems(edict_t *unit,edict_t *item);
-void S_DetachPreparatoryItems(edict_t *item);
+bool S_AttachPreparatoryItems(edict_t *unit,edict_t *item);
+bool S_CaptureItemAbilityAttachment(edict_t const *,edict_t const *,uint32_t,uint32_t,uint32_t *,uint32_t *);
+bool S_ItemAbilityAttachmentLive(edict_t const *,edict_t const *,uint32_t,uint32_t,uint32_t,uint32_t);
+void S_CancelItemAbilityAttachment(edict_t *,edict_t *,uint32_t,uint32_t,uint32_t);
+bool S_DetachPreparatoryItems(edict_t *item);
 bool S_WritePreparationItems(FILE *);
 bool S_ReadPreparationItems(FILE *);
 bool S_ValidateUnitTargetSpell(edict_t *,uint32_t,edict_t *);
@@ -5454,9 +5458,12 @@ bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
 bool S_OrderDropItemPoint(edict_t *, edict_t *, vec2_t const *);
 void G_ReleaseRemovedInventory(edict_t *unit);
-void G_DetachCarriedItem(edict_t *item);
+bool G_DetachCarriedItem(edict_t *item);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);
+bool G_UseItemNoTarget(edict_t *,edict_t *);
+bool S_OrderUseItem(edict_t *,edict_t *,uint32_t);
+bool S_BeginItemCast(edict_t *,edict_t *,uint32_t,uint32_t);
 uint32_t G_ItemTypeFromClass(cstring_t cls);
 
 // g_stock.c / neutral shops

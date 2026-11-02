@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Ordered common CHANNEL/CAST action owners implemented, including pending Binv protection, Apiv reset and saved attachment order. AIvi command/cast integration, other overlap families and caller dispositions remain open.",
-  "save_version": 243,
+  "status": "Profiled no-target AIvi ordinary inventory/cast ownership matches the declared five-case81-row protocol in both editions. B01 overlap compositions and caller dispositions remain open.",
+  "save_version": 244,
   "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
@@ -6820,5 +6820,161 @@
       "Five overlap-family dispositions and adjusted setter reachability.",
       "Remaining incoming caller dispositions."
     ]
+  },
+  "phase326": {
+    "scope": "Profiled AIvi no-target inventory command/cast owner, retained execution independent of attachment, metadata, completion and current user head.",
+    "save_version": 244,
+    "native_fixture": "tools/ghidra/fixtures/research/invisibility326-public-original.json",
+    "native_fixture_sha256": "f16d09f894f951fb7a63d9e9fd724e48bfba0f292b18f94b70867b3f4f8d81ae",
+    "native_checker": "tools/ghidra/research/invisibility326_capture_check.py",
+    "native_checker_passed": true,
+    "original_unique_ranges": 26,
+    "original_virtual_slots": 6,
+    "public_rows": 237,
+    "observer_rows": 457,
+    "observations": 1,
+    "fresh_observer_free_controls": 1,
+    "engine_projection_rows": 81,
+    "scene_projection_counts": [
+      18,
+      16,
+      16,
+      16,
+      15
+    ],
+    "engine_new_tests": {
+      "per_edition_tests": 2,
+      "per_edition_assertions": 209,
+      "passed": true
+    },
+    "extra_engine_scope": [
+      "Cold-saved construction-held user packet preserves attachment identity.",
+      "Same-item repick invalidates the old queued attachment token.",
+      "Removing the source does not consume a sibling with the same alias.",
+      "Callback replacement Move retains its own head after unwind."
+    ],
+    "fixture_corrections": "Initial red and first green attempts omitted unit-spell and USE_ITEM enums from minimal common.j. They are not failing-first product proof. Prior paused refresh cases now enter the original-proved effect service directly; public paused admission remains open.",
+    "focused": {
+      "report": "build/tests/invisibility326/focused-final/verified-summary.json",
+      "processes": 10,
+      "tests": 2252,
+      "assertions": 275666,
+      "passed": true,
+      "excluded_selectors": "Two wc3_stock.* selectors matched zero cases; excluded from all totals. Pawn coverage is in wc3_items.*."
+    },
+    "c299": {
+      "normal_passed": true,
+      "nine_checkpoint_saved_passed": true,
+      "public_rows": 2066,
+      "motion_rows": 5342,
+      "mismatches": 0,
+      "reports": [
+        "build/tests/invisibility326/engine/c299.summary.json",
+        "build/tests/invisibility326/engine/c299-saved.summary.json"
+      ]
+    },
+    "final_binaries": {
+      "build/bin/openwarcraft3-tests": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "build/lib/libgame-wc3-test.so": "c4d11a497d36ace2e277dc2b2db1b90bf444449b1f800816119cb445c264823f"
+    },
+    "full_suite_rerun": false,
+    "sc2api_rerun": false,
+    "remaining": [
+      "Public item admission during scripted Pause and other AIvi contributor compositions.",
+      "AOwk/Agho/Abur/Ahid overlap dispositions.",
+      "Adjusted setter public reachability and remaining incoming CALL dispositions."
+    ],
+    "whole_backlog_leaf_closed": false,
+    "fresh_gates": {
+      "itemdrop": {
+        "passed": true,
+        "report": "build/tests/invisibility326/gates-final/itemdrop.json",
+        "sha256": "baf2315bce8d716464b866db556b4194bfbc4f718b79c18962c6535c7963e546",
+        "engine": {
+          "classic": {
+            "tests": 153,
+            "assertions": 12406
+          },
+          "tft": {
+            "tests": 153,
+            "assertions": 12406
+          }
+        }
+      },
+      "captain473": {
+        "passed": true,
+        "report": "build/tests/invisibility326/gates-final/captain473.json",
+        "sha256": "3e94c223f5e9dafe9282b5fe47586f3eb37dabc84759edd7e23e9a851c349fca",
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      },
+      "waygate377": {
+        "passed": true,
+        "report": "build/tests/invisibility326/gates-final/waygate377.json",
+        "sha256": "83fcacfe9cf7829f13f962ed890a97394b7342c24657d06582390ca8db09c410",
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "group012": {
+        "passed": true,
+        "report": "build/tests/invisibility326/gates-final/group012.json",
+        "sha256": "a1894f1ded86c7104b4b1098d9864654b7ea4c05505b8b217400a7df6d2c3a50",
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "supportgoal": {
+        "passed": true,
+        "report": "build/tests/invisibility326/gates-final/supportgoal.json",
+        "sha256": "d19df75511c0582ebc0b9caf5c4888515390d52c84bbdfff1bf2a1a37d0fd8f2",
+        "engine": {
+          "classic": {
+            "tests": 514,
+            "assertions": 2002189
+          },
+          "tft": {
+            "tests": 514,
+            "assertions": 2002189
+          }
+        }
+      }
+    },
+    "python_tests": {
+      "passed": true,
+      "tests": 86,
+      "groups": {
+        "itemdrop": 38,
+        "attack_recovery299": 10,
+        "corpus": 38
+      }
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3353
+    }
   }
 }

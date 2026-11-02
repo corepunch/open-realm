@@ -344,6 +344,11 @@ static bool AbilityItemInvis_ItemUse(edict_t *ent,abilityCall_t const *call) {
 
 BZ_ABILITY_PROC(CAbilityItemInvis) {
     switch (msg) {
+    case A_CAST_PROFILE:
+        /*617860/3ea160 initialize all three intrinsic clocks to RuntimeZero;
+         * AIvi data refresh does not import unit weapon or Cast1 timing. */
+        *call->cast_profile=(spellCastProfile_t){0};return true;
+    case A_EXECUTE:
     case A_ITEM_USE:
         return AbilityItemInvis_ItemUse(ent,call);
     case A_STATUS_REPLACE: case A_STATUS_REMOVE:

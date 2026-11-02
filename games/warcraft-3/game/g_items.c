@@ -97,24 +97,54 @@ bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item) {
 
 /* ItemData stores passive effects as an ability list; the item rawcode itself
  * is not an ability code. */
-static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
-    cstring_t abilities;
+/* Synchronous item callbacks may replace either edict or its inventory binding. */
+typedef struct {
+    uint64_t epoch;
+    edict_t *unit;
+    edict_t const *item;
+    item_t const *state;
+    uint32_t unit_birth, item_birth;
+    bool unit_deferred, item_deferred;
+    edict_t *carrier;
+    int32_t slot;
+} itemBindingGuard_t;
 
-    /* Item-use permission gates gaining passive item effects, but removal must
-     * always reverse effects that were already applied. The permission can
-     * change while an item is carried (custom abilities/tech/scripted data),
-     * and blocking A_ITEM_REMOVE would leak the old stat bonus after a drop. */
-    if (apply && !G_InventoryCanUseItems(unit)) return;
-    if (apply) S_AttachPreparatoryItems(unit, (edict_t *)item);
-    else S_DetachPreparatoryItems((edict_t *)item);
-    abilities = G_ItemAbilityList(item);
-    if (!abilities || !*abilities) return;
+static itemBindingGuard_t G_ItemBindingGuard(edict_t *unit, edict_t const *item) {
+    item_t const *state = G_ItemState(item);
+    return (itemBindingGuard_t){.epoch=S_SpellPreparationEpoch(),.unit=unit,.item=item,
+        .state=state,.unit_birth=unit ? unit->spawn_time : 0,
+        .item_birth=item ? item->spawn_time : 0,
+        .unit_deferred=unit && G_IsDeferredFree(unit),
+        .item_deferred=item && G_IsDeferredFree(item),
+        .carrier=state ? state->carrier : NULL,.slot=state ? state->inventory_slot : -1};
+}
+
+static bool G_ItemBindingUnchanged(itemBindingGuard_t const *guard) {
+    if (guard->epoch != S_SpellPreparationEpoch()) return false;
+    if (!guard->item || !guard->item->inuse || guard->item->spawn_time != guard->item_birth ||
+        G_IsDeferredFree(guard->item) != guard->item_deferred || guard->item->item != guard->state || !guard->state)
+        return false;
+    if (guard->unit && (!guard->unit->inuse || guard->unit->spawn_time != guard->unit_birth ||
+        G_IsDeferredFree(guard->unit) != guard->unit_deferred)) return false;
+    return guard->state->carrier == guard->carrier && guard->state->inventory_slot == guard->slot;
+}
+
+static bool G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
+    if (apply && !G_InventoryCanUseItems(unit)) return true;
+    itemBindingGuard_t guard=G_ItemBindingGuard(unit,item);
+    bool attached = apply ? S_AttachPreparatoryItems(unit,(edict_t *)item) :
+                            S_DetachPreparatoryItems((edict_t *)item);
+    if (!attached || !G_ItemBindingUnchanged(&guard)) return false;
+    cstring_t abilities = G_ItemAbilityList(item);
+    if (!abilities || !*abilities) return true;
     PARSE_LIST(abilities, ability, parse_segment) {
         abilityitem_t entry = S_AbilityItem(FS_SLKKey(ability));
         abilityCall_t call = MAKE(abilityCall_t, .item = &entry,
             .source_item=(edict_t *)item,.source_item_spawn_time=item->spawn_time);
         S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
+        if (!G_ItemBindingUnchanged(&guard)) return false;
     }
+    return true;
 }
 
 /* CItem vt160/164/168: independent mover category18, item query10,
@@ -436,7 +466,7 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
         }
         if (slot >= 0) {
             bool preparing = S_SpellPreparationBypassesTarget(carrier);
-            G_ApplyItemStats(carrier, item, false);
+            if (!G_ApplyItemStats(carrier, item, false)) return;
             if (preparing && !S_SpellPreparationBypassesTarget(carrier)) return;
             if (!item->inuse || item->spawn_time != item_spawn || G_IsDeferredFree(item) ||
                 item->item != rec) return;
@@ -569,7 +599,7 @@ bool G_CanPickupItem(edict_t *unit, edict_t *item) {
 
 /* Binding is shared by ordinary pickups and forced scripted insertion. The
  * caller owns admission and the synchronous versus queued event boundary. */
-static void G_BindItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
+static bool G_BindItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
     item_t *rec=item->item;
     gi.UnlinkEntity(item);
     G_SetEntityHidden(item,true);
@@ -580,13 +610,14 @@ static void G_BindItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
 
     unit->inventory[slot] = item;
     G_PublishMoveSpatialObject(item);
-    G_ApplyItemStats(unit, item, true);
+    if (!G_ApplyItemStats(unit, item, true)) return false;
     G_RefreshInventoryUI(unit);
+    return true;
 }
 
 bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event) {
     if (slot >= G_InventoryCapacity(unit) || !G_CanPickupItem(unit, item) || unit->inventory[slot]) return false;
-    G_BindItemToSlot(unit,item,slot);
+    if (!G_BindItemToSlot(unit,item,slot)) return false;
     if (publish_event) {
         G_PlayerScoreItemGained(unit);
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
@@ -610,7 +641,7 @@ static bool G_CanAddItemScripted(edict_t *unit, edict_t *item) {
 /* Script insertion completes Pickup on the current JASS stack. */
 bool G_AddItemToSlotScripted(edict_t *unit, edict_t *item, uint32_t slot) {
     if(!G_CanAddItemScripted(unit,item) || item->item->carrier || slot>=G_InventoryCapacity(unit) || unit->inventory[slot])return false;
-    G_BindItemToSlot(unit,item,slot);
+    if (!G_BindItemToSlot(unit,item,slot)) return false;
     G_PlayerScoreItemGained(unit);
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
     return true;
@@ -619,22 +650,27 @@ bool G_AddItemToSlotScripted(edict_t *unit, edict_t *item, uint32_t slot) {
 /* Detachment is separate from world publication and the next recipient's
  * admission. A failed Give attachment retains a hidden unowned item, while
  * RemoveUnit's retirement producer observes the already-cleared source slot. */
-void G_DetachCarriedItem(edict_t *item) {
-    S_DetachPreparatoryItems(item);
-    edict_t *carrier=item->item->carrier;
-    int32_t slot=item->item->inventory_slot;
+bool G_DetachCarriedItem(edict_t *item) {
+    item_t *state=G_ItemState(item);
+    if (!state) return false;
+    edict_t *carrier=state->carrier;
+    itemBindingGuard_t guard=G_ItemBindingGuard(carrier,item);
+    if (!S_DetachPreparatoryItems(item) || !G_ItemBindingUnchanged(&guard)) return false;
+    int32_t slot=state->inventory_slot;
     if(carrier && carrier->inuse) {
         if(slot<0 || slot>=MAX_INVENTORY || carrier->inventory[slot]!=item) {
             slot=-1;
             FOR_LOOP(i,MAX_INVENTORY)if(carrier->inventory[i]==item){slot=i;break;}
         }
         if(slot>=0) {
-            G_ApplyItemStats(carrier,item,false);
+            if (!G_ApplyItemStats(carrier,item,false) || !G_ItemBindingUnchanged(&guard) ||
+                carrier->inventory[slot]!=item) return false;
             carrier->inventory[slot]=NULL;
         }
         G_RefreshInventoryUI(carrier);
     }
-    item->item->carrier=NULL;item->item->inventory_slot=-1;item->item->in_world=false;
+    state->carrier=NULL;state->inventory_slot=-1;state->in_world=false;
+    return true;
 }
 
 /* Player Give detaches without world publication, then attempts recipient
@@ -676,7 +712,10 @@ bool G_GiveCarriedItem(edict_t *recipient, edict_t *item) {
            source->inventory[source_slot]!=item)return false;
     }
 
-    G_DetachCarriedItem(item);
+    itemBindingGuard_t detach_guard=G_ItemBindingGuard(recipient,item);
+    if (!G_DetachCarriedItem(item)) return false;
+    if (detach_guard.epoch!=S_SpellPreparationEpoch() || !recipient->inuse ||
+        recipient->spawn_time!=detach_guard.unit_birth || G_IsDeferredFree(recipient)) return false;
     /*6695c0 rechecks capacity AFTER5667d0 detached the item. A callback that
      * fills/removes Inventory must not roll that completed detach back. */
     target_slot=G_FindFreeInventorySlot(recipient);
@@ -684,7 +723,7 @@ bool G_GiveCarriedItem(edict_t *recipient, edict_t *item) {
     recipient->inventory[target_slot] = item;
     rec->carrier = recipient;
     rec->inventory_slot = target_slot;
-    G_ApplyItemStats(recipient, item, true);
+    if (!G_ApplyItemStats(recipient, item, true)) return false;
     G_RefreshInventoryUI(recipient);
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=recipient,.source=item,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
     return true;
@@ -810,7 +849,9 @@ void G_ReleaseRemovedInventory(edict_t *unit) {
         edict_t *item=unit->inventory[slot];
         if(!G_IsItem(item) || item->item->carrier!=unit || item->item->inventory_slot!=(int32_t)slot)continue;
         vec2_t const point=unit->s.origin2;
-        G_DetachCarriedItem(item);
+        uint64_t epoch=S_SpellPreparationEpoch();
+        if (!G_DetachCarriedItem(item)) return;
+        if (epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=spawn) return;
         G_PublishDroppedItem(item,point);
         G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
         if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit))return;
@@ -835,7 +876,10 @@ static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vec2_t const *pos
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
     if(!G_IsItem(item) || item->spawn_time!=generation)return true;
     if(item->item->carrier!=unit || item->item->inventory_slot!=(int32_t)slot || unit->inventory[slot]!=item)return false;
-    G_DetachCarriedItem(item);
+    itemBindingGuard_t detach_guard=G_ItemBindingGuard(unit,item);
+    if (!G_DetachCarriedItem(item)) return false;
+    if (detach_guard.epoch!=S_SpellPreparationEpoch() || !unit->inuse ||
+        unit->spawn_time!=detach_guard.unit_birth || G_IsDeferredFree(unit)) return false;
     G_PublishDroppedItem(item,requested);
     if (play_sound) G_QueueOwnerSoundAlias(unit, "ItemDrop");
     return true;
@@ -906,7 +950,7 @@ bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot) {
     rec = G_ItemState(item);
     if (!rec || rec->carrier != unit || rec->inventory_slot != (int32_t)slot ||
         rec->in_world) return false;
-    G_ApplyItemStats(unit, item, false);
+    if (!G_ApplyItemStats(unit, item, false) || G_InventoryItem(unit,slot)!=item) return false;
     unit->inventory[slot] = NULL;
     rec->inventory_slot = -1;
     G_RefreshInventoryUI(unit);
@@ -921,7 +965,7 @@ bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot) {
     rec->inventory_slot = (int32_t)slot;
 
     unit->inventory[slot] = item;
-    G_ApplyItemStats(unit, item, true);
+    if (!G_ApplyItemStats(unit, item, true)) return false;
     G_RefreshInventoryUI(unit);
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
@@ -943,7 +987,7 @@ void G_RemoveItemScripted(edict_t *item) {
 
 void G_RemoveItem(edict_t *item) {
     if(!G_IsItem(item))return;
-    G_DetachCarriedItem(item);
+    if (!G_DetachCarriedItem(item)) return;
     G_FreeEdict(item);
 }
 
@@ -951,7 +995,10 @@ void G_RemoveItem(edict_t *item) {
  * the item identity still resolves. A nested deletion cannot free its reuse. */
 static void G_RemoveRetiredItem(edict_t *unit,edict_t *item) {
     uint32_t const generation=item->spawn_time;
-    G_DetachCarriedItem(item);
+    itemBindingGuard_t detach_guard=G_ItemBindingGuard(unit,item);
+    if (!G_DetachCarriedItem(item)) return;
+    if (detach_guard.epoch!=S_SpellPreparationEpoch() || !unit->inuse ||
+        unit->spawn_time!=detach_guard.unit_birth) return;
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
     if(G_IsItem(item) && item->spawn_time==generation)G_RemoveItem(item);
 }
@@ -969,6 +1016,8 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
     bool inventory_owner;
 
     if (!unit || !unit->inuse || unit->targtype == TARG_ITEM) return;
+    uint64_t epoch=S_SpellPreparationEpoch();
+    uint32_t birth=unit->spawn_time;
     inventory_owner = G_InventoryCapacity(unit) > 0;
     FOR_LOOP(slot, MAX_INVENTORY) {
         edict_t *item = G_InventoryItem(unit, slot);
@@ -978,6 +1027,7 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
             G_RemoveRetiredItem(unit,item);
         else
             unit->inventory[slot] = NULL;
+        if (epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth) return;
     }
     if (!inventory_owner) return;
     /* Detached items have carrier==unit but are not present in any slot.
@@ -991,6 +1041,7 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
             item->item->pending_use_carrier = NULL;
             item->item->pending_use_carrier_spawn_time = 0;
         }
+        if (epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth) return;
     }
 }
 
@@ -1003,6 +1054,9 @@ bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller
        G_IsDeferredFree(item) || rec->pending_use_removal || rec->carrier!=unit ||
        rec->inventory_slot<0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item ||
        !ability || !ability->ability || !(ability->ability->flags&AB_ITEM))return false;
+    spellCastProfile_t profile;
+    abilityCall_t query={.item=ability,.cast_profile=&profile};
+    if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return S_OrderUseItem(unit,item,ability->code);
     uint64_t const epoch=S_SpellPreparationEpoch();
     uint32_t const unit_birth=unit->spawn_time,item_birth=item->spawn_time;
     abilityCall_t call={.item=ability,.client=controller,.source_item=item,
@@ -1017,6 +1071,25 @@ bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller
        rec->inventory_slot<0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item)return used;
     G_CompleteItemUse(unit,item);
     return used;
+}
+
+/* Scripted no-target use admits an ordinary item command. Cursor handlers
+ * need their point/target producers and must not open a player's UI here. */
+bool G_UseItemNoTarget(edict_t *unit,edict_t *item) {
+    item_t const *rec=G_ItemState(item);
+    if(!unit || !unit->inuse || !G_InventoryCanUseItems(unit) || !rec ||
+       rec->carrier!=unit || rec->inventory_slot<0 ||
+       G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item)return false;
+    cstring_t abilities=G_ItemAbilityList(item);
+    if(!abilities)return false;
+    PARSE_LIST(abilities,name,parse_segment) {
+        abilityitem_t ability=S_AbilityItem(FS_SLKKey(name));
+        if(!ability.ability || !(ability.ability->flags&AB_ITEM))continue;
+        spellCastProfile_t profile;
+        abilityCall_t query={.item=&ability,.cast_profile=&profile};
+        if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return S_OrderUseItem(unit,item,ability.code);
+    }
+    return false;
 }
 
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */

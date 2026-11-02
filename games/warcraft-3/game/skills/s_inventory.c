@@ -17,6 +17,7 @@ static umove_t inventory_move_give={.animation="walk",.think=inventory_target_th
     .sample_pose=S_PublishMovement,.leave=inventory_drop_leave};
 static umove_t inventory_move_pawn={.animation="walk",.think=inventory_target_think,.proc=CAbilityInventory,
     .sample_pose=S_PublishMovement,.leave=inventory_drop_leave};
+static queuedOrderResult_t inventory_use_activate(edict_t *,unitOrder_t const *);
 static queuedOrderResult_t inventory_drop_activate(edict_t *,unitOrder_t const *);
 static queuedOrderResult_t inventory_target_activate(edict_t *,unitOrder_t const *);
 static queuedOrderResult_t inventory_pickup_activate(edict_t *,unitOrder_t const *);
@@ -44,6 +45,7 @@ BZ_ABILITY_PROC(CAbilityInventory) {
         }
         return false;
     case A_QUEUE_ORDER_START:
+        if(!strcmp(call->queued_order->order,"itemuse"))return inventory_use_activate(ent,call->queued_order);
         if(call->queued_order->target_type==UNIT_ORDER_TARGET_ENTITY && !strcmp(call->queued_order->order,"smart")) {
             unitOrder_t const *packet=call->queued_order;
             edict_t *item=packet->target_number<globals.num_edicts ? g_edicts+packet->target_number : NULL;
@@ -55,6 +57,7 @@ BZ_ABILITY_PROC(CAbilityInventory) {
         if(call->queued_order->target_type!=UNIT_ORDER_TARGET_POINT_ITEM)return QUEUED_ORDER_UNHANDLED;
         return inventory_drop_activate(ent,call->queued_order);
     case A_QUEUE_ORDER_CANCEL:
+        if(!strcmp(call->queued_order->order,"itemuse"))return true;
         return call->queued_order->target_type==UNIT_ORDER_TARGET_POINT_ITEM ||
             call->queued_order->target_type==UNIT_ORDER_TARGET_ENTITY_ITEM;
     default:
@@ -323,4 +326,27 @@ static queuedOrderResult_t inventory_pickup_activate(edict_t *unit,unitOrder_t c
     inventory_pickup_think(unit);
     return unit->currentmove==&inventory_move_pickup && G_UnitMoveRevision(unit)==revision ?
         QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
+}
+
+/*2190c0/206b20 retain the selected inventory ability, then680320 admits
+ * its ordinary no-target user packet. Admission is independent of execution. */
+bool S_OrderUseItem(edict_t *unit,edict_t *item,uint32_t code) {
+    if(!unit || !item || !inventory_carries(unit,item) || !G_InventoryCanUseItems(unit) ||
+       S_UnitOrderDisabled(unit,"itemuse") || G_IsDeferredFree(item) ||
+       (item->data.ItemData && item->data.ItemData->uses && !item->item->charges))return false;
+    unitOrder_t packet={.target_type=UNIT_ORDER_TARGET_NONE,.item_number=item->s.number,
+        .item_spawn_time=item->spawn_time,.issuer_player=unit->s.player,
+        .order_id=852008+item->item->inventory_slot,.owner_context=code};
+    if(!S_CaptureItemAbilityAttachment(unit,item,item->spawn_time,code,
+            &packet.item_ability_slot,&packet.item_ability_generation))return false;
+    strlcpy(packet.order,"itemuse",sizeof(packet.order));
+    return G_AdmitUnitOrder(unit,&packet,true);
+}
+static queuedOrderResult_t inventory_use_activate(edict_t *unit,unitOrder_t const *packet) {
+    edict_t *item=packet->item_number<globals.num_edicts ? g_edicts+packet->item_number : NULL;
+    if(!item || !inventory_carries(unit,item) ||
+       !S_ItemAbilityAttachmentLive(unit,item,packet->item_spawn_time,packet->owner_context,
+           packet->item_ability_slot,packet->item_ability_generation))return QUEUED_ORDER_UNHANDLED;
+    if(!S_BeginItemCast(unit,item,packet->item_spawn_time,packet->owner_context))return QUEUED_ORDER_UNHANDLED;
+    return QUEUED_ORDER_REPLACED; /* A zero-time chain may already have retired or replaced its head. */
 }

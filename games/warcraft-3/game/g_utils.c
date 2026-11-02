@@ -108,6 +108,16 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 
 void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
+    uint64_t release_epoch=S_SpellPreparationEpoch();
+    uint32_t release_birth=ent->spawn_time;
+    /* Item ENDCAST must run while all pooled state is still intact. The
+     * callback may recursively remove/reuse this edict or reset the world. */
+    if (ent->item) {
+        uint64_t epoch=S_SpellPreparationEpoch();
+        uint32_t birth=ent->spawn_time;
+        if (!S_DetachPreparatoryItems(ent)) return;
+        if (epoch!=S_SpellPreparationEpoch() || !ent->inuse || ent->spawn_time!=birth) return;
+    }
     bool const had_static_pathing = G_EntityHasStaticPathing(ent);
     bool const had_aura = S_UnitHasAuraSource(ent);
     if (had_aura) S_MarkAuraSource(ent);
@@ -134,6 +144,8 @@ void G_FreeEdict(edict_t *ent) {
      * edict and its pooled state can be reused; a prior StoreUnit snapshot is
      * a value copy and remains independent of these live item handles. */
     G_ReleaseInventoryOnUnitRemoval(ent);
+    if (release_epoch!=S_SpellPreparationEpoch() || !ent->inuse ||
+        ent->spawn_time!=release_birth) return;
     /* Direct JASS RemoveUnit must release transient construction/upgrade state
      * before the edict is cleared. Forced removal does not grant a player
      * cancellation refund. */

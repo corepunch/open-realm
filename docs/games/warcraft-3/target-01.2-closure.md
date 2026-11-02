@@ -14,7 +14,7 @@ For a D row, record the exact fixture filename and scene/record, submitted raw a
 
 ### B01. Correct and finish Attack recovery — F19 / D051
 
-**Delivered substeps:** original298 branch oracle, complete native299 repeat/control reference, common C recovery with Save233, ordinary resolved-alternative validation and item life, and the configured public Aivs/Apiv/Binv fade/suppression owner with Save234; initial public Attack reaction/physical admission, saved captured range (Save235), pending-windup cooldown inverse and buffered primary damage commit; fractional physical damage through health/events with Save236. Independent primary cooldown expiry/rearm and saved ownership are implemented in checkpoint312 (Save237), extending the exact ordered-motion prefix from 148 to 878 rows. Checkpoint313 prevents ordinary ShowUnit-hidden sources from acquiring while retaining scan rearming, extending the prefix to 2,346 rows; the full native batch passes 9,414 tests across both editions. Checkpoint314 restores owner-transfer synchronous events and Defend modal off; the exact public prefix increases from 398 to 986 rows. Checkpoint315 removes obsolete generic dormancy from runtime creation/idle/Attack scan, extending exact prefixes to 1,100 public and 3,338 motion rows; real natural Sleep remains covered. Checkpoint316 restores the independent guard Move/numeric851987 FIFO continuation, ordinary-player d014e cancellation at Move/Patrol activation, and Save238 ownership. Explicit TFT replay matches 1,392 public and 4,030 ordered motion rows; earlier replay reports used Classic. Checkpoint318 replaces the GetTriggerEventId stub and preserves event-enum identity through plain handles and Save239/snapshot12. The first public replay difference is now row 1,393 (Invisibility Effect before Cast); motion remains 4,030. Checkpoint319 routes public Invisibility through the shared cast scheduler. Exact replay prefixes are now 1,858 public and 5,058 motion rows; scene5 paused Attack packet replay is the next proven gap. Checkpoint320 retains the original paused user packet and its exact primary release request in Save240. Uninterrupted and nine-checkpoint cold-saved TFT C299 now match all 2,066 public events and 5,342 ordered motion rows with zero mismatches. The native trace has additional internal rows outside that comparison. Checkpoint321 fixes AIvi immediate-use carrier ownership through both real inventory entry points, including a selected shop and its distinct patron. Checkpoint322 ports concrete Binv versus authored display identity, item transition2, saved primary expiry and strict refresh. Actual Aivs/item overlap refresh retains one instance/contribution; component-original and engine checks pass. Checkpoint323 follows the original counted Binv private-clock protocol: scripted Pause freezes expiry independently of the continuing shared fade; refresh and the last inverse preserve the original frozen remainder, including save/load. Checkpoint324 adds real public Sleep orders, both Apiv/item attachment orders, independent negative-buff/Apiv release and cold-save tests, backed by a fresh native observation/control with246 matching public records. Checkpoint325 ports that ordered action notification to existing profiled spell phases, including Binv pending protection/removal, Apiv reset, cold-saved owner order and no extra EFFECT reset. AIvi activation still bypasses the actual ordinary user-command/cast owner and the public UnitUseItem API remains a stub; its exact remaining blocks are enumerated below. **Still open:** overlap dispositions for AIvi Item Invisibility, AOwk Wind Walk, Agho Ghost, Abur Burrow and Ahid Shadow Meld, including Pause/Sleep composition; adjusted retained-target predicate reachability; and remaining caller-specific evidence dispositions. The complete declared public/motion suffix is proved; additional internal branches still require the listed caller dispositions.
+**Delivered substeps:** original298 branch oracle, complete native299 repeat/control reference, common C recovery with Save233, ordinary resolved-alternative validation and item life, and the configured public Aivs/Apiv/Binv fade/suppression owner with Save234; initial public Attack reaction/physical admission, saved captured range (Save235), pending-windup cooldown inverse and buffered primary damage commit; fractional physical damage through health/events with Save236. Independent primary cooldown expiry/rearm and saved ownership are implemented in checkpoint312 (Save237), extending the exact ordered-motion prefix from 148 to 878 rows. Checkpoint313 prevents ordinary ShowUnit-hidden sources from acquiring while retaining scan rearming, extending the prefix to 2,346 rows; the full native batch passes 9,414 tests across both editions. Checkpoint314 restores owner-transfer synchronous events and Defend modal off; the exact public prefix increases from 398 to 986 rows. Checkpoint315 removes obsolete generic dormancy from runtime creation/idle/Attack scan, extending exact prefixes to 1,100 public and 3,338 motion rows; real natural Sleep remains covered. Checkpoint316 restores the independent guard Move/numeric851987 FIFO continuation, ordinary-player d014e cancellation at Move/Patrol activation, and Save238 ownership. Explicit TFT replay matches 1,392 public and 4,030 ordered motion rows; earlier replay reports used Classic. Checkpoint318 replaces the GetTriggerEventId stub and preserves event-enum identity through plain handles and Save239/snapshot12. The first public replay difference is now row 1,393 (Invisibility Effect before Cast); motion remains 4,030. Checkpoint319 routes public Invisibility through the shared cast scheduler. Exact replay prefixes are now 1,858 public and 5,058 motion rows; scene5 paused Attack packet replay is the next proven gap. Checkpoint320 retains the original paused user packet and its exact primary release request in Save240. Uninterrupted and nine-checkpoint cold-saved TFT C299 now match all 2,066 public events and 5,342 ordered motion rows with zero mismatches. The native trace has additional internal rows outside that comparison. Checkpoint321 fixes AIvi immediate-use carrier ownership through both real inventory entry points, including a selected shop and its distinct patron. Checkpoint322 ports concrete Binv versus authored display identity, item transition2, saved primary expiry and strict refresh. Actual Aivs/item overlap refresh retains one instance/contribution; component-original and engine checks pass. Checkpoint323 follows the original counted Binv private-clock protocol: scripted Pause freezes expiry independently of the continuing shared fade; refresh and the last inverse preserve the original frozen remainder, including save/load. Checkpoint324 adds real public Sleep orders, both Apiv/item attachment orders, independent negative-buff/Apiv release and cold-save tests, backed by a fresh native observation/control with246 matching public records. Checkpoint325 ports that ordered action notification to existing profiled spell phases, including Binv pending protection/removal, Apiv reset, cold-saved owner order and no extra EFFECT reset. Checkpoint326 implements the profiled no-target AIvi UnitUseItem path through the ordinary Inventory/cast owner with Save244; both editions match the81-row protocol. Its delivered block and exact remaining limits are enumerated below. **Still open:** overlap dispositions for AIvi Item Invisibility, AOwk Wind Walk, Agho Ghost, Abur Burrow and Ahid Shadow Meld, including Pause/Sleep composition; adjusted retained-target predicate reachability; and remaining caller-specific evidence dispositions. The complete declared public/motion suffix is proved; additional internal branches still require the listed caller dispositions.
 
 1. Use the [17-entry incoming-caller table](retail-pathfinding-attack-recovery.md#all-direct-incoming-calls), not an inferred “target lost” family. Its CALL addresses are `497e06`, `49cec6`, `49cf0c`, `49e6c2`, `49a3ff`, `49935a`, `49b58f`, `49b240`, `4953a4`, `495420`, `494313`, `497ba8`, `4980f7`, `58cd36`, `5e80f8`, `5fc245` and `628a5d`. All are RVAs. Record forced and capture-request words independently for each.
 2. Reproduce/check the completed bounded original-byte oracle for `49d280`, task-pop helper `497190`, two-slot range helper `4985c0`, scalar addition `06fbb0` and the RuntimeFifty initializer `001cd0`. The prepared recovery298 fixture contains 81 producer cases, seven task-pop cases and nine negative controls. This is synthetic service-boundary evidence, not public command reachability.
@@ -24,31 +24,38 @@ For a D row, record the exact fixture filename and scene/record, submitted raw a
 
 **Close B01:** D051 has original arguments and public reachability for the claimed branches, the C policy follows those inputs, the entire declared normal/saved suffix matches, and the 17 incoming sites have an explicit disposition. Unproved adjusted-range setter `49c4d0` reachability and release-callback reentrancy remain explicit limits until established; synthetic restored state alone does not prove either.
 
-**Next AIvi closing blocks (326), in order:**
+**AIvi ordinary command/cast block delivered at326:**
 
-1. Implement `UnitUseItem` in `game/api/api_unit.h` through the actual held-item
-   binding. Make `G_UseItem`/`G_UseImmediateItemAbility` report admission. Route
-   the verified AIvi cast profile through `G_AdmitUnitOrder`, with
-   `CAbilityInventory` owning the retained item packet. Opening a cursor for
-   another AB_ITEM handler is not a cast; do not wrap all handlers blindly.
-2. Give `CAbilityItemInvis` its concrete zero-time profile and normal effect
-   entry. Reuse `spell_start_cast_profile` and its existing synchronous zero
-   phases. Preserve the ordinary owning command: the native40a500/d0160 path
-   replaces Move. Do not add an inline-preserve-Move shortcut.
-3. In `SpellCastValid`, `SpellCastCancel`, `SpellCastEmit`, `SpellCastExecute`,
-   `SpellCastFinish` and `S_CancelItemSpell`, separate retained execution from
-   source attachment, public metadata and active completion. Native3fa400
-   permits an effect whenever the live caster has any user head. Stop removes
-   it; RemoveItem in CHANNEL leaves it. The latter still applies Binv with
-   public spell ID0 and no FINISH/USE. Move item completion after ENDCAST and
-   issue USE synchronously once. Preserve a callback's replacement head.
-4. Run the prepared five-case public JASS projection against all81 declared
-   native order/phase/state rows, both editions. Its cases are Move→use,
-   CHANNEL→Stop, CAST→Stop, EFFECT→Stop and CHANNEL→RemoveItem. Preserve
-   source-item weak identity across queued/saved admission. Update older
-   paused-item fixtures to valid source-effect/command semantics, rather than
-   keeping an immediate effect just to satisfy those fixtures.
+1. `UnitUseItem` calls `G_UseItemNoTarget`. For the profiled AIvi ability,
+   `S_OrderUseItem` submits the actual held-item identity and attachment token
+   through `G_AdmitUnitOrder`. `CAbilityInventory` activates that packet.
+   `G_UseImmediateItemAbility` routes the same profile through this owner.
+   Other handlers that open cursors are not treated as immediate casts.
+2. `CAbilityItemInvis` supplies its original zero-time profile and effect entry.
+   `spell_start_cast_profile` replaces Move and runs its existing synchronous
+   CHANNEL, CAST and EFFECT phases.
+3. `SpellCastValid`, `SpellCastCancel`, `SpellCastEmit`, `SpellCastExecute`,
+   `SpellCastFinish` and `S_CancelItemAbilityAttachment` separate retained
+   execution, attachment, public metadata and completion. Source removal emits
+   ENDCAST before invalidating its token. Later phases expose code0, but a live
+   user head still permits the retained effect. Stop clears that head. Successful
+   consumption and one synchronous USE_ITEM occur after ENDCAST. Cleanup checks
+   command/move ownership before advancing; it preserves callback replacements.
+4. Both editions match the81 selected order/phase/state rows from237 complete
+   native public rows: Move→use, CHANNEL→Stop, CAST→Stop, EFFECT→Stop and
+   CHANNEL→RemoveItem. Two new engine tests pass209 assertions per edition.
+   Additional checks cover cold-saved construction-held admission, rejecting
+   the old token after the same item is repicked, sibling-alias identity and a
+   replacement Move. These are engine ownership tests, not new native timelines.
+   The old paused-refresh fixtures now invoke the proved effect service; they
+   do not bypass the ordinary command owner to preserve their previous results.
 
+**Still open for AIvi:** public item admission during scripted Pause; complete
+mixed-contributor overlap dispositions for the named B01 scenarios. The saved
+queue test uses an internal construction hold and does not prove that public
+paused admission. Initial326 fixture attempts omitted unit-spell/USE_ITEM
+constants and are excluded from failing-first product evidence. This closes the
+ordinary item-command/cast block, not B01 or a whole backlog leaf.
 
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 
@@ -765,7 +772,7 @@ Status terms: **proof incomplete** means TARGET-01.2 acceptance is not establish
 
 **Status:** proof incomplete. **Recorded owner:** TARGET-01.2.
 
-**Existing evidence:** Original298 executes 81 producer and seven task-pop cases. Native299 has two exact 9,058-row observations and a matching 2,066-marker control. Common C recovery and six new regressions pass with 250 Save233 tests in each edition. The configured public temporary-Invisibility producer is implemented. Complete declared normal/saved C299 parity passed at320 and remains green at325; consumer overlaps and caller dispositions remain open.
+**Existing evidence:** Original298 executes 81 producer and seven task-pop cases. Native299 has two exact 9,058-row observations and a matching 2,066-marker control. Common C recovery and six new regressions pass with 250 Save233 tests in each edition. The configured public temporary-Invisibility producer is implemented. Complete declared normal/saved C299 parity passed at320 and remains green at326; consumer overlaps and caller dispositions remain open.
 
 **Action for this function:** Finish B01 by resolving the five exact consumer overlaps listed in B01 while preserving the complete normal and saved C299 suffix already verified. Retain the implemented Aivs/Apiv/Binv contribution/fade/suppression inverse, independent loss flag, task acquisition permission, capture-request word and finishing-task exclusion. Reconcile each of the 17 incoming sites with its recorded inputs and branch evidence; do not request another generic target-loss experiment. The dedicated [Attack recovery document](retail-pathfinding-attack-recovery.md) names all 17 incoming CALL instructions, their two literal input words, existing evidence and the precise missing public observations.
 

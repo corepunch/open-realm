@@ -1,4 +1,11 @@
-Save243 retains Binv's concrete-class node in the ordered ability-owner list.
+Save244 is the checkpoint326 item-cast contract. A queued inventory
+packet retains the source item incarnation and ability attachment slot/generation;
+that attachment is distinct from retained execution code and active completion.
+Removing and repicking the same item cannot validate the old attachment token.
+The new cold-save fixtures exercise construction-held queued admission; they do
+not establish public item admission during scripted Pause. Both cold-save cases pass.
+
+The prior Save243 retains Binv's concrete-class node in the ordered ability-owner list.
 Its identity is the Binv class, independent of the displayed BuffID. Saved
 attachment order determines whether an action removes Binv before or after
 Apiv resets its shared contribution. Loading validates the one-to-one status

@@ -1122,15 +1122,19 @@ bool G_PawnCarriedItem(edict_t *shop,edict_t *item) {
     if(!carrier || carrier->s.player>=MAX_PLAYERS || item->item->in_world)return false;
     ItemData_t const *data=item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     if(!data)return false;
-    uint32_t const spawn=item->spawn_time;
+    uint32_t const spawn=item->spawn_time,carrier_spawn=carrier->spawn_time;
+    uint64_t const epoch=S_SpellPreparationEpoch();
     /* V3 Pawn callbacks run before Drop and both see the source slot. */
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=carrier,.source=item,.type=EVENT_PLAYER_UNIT_PAWN_ITEM},EVENT_UNIT_PAWN_ITEM,false);
     if(G_IsItem(item) && item->spawn_time==spawn) {
         G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=carrier,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
-        if(G_IsItem(item) && item->spawn_time==spawn)G_DetachCarriedItem(item);
+        if(epoch!=S_SpellPreparationEpoch())return false;
+        if(G_IsItem(item) && item->spawn_time==spawn && !G_DetachCarriedItem(item))return false;
     }
     /*56ab80 reads the source owner after synchronous Pawn and Drop. V5/V6
      * SetUnitOwner inside either event credits that new owner. Deletion is last. */
+    if(epoch!=S_SpellPreparationEpoch() || !carrier->inuse || carrier->spawn_time!=carrier_spawn ||
+       carrier->s.player>=MAX_PLAYERS)return false;
     uint32_t const player=carrier->s.player;
     float const rate=G_ShopPawnRate();
     uint32_t const gold=(uint32_t)ceilf((float)MAX(0,data->goldcost)*rate);

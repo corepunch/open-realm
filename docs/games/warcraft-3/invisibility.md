@@ -192,3 +192,21 @@ make test-wc3-engine WC3_PATTERN='wc3_save.ghost*'
 ```
 
 This implementation was designed to consume normalized Warcraft data rather than hard-coded unit rawcodes or stock numeric tables, preserving ROC/TFT/custom-object compatibility at the existing accessor boundary.
+
+## Ordinary AIvi item command: checkpoint326
+
+The implementation routes public `UnitUseItem` and the profiled no-target AIvi path
+through Inventory admission and the ordinary cast owner. Its intrinsic phase
+clocks are zero; it replaces Move rather than preserving a private inline Move.
+Other item handlers that open target cursors are not implicitly profiled casts.
+Retained effect code, source attachment and active completion are separate:
+CHANNEL removal publishes ENDCAST using the old item metadata, then subsequent
+retained phases expose spell ID0. A live user head can still permit the effect;
+Stop removes that permission. Successful completion follows ENDCAST with one
+synchronous USE_ITEM callback. Callback replacement heads remain owned.
+
+Both editions match81 projected order/phase/state rows from237 complete
+native public rows; the two new tests pass209 assertions per edition. Additional cold-save/repick/sibling-alias/replacement-Move
+cases are engine regressions, not new retail oracles or public paused-admission
+proof. The initial red/green fixture attempts omitted unit-spell constants from
+the minimal common.j; they are excluded as failing-first product evidence.

@@ -46,6 +46,12 @@ static int preparation_family(uint32_t code) {
     }
 }
 
+/* Ordinary profiled item execution shares attachment identity, but never
+ * enters the four-class preparatory mana collector. */
+static bool item_attachment_registered(uint32_t code) {
+    return preparation_family(code) >= 0 || G_AbilityCode(code) == MAKEFOURCC('A','I','v','i');
+}
+
 /* Item abilities have retained canonical identities independent of inventory
  * slots. This registry uses native 1cbf40/1cbff0 LIFO slot reuse and 1c53f0's
  * domain generation counter. Its numeric domain is local, not a reproduction
@@ -54,6 +60,7 @@ typedef struct {
     edict_t *item, *carrier;
     uint32_t item_spawn, carrier_spawn, code, ordinal, generation;
     uint32_t next_item, next_free;
+    bool detaching; /* Callback guard only; never serialized. */
 } preparationItem_t;
 static preparationItem_t *preparation_items;
 static uint32_t preparation_item_count, preparation_item_capacity;
@@ -67,19 +74,51 @@ static void preparation_registry_clear(void) {
     memset(preparation_heads, 0, sizeof(preparation_heads));
 }
 
-void S_DetachPreparatoryItems(edict_t *item) {
-    if (!item) return;
+bool S_DetachPreparatoryItems(edict_t *item) {
+    if (!item || !g_edicts) return false;
     uint32_t number = (uint32_t)(item - g_edicts);
-    if (number >= MAX_ENTITIES) return;
-    uint32_t slot = preparation_heads[number];
-    preparation_heads[number] = 0;
-    while (slot) {
-        preparationItem_t *row = &preparation_items[slot];
-        uint32_t next = row->next_item;
-        row->item = row->carrier = NULL; row->next_item = 0;
-        row->next_free = preparation_free; preparation_free = slot;
-        slot = next;
+    if (number >= MAX_ENTITIES) return false;
+    typedef struct { uint32_t slot, generation; } attachmentToken_t;
+    size_t count = 0;
+    for (uint32_t slot=preparation_heads[number]; slot; slot=preparation_items[slot].next_item) count++;
+    if (!count) return true;
+    attachmentToken_t *tokens=malloc(count*sizeof(*tokens));
+    if (!tokens) { gi.error("Cannot snapshot item attachment removal"); abort(); }
+    size_t index=0;
+    for (uint32_t slot=preparation_heads[number]; slot; slot=preparation_items[slot].next_item)
+        tokens[index++]=(attachmentToken_t){slot,preparation_items[slot].generation};
+    uint64_t epoch=preparation_epoch;
+    uint32_t birth=item->spawn_time;
+    bool deferred=G_IsDeferredFree(item);
+    for (index=0; index<count; ++index) {
+        uint32_t slot=tokens[index].slot, generation=tokens[index].generation;
+        preparationItem_t *row=&preparation_items[slot];
+        if (row->generation!=generation || row->item!=item || row->item_spawn!=birth) continue;
+        /* Public ENDCAST still resolves the old attachment. A recursive
+         * removal may release it, but must not notify this token twice. */
+        if (!row->detaching && row->carrier && row->carrier->inuse &&
+            row->carrier->spawn_time==row->carrier_spawn) {
+            row->detaching=true;
+            S_CancelItemAbilityAttachment(row->carrier,item,birth,slot,generation);
+            /* A callback may reset the world or grow/reuse the registry. */
+            if (epoch!=preparation_epoch) break;
+            if (item->spawn_time!=birth) break;
+            row=&preparation_items[slot];
+            if (row->generation!=generation || row->item!=item || row->item_spawn!=birth) continue;
+        }
+        /* Find the old token again: never overwrite a callback's new head
+         * or follow an old next pointer through a released/reused slot. */
+        uint32_t *link=&preparation_heads[number];
+        while (*link && *link!=slot) link=&preparation_items[*link].next_item;
+        if (*link!=slot) continue;
+        *link=row->next_item;
+        row->item=row->carrier=NULL; row->next_item=0; row->detaching=false;
+        row->next_free=preparation_free; preparation_free=slot;
     }
+    free(tokens);
+    if (epoch != preparation_epoch) return false;
+    return item->inuse && item->spawn_time == birth && G_IsDeferredFree(item) == deferred &&
+           preparation_heads[number] == 0;
 }
 
 static uint32_t preparation_identity_alloc(void) {
@@ -112,16 +151,26 @@ static uint32_t preparation_identity_alloc(void) {
     return slot;
 }
 
-void S_AttachPreparatoryItems(edict_t *unit, edict_t *item) {
-    if (!unit || !item) return;
-    S_DetachPreparatoryItems(item);
+bool S_AttachPreparatoryItems(edict_t *unit, edict_t *item) {
+    if (!unit || !item) return false;
+    uint64_t epoch = preparation_epoch;
+    uint32_t unit_birth = unit->spawn_time, item_birth = item->spawn_time;
+    if (!S_DetachPreparatoryItems(item)) return false;
+    /* ENDCAST may reset the world, remove either actor, or repick this item.
+     * The outer attachment must not replace a callback's new binding. */
+    if (epoch != preparation_epoch) return false;
+    if (!unit->inuse || !item->inuse || unit->spawn_time != unit_birth ||
+        item->spawn_time != item_birth || G_IsDeferredFree(unit) ||
+        G_IsDeferredFree(item)) return false;
+    uint32_t item_number = (uint32_t)(item - g_edicts);
+    if (item_number >= MAX_ENTITIES || preparation_heads[item_number]) return false;
     cstring_t abilities = G_ItemAbilityList(item);
-    if (!abilities) return;
+    if (!abilities) return true;
     uint32_t ordinal = 0, tail = 0, number = (uint32_t)(item - g_edicts);
-    if (number >= MAX_ENTITIES) return;
+    if (number >= MAX_ENTITIES) return false;
     PARSE_LIST(abilities, name, parse_segment) {
         uint32_t code = FS_SLKKey(name), index = ordinal++;
-        if (preparation_family(code) < 0) continue;
+        if (!item_attachment_registered(code)) continue;
         uint32_t slot = preparation_identity_alloc();
         preparationItem_t *row = &preparation_items[slot];
         row->item = item; row->carrier = unit;
@@ -131,6 +180,7 @@ void S_AttachPreparatoryItems(edict_t *unit, edict_t *item) {
         else preparation_heads[number] = slot;
         tail = slot;
     }
+    return true;
 }
 
 typedef struct {
@@ -153,6 +203,37 @@ static bool preparation_identity_live(preparationItem_t const *row) {
     return false;
 }
 
+/* A token is weak: detaching releases its slot, and a later attachment uses
+ * a new generation even when the same item edict and alias are reused. */
+bool S_ItemAbilityAttachmentLive(edict_t const *carrier, edict_t const *item,
+                                 uint32_t item_spawn, uint32_t code,
+                                 uint32_t slot, uint32_t generation) {
+    if (!carrier || !item || !slot || slot > preparation_item_count || !generation) return false;
+    preparationItem_t const *row = &preparation_items[slot];
+    return row->generation == generation && row->carrier == carrier && row->item == item &&
+        row->item_spawn == item_spawn && row->code == code && preparation_identity_live(row);
+}
+
+bool S_CaptureItemAbilityAttachment(edict_t const *carrier, edict_t const *item,
+                                    uint32_t item_spawn, uint32_t code,
+                                    uint32_t *slot, uint32_t *generation) {
+    if (!slot || !generation) return false;
+    *slot = *generation = 0;
+    if (!carrier || !item || !g_edicts) return false;
+    uint32_t number = (uint32_t)(item - g_edicts);
+    if (number >= MAX_ENTITIES) return false;
+    /* Item ability-list order selects the first matching alias; ordinal is
+     * retained in the row so a sibling alias cannot satisfy this token. */
+    for (uint32_t candidate = preparation_heads[number]; candidate;
+         candidate = preparation_items[candidate].next_item) {
+        preparationItem_t const *row = &preparation_items[candidate];
+        if (S_ItemAbilityAttachmentLive(carrier,item,item_spawn,code,candidate,row->generation)) {
+            *slot = candidate; *generation = row->generation; return true;
+        }
+    }
+    return false;
+}
+
 /* Save/load validates the roster against actual usable inventory attachments,
  * not only against the rows supplied by the serialized registry. Otherwise a
  * syntactically valid empty section silently removes live potion potential. */
@@ -169,7 +250,7 @@ static bool preparation_registry_complete(preparationItem_t const *rows, uint32_
         uint32_t ordinal=0;
         PARSE_LIST(abilities,name,parse_segment) {
             uint32_t code=FS_SLKKey(name),index=ordinal++;
-            if(preparation_family(code)<0)continue;
+            if(!item_attachment_registered(code))continue;
             bool found=false;
             for(uint32_t slot=heads[number];slot;slot=rows[slot].next_item)
                 if(rows[slot].item==item && rows[slot].item_spawn==item->spawn_time &&
@@ -187,7 +268,7 @@ bool S_WritePreparationItems(FILE *file) {
     if (fwrite(header, sizeof(header), 1, file) != 1) return false;
     for (uint32_t slot = 1; slot <= preparation_item_count; ++slot) {
         preparationItem_t const *row = &preparation_items[slot];
-        if (row->item && !preparation_identity_live(row)) return false;
+        if (row->detaching || (row->item && !preparation_identity_live(row))) return false;
         preparationItemSave_t saved = {.item=row->item ? (uint32_t)(row->item-g_edicts)+1 : 0,
             .carrier=row->carrier ? (uint32_t)(row->carrier-g_edicts)+1 : 0,
             .item_spawn=row->item_spawn,.carrier_spawn=row->carrier_spawn,.code=row->code,
@@ -217,7 +298,7 @@ bool S_ReadPreparationItems(FILE *file) {
             .carrier_spawn=saved.carrier_spawn,.code=saved.code,.ordinal=saved.ordinal,
             .generation=saved.generation,.next_free=saved.next_free};
         if(saved.item) {
-            if(saved.next_free || preparation_family(saved.code)<0 || !preparation_identity_live(&rows[slot])) { valid=false;break; }
+            if(saved.next_free || !item_attachment_registered(saved.code) || !preparation_identity_live(&rows[slot])) { valid=false;break; }
             uint32_t number=saved.item-1;
             for(uint32_t prior=heads[number];prior;prior=rows[prior].next_item)
                 if(rows[prior].ordinal==saved.ordinal) valid=false;
@@ -276,7 +357,7 @@ float S_PreparatoryManaPotential(edict_t const *caster) {
         for (uint32_t identity=preparation_heads[item-g_edicts]; identity;
              identity=preparation_items[identity].next_item) {
             preparationItem_t const *row=&preparation_items[identity];
-            if (!preparation_identity_live(row) || row->carrier!=caster ||
+            if (preparation_family(row->code)<0 || !preparation_identity_live(row) || row->carrier!=caster ||
                 !preparation_available(caster,row->code)) continue;
             float candidate=preparation_amount(row->code,preparation_family(row->code));
             if (isfinite(candidate) && candidate>0) amount+=candidate;
@@ -364,7 +445,7 @@ bool S_PrepareSpellMana(edict_t *caster, uint32_t code, uint32_t rank) {
         if(!preparation_item(caster,item,inventory_slot))continue;
         for(uint32_t slot=preparation_heads[item-g_edicts];slot;slot=preparation_items[slot].next_item) {
             preparationItem_t const *row=&preparation_items[slot];
-            if(!preparation_identity_live(row))continue;
+            if(preparation_family(row->code)<0 || !preparation_identity_live(row))continue;
             if(count==capacity) {
                 size_t next=capacity ? capacity*2 : 8;
                 if(next<capacity || next>SIZE_MAX/sizeof(*candidates)) { gi.error("Preparation snapshot exhausted");abort(); }

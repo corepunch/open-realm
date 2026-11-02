@@ -913,9 +913,9 @@ uint32_t UnitItemInSlot(jass_t *j) {
     return jass_pushlighthandle(j, item, "item");
 }
 uint32_t UnitUseItem(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //handle_t whichItem = jass_checkhandle(j, 2, "item");
-    return jass_pushboolean(j, 0);
+    edict_t *unit=jass_checkhandle(j,1,"unit");
+    edict_t *item=jass_checkhandle(j,2,"item");
+    return jass_pushboolean(j,G_UseItemNoTarget(unit,item));
 }
 uint32_t UnitUseItemPoint(jass_t *j) {
     //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

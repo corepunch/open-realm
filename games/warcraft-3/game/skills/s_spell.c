@@ -885,12 +885,10 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach, bool legacy_reveal) {
+static void spell_commit_resources(edict_t *caster,uint32_t code,uint32_t level,bool legacy_reveal) {
     abilityitem_t committed = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &committed);
 
-    spell_cancel_target_approaches(caster, active_approach);
-    S_SpellCancelChannel(caster);
     if(legacy_reveal) {
         S_HumanBreakInvisibility(caster);
         S_PermanentInvisibilityReveal(caster);
@@ -903,6 +901,12 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
         S_SpellStartCooldown(caster, code, level);
     }
     S_ManaFlareOnCast(caster, code, level);
+}
+
+static void spell_commit(edict_t *caster,uint32_t code,uint32_t rank,edict_t *approach,bool legacy_reveal) {
+    spell_cancel_target_approaches(caster,approach);
+    S_SpellCancelChannel(caster);
+    spell_commit_resources(caster,code,rank,legacy_reveal);
 }
 
 /* Original40b380 delivers the frozen EFFECT families before3f7b00.
@@ -1082,6 +1086,8 @@ typedef struct spellCast_s {
     moveContinuation_t resume_move;
     wc3Clock_t deadline;
     uint32_t caster_spawn,target_spawn,item_spawn,code,rank,sequence,heap_position,depth;
+    uint32_t attachment_slot,attachment_generation;
+    uint64_t order_revision,move_revision;
     spellCastPhase_t phase, dispatch_phase;
     bool active,retired,dispatching,executing,committed;
 } spellCast_t;
@@ -1250,7 +1256,10 @@ static bool SpellCastCasterLive(spellCast_t const *cast) {
 }
 static void SpellCastEmit(spellCast_t *cast,EVENTTYPE player_event,EVENTTYPE unit_event) {
     spellCastEvent_t event={.previous=spell_cast_events,.cast=cast};spell_cast_events=&event;
-    spell_dispatch_phase(cast->caster,cast->code,&cast->target,player_event,unit_event);
+    uint32_t code=cast->code;
+    if(cast->attachment_slot && !S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
+            cast->item_spawn,code,cast->attachment_slot,cast->attachment_generation))code=0;
+    spell_dispatch_phase(cast->caster,code,&cast->target,player_event,unit_event);
     spell_cast_events=event.previous;
 }
 static void SpellCastOwnerMessage(spellCast_t *cast,abilityMsg_t message) {
@@ -1273,7 +1282,7 @@ static void SpellCastCancel(spellCast_t *cast,bool release) {
     /*3fb5d0 resumes after CAST regardless of a nested Stop. Its newly armed
      * effect request later fails validation and calls v39c(0), still emitting
      * FINISH. Ordinary windup cancellation removes the pending request. */
-    if(cast->dispatching && cast->dispatch_phase==CAST_CHANNEL) {
+    if(cast->dispatching && (cast->dispatch_phase==CAST_CHANNEL || (cast->attachment_slot && !release))) {
         /*3fbb80 still validates/completes after RemoveUnit returns. Detach
          * from the removal roster but retain the stack-owned continuation. */
         if(release && cast->previous) {
@@ -1301,6 +1310,16 @@ void S_CancelSpellOwner(edict_t *caster,uint32_t code) {
        caster->currentmove==&ordered_spell_move && G_UnitMoveRevision(caster)==revision)
         unit_stand(caster);
 }
+/* Detach cancels completion before invalidating public attachment identity.
+ * The executing factory retains its ability independently of this weak token. */
+void S_CancelItemAbilityAttachment(edict_t *caster,edict_t *item,uint32_t spawn,uint32_t slot,uint32_t generation) {
+    if(!caster || !g_edicts)return;
+    spellCast_t *cast=spell_cast_active[caster-g_edicts];
+    if(!cast || cast->source_item!=item || cast->item_spawn!=spawn ||
+       cast->attachment_slot!=slot || cast->attachment_generation!=generation)return;
+    if(cast->dispatching)SpellCastCancel(cast,false);
+    else S_CancelSpellOwner(caster,cast->code);
+}
 /* Removing a sibling item with the same rawcode cannot cancel this cast. */
 void S_CancelItemSpell(edict_t *caster,edict_t *item,uint32_t spawn) {
     spellCast_t *cast=spell_cast_active[caster-g_edicts];
@@ -1308,9 +1327,9 @@ void S_CancelItemSpell(edict_t *caster,edict_t *item,uint32_t spawn) {
         S_CancelSpellOwner(caster,cast->code);
 }
 static bool SpellCastValid(spellCast_t const *cast) {
-    if(!cast->active || !SpellCastCasterLive(cast) || cast->caster->stunned ||
+    if((!cast->active && !cast->attachment_slot) || !SpellCastCasterLive(cast) || cast->caster->stunned ||
        S_UnitIsCycloned(cast->caster) || S_UnitPolymorphed(cast->caster) || S_UnitIsSilenced(cast->caster) ||
-       !spell_item_source_valid(cast->caster,cast->source_item,cast->item_spawn))return false;
+       (!cast->attachment_slot && !spell_item_source_valid(cast->caster,cast->source_item,cast->item_spawn)))return false;
     if(cast->target.type==SPELL_TARGET_POINT &&
        S_SpellTargetType(cast->caster,cast->code)==SPELL_TARGET_UNIT)return false;
     if(cast->target.type==SPELL_TARGET_UNIT) {
@@ -1330,10 +1349,20 @@ static bool SpellCastExecute(spellCast_t *cast) {
     bool blocked=cast->target.type==SPELL_TARGET_UNIT && S_PrepareUnitSpellEffect(cast->caster,cast->code,cast->target.entity);
     bool executed=blocked || S_AbilityMessage(cast->caster,A_EXECUTE,&call);
     cast->executing=false;
-    if(executed && cast->source_item)G_CompleteItemUse(cast->caster,cast->source_item);
+    if(executed && cast->source_item && !cast->attachment_slot)G_CompleteItemUse(cast->caster,cast->source_item);
     return executed;
 }
+/* Only the retired factory's own user packet may advance here. Source
+ * detach retains that packet until its stack continuation has returned. */
+static void SpellCastRetireItem(spellCast_t *cast) {
+    SpellCastRetire(cast);
+    if(SpellCastCasterLive(cast) && cast->caster->active_order_revision==cast->order_revision &&
+       G_UnitMoveRevision(cast->caster)==cast->move_revision &&
+       cast->caster->currentmove==&ordered_spell_move && !spell_cast_active[cast->caster-g_edicts])
+        unit_stand(cast->caster);
+}
 static void SpellCastFinish(spellCast_t *cast,bool success) {
+    if(cast->attachment_slot && !cast->active) {SpellCastRetireItem(cast);return;}
     uint32_t revision=G_UnitMoveRevision(cast->caster);
     if(success && cast->active && cast->committed && cast->profile.effect_at_finish)SpellCastExecute(cast);
     cast->target=(spellTarget_t){.type=SPELL_TARGET_NONE};
@@ -1343,6 +1372,12 @@ static void SpellCastFinish(spellCast_t *cast,bool success) {
         cast->active=false;spell_cast_active[cast->caster-g_edicts]=NULL;
         SpellCastOwnerMessage(cast,A_CAST_END);
         SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_ENDCAST,EVENT_UNIT_SPELL_ENDCAST);
+    }
+    if(cast->attachment_slot) {
+        if(owned && cast->committed && S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
+                cast->item_spawn,cast->code,cast->attachment_slot,cast->attachment_generation))
+            G_CompletePreparatoryItemUse(cast->caster,cast->source_item);
+        SpellCastRetireItem(cast);return;
     }
     edict_t *caster=cast->caster;
     SpellCastRetire(cast);
@@ -1385,12 +1420,21 @@ static void SpellCastPhase(spellCast_t *cast,spellCastPhase_t phase,bool validat
                 if(SpellCastValid(cast))SpellCastSchedule(cast,CAST_CAST,cast->profile.channel_delay);
                 else SpellCastFinish(cast,false);
             } else if(phase==CAST_CAST)SpellCastSchedule(cast,CAST_EFFECT,cast->profile.cast_point);
-            else if(cast->active) {
+            else if(cast->active || cast->attachment_slot) {
+                /*3fa400 admits retained item effects with ANY resolving user
+                 * head; completion ownership and source attachment are separate. */
+                if(cast->attachment_slot && (!SpellCastCasterLive(cast) || !cast->caster->active_order)) {
+                    SpellCastRetireItem(cast);SpellCastDrop(cast);return;
+                }
                 /* EFFECT callbacks may drain mana without cancelling ownership. */
-                cast->executing=true;spell_commit(cast->caster,cast->code,cast->rank,NULL,false);cast->executing=false;
+                cast->executing=true;
+                if(cast->attachment_slot)spell_commit_resources(cast->caster,cast->code,cast->rank,false);
+                else spell_commit(cast->caster,cast->code,cast->rank,NULL,false);
+                cast->executing=false;
                 cast->committed=true;
                 if(!cast->profile.effect_at_finish)SpellCastExecute(cast);
                 if(cast->active)SpellCastSchedule(cast,CAST_FINISH,cast->profile.backswing);
+                else if(cast->attachment_slot)SpellCastRetireItem(cast);
             } else SpellCastRetire(cast);
         }
     }
@@ -1410,6 +1454,11 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
                                      spellCastProfile_t profile) {
     if(!isfinite(profile.channel_delay) || !isfinite(profile.cast_point) || !isfinite(profile.backswing))return ABILITY_ORDER_REJECTED;
     if(S_InterceptSpellOrder(caster,code))return ABILITY_ORDER_ACCEPTED;
+    uint32_t attachment_slot=0,attachment_generation=0;
+    abilityitem_t item=S_AbilityItem(code);
+    if(source_item && item.ability && (item.ability->flags&AB_ITEM) &&
+       !S_CaptureItemAbilityAttachment(caster,source_item,item_spawn,code,&attachment_slot,&attachment_generation))
+        return ABILITY_ORDER_REJECTED;
     moveContinuation_t resume=spell_take_prepared_move(caster,approach);
     S_CancelSpellCast(caster);
     spell_cancel_target_approaches(caster,approach);
@@ -1424,8 +1473,23 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
     cast->source_item=source_item;cast->item_spawn=item_spawn;cast->rank=S_SpellLevel(caster,code);
     cast->resume_move=resume;
     cast->profile=profile;cast->active=true;spell_cast_active[caster-g_edicts]=cast;
+    cast->attachment_slot=attachment_slot;cast->attachment_generation=attachment_generation;
+    if(attachment_slot) {
+        cast->order_revision=caster->active_order_revision;cast->move_revision=G_UnitMoveRevision(caster);
+    }
     SpellCastPhase(cast,CAST_CHANNEL,false);
     return ABILITY_ORDER_ACCEPTED;
+}
+/* Ordinary item activation uses the same cast owner as unit spells. It does
+ * not enter the preparatory forced-dispatch scope or preserve the old Move. */
+bool S_BeginItemCast(edict_t *caster,edict_t *item,uint32_t birth,uint32_t code) {
+    abilityitem_t ability=S_AbilityItem(code);spellCastProfile_t profile;
+    abilityCall_t query={.item=&ability,.cast_profile=&profile};
+    if(!ability.ability || !(ability.ability->flags&AB_ITEM) ||
+       !spell_item_source_valid(caster,item,birth) || !S_SpellCooldownReady(caster,code) ||
+       !S_AbilityMessage(caster,A_CAST_PROFILE,&query))return false;
+    spellTarget_t target={.type=SPELL_TARGET_NONE};
+    return spell_start_cast_profile(caster,code,&target,item,birth,NULL,profile)==ABILITY_ORDER_ACCEPTED;
 }
 static abilityOrderResult_t spell_start_ordered_cast(edict_t *caster,uint32_t code,spellTarget_t const *target,
                                      edict_t *source_item,uint32_t item_spawn,edict_t *approach) {
@@ -1468,6 +1532,8 @@ typedef struct {
     moveContinuation_t resume_move;
     vec2_t point;
     uint32_t code,rank,caster_spawn,target,target_spawn,item,item_spawn,sequence,phase,target_type,active,committed;
+    uint32_t attachment_slot,attachment_generation;
+    uint64_t order_revision,move_revision;
 } spellCastSave_t;
 bool S_WriteSpellCasts(FILE *file) {
     uint32_t count=0;
@@ -1483,7 +1549,9 @@ bool S_WriteSpellCasts(FILE *file) {
             .target=cast->target.type==SPELL_TARGET_UNIT ? (uint32_t)(cast->target.entity-g_edicts)+1 : 0,
             .target_spawn=cast->target_spawn,.item=cast->source_item ? (uint32_t)(cast->source_item-g_edicts)+1 : 0,
             .item_spawn=cast->item_spawn,.sequence=cast->sequence,.phase=cast->phase,.target_type=cast->target.type,
-            .active=cast->active,.committed=cast->committed};
+            .active=cast->active,.committed=cast->committed,
+            .attachment_slot=cast->attachment_slot,.attachment_generation=cast->attachment_generation,
+            .order_revision=cast->order_revision,.move_revision=cast->move_revision};
         if(fwrite(&i,sizeof(i),1,file)!=1 || fwrite(&saved,sizeof(saved),1,file)!=1)return false;
     }
     return true;
@@ -1516,6 +1584,11 @@ bool S_ReadSpellCasts(FILE *file) {
         cast->target_spawn=saved.target_spawn;cast->source_item=saved.item ? g_edicts+saved.item-1 : NULL;
         cast->item_spawn=saved.item_spawn;cast->code=saved.code;cast->rank=saved.rank;cast->sequence=saved.sequence;
         cast->phase=saved.phase;cast->active=saved.active;cast->committed=saved.committed;
+        cast->attachment_slot=saved.attachment_slot;cast->attachment_generation=saved.attachment_generation;
+        cast->order_revision=saved.order_revision;cast->move_revision=saved.move_revision;
+        if(!!cast->attachment_slot!=!!cast->attachment_generation ||
+           (cast->attachment_slot && cast->active && !S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
+               cast->item_spawn,cast->code,cast->attachment_slot,cast->attachment_generation)))return false;
         if(cast->active)spell_cast_active[owner]=cast;
     }
     return true;

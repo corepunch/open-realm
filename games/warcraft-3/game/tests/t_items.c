@@ -421,6 +421,16 @@ static void item322_primary_step(void) {
     bool const scheduled=level.scheduled_frame;
     level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
 }
+/* Private531a80 refresh/constructor input, not a public item command. The
+ * original-byte oracle exercises this service while suspended; public paused
+ * item admission remains a separate, unproved producer disposition. */
+static void item323_effect_service(edict_t *unit,uint32_t slot) {
+    edict_t *source=G_InventoryItem(unit,slot);
+    abilityitem_t ability=S_AbilityItem(FS_SLKKey(G_ItemAbilityList(source)));
+    abilityCall_t call={.item=&ability,.source_item=source,.source_item_spawn_time=source->spawn_time};
+    T_ASSERT(S_AbilityMessage(unit,A_EXECUTE,&call));
+}
+
 static void item322_invisibility_fixture(unsigned pause_mode) {
     reset_entities();setup_test_world();
     char const ability_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"Data11\"\nC;Y1;X9;K\"Data13\"\nC;Y1;X10;K\"Data14\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"6\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi32\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\".125\"\nC;Y3;X8;K\".125\"\nC;Y3;X12;K\"6\"\nC;Y3;X13;K\"6\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"Zs32\"\nC;Y4;X2;K\"AIvi\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\".125\"\nC;Y4;X8;K\".125\"\nC;Y4;X12;K\"2\"\nC;Y4;X13;K\"2\"\nC;Y4;X14;K\"Bixx\"\nC;Y5;X1;K\"Zl32\"\nC;Y5;X2;K\"AIvi\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\".125\"\nC;Y5;X8;K\".125\"\nC;Y5;X12;K\"10\"\nC;Y5;X13;K\"10\"\nC;Y5;X14;K\"Bixx\"\nC;Y6;X1;K\"Zz32\"\nC;Y6;X2;K\"AIvi\"\nC;Y6;X3;K\"1\"\nC;Y6;X4;K\".125\"\nC;Y6;X8;K\".125\"\nC;Y6;X12;K\"0\"\nC;Y6;X13;K\"0\"\nC;Y6;X14;K\"Bixx\"\nC;Y7;X1;K\"Zn32\"\nC;Y7;X2;K\"AIvi\"\nC;Y7;X3;K\"1\"\nC;Y7;X4;K\".125\"\nC;Y7;X8;K\".125\"\nC;Y7;X12;K\"-1\"\nC;Y7;X13;K\"-1\"\nC;Y7;X14;K\"Bixx\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y8;X1;K\"Zo32\"\nC;X2;K\"AIvi\"\nC;X3;K1\nC;X12;K6\nC;X13;K6\nC;X14;K\"Byyy,Bzzz\"\nC;Y9;X1;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K6\nC;X13;K6\nC;X14;K\"Bixx\"\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nC;Y10;X1;K\"Z032\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K0\nC;X13;K0\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nE\n";
@@ -452,7 +462,8 @@ static void item322_invisibility_fixture(unsigned pause_mode) {
         /* Original531420 freezes only Binv's private expiry. The unit fade
          * remains live;531a80 refresh can arm a new timer while that saved
          * remainder is still held. These are service-path native contracts,
-         * exercised here through actual inventory use and JASS PauseUnit. */
+         * exercised with an ordinary initial use, JASS PauseUnit and direct
+         * effect-service refresh. The refresh does not execute item completion. */
         G_RunEvents();jass_runevents(level.vm);
         T_ASSERT(!jass_rterror_pending(level.vm));
         if(status) {
@@ -470,11 +481,11 @@ static void item322_invisibility_fixture(unsigned pause_mode) {
             T_EQ(unit->permanent_invisibility_fade.request.sequence,fade_sequence);
             if(pause_mode==3) {
                 /* Bootstrap only the JASS carrier handle with the first use;
-                 * the tested owner is created by a fresh use while paused. */
+                 * the tested owner is created by a fresh effect service while paused. */
                 unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);
                 T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
                 T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
-                G_UseItem(unit,0);
+                item323_effect_service(unit,0);
                 status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
                 T_NOT_NULL(status);
                 if(!status)goto item322_cleanup;
@@ -484,20 +495,20 @@ static void item322_invisibility_fixture(unsigned pause_mode) {
                 T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
                 T_ASSERT(status->invisibility_pending);
                 T_ASSERT(unit->permanent_invisibility_fade.request.active);
-                T_EQ(G_ItemCharges(G_InventoryItem(unit,0)),8);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,0)),9);
             }
             if(pause_mode==4) {
-                G_UseItem(unit,3); /* Zero-duration refresh does not erase +ac. */
+                item323_effect_service(unit,3); /* Zero-duration refresh does not erase +ac. */
                 T_EQ(status->instance_id,instance);T_ASSERT(!status->class_timer.active);
                 T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
-                G_UseItem(unit,4); /* Negative duration has the same inverse. */
+                item323_effect_service(unit,4); /* Negative duration has the same inverse. */
                 T_EQ(status->instance_id,instance);T_ASSERT(!status->class_timer.active);
                 T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
-                T_EQ(G_ItemCharges(G_InventoryItem(unit,3)),9);
-                T_EQ(G_ItemCharges(G_InventoryItem(unit,4)),9);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,3)),10);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,4)),10);
             }
             if(pause_mode==2) {
-                G_UseItem(unit,2); /* Actual longer-duration held AIvi. */
+                item323_effect_service(unit,2); /* Longer-duration effect service. */
                 status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
                 T_NOT_NULL(status);
                 if(status) {
@@ -505,7 +516,7 @@ static void item322_invisibility_fixture(unsigned pause_mode) {
                     T_EQ(status->instance_id,instance);
                     T_EQ(status->class_clock_depth,1);
                     T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
-                    T_EQ(G_ItemCharges(G_InventoryItem(unit,2)),9);
+                    T_EQ(G_ItemCharges(G_InventoryItem(unit,2)),10);
                 }
             }
             /* Corrupt only live saved fields, then restore the exact valid
@@ -648,7 +659,7 @@ TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry
 TEST(wc3_items, invisibility323_script_pause_freezes_expiry_not_shared_fade) {
     item322_invisibility_fixture(1);
 }
-TEST(wc3_items, invisibility323_paused_inventory_refresh_preserves_frozen_remainder) {
+TEST(wc3_items, invisibility323_paused_effect_refresh_preserves_frozen_remainder) {
     item322_invisibility_fixture(2);
 }
 
@@ -998,6 +1009,281 @@ item325_cleanup:
     free_slk_rows(ar);free_slk_rows(dr);free_slk_rows(wr);
 }
 
+
+/*326 exact ordered public projection: before-use through first after-use
+ * state, excluding pose rows only. Native FourCC integers are mapped to the
+ * engine's typed four-letter representation; event/order IDs are unchanged.
+ * No trajectory or primary-clock parity is asserted by this component test. */
+/* Source JSON SHA256 f16d09f894f951fb7a63d9e9fd724e48bfba0f292b18f94b70867b3f4f8d81ae */
+static char const *const item326_scene0[]={
+    "before-use",
+    "state head=851986 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=290 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=291 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=292 code=829835585 used=0",
+    "state head=852008 binv=1 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=1 item=1986947440 slot=1",
+    "event id=87 code=0 used=1986947440",
+    "state head=852008 binv=1 item=1986947440 slot=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=1 item=0 slot=0"
+};
+static char const *const item326_scene1[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "order id=851972 head=851972",
+    "callback-stop result=1",
+    "event id=290 code=829835585 used=0",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "event id=291 code=829835585 used=0",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=0 item=1986947440 slot=1"
+};
+static char const *const item326_scene2[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=290 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "order id=851972 head=851972",
+    "callback-stop result=1",
+    "event id=291 code=829835585 used=0",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=0 item=1986947440 slot=1"
+};
+static char const *const item326_scene3[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=290 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=291 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "order id=851972 head=851972",
+    "callback-stop result=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=0 item=1986947440 slot=1"
+};
+static char const *const item326_scene4[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "callback-remove-item",
+    "event id=290 code=0 used=0",
+    "state head=852008 binv=0 item=0 slot=0",
+    "event id=291 code=0 used=0",
+    "state head=852008 binv=0 item=0 slot=0",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=1 item=0 slot=0"
+};
+static struct {char const *const *rows;size_t count,index;bool active;} item326_trace;
+static void item326_marker(cstring_t text) {
+    if(strncmp(text,"I326 ",5))return;
+    text+=5;
+    if(!strcmp(text,"before-use"))item326_trace.active=true;
+    if(!item326_trace.active)return;
+    T_ASSERT(item326_trace.index<item326_trace.count);
+    if(item326_trace.index<item326_trace.count)T_STREQ(text,item326_trace.rows[item326_trace.index]);
+    item326_trace.index++;
+}
+static void item326_inventory_protocol(bool engine_lifetimes) {
+    char const *const *rows[]={item326_scene0,item326_scene1,item326_scene2,item326_scene3,item326_scene4};
+    size_t counts[]={sizeof(item326_scene0)/sizeof(item326_scene0[0]),sizeof(item326_scene1)/sizeof(item326_scene1[0]),sizeof(item326_scene2)/sizeof(item326_scene2[0]),sizeof(item326_scene3)/sizeof(item326_scene3[0]),sizeof(item326_scene4)/sizeof(item326_scene4[0])};
+    char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"Data14\"\nC;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y1;X15;K\"Cost1\"\nC;Y1;X16;K\"Cool1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"AIv1\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X12;K\"4\"\nC;Y3;X13;K\"4\"\nC;Y3;X14;K\"Binv\"\nC;Y3;X15;K\"0\"\nC;Y3;X16;K\"0\"\nE\n";
+    char const items[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"pinv\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"AIv1\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nE\n";
+    char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nE\n";
+    char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"0\"\nE\n";
+    char const unit_abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"AInv\"\nE\n";
+    FOR_LOOP(scene,9) {
+        if((scene>=5)!=engine_lifetimes)continue;
+        reset_entities();setup_test_world();
+        slkTestData_t *ar=parse_slk_string(abilities),*ir=parse_slk_string(items),*dr=parse_slk_string(data),*wr=parse_slk_string(weapons),*ur=parse_slk_string(unit_abilities);
+        slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir),*od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr),*ou=G_SetSLKRows("UnitAbilities",ur);
+        void (*saved_marker)(cstring_t)=test_preload_marker;
+        item326_trace=(typeof(item326_trace)){0};
+        if(!engine_lifetimes)item326_trace=(typeof(item326_trace)){.rows=rows[scene],.count=counts[scene]};
+        test_preload_marker=engine_lifetimes ? NULL : item326_marker;
+        char script[10000];
+        snprintf(script,sizeof(script),
+            "type eventid extends handle\n"
+            "globals\n"
+            /* Minimal common.j omits these unit spell enums. */
+            " constant unitevent EVENT_UNIT_USE_ITEM=ConvertUnitEvent(87)\n"
+            " constant unitevent EVENT_UNIT_SPELL_CHANNEL=ConvertUnitEvent(289)\n"
+            " constant unitevent EVENT_UNIT_SPELL_CAST=ConvertUnitEvent(290)\n"
+            " constant unitevent EVENT_UNIT_SPELL_EFFECT=ConvertUnitEvent(291)\n"
+            " constant unitevent EVENT_UNIT_SPELL_FINISH=ConvertUnitEvent(292)\n"
+            " constant unitevent EVENT_UNIT_SPELL_ENDCAST=ConvertUnitEvent(293)\n"
+            " unit I326U=null\n"
+            " item I326Item=null\n"
+            " item I326Sibling=null\n"
+            " timer I326Timer=null\n"
+            " integer I326Tick=0\n"
+            " integer I326Scene=%u\n"
+            " boolean I326Acted=false\n"
+            "endglobals\n"
+            "function I326Bool takes boolean b returns integer\n"
+            " if b then\n"
+            "  return 1\n"
+            " endif\n"
+            " return 0\n"
+            "endfunction\n"
+            "function I326Emit takes string s returns nothing\n"
+            " call Preload(\"I326 \"+s)\n"
+            "endfunction\n"
+            "function I326State takes nothing returns nothing\n"
+            " call I326Emit(\"state head=\"+I2S(GetUnitCurrentOrder(I326U))+\" binv=\"+I2S(GetUnitAbilityLevel(I326U,'Binv'))+\" item=\"+I2S(GetItemTypeId(I326Item))+\" slot=\"+I2S(I326Bool(UnitItemInSlot(I326U,0)==I326Item)))\n"
+            "endfunction\n"
+            "function I326Event takes nothing returns nothing\n"
+            " local eventid e=GetTriggerEventId()\n"
+            " call I326Emit(\"event id=\"+I2S(GetHandleId(e))+\" code=\"+I2S(GetSpellAbilityId())+\" used=\"+I2S(GetItemTypeId(GetManipulatedItem())))\n"
+            " call I326State()\n"
+            " if not I326Acted and ((I326Scene==1 and e==EVENT_UNIT_SPELL_CHANNEL) or (I326Scene==2 and e==EVENT_UNIT_SPELL_CAST) or (I326Scene==3 and e==EVENT_UNIT_SPELL_EFFECT)) then\n"
+            "  set I326Acted=true\n"
+            "  call I326Emit(\"callback-stop result=\"+I2S(I326Bool(IssueImmediateOrder(I326U,\"stop\"))))\n"
+            " elseif not I326Acted and (I326Scene==4 or I326Scene==7) and e==EVENT_UNIT_SPELL_CHANNEL then\n"
+            "  set I326Acted=true\n"
+            "  call RemoveItem(I326Item)\n"
+            "  call I326Emit(\"callback-remove-item\")\n"
+            " elseif not I326Acted and I326Scene==8 and e==EVENT_UNIT_SPELL_CHANNEL then\n"
+            "  set I326Acted=true\n"
+            "  call BJassAssert(IssuePointOrder(I326U,\"move\",1900,512),\"replacement Move accepted\")\n"
+            " endif\n"
+            "endfunction\n"
+            "function I326Order takes nothing returns nothing\n"
+            " call I326Emit(\"order id=\"+I2S(GetIssuedOrderId())+\" head=\"+I2S(GetUnitCurrentOrder(I326U)))\n"
+            "endfunction\n"
+            "function resume326 takes nothing returns nothing\ncall PauseUnit(I326U,false)\nendfunction\n"
+            "function repick326 takes nothing returns nothing\n"
+            "call UnitRemoveItem(I326U,I326Item)\n"
+            "call BJassAssert(UnitAddItem(I326U,I326Item),\"same item reattached\")\nendfunction\n"
+            "function check326 takes nothing returns nothing\n"
+            "if I326Scene==5 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)==0 and GetUnitAbilityLevel(I326U,'Binv')==1,\"saved queued use completed\")\n"
+            "elseif I326Scene==6 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)=='pinv' and GetItemCharges(I326Item)==1 and UnitItemInSlot(I326U,0)==I326Item,\"new attachment not consumed\")\n"
+            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==0,\"old queued attachment rejected\")\n"
+            "elseif I326Scene==7 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)==0,\"old source removed\")\n"
+            "call BJassAssert(GetItemTypeId(I326Sibling)=='pinv' and GetItemCharges(I326Sibling)==1 and UnitItemInSlot(I326U,1)==I326Sibling,\"sibling retained exactly\")\n"
+            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==1,\"retained source ability executed\")\n"
+            "elseif I326Scene==8 then\n"
+            "call BJassAssert(GetUnitCurrentOrder(I326U)==OrderId(\"move\"),\"callback successor survives unwind\")\n"
+            "endif\nendfunction\n"
+            "function run326 takes nothing returns nothing\nlocal boolean accepted\n"
+            " call I326Emit(\"before-use\")\n"
+            " call I326State()\n"
+            " set accepted=UnitUseItem(I326U,I326Item)\n"
+            " call I326Emit(\"use result=\"+I2S(I326Bool(accepted)))\n"
+            " if I326Scene>=5 then\ncall BJassAssert(accepted,\"public use accepted\")\nendif\n"
+            " call I326Emit(\"after-use\")\n"
+            " call I326State()\n"
+            "endfunction\n"
+            "function main takes nothing returns nothing\n"
+            " local trigger tr\n"
+            " set I326U=CreateUnit(Player(0),'Hpal',1024,512,0)\n"
+            " call SetUnitUserData(I326U,3261)\n"
+            " set I326Item=CreateItem('pinv',1024,512)\n"
+            " call BJassAssert(GetUnitAbilityLevel(I326U,'AInv')==1,\"natural inventory\")\n"
+            " call BJassAssert(UnitAddItem(I326U,I326Item),\"actual pickup\")\n"
+            " call BJassAssert(UnitItemInSlot(I326U,0)==I326Item,\"held item identity\")\n"
+            " if I326Scene==7 then\nset I326Sibling=CreateItem('pinv',1024,512)\n"
+            "call BJassAssert(UnitAddItem(I326U,I326Sibling),\"same alias sibling held\")\nendif\n"
+            " set tr=CreateTrigger()\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_CHANNEL)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_CAST)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_EFFECT)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_FINISH)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_ENDCAST)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_USE_ITEM)\n"
+            " call TriggerAddAction(tr,function I326Event)\n"
+            " set tr=CreateTrigger()\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_ISSUED_ORDER)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+            " call TriggerAddAction(tr,function I326Order)\n"
+            " if I326Scene==0 then\n"
+            "  call BJassAssert(IssuePointOrder(I326U,\"move\",1900,512),\"initial Move\")\n"
+            " endif\n"
+            "endfunction\n"
+            ,scene);
+        T_ASSERT(run_test_jass(script));
+        edict_t *held=NULL;
+        if(scene==5 || scene==6) {
+            FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3261)held=g_edicts+n;
+            T_NOT_NULL(held);
+            /* Component hold exercises680320 queue/save ownership. This is
+             * not a claim about public item admission during scripted Pause. */
+            if(held)held->construction_held=true;
+        }
+        jass_callbyname(level.vm,"run326",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!engine_lifetimes)T_EQ(item326_trace.index,item326_trace.count);
+        else {
+            /* Engine ownership/inverse regressions, NOT additional native
+             * timeline projections. The two saved queue cases use an internal
+             * execution hold; item use and callback mutations are public JASS. */
+            edict_t *unit=NULL;
+            FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3261)unit=g_edicts+n;
+            T_NOT_NULL(unit);
+            if(unit && (scene==5 || scene==6)) {
+                T_ASSERT(unit->construction_held);T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_NOT_NULL(G_InventoryItem(unit,0));
+                uint32_t const number=unit->s.number;
+                cstring_t path=Test_TempPath("item326-held-attachment.bin");
+                T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+                unit=g_edicts+number;T_ASSERT(unit->construction_held);
+                T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                if(scene==6)jass_callbyname(level.vm,"repick326",false);
+                unit->construction_held=false;
+                G_UnitStartNextQueuedOrder(unit);
+            }
+            jass_callbyname(level.vm,"check326",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        test_preload_marker=saved_marker;memset(&item326_trace,0,sizeof(item326_trace));
+        reset_entities();setup_test_world();
+        G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);G_SetSLKRows("UnitData",od);G_SetSLKRows("UnitWeapons",ow);G_SetSLKRows("UnitAbilities",ou);
+        free_slk_rows(ar);free_slk_rows(ir);free_slk_rows(dr);free_slk_rows(wr);free_slk_rows(ur);
+    }
+}
+
+
+TEST(wc3_items, invisibility326_public_inventory_phase_callback_protocol) {
+    item326_inventory_protocol(false);
+}
+TEST(wc3_items, invisibility326_public_inventory_attachment_and_callback_inverses) {
+    item326_inventory_protocol(true);
+}
 
 TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {
     const char slk[] =

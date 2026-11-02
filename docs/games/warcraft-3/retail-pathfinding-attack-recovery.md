@@ -722,7 +722,7 @@ remainder. This is intentionally not a universal freeze-while-paused rule.
 
 The new engine tests use actual held inventory items, USE_ITEM event carrier
 identity, JASS PauseUnit, primary timer draining and cold save/load. Their
-paused inventory refresh tests exercise engine ownership; they do not prove
+paused effect-service refresh tests exercise engine ownership; they do not prove
 retail public item admission while paused. No complete public Sleep/Apiv mixed
 sequence or remaining Wind Walk/Ghost/Burrow/Shadow Meld overlap is claimed.
 B01 and TARGET-01.2 remain open.
@@ -832,4 +832,37 @@ require the source item or the original order still to be attached. Original
 402850 validates cost/flag200 and target shape without testing active bit1.
 Those distinctions must be preserved in the inventory/cast integration.
 
-The next-block reference is [the five-case original capture](../../../tools/ghidra/fixtures/research/invisibility326-public-original.json), with separate complete original bodies for [effect ownership](../../../tools/ghidra/fixtures/research/invisibility326-effect-owner-original.json), [phase validation](../../../tools/ghidra/fixtures/research/invisibility326-phase-validator-original.json) and [fresh timing initialization](../../../tools/ghidra/fixtures/research/invisibility326-timing-original.json). These are original-engine evidence; no326 engine parity is claimed.
+The next-block reference is [the five-case original capture](../../../tools/ghidra/fixtures/research/invisibility326-public-original.json), with separate complete original bodies for [effect ownership](../../../tools/ghidra/fixtures/research/invisibility326-effect-owner-original.json), [phase validation](../../../tools/ghidra/fixtures/research/invisibility326-phase-validator-original.json) and [fresh timing initialization](../../../tools/ghidra/fixtures/research/invisibility326-timing-original.json). These are original-engine evidence; the326 engine comparison is limited to the81-row projection below.
+
+## Ordinary item cast owner: checkpoint326
+
+The implementation supplies the profiled no-target AIvi `UnitUseItem` path through
+Inventory's ordinary command admission and shared zero-time cast profile.
+It separates the saved slot/generation attachment token, retained effect code
+and active completion. Source detachment emits ENDCAST before losing the old
+public metadata; later retained phases report code0. Effect permission follows
+the live caster's current user head. Completion occurs after ENDCAST, with one
+synchronous USE_ITEM; callback replacement does not retire the successor head.
+Save244 retains the new queued-item attachment contract.
+
+Both editions match81 selected order/phase/state rows from the complete
+237-row five-scene native reference, not237 engine-compared rows. Engine-only
+cases cover cold-saved construction-held admission, same-item repick, sibling
+aliases and replacement Move. The two new tests pass209 assertions per edition. Earlier
+fixture attempts lacked unit-spell constants and are not failing-first evidence.
+AIvi public paused admission and remaining contributor compositions/caller
+dispositions still keep B01 and TARGET-01.2 open.
+
+The broader focused checks pass2,252 executions/275,666 assertions across both
+editions. Full normal and nine-save C299 replays still match2,066 public and
+5,342 motion rows with zero mismatches. The326 native checker verifies26 unique
+original byte ranges, six vtable words and the lossless237-row observation/control;
+it does not itself claim engine parity. The paused private-clock refresh tests
+now enter the effect service directly, retaining their original-byte scope.
+Neither those component tests nor the construction-held queue test proves
+public item admission during scripted Pause.
+
+All five fresh pathfinding gates pass. Itemdrop requires153 tests/12,406 assertions
+per edition. The86 focused Python checks and614-entry corpus audit pass. No full
+native-suite or SC2API rerun is claimed in this commit; the previous full batch
+used the frozen323 source.
