@@ -748,6 +748,8 @@ void S_TemporaryInvisibilityAcquire(edict_t *unit,heroabilitystatus_t *status,fl
 void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
     if(!unit || !status || !status->invisibility_owned)return;
     uint32_t birth=unit->spawn_time;
+    if(status->class_code==MAKEFOURCC('B','i','n','v'))
+        S_DetachStatusAbilityAvailability(unit,MAKEFOURCC('B','i','n','v'),MAKEFOURCC('B','i','n','v'));
     /* Inspect presence while this contribution still explains RF_HIDDEN.
      * Loaded, mined, trained, reviving and world-retired units keep their
      * independent hiding owner when the temporary contribution leaves. */
@@ -810,6 +812,9 @@ bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
     if(invisibility_live(unit,birth)) {
         status=unit_findstatusclass(unit,concrete);
         if(status && status->instance_id==instance && status->invisibility_owned) {
+            /*48b4c0 admits availability before inheriting private clocks.
+             * The ordered owner uses class identity, not displayed BuffID. */
+            S_AttachStatusAbilityAvailability(unit,concrete,concrete);
             temporary_expiry_forget(unit);
             status->class_clock_depth=0;
             temporary_invisibility_clock_adjust(status,unit->ability_clock_depth);
@@ -832,7 +837,14 @@ static void temporary_expiry_fire(void) {
  * the common fade and of script/order suspension. Heap membership is derived. */
 BZ_ABILITY_PROC(CBuffInvisibility) {
     switch(msg) {
-    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_REMOVING,A_UNIT_REMOVE,A_UNIT_ACTION);
+    case A_UNIT_ACTION: {
+        /*643fb0 removes notified Binv owners. Native flag100 is the pending
+         * publication guard, cleared only after suppression/recovery returns. */
+        heroabilitystatus_t *status=ent ? unit_findstatusclass(ent,MAKEFOURCC('B','i','n','v')) : NULL;
+        if(status && status->invisibility_owned && !status->invisibility_pending)unit_expirestatus(ent,status);
+        return true;
+    }
     case A_UNIT_REMOVING:case A_UNIT_REMOVE:
         if(ent)temporary_expiry_forget(ent);
         return true;
@@ -875,7 +887,14 @@ bool S_ValidateInvisibilityOwners(void) {
         edict_t const *unit=g_edicts+n;
         if(!unit->inuse)continue;
         if(unit->ability_clock_depth<0 || unit->ability_clock_depth!=unit->ability_pause_depth)return false;
-        uint32_t contributions=0,held=0;
+        uint32_t contributions=0,held=0,binv_owners=0,binv_nodes=0;
+        for(unitAbilityDisable_t const *node=unit->ability_disables;node;node=node->next)
+            if(node->class_code==MAKEFOURCC('B','i','n','v')) {
+                if(node->code!=node->class_code || !node->linked || node->morph_owned ||
+                   node->exclusive_owned || node->exclusive_inventory || node->ethereal_initialized ||
+                   node->ethereal_owned || node->burrow_initialized || node->burrow_owned)return false;
+                binv_nodes++;
+            }
         FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
             if(!unit->abilstatus)return false;
             heroabilitystatus_t const *status=unit->abilstatus+i;
@@ -883,6 +902,7 @@ bool S_ValidateInvisibilityOwners(void) {
                *(uint8_t const *)&status->invisibility_pending>1 ||
                *(uint8_t const *)&status->invisibility_suppression_held>1)return false;
             if(status->invisibility_owned) {
+                if(status->class_code==MAKEFOURCC('B','i','n','v'))binv_owners++;
                 if(!status->level || !status->instance_id ||
                    !S_UnitStatusIsTemporaryInvisibility(status) ||
                    (unit->permanent_invisibility_fade.published && status->invisibility_pending))return false;
@@ -907,7 +927,7 @@ bool S_ValidateInvisibilityOwners(void) {
                 if(status->invisibility_attack_generation==unit->attack_invisibility_generation)held++;
             }
         }
-        if(contributions!=unit->permanent_invisibility_fade.temporary_contributions ||
+        if(binv_nodes!=binv_owners || contributions!=unit->permanent_invisibility_fade.temporary_contributions ||
            held!=unit->attack_invisibility_suppression)return false;
         if(*(uint8_t const *)&unit->permanent_invisibility_fade.permanent_owned>1 ||
            *(uint8_t const *)&unit->permanent_invisibility_fade.published>1 ||
@@ -950,7 +970,12 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
         if(ent || !call)return UNIT_INIT_UNKNOWN;
         return G_UnitHasAuthoredAbility(call->unit_type,ID_APIV) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_UNIT_SUSPEND,A_UNIT_RESUME);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_UNIT_ACTION);
+    case A_UNIT_ACTION:
+        /*643f60 uses the execution count, not the unit's physical pause. */
+        if(ent && call && call->item && !S_AbilityExecutionDisabled(ent,call->item->code))
+            S_PermanentInvisibilityReveal(ent);
+        return true;
     case A_UNIT_INIT:case A_ENABLE:case A_LEVEL_CHANGED:case A_UNIT_RESUME:
         S_PermanentInvisibilityInitialize(ent);return true;
     case A_DISABLE:case A_UNIT_REMOVING:case A_UNIT_REMOVE:case A_UNIT_SUSPEND:
@@ -995,10 +1020,14 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
     }
 }
 void S_PermanentInvisibilityReveal(edict_t *unit) {
-    if(!unit || (!(unit->runtime.flags&UNIT_BALANCE_PERMANENT_INVISIBLE) && !unit->permanent_invisibility_fade.request.active))return;
+    if(!unit || !unit->permanent_invisibility_fade.permanent_owned)return;
+    uint32_t const birth=unit->spawn_time;
+    /*643f60 releases this contribution before reacquiring authored Dur.
+     * Another contribution retains the shared fade across this inverse. */
+    invisibility_clear(unit);
+    if(!invisibility_live(unit,birth))return;
     float transition=permanent_invisibility_transition(unit);
-    if(transition<0) {invisibility_clear(unit);return;}
-    invisibility_begin(unit,transition);
+    if(transition>=0)invisibility_begin(unit,transition);
 }
 
 /* RF_HIDDEN is also used for cargo, mines, training and revival.  This narrow

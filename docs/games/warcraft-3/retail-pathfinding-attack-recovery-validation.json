@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Aivs and AIvi share concrete Binv with authored display context, item transition2, saved primary expiry and strict refresh. B01 compositions and caller dispositions remain open.",
-  "save_version": 242,
+  "status": "Ordered common CHANNEL/CAST action owners implemented, including pending Binv protection, Apiv reset and saved attachment order. AIvi command/cast integration, other overlap families and caller dispositions remain open.",
+  "save_version": 243,
   "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
@@ -6739,5 +6739,86 @@
       "passed": true,
       "limit": "Immediate reset callers observed; upstream phase ownership established by complete original function bodies, not a captured stack."
     }
+  },
+  "phase325": {
+    "scope": "Common profiled CHANNEL/CAST action notification in original owner order; pending Binv guard and Apiv inverse/reacquire. AIvi activation lifecycle is not ported.",
+    "save_version": 243,
+    "original_action_fixture": "tools/ghidra/fixtures/research/invisibility325-action-owners-original.json",
+    "original_action_fixture_sha256": "bce917eda9d3a168169bc4893b85b772c096e12f3adc54eed1f4727096f99e1c",
+    "original_checker": "tools/ghidra/research/invisibility325_phase_check.py",
+    "original_action_bodies": 8,
+    "original_virtual_slots": 6,
+    "corrected_red": {
+      "assertions": 42,
+      "failed": 14,
+      "report": "build/tests/invisibility325/engine/red-corrected.xml"
+    },
+    "new_tests": {
+      "per_edition_tests": 3,
+      "per_edition_assertions": 143,
+      "passed": true
+    },
+    "focused": {
+      "processes": 10,
+      "tests": 2248,
+      "assertions": 275234,
+      "passed": true,
+      "report": "build/tests/invisibility325/focused-final/summary.json"
+    },
+    "fresh_gates": {
+      "itemdrop": {
+        "report": "build/tests/invisibility325/gates-final/itemdrop.json",
+        "sha256": "5593ca235eb8c98a1916c867fd5405c2796b176f231aa5def6017ce19d77b35b",
+        "passed": true
+      },
+      "captain473": {
+        "report": "build/tests/invisibility325/gates-final/captain473.json",
+        "sha256": "10a673a92ab57b2db5ebdc6ab5c111e4a6aeb6d6095bd220cc7a2d1f709f8b94",
+        "passed": true
+      },
+      "waygate377": {
+        "report": "build/tests/invisibility325/gates-final/waygate377.json",
+        "sha256": "f283910a73e0f50067bcba393a99633f404135c760bea25e6c058967f6121650",
+        "passed": true
+      },
+      "group012": {
+        "report": "build/tests/invisibility325/gates-final/group012.json",
+        "sha256": "f848b4925a89adb786584bca27e1bfdfcd27e407ca7686c1e99c855529aac6db",
+        "passed": true
+      },
+      "supportgoal": {
+        "report": "build/tests/invisibility325/gates-final/supportgoal.json",
+        "sha256": "e499056c82c9911077529d24ca82b6ecd3261d44748d3f48e9915bec48d86dd3",
+        "passed": true
+      }
+    },
+    "c299": {
+      "public_rows": 2066,
+      "motion_rows": 5342,
+      "mismatches": 0,
+      "normal_passed": true,
+      "nine_checkpoint_saved_passed": true
+    },
+    "python_tests": {
+      "tests": 76,
+      "passed": true
+    },
+    "corpus": {
+      "entries": 614,
+      "passed": true,
+      "guarded_files": 3352
+    },
+    "final_binaries": {
+      "build/bin/openwarcraft3-tests": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "build/lib/libgame-wc3-test.so": "cc9d0437ee7e49237bf4c1c2e5316f033dc8148b8523f2d802cd15ab05984045"
+    },
+    "full_suite_rerun": false,
+    "sc2api_rerun": false,
+    "last_full_suite_source_commit": "4ce3ed9ae",
+    "remaining": [
+      "AIvi public UnitUseItem and ordinary command/cast ownership.",
+      "Five overlap-family dispositions and adjusted setter reachability.",
+      "Remaining incoming caller dispositions."
+    ]
   }
 }

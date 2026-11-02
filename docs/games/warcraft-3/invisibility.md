@@ -91,8 +91,12 @@ a separate B01 check.
 Checkpoint324 adds real JASS Sleep admission, Apiv/item attachment in both
 orders, independent owner removal and paused cold save/load. A fresh retail
 observation/control pair agrees on246 public records. Production is unchanged.
-The remaining item-path gap is Apiv's common CHANNEL/CAST reset-fade
-notifications before item effect; see the exact callers in
+Checkpoint325 implements those notifications for the existing profiled spell
+owner, in attachment order before public CHANNEL/CAST callbacks. Binv's
+native flag100 is its pending-publication guard: an action preserves a pending
+owner and removes a notified owner. Apiv releases and reacquires its own
+contribution. The next gap is routing ordinary item activation through its
+actual owned command/cast lifecycle; see the exact callers in
 [checkpoint324](retail-pathfinding-attack-recovery.md#public-sleep-and-independent-invisibility-owners-checkpoint324).
 
 ## Save/load

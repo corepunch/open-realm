@@ -45,7 +45,21 @@ def main():
         data = raw(site, 5)
         assert data[0] == 0xe8 and site+5+struct.unpack_from('<i', data, 1)[0] == target
     assert struct.unpack('<I', raw(0xb67574, 4))[0] == 0x6f643f60
+    owners = json.loads((FIXTURES / 'invisibility325-action-owners-original.json').read_text())
+    assert owners['original_sha256'] == spec['original_sha256']
+    assert len(owners['function_guards']) == 8 and len(owners['virtual_slots']) == 6
+    for guard in owners['function_guards'].values():
+        data = bytes.fromhex(guard['bytes'])
+        assert hashlib.sha256(data).hexdigest() == guard['sha256']
+        assert raw(int(guard['rva'], 16), len(data)) == data
+    for slot in owners['virtual_slots']:
+        address = int(slot['word_rva'], 16)
+        assert address == int(slot['vtable_rva'], 16) + int(slot['slot'], 16)
+        data = raw(address, 4)
+        assert data == bytes.fromhex(slot['bytes'])
+        assert struct.unpack('<I', data)[0] == 0x6f000000 + int(slot['target_rva'], 16)
     print(json.dumps(dict(passed=True, public_records=246, observer_records=612,
-                          original_functions=6, scope='Native phase reset evidence; no engine parity.')))
+                          original_functions=6, action_functions=8, virtual_slots=6,
+                          scope='Native phase/action owner evidence; no engine parity.')))
 if __name__ == '__main__':
     main()

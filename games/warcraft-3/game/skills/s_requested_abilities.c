@@ -1117,6 +1117,8 @@ bool S_ValidateMetamorphosisOwners(void) {
         }
         for(unitAbilityDisable_t const *owner=unit->ability_disables;owner;owner=owner->next) {
             if(!owner->class_code)continue;
+            /* Binv's status/node relation belongs to its own validator. */
+            if(owner->class_code==MAKEFOURCC('B','i','n','v'))continue;
             if(owner->class_code!=metamorphosis_buff || owner->morph_owned || owner->exclusive_owned ||
                owner->exclusive_inventory || owner->ethereal_initialized || owner->ethereal_owned ||
                owner->burrow_initialized || owner->burrow_owned)return false;

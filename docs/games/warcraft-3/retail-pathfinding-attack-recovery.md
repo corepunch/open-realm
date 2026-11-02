@@ -778,3 +778,58 @@ records in that frozen control. Its612 observer records identify the two
 are checked by `tools/ghidra/research/invisibility325_phase_check.py --binary
 /path/to/game.dll`. The canonical capture/invariants are retained in
 `tools/ghidra/fixtures/research/invisibility325-item-phase-original.json`.
+
+## Ordered common action ownership: checkpoint325
+
+Common CHANNEL and CAST now broadcast the original ability action before
+their public event callbacks. The action uses the attached owner list. As
+691210 does, it reads the successor after the callback, retaining the current
+owner while that owner removes itself. This is distinct from the prefetched
+next-node rule of48c8c0's availability walk.
+
+Binv is admitted to that list after its shared contribution starts and before
+its private clock inherits suspension. Its node uses concrete Binv identity;
+changing the displayed BuffID does not replace or reorder it. Save243 retains
+that node and validates its matching live status. The Morph validator delegates
+Binv nodes to the Invisibility validator. No status record fields were added.
+
+Binv virtual12c643fb0 removes a notified owner, but preserves native flag100.
+That flag is exactly pending publication:63ce40 sets it and628a10 clears it
+only after suppression/recovery. It is not permanence or dispel immunity.
+Apiv virtual12c643f60 releases its contribution with transition0, then
+reacquires authored Dur when execution is enabled. With Binv still present,
+that inverse does not restart the shared fade. The attachment order therefore
+matters. Both classes' virtual174 and178 are no-ops.
+
+The existing profiled cast owner uses these CHANNEL/CAST notifications and
+no longer repeats Binv breaking or Apiv resetting at EFFECT. Unprofiled legacy
+execution keeps its old fallback until its complete phase owner is ported.
+The new public Inner Fire test separates CHANNEL/CAST by an authored4-second
+delay, observes both callbacks through the existing Preload test hook and
+checks no third reset at EFFECT. Two component cases cover both attachment
+orders across cold save; another preserves a pending Binv. The initial test
+using IsUnitInvisible with fog disabled was invalid and is not counted as
+failing-first product evidence. The corrected baseline fails14/42 assertions;
+the corrected final three tests pass143 assertions per edition.
+
+Final validation:2,248 focused executions/275,234 assertions, all five fresh
+pathfinding gates, and full normal/nine-checkpoint C299 declared suffixes pass.
+Itemdrop requires151 tests/12,193 assertions per edition. The76 Python tests
+and614-entry integrity check pass. No full native-suite or SC2API rerun is
+claimed for this checkpoint; the last full batch is the frozen323 build.
+
+The remaining AIvi activation work is now precise. Actual UnitUseItem uses an
+ordinary user command and cast owner, not an inline bypass: all three sampled
+40a500 entries have Unit60 bit8 and ability bit100 clear, with real d0160
+activation. A five-scene native capture then matches237 complete public rows
+against a fresh observer-free control. Item use replaces Move; Move does not
+resume. Stop in CHANNEL, CAST or EFFECT prevents Binv and preserves the item,
+while the call still reports admission. Removing the item in CHANNEL instead
+leaves a valid user head, so the retained ability applies Binv even though
+subsequent public spell IDs are zero. Neither cancellation emits FINISH/USE.
+Original3fa400 checks a live caster and any resolving user head; it does not
+require the source item or the original order still to be attached. Original
+402850 validates cost/flag200 and target shape without testing active bit1.
+Those distinctions must be preserved in the inventory/cast integration.
+
+The next-block reference is [the five-case original capture](../../../tools/ghidra/fixtures/research/invisibility326-public-original.json), with separate complete original bodies for [effect ownership](../../../tools/ghidra/fixtures/research/invisibility326-effect-owner-original.json), [phase validation](../../../tools/ghidra/fixtures/research/invisibility326-phase-validator-original.json) and [fresh timing initialization](../../../tools/ghidra/fixtures/research/invisibility326-timing-original.json). These are original-engine evidence; no326 engine parity is claimed.

@@ -1,4 +1,12 @@
-Save242 persists the unit's inherited private ability-clock count separately
+Save243 retains Binv's concrete-class node in the ordered ability-owner list.
+Its identity is the Binv class, independent of the displayed BuffID. Saved
+attachment order determines whether an action removes Binv before or after
+Apiv resets its shared contribution. Loading validates the one-to-one status
+/node relation and delegates each concrete owner's checks to its validator.
+Save242 and older timing contracts are rejected. Status fields and JASS
+snapshot12 are unchanged.
+
+The prior Save242 persists the unit's inherited private ability-clock count separately
 from availability. Binv saves its counted hold and frozen expiry remainder in
 the existing status fields. Its shared fade remains independent. Loading rejects
 negative or mismatched unit/status clock counts and invalid frozen remainders.

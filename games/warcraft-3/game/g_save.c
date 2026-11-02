@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 242; /* Retain inherited private ability-clock suspension. */
+static uint32_t const save_version = 243; /* Preserve ordered Binv action owners beside ordinary abilities. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -3142,7 +3142,8 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
         savedAbilityDisable_t saved;
         if(!LoadBytes(f,&saved,sizeof(saved)) || !saved.code)goto failed;
         if(saved.class_code) {
-            if(saved.class_code!=MAKEFOURCC('B','E','m','e'))goto failed;
+            if(saved.class_code!=MAKEFOURCC('B','E','m','e') &&
+               !(saved.class_code==MAKEFOURCC('B','i','n','v') && saved.code==saved.class_code))goto failed;
         } else if(!S_AbilityItem(saved.code).ability)goto failed;
         for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
             if(s->code==saved.code && s->class_code==saved.class_code)goto failed;

@@ -666,6 +666,31 @@ static void item324_frame(void) {
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     level.time+=5;globals.RunFrame();
 }
+extern void (*test_preload_marker)(cstring_t);
+static struct {
+    edict_t *unit;unsigned calls,contributions;bool binv,permanent,published;
+    wc3Clock_t origin;uint32_t sequence;
+} item325_order;
+static void item325_order_marker(cstring_t text) {
+    if(strcmp(text,"P325 ORDER"))return;
+    edict_t *unit=item325_order.unit;item325_order.calls++;
+    item325_order.binv=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'))!=NULL;
+    item325_order.permanent=unit->permanent_invisibility_fade.permanent_owned;
+    item325_order.contributions=unit->permanent_invisibility_fade.temporary_contributions;
+    item325_order.published=unit->permanent_invisibility_fade.published;
+    item325_order.origin=unit->permanent_invisibility_fade.origin;
+    item325_order.sequence=unit->permanent_invisibility_fade.request.sequence;
+}
+static void item325_check_node_order(edict_t *unit,bool permanent_first) {
+    int position=0,apiv=-1,binv=-1;
+    for(unitAbilityDisable_t *node=unit->ability_disables;node;node=node->next,position++) {
+        if(!node->linked)continue;
+        if(node->code==MAKEFOURCC('A','p','i','v') && !node->class_code)apiv=position;
+        if(node->class_code==MAKEFOURCC('B','i','n','v'))binv=position;
+    }
+    T_ASSERT(apiv>=0);T_ASSERT(binv>=0);
+    T_EQ(binv<apiv,permanent_first);
+}
 static void item324_sleep_composition(unsigned overlap) {
     reset_entities();setup_test_world();
     char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"Data14\"\nC;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y1;X18;K\"Cost1\"\nC;Y1;X19;K\"Cool1\"\nC;Y1;X20;K\"Cast1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi24\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X12;K\"4\"\nC;Y3;X13;K\"4\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"AUsl\"\nC;Y4;X2;K\"AUsl\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"2\"\nC;Y4;X5;K\"2\"\nC;Y4;X12;K\"12\"\nC;Y4;X13;K\"12\"\nC;Y4;X14;K\"BUsl,BUsp,BUst\"\nC;Y4;X15;K\"ground,enemy,organic\"\nC;Y4;X16;K\"ground,enemy,organic\"\nC;Y4;X17;K\"600\"\nC;Y4;X18;K\"0\"\nC;Y4;X19;K\"0\"\nC;Y4;X20;K\"0\"\nC;Y5;X1;K\"Apiv\"\nC;Y5;X2;K\"Apiv\"\nC;Y5;X3;K\"1\"\nC;Y5;X12;K\"3\"\nC;Y5;X13;K\"3\"\nE\n";
@@ -687,6 +712,9 @@ static void item324_sleep_composition(unsigned overlap) {
         "function add324 takes nothing returns nothing\ncall BJassAssert(UnitAddAbility(target324,'Apiv'),\"Apiv attached\")\nendfunction\n"
         "function remove324 takes nothing returns nothing\ncall BJassAssert(UnitRemoveAbility(target324,'Apiv'),\"Apiv removed\")\nendfunction\n"
         "function wake324 takes nothing returns nothing\ncall UnitRemoveBuffs(target324,false,true)\nendfunction\n"
+        "function phase325 takes nothing returns nothing\ncall Preload(\"P325 ORDER\")\nendfunction\n"
+        "function register325 takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(t,target324,ConvertUnitEvent(289))\ncall TriggerAddAction(t,function phase325)\nendfunction\n"
         "function main takes nothing returns nothing\ncall FogEnable(false)\ncall FogMaskEnable(false)\n"
         "set target324=CreateUnit(Player(0),'Hpal',256,256,0)\n"
         "set caster324=CreateUnit(Player(1),'hfoo',304,256,180)\n"
@@ -702,12 +730,86 @@ static void item324_sleep_composition(unsigned overlap) {
     edict_t *item=SP_SpawnAtLocation(MAKEFOURCC('i','3','2','4'),0,&unit->s.origin2);
     T_NOT_NULL(item);if(!item)goto item324_cleanup;
     T_ASSERT(G_AddItemToSlot(unit,item,0));T_EQ(G_InventoryItem(unit,0),item);
-    if(overlap==1)jass_callbyname(level.vm,"add324",false);
+    if(overlap==1 || overlap==3)jass_callbyname(level.vm,"add324",false);
     G_UseItem(unit,0);T_EQ(G_ItemCharges(item),1);
-    if(overlap==2)jass_callbyname(level.vm,"add324",false);
+    if(overlap==2 || overlap==4)jass_callbyname(level.vm,"add324",false);
     heroabilitystatus_t *status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
     T_NOT_NULL(status);if(!status)goto item324_cleanup;
     T_ASSERT(status->class_timer.active);T_EQ(status->class_clock_depth,0);
+    if(overlap==5) {
+        /*63ce40 owns100 until628a10 notification: v12c leaves this pending
+         * owner intact. Exercise the common phase, not the buff directly. */
+        uint32_t const instance=status->instance_id;
+        abilityPrimaryTimer_t const expiry=status->class_timer;
+        abilityPrimaryTimer_t const fade=unit->permanent_invisibility_fade.request;
+        wc3Clock_t const origin=unit->permanent_invisibility_fade.origin;
+        T_ASSERT(status->invisibility_pending);T_ASSERT(!unit->permanent_invisibility_fade.published);
+        void (*saved_marker)(cstring_t)=test_preload_marker;
+        memset(&item325_order,0,sizeof(item325_order));item325_order.unit=unit;
+        test_preload_marker=item325_order_marker;
+        jass_callbyname(level.vm,"register325",false);
+        S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=MAKEFOURCC('Z','i','2','4'),
+            .target={.type=SPELL_TARGET_NONE},.player_event=EVENT_PLAYER_UNIT_SPELL_CHANNEL,
+            .unit_event=EVENT_UNIT_SPELL_CHANNEL},325);
+        test_preload_marker=saved_marker;
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(item325_order.calls,1);
+        T_ASSERT(item325_order.binv);T_EQ(item325_order.contributions,1);
+        T_ASSERT(!item325_order.permanent);T_ASSERT(!item325_order.published);
+        status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+        T_NOT_NULL(status);
+        if(status) {
+            T_EQ(status->instance_id,instance);T_ASSERT(status->invisibility_pending);
+            T_EQ(status->class_timer.active,expiry.active);T_EQ(status->class_timer.sequence,expiry.sequence);
+            T_EQ(wc3_float_bits(status->class_timer.deadline.time),wc3_float_bits(expiry.deadline.time));
+            T_EQ(status->class_timer.deadline.epoch,expiry.deadline.epoch);
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        T_EQ(unit->permanent_invisibility_fade.request.active,fade.active);
+        T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(fade.deadline.time));
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.origin.time),wc3_float_bits(origin.time));
+        memset(&item325_order,0,sizeof(item325_order));
+        goto item324_cleanup;
+    }
+    if(overlap>=3) {
+        /* Original691210 post-callback list traversal +643fb0/643f60.
+         * Actual producers establish order; CHANNEL below is a component
+         * boundary invocation, not a full captured item-cast replay. */
+        FOR_LOOP(n,660)item324_frame();
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+        item325_check_node_order(unit,overlap==3);
+        uint32_t const number=unit->s.number;
+        cstring_t path=Test_TempPath("item325-ordered-action.bin");
+        T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+        unit=g_edicts+number;item325_check_node_order(unit,overlap==3);
+        wc3Clock_t const origin=unit->permanent_invisibility_fade.origin;
+        uint32_t const sequence=unit->permanent_invisibility_fade.request.sequence;
+        void (*saved_marker)(cstring_t)=test_preload_marker;
+        memset(&item325_order,0,sizeof(item325_order));item325_order.unit=unit;
+        test_preload_marker=item325_order_marker;
+        jass_callbyname(level.vm,"register325",false);
+        S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=MAKEFOURCC('Z','i','2','4'),
+            .target={.type=SPELL_TARGET_NONE},.player_event=EVENT_PLAYER_UNIT_SPELL_CHANNEL,
+            .unit_event=EVENT_UNIT_SPELL_CHANNEL},325);
+        test_preload_marker=saved_marker;
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(item325_order.calls,1);
+        T_ASSERT(!item325_order.binv);T_ASSERT(item325_order.permanent);T_EQ(item325_order.contributions,0);
+        T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+        T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+        if(overlap==3) {
+            T_ASSERT(!item325_order.published);T_ASSERT(item325_order.origin.time>origin.time);
+            T_NE(item325_order.sequence,sequence);T_ASSERT(unit->permanent_invisibility_fade.request.active);
+        } else {
+            T_ASSERT(item325_order.published);
+            T_EQ(wc3_float_bits(item325_order.origin.time),wc3_float_bits(origin.time));
+            T_EQ(item325_order.origin.epoch,origin.epoch);T_EQ(item325_order.sequence,sequence);
+            T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        }
+        memset(&item325_order,0,sizeof(item325_order));
+        goto item324_cleanup;
+    }
     if(!overlap)T_ASSERT(status->invisibility_pending);
     /* Overlap notification is immediate; successful public Sleep below is
      * the admission proof, independent of the shared presentation state. */
@@ -783,6 +885,119 @@ TEST(wc3_items, invisibility324_public_sleep_does_not_freeze_private_expiry) {it
 TEST(wc3_items, invisibility324_public_sleep_pause_apiv_independent_inverse) {
     item324_sleep_composition(1);item324_sleep_composition(2);
 }
+
+
+extern void (*test_preload_marker)(cstring_t);
+static struct {
+    edict_t *caster;
+    unsigned count[4];
+    bool owned[4],published[4],runtime[4];
+    wc3Clock_t origin[4];
+    uint32_t sequence[4];
+} item325_observed;
+static void item325_marker(cstring_t text) {
+    char const *labels[]={"P325 BEFORE","P325 CHANNEL","P325 CAST","P325 EFFECT"};
+    FOR_LOOP(i,4)if(!strcmp(text,labels[i])) {
+        edict_t const *unit=item325_observed.caster;
+        T_NOT_NULL(unit);if(!unit)return;
+        item325_observed.count[i]++;
+        item325_observed.owned[i]=unit->permanent_invisibility_fade.permanent_owned;
+        item325_observed.published[i]=unit->permanent_invisibility_fade.published;
+        item325_observed.runtime[i]=S_PermanentInvisibilityActive(unit);
+        item325_observed.origin[i]=unit->permanent_invisibility_fade.origin;
+        item325_observed.sequence[i]=unit->permanent_invisibility_fade.request.sequence;
+    }
+}
+TEST(wc3_items, invisibility325_pending_binv_survives_common_channel_action) {
+    item324_sleep_composition(5);
+}
+TEST(wc3_items, invisibility325_ordered_binv_apiv_action_after_cold_save) {
+    item324_sleep_composition(3);item324_sleep_composition(4);
+}
+/*325: actual public spell phases share the native action notification. */
+TEST(wc3_items, invisibility325_public_channel_cast_reset_before_callbacks) {
+    reset_entities();setup_test_world();
+    void (*saved_marker)(cstring_t)=test_preload_marker;
+    memset(&item325_observed,0,sizeof(item325_observed));
+    test_preload_marker=item325_marker;
+    char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"targs\"\nC;Y1;X7;K\"targs1\"\nC;Y1;X8;K\"Rng1\"\nC;Y1;X9;K\"Cost1\"\nC;Y1;X10;K\"Cool1\"\nC;Y1;X11;K\"Cast1\"\nC;Y1;X12;K\"BuffID1\"\nC;Y1;X13;K\"DataA1\"\nC;Y1;X14;K\"Data11\"\nC;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"3\"\nC;Y2;X5;K\"3\"\nC;Y3;X1;K\"Ainf\"\nC;Y3;X2;K\"Ainf\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"10\"\nC;Y3;X5;K\"10\"\nC;Y3;X6;K\"ground,friend\"\nC;Y3;X7;K\"ground,friend\"\nC;Y3;X8;K\"600\"\nC;Y3;X9;K\"0\"\nC;Y3;X10;K\"0\"\nC;Y3;X11;K\"4\"\nC;Y3;X12;K\"Binf\"\nC;Y3;X13;K\"0.1\"\nC;Y3;X14;K\"0.1\"\nE\n";
+    char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nE\n";
+    char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"0.2\"\nE\n";
+    slkTestData_t *ar=parse_slk_string(abilities),*dr=parse_slk_string(data),*wr=parse_slk_string(weapons);
+    slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr);
+    level.alliances[0][2]=level.alliances[2][0]=0;
+    T_ASSERT(run_test_jass(
+        "globals\nunit caster325\nunit target325\nendglobals\n"
+        "function channel325 takes nothing returns nothing\n"
+        "call Preload(\"P325 CHANNEL\")\n"
+        "call SetUnitUserData(caster325,1)\nendfunction\n"
+        "function cast325 takes nothing returns nothing\n"
+        "call Preload(\"P325 CAST\")\n"
+        "call SetUnitUserData(caster325,2)\nendfunction\n"
+        "function effect325 takes nothing returns nothing\ncall Preload(\"P325 EFFECT\")\ncall SetUnitUserData(caster325,3)\nendfunction\n"
+        "function issue325 takes nothing returns nothing\n"
+        "call Preload(\"P325 BEFORE\")\n"
+        "call BJassAssert(IssueTargetOrder(caster325,\"innerfire\",target325),\"public Inner Fire admitted\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger ch=CreateTrigger()\n"
+        "local trigger ca=CreateTrigger()\nlocal trigger ef=CreateTrigger()\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call SetPlayerTechResearched(Player(0),'Rhpt',2)\n"
+        "set caster325=CreateUnit(Player(0),'hfoo',256,256,0)\n"
+        "set target325=CreateUnit(Player(0),'hfoo',304,256,180)\n"
+        "call SetUnitUserData(caster325,3251)\ncall SetUnitUserData(target325,3252)\n"
+        "call BJassAssert(UnitAddAbility(caster325,'Ainf'),\"Ainf attached\")\n"
+        "call BJassAssert(UnitAddAbility(caster325,'Apiv'),\"Apiv attached\")\n"
+        "call TriggerRegisterUnitEvent(ch,caster325,ConvertUnitEvent(289))\ncall TriggerAddAction(ch,function channel325)\n"
+        "call TriggerRegisterUnitEvent(ca,caster325,ConvertUnitEvent(290))\ncall TriggerAddAction(ca,function cast325)\n"
+        "call TriggerRegisterUnitEvent(ef,caster325,ConvertUnitEvent(291))\ncall TriggerAddAction(ef,function effect325)\nendfunction\n"));
+    edict_t *caster=NULL;
+    FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3251)caster=g_edicts+n;
+    T_NOT_NULL(caster);if(!caster)goto item325_cleanup;
+    item325_observed.caster=caster;
+    FOR_LOOP(n,800) {if(caster->permanent_invisibility_fade.published)break;item324_frame();}
+    T_ASSERT(S_PermanentInvisibilityActive(caster));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(caster,2));
+    uint32_t const initial_sequence=caster->permanent_invisibility_fade.request.sequence;
+    jass_callbyname(level.vm,"issue325",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    FOR_LOOP(n,200) {if(caster->user_data==1)break;item324_frame();}
+    T_EQ(caster->user_data,1);
+    wc3Clock_t const channel_origin=caster->permanent_invisibility_fade.origin;
+    uint32_t const channel_sequence=caster->permanent_invisibility_fade.request.sequence;
+    T_NE(channel_sequence,initial_sequence);T_ASSERT(caster->permanent_invisibility_fade.request.active);
+    bool republished=false;
+    FOR_LOOP(n,1000) {
+        if(caster->user_data!=1)break;
+        if(caster->permanent_invisibility_fade.published)republished=true;
+        item324_frame();
+    }
+    T_ASSERT(republished);T_EQ(caster->user_data,2);
+    wc3Clock_t const cast_origin=caster->permanent_invisibility_fade.origin;
+    uint32_t const cast_sequence=caster->permanent_invisibility_fade.request.sequence;
+    T_NE(cast_sequence,channel_sequence);T_ASSERT(cast_origin.time>channel_origin.time);
+    T_ASSERT(caster->permanent_invisibility_fade.request.active);
+    FOR_LOOP(n,200) {if(caster->user_data==3)break;item324_frame();}
+    T_EQ(caster->user_data,3);
+    T_EQ(wc3_float_bits(caster->permanent_invisibility_fade.origin.time),wc3_float_bits(cast_origin.time));
+    T_EQ(caster->permanent_invisibility_fade.origin.epoch,cast_origin.epoch);
+    T_EQ(caster->permanent_invisibility_fade.request.sequence,cast_sequence);
+    FOR_LOOP(i,4) {T_EQ(item325_observed.count[i],1);T_ASSERT(item325_observed.owned[i]);}
+    T_ASSERT(item325_observed.published[0]);T_ASSERT(item325_observed.runtime[0]);
+    T_ASSERT(!item325_observed.published[1]);T_ASSERT(!item325_observed.runtime[1]);
+    T_ASSERT(!item325_observed.published[2]);T_ASSERT(!item325_observed.runtime[2]);
+    T_NE(item325_observed.sequence[1],item325_observed.sequence[0]);
+    T_NE(item325_observed.sequence[2],item325_observed.sequence[1]);
+    T_ASSERT(item325_observed.origin[2].time>item325_observed.origin[1].time);
+    T_EQ(item325_observed.sequence[3],item325_observed.sequence[2]);
+    T_EQ(wc3_float_bits(item325_observed.origin[3].time),wc3_float_bits(item325_observed.origin[2].time));
+    T_EQ(item325_observed.origin[3].epoch,item325_observed.origin[2].epoch);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+item325_cleanup:
+    test_preload_marker=saved_marker;memset(&item325_observed,0,sizeof(item325_observed));
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",oa);G_SetSLKRows("UnitData",od);G_SetSLKRows("UnitWeapons",ow);
+    free_slk_rows(ar);free_slk_rows(dr);free_slk_rows(wr);
+}
+
 
 TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {
     const char slk[] =

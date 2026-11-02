@@ -885,14 +885,16 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach) {
+static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach, bool legacy_reveal) {
     abilityitem_t committed = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &committed);
 
     spell_cancel_target_approaches(caster, active_approach);
     S_SpellCancelChannel(caster);
-    S_HumanBreakInvisibility(caster);
-    S_PermanentInvisibilityReveal(caster);
+    if(legacy_reveal) {
+        S_HumanBreakInvisibility(caster);
+        S_PermanentInvisibilityReveal(caster);
+    }
     S_UnitStatusAbilityEvent(caster, A_SPELL_COMMIT, &call);
     if (code != MAKEFOURCC('A', 's', 'h', 'm') && code != MAKEFOURCC('A', 'h', 'i', 'd'))
         S_ShadowMeldBreak(caster);
@@ -920,6 +922,13 @@ bool S_DispatchSpellPhase(spellPhaseParams_t const *params) {
         source ? &source->s.origin2 : NULL;
     if(params->override_point)point=&params->point;
 
+    /*3fbc37/3fb677 notify attached virtual12c before their public families.
+     * Preserve the old packet through notifications, then guard its lifetime. */
+    if(player_event==EVENT_PLAYER_UNIT_SPELL_CHANNEL || player_event==EVENT_PLAYER_UNIT_SPELL_CAST) {
+        uint64_t const epoch=S_SpellPreparationEpoch();
+        S_UnitAbilityEvent(caster,A_UNIT_ACTION);
+        if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=spawn)return false;
+    }
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
         .type=player_event,.source=source,.value=code,.point=point},unit_event,true);
     return caster->inuse && caster->spawn_time==spawn && !G_IsDeferredFree(caster) &&
@@ -1015,7 +1024,7 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
         return false;
     if(!spell_dispatch_effect(params->caster,params->code,st))return false;
     if(active_approach)unit_stand_no_queue(params->caster);
-    spell_commit(params->caster, params->code, params->level, active_approach);
+    spell_commit(params->caster, params->code, params->level, active_approach,true);
     bool const blocked = S_PrepareUnitSpellEffect(params->caster, params->code, params->target);
     if (!blocked && (params->spell->flags & AB_CHANNEL))
         spell_begin_channel(params->caster, params->code);
@@ -1047,7 +1056,7 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
         if(caster->goalentity==active_approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
         unit_stand(caster);
     }
-    spell_commit(caster, code, level, active_approach);
+    spell_commit(caster, code, level, active_approach,true);
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
     bool const executed = S_AbilityMessage(caster, A_EXECUTE, &call);
@@ -1378,7 +1387,7 @@ static void SpellCastPhase(spellCast_t *cast,spellCastPhase_t phase,bool validat
             } else if(phase==CAST_CAST)SpellCastSchedule(cast,CAST_EFFECT,cast->profile.cast_point);
             else if(cast->active) {
                 /* EFFECT callbacks may drain mana without cancelling ownership. */
-                cast->executing=true;spell_commit(cast->caster,cast->code,cast->rank,NULL);cast->executing=false;
+                cast->executing=true;spell_commit(cast->caster,cast->code,cast->rank,NULL,false);cast->executing=false;
                 cast->committed=true;
                 if(!cast->profile.effect_at_finish)SpellCastExecute(cast);
                 if(cast->active)SpellCastSchedule(cast,CAST_FINISH,cast->profile.backswing);
@@ -2004,7 +2013,7 @@ static void spell_no_target_execute(edict_t *clent) {
     abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&st,source_item,source_item_spawn_time,NULL);
     if(ordered!=ABILITY_ORDER_UNHANDLED)return;
     if(!spell_dispatch_effect(caster,code,st))return;
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL,true);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
         G_CompleteItemUse(caster, source_item);
@@ -2072,7 +2081,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&target,NULL,0,NULL);
     if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
     if(!spell_dispatch_effect(caster,code,target))return false;
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL,true);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
@@ -2111,7 +2120,7 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     if(!S_SpellCanPay(caster,code,level))
         return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
     if(!spell_dispatch_effect(caster,code,target))return false;
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL,true);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
@@ -2146,7 +2155,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if(!S_SpellCanPay(caster,code,level))
         return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
     if(!spell_dispatch_effect(caster,code,target))return false;
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL,true);
     if (S_PrepareUnitSpellEffect(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_message(caster, A_EXECUTE, &item, &target);

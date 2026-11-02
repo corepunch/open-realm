@@ -1528,10 +1528,12 @@ static bool unit_dispatch_approach_command(edict_t *ent,abilityMsg_t msg,ability
 
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle, acquisition, and ability queries stop when an owner consumes the decision. */
+static bool ability_action_event(edict_t *);
 bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
     bool handled = false;
 
     if (!ent) return false;
+    if (msg == A_UNIT_ACTION)return ability_action_event(ent);
     if (msg == A_UNIT_TYPE_CHANGING || msg == A_UNIT_TYPE_CHANGED)
         return unit_dispatch_engine_event_abilities(ent, msg, payload);
     bool owner_event = msg == A_UNIT_OWNER_CHANGING || msg == A_UNIT_OWNER_CHANGED;
@@ -1975,6 +1977,33 @@ static void ability_disable_prepare(edict_t *ent) {
         if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
 }
 
+/*691210 resolves NEXT after the callback. Unlike48c8c0's counted walk,
+ * a callback can change this successor. Retain the current owner while a
+ * removable buff unlinks itself, but do not visit an unlinked successor. */
+static bool ability_action_event(edict_t *ent) {
+    ability_disable_prepare(ent);
+    uint32_t const birth=ent->spawn_time;
+    unitAbilityDisable_t *state=ent->ability_disables;
+    if(state)state->references++;
+    bool handled=false;
+    while(state) {
+        if(state->linked) {
+            abilityitem_t item=ability_disable_item(state);
+            if(known_unit_ability_receives(item,A_UNIT_ACTION)) {
+                abilityCall_t call={.item=&item};
+                handled|=S_AbilityMessage(ent,A_UNIT_ACTION,&call)!=0;
+            }
+        }
+        unitAbilityDisable_t *next=NULL;
+        if(ent->inuse && ent->spawn_time==birth && !G_IsDeferredFree(ent) &&
+           state->next && state->next->linked) {
+            next=state->next;next->references++;
+        }
+        ability_disable_release(state);state=next;
+    }
+    return handled;
+}
+
 /*67dff0(0) refreshes c4 even when the prior AI-mode bit was already clear.
  * Availability depth is the existing signed native ability+3c owner. */
 void S_ResetUnitAbilityAIMode(edict_t *ent) {
@@ -2005,7 +2034,7 @@ void S_ResetUnitAbilityAIMode(edict_t *ent) {
 }
 
 void S_AttachStatusAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
-    assert(class_code==MAKEFOURCC('B','E','m','e'));
+    assert(class_code==MAKEFOURCC('B','E','m','e') || class_code==MAKEFOURCC('B','i','n','v'));
     ability_disable_prepare(ent);
     unitAbilityDisable_t *owner=ability_disable_typed_owner(ent,code,class_code);
     abilityitem_t item=ability_disable_item(owner);

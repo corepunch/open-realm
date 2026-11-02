@@ -1223,6 +1223,7 @@ typedef enum {
     A_SPELL_TARGET_COMPLETE, /* Opt-in owner consumes target approach completion before generic stand/commit. */
     A_SPELL_TARGET_ACQUIRED, /* Opt-in owner leases the constructed approach before terminal callbacks. */
     A_ABILITY_AI_MODE_RESET, /*67dff0(0): signed execution depth<=0 invokes ability c4. */
+    A_UNIT_ACTION, /*691210: attached ability virtual12c before common CHANNEL/CAST events. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
