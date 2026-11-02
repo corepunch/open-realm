@@ -1093,8 +1093,10 @@ bool S_ValidateMetamorphosisOwners(void) {
         edict_t *unit=g_edicts+n;if(!unit->inuse)continue;
         FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
             heroabilitystatus_t const *status=unit->abilstatus+i;
+            if(status->class_code==MAKEFOURCC('B','i','n','v') && status->invisibility_owned)continue;
             if(!status->class_code) {
-                if(status->class_timer.active || status->class_timer_remaining || status->class_clock_depth)return false;
+                if(!status->invisibility_owned &&
+                   (status->class_timer.active || status->class_timer_remaining || status->class_clock_depth))return false;
                 continue;
             }
             if(status->class_code!=metamorphosis_buff || !status->level || !status->code ||

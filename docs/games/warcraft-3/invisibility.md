@@ -27,11 +27,11 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 ## Current ownership
 
 - `Apiv` Permanent Invisibility owns an authored scalar fade and primary-timer publication. Viewer-relative queries read the published state; synchronous TargetLost is delivered after publication. See [exact fade scheduling](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
-- `Aivs` temporary Invisibility and `AIvi` Item Temporary Invisibility apply the authored AbilityData `BuffID`; the status stores its applying ability rawcode so detection, break, expiry, and overlap cleanup recognize custom buff IDs. `RF_HIDDEN` remains its presentation state.
+- `Aivs` and `AIvi` own the same concrete Binv class, independently of the authored BuffID used for display. Both retain the applying ability rawcode and use a saved primary expiry. AIvi supplies transition2 to the shared fade; Aivs supplies authored DataA. `RF_HIDDEN` remains presentation state.
 - `AOwk`/`ANwk` Wind Walk owns `BOwk`. `BOwk.data` stores the applying ability rawcode so aliases keep their own authored Data C/cooldown and survive save/load.
 - `Agho` Ghost caches persistent invisibility in `unit->runtime.flags`; detector coverage reveals it per viewer without removing the Ghost state. Like the repository's other gameplay-invisible states, Ghost is excluded by the shared aura-active predicate.
 - Human tower `Adts` detection uses its authored 900 range only for the tower owner after `Rhse` (Magic Sentry) is researched; tower rows contain `Adts` before the upgrade, but that ability is inactive until then.
-- `AIvi` Item Temporary Invisibility is an `AB_ITEM` ability that applies its authored status to the selected living carrier. Duration is read through `S_SpellDuration()`, including HeroDur for hero carriers.
+- `AIvi` is an `AB_ITEM` ability applied to the actual inventory carrier, independently of selection. Fresh ordinary instances use authored Dur for nonheroes and HeroDur for heroes. Native initialization retains a zero nonhero duration additive; native serialized nonzero additives are not imported by this engine.
 
 Selected friendly units retain their selection focus and control while invisible. `G_IsEntitySelected()` applies the same viewer-aware invisibility rule as selection admission, so portrait, status, command, and order paths continue to resolve the selected unit. Owner/shared-vision snapshots also receive a ghosted vertex alpha (0.35 multiplied by authored alpha); hostile visibility remains governed by fog and detection. Timed status expiry clears `RF_HIDDEN`, restoring ordinary presentation automatically.
 
@@ -48,16 +48,34 @@ While `BOwk` is active, both steering and final movement commits ignore dynamic 
 ## Item invisibility data flow
 
 ```text
-AIvi registry row
+G_UseItem or UI Inventory
+    -> G_UseImmediateItemAbility(actual carrier, held item, UI controller, alias)
     -> CAbilityItemInvis
-    -> S_SpellCurrentCode()
-    -> AbilityData BuffID
-    -> S_SpellDuration(code, 1, G_UnitIsHero(target))
-    -> authored timed status with AIvi source identity
-    -> existing temporary-invisibility break/detection rules
+    -> concrete Binv class + authored display ID + applying alias
+    -> independent saved primary expiry
+    -> S_TemporaryInvisibilityAcquire(transition = 2)
+    -> shared scalar fade / target notification / counted suppression
 ```
 
-Tests use deliberately non-stock Dur/HeroDur values so this path cannot pass by hard-coding the stock potion duration.
+The logical class stays Binv. A nonzero authored BuffID context updates its
+displayed ID; a zero context preserves the prior ID on refresh. Both producers
+find that class even when it displays a custom ID, so refresh retains one
+contribution. AIvi uses transition2 rather than DataA.
+The common scalar starts slightly above zero, so the scheduled fade publication
+is slightly earlier than the transition parameter; it is not a fixed two-second
+integer timeout. The item alias still supplies Dur/HeroDur and source identity.
+
+Original531a80 refreshes context first. Positive duration only extends an owner
+when strictly greater than its actual primary-clock remainder; shorter/equal
+refresh preserves deadline and sequence. Zero/negative duration cancels expiry.
+Refresh retains the status instance, fade request and suppression token. Expiry,
+dispel and break release the shared contribution through its ordinary owner.
+
+`wc3_items.invisibility322_binv_class_fade_refresh_and_saved_primary_expiry`
+uses real inventory items with conflicting custom BuffID/DataA, all five duration
+cases, charges, pending-fade save/load and real primary timer draining. The
+original-byte oracle and its service-stub limits are documented in
+[Attack recovery](retail-pathfinding-attack-recovery.md#item-invisibility-fade-and-expiry-checkpoint322).
 
 ## Save/load
 

@@ -322,6 +322,7 @@ BZ_ABILITY_PROC(CAbilityDeathCoil);
 BZ_ABILITY_PROC(CAbilityDeathPact);
 BZ_ABILITY_PROC(CAbilityMetamorphosis);
 BZ_ABILITY_PROC(CBuffMetamorphosis);
+BZ_ABILITY_PROC(CBuffInvisibility);
 BZ_ABILITY_PROC(CAbilitySleep);
 BZ_ABILITY_PROC(CAbilitySleepOwner);
 BZ_ABILITY_PROC(CAbilitySleepAlways);
@@ -503,6 +504,8 @@ void S_InitializeConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *
 void S_CompleteConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
 void S_DetachConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call);
 void S_PermanentInvisibilityReveal(edict_t *unit);
+bool S_ApplyTemporaryInvisibility(edict_t *, edict_t *, uint32_t, uint32_t, cstring_t, float, float);
+void S_TemporaryInvisibilitySetDuration(edict_t *, heroabilitystatus_t *, float, bool);
 void S_TemporaryInvisibilityAcquire(edict_t *, heroabilitystatus_t *, float);
 void S_TemporaryInvisibilityRelease(edict_t *, heroabilitystatus_t *);
 /*5fd270 d014e activation; not an arbitrary physical Move/resume.*/

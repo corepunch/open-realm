@@ -702,7 +702,7 @@ TEST(wc3_spell, invisibility_spell_uses_authored_buff_and_breaks_through_status_
     T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
     status = unit_findstatus(target, MAKEFOURCC('B','i','x','x'));
     T_NOT_NULL(status);
-    if (status) T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+    if (status) {T_EQ(status->data, MAKEFOURCC('A','i','v','s'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));}
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(S_UnitUsesInvisibilityRenderFlag(target));
     T_ASSERT(S_UnitIsInvisibleToPlayer(target, 1));
@@ -751,8 +751,14 @@ TEST(wc3_spell, stock_invisibility_spell_applies_and_expires_binv) {
         T_EQ(status->duration_ms, 120000);
         T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
         T_ASSERT(target->s.renderfx & RF_HIDDEN);
-        level.time = status->timestamp;
-        unit_updatestatuses(target);
+        T_EQ(status->timestamp,0);T_ASSERT(status->class_timer.active);
+        FOR_LOOP(i,25000) {
+            if(!unit_findstatus(target,MAKEFOURCC('B','i','n','v')))break;
+            level.time+=5;level.pathing_msec+=5;
+            wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+            bool const scheduled=level.scheduled_frame;
+            level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+        }
         T_NULL(unit_findstatus(target, MAKEFOURCC('B','i','n','v')));
         T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
     }
@@ -10032,7 +10038,7 @@ TEST(wc3_spell, invisibility307_authored_positive_fade_refresh_retains_instance)
     T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
     status = unit_findstatus(target, MAKEFOURCC('B','i','x','x'));
     T_NOT_NULL(status);
-    if (status) T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+    if (status) {T_EQ(status->data, MAKEFOURCC('A','i','v','s'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));}
     T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
     T_ASSERT(status && status->invisibility_pending);
     uint32_t instance=status ? status->instance_id : 0;

@@ -269,6 +269,7 @@ static ability_t abilitylist[] = {
     { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE | AB_UPDATE | AB_TYPE_UPDATE },  /* Immolation */
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
     { "AEme", CAbilityMetamorphosis, AB_SPELL },  /* Metamorphosis */
+    { "Binv", CBuffInvisibility, AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },
     { "BEme", CBuffMetamorphosis, AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },  /* Attached typed buff; no command slot. */
     { "AEer", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots */
     { "Aenr", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots (creep) */

@@ -1,0 +1,273 @@
+{
+  "schema": 1,
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "rows": [
+    {
+      "case": "shorter",
+      "requested_word": 1082130432,
+      "remaining_word": 1084227584,
+      "calls": [
+        "v1b4",
+        "v1c8",
+        "context324",
+        "remaining"
+      ],
+      "flags_after": 1152,
+      "rearm_word": null,
+      "stack_delta": 12
+    },
+    {
+      "case": "equal",
+      "requested_word": 1084227584,
+      "remaining_word": 1084227584,
+      "calls": [
+        "v1b4",
+        "v1c8",
+        "context324",
+        "remaining"
+      ],
+      "flags_after": 1152,
+      "rearm_word": null,
+      "stack_delta": 12
+    },
+    {
+      "case": "longer",
+      "requested_word": 1086324736,
+      "remaining_word": 1084227584,
+      "calls": [
+        "v1b4",
+        "v1c8",
+        "context324",
+        "remaining",
+        "selector348",
+        "rearm34c"
+      ],
+      "flags_after": 1152,
+      "rearm_word": 1086324736,
+      "stack_delta": 12
+    },
+    {
+      "case": "zero",
+      "requested_word": 0,
+      "remaining_word": 1084227584,
+      "calls": [
+        "v1b4",
+        "v1c8",
+        "context324",
+        "cancel"
+      ],
+      "flags_after": 1024,
+      "rearm_word": null,
+      "stack_delta": 12
+    },
+    {
+      "case": "negative",
+      "requested_word": 3212836864,
+      "remaining_word": 1084227584,
+      "calls": [
+        "v1b4",
+        "v1c8",
+        "context324",
+        "cancel"
+      ],
+      "flags_after": 1024,
+      "rearm_word": null,
+      "stack_delta": 12
+    }
+  ],
+  "negative_controls": 6,
+  "guards": [
+    {
+      "rva": "0x531a80",
+      "bytes": "558bec53578bf98b07ff90b40100008b078bcfff90c80100008b078bcfff7508ff90240300008b5d0c8d8f84000000f30f10030f2f0544c7d36f7635814f20800000008d55088b0152ff5018f30f10030f2f007628568b378bcfff964803000050538bcfff964c0300005e5f5b5dc20800e8caebb2ff8167207fffffff5f5b5dc20800",
+      "label": "Complete original refresh helper RET8"
+    },
+    {
+      "rva": "0x62f280",
+      "bytes": "558bec83ec38568bf1578b7e3085ff7507e82a6aa2ff8bf8538b5e508bcfe86d1dfdff8bce5385c0740b8d45ec50e8bd62deffeb298d45e850e8325ddeff8b8e9c0000008d55f4894df88d4df08b008945f48d45f850e8d508a4ff8d45f08b008d4dc86a00568945fce852c0dbff6a016a016a006a00e8c5a00000508bcfe87dd8e5ff5b85c074188b108d4dfc518d4dc8518bc8ff92500300005f5e8be55dc3e80b25feff8bf08d45c8508bce8b16ff92240300008b168d45fc684cc7d36f50578bceff9254030000568bcfe87fc4e5ff5f5e8be55dc3",
+      "label": "ItemInvis fixed Binv producer, fade Math_IntegerTwo"
+    },
+    {
+      "rva": "0x6393c0",
+      "bytes": "b8766e6942c3",
+      "label": "Fixed Binv class getter"
+    },
+    {
+      "rva": "0x414ff0",
+      "bytes": "558bec56578b7d0c8bf185ff783a837e5400750d8b4e3433d2e8227529008946548b465485c0742083782c00741a39785076158b40546bcf685f5e8b4c08088b450889085dc208008b45088b0d44c7d36f5f5e89085dc20800",
+      "meaning": "Current-rank Dur getter"
+    },
+    {
+      "rva": "0x415570",
+      "bytes": "558bec56578b7d0c8bf185ff783a837e5400750d8b4e3433d2e8a26f29008946548b465485c0742083782c00741a39785076158b40546bcf685f5e8b4c080c8b450889085dc208008b45088b0d44c7d36f5f5e89085dc20800",
+      "meaning": "Current-rank HeroDur getter"
+    },
+    {
+      "rva": "0x3ea160",
+      "bytes": "558bec6aff68a407a16f64a1000000005083ec1456a19c68ce6f33c5508d45f464a3000000008bf1e813e2ffffc7066052ac6fa1a07db76f89466cc7467000000000c7467400000000c7467800000000c7467c00000000c706bc55ac6fc7868000000014dea96fa144c7d36f898684000000c7868800000014dea96fa144c7d36f89868c000000c7869000000014dea96fa144c7d36f898694000000c7869800000014dea96fa144c7d36f89869c000000c786a800000000000000c786a4000000ffffffffc786a0000000ffffffffc786a800000000000000c786ac00000000000000c786b000000014dea96fa144c7d36f8986b4000000c786b800000000000000c786c000000000000000c786bc0000006006a86fc786c400000000000000c786c800000000000000c786cc00000000000000c786d400000000000000c786d00000006006a86fc786d800000000000000c786dc000000000000008bc6c786e0000000000000008b4df464890d00000000595e8be55dc3",
+      "meaning": "Base initializer sets FloatMini98/scalar9c from RuntimeZero"
+    },
+    {
+      "rva": "0x3ea0a0",
+      "bytes": "568bf1e8b8000000c706b459ac6fc786ec00000000000000c786e8000000ffffffffc786e4000000ffffffffc786ec00000000000000c786f000000000000000c786f400000014dea96fa144c7d36f8986f8000000c786fc00000014dea96fa144c7d36f898600010000c7860401000000000000c7860801000000000000c7860c01000000000000c7861001000000000000c7861401000014dea96fa144c7d36f898618010000c7861c01000014dea96fa144c7d36f8986200100008bc65ec3",
+      "meaning": "Base construction invokes scalar initializer"
+    },
+    {
+      "rva": "0x3ea1fc",
+      "bytes": "c7869800000014dea96f",
+      "meaning": "3ea1fc_floatmini_vtable"
+    },
+    {
+      "rva": "0x3ea206",
+      "bytes": "a144c7d36f",
+      "meaning": "3ea206_runtime_zero_load"
+    },
+    {
+      "rva": "0x3ea20b",
+      "bytes": "89869c000000",
+      "meaning": "3ea20b_field9c_store"
+    },
+    {
+      "rva": "0x617860",
+      "bytes": "568bf1e83828ddffc706b07db66f8bc65ec3cc",
+      "meaning": "617860_constructor"
+    },
+    {
+      "rva": "0x6330b1",
+      "bytes": "e8ea6fdbffc706b07db66f",
+      "meaning": "6330b1_base_ctor_and_vtable"
+    },
+    {
+      "rva": "0x635c58",
+      "bytes": "e84344dbffc706b07db66f",
+      "meaning": "635c58_base_ctor_and_vtable"
+    },
+    {
+      "rva": "0x427c00",
+      "bytes": "568bf1e8c8fcffff837e3c007f088bce5ee9da4b00005ec3",
+      "meaning": "Attachment"
+    },
+    {
+      "rva": "0x4278d0",
+      "bytes": "568bf1e8e8e3c2ff8b4e3433d2894630e84b4c28008946545ec3",
+      "meaning": "Owner/cache rebind"
+    },
+    {
+      "rva": "0x427c40",
+      "bytes": "c3",
+      "meaning": "Data refresh no-op"
+    },
+    {
+      "rva": "0x421620",
+      "bytes": "558bec83ec0c5356578b7d088bd957e84ce3ffff8d55088bcfe852e3c4ff8b83800000008d4d086a00518d8b80000000ff108d55088bcfe834e3c4ff8b83880000008d4d086a00518d8b88000000ff108d55088bcfe816e3c4ff8b83900000008d4d086a00518d8b90000000ff108d55088bcfe8f8e2c4ff8b83980000008d4d086a00518d8b98000000ff108d45f4c745f8ffffffff508bcfc745f4ffffffffc745fc00000000e8f48fc4ff8d45f88bcf50e8e98fc4ff8d45fc8bcf50e8ae8fc4fff30f7e45f48bcf8b45fc660fd683a00000008983a80000008d450850e8bd8fc4ff8b45088983ac000000a1e888d66f85c0753350689d000000686041a96f6a0ce8abafc5ff85c07416c70000000000c74004ffffffffc7400800000000eb0233c0a3e888d66fc700701700008d93b0000000a1e888d66f8bcfc74004ffffffffa1e888d66f8950088b15e888d66fe87b10fcff5f5e5b8be55dc20400",
+      "meaning": "Native restore can write duration additive"
+    },
+    {
+      "rva": "0x4259e0",
+      "bytes": "558bec5356578b7d088bf18b5f0881fb61010d00751257e8842c01005f5eb8010000005b5dc204008b06ff904c030000a80e747481fb60010d007509f746200080000074d78b068bceff901403000085c074258b068bceff90680300003bd875178b068bce57ff90040400005f5eb8010000005b5dc204008b068bceff90480300008945083bd8751f8b168bceff92080300008b5d083bd8740e8b068bceff90180300003bd875b9578bcee8100000005f5e5b5dc20400",
+      "meaning": "ItemInvis command/phase dispatch, not a duration setter"
+    },
+    {
+      "rva": "0x425aa0",
+      "bytes": "558bec538b5d0856578bf98b73088d86bcfef2ff83f87a0f87b90000000fb680385c426fff2485105c426fe87043ffff5f5eb8010000005b5dc20400e8ffcfffff5f5eb8010000005b5dc2040053e83d2a01005f5eb8010000005b5dc2040053e83b1e01005f5eb8010000005b5dc204008b0753ff90a00300005f5eb8010000005b5dc204006a01e8a35afdff5f5eb8010000005b5dc204006a01e84058feff5f5eb8010000005b5dc204008b076a01ff909c0300005f5eb8010000005b5dc204008b07ff90a80300005f5eb8010000005b5dc204008b07ff901403000085c074258b078bcfff90680300003bf075178b078bcf53ff90300300005f5eb8010000005b5dc204008b078bcfff90480300003bf0754a8b078bcfff90480300008b178bcf8bf0ff92080300003bf074308b078bcfff90480300008b178bcf8bf0ff92180300003bf074168b078bcfff90780300005f5eb8010000005b5dc20400538bcfe819e1ffff5f5e5b5dc20400",
+      "meaning": "ItemInvis command/phase dispatch, not a duration setter"
+    },
+    {
+      "rva": "0x423d20",
+      "bytes": "558bec53568bf1578b7d088b068b5f08ff90080300003bd88bce8b06751357ff90300300005f5eb8010000005b5dc20400ff90180300003b05a07db76f74258b068bceff90180300003bd875178b068bce57ff90340300005f5eb8010000005b5dc204005f5e33c05b5dc20400",
+      "meaning": "ItemInvis command/phase dispatch, not a duration setter"
+    },
+    {
+      "rva": "0x62f050",
+      "bytes": "558bec83ec3853568bf1578b7d088bcf8b5e50e8a81ffdff8bce5385c0740b8d45ec50e8f864deffeb298d45e850e86d5fdeff8b8e9c0000008d55f8894dfc8d4df48b008945f88d45fc50e8100ba4ff8d45f48b008bceff76508945088d45f050e89a5adeff6a00568d4dc8e87fc2dbff6a016a016a006a00e8f2a20000508bcfe8aadae5ff85c0741b8b108d4d08518d4dc8518bc8ff92500300005f5e5b8be55dc20400e83627feff8bf08d45c8508bce8b16ff92240300008b168d45f0508d45088bce5057ff9254030000568bcfe8abc6e5ff5f5e5b8be55dc20400",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x611830",
+      "bytes": "558bec6aff6800a8a46f64a1000000005083ec34a19c68ce6f33c58945f0535657508d45f464a30000000033f68975c0c745fc01000000e8547b02008bd88bc8e87bd2a2ff8bd38d4dc4ff7070e87e44a4ff6a018d5601c745e8ffffffff8d4dc4e8ca32b4ff8b785485ff74198b078bcfff501c8bd38bc8e823b5a3ff85c07405ff47048bf7c745fcffffffff85f6740bff4e0475068b168bceff128bc68b4df464890d00000000595f5e5b8b4df033cde86fcf17008be55dc3",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x3eb340",
+      "bytes": "558bec568b7508578bf985f60f841b0100008b068bceff90e001000085c00f858d0000008b068bceff90e401000085c0757fff750c8b46508bce50894708e8cd8f0200ff77088bce8907e801cb02008bce894704e837c102008bce89470ce85daa0200b9010000003bc88bce1bc0f7d8894710e838c70200ff770833c93bc88bce1bc0f7d88947148d450850e81f9c0200ff77088bce8b008947188d450850e88ca102008b0089471c8bc75f5e5dc208008b86b00000008947088b463489078b86b80000008947048b86b400000089470c8b4620c1e81e83e0018947108b4620c1e81d83e0018947148b86c00000008947188b86c8000000f30f10471889471c0f2e0544c7d36f9ff6c4447a208d45088bce50e8d84014008bce8b008947188d450850e8c84014008b0089471c8bc75f5e5dc20800",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x532a80",
+      "bytes": "558bec56578b7d088bf1837f10007409814e2000000040eb07816620ffffffbf837f14007409814e2000000020eb07816620ffffffdf8b0785c074038946348b47048d8ebc0000008986b80000008b47088986b00000008b470c8986b40000008d47188b116a0150ff128b96c40000008d8ec40000006a018d471c50ff125f5e5dc20400",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x414350",
+      "bytes": "558bec56578b7d088bf185ff783f837e5400750d8b4e3433d2e8c28129008946548b465485c0742583782c00741f397850761a8b550c6bcf6803485439514c760c8b41505f5e8b04905dc208005f33c05e5dc20800",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x417e90",
+      "bytes": "558bec56578b7d088bf185ff7834837e5400750d8b4e3433d2e8824629008946548b465485c0741a83782c007414397850760f8b40546bcf685f5e8b04015dc204005f33c05e5dc20400",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x4174d0",
+      "bytes": "568bf1837e5400750d8b4e3433d2e84d5029008946548b46545e85c0740a83782c0074048b4048c333c0c3",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0x63b950",
+      "bytes": "b8766e6942c3",
+      "meaning": "Concrete Binv class / authored presented identity context"
+    },
+    {
+      "rva": "0xb6742c",
+      "bytes": "50f0626f",
+      "meaning": "Concrete class or context vtable target"
+    },
+    {
+      "rva": "0xb3fcc4",
+      "bytes": "50b9636f",
+      "meaning": "Concrete class or context vtable target"
+    },
+    {
+      "rva": "0xb3ffcc",
+      "bytes": "802a536f",
+      "meaning": "Concrete class or context vtable target"
+    },
+    {
+      "rva": "0xb3fff8",
+      "bytes": "801a536f",
+      "meaning": "Concrete class or context vtable target"
+    },
+    {
+      "rva": "0xb3fffc",
+      "bytes": "40ce636f",
+      "meaning": "Concrete class or context vtable target"
+    },
+    {
+      "rva": "0x63ce40",
+      "bytes": "558bec538bd956ff75108d8bcc000000e83bb3a1ff8b038bcb8b75086a01ff750c56ff90200300006a01538bcee86e310500ff7510814b20000100008bcee85dc802005e5b5dc20c00",
+      "meaning": "Fresh Binv factory/attachment"
+    },
+    {
+      "rva": "0x1c30",
+      "bytes": "ba02000000b94cc7d36fe941f10600",
+      "meaning": "Runtime scalar2 initializer (target is zero-fill storage)"
+    }
+  ],
+  "services": [
+    "v1b4/v1c8 no-op recorders",
+    "v324 context identity recorder",
+    "timer remaining synthetic5.0",
+    "v348 selector syntheticd01d5",
+    "v34c rearm recorder; no native timer scheduling",
+    "0606c0 cancel recorder; no native cancellation mechanics"
+  ],
+  "limits": [
+    "Executes unmodified531a80 decision bytes with synthetic memory and labelled external service stubs.",
+    "Does not establish public item admission, exact event-clock timing, callback mutation, pause/save composition, or global durationmodifier reachability.",
+    "Five finite duration inputs only; no NaN/infinity claim.",
+    "62f280 is byte-guarded only, not executed in this oracle."
+  ],
+  "stack_delta_definition": "ESP after RET relative to call entry stack pointer:12 = return address4 + two arguments8.",
+  "duration_scope": "Fresh ordinary initialization/attachment/refresh retains constructor-zero nonhero additive: Dur+0; heroes use HeroDur. Native restore421620 can load a nonzero9c; imported native serialized additive is not represented by this engine port. No global arbitrary-write closure claimed.",
+  "concrete_class_scope": "Aivs62f050 and AIvi62f280 both look up/create concrete Binv via6393c0/611830.532a80 copies nonzero authored buff ID into raw/display34, without changing vtable/class. Zero context retains prior display ID. Public cross-producer component tests retain one owner; full Pause/Sleep composition remains separate."
+}

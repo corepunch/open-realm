@@ -1,4 +1,15 @@
-Save240 stores the canonical active user packet in a sparse ActiveOrder pool.
+Save241 gives owned temporary Invisibility statuses an independent primary
+expiry using the existing serialized class_timer fields. Their public timestamp
+is zero; expiry belongs to the saved deadline/sequence and a derived per-unit
+heap. Nonpositive refresh cancels expiry. A short/equal positive refresh retains
+the original request; a longer one replaces it at the actual primary clock.
+The existing fade origin/request and contribution identity remain separate.
+Loading validates the expiry clock, sequence, boolean and owner state; the
+Metamorphosis validator delegates these timer fields to Invisibility validation.
+Save240 and older layouts are rejected. JASS snapshot12 and the status record
+layout are unchanged; this is a timing-contract version change.
+
+The prior Save240 stores the canonical active user packet in a sparse ActiveOrder pool.
 Its original click, weak target incarnation, order ID, issuer and owner payload
 survive physical cancellation and scripted suspension. Physical point fallback
 does not rewrite that retained target packet. A saved revision protects callback

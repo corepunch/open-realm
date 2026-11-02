@@ -1968,7 +1968,7 @@ typedef struct heroabilitystatus_s {
     float sleep_remaining;
     uint32_t sleep_kind;
     bool sleep_clock_paused;
-    abilityPrimaryTimer_t class_timer; /* ConcreteBEme owns an independent primary expiry. */
+    abilityPrimaryTimer_t class_timer; /* ConcreteBEme and owned temporary invisibility have primary expiry. */
     bool invisibility_owned, invisibility_pending, invisibility_suppression_held;
     uint32_t invisibility_attack_generation;
     float class_timer_remaining;

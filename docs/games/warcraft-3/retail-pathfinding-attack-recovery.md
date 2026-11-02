@@ -637,3 +637,62 @@ requires all three new tests: 141 executions/11,603 assertions per edition.
 No full-suite run is added for this commit. Support/Waygate source guards
 change only for the new helper declaration in g_local.h; their numerical
 implementations and expected evidence are unchanged.
+
+## Item Invisibility fade and expiry: checkpoint322
+
+Aivs62f050 and AIvi62f280 both find/create the concrete Binv class through
+6393c0/611830. The authored BuffID is a separate displayed/raw identifier:
+532a80 copies nonzero context word0 into buff+34 without changing class/vtable.
+Zero context preserves the prior identifier. The engine now preserves that
+distinction in status.class_code versus status.code. Real cross-producer
+refresh retains one owner even as its displayed ID changes Bixx→Byyy→Bixx.
+A missing BuffID and nonpositive duration also refresh that same owner.
+
+AIvi supplies transition parameter2 to the common scalar fade; DataA does not
+select its transition. Aivs continues to supply DataA. The near-zero initial
+scalar means publication is scheduled slightly before the transition parameter.
+Fresh ordinary AIvi nonheroes use Dur plus the constructor-zero additive;
+heroes use HeroDur. Native421620 can restore a nonzero additive; native
+serialized modifiers are not imported by this engine, and no DataA mapping
+is invented.
+
+Temporary Invisibility has a primary expiry distinct from its common fade.
+Both producers arm it at the actual source clock. Refresh updates context and
+extends only when requested positive duration is strictly longer than the
+exact scalar remainder. Short/equal refresh retains deadline, sequence,
+instance and fade/token; zero/negative cancels expiry. Changing displayed ID
+rebinds its TargetArt and invalidates the info panel independently of rearming.
+Save241 reuses serialized class_timer fields, restores derived heap membership,
+and rejects older timing contracts. No status record fields were added.
+
+`tools/ghidra/research/item_invisibility322_refresh_oracle.py` executes the
+unchanged original531a80 body in Unicorn: five duration cases and six rejecting
+semantic controls pass. It also executes original initializer1c30 to verify
+runtime scalar2, which lives in zero-fill storage rather than file data.
+Original byte ranges guard both producers, class identity, context copy,
+duration getters, fresh initialization, attachment/refresh, native restore
+and command handling. External context/timer services and remaining value5
+are labelled oracle inputs; this is not a new public/scheduler capture.
+
+The real-inventory regression uses custom display IDs and conflicting DataA,
+real Aivs/item casts in both directions, same-instance refresh, nonpositive
+expiry cancellation, exact charges, and a save after100 primary steps of the
+pending fade. It then drains actual primary publication and expiry. Existing
+HeroDur, full-table/dead rejection and stock-expiry checks retain their gameplay
+assertions. Uninterrupted and nine-checkpoint saved C299 continue to match all
+declared2,066 public events and5,342 ordered motion rows.
+
+B01 remains open for AIvi/AOwk/Agho/Abur/Ahid Pause/Sleep compositions and the
+remaining incoming-call/alternative/adjusted-range dispositions. Native class
+sharing is now established by static code and real engine overlap tests;
+a complete mixed public retail capture is not claimed. Expiry continues
+independently of unit execution suspension in this implementation; the
+complete native Pause/Sleep composition is not established by these checks.
+
+Final verification: ten affected-family processes pass3,062 executions/362,668
+assertions across both editions. Five fresh native/engine gates passed before
+the final single-condition BuffID-list refinement. The final library passes
+the affected families, a fresh Itemdrop gate (142 tests/11,696 assertions per
+edition), both complete C299 replays, SC2API CI and115 Python checks. The exact
+post-gate source delta and composite provenance are recorded in the validation
+JSON. No full-suite batch was added after these two implementation commits.

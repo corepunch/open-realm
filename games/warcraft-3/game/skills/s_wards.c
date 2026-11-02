@@ -536,6 +536,77 @@ static void invisibility_schedule(edict_t *unit, wc3Clock_t const *clock) {
     request->sequence=++level.timer_sequence;request->active=true;
     invisibility_insert(unit);
 }
+static edict_t *temporary_expiry_heap[MAX_ENTITIES];
+static uint32_t temporary_expiry_positions[MAX_ENTITIES],temporary_expiry_count;
+
+static heroabilitystatus_t *temporary_expiry_next(edict_t const *unit) {
+    heroabilitystatus_t *best=NULL;
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *s=unit->abilstatus+i;
+        if(!s->level || !s->invisibility_owned || !s->class_timer.active)continue;
+        abilityPrimaryTimer_t *a=&s->class_timer,*b=best ? &best->class_timer : NULL;
+        if(!b || a->deadline.time<b->deadline.time ||
+           (a->deadline.time==b->deadline.time && a->sequence<b->sequence))best=s;
+    }
+    return best;
+}
+static bool temporary_expiry_less(edict_t const *a,edict_t const *b) {
+    abilityPrimaryTimer_t *x=&temporary_expiry_next(a)->class_timer,*y=&temporary_expiry_next(b)->class_timer;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void temporary_expiry_put(uint32_t pos,edict_t *unit) {
+    temporary_expiry_heap[pos]=unit;temporary_expiry_positions[unit-g_edicts]=pos+1;
+}
+static void temporary_expiry_forget(edict_t *unit) {
+    uint32_t pos=temporary_expiry_positions[unit-g_edicts];
+    if(!pos)return;
+    temporary_expiry_positions[unit-g_edicts]=0;pos--;
+    edict_t *last=temporary_expiry_heap[--temporary_expiry_count];
+    if(pos==temporary_expiry_count)return;
+    while(pos && temporary_expiry_less(last,temporary_expiry_heap[(pos-1)/2])) {
+        temporary_expiry_put(pos,temporary_expiry_heap[(pos-1)/2]);pos=(pos-1)/2;
+    }
+    while(pos*2+1<temporary_expiry_count) {
+        uint32_t child=pos*2+1;
+        if(child+1<temporary_expiry_count && temporary_expiry_less(temporary_expiry_heap[child+1],temporary_expiry_heap[child]))child++;
+        if(!temporary_expiry_less(temporary_expiry_heap[child],last))break;
+        temporary_expiry_put(pos,temporary_expiry_heap[child]);pos=child;
+    }
+    temporary_expiry_put(pos,last);
+}
+static void temporary_expiry_insert(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit))return;
+    if(!temporary_expiry_next(unit) || temporary_expiry_positions[unit-g_edicts])return;
+    uint32_t pos=temporary_expiry_count++;
+    while(pos && temporary_expiry_less(unit,temporary_expiry_heap[(pos-1)/2])) {
+        temporary_expiry_put(pos,temporary_expiry_heap[(pos-1)/2]);pos=(pos-1)/2;
+    }
+    temporary_expiry_put(pos,unit);
+}
+static void temporary_expiry_schedule(heroabilitystatus_t *slot,wc3Clock_t now,float duration) {
+    slot->class_timer=(abilityPrimaryTimer_t){.deadline=now,.sequence=++level.timer_sequence,.active=true};
+    slot->class_timer.deadline.time=wc3_add(now.time,MAX(duration,G_ClockMinimumDelay()));
+}
+
+/*531a80 refreshes the context before comparing the actual event-clock
+ * remainder. A short/equal refresh keeps both deadline and FIFO sequence. */
+void S_TemporaryInvisibilitySetDuration(edict_t *unit,heroabilitystatus_t *status,
+                                       float duration,bool refresh) {
+    if(!unit || !status)return;
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    float remaining=status->class_timer.active ? wc3_elapsed(&status->class_timer.deadline,&now) : 0;
+    if(refresh && duration>0 && !(duration>remaining)) {
+        G_InvalidateUnitInfoPanel(unit);return; /* Context may have changed. */
+    }
+    temporary_expiry_forget(unit);
+    status->timestamp=0; /* The primary request owns expiry, not frame polling. */
+    status->duration_ms=duration>0 ? (uint32_t)(duration*1000.0f) : 0;
+    if(duration>0)temporary_expiry_schedule(status,now,duration);
+    else status->class_timer=(abilityPrimaryTimer_t){0};
+    temporary_expiry_insert(unit);
+    G_InvalidateUnitInfoPanel(unit);
+}
+
 static bool invisibility_live(edict_t const *unit,uint32_t birth) {
     return unit->inuse && !G_IsDeferredFree(unit) && unit->spawn_time==birth;
 }
@@ -630,6 +701,7 @@ void S_TemporaryInvisibilityAcquire(edict_t *unit,heroabilitystatus_t *status,fl
         !unit->permanent_invisibility_fade.temporary_contributions;
     status->invisibility_owned=true;status->invisibility_pending=true;
     unit->permanent_invisibility_fade.temporary_contributions++;
+    temporary_expiry_forget(unit);temporary_expiry_insert(unit);
     if(!first) {
         if(unit->permanent_invisibility_fade.published)G_SetEntityHidden(unit,true);
         invisibility_notify(unit);return;
@@ -650,17 +722,105 @@ void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
     bool unhide=G_UnitHasWorldPresence(unit) && !unit->training && !G_HeroIsReviving(unit);
     bool held=status->invisibility_suppression_held;
     uint32_t generation=status->invisibility_attack_generation;
+    temporary_expiry_forget(unit);status->class_timer.active=false;
     status->invisibility_attack_generation=0;
     status->invisibility_owned=false;status->invisibility_pending=false;
     status->invisibility_suppression_held=false;
     if(unit->permanent_invisibility_fade.temporary_contributions)
         unit->permanent_invisibility_fade.temporary_contributions--;
+    temporary_expiry_insert(unit);
     if(!unit->permanent_invisibility_fade.temporary_contributions && unhide &&
        !S_UnitHasTemporaryInvisibility(unit,status) && !invisibility_intrinsic_render_owner(unit))
         G_SetEntityHidden(unit,false);
     if(!unit->permanent_invisibility_fade.temporary_contributions &&
        !unit->permanent_invisibility_fade.permanent_owned)invisibility_last_release(unit);
     if(held && invisibility_live(unit,birth))S_AttackInvisibilityRelease(unit,generation);
+}
+
+/*62f050/62f280 find the concrete Binv class.532a80 may replace the
+ * presented buff ID without replacing that object or its contribution. */
+bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
+        uint32_t rank,cstring_t buff,float duration,float transition) {
+    uint32_t const concrete=MAKEFOURCC('B','i','n','v');
+    if(!unit || !unit->inuse || !isfinite(duration))return false;
+    bool const authored=buff && strlen(buff)>=4;
+    heroabilitystatus_t *status=unit_findstatusclass(unit,concrete);
+    if(status && status->invisibility_owned) {
+        if(authored && status->code!=*((uint32_t const *)buff)) {
+            bool other_art=false;
+            FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+                heroabilitystatus_t const *other=unit->abilstatus+i;
+                if(other!=status && other->level && other->code==status->code &&
+                   (other->buff_flags&WC3_STATUS_BUFF_TARGET_ART))other_art=true;
+            }
+            if((status->buff_flags&WC3_STATUS_BUFF_TARGET_ART) && !other_art)
+                G_DestroyStatusEffectTarget(status->code,unit);
+            status->code=*((uint32_t const *)buff);
+            unit_status_enabletargetart(unit,status,"origin");
+        }
+        status->data=code;status->source_ability=code;status->rank=rank;
+        status->source=source;status->source_spawn_time=source ? source->spawn_time : 0;
+        S_TemporaryInvisibilitySetDuration(unit,status,duration,true);
+        return true;
+    }
+    status_application_t app={.buff=authored ? buff : "Binv",.class_code=concrete,
+        .level=rank,.data=code,.source_ability=code,.source=source,.rank=rank};
+    status=unit_applystatus(unit,&app);
+    if(!status)return false;
+    S_TemporaryInvisibilitySetDuration(unit,status,duration,false);
+    unit_status_enabletargetart(unit,status,"origin");
+    S_TemporaryInvisibilityAcquire(unit,status,transition);
+    return true; /* Acquisition can synchronously retire the unit/status. */
+}
+
+static void temporary_expiry_fire(void) {
+    edict_t *unit=temporary_expiry_heap[0];
+    uint32_t birth=unit->spawn_time;
+    heroabilitystatus_t *status=temporary_expiry_next(unit);
+    temporary_expiry_forget(unit);status->class_timer.active=false;
+    unit_removestatus(unit,status,STATUS_REMOVE_EXPIRE);
+    if(invisibility_live(unit,birth))temporary_expiry_insert(unit);
+}
+
+/* The attached temporary buff has its own expiration request, independent of
+ * the common fade and of script/order suspension. Heap membership is derived. */
+BZ_ABILITY_PROC(CBuffInvisibility) {
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+        if(ent)temporary_expiry_forget(ent);
+        return true;
+    case A_TIMERS_RESET:
+        temporary_expiry_count=0;memset(temporary_expiry_positions,0,sizeof(temporary_expiry_positions));return true;
+    case A_TIMERS_REBUILD:
+        temporary_expiry_count=0;memset(temporary_expiry_positions,0,sizeof(temporary_expiry_positions));
+        FOR_LOOP(i,globals.num_edicts)temporary_expiry_insert(g_edicts+i);
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!temporary_expiry_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){temporary_expiry_next(temporary_expiry_heap[0])->class_timer.deadline,
+            temporary_expiry_next(temporary_expiry_heap[0])->class_timer.sequence,CBuffInvisibility};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(temporary_expiry_count)temporary_expiry_fire();
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,temporary_expiry_count)FOR_LOOP(j,G_UnitStatusSlotCount(temporary_expiry_heap[i])) {
+            heroabilitystatus_t *status=temporary_expiry_heap[i]->abilstatus+j;
+            if(status->invisibility_owned && status->class_timer.active) {
+                status->class_timer.deadline.time=wc3_sub(status->class_timer.deadline.time,call->clock_span);
+                status->class_timer.deadline.epoch++;
+            }
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        if(!level.scheduled_frame)while(temporary_expiry_count) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(temporary_expiry_next(temporary_expiry_heap[0])->class_timer.deadline.time>now.time)break;
+            temporary_expiry_fire();
+        }
+        return true;
+    default:return false;
+    }
 }
 
 bool S_ValidateInvisibilityOwners(void) {
@@ -679,6 +839,14 @@ bool S_ValidateInvisibilityOwners(void) {
                 if(!status->level || !status->instance_id ||
                    !S_UnitStatusIsTemporaryInvisibility(status) ||
                    (unit->permanent_invisibility_fade.published && status->invisibility_pending))return false;
+                abilityPrimaryTimer_t const *expiry=&status->class_timer;
+                if((status->class_code && status->class_code!=MAKEFOURCC('B','i','n','v')) ||
+                   status->class_clock_depth || status->class_timer_remaining ||
+                   *(uint8_t const *)&expiry->active>1)return false;
+                if(expiry->active && (status->timestamp || !isfinite(expiry->deadline.time) ||
+                   !isfinite(expiry->deadline.span) || expiry->deadline.span<=0 ||
+                   !expiry->sequence || expiry->sequence>level.timer_sequence))return false;
+                if(!expiry->active && status->duration_ms && !status->timestamp)return false;
                 contributions++;
             } else if(status->invisibility_pending || status->invisibility_suppression_held ||
                       status->invisibility_attack_generation)return false;

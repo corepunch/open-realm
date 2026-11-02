@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Complete uninterrupted and nine-checkpoint saved C299 public/motion replay passes. B01 caller and overlap requirements remain open.",
-  "save_version": 240,
-  "full_suite_run": true,
+  "status": "Aivs and AIvi share concrete Binv with authored display context, item transition2, saved primary expiry and strict refresh. B01 compositions and caller dispositions remain open.",
+  "save_version": 241,
+  "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -6314,5 +6314,216 @@
       "AIvi/AOwk/Agho/Abur/Ahid Pause/Sleep overlaps",
       "B01 incoming-call and alternative/adjusted-range dispositions"
     ]
+  },
+  "phase322": {
+    "scope": "Concrete Binv class versus authored display ID; actual Aivs/item cross-refresh; item transition2; primary expiry and strict refresh. No complete native Pause/Sleep composition claim.",
+    "save_version": 241,
+    "new_status_fields": false,
+    "new_regression": {
+      "name": "wc3_items.invisibility322_binv_class_fade_refresh_and_saved_primary_expiry",
+      "tests": 2,
+      "assertions": 160,
+      "passed": true,
+      "original_red_report": "build/tests/invisibility322/red/summary.json",
+      "final_input": "Existing Byyy context test now supplies Byyy,Bzzz and requires the first entry. Pending save follows100 primary steps."
+    },
+    "focused": {
+      "processes": 10,
+      "tests": 3062,
+      "assertions": 362668,
+      "passed": true,
+      "report": "build/tests/invisibility322/focused-final/summary.json"
+    },
+    "original_oracle": {
+      "script": "tools/ghidra/research/item_invisibility322_refresh_oracle.py",
+      "fixture": "tools/ghidra/fixtures/research/item-invisibility322-original.json",
+      "cases": 5,
+      "negative_controls": 6,
+      "guard_ranges": 35,
+      "runtime_scalar2_initializer_executed": true,
+      "report": "build/tests/invisibility322/original-oracle-final.log",
+      "limit": "External context/timer services and remaining5 are labelled oracle inputs. No public/scheduler capture."
+    },
+    "gates_before_list_refinement": {
+      "supportgoal": {
+        "passed": true,
+        "report": "build/tests/invisibility322/gates-final/supportgoal.json",
+        "report_sha256": "7604bd50339cfd33761e77bc9f4acc1bef0fcb930a0bcff92d157c157d674680"
+      },
+      "group012": {
+        "passed": true,
+        "report": "build/tests/invisibility322/gates-final/group012.json",
+        "report_sha256": "ced82e3bfde7ef7ba1887fe12253ff75255e3a881d0e30560d46d66f08355116"
+      },
+      "captain473": {
+        "passed": true,
+        "report": "build/tests/invisibility322/gates-final/captain473.json",
+        "report_sha256": "ff751a10ca41728e667d63c6dc4b336ad06e860eeadd84d41636b4a4f4b83bbf"
+      },
+      "waygate377": {
+        "passed": true,
+        "report": "build/tests/invisibility322/gates-final/waygate377.json",
+        "report_sha256": "7b29bda3cdb5c5805a7762843567fb98d2dd78167cf020683d3e401c3306a116"
+      },
+      "itemdrop": {
+        "passed": true,
+        "report": "build/tests/invisibility322/gates-final/itemdrop.json",
+        "report_sha256": "91b0fb67b56357fda63623b0aecfb4c6225242f25bd29b381f7f98c2e62ec5cf"
+      }
+    },
+    "final_list_amendment": {
+      "changed": [
+        {
+          "path": "games/warcraft-3/game/skills/s_wards.c",
+          "before": "c2a1829f5f1e0001ca6bb36d5df03f30da3ff6d42f8fe523119fd3ad0536072e",
+          "after": "e6551d61c24ed020918990f0d2f37034c4ca2b5f584b0106d6ad72ee68215ee6"
+        },
+        {
+          "path": "games/warcraft-3/game/tests/t_items.c",
+          "before": "ec1177ae5dcf3c28026ec0c1914fadabbe700e98c7681203eb14f3637c455e4c",
+          "after": "b0ce396bd550aca45c173ebc13305dc17d80ad771059737d7b1dc138d3dbf920"
+        }
+      ],
+      "scope": "One production condition recognizes primary BuffID entries in authored lists (strlen>=4); one existing test input becomes Byyy,Bzzz with same expected Byyy and assertion count. Final targeted families, native Itemdrop gate, complete replay and SC2API command rerun. Other four earlier gates not rerun after this refinement."
+    },
+    "final_itemdrop": {
+      "passed": true,
+      "status": "verified",
+      "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "observations": 8,
+      "controls": 4,
+      "captures": 12,
+      "public_markers": 5340,
+      "motion_cases": 14,
+      "mover_writes": 441,
+      "instruction_ranges": 8,
+      "retail": {
+        "point": {
+          "captures": 4,
+          "controls": 2,
+          "scenes": 72,
+          "public_markers": 3702,
+          "engine_parity": false,
+          "remaining_owner": "TARGET-01.2"
+        },
+        "admission": {
+          "observations": 2,
+          "controls": 1,
+          "public_markers": 819,
+          "positive_event_kinds": 3,
+          "drop_issued_events": 0,
+          "paused_drop_accepted": false,
+          "engine_parity": false
+        },
+        "immobile": {
+          "observations": 2,
+          "controls": 1,
+          "public_markers": 819,
+          "positive_event_kinds": 3,
+          "drop_issued_events": 0,
+          "paused_drop_accepted": false,
+          "engine_parity": false
+        }
+      },
+      "engine": {
+        "classic": {
+          "tests": 142,
+          "assertions": 11696
+        },
+        "tft": {
+          "tests": 142,
+          "assertions": 11696
+        }
+      },
+      "engine_checked": true,
+      "test_binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "game_library_sha256": "bd2599abf055dd4517fc0a0bc3bc6180dc92ea5f20a52433f35076d0b54ee87c",
+      "remaining_owner": "TARGET-01.2",
+      "scope": "Inventory public point-drop admission, silent specialized order class, replacement cancellation, stock/authored ranges, 14 exact-clock mover trajectories, terminal item incarnation, Stop/item loss/reuse and in-process save continuations. Immobile near/far, paused/dead rejection, runtime-added Inventory and real cursor ingress are exercised. TARGET-01.2 remains open for the complete producer and firing-poll matrix."
+    },
+    "final_replays": {
+      "normal": {
+        "test": "stress_wc3_attack_recovery299.full_public_and_ordered_motion",
+        "mode": "normal",
+        "passed": true,
+        "error": null,
+        "exit_code": 0,
+        "command": [
+          "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+          "-data",
+          "/tmp/native299-data-fhp9oq6x",
+          "-tft",
+          "+dedicated",
+          "1",
+          "+test",
+          "stress_wc3_attack_recovery299.full_public_and_ordered_motion"
+        ],
+        "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+        "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+        "edition": "tft",
+        "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+        "archives": [
+          "War3Patch.mpq",
+          "War3x.mpq",
+          "War3xlocal.mpq",
+          "war3.mpq"
+        ],
+        "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/invisibility322/normal-complete.xml",
+        "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/invisibility322/normal-complete.log"
+      },
+      "saved": {
+        "test": "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion",
+        "mode": "saved",
+        "passed": true,
+        "error": null,
+        "exit_code": 0,
+        "command": [
+          "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+          "-data",
+          "/tmp/native299-data-90plvx47",
+          "-tft",
+          "+dedicated",
+          "1",
+          "+test",
+          "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion"
+        ],
+        "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+        "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+        "edition": "tft",
+        "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+        "archives": [
+          "War3Patch.mpq",
+          "War3x.mpq",
+          "War3xlocal.mpq",
+          "war3.mpq"
+        ],
+        "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/invisibility322/saved-complete.xml",
+        "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/invisibility322/saved-complete.log"
+      }
+    },
+    "sc2api": {
+      "native_tests": 166,
+      "native_assertions": 6016,
+      "transport_passed": 4,
+      "optional_sdk_skipped": 1,
+      "exit": 0,
+      "report": "build/tests/invisibility322/sc2api-complete-run.log"
+    },
+    "full_suite_run": false,
+    "remaining": [
+      "AIvi/AOwk/Agho/Abur/Ahid Pause/Sleep compositions",
+      "B01 incoming-call dispositions, including11 sites unobserved by299",
+      "Positive alternative-target branch dispositions",
+      "Adjusted retained-target setter reachability"
+    ],
+    "native_compatibility_limit": "Native serialized nonzero duration additive is not imported; native save import is not added as a new TODO.",
+    "python": {
+      "tests": 115,
+      "passed": true,
+      "reports": [
+        "build/tests/invisibility322/python-corpus.log",
+        "build/tests/invisibility322/python-recovery.log"
+      ]
+    }
   }
 }

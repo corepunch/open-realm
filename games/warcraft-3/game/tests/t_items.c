@@ -394,10 +394,11 @@ static void item321_bound_carrier(bool invisible, bool shop_ui) {
         cstring_t command[]={"inventory","0"};G_ClientCommand(player,2,command);
     } else G_UseItem(carrier,0);
     if(invisible) {
-        heroabilitystatus_t *status=unit_findstatus(carrier,MAKEFOURCC('B','i','x','x'));
-        T_NOT_NULL(status);if(status)T_EQ(status->data,MAKEFOURCC('Z','i','3','1'));
-        T_ASSERT(carrier->s.renderfx&RF_HIDDEN);
-        T_NULL(unit_findstatus(selected,MAKEFOURCC('B','i','x','x')));
+        heroabilitystatus_t *status=unit_findstatusclass(carrier,MAKEFOURCC('B','i','n','v'));
+        T_NOT_NULL(status);if(status) {T_EQ(status->data,MAKEFOURCC('Z','i','3','1'));T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));}
+        T_ASSERT(status && status->invisibility_pending);
+        T_ASSERT(!(carrier->s.renderfx&RF_HIDDEN));
+        T_NULL(unit_findstatus(selected,MAKEFOURCC('B','i','n','v')));
         T_ASSERT(!(selected->s.renderfx&RF_HIDDEN));
     } else T_EQ(carrier->health.value,57.0f);
     T_EQ(selected->health.value,30.0f);
@@ -412,7 +413,118 @@ TEST(wc3_items, carrier321_invisibility_alias_uses_carrier_not_selection) {item3
 TEST(wc3_items, carrier321_heal_alias_uses_carrier_not_selection) {item321_bound_carrier(false,false);}
 TEST(wc3_items, carrier321_inventory_shop_command_uses_patron_not_selection) {item321_bound_carrier(false,true);}
 
-TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
+/* Original62f280/63ce40: item invisibility fixes the Binv class and two-second
+ * shared transition; authored BuffID remains the presented identifier. */
+static void item322_primary_step(void) {
+    level.time+=5;level.pathing_msec+=5;
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    bool const scheduled=level.scheduled_frame;
+    level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry) {
+    reset_entities();setup_test_world();
+    char const ability_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"Data11\"\nC;Y1;X9;K\"Data13\"\nC;Y1;X10;K\"Data14\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"6\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi32\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\".125\"\nC;Y3;X8;K\".125\"\nC;Y3;X12;K\"6\"\nC;Y3;X13;K\"6\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"Zs32\"\nC;Y4;X2;K\"AIvi\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\".125\"\nC;Y4;X8;K\".125\"\nC;Y4;X12;K\"2\"\nC;Y4;X13;K\"2\"\nC;Y4;X14;K\"Bixx\"\nC;Y5;X1;K\"Zl32\"\nC;Y5;X2;K\"AIvi\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\".125\"\nC;Y5;X8;K\".125\"\nC;Y5;X12;K\"10\"\nC;Y5;X13;K\"10\"\nC;Y5;X14;K\"Bixx\"\nC;Y6;X1;K\"Zz32\"\nC;Y6;X2;K\"AIvi\"\nC;Y6;X3;K\"1\"\nC;Y6;X4;K\".125\"\nC;Y6;X8;K\".125\"\nC;Y6;X12;K\"0\"\nC;Y6;X13;K\"0\"\nC;Y6;X14;K\"Bixx\"\nC;Y7;X1;K\"Zn32\"\nC;Y7;X2;K\"AIvi\"\nC;Y7;X3;K\"1\"\nC;Y7;X4;K\".125\"\nC;Y7;X8;K\".125\"\nC;Y7;X12;K\"-1\"\nC;Y7;X13;K\"-1\"\nC;Y7;X14;K\"Bixx\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y8;X1;K\"Zo32\"\nC;X2;K\"AIvi\"\nC;X3;K1\nC;X12;K6\nC;X13;K6\nC;X14;K\"Byyy,Bzzz\"\nC;Y9;X1;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K6\nC;X13;K6\nC;X14;K\"Bixx\"\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nC;Y10;X1;K\"Z032\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K0\nC;X13;K0\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nE\n";
+    char const item_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"i320\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"Zi32\"\nC;Y2;X5;K\"10\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nC;Y3;X1;K\"i321\"\nC;Y3;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y3;X3;K\"50\"\nC;Y3;X4;K\"Zs32\"\nC;Y3;X5;K\"10\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"1\"\nC;Y4;X1;K\"i322\"\nC;Y4;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y4;X3;K\"50\"\nC;Y4;X4;K\"Zl32\"\nC;Y4;X5;K\"10\"\nC;Y4;X6;K\"1\"\nC;Y4;X7;K\"0\"\nC;Y4;X8;K\"1\"\nC;Y5;X1;K\"i323\"\nC;Y5;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y5;X3;K\"50\"\nC;Y5;X4;K\"Zz32\"\nC;Y5;X5;K\"10\"\nC;Y5;X6;K\"1\"\nC;Y5;X7;K\"0\"\nC;Y5;X8;K\"1\"\nC;Y6;X1;K\"i324\"\nC;Y6;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y6;X3;K\"50\"\nC;Y6;X4;K\"Zn32\"\nC;Y6;X5;K\"10\"\nC;Y6;X6;K\"1\"\nC;Y6;X7;K\"0\"\nC;Y6;X8;K\"1\"\nC;Y7;X1;K\"i325\"\nC;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;X3;K50\nC;X4;K\"Zo32\"\nC;X5;K10\nC;X6;K1\nC;X7;K0\nC;X8;K1\nE\n";
+    slkTestData_t *ar=parse_slk_string(ability_text),*ir=parse_slk_string(item_text);
+    slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *unit=make_item_test_inventory_unit(100,100);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    unsigned number=unit->s.number;
+    edict_t *items[6]={0};
+    FOR_LOOP(n,6) {
+        items[n]=SP_SpawnAtLocation(MAKEFOURCC('i','3','2','0'+n),0,&unit->s.origin2);
+        T_NOT_NULL(items[n]);if(items[n])T_ASSERT(G_AddItemToSlot(unit,items[n],n));
+    }
+    G_SelectEntity(G_GetPlayerEntityByNumber(0)->client,unit);
+    G_UseItem(unit,0);
+    heroabilitystatus_t *status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);T_EQ(unit_findstatus(unit,MAKEFOURCC('B','i','x','x')),status);
+    if(status) {
+        T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
+        T_EQ(status->data,MAKEFOURCC('Z','i','3','2'));T_EQ(status->timestamp,0);
+        T_ASSERT(status->class_timer.active);T_ASSERT(status->invisibility_owned);T_ASSERT(status->invisibility_pending);
+        T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+        uint32_t instance=status->instance_id;
+        abilityPrimaryTimer_t expiry=status->class_timer,fade=unit->permanent_invisibility_fade.request;
+        T_ASSERT(fade.active);T_EQ(unit->permanent_invisibility_fade.slope,0.5f);
+        /* Same primary clock makes same authored duration exactly equal. */
+        G_UseItem(unit,0);G_UseItem(unit,1);
+        status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+        if(status) {
+            T_EQ(status->instance_id,instance);T_EQ(status->class_timer.sequence,expiry.sequence);
+            T_EQ(wc3_float_bits(status->class_timer.deadline.time),wc3_float_bits(expiry.deadline.time));
+            G_UseItem(unit,2);
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+            if(status) {
+                T_EQ(status->instance_id,instance);T_NE(status->class_timer.sequence,expiry.sequence);
+                T_ASSERT(status->class_timer.deadline.time>expiry.deadline.time);
+                T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+                G_UseItem(unit,3);T_ASSERT(!status->class_timer.active);
+                G_UseItem(unit,4);T_ASSERT(!status->class_timer.active);
+                T_EQ(status->instance_id,instance);T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+                G_UseItem(unit,0);T_ASSERT(status->class_timer.active);
+                T_EQ(G_ItemCharges(items[0]),7);
+                FOR_LOOP(n,100)item322_primary_step();
+                T_ASSERT(status->invisibility_pending);
+                T_ASSERT(!unit->permanent_invisibility_fade.published);
+                cstring_t file=Test_TempPath("item322-pending-fade.bin");
+                T_ASSERT(WriteGame(file));S_ClearMoveGroups();T_ASSERT(ReadGame(file));remove(file);
+                unit=g_edicts+number;status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+                if(status) {
+                    T_EQ(status->instance_id,instance);T_ASSERT(status->invisibility_pending);
+                    T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+                    FOR_LOOP(n,500) {if(unit->permanent_invisibility_fade.published)break;item322_primary_step();}
+                    T_ASSERT(unit->permanent_invisibility_fade.published);T_ASSERT(unit->s.renderfx&RF_HIDDEN);
+                    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+                    FOR_LOOP(n,1400) {if(!unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')))break;item322_primary_step();}
+                    T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+                    T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+                }
+            }
+        }
+    }
+    /* Actual Aivs then actual held AIvi refresh one concrete owner even
+     * though their presented buff identifiers differ (62f050/62f280). */
+    static UnitAbilities_t overlap_abilities={.abilList="AInv,Aivs,Z032"};
+    edict_t *caster=make_item_test_inventory_unit(200,100);caster->s.player=0;
+    caster->svflags|=SVF_MONSTER;caster->data.UnitAbilities=&overlap_abilities;unit->targtype=TARG_GROUND;
+    T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('A','i','v','s'),unit));
+    status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+    if(status) {
+        uint32_t instance=status->instance_id,fade=unit->permanent_invisibility_fade.request.sequence;
+        T_EQ(status->code,MAKEFOURCC('B','i','x','x'));
+        G_UseItem(unit,5);
+        status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+        if(status) {
+            T_EQ(status->code,MAKEFOURCC('B','y','y','y'));T_EQ(status->instance_id,instance);
+            T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+            T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('A','i','v','s'),unit));
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+            if(status) {T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->instance_id,instance);}
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+            /* A zero buff-context word retains the presented ID; zero
+             * duration removes only timed expiry from the same owner. */
+            T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('Z','0','3','2'),unit));
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+            if(status) {
+                T_EQ(status->instance_id,instance);T_EQ(status->code,MAKEFOURCC('B','i','x','x'));
+                T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));T_ASSERT(!status->class_timer.active);
+                T_EQ(status->timestamp,0);T_EQ(status->duration_ms,0);
+            }
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        }
+    }
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);
+    free_slk_rows(ar);free_slk_rows(ir);
+}
+
+TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -450,6 +562,11 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
         return;
     }
     T_EQ(status->duration_ms, 7250);
+    T_EQ(status->timestamp,0);T_ASSERT(status->class_timer.active);
+    T_ASSERT(status->invisibility_pending);T_ASSERT(!(hero->s.renderfx&RF_HIDDEN));
+    T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
+    FOR_LOOP(i,500) {if(hero->permanent_invisibility_fade.published)break;item322_primary_step();}
+    T_ASSERT(hero->permanent_invisibility_fade.published);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
     T_ASSERT(S_UnitUsesInvisibilityRenderFlag(hero));
     T_ASSERT(S_UnitIsInvisibleToPlayer(hero, 1));
@@ -457,8 +574,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_ASSERT(G_GetMainSelectedUnit(player->client) == hero);
     T_ASSERT(G_UnitCanControl(player->client, hero));
 
-    level.time = status->timestamp;
-    unit_updatestatuses(hero);
+    FOR_LOOP(i,1600) {if(!unit_findstatus(hero,MAKEFOURCC('B','i','x','x')))break;item322_primary_step();}
     T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
@@ -483,7 +599,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     hero->s.renderfx &= ~RF_HIDDEN;
     hero->health.value = 0.0f;
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
-    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -523,9 +639,11 @@ TEST(wc3_items, stock_invisibility_item_applies_and_expires_binv) {
     if (status) {
         T_EQ(status->duration_ms, 120000);
         T_EQ(status->data, MAKEFOURCC('A','I','v','i'));
-        T_ASSERT(hero->s.renderfx & RF_HIDDEN);
-        level.time = status->timestamp;
-        unit_updatestatuses(hero);
+        T_EQ(status->timestamp,0);T_ASSERT(status->class_timer.active);
+        T_ASSERT(status->invisibility_pending);T_ASSERT(!(hero->s.renderfx&RF_HIDDEN));
+        FOR_LOOP(i,500) {if(hero->permanent_invisibility_fade.published)break;item322_primary_step();}
+        T_ASSERT(hero->s.renderfx&RF_HIDDEN);
+        FOR_LOOP(i,25000) {if(!unit_findstatus(hero,MAKEFOURCC('B','i','n','v')))break;item322_primary_step();}
         T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
         T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     }

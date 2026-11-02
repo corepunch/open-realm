@@ -32,7 +32,6 @@ static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     case BZ_POLYMORPH: return "Bply"; /* Aply/ACpy share the TFT token. */
     case MAKEFOURCC('A','i','n','f'): return "Binf";
     case MAKEFOURCC('A','s','l','o'): return "Bslo";
-    case MAKEFOURCC('A','i','v','s'): return "Bivs";
     default: return NULL;
     }
 #else
@@ -298,16 +297,13 @@ static bool slow_validate(edict_t *caster, spellTarget_t st, abilityitem_t const
 
 static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level;
-    cstring_t buff;
     bool has_slot;
 
     if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) ||
         !S_SpellIsFriend(caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
-    buff = human_buff(spell, level);
-    if (!buff || strlen(buff) != 4 ||
-        S_SpellHeroDuration(spell->code, level, st.entity) <= 0.0f) return false;
-    has_slot = unit_findstatusclass(st.entity, *((uint32_t const *)buff)) != NULL;
+    if(!isfinite(S_SpellHeroDuration(spell->code,level,st.entity)))return false;
+    has_slot = unit_findstatusclass(st.entity,MAKEFOURCC('B','i','n','v')) != NULL;
     if (has_slot || !st.entity->abilstatus) return true;
     FOR_LOOP(i, G_UnitStatusSlotCount(st.entity))
         if (!st.entity->abilstatus[i].level) return true;
@@ -315,30 +311,10 @@ static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem
 }
 
 static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    uint32_t level;
-    cstring_t buff;
-    heroabilitystatus_t *status;
-
-    if (!caster || !st.entity || !spell) return;
-    level = S_SpellLevel(caster, spell->code);
-    buff = human_buff(spell, level);
-    if (!buff || strlen(buff) != 4) return;
-    status=unit_findstatus(st.entity,*((uint32_t const *)buff));
-    if(status && status->invisibility_owned) {
-        float duration=S_SpellHeroDuration(spell->code,level,st.entity);
-        status->duration_ms=duration>0 ? (uint32_t)(duration*1000.0f) : 0;
-        status->timestamp=status->duration_ms ? G_Time()+status->duration_ms : 0;
-        G_InvalidateUnitInfoPanel(st.entity);
-        return; /* Native531a80 refreshes the retained owner only. */
-    }
-    status = human_status_execute(caster, st, spell);
-    if (!status) {
-        fprintf(stderr, "WC3 Invisibility: authored status %.4s missing after cast on unit %u\n",
-                buff, st.entity->s.number);
-        return;
-    }
-    status->data = spell->code;
-    S_TemporaryInvisibilityAcquire(st.entity,status,S_SpellData(spell->code,level,1));
+    if(!caster || !st.entity || !spell)return;
+    uint32_t rank=S_SpellLevel(caster,spell->code);
+    S_ApplyTemporaryInvisibility(st.entity,caster,spell->code,rank,S_SpellBuffId(spell->code,rank),
+        S_SpellHeroDuration(spell->code,rank,st.entity),S_SpellData(spell->code,rank,1));
 }
 
 /* Record presence is the authoritative Polymorph state for orders and JASS. */
@@ -1216,7 +1192,7 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
 }
 
 void S_HumanStatusApplied(edict_t *unit, heroabilitystatus_t const *status) {
-    if (!unit || !status || !status->level || status->code != MAKEFOURCC('B','b','l','o')) return;
+    if (!unit || !status || !status->level || G_UnitStatusClassCode(status) != MAKEFOURCC('B','b','l','o')) return;
     unit->s.scale *= 1.3f;
     if (unit->avatar && unit->avatar->level) unit->avatar->original_scale *= 1.3f;
     if (unit->polymorph) unit->polymorph->original_scale *= 1.3f;

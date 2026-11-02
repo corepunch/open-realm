@@ -333,55 +333,23 @@ BZ_ABILITY_PROC(CAbilityItemHeal) {
 
 
 static bool AbilityItemInvis_ItemUse(edict_t *ent,abilityCall_t const *call) {
-    edict_t *target;
-    uint32_t code;
-    abilityLevel_t const *row;
-    cstring_t buff;
-    float duration;
-    bool has_status_slot;
-
-    target=item_use_caster(ent,call);
+    edict_t *target=item_use_caster(ent,call);
     if(!S_SpellIsAliveTarget(target))return false;
-    code = item_use_code(ent,call,MAKEFOURCC('A','I','v','i'));
-    row = G_AbilityLevel(code, 1);
-    buff = row ? row->buffID : NULL;
-    duration = S_SpellHeroDuration(code, 1, target);
-    has_status_slot = buff && strlen(buff) == 4 && unit_findstatusclass(target, *((uint32_t const *)buff));
-
-    if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
-        return false;
-    if (!target->abilstatus) has_status_slot = true;
-    if (!has_status_slot) {
-        FOR_LOOP(i, G_UnitStatusSlotCount(target))
-            if (!target->abilstatus[i].level) { has_status_slot = true; break; }
-    }
-    if (!has_status_slot) return false;
-
-    G_SetEntityHidden(target, true);
-    {
-        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
-        if (status) {
-            status->data = code;
-            /* The timed buff owns its persistent TargetArt; expiry, dispel and
-             * refresh use the common status-effect lifecycle. */
-            unit_status_enabletargetart(target, status, "origin");
-        }
-        if (status) return true;
-    }
-    if (!S_UnitHasTemporaryInvisibility(target, NULL)) {
-        fprintf(stderr, "WC3 invisibility item: authored status %.4s missing after use on unit %u\n",
-                buff,
-                target->s.number);
-        G_SetEntityHidden(target,false);
-    }
-    return false;
+    uint32_t code=item_use_code(ent,call,MAKEFOURCC('A','I','v','i'));
+    /*62f280 uses HeroDur, or Dur plus the fresh constructor-zero additive.
+     * The concrete class is Binv; context retains the authored display ID. */
+    return S_ApplyTemporaryInvisibility(target,target,code,1,S_SpellBuffId(code,1),
+        S_SpellHeroDuration(code,1,target),2.0f);
 }
 
 BZ_ABILITY_PROC(CAbilityItemInvis) {
     switch (msg) {
     case A_ITEM_USE:
         return AbilityItemInvis_ItemUse(ent,call);
-    case A_STATUS_REMOVE:
+    case A_STATUS_REPLACE: case A_STATUS_REMOVE:
+        if(ent && call && call->status.slot && call->status.slot->invisibility_owned) {
+            S_TemporaryInvisibilityRelease(ent,call->status.slot);return true;
+        }
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
             G_SetEntityHidden(ent,false);
