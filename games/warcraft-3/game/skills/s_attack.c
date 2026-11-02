@@ -368,7 +368,9 @@ static bool can_attack(edict_t const *ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
-    if (!attacker || S_LavaSpawnIsSplitting(attacker) || S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
+    if (!attacker || S_UnitPolymorphed(attacker) || S_LavaSpawnIsSplitting(attacker) ||
+        S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) ||
+        !target || !target->inuse || attacker == target ||
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
         (S_ImpaleIsAirborne(target) && !S_ImpaleAirborneVulnerable(target)) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
