@@ -50,8 +50,8 @@
     "games/warcraft-3/game/g_ai.c": "48f42a104c1b006c5e89b6c98f4befb58177f3387b327be9b5868a7a0e5a0d24",
     "games/warcraft-3/game/g_commands.c": "d55b719a26e8df365afa4a3a2bc004e9a7734b12f43d514a56ea88d5cba1a71b",
     "games/warcraft-3/game/g_items.c": "051e5942a347477a959dc03d21ba6a6f5fbe685f802fb9047c7d49a2b646d5be",
-    "games/warcraft-3/game/g_local.h": "d02b5b2ce514fb522b2e596a5111667f8a785b7f1d49dcd59d418b0007533fc0",
-    "games/warcraft-3/game/g_save.c": "32c2e49fe33daf5409bdbffecbd78f6da336045fffdb0026748ae68784bb97fa",
+    "games/warcraft-3/game/g_local.h": "f5cc271de97425a7cc7c9771c8cbcf7b29f3970c3e7a0d8a4e3b30acd8d7157a",
+    "games/warcraft-3/game/g_save.c": "ade6def0aaeb802d7d5600b425663cb8db7c4e1180f0325ffa16f5344d817b77",
     "games/warcraft-3/game/m_unit.c": "f133c2a992dc6c00c69f358d9055169bb4cb0a15b9d3f3d88f2e4b0f34d3413c",
     "games/warcraft-3/game/sc2api/sc2api_raw.c": "bb4817b0af8d8c39818e31e1ba62bec43e19da1408cc243c3eb7cbcaabe3644f",
     "games/warcraft-3/game/skills/s_inventory.c": "7d22eac31481a4573bb1c4e919b6be50005c57037a08a9a9f1f455fe93c5bf71",
@@ -86,7 +86,7 @@
     "games/warcraft-3/game/skills/s_move.c": "cb28d9a5a1d07ea02fa8ae1cba4f70a70c61244a1e6a6923c2340d892942489d",
     "games/warcraft-3/game/g_stock.c": "fb88d2cb62a3f40ac23b19a3d2f186b0ddfc16035d5f7bd1c118fdaa07be9004",
     "games/warcraft-3/game/api/api_item.h": "06ce63df8310ea20bf4f4bfebb80f8e09f940429e93f5cc4336e6039579f6ef2",
-    "games/warcraft-3/game/api/api_misc.h": "727ec76938c9fc5751be06c986b085a696a4accdb1b530ec8126ab5a5971378f",
+    "games/warcraft-3/game/api/api_misc.h": "4a5d488d02268455b8b2c4731b3432b30d7a814674d56d4eed738322cd464d43",
     "games/warcraft-3/tests/resources-src/Units/AbilityData.slk": "7b54833897330f8d0997b0221428942e05b9c467a4dd03658d66fd64c83a4f9a"
   }
 }

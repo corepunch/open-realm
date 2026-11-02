@@ -264,3 +264,31 @@ in 34 isolated processes, with four workers; each process requires a fresh,
 positive, non-skipped JUnit result agreeing with stdout. The 115 focused Python
 evidence tests pass. The refreshed corpus checks 614 entries and 3,322 guarded
 files. These checks do not replace the still-failing complete C299 comparison.
+
+## Fractional physical damage: checkpoint311
+
+The first-hit health marker now matches retail's recorded 408.443 instead of
+409.050. Physical mitigation, bonuses, shields, Spirit Link, splash and bounce
+retain fractions through health and damage events. Integer event IDs keep their
+original 32-bit representation. Save236 and JASS snapshot 11 reject the older
+integer-damage interpretation; queue/context copies retain the payload bits.
+The separate integer spell-damage API is outside this precision claim.
+
+Verification passes 4,364 test executions and 18,327,844 assertions across both
+editions, all five fresh parity gates, 115 Python evidence tests and the 614-entry
+corpus check. Three prior integer expectations were replaced with their actual
+authored arithmetic: Defend's real factor, Moon Glaive's 50×0.5×0.5 second bounce,
+and Spirit Link's 25/3 shares with total-damage conservation. The broad native
+batch exposed five old reaction fixtures; their ten focused edition executions
+now pass. A complete broad rerun has not passed yet.
+
+The complete C299 comparison still fails. Its first public mismatch moved from
+index 30 (health) to 37 (Source pose at tick 25). Its first movement mismatch is
+still 148, near 2.28 seconds. Next implement the independent `d01b0` callback:
+`49a4f0` returns during reaction; its enabled Ground branch starts a Ground swing;
+otherwise a retained target reaches `499310` with visibility argument 0. That
+path can replace a chase already in motion. `49d130` replaces cooldown only when
+the requested duration is strictly longer than remaining time, and arms damage
+only inside that replacement branch. Use the existing primary float-clock
+queue, preserve independent swing, and save/validate the new timer owner.
+Neither normal/saved suffix parity nor B01 closure is established.

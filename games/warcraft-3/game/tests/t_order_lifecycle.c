@@ -8,7 +8,7 @@ void CM_SetupTestWorldBounds(box2_t const *);
 void reset_entities(void);
 bool run_test_jass(cstring_t src);
 void order_attack(edict_t *self, edict_t *target);
-void T_Damage(edict_t *target, edict_t *attacker, int damage);
+void T_Damage(edict_t *target, edict_t *attacker, float damage);
 void G_RunEntities(void);
 void monster_think(edict_t *self);
 void SV_Physics_Toss(edict_t *ent);

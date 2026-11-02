@@ -86,7 +86,7 @@ BZ_ABILITY_PROC(CAbilityMoonGlaive) {
  * Damage has already been mitigated for the primary; like the other secondary
  * attack effects, do not run G_AttackDamage again and double-apply armor.
  * Secondary hits use T_Damage rather than retriggering primary attack procs. */
-void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
+void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, float damage) {
     uint32_t level, code, total;
     float range, loss, bounce_damage;
     edict_t *visited[8], *current;
@@ -114,7 +114,7 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
     if (range <= 0.0f) range = 400.0f; /* Warcraft stock Moon Glaive bounce radius */
     loss = profile->damageLoss > 0.0f ? profile->damageLoss : 0.5f;
     loss = MAX(0.0f, MIN(loss, 1.0f));
-    bounce_damage = (float)damage;
+    bounce_damage = damage;
     visited[0] = current = primary;
 
     for (uint32_t i = 1; i < total; i++) {
@@ -140,7 +140,7 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
         }
         if (!next) break;
         visited[nvisited++] = next;
-        T_Damage(next, attacker, (int)bounce_damage);
+        T_Damage(next, attacker, bounce_damage);
         current = next;
     }
 }

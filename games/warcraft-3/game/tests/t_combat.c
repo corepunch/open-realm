@@ -49,8 +49,8 @@ void ui_selectskill(gameClient_t *client);
 
 /* Forward declarations for internal functions not in any public header. */
 bool  player_pay(player_t *ps, uint32_t project);
-void  T_Damage(edict_t *target, edict_t *attacker, int damage);
-int   G_AttackDamage(edict_t *attacker, edict_t *target, int base);
+void  T_Damage(edict_t *target, edict_t *attacker, float damage);
+float G_AttackDamage(edict_t *attacker, edict_t *target, float base);
 void  attack_melee(edict_t *self);
 void  attack_melee_cooldown(edict_t *self);
 void  attack_ranged(edict_t *self);
@@ -3968,8 +3968,68 @@ TEST(wc3_combat, attack_damage_uses_loaded_gameplay_constants) {
     game.constants.combatConstantsLoaded = true;
     game.constants.damageBonus[ATK_NORMAL][4] = 1.25f;
     game.constants.defenseArmor = 0.10f;
-    T_EQ(G_AttackDamage(a, t, 100), 104); /* 125 / 1.2 = 104.16... */
+    T_FEQ(G_AttackDamage(a, t, 100), 125.0f / 1.2f, 0.0001f);
 
+    game.constants.combatConstantsLoaded = old_loaded;
+    game.constants.damageBonus[ATK_NORMAL][4] = old_mult;
+    game.constants.defenseArmor = old_armor;
+}
+
+/* Fractional physical damage survives every no-op modifier and the deferred
+ * public damage-event payload; the raw weapon roll remains integral. */
+TEST(wc3_combat, fractional_attack_damage_reaches_health_and_public_event) {
+    bool const old_loaded = game.constants.combatConstantsLoaded;
+    float const old_mult = game.constants.damageBonus[ATK_NORMAL][4];
+    float const old_armor = game.constants.defenseArmor;
+    edict_t *attacker = NULL, *target = NULL;
+    float const expected = 13.0f / 1.12f;
+    G_ResetDeferredFrees(); reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit fractionalSource = null\n"
+        " unit fractionalTarget = null\n"
+        " integer fractionalEvents = 0\n"
+        "endglobals\n"
+        "function fractionalDamaged takes nothing returns nothing\n"
+        " local real delta = GetEventDamage() - 13.0 / 1.12\n"
+        " call BJassAssert(delta > -0.00001 and delta < 0.00001, \"fractional damage payload\")\n"
+        " call BJassAssert(GetEventDamageSource() == fractionalSource, \"fractional damage source\")\n"
+        " set fractionalEvents = fractionalEvents + 1\n"
+        "endfunction\n"
+        "function fractionalVerify takes nothing returns nothing\n"
+        " call BJassAssert(fractionalEvents == 1, \"one damage event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local trigger t = CreateTrigger()\n"
+        " set fractionalSource = CreateUnit(Player(0), 'hfoo', 256.0, 256.0, 0.0)\n"
+        " set fractionalTarget = CreateUnit(Player(0), 'hfoo', 384.0, 256.0, 180.0)\n"
+        " call TriggerRegisterUnitEvent(t, fractionalTarget, EVENT_UNIT_DAMAGED)\n"
+        " call TriggerAddAction(t, function fractionalDamaged)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = &g_edicts[i];
+        if (!unit->inuse || unit->class_id != MAKEFOURCC('h','f','o','o')) continue;
+        if (unit->s.origin2.x == 256.0f) attacker = unit;
+        if (unit->s.origin2.x == 384.0f) target = unit;
+    }
+    T_NOT_NULL(attacker); T_NOT_NULL(target);
+    game.constants.combatConstantsLoaded = true;
+    game.constants.damageBonus[ATK_NORMAL][4] = 1.0f;
+    game.constants.defenseArmor = 0.06f;
+    if (attacker && target) {
+        S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+        target->defense_type = 4;
+        target->armor_value = 2.0f;
+        target->health.max_value = 420.0f;
+        G_SetHealth(target, 420.0f);
+        float const damage = G_AttackDamage(attacker, target, 13);
+        T_FEQ(damage, expected, 0.00001f);
+        S_ResolveAttackHit(attacker, target, damage);
+        T_FEQ(target->health.value, 420.0f - expected, 0.00001f);
+        G_RunEvents(); jass_runevents(level.vm);
+        jass_callbyname(level.vm, "fractionalVerify", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
     game.constants.combatConstantsLoaded = old_loaded;
     game.constants.damageBonus[ATK_NORMAL][4] = old_mult;
     game.constants.defenseArmor = old_armor;
@@ -3979,7 +4039,7 @@ TEST(wc3_combat, attack_damage_uses_loaded_gameplay_constants) {
 TEST(wc3_combat, attack_damage_armor_reduces_damage) {
     edict_t *a = make_attacker(ATK_NORMAL);
     edict_t *t = make_target(4 /* normal */, 2.0f);
-    int result = G_AttackDamage(a, t, 100);
+    float result = G_AttackDamage(a, t, 100);
     T_ASSERT(result >= 88 && result <= 90);
 }
 
@@ -3989,7 +4049,7 @@ TEST(wc3_combat, attack_damage_armor_reduces_damage) {
 TEST(wc3_combat, attack_damage_negative_armor_uses_exponential_curve) {
     edict_t *a = make_attacker(ATK_NORMAL);
     edict_t *t = make_target(4 /* normal */, -10.0f);
-    int result = G_AttackDamage(a, t, 100);
+    float result = G_AttackDamage(a, t, 100);
     T_ASSERT(result >= 145 && result <= 147);
 }
 

@@ -89,16 +89,19 @@ TEST(wc3_spell, spirit_link_links_datab_nearest_in_area) {
 /* DataA=0.25 with 3 linked: 100 dmg -> shared 25 / 3 each; primary keeps 75+portion. */
 TEST(wc3_spell, spirit_link_splits_authored_damage_among_linked) {
 	splFix_t fix; spl_setup(&fix);
-	int portion, primary;
+	float portion, primary;
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	T_Damage(fix.a, fix.enemy, 100);
-	portion = 25 / 3;
-	primary = 75 + portion;
+	portion = 100.0f * 0.25f / 3.0f;
+	primary = 100.0f * (1.0f - 0.25f) + portion;
 	T_FEQ(fix.a->health.value, 500 - primary, 0.001f);
 	T_FEQ(fix.b->health.value, 500 - portion, 0.001f);
 	T_FEQ(fix.c->health.value, 500 - portion, 0.001f);
 	T_FEQ(fix.d->health.value, 500, 0.001f);
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
+	/* No integer share is lost: total damage remains the authored 100. */
+	T_FEQ((500.0f-fix.a->health.value)+(500.0f-fix.b->health.value)+
+	      (500.0f-fix.c->health.value), 100.0f, 0.001f);
 	spl_done(&fix);
 }
 

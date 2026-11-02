@@ -394,15 +394,15 @@ BZ_ABILITY_PROC(CAbilitySellUnit) { return CAbilityPassive(ent, msg, call); }
 
 bool S_UnitIsResistant(edict_t const *unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
 
-int S_OrbAnnihilationDamage(edict_t *attacker, int damage) {
+float S_OrbAnnihilationDamage(edict_t *attacker, float damage) {
     uint32_t level = attacker ? G_UnitAbilityClassLevel(attacker, ID_ORB_ANNIHILATION) : 0;
-    return level ? damage + (int)S_SpellData(ID_ORB_ANNIHILATION, level, 1) : damage;
+    return level ? damage + S_SpellData(ID_ORB_ANNIHILATION, level, 1) : damage;
 }
 BZ_ABILITY_PROC(CAbilitySlowAura) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityCommandAura) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityWarDrums) { return CAbilityPassive(ent, msg, call); }
 
-int S_FeedbackDamage(edict_t *attacker, edict_t *target, int damage) {
+float S_FeedbackDamage(edict_t *attacker, edict_t *target, float damage) {
     static uint32_t const codes[] = { ID_FEEDBACK, ID_FEEDBACK_TOWER };
     uint32_t code = 0, level, slot;
     size_t i;
@@ -413,11 +413,11 @@ int S_FeedbackDamage(edict_t *attacker, edict_t *target, int damage) {
     slot = G_UnitIsHero(target) ? 3 : 1;
     { float drained = MIN(target->mana.value, S_SpellData(code, level, slot));
       target->mana.value -= drained;
-      return damage + (int)(drained * S_SpellData(code, level, slot + 1));
+      return damage + drained * S_SpellData(code, level, slot + 1);
     }
 }
 
-int S_HardenedSkinDamage(edict_t *target, int damage) {
+float S_HardenedSkinDamage(edict_t *target, float damage) {
     static uint32_t const codes[] = { ID_HARDENED_SKIN, ID_HARDENED_SKIN_NAGA };
     uint32_t code = 0, level;
     size_t i;
@@ -425,5 +425,5 @@ int S_HardenedSkinDamage(edict_t *target, int damage) {
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
         if ((level = G_UnitAbilityClassLevel(target, codes[i]))) { code = codes[i]; break; }
     if (!code || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
-    return MAX((int)S_SpellData(code, level, 2), damage - (int)S_SpellData(code, level, 3));
+    return MAX(S_SpellData(code, level, 2), damage - S_SpellData(code, level, 3));
 }

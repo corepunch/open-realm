@@ -1479,7 +1479,10 @@ typedef struct gameevent_s {
     edict_t *source;
     uint32_t source_spawn_time;
     bool source_spawn_tracked;
-    int32_t value; /* scalar JASS callback payload (for example spell/research rawcode) */
+    union {
+        int32_t value; /* Integer IDs and raw bits copied into callback snapshots. */
+        float realValue; /* Damage events retain the real amount without truncation. */
+    };
     vec2_t point;
     bool has_point;
     event_t *responseTo;
@@ -3478,6 +3481,7 @@ bool G_HasPendingDeathEvent(edict_t const *);
 void G_PublishEventResponse(edict_t *, EVENTTYPE, event_t *);
 gameEvent_t *G_PublishEventWithSource(edict_t *, EVENTTYPE, edict_t *);
 gameEvent_t *G_PublishEventWithValue(edict_t *, EVENTTYPE, edict_t *, int32_t);
+gameEvent_t *G_PublishEventWithRealValue(edict_t *, EVENTTYPE, edict_t *, float);
 gameEvent_t *G_PublishEventWithPoint(gameEventPointParams_t const *params);
 void G_PublishSummonEvents(edict_t *summoner, edict_t *summoned);
 void G_PublishChangeOwnerEvents(edict_t *unit, uint32_t old_player);
@@ -4913,9 +4917,9 @@ void S_SpellTargetApproachComplete(edict_t *, edict_t *, bool);
 void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
-int G_AttackDamage(edict_t *, edict_t *, int);
-int G_AttackDamageWithType(edict_t *, edict_t *, int, uint32_t);
-void T_Damage(edict_t *, edict_t *, int);
+float G_AttackDamage(edict_t *, edict_t *, float);
+float G_AttackDamageWithType(edict_t *, edict_t *, float, uint32_t);
+void T_Damage(edict_t *, edict_t *, float);
 
 // g_utils.c
 bool G_UnitIsWorldActive(edict_t const *);

@@ -1245,17 +1245,17 @@ static float const g_default_damage_table[8][8] = {
  * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
  * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
  * existing OpenRealm physical-attack contract. */
-static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk);
-int G_AttackDamage(edict_t *attacker, edict_t *target, int base) {
+static float attack_damage_type(edict_t *attacker, edict_t *target, float base, uint32_t atk);
+float G_AttackDamage(edict_t *attacker, edict_t *target, float base) {
     return attack_damage_type(attacker, target, base,
                               attacker && target ? attack_profile(attacker, target)->type : 0);
 }
 
-int G_AttackDamageWithType(edict_t *attacker, edict_t *target, int base, uint32_t type) {
+float G_AttackDamageWithType(edict_t *attacker, edict_t *target, float base, uint32_t type) {
     return attack_damage_type(attacker, target, base, type);
 }
 
-static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk) {
+static float attack_damage_type(edict_t *attacker, edict_t *target, float base, uint32_t atk) {
     if (!attacker || !target || base <= 0) return base;
     uint32_t def = target->defense_type;
     if (atk >= 8) atk = 0;
@@ -1279,15 +1279,14 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
         dmg = dmg / (1.0f + armor * armor_coefficient);
     else
         dmg = dmg * (2.0f - powf(1.0f - armor_coefficient, -armor));
-    int result = (int)dmg;
-    return result < 1 ? 1 : result;
+    return dmg < 1.0f ? 1.0f : dmg;
 }
 
 /* Apply damage to target from attacker.
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack) {
+static void T_DamageInternal(edict_t *target, edict_t *attacker, float damage, bool primary_attack) {
     bool instant_kill;
 
     if (!target || G_UnitIsInvulnerable(target) ||
@@ -1323,8 +1322,8 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     if (primary_attack && attacker)
         S_PillageOnAttackDamage(attacker, target, MIN(target->health.value, (float)damage));
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
-    G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
-    G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
+    G_PublishEventWithRealValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
+    G_PublishEventWithRealValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
     S_SleepDamageWake(target);
@@ -1364,7 +1363,7 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     }
 }
 
-void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+void T_Damage(edict_t *target, edict_t *attacker, float damage) {
     T_DamageInternal(target, attacker, damage, false);
 }
 
@@ -1375,7 +1374,7 @@ bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t
            (!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) || attack_profile(attacker, primary)->type == ATK_MAGIC);
 }
 
-void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
+void S_ResolveAttackHit(edict_t *attacker, edict_t *target, float damage) {
     if (!S_AttackHitAllowed(attacker, target, target)) return;
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
@@ -1383,18 +1382,18 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     S_PermanentInvisibilityReveal(attacker);
     damage = S_OrbAnnihilationDamage(attacker,
         S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
-    damage = (int)((float)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
+    damage = damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
                                          S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
                                          + unit_status_modifier_total(attacker, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT)
-                                         - S_SoulBurnDamageReduction(attacker)));
+                                         - S_SoulBurnDamageReduction(attacker));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
-        damage += (int)S_SpellData(bash.alias, bash.level, 3);
+        damage += S_SpellData(bash.alias, bash.level, 3);
         S_SpellApplyStun(target, S_SpellDuration(bash.alias, bash.level, false));
     } }
-    damage += (int)S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
+    damage += S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
     S_UnitStatusAbilityEvent(attacker, A_ATTACK_LANDED, NULL);
     damage = S_PossessionDamageTaken(target, damage);
     damage = S_HardenedSkinDamage(target, damage);
@@ -1416,7 +1415,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
         FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) && S_AttackHitAllowed(attacker, target, other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
-            T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
+            T_Damage(other, attacker, MAX(1.0f, damage * fraction));
     } }
     S_BlackArrowDeath(attacker, target);
     S_MoonGlaiveAttack(attacker, target, damage);
@@ -1439,9 +1438,9 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
             float const thorns = S_ThornsMeleeDamageReturn(target, damage);
             float const carapace = S_SpikedCarapaceDamageReturn(target, damage);
             float const barricades = S_SpikedBarricadesDamageReturn(target, damage);
-            if (thorns > 0.0f) T_Damage(attacker, target, (int)thorns);
+            if (thorns > 0.0f) T_Damage(attacker, target, thorns);
             if (carapace > 0.0f && attacker->inuse && !M_IsDead(attacker))
-                T_Damage(attacker, target, (int)carapace);
+                T_Damage(attacker, target, carapace);
             /* Spikes are magic retaliation: go through spell immunity and
              * anti-magic absorption, not the plain physical-damage path. */
             if (barricades > 0.0f && attacker->inuse && !M_IsDead(attacker))
@@ -1480,14 +1479,14 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
                   (!missile_splash || other == primary || S_SpellIsEnemy(attacker, other))) {
         float const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
         float factor;
-        int damage;
+        float damage;
 
         if (distance <= profile->area_full) factor = 1.0f;
         else if (distance <= profile->area_medium) factor = profile->factor_medium;
         else if (distance <= profile->area_small) factor = profile->factor_small;
         else continue;
         if (factor <= 0.0f) continue;
-        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
+        damage = attack_damage_type(attacker, other, MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
         if (other == primary) {
             primary_hit = true;
             S_ResolveAttackHit(attacker, other, damage);
@@ -1496,7 +1495,7 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
         }
     }
     if (missile_splash && !primary_hit && primary && primary->inuse && primary != attacker && !M_IsDead(primary)) {
-        int const damage = attack_damage_type(attacker, primary, raw_damage, profile->attack_type);
+        float const damage = attack_damage_type(attacker, primary, raw_damage, profile->attack_type);
         S_ResolveAttackHit(attacker, primary, damage);
     }
     /* A direct, researched tree attack is legal even if the weapon's splash

@@ -76,7 +76,10 @@ struct jass_context {
     edict_t *enumunit;
     edict_t *source;
     EVENTTYPE eventType;
-    int32_t eventValue;
+    union {
+        int32_t eventValue; /* Integer payload or opaque real-value bits. */
+        float eventRealValue; /* EVENT_UNIT_DAMAGED / EVENT_PLAYER_UNIT_DAMAGED. */
+    };
     uint32_t dialog_id, dialog_button_id;
     vec2_t point;
     uint8_t hasPoint;

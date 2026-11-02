@@ -339,3 +339,21 @@ The combat tests cover representative type multipliers, Divine, data-driven cons
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — projectile target Z adds the target model-origin altitude and authored `impactZ`.
 
 Attack cooldown state and its save-format cleanup are described in the [game-state review](state-review.md).
+
+## Fractional physical damage
+
+Physical type/armor mitigation, attack bonuses, Defend, shields, Spirit Link,
+splash and Moon Glaive now retain real damage through health subtraction.
+Raw weapon rolls and stored raw projectile damage remain integral; mitigation
+at impact produces a real value. This change does not establish fractional
+parity for the separate integer `S_SpellDamage` API.
+
+Both unit and player-unit damage events carry the real amount. `GetEventDamage`
+reads that value, while other event kinds keep integer IDs. Save236 and JASS
+snapshot version 11 preserve the payload bits in queued events and callbacks;
+older integer-damage snapshots are rejected.
+
+The retail Attack299 first-hit marker is now 408.443 HP, matching the reference;
+it was 409.050 when damage was truncated. The complete replay still differs in
+movement near 2.28 seconds because cooldown expiry does not independently replace
+an active chase. See [the recovery checkpoint](retail-pathfinding-attack-recovery.md).

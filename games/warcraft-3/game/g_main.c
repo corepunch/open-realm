@@ -1977,6 +1977,8 @@ gameEvent_t *G_PublishEventWithValue(edict_t *edict, EVENTTYPE type, edict_t *so
     evt->source_spawn_time = source ? source->spawn_time : 0;
     evt->source_spawn_tracked = source && source->inuse;
     evt->value = value;
+    if(type==EVENT_UNIT_DAMAGED || type==EVENT_PLAYER_UNIT_DAMAGED)
+        evt->realValue=(float)value;
     if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
         BZ_WC3_SCORE_LOG("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
             type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
@@ -1997,6 +1999,12 @@ gameEvent_t *G_PublishEventWithPoint(gameEventPointParams_t const *params) {
         evt->has_point = true;
     }
     return evt;
+}
+
+gameEvent_t *G_PublishEventWithRealValue(edict_t *edict, EVENTTYPE type, edict_t *source, float value) {
+    gameEvent_t *event=G_PublishEventWithValue(edict,type,source,0);
+    if(event)event->realValue=value;
+    return event;
 }
 
 gameEvent_t *G_PublishEventWithSource(edict_t *edict, EVENTTYPE type, edict_t *source) {

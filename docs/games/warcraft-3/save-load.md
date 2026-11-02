@@ -1,4 +1,12 @@
-Save235 stores the initial Attack task's captured range alongside its reaction
+Save236 stores damage-event amounts as real values. The event queue and JASS
+callback context retain a shared 32-bit payload: damage events interpret it as
+an IEEE float; spell/research/order IDs remain integers. Snapshot code copies
+those bits without numerical conversion, so fractional damage and full-width
+IDs both survive save/load. JASS snapshot version 11 and game Save236 reject the
+older integer-damage representation. A queued-event regression checks real
+damage, integer rawcode, target and source identity after restore.
+
+The prior Save235 change stores the initial Attack task's captured range alongside its reaction
 timer. Public target orders capture this value before changing the movement
 owner; changes to weapon range during the reaction do not replace it. Active
 reaction ranges must be finite and at least 32 (`FLT_MAX` is valid). Save234 and

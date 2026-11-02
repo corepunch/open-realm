@@ -1074,7 +1074,7 @@ float S_HumanArmorBonus(edict_t const *unit) {
     return bonus;
 }
 
-static int defend_damage_taken(edict_t *target, uint32_t attack_type, int damage) {
+static float defend_damage_taken(edict_t *target, uint32_t attack_type, float damage) {
     uint32_t const level = G_UnitStatusClassLevel(target, MAKEFOURCC('A','d','e','f'));
     float factor = 1.0f;
     if (!level || damage <= 0) return damage;
@@ -1082,7 +1082,7 @@ static int defend_damage_taken(edict_t *target, uint32_t attack_type, int damage
         factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 1);
     else if (attack_type == ATK_MAGIC || attack_type == ATK_SPELLS)
         factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 5);
-    return (int)((float)damage * MAX(0.0f, factor));
+    return damage * MAX(0.0f, factor);
 }
 
 /* Reflect a basic attack missile while the target's Defend ability owns the reaction. */
@@ -1122,7 +1122,7 @@ static bool defend_projectile_reaction(edict_t *projectile) {
      * target's Defend damage-taken multiplier and armor/type table but do not
      * replay attack on-hit passives. Stock Footman Defend has Data G=0. */
     if (deflect_factor > 0.0f) {
-        int damage = G_AttackDamageWithType(attacker, target, (int)((float)projectile->damage * deflect_factor), attack_type);
+        float damage = G_AttackDamageWithType(attacker, target, (float)projectile->damage * deflect_factor, attack_type);
         damage = defend_damage_taken(target, attack_type, damage);
         if (damage > 0) T_Damage(target, attacker, damage);
     }
@@ -1141,23 +1141,23 @@ static bool defend_projectile_reaction(edict_t *projectile) {
     return true;
 }
 
-int S_HumanAttackDamage(edict_t *attacker, edict_t *target, int damage) {
+float S_HumanAttackDamage(edict_t *attacker, edict_t *target, float damage) {
     uint32_t level;
     /* Inner Fire is already included by the hit resolver's status ledger;
      * multiplying it here again squared its authored attack bonus. */
     damage = S_FeedbackDamage(attacker, target, damage);
     if ((level = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','f','s','h'))) && target->defense_type <= 2)
-        damage += (int)S_SpellData(MAKEFOURCC('A','f','s','h'), level, 3 + target->defense_type);
+        damage += S_SpellData(MAKEFOURCC('A','f','s','h'), level, 3 + target->defense_type);
     /* Defend Data B scales the defender's own attacks while the stance is
      * active. Data A reduces non-deflected Piercing hits; Data E does the same
      * for Magic/Spells. Projectile deflection itself happens in g_phys.c so a
      * successful shot can keep travelling back to its source. */
     if ((level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('A','d','e','f'))))
-        damage = (int)((float)damage * MAX(0.0f, S_SpellData(MAKEFOURCC('A','d','e','f'), level, 2)));
+        damage = damage * MAX(0.0f, S_SpellData(MAKEFOURCC('A','d','e','f'), level, 2));
     return defend_damage_taken(target, S_AttackProfileRead(attacker, 0)->type, damage);
 }
 
-void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
+void S_HumanAttackSplash(edict_t *attacker, edict_t *target, float damage) {
     uint32_t flak = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','f','l','k'));
     uint32_t barrage = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','r','o','c'));
     uint32_t storm = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','s','t','h'));
@@ -1174,7 +1174,7 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
         else if (barrage) splash = S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 1);
         else if (distance > S_AttackProfileRead(attacker, 0)->areaMedium) splash *= S_AttackProfileRead(attacker, 0)->factorSmall;
         else if (distance > S_AttackProfileRead(attacker, 0)->areaFull) splash *= S_AttackProfileRead(attacker, 0)->factorMedium;
-        T_Damage(other, attacker, (int)MAX(1.0f, splash)); count++;
+        T_Damage(other, attacker, MAX(1.0f, splash)); count++;
     }
 }
 

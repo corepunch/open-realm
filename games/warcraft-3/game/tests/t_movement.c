@@ -7615,6 +7615,20 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
     gi.unicast = old_unicast;
 }
 
+/* Legacy owner-loop fixtures still admit the public Attack producer. Drain
+ * its real primary reaction before entering their physical-route loops. */
+static void movement310_drain_attack_reaction(edict_t *unit) {
+    FOR_LOOP(i,1000) {
+        if(!unit->attack_reaction.active)break;
+        level.time+=5;level.pathing_msec+=5;
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        bool scheduled=level.scheduled_frame;
+        level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+    }
+    T_ASSERT(!unit->attack_reaction.active);
+    T_NOT_NULL(unit->currentmove);
+}
+
 TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
@@ -7640,8 +7654,9 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     gi.LinkEntity(attacker);
 
     T_ASSERT(S_OrderAttack(attacker, gate));
+    movement310_drain_attack_reaction(attacker);
     FOR_LOOP(frame, 200) {
-        attacker->currentmove->think(attacker);
+        if(attacker->currentmove)movement_test_tick(attacker);
         CM_ProcessPathJobs(4096);
         if (attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED) {
             fallback_reached = true;
@@ -7651,7 +7666,7 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
 
     T_ASSERT(fallback_reached);
     FOR_LOOP(frame, 60) {
-        attacker->currentmove->think(attacker);
+        if(attacker->currentmove)movement_test_tick(attacker);
         CM_ProcessPathJobs(4096);
     }
     /* The attacker starts off the gate's row, so only steering reaches the
@@ -7717,6 +7732,8 @@ TEST(wc3_movement, group_smart_attack_keeps_unreachable_member_on_its_side_of_wa
     G_ClientCommand(clent, 2, command);
     T_ASSERT(blocked->goalentity == target);
     T_ASSERT(reachable->goalentity == target);
+    movement310_drain_attack_reaction(blocked);
+    movement310_drain_attack_reaction(reachable);
 
     FOR_LOOP(frame, 200) {
         vec2_t const old_blocked = blocked->s.origin2;
@@ -7729,7 +7746,7 @@ TEST(wc3_movement, group_smart_attack_keeps_unreachable_member_on_its_side_of_wa
             moveGroup_t const *group = move_unit_group(unit);
             /* One owner pass steps every cohort; run it once per frame. */
             if (group && !group->individual && i) continue;
-            if (unit->currentmove && unit->currentmove->think) movement_test_tick(unit);
+            if (unit->currentmove) movement_test_tick(unit);
         }
         reachable_advanced |= Vector2_distance(&old_reachable, &reachable->s.origin2) > 0.01f;
         blocked_jumped |= Vector2_distance(&old_blocked, &blocked->s.origin2) > unit_movedistance(blocked) + 1.0f;
@@ -10966,6 +10983,7 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
     CM_SetupTestPathmap(PATH_W, PATH_H, pathmap);
     CM_SetupTestWorldBounds(&bounds);
     T_ASSERT(S_OrderAttack(attacker, target));
+    movement310_drain_attack_reaction(attacker);
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
     start_distance = Vector2_distance(&attacker->s.origin2, &target->s.origin2);
 
@@ -10991,6 +11009,8 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
 static void attack_shared_jobs_owner_frame(void) {
     FOR_LOOP(step,FRAMETIME/5) {
         wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        bool scheduled_frame=level.scheduled_frame;
+        level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled_frame;
         level.pathing_phase=(level.pathing_phase+1)%6;
         if(!level.pathing_phase) {
             level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
@@ -11049,13 +11069,14 @@ TEST(wc3_movement, attack_chase_progresses_while_shared_route_jobs_compete) {
     CM_SetupTestWorldBounds(&bounds);
 
     T_ASSERT(S_OrderAttack(attacker, target));
+    movement310_drain_attack_reaction(attacker);
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
     start_distance = Vector2_distance(&attacker->s.origin2, &target->s.origin2);
     /* Establish the physical chase through its actual owner before invalidating
      * unrelated shared fields. Public movement must continue under that work. */
     for (int frame = 0; frame < 8; frame++) {
         CM_ProcessPathJobs(UINT_MAX);
-        attacker->currentmove->think(attacker);
+        if(attacker->currentmove && attacker->currentmove->think)attacker->currentmove->think(attacker);
         attack_shared_jobs_owner_frame();
         level.time += FRAMETIME;
     }
@@ -11083,8 +11104,8 @@ TEST(wc3_movement, attack_chase_progresses_while_shared_route_jobs_compete) {
             T_EQ(CM_RequestHeatmapForRadius(other_goals[next_competing_job], 0.0f), 0);
             next_competing_job++;
         }
-        T_ASSERT(attacker->currentmove && attacker->currentmove->think);
-        attacker->currentmove->think(attacker);
+        T_ASSERT(attacker->currentmove && attacker->currentmove->proc==CAbilityAttack);
+        if(attacker->currentmove && attacker->currentmove->think)attacker->currentmove->think(attacker);
         attack_shared_jobs_owner_frame();
         T_ASSERT(attacker->goalentity == target);
         T_ASSERT(attacker->currentmove->proc == CAbilityAttack);

@@ -162,7 +162,7 @@ void SV_Physics_Toss(edict_t *ent) {
                 vec2_t const impact = ent->goalentity->s.origin2;
                 S_ResolveMissileSplashHit(attacker, ent->goalentity, &impact, ent->damage, ent->artillery);
             } else {
-                int const damage = G_AttackDamageWithType(attacker, ent->goalentity, ent->damage,
+                float const damage = G_AttackDamageWithType(attacker, ent->goalentity, ent->damage,
                                                           ent->projectile_attack_type);
                 S_ResolveAttackHit(attacker, ent->goalentity, damage);
             }

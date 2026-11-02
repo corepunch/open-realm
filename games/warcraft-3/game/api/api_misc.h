@@ -821,7 +821,10 @@ uint32_t GetEventUnitState(jass_t *j) {
     return jass_pushnullhandle(j, "unitstate");
 }
 uint32_t GetEventDamage(jass_t *j) {
-    return jass_pushnumber(j, (float)jass_getcontext(j)->eventValue);
+    struct jass_context const *context=jass_getcontext(j);
+    float damage=(context->eventType==EVENT_UNIT_DAMAGED || context->eventType==EVENT_PLAYER_UNIT_DAMAGED)
+        ? context->eventRealValue : 0;
+    return jass_pushnumber(j,damage);
 }
 uint32_t GetEventDamageSource(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");

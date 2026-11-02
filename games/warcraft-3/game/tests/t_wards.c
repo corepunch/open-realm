@@ -159,7 +159,21 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_
 	T_ASSERT(S_OrderAttack(tower, fix.enemy));
 	T_EQ(tower->goalentity, fix.enemy);
 	T_NOT_NULL(tower->currentmove);
-	tower->currentmove->think(tower);
+	/* Explicit Attack has a primary reaction and initial physical arrival.
+	 * Drive both owners before inspecting the pending positive damage point. */
+	FOR_LOOP(i,1000) {
+		if(tower->attack_damage.active)break;
+		level.time+=5;level.pathing_msec+=5;
+		wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+		bool scheduled=level.scheduled_frame;
+		level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+		if(tower->attack_reaction.active)continue;
+		bool think=level.scheduled_think;level.scheduled_think=true;
+		S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=think;
+		if(!tower->attack_damage.active && tower->currentmove && tower->currentmove->think)
+			tower->currentmove->think(tower);
+	}
+	T_ASSERT(!tower->attack_reaction.active);
 	T_ASSERT(tower->attack_damage.active);
 	if (tower->attack_damage.active) {
 		/* Damage commits at the primary deadline, independently of animation think. */

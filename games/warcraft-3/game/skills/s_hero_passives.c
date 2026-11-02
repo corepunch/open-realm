@@ -1385,7 +1385,7 @@ float S_TrueshotAttackBonus(edict_t *unit) {
         hero_aura_bonus(unit, ID_TRUESHOT_AURA, 1) : 0.0f;
 }
 
-int S_SearingArrowDamage(edict_t *attacker, int damage) {
+float S_SearingArrowDamage(edict_t *attacker, float damage) {
     uint32_t code = ID_SEARING_ARROWS, level = 0;
     heroabilitystatus_t *manual = NULL;
     if (!attacker) return damage;
@@ -1415,7 +1415,7 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
         if (manual) unit_removestatus(attacker, manual, STATUS_REMOVE_SCRIPT);
         if (!paid) return damage;
     }
-    return damage + (int)S_SpellData(code, level, 1);
+    return damage + S_SpellData(code, level, 1);
 }
 
 /* Authored AbilityFunc MissileArt normally supplies this value. Keep the
@@ -1503,7 +1503,7 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
 }
 
 /* Retail DataA is damage absorbed per mana and DataB is the fraction of each hit absorbed. */
-int S_ManaShieldDamage(edict_t *target, int damage) {
+float S_ManaShieldDamage(edict_t *target, float damage) {
     auraAbilityRef_t ref = mana_shield_ability(target);
     uint32_t code = ref.alias ? ref.alias : ID_MANA_SHIELD;
     uint32_t level = ref.level ? ref.level : G_UnitAbilityClassLevel(target, ID_MANA_SHIELD);
@@ -1513,10 +1513,10 @@ int S_ManaShieldDamage(edict_t *target, int damage) {
     ratio = S_SpellData(code, level, 1);
     fraction = MIN(1.0f, MAX(0.0f, S_SpellData(code, level, 2)));
     if (ratio <= 0.0f || fraction <= 0.0f) return damage;
-    absorbed = MIN((float)damage * fraction, target->mana.value * ratio);
+    absorbed = MIN(damage * fraction, target->mana.value * ratio);
     target->mana.value = MAX(0.0f, target->mana.value - absorbed / ratio);
     if (target->mana.value <= 0.0f) mana_shield_remove(target, buff);
-    return damage - (int)absorbed;
+    return damage - absorbed;
 }
 
 /* Called after the attack resolver has selected the active weapon profile.
@@ -1539,13 +1539,13 @@ bool S_EvasionRoll(edict_t *target) {
     return level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
 }
 
-int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
+float S_CriticalStrikeDamage(edict_t *attacker, float damage) {
     uint32_t level = G_UnitAbilityClassLevel(attacker, ID_CRITICAL_STRIKE);
     uint32_t code = ID_CRITICAL_STRIKE;
     if (!level) { level = G_UnitAbilityClassLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
     if (!level) { level = G_UnitAbilityClassLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
     if (!level || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
-    return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
+    return damage * MAX(1.0f, S_SpellData(code, level, 2));
 }
 
 float S_SpikedArmorBonus(edict_t const *unit) {

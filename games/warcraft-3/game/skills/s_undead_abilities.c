@@ -824,7 +824,7 @@ bool S_PossessionSpellImmune(edict_t const *unit) {
 }
 
 /* DataB lives on Bpoc.data as milli-units (1.66 → 1660). Attack hits only. */
-int S_PossessionDamageTaken(edict_t *target, int damage) {
+float S_PossessionDamageTaken(edict_t *target, float damage) {
     uint32_t milli = 0;
     if (!target || damage <= 0) return damage;
     FOR_LOOP(i, G_UnitStatusSlotCount(target))
@@ -833,7 +833,7 @@ int S_PossessionDamageTaken(edict_t *target, int damage) {
             milli = target->abilstatus[i].data; break;
         }
     if (!milli) return damage;
-    return (int)((float)damage * (float)milli / 1000.0f);
+    return damage * (float)milli / 1000.0f;
 }
 
 BZ_VALIDATED_SPELL_PROC(AbilityPossession, possession_validate, possession_execute)

@@ -4577,11 +4577,11 @@ TEST(wc3_spell, defend_data_b_and_e_scale_outgoing_and_magic_attack_damage) {
 	edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
 
 	S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; unit_addstatus(attacker, "Adef", 1);
-	T_EQ(S_HumanAttackDamage(attacker, target, 100), 75);
+	T_FEQ(S_HumanAttackDamage(attacker, target, 100), 75.0f, 0.00001f);
 	G_EnsureUnitStatusSlots(attacker);
 	memset(attacker->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*attacker->abilstatus));
 	S_AttackProfileWrite(attacker, 0)->type = ATK_MAGIC; unit_addstatus(target, "Adef", 1);
-	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
+	T_FEQ(S_HumanAttackDamage(attacker, target, 100), 60.0f, 0.00001f);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -8247,7 +8247,7 @@ TEST(wc3_spell, moon_glaive_research_grants_and_revokes_second_bounce) {
     first->health.value = second->health.value = 500;
     S_MoonGlaiveAttack(huntress, primary, 50);
     T_FEQ(first->health.value, 475, 0.001f);
-    T_FEQ(second->health.value, 488, 0.001f); /* floor(50 * 0.5 * 0.5) */
+    T_FEQ(second->health.value, 500.0f - 50.0f * 0.5f * 0.5f, 0.001f); /* Fractional second bounce: 12.5. */
     T_FEQ(out_of_range->health.value, 500, 0.001f);
 
     G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','e','m','g'), 0);

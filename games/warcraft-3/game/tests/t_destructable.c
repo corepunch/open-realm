@@ -23,7 +23,7 @@ uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius);
 bool CM_FlowCanReach(uint32_t generation, float x, float y);
 edict_t *Waypoint_add(vec2_t const *spot);
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target);
-void T_Damage(edict_t *target, edict_t *attacker, int damage);
+void T_Damage(edict_t *target, edict_t *attacker, float damage);
 bool run_test_jass(cstring_t src);
 bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);

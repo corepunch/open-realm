@@ -221,9 +221,9 @@ void morph_end(edict_t *thinker) {
     G_FreeEdict(thinker);
 }
 
-int S_BlackArrowDamage(edict_t *attacker, int damage) {
+float S_BlackArrowDamage(edict_t *attacker, float damage) {
     uint32_t level = G_UnitStatusClassLevel(attacker, MAKEFOURCC('A','N','b','a'));
-    return level ? damage + (int)S_SpellData(MAKEFOURCC('A','N','b','a'), level, 1) : damage;
+    return level ? damage + S_SpellData(MAKEFOURCC('A','N','b','a'), level, 1) : damage;
 }
 
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target) {

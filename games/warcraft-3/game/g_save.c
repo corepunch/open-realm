@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 235; /* Initial Attack task range retained across reaction. */
+static uint32_t const save_version = 236; /* Real damage event payloads, including saved callbacks. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -5815,6 +5815,25 @@ TEST(wc3_save, active_attack_reaction_rejects_invalid_captured_range) {
     T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
     unit->attack_reaction_range=FLT_MAX;
     T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    remove(file);reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, fractional_damage_and_integer_event_payloads_round_trip) {
+    cstring_t file=Test_TempPath("save-real-damage-event.bin");
+    edict_t *source=save235_reaction_fixture(),*target=source->attack_target;
+    uint32_t source_id=source-g_edicts,target_id=target-g_edicts;
+    uint32_t first=level.events.write;
+    float const damage=13.0f/1.12f;
+    int32_t const rawcode=MAKEFOURCC('A','B','C','D');
+    T_NOT_NULL(G_PublishEventWithRealValue(target,EVENT_UNIT_DAMAGED,source,damage));
+    T_NOT_NULL(G_PublishEventWithValue(source,EVENT_UNIT_RESEARCH_FINISH,NULL,rawcode));
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    gameEvent_t const *real=level.events.queue+first%MAX_EVENT_QUEUE;
+    gameEvent_t const *integer=level.events.queue+(first+1)%MAX_EVENT_QUEUE;
+    T_EQ(real->type,EVENT_UNIT_DAMAGED);
+    T_EQ(wc3_float_bits(real->realValue),wc3_float_bits(damage));
+    T_EQ(real->edict,g_edicts+target_id);T_EQ(real->source,g_edicts+source_id);
+    T_EQ(integer->type,EVENT_UNIT_RESEARCH_FINISH);T_EQ(integer->value,rawcode);
     remove(file);reset_entities();setup_test_world();
 }
 #endif
