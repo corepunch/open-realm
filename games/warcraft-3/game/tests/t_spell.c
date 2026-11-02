@@ -7995,6 +7995,7 @@ TEST(wc3_spell, campaign_shadow_hunter_hex_uses_polymorph_handler) {
     static UnitBalance_t const target_balance = { .level = 1 };
     slkTestData_t *rows = parse_slk_string(slk), *old, *ui_rows = parse_slk_string(ui_slk), *old_ui;
     edict_t *caster, *target;
+    heroabilitystatus_t const *timed_status;
     abilityitem_t hex_item;
     abilityCall_t approach_call;
     int original_model;
@@ -8016,6 +8017,15 @@ TEST(wc3_spell, campaign_shadow_hunter_hex_uses_polymorph_handler) {
     T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','N','h','x'), target));
     T_ASSERT(S_UnitPolymorphed(target));
     T_ASSERT(target->s.model != original_model);
+    T_ASSERT(unit_statusshowstimedbar(MAKEFOURCC('B','O','h','x')));
+    game.clients[0].ps.number = 0;
+    T_EQ(UI_TestSelectedTimedStatusStat(game.clients, target), USHRT_MAX);
+    timed_status = unit_findtimedbarstatus(target);
+    T_NOT_NULL(timed_status);
+    if (timed_status) {
+        T_EQ(timed_status->code, MAKEFOURCC('B','O','h','x'));
+        T_FEQ(unit_statusremainingfraction(timed_status), 1.0f, 0.001f);
+    }
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
 }
