@@ -863,9 +863,8 @@ Neither those component tests nor the construction-held queue test proves
 public item admission during scripted Pause.
 
 All five fresh pathfinding gates pass. Itemdrop requires153 tests/12,406 assertions
-per edition. The86 focused Python checks and614-entry corpus audit pass. No full
-native-suite or SC2API rerun is claimed in this commit; the previous full batch
-used the frozen323 source.
+per edition. The86 focused Python checks and614-entry corpus audit pass. The
+optional SC2API configuration was not rerun.
 
 The first full326 batch exposed a retained-Give regression in
 `wc3_inventory_orders.give_recipient_mutation_during_drop`: a recipient marked
@@ -874,4 +873,9 @@ then publish its retirement Drop. The new guard rejected that existing retained
 state. The correction compares the lifetime/deferred state captured at the
 detach boundary. The unchanged original-backed regression passes95 assertions
 per edition. All five gates and normal/saved C299 pass again on the correction;
-a fresh full batch is running separately.
+the fresh full batch below also passes.
+
+The corrected frozen326 build (`0ec437abb`) passes the complete native suite in
+both editions:9,472 tests and60,732,376 assertions across eight shards, with no
+failures, errors or skips. Binary and every game C/header hash match the frozen
+source snapshot. The optional SC2API configuration was not rerun. B01 and TARGET-01.2 remain open.

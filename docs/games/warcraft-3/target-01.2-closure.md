@@ -50,6 +50,11 @@ For a D row, record the exact fixture filename and scene/record, submitted raw a
    The old paused-refresh fixtures now invoke the proved effect service; they
    do not bypass the ordinary command owner to preserve their previous results.
 
+The corrected326 source (`0ec437abb`) passes all9,472 native tests/60,732,376
+assertions across both editions, all five fresh pathfinding gates and the
+unchanged normal/nine-save C299 suffixes. The full run's retained-Give regression
+is fixed and its original-backed test remains unchanged.
+
 **Still open for AIvi:** public item admission during scripted Pause; complete
 mixed-contributor overlap dispositions for the named B01 scenarios. The saved
 queue test uses an internal construction hold and does not prove that public

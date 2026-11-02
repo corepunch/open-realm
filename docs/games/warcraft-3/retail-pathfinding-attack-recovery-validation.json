@@ -3,7 +3,7 @@
   "target": "TARGET-01.2 F19/D051",
   "status": "Profiled no-target AIvi ordinary inventory/cast ownership matches the declared five-case81-row protocol in both editions. B01 overlap compositions and caller dispositions remain open.",
   "save_version": 244,
-  "full_suite_run": false,
+  "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -4059,7 +4059,7 @@
       "report": "build/tests/cooldown312/corpus-check.log"
     }
   },
-  "full_native_suite_run": false,
+  "full_native_suite_run": true,
   "hidden_source313": {
     "whole_leaves_closed": 0,
     "save_version": 237,
@@ -6877,7 +6877,7 @@
       "build/bin/openwarcraft3-tests": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
       "build/lib/libgame-wc3-test.so": "5c67adcd70815f0db1e11bfcd1f9954dcf421c28fb11317336fd95a17b2bd206"
     },
-    "full_suite_rerun": false,
+    "full_suite_rerun": true,
     "sc2api_rerun": false,
     "remaining": [
       "Public item admission during scripted Pause and other AIvi contributor compositions.",
@@ -6990,7 +6990,19 @@
       "per_edition_tests": 1,
       "per_edition_assertions": 95,
       "passed": true,
-      "full_rerun": "build/tests/invisibility326/full-give-fix/summary.json (running when this fix is committed)"
+      "full_rerun": "build/tests/invisibility326/full-give-fix/summary.json"
+    },
+    "full_suite": {
+      "passed": true,
+      "source_commit": "0ec437abb",
+      "processes": 8,
+      "tests": 9472,
+      "assertions": 60732376,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "report": "build/tests/invisibility326/full-give-fix/summary.json",
+      "source_freeze": "build/tests/invisibility326/full-give-fix-source.json"
     }
   }
 }
