@@ -59659,7 +59659,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "aa01c9c98b13285b3921a75a1142b84e67f45cce38ab3d186ec002e4894ca385"
+      "sha256": "defb2bc084eefc86358254305562ac3bdaa8cdeb209d159a19db7c3f6a0b4838"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
@@ -60099,7 +60099,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "174ad8e7405bb4b4d7bb136701d5d7c89d1e9952c152085587f83acd57878be9"
+      "sha256": "2f8b2f30aeda67c8383792731d02999bc1cbe62fa24d5808860a57cf697b06f6"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -60107,7 +60107,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "2024ed858c8c511d18a973aa8a71220f831a72fbfba9871123a13b024bf60cc3"
+      "sha256": "6d8b554333a82ab40d648f1d20ff2371ec2a71ca2c1d3418564e51e48728b641"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -62051,7 +62051,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "6d6955f721b38b5d8e7e313e691ca5679e9b474bd13331183718cda7964a9aca"
+      "sha256": "24f0b6f76b3ad8f0777592096c0edbbd5b6ae7ce692698e844d9f9308889830c"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -67111,7 +67111,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_morph.c",
-      "sha256": "27cecbe29e0dd3821f83c195edfbdfa7e2a96a8f14a79343bac4fb522b4854d3"
+      "sha256": "37a7fd3504f67104aff1c55569335a301b440d0ce7297bae27ced826552d3119"
     },
     {
       "path": "games/warcraft-3/game/skills/s_raven.c",
@@ -67167,7 +67167,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_ground_morph.c",
-      "sha256": "d25127e7f379d263535a98f86c8442f70751c510bcad46fad063ac24f1259a01"
+      "sha256": "5715bd7c1e0cdfaed2e8f0b498aa82e15c2b24054a74fce028a80e16c8cd8ba2"
     },
     {
       "path": "tools/frida/research/morph331_probe.j",
@@ -69743,7 +69743,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "ead98dd7dc99b2b32f359c29193b22024f740c414ae3dcc65fc9fdd7145e2280"
+      "sha256": "c27f90899f340a610a01705caae54c9b4c0e3c1729aee8cde5106b3e4c38ae5f"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "627c854ab50732cfcb29714d91975a704e3f2a294d9b956e217b861d0167f454"
+      "sha256": "216e377749845832600b54f3c7e301aabf16f4968eace4d516e4a548e67374a8"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "75eb6d8ac7200ac491a5d2378f1a2382668b7847d52ef1198d41090571ebdd95"
+      "sha256": "836e214a69dddf49a37b6983143671619b341bd3f1b84e5d90f3335fc467d5cc"
     },
     {
       "path": "tests/test_wc3_pathfinding_militia_lifecycle.py",
@@ -71496,6 +71496,14 @@
     {
       "path": "tools/ghidra/research/morph336_reverse_check.py",
       "sha256": "018976b101e29cc89f898bd09a1697caa41aaf9c8fe325a7a98e3ed1a540e246"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/morph337-timing-original.json",
+      "sha256": "676dc448b0075d1a63872dbe1e8933e2c52d8e65e37d030d791893fe4fcfc0d3"
+    },
+    {
+      "path": "tools/ghidra/research/morph337_timing_check.py",
+      "sha256": "034af2e73da1d3b721eaa56ebceca3c35cd3d9291dad25ac235ce2001cb61dc2"
     }
   ]
 }

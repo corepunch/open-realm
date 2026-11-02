@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Full336 atcbad36d55 passes9492tests/60734932assertions across8shards/both editions, all607sources/16artifacts/42assets unchanged. Morph reverse335v2 matches1290public rows; earlier331899/333591/C299normal+saved exact. PublicMorph335v1 remains redfirst110; B01 remains open.",
-  "save_version": 249,
+  "status": "PublicBurrowMorph337 matches335v1 all1416 and335v2 all1290public rows; Save250 preserves separate timer/cleanup ownership and held admission. Focused1974tests/226248assertions and sixgates1532tests/7107086assertions pass; retained331/333 and normal/saved299 remain exact. Latest full336 atcbad36d55 passed9492tests; no repeatedfull337batch. B01 remains open for its other explicit gaps.",
+  "save_version": 250,
   "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
@@ -7962,7 +7962,7 @@
       "full_batch_repeated": false
     }
   },
-  "current_phase": 336,
+  "current_phase": 337,
   "full_suite_passed": true,
   "latest_full_source_commit": "cbad36d55186c81a8abdb606b20b3b5a7fcd46a0",
   "latest_full_known_failures_corrected": true,
@@ -8343,5 +8343,102 @@
     "before": "build/tests/morph336/full/before.json",
     "after": "build/tests/morph336/full/after.json",
     "integrity": "build/tests/morph336/full/integrity.json"
+  },
+  "phase337": {
+    "scope": "Abur ordinary public packet and cast/Morph lifetime; other Morph subclasses remain on their prior profiles.",
+    "save_version": 250,
+    "full_suite_run": false,
+    "original": {
+      "passed": true,
+      "fixture": "tools/ghidra/fixtures/research/morph337-timing-original.json",
+      "checker": "tools/ghidra/research/morph337_timing_check.py",
+      "new_whole_functions": 2,
+      "inherited_hash_pinned_whole_functions": 1,
+      "direct_calls": 29,
+      "concrete_vtable_words": 4,
+      "negative_controls": 7,
+      "contract": "55d380 zeros channel/castpoint;54ed20 arms Morph then updates ordinary spell finish duration;40b380 queues only positive durations >=3a83126f at shared deadline, otherwise finishes synchronously."
+    },
+    "implementation": [
+      "Public packet admitted/published before phases; held orders retain structurally valid direction and validate execution again after release.",
+      "Actual Morph request and ordinary FINISH use the same absolute deadline; Morph request is sequenced first for delayed completion.",
+      "Morph completion preserves the active spell head until FINISH/ENDCAST; callbacks retain replacement ownership and FIFO.",
+      "Saved clock binding is independent of permission to clean up movement. Stop can replace the packet while Morph continues.",
+      "Movement revisions are process-local stamps; owned completion rebinds after validating saved canonical owner/clock, while disowned cleanup stays disowned."
+    ],
+    "c335": {
+      "v1_passed": true,
+      "v1_public_records": 1416,
+      "v1_report": "build/tests/morph337/c335-v1-verified.summary.json",
+      "v2_passed": true,
+      "v2_public_records": 1290,
+      "v2_report": "build/tests/morph337/c335-v2-verified.summary.json",
+      "adapter": "code=FourCC byte order only; no timing, position, status or event reordering."
+    },
+    "focused": {
+      "passed": true,
+      "tests": 1974,
+      "assertions": 226248,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "report": "build/tests/morph337/focused-final/summary.json"
+    },
+    "gates": {
+      "passed": true,
+      "tests": 1532,
+      "assertions": 7107086,
+      "report": "build/tests/morph337/final-gates/verification-summary.json",
+      "source_files_unchanged": 607,
+      "artifacts_unchanged": 16,
+      "assets_unchanged": 42
+    },
+    "retained_replays": {
+      "passed": true,
+      "c331_public": 899,
+      "c333_public": 591,
+      "c299_normal_and_saved_public": 2066,
+      "c299_normal_and_saved_motion": 5342,
+      "directory": "build/tests/morph337"
+    },
+    "initial_failures": {
+      "preserved": true,
+      "native_first": "build/tests/morph337/c335-v1-first.summary.json",
+      "old_stop_save": "build/tests/morph337/focused/classic-0.log",
+      "causes": [
+        "Execution validation rejected a structurally valid Sleep-held order before it could queue.",
+        "New Save validation confused process-local movement stamps and timer binding with cleanup permission."
+      ],
+      "fixture_corrections": "The two new fixtures used internal enums at an old-common.j API boundary and lacked a reserved persistent player subject; corrected fixture setup while retaining all behavioral assertions."
+    },
+    "python_checks": {
+      "passed": true,
+      "tests": 76
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guards": 3398
+    },
+    "incoming_caller_audit": {
+      "report": "build/tests/morph337/recovery-callers-audit.json",
+      "new_unique_callers": 0,
+      "observed_in_333_335": [
+        "49cec6",
+        "497ba8",
+        "628a5d"
+      ],
+      "scope": "Repeated inactive-entry examples only; no new active/reentrant/unreachable disposition."
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "remaining": [
+      "Ahid shared invisibility owner and Pause/Sleep composition.",
+      "Explicit AIvi Pause-during-cast timeline beyond settled admission and saved component coverage.",
+      "Adjusted retained-range setter49c4d0 public reachability.",
+      "Release-callback reentrancy and active retained40000 paused recovery.",
+      "Complete the17 incoming-call dispositions without inferring public reachability from service-boundary tests."
+    ]
   }
 }

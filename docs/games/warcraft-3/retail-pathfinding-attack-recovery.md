@@ -1070,3 +1070,22 @@ skips. All 607 C/header files, 16 compiled artifacts and 42 fixture assets match
 the before/after freeze (`build/tests/morph336/full/integrity.json`). This also
 verifies the earlier332 legacy-fixture corrections in the complete suite.
 The next gap remains public Morph packet/phase ownership in335v1; B01 stays open.
+
+
+Checkpoint337 completes the declared public Burrow/Morph comparison: the
+unchanged335v1 and335v2 references match all **1,416** and **1,290** public rows.
+The ordinary packet precedes CHANNEL/CAST/EFFECT, Sleep-held reverse executes
+after release, and delayed FINISH/ENDCAST keep their own head until retirement.
+The original [timing proof](../../../tools/ghidra/fixtures/research/morph337-timing-original.json)
+shows separate Morph and spell requests at the same deadline, with Morph first.
+Zero and positive durations below0.001 finish synchronously; equality queues.
+
+Save250 separates a retained timer from permission to retire movement. A Stop
+packet can replace the canonical order while Morph continues. Process-local
+move stamps rebind only after owner validation, and lost cleanup permission
+stays lost after load. Existing Stop/Pause/cold-save tests are unchanged. New
+checks cover pending save/FIFO completion and literal-zero deferred rebinding.
+Both-edition focused checks pass **1,974 tests/226,248 assertions**; six gates
+pass **1,532 tests/7,107,086 assertions**. Earlier331/333 and normal/saved299 remain
+exact. The full336 batch remains the latest full run; it was not repeated for337.
+This profile applies to Abur; other Morph subclasses retain their prior paths.

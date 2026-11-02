@@ -1094,7 +1094,8 @@ typedef struct spellCast_s {
     uint32_t attachment_slot,attachment_generation;
     uint64_t order_revision,move_revision;
     spellCastPhase_t phase, dispatch_phase;
-    bool active,retired,dispatching,executing,committed,endcast_pending,item_use_pending;
+    bool active,retired,dispatching,executing,committed,endcast_pending,item_use_pending,morph_bound;
+    bool morph_cleanup_owned;
 } spellCast_t;
 typedef struct spellCastBlock_s {struct spellCastBlock_s *next;spellCast_t records[64];} spellCastBlock_t;
 static spellCast_t *spell_cast_heads[MAX_ENTITIES],*spell_cast_active[MAX_ENTITIES],*spell_cast_free;
@@ -1262,6 +1263,44 @@ static bool SpellCastCasterLive(spellCast_t const *cast) {
     return cast->caster->inuse && cast->caster->spawn_time==cast->caster_spawn &&
         !G_IsDeferredFree(cast->caster) && !M_IsDead(cast->caster);
 }
+/*54ed20 updates the ordinary spell completion owner after the Morph request
+ * is armed. The independent d01c4 request keeps its earlier sequence. */
+bool S_MorphSpellOwnsCompletion(edict_t const *unit,uint32_t code) {
+    if(!unit || !g_edicts || !unit->inuse)return false;
+    spellCast_t const *cast=spell_cast_active[unit-g_edicts];
+    return cast && cast->active && cast->profile.morph_completion && cast->morph_bound &&
+        cast->morph_cleanup_owned &&
+        cast->code==code && SpellCastCasterLive(cast) && unit->morph && unit->morph->code==code &&
+        (!unit->morph->transition.active ||
+         (unit->morph->transition.deadline.time==cast->deadline.time &&
+          unit->morph->transition.deadline.epoch==cast->deadline.epoch &&
+          unit->morph->transition.deadline.span==cast->deadline.span)) &&
+        unit->active_order_revision==cast->order_revision &&
+        G_UnitMoveRevision(unit)==cast->move_revision && unit->currentmove &&
+        unit->currentmove->proc==CAbilityGroundMorph;
+}
+static bool spell_morph_finish_delayed(float duration) {
+    /*40b418 rejects nonpositive;40b449 skips only when epsilon > abs(delta).
+     * Equality to original cd53a0 (3a83126f) still owns d01bd. */
+    return duration>0 && fabsf(wc3_sub(duration,0))>=wc3_float(0x3a83126f);
+}
+bool S_BindMorphSpellCompletion(edict_t *unit,uint32_t code,wc3Clock_t deadline,float duration) {
+    if(!unit || !g_edicts)return false;
+    spellCast_t *cast=spell_cast_active[unit-g_edicts];
+    if(!cast || !cast->active || !cast->executing || cast->phase!=CAST_EFFECT ||
+       !cast->profile.morph_completion || cast->code!=code || !SpellCastCasterLive(cast) ||
+       unit->active_order_revision!=cast->order_revision || !unit->currentmove ||
+       unit->currentmove->proc!=CAbilityGroundMorph || !unit->morph ||
+       unit->morph->code!=code || !unit->morph->transition.active ||
+       !isfinite(duration) || !isfinite(deadline.time) || !isfinite(deadline.span) || deadline.span<=0 ||
+       deadline.time!=unit->morph->transition.deadline.time ||
+       deadline.epoch!=unit->morph->transition.deadline.epoch ||
+       deadline.span!=unit->morph->transition.deadline.span)return false;
+    cast->deadline=deadline;cast->profile.backswing=duration;
+    cast->move_revision=G_UnitMoveRevision(unit);
+    cast->morph_bound=true;cast->morph_cleanup_owned=true;
+    return true;
+}
 static void SpellCastEmit(spellCast_t *cast,EVENTTYPE player_event,EVENTTYPE unit_event) {
     spellCastEvent_t event={.previous=spell_cast_events,.cast=cast};spell_cast_events=&event;
     uint32_t code=cast->code;
@@ -1413,6 +1452,10 @@ static void SpellCastRetireItem(spellCast_t *cast) {
 static void SpellCastFinish(spellCast_t *cast,bool success) {
     if(cast->attachment_slot && !cast->active) {SpellCastRetireItem(cast);return;}
     uint32_t revision=G_UnitMoveRevision(cast->caster);
+    bool morph_owned=spell_cast_active[cast->caster-g_edicts]==cast &&
+        S_MorphSpellOwnsCompletion(cast->caster,cast->code);
+    uint64_t packet_revision=cast->caster->active_order_revision;
+    umove_t *completion_move=cast->caster->currentmove;
     if(success && cast->active && cast->committed && cast->profile.effect_at_finish)SpellCastExecute(cast);
     cast->target=(spellTarget_t){.type=SPELL_TARGET_NONE};
     SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_FINISH,EVENT_UNIT_SPELL_FINISH);
@@ -1430,11 +1473,16 @@ static void SpellCastFinish(spellCast_t *cast,bool success) {
     edict_t *caster=cast->caster;
     SpellCastRetire(cast);
     /* A completion callback's replacement owns its move and FIFO. */
-    if(owned && SpellCastCasterLive(cast) && caster->currentmove==&ordered_spell_move &&
+    if(owned && SpellCastCasterLive(cast) &&
+       (caster->currentmove==&ordered_spell_move ||
+        (morph_owned && caster->currentmove==completion_move &&
+         caster->active_order_revision==packet_revision)) &&
        !spell_cast_active[caster-g_edicts] && G_UnitMoveRevision(caster)==revision) {
         S_SetMoveGoal(caster,&caster->goalentity,NULL);
         if(!S_ResumeMoveContinuation(caster,&cast->resume_move) && SpellCastCasterLive(cast) &&
-           caster->currentmove==&ordered_spell_move && G_UnitMoveRevision(caster)==revision)
+           (caster->currentmove==&ordered_spell_move ||
+            (morph_owned && caster->currentmove==completion_move &&
+             caster->active_order_revision==packet_revision)) && G_UnitMoveRevision(caster)==revision)
             unit_stand(caster);
     }
 }
@@ -1485,7 +1533,15 @@ static void SpellCastPhase(spellCast_t *cast,spellCastPhase_t phase,bool validat
                    !cast->source_item->item->pending_use_removal)
                     *SpellCastItemPending(cast)=true;
                 if(!cast->profile.effect_at_finish)SpellCastExecute(cast);
-                if(cast->active)SpellCastSchedule(cast,CAST_FINISH,cast->profile.backswing);
+                if(cast->active && cast->profile.morph_completion) {
+                    if(S_MorphSpellOwnsCompletion(cast->caster,cast->code)) {
+                        if(spell_morph_finish_delayed(cast->profile.backswing)) {
+                            /* d01c4 was armed first. Do not resample or round its deadline. */
+                            cast->phase=CAST_FINISH;cast->sequence=++level.timer_sequence;
+                            SpellCastInsertRequest(cast);
+                        } else SpellCastSchedule(cast,CAST_FINISH,0);
+                    } else SpellCastFinish(cast,false);
+                } else if(cast->active)SpellCastSchedule(cast,CAST_FINISH,cast->profile.backswing);
                 else if(cast->attachment_slot)SpellCastRetireItem(cast);
             } else SpellCastRetire(cast);
         }
@@ -1505,7 +1561,16 @@ bool S_InterceptSpellOrder(edict_t *caster,uint32_t code) {
  * spells/items out of their normal task ownership. */
 static bool spell_taskless_profile_valid(uint32_t code,spellCastProfile_t const *profile,
                                         bool has_item,moveContinuation_t const *resume) {
-    if(*(unsigned char const *)&profile->taskless>1)return false;
+    if(*(unsigned char const *)&profile->taskless>1 ||
+       *(unsigned char const *)&profile->morph_completion>1)return false;
+    if(profile->morph_completion) {
+        abilityitem_t morph=S_AbilityItem(code);
+        if(!morph.ability || morph.ability->proc!=CAbilityGroundMorph ||
+           FS_SLKKey(morph.ability->classname)!=MAKEFOURCC('A','b','u','r') ||
+           profile->taskless || profile->effect_at_finish || profile->channel_delay!=0 ||
+           profile->cast_point!=0 || !isfinite(profile->backswing) || has_item ||
+           (resume && resume->order_id))return false;
+    }
     if(!profile->taskless)return true;
     abilityitem_t item=S_AbilityItem(code);
     return item.ability && item.ability->proc==CAbilityWindWalk && !has_item &&
@@ -1552,10 +1617,11 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
     uint64_t const epoch=S_SpellPreparationEpoch();
     uint32_t const birth=caster->spawn_time;
     uint64_t const packet_revision=caster->active_order_revision;
+    uint32_t const admitted_order=caster->current_order_id;
     moveContinuation_t resume=spell_take_prepared_move(caster,approach);
-    if(profile.taskless)resume=(moveContinuation_t){0};
+    if(profile.taskless || profile.morph_completion)resume=(moveContinuation_t){0};
     S_CancelSpellCast(caster);
-    if(profile.taskless && (epoch!=S_SpellPreparationEpoch() || !caster->inuse ||
+    if((profile.taskless || profile.morph_completion) && (epoch!=S_SpellPreparationEpoch() || !caster->inuse ||
        caster->spawn_time!=birth || G_IsDeferredFree(caster) ||
        caster->active_order_revision!=packet_revision)) {
         S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_ACCEPTED;
@@ -1565,7 +1631,7 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
         S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_REJECTED;
     }
     spellTarget_t packet=*target;
-    if(profile.taskless && (G_IsDeferredFree(caster) ||
+    if((profile.taskless || profile.morph_completion) && (G_IsDeferredFree(caster) ||
        caster->active_order_revision!=packet_revision)) {
         S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_ACCEPTED;
     }
@@ -1584,7 +1650,8 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
     if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=birth) {
         S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_REJECTED;
     }
-    caster->current_order_id=resume.order_id ? resume.order_id : S_SpellOrderId(caster,code);
+    caster->current_order_id=profile.morph_completion ? admitted_order :
+        resume.order_id ? resume.order_id : S_SpellOrderId(caster,code);
     if(source_item && !resume.order_id)FOR_LOOP(slot,MAX_INVENTORY)
         if(caster->inventory[slot]==source_item) {caster->current_order_id=852008+slot;break;}
     spellCast_t *cast=SpellCastAlloc(caster);cast->target=packet;cast->code=code;cast->item_owner=item_owner;
@@ -1595,7 +1662,7 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
     /*3fbb80 resets4000 and acquires1000 on THIS ability, including recursive use. */
     *SpellCastItemPending(cast)=false;*SpellCastEndPending(cast)=true;
     cast->attachment_slot=attachment_slot;cast->attachment_generation=attachment_generation;
-    if(attachment_slot) {
+    if(attachment_slot || profile.morph_completion) {
         cast->order_revision=caster->active_order_revision;cast->move_revision=G_UnitMoveRevision(caster);
     }
     uint32_t const admitted_move_revision=G_UnitMoveRevision(caster);
@@ -1665,7 +1732,7 @@ typedef struct {
     moveContinuation_t resume_move;
     vec2_t point;
     uint32_t code,rank,caster_spawn,target,target_spawn,item,item_spawn,sequence,phase,target_type,active,committed;
-    uint32_t attachment_slot,attachment_generation,endcast_pending,item_use_pending;
+    uint32_t attachment_slot,attachment_generation,endcast_pending,item_use_pending,morph_bound,morph_cleanup_owned;
     uint64_t order_revision,move_revision;
 } spellCastSave_t;
 bool S_WriteSpellCasts(FILE *file) {
@@ -1684,6 +1751,8 @@ bool S_WriteSpellCasts(FILE *file) {
             .item_spawn=cast->item_spawn,.sequence=cast->sequence,.phase=cast->phase,.target_type=cast->target.type,
             .active=cast->active,.committed=cast->committed,
             .attachment_slot=cast->attachment_slot,.attachment_generation=cast->attachment_generation,
+            .morph_bound=cast->morph_bound,
+            .morph_cleanup_owned=spell_cast_active[i]==cast && S_MorphSpellOwnsCompletion(cast->caster,cast->code),
             .endcast_pending=*SpellCastEndPending(cast),.item_use_pending=*SpellCastItemPending(cast),.order_revision=cast->order_revision,.move_revision=cast->move_revision};
         if(fwrite(&i,sizeof(i),1,file)!=1 || fwrite(&saved,sizeof(saved),1,file)!=1)return false;
     }
@@ -1699,8 +1768,26 @@ bool S_ReadSpellCasts(FILE *file) {
            saved.phase<CAST_CAST || saved.phase>CAST_FAILED_FINISH || saved.target_type>SPELL_TARGET_UNIT_OR_POINT ||
            saved.target>globals.num_edicts || saved.item>globals.num_edicts || saved.active>1 || saved.committed>1 ||
            saved.endcast_pending>1 || saved.active!=saved.endcast_pending || saved.item_use_pending>1 ||
-           (saved.item_use_pending && (!saved.item || !saved.attachment_slot || !saved.committed)) ||
            !spell_taskless_profile_valid(saved.code,&saved.profile,saved.item!=0,&saved.resume_move) ||
+           saved.morph_bound>1 || saved.morph_cleanup_owned>1 ||
+           (saved.morph_cleanup_owned && (!saved.active || !saved.morph_bound)) ||
+           (saved.morph_bound &&
+             (!saved.profile.morph_completion || !saved.committed || saved.phase!=CAST_FINISH ||
+              !spell_morph_finish_delayed(saved.profile.backswing))) ||
+           (saved.profile.morph_completion && saved.target_type!=SPELL_TARGET_NONE) ||
+           (saved.active && saved.profile.morph_completion && saved.committed &&
+             saved.phase==CAST_FINISH && !saved.morph_bound) ||
+           (saved.active && saved.morph_bound &&
+             (!g_edicts[owner].morph || g_edicts[owner].morph->code!=saved.code ||
+              (g_edicts[owner].morph->transition.active &&
+               (saved.deadline.time!=g_edicts[owner].morph->transition.deadline.time ||
+                saved.deadline.epoch!=g_edicts[owner].morph->transition.deadline.epoch ||
+                saved.deadline.span!=g_edicts[owner].morph->transition.deadline.span ||
+                saved.sequence<=g_edicts[owner].morph->transition.sequence)))) ||
+           (saved.morph_cleanup_owned &&
+             (!g_edicts[owner].currentmove || g_edicts[owner].currentmove->proc!=CAbilityGroundMorph ||
+              g_edicts[owner].active_order_revision!=saved.order_revision)) ||
+           (saved.item_use_pending && (!saved.item || !saved.attachment_slot || !saved.committed)) ||
            !S_ValidMoveContinuation(&saved.resume_move) ||
            (saved.resume_move.order_id && (!saved.active ||
                 g_edicts[owner].currentmove!=&ordered_spell_move ||
@@ -1720,6 +1807,8 @@ bool S_ReadSpellCasts(FILE *file) {
         cast->target_spawn=saved.target_spawn;cast->source_item=saved.item ? g_edicts+saved.item-1 : NULL;
         cast->item_spawn=saved.item_spawn;cast->code=saved.code;cast->rank=saved.rank;cast->sequence=saved.sequence;
         cast->phase=saved.phase;cast->active=saved.active;cast->committed=saved.committed;
+        cast->morph_bound=saved.morph_bound;
+        cast->morph_cleanup_owned=saved.morph_cleanup_owned;
         cast->attachment_slot=saved.attachment_slot;cast->attachment_generation=saved.attachment_generation;
         cast->endcast_pending=saved.endcast_pending;cast->item_use_pending=saved.item_use_pending;
         if(cast->attachment_slot) {
@@ -1728,6 +1817,10 @@ bool S_ReadSpellCasts(FILE *file) {
                cast->item_owner->item_use_pending!=saved.item_use_pending)return false;
         }
         cast->order_revision=saved.order_revision;cast->move_revision=saved.move_revision;
+        /* Clock binding can survive Stop without owning its replacement
+         * packet. Rebind the process-local callback stamp only when the saved
+         * cast still owned cleanup; false must not regain it after load. */
+        if(cast->morph_cleanup_owned)cast->move_revision=G_UnitMoveRevision(cast->caster);
         if(!!cast->attachment_slot!=!!cast->attachment_generation ||
            (cast->attachment_slot && cast->active && !S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
                cast->item_spawn,cast->code,cast->attachment_slot,cast->attachment_generation)))return false;

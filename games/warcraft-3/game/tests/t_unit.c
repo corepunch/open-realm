@@ -4093,6 +4093,166 @@ TEST(wc3_unit, burrow366_hidden_owner_survives_stop_pause_and_cold_save) {
 }
 
 
+/* Native335v1 proves ordinary Morph phase/head ordering. The queued Move and
+ * half-transition save are engine ownership regressions, not new live oracles. */
+TEST(wc3_unit, burrow337_public_phases_saved_transition_and_queued_move) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned saved=0;saved<2;saved++) {
+        reset_entities();setup_test_world();
+        /* Preserve the real player subject across ReadGame; allocator-only
+         * reset_test_entities leaves slot0 available for the actor itself. */
+        edict_t *player=&g_edicts[0];
+        player->inuse=true;player->client=&game.clients[0];
+        player->client->connected=true;player->client->ps.number=0;
+        T_ASSERT(globals.num_edicts >= game.max_clients);
+        T_EQ(G_GetPlayerEntityByNumber(0),player);
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char data[1400];snprintf(data,sizeof(data),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\nC;X7;K\"Cast1\"\n"
+            "C;X1;Y2;K\"Ab66\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\nC;X7;K0\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        edict_t *unit=alloc_test_unit(FS_SLKKey("hpea"),64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;unit->s.player=0;
+        T_ASSERT(unit!=player);T_NULL(unit->client);
+        T_EQ(G_GetPlayerEntityByNumber(0),player);
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Ab66")));
+        T_ASSERT(G_ActorSetSkillPermanent(unit,FS_SLKKey("Ab66"),true));
+        /* Test common.j exposes EFFECT274 but omits the other spell globals.
+         * Use retail API values; registration translates to internal C enums. */
+        char script[] =
+            "globals\ninteger phase=0\ninteger moves=0\nendglobals\n"
+            "function channel takes nothing returns nothing\n"
+            "call BJassAssert(phase==0,\"CHANNEL first\")\nset phase=1\n"
+            "call BJassAssert(GetSpellAbilityId()=='Ab66',\"configured alias\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"CHANNEL owner head\")\nendfunction\n"
+            "function cast takes nothing returns nothing\ncall BJassAssert(phase==1,\"CAST second\")\nset phase=2\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"CAST owner head\")\nendfunction\n"
+            "function effect takes nothing returns nothing\ncall BJassAssert(phase==2,\"EFFECT third\")\nset phase=3\n"
+            "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='hpea',\"effect precedes transition\")\nendfunction\n"
+            "function finish takes nothing returns nothing\ncall BJassAssert(phase==3,\"FINISH after transition\")\nset phase=4\n"
+            "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='hfoo',\"actual Morph completed before FINISH\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"FINISH retains head\")\nendfunction\n"
+            "function ended takes nothing returns nothing\ncall BJassAssert(phase==4,\"ENDCAST last\")\nset phase=5\n"
+            "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='hfoo',\"ENDCAST completed type\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"ENDCAST retains head\")\nendfunction\n"
+            "function moved takes nothing returns nothing\nif GetIssuedOrderId()==851986 then\n"
+            "call BJassAssert(phase==5,\"successor after ENDCAST\")\nset moves=moves+1\nendif\nendfunction\n"
+            "function pending takes nothing returns nothing\ncall BJassAssert(phase==3 and moves==0,\"only initial phases before return/deadline\")\nendfunction\n"
+            "function complete takes nothing returns nothing\ncall BJassAssert(phase==5 and moves==1,\"one complete cycle and successor\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(272),null)\ncall TriggerAddAction(t,function channel)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(273),null)\ncall TriggerAddAction(t,function cast)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(274),null)\ncall TriggerAddAction(t,function effect)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(275),null)\ncall TriggerAddAction(t,function finish)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(276),null)\ncall TriggerAddAction(t,function ended)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(39),null)\ncall TriggerAddAction(t,function moved)\nendfunction\n";
+        T_ASSERT(run_test_jass(script));
+        T_ASSERT(unit_issueimmediateorder(unit,"burrow"));
+        jass_callbyname(level.vm,"pending",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->current_order_id,852533);T_EQ(unit->class_id,FS_SLKKey("hpea"));
+        bool pending=unit->morph && unit->morph->transition.active;T_ASSERT(pending);
+        if(pending) {
+            T_FEQ(unit->morph->transition.deadline.time,1.375f,.000001f);
+            vec2_t destination={256,64};
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&destination,true,0,0));
+            T_EQ(G_UnitQueuedOrderCount(unit),1);
+            morph330_advance(1.1875f);
+            uint32_t slot=unit-g_edicts,birth=unit->spawn_time;
+            if(saved) {
+                cstring_t path=Test_TempPath("burrow337-public-pending.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;
+                T_EQ(unit->spawn_time,birth);T_EQ(G_UnitQueuedOrderCount(unit),1);
+                T_EQ(G_GetPlayerEntityByNumber(0),g_edicts);
+                T_ASSERT(g_edicts[0].inuse && g_edicts[0].client==&game.clients[0]);
+                T_ASSERT(unit->morph && unit->morph->transition.active);
+            }
+            morph330_advance(1.374f);T_EQ(unit->class_id,FS_SLKKey("hpea"));
+            T_EQ(unit->current_order_id,852533);
+            jass_callbyname(level.vm,"pending",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            morph330_advance(1.375f);T_EQ(unit->class_id,FS_SLKKey("hfoo"));
+            T_ASSERT(!unit->morph->transition.active);T_EQ(G_UnitQueuedOrderCount(unit),0);
+            T_EQ(unit->current_order_id,G_OrderId("move"));
+            jass_callbyname(level.vm,"complete",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            morph330_advance(1.5f);
+            jass_callbyname(level.vm,"complete",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+/* Original40b380 zero branch plus366 zero-request controls; engine component
+ * regression, not a captured native zero-duration public phase timeline. */
+TEST(wc3_unit, burrow337_zero_duration_finishes_before_queued_rebind) {
+    for(unsigned schema=0;schema<2;schema++) {
+        reset_entities();setup_test_world();
+        /* Preserve the real player subject across ReadGame; allocator-only
+         * reset_test_entities leaves slot0 available for the actor itself. */
+        edict_t *player=&g_edicts[0];
+        player->inuse=true;player->client=&game.clients[0];
+        player->client->connected=true;player->client->ps.number=0;
+        T_ASSERT(globals.num_edicts >= game.max_clients);
+        T_EQ(G_GetPlayerEntityByNumber(0),player);
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char data[1400];snprintf(data,sizeof(data),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\nC;X7;K\"Cast1\"\n"
+            "C;X1;Y2;K\"Ab66\"\nC;X2;K\"Abur\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0\nC;X6;K0\nC;X7;K0\nE\n",schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        edict_t *unit=alloc_test_unit(FS_SLKKey("hpea"),64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;unit->s.player=0;
+        T_ASSERT(unit!=player);T_NULL(unit->client);
+        T_EQ(G_GetPlayerEntityByNumber(0),player);
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Ab66")));
+        T_ASSERT(G_ActorSetSkillPermanent(unit,FS_SLKKey("Ab66"),true));
+        /* Test common.j exposes EFFECT274 but omits the other spell globals.
+         * Use retail API values; registration translates to internal C enums. */
+        char script[] =
+            "globals\ninteger phase=0\ninteger moves=0\nendglobals\n"
+            "function channel takes nothing returns nothing\n"
+            "call BJassAssert(phase==0,\"CHANNEL first\")\nset phase=1\n"
+            "call BJassAssert(GetSpellAbilityId()=='Ab66',\"configured alias\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"CHANNEL owner head\")\nendfunction\n"
+            "function cast takes nothing returns nothing\ncall BJassAssert(phase==1,\"CAST second\")\nset phase=2\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"CAST owner head\")\nendfunction\n"
+            "function effect takes nothing returns nothing\ncall BJassAssert(phase==2,\"EFFECT third\")\nset phase=3\n"
+            "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='hpea',\"effect precedes transition\")\nendfunction\n"
+            "function finish takes nothing returns nothing\ncall BJassAssert(phase==3,\"FINISH after transition\")\nset phase=4\n"
+            "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='hpea',\"zero FINISH precedes queued rebind\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"FINISH retains head\")\nendfunction\n"
+            "function ended takes nothing returns nothing\ncall BJassAssert(phase==4,\"ENDCAST last\")\nset phase=5\n"
+            "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='hpea',\"zero ENDCAST retains original type\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852533,\"ENDCAST retains head\")\nendfunction\n"
+            "function moved takes nothing returns nothing\nif GetIssuedOrderId()==851986 then\n"
+            "call BJassAssert(phase==5,\"successor after ENDCAST\")\nset moves=moves+1\nendif\nendfunction\n"
+            "function pending takes nothing returns nothing\ncall BJassAssert(phase==3 and moves==0,\"only initial phases before return/deadline\")\nendfunction\n"
+            "function complete takes nothing returns nothing\ncall BJassAssert(phase==5 and moves==0,\"zero phases complete once without successor\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(272),null)\ncall TriggerAddAction(t,function channel)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(273),null)\ncall TriggerAddAction(t,function cast)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(274),null)\ncall TriggerAddAction(t,function effect)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(275),null)\ncall TriggerAddAction(t,function finish)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(276),null)\ncall TriggerAddAction(t,function ended)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(39),null)\ncall TriggerAddAction(t,function moved)\nendfunction\n";
+        T_ASSERT(run_test_jass(script));
+        T_ASSERT(unit_issueimmediateorder(unit,"burrow"));
+        jass_callbyname(level.vm,"complete",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->current_order_id,0);T_EQ(unit->class_id,FS_SLKKey("hpea"));
+        bool pending=unit->morph && unit->morph->transition.active;T_ASSERT(pending);
+        if(pending) {
+            T_FEQ(unit->morph->transition.deadline.time,1,.000001f);
+            morph330_advance(1);
+            T_EQ(unit->class_id,FS_SLKKey("hfoo"));T_ASSERT(!unit->morph->transition.active);
+            T_EQ(unit->current_order_id,0);
+            jass_callbyname(level.vm,"complete",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            morph330_advance(1.1f);
+            jass_callbyname(level.vm,"complete",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
 /* Native Burrow's41c=true runs the common active-form availability owner:
  * preserve Move/Attack/Morph, suspend Apiv until reverse completion. */
 TEST(wc3_unit, burrow366_active_form_suspends_passives_until_reverse_completion) {

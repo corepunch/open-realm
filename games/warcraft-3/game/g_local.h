@@ -1304,6 +1304,7 @@ typedef struct {
     bool intercept_before_work;
     bool finish_on_target_loss;
     bool taskless; /* native20.100: component lifetime, no ordinary cast task */
+    bool morph_completion; /*54ed20: effect supplies the absolute Morph finish deadline. */
 } spellCastProfile_t;
 
 typedef struct { uint32_t order_id; spellTargetType_t target_type; } spellCommandProfile_t;
@@ -5156,6 +5157,8 @@ bool S_PrepareSpellMana(edict_t *,uint32_t code,uint32_t rank);
 bool S_SpellPreparationBypassesTarget(edict_t const *);
 bool S_SpellPreparationPending(void);
 uint64_t S_SpellPreparationEpoch(void);
+bool S_BindMorphSpellCompletion(edict_t *,uint32_t code,wc3Clock_t deadline,float duration);
+bool S_MorphSpellOwnsCompletion(edict_t const *,uint32_t code);
 void S_ResetSpellPreparation(void);
 bool S_AttachPreparatoryItems(edict_t *unit,edict_t *item);
 bool S_CaptureItemAbilityAttachment(edict_t const *,edict_t const *,uint32_t,uint32_t,uint32_t *,uint32_t *);

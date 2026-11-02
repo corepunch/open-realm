@@ -99,9 +99,17 @@ void S_BeginMorphTransition(edict_t *unit,uint32_t code,uint32_t base,uint32_t t
         .transition={.deadline=now,.sequence=++level.timer_sequence,.active=true}};
     /* Native d01c4 accepts literal zero: public return precedes delivery at
      * the same primary clock. It is not the generic JASS timer minimum. */
-    unit->morph->transition.deadline.time=wc3_add(now.time,delay==0 ? delay : MAX(delay,G_ClockMinimumDelay()));
+    float const duration=delay;
+    float const request_delay=duration==0 ? duration : MAX(duration,G_ClockMinimumDelay());
+    unit->morph->transition.deadline.time=wc3_add(now.time,request_delay);
     S_AcquireUnitSeparationSuppression(unit);
     morph_timer_insert(unit);
+    /* Bind only an executing common Abur cast. Legacy/internal transitions
+     * return false and retain their existing lifecycle. The common FINISH
+     * sequence is allocated after this real transition request. */
+    /*54ed20's raw expression supplies94;0608d0's request minimum is
+     * separate. Near-zero FINISH must not use rounded deadline subtraction. */
+    S_BindMorphSpellCompletion(unit,code,unit->morph->transition.deadline,duration);
 }
 
 void S_ScheduleMorphExpiration(edict_t *unit,float duration) {
