@@ -839,11 +839,14 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
 BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
 
 BZ_ABILITY_PROC(CAbilityHex) {
-    spellTarget_t target = call && call->target ? *call->target :
-        MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    /* spell_approach_range shares a union with target. This query is sent
+     * with ent == NULL, so only read target for target-bearing messages. */
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
     case A_VALIDATE: return polymorph_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: polymorph_execute(ent, target, call ? call->item : NULL); return true;
+    case A_SPELL_APPROACH_RANGE: return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
