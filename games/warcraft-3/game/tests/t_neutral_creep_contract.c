@@ -429,6 +429,20 @@ CREEP_CASE_TEST(383, 91, bash_variants)
 CREEP_CASE_TEST(384, 92, roar_variants)
 CREEP_CASE_TEST(385, 93, rejuvenation_variants)
 #undef CREEP_CASE_TEST
+/* Synthetic alias with 0% then 100% chance; the parent's stock fields must
+ * never override the caster's own Critical Strike DataA/DataB. */
+TEST(wc3_creep_contract, critical_strike_uses_owned_alias_values) {
+    for (int certain = 0; certain < 2; certain++) {
+        char slk[2048]; creepContractFix_t f;
+        contract_ability_slk(slk, sizeof(slk), "ACct", "AOcr", "", "",
+                             certain ? 100.0f : 0.0f, 0, 0, 3.0f, 0);
+        contract_setup(&f, "ACct", slk);
+        T_EQ(S_ResolveAbilityAlias(f.caster, MAKEFOURCC('A','O','c','r')).alias,
+             MAKEFOURCC('A','C','c','t'));
+        T_EQ(S_CriticalStrikeDamage(f.caster, 20), certain ? 60 : 20);
+        contract_done(&f);
+    }
+}
 #include "t_neutral_creep_contract_extended_impl.inc"
 #include "t_neutral_creep_contract_extended_cases.inc"
 #endif

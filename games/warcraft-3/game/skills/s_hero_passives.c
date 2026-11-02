@@ -1516,13 +1516,19 @@ bool S_EvasionRoll(edict_t *target) {
 }
 
 int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
-    uint32_t level = G_UnitAbilityLevel(attacker, ID_CRITICAL_STRIKE);
-    uint32_t code = ID_CRITICAL_STRIKE;
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER_CAMPAIGN); code = ID_DRUNKEN_BRAWLER_CAMPAIGN; }
-    if (!level || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
-    return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
+    /* Resolve the owned alias/rank, not only the inherited parent: creep and
+     * campaign variants can author distinct chance and damage multipliers. */
+    static uint32_t const bases[] = {
+        ID_CRITICAL_STRIKE, ID_CREEP_CRITICAL_STRIKE,
+        ID_DRUNKEN_BRAWLER, ID_DRUNKEN_BRAWLER_CAMPAIGN
+    };
+    FOR_LOOP(i, COUNT_OF(bases)) {
+        abilityAliasRef_t const own = S_ResolveAbilityAlias(attacker, bases[i]);
+        if (!own.level) continue;
+        if ((float)(rand() % 100) >= S_SpellData(own.alias, own.level, 1)) return damage;
+        return (int)((float)damage * MAX(1.0f, S_SpellData(own.alias, own.level, 2)));
+    }
+    return damage;
 }
 
 float S_SpikedArmorBonus(edict_t const *unit) {

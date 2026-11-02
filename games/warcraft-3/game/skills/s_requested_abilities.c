@@ -619,8 +619,21 @@ void reincarnation_think(edict_t *thinker) {
     if (thinker->goalentity && thinker->goalentity->inuse) G_FreeEdict(thinker->goalentity);
     thinker->goalentity = NULL;
     if (M_IsDead(owner)) {
-        G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
-        S_SpawnReincarnationReturnEffect(owner, thinker->class_id, WC3_EFFECT_EFFECT);
+        bool revived;
+        if (G_UnitIsHero(owner)) {
+            revived = G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
+        } else {
+            /* A neutral creep is not a hero. Revive the existing corpse so
+             * handles and the original unit's orders/ownership remain stable. */
+            G_ReviveCorpse(owner, 1.0f);
+            owner->s.origin2 = thinker->s.origin2;
+            owner->s.origin.x = thinker->s.origin2.x;
+            owner->s.origin.y = thinker->s.origin2.y;
+            owner->s.origin.z = CM_GetHeightAtPoint(owner->s.origin.x, owner->s.origin.y);
+            gi.LinkEntity(owner);
+            revived = !M_IsDead(owner);
+        }
+        if (revived) S_SpawnReincarnationReturnEffect(owner, thinker->class_id, WC3_EFFECT_EFFECT);
     }
     G_FreeEdict(thinker);
 }

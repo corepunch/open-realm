@@ -136,3 +136,28 @@ make test-wc3-engine WC3_PATTERN='wc3_creep_contract.*'
 Follow [ability implementation](ability-implementation.md),
 [creep aliases](creep-ability-aliases.md), and the root `CONTRIBUTING.md` for
 ROC/TFT `Data*` columns, status lifecycle, production paths and fixture rules.
+
+## Incremental implementation on the November 2 fixture-fix patch
+
+This follow-up is designed to apply **after**
+`fix(wc3)__correct_neutral_creep_ability_test_fixtures_test(wc3)__expand_neutral_creep_game1(1).patch`.
+It retains that patch's Abolish Magic, Rejuvenation, campaign spell and other
+changes rather than replacing them. It adds:
+
+- **Reincarnation:** nonhero creeps revive their corpse instead of calling the
+  hero-only revival entry point; revive clears the Death animation override.
+  The test now exercises `unit_die` and checks living, selectable state.
+- **Critical Strike:** read chance and multiplier from the owned alias/rank,
+  including the existing campaign Drunken Brawler variant. A zero/100 percent
+  regression checks the actual on-hit damage calculation.
+- **Frost Armor:** `BUfa` derives its armor bonus from ability DataB, not DataA;
+  a non-stock fixture checks the actual armor increase.
+
+These are gameplay contract tests, not verification that all 298 creep
+assignments match retail data. `tools/WarcraftIIIFileListZezulaLadik.txt`
+contains archive paths rather than object-data row values. For rawcode and
+field-level verification export `Units\UnitAbilities.slk`,
+`Units\AbilityData.slk`, `Units\AbilityBuffData.slk` and the other
+relevant tables from both ROC and TFT archives, recording overlay provenance.
+
+No compile or test execution was performed when preparing this incremental patch.

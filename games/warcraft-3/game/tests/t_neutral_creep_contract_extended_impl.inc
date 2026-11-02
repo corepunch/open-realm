@@ -304,7 +304,9 @@ static void contract_extended(creepExtendedCase_t const *c) {
         before = G_UnitArmorValue(f.ally);
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.ally));
         T_ASSERT(S_UnitHasStatus(f.ally, buff));
-        if (k == CE_UNIT_FRIEND_ARMOR || k == CE_UNIT_FRIEND_BUFF)
+        if (k == CE_UNIT_FRIEND_ARMOR)
+            T_FEQ(G_UnitArmorValue(f.ally), before + 2.0f, 0.001f);
+        if (k == CE_UNIT_FRIEND_BUFF)
             T_ASSERT(G_UnitArmorValue(f.ally) > before);
         if (k == CE_UNIT_FRIEND_FRENZY) {
             float hp = f.ally->health.value;
@@ -470,10 +472,15 @@ static void contract_extended(creepExtendedCase_t const *c) {
         T_ASSERT(f.enemy->health.value < 500);
         break;
     case CE_PASSIVE_REINCARNATION:
-        f.caster->health.value = 0;
-        S_ReincarnationOnDeath(f.caster);
+        /* Use the actual death event, not a manual call to the ability hook. */
+        f.caster->die = unit_die;
+        unit_die(f.caster, f.enemy);
+        T_ASSERT(M_IsDead(f.caster));
         contract_ext_tick(6000, f.caster);
         T_ASSERT(f.caster->inuse && f.caster->health.value > 0);
+        T_ASSERT(!(f.caster->svflags & SVF_DEADMONSTER));
+        T_ASSERT(!(f.caster->s.flags & EF_NOT_SELECTABLE));
+        T_ASSERT(!G_UnitHasFlag(f.caster, UNIT_FLAG_ANIMATION_OVERRIDE));
         break;
     case CE_PASSIVE_RESISTANT:
         T_ASSERT(S_UnitIsResistant(f.caster));

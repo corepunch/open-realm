@@ -341,6 +341,8 @@ static void revive_corpse_state(edict_t *ent, float life_fraction, bool temporar
     if (!ent) return;
     ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
+    /* The death animation may be held independently of the corpse state. */
+    G_SetUnitFlag(ent, UNIT_FLAG_ANIMATION_OVERRIDE, false);
     ent->combatentity = ent->goalentity = ent->orders->resource_goal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
     ent->aiflags &= ~(AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
