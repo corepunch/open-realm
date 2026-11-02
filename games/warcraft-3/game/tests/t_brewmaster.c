@@ -224,6 +224,33 @@ TEST(wc3_brewmaster, ultimate_returns_same_hero_if_one_elemental_survives) {
     T_FEQ(hero->s.origin2.x, 190.0f, 50.0f); /* may shift to legal nearby cell */
 }
 
+TEST(wc3_brewmaster, split_return_preserves_script_pause) {
+    edict_t *hero, *survivor, *controller;
+    reset_entities(); setup_test_world(); level.time = 1000;
+    hero = alloc_test_unit(FS_SLKKey("Hpal"), 100, 100);
+    survivor = alloc_test_unit(FS_SLKKey("hfoo"), 190, 120);
+    hero->s.player = survivor->s.player = 0;
+    survivor->class_id = MAKEFOURCC('n','p','n','2');
+    survivor->owner = hero;
+    survivor->summon_ability = BREW_SPLIT_CODE;
+    controller = S_SpellIdentityThinker(hero, BREW_SPLIT_CODE, NULL);
+    T_NOT_NULL(controller);
+    if (!controller) return;
+    controller->think = brewmaster_split_think;
+    controller->freetime = G_Time();
+    hero->aiflags |= AI_SOUL_TRAPPED;
+    hero->s.renderfx |= RF_HIDDEN;
+    hero->svflags |= SVF_NOCLIENT;
+    hero->s.flags |= EF_NOT_SELECTABLE;
+    G_SetUnitFlag(hero, UNIT_FLAG_SCRIPT_PAUSED, true);
+    G_SetUnitFlag(hero, UNIT_FLAG_PAUSED, true);
+    brewmaster_split_think(controller);
+    T_ASSERT(!controller->inuse);
+    T_ASSERT(G_UnitHasFlag(hero, UNIT_FLAG_SCRIPT_PAUSED));
+    T_ASSERT(G_UnitHasFlag(hero, UNIT_FLAG_PAUSED));
+    T_ASSERT(!(hero->aiflags & AI_SOUL_TRAPPED));
+}
+
 TEST(wc3_brewmaster, ultimate_all_elementals_dead_kills_hidden_hero) {
     edict_t *hero, *controller;
     reset_entities(); setup_test_world(); level.time = 1000;
@@ -257,6 +284,8 @@ TEST(wc3_brewmaster, ultimate_controller_remains_linked_after_save_load) {
     hero->s.renderfx |= RF_HIDDEN;
     hero->svflags |= SVF_NOCLIENT;
     hero->s.flags |= EF_NOT_SELECTABLE;
+    G_SetUnitFlag(hero, UNIT_FLAG_SCRIPT_PAUSED, true);
+    G_SetUnitFlag(hero, UNIT_FLAG_PAUSED, true);
     T_ASSERT(WriteGame(file));
     controller->think = NULL; controller->owner = NULL;
     hero->aiflags &= ~AI_SOUL_TRAPPED;
@@ -265,6 +294,8 @@ TEST(wc3_brewmaster, ultimate_controller_remains_linked_after_save_load) {
     T_ASSERT(S_SpellChannelOwner(controller) == hero);
     T_EQ(controller->freetime, 46000u);
     T_ASSERT(!G_UnitIsWorldActive(hero));
+    T_ASSERT(G_UnitHasFlag(hero, UNIT_FLAG_SCRIPT_PAUSED));
+    T_ASSERT(G_UnitHasFlag(hero, UNIT_FLAG_PAUSED));
     remove(file);
 }
 #endif /* BZ_TESTS */

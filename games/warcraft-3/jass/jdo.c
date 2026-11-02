@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 8 // format version; v8 persists GetEnumUnit callback context
+#define BZ_JASS_SNAPSHOT_VERSION 9 // format version; v9 persists unit-sale callback context
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -30,6 +30,8 @@ typedef struct {
     trigger_t *trigger;
     edict_t *unit;
     edict_t *source;
+    edict_t *sold_unit;
+    uint32_t sold_unit_spawn_time;
     int32_t value;
     uint32_t dialog_id, dialog_button_id;
     player_t *event_player;
@@ -395,11 +397,12 @@ bool jass_context_references_entity(jass_t *j, edict_t const *ent) {
 
     if (!j || !ent) return false;
     root = jass_root(j);
-    if (root->context.unit == ent || root->context.enumunit == ent || root->context.source == ent) return true;
+    if (root->context.unit == ent || root->context.enumunit == ent || root->context.source == ent ||
+        root->context.soldUnit == ent) return true;
     FOR_EACH_LIST(jasscoroutine_t, co, root->coroutines) {
         if (!co->done && co->state &&
             (co->state->context.unit == ent || co->state->context.enumunit == ent ||
-             co->state->context.source == ent))
+             co->state->context.source == ent || co->state->context.soldUnit == ent))
             return true;
     }
     return false;
@@ -1118,6 +1121,8 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state->context.trigger = params->trigger;
         tmp_state->context.unit = params->unit;
         tmp_state->context.source = params->source;
+        tmp_state->context.soldUnit = params->sold_unit;
+        tmp_state->context.soldUnitSpawnTime = params->sold_unit_spawn_time;
         tmp_state->context.eventValue = params->value;
         tmp_state->context.dialog_id = params->dialog_id;
         tmp_state->context.dialog_button_id = params->dialog_button_id;
@@ -1223,6 +1228,8 @@ static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t con
                                   .func = action->func,
                                   .unit = params->unit,
                                   .source = params->source,
+                                  .soldUnit = params->sold_unit,
+                                  .soldUnitSpawnTime = params->sold_unit_spawn_time,
                                   .eventValue = params->value,
                                   .dialog_id = params->dialog_id,
                                   .dialog_button_id = params->dialog_button_id,
@@ -1293,6 +1300,7 @@ bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *eve
         .event_player = event->dialog_player
             ? jass_getplayerbyindex(event->dialog_player - 1) : NULL,
         .point = event->has_point ? &event->point : NULL, .has_point = event->has_point,
+        .sold_unit = event->sold_unit, .sold_unit_spawn_time = event->sold_unit_spawn_time,
         .region = event->responseTo && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
             ? event->responseTo->region : NULL });
 }
@@ -2763,11 +2771,13 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
     struct { cstring_t type; handle_t value; } handles[] = {
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->enumunit },
         { "unit", context->source },
+        { "unit", context->soldUnit },
         { "player", context->playerState }, { "player", context->localPlayerState },
         { "timer", context->timer }, { "region", context->region },
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
         !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->soldUnitSpawnTime, sizeof(context->soldUnitSpawnTime)) ||
         !jass_snapshot_io(snapshot, (void *)&context->dialog_id, sizeof(context->dialog_id)) ||
         !jass_snapshot_io(snapshot, (void *)&context->dialog_button_id, sizeof(context->dialog_button_id)) ||
         !jass_snapshot_io(snapshot, (void *)&context->point, sizeof(context->point)) ||
@@ -2783,6 +2793,7 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
     struct { cstring_t type; handle_t *value; } handles[] = {
         { "trigger", (handle_t *)&context->trigger }, { "unit", (handle_t *)&context->unit },
         { "unit", (handle_t *)&context->enumunit }, { "unit", (handle_t *)&context->source },
+        { "unit", (handle_t *)&context->soldUnit },
         { "player", (handle_t *)&context->playerState },
         { "player", (handle_t *)&context->localPlayerState }, { "timer", &context->timer },
         { "region", &context->region },
@@ -2795,6 +2806,7 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
     SAFE_DELETE(func, jass_free);
     if (has_func && !context->func) return false;
     if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, &context->soldUnitSpawnTime, sizeof(context->soldUnitSpawnTime)) ||
         !jass_snapshot_io(snapshot, &context->dialog_id, sizeof(context->dialog_id)) ||
         !jass_snapshot_io(snapshot, &context->dialog_button_id, sizeof(context->dialog_button_id)) ||
         !jass_snapshot_io(snapshot, &context->point, sizeof(context->point)) ||

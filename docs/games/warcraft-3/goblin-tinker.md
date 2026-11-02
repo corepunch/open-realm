@@ -37,3 +37,7 @@ Pocket Factory selects its authored `ANs1..3` record from learned Engineering ra
 `game/tests/t_tinker.c` supplies synthetic SLK data and regression cases for rank/variant mapping, Demolish values, four Cluster Rockets damage intervals and a mid-salvo save/load. No local compilation or tests were run for this patch.
 
 These are **still unverified** against retail: exact rocket launch frames and scatter/trajectories, damage distribution under simultaneous budget saturation, stun refresh per pulse, whether active salvos survive every interruption, Robo-Goblin unit-classification spell exclusions, 1.5-second morph switch timing and morph sounds, and whether custom-map Engineering changes applied by JASS outside hero learning should trigger an immediate recomputation. The implementation uses one consistent deterministic model for these cases rather than claiming exact retail fidelity.
+
+## Merge hardening (November 2026)
+
+Cluster Rockets reads its actual Engineering Upgrade variant (`ANc1`/`ANc2`/`ANc3`) for all damage, interval, missile count, cap, and lifetime values; the generic `ANcs` rawcode remains the trained ability identity.

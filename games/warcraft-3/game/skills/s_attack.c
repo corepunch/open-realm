@@ -505,14 +505,14 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack,
+static bool T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack,
                              uint32_t arrow_code, uint32_t arrow_level) {
     bool instant_kill;
 
     if (!G_UnitIsWorldActive(target) || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
         unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE) ||
         S_UnitIsCycloned(target) || M_IsDead(target)) {
-        return;
+        return false;
     }
     /* Instant-kill follows the same combat path for units and attackable destructables; the old
      * SVF_MONSTER target gate accidentally excluded gates, trees, and crates from the cheat. */
@@ -522,17 +522,24 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
                    G_PlayerInstantKill(attacker->s.player);
     damage = S_ManaShieldDamage(target, damage);
     if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));
-    if (damage <= 0) return;
+    if (damage <= 0) return false;
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (float)damage)) {
             attack_finish_after_combat(attacker, target, "destructable_destroyed");
         }
-        return;
+        return true;
     }
     damage = S_SpiritLinkRedirect(target, attacker, damage);
-    if (damage <= 0) return;
+    if (damage <= 0) return false;
     damage = MAX(1, (int)ceilf((float)damage *
         (1.0f + unit_status_modifier_total(target, WC3_STATUS_MOD_DAMAGE_TAKEN_PERCENT))));
+    /* The primary hit is now accepted (including full Mana Shield/Spirit
+     * Link mitigation). Only now may Incinerate spend mana or mark the victim.
+     * Its independent spell bonus can be lethal before physical damage. */
+    if (primary_attack && attacker) {
+        S_IncinerateOnHit(attacker, target);
+        if (!target->inuse || M_IsDead(target)) return true;
+    }
     /* Primary attack only: shields, Spirit Link, damage immunities and overkill
      * have already been resolved. Award before death can free this edict. */
     if (primary_attack && attacker)
@@ -562,7 +569,7 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
         unit_leavecombat(target);
         target->die(target, attacker);
         attack_finish_after_combat(attacker, target, "target_killed");
-        return;
+        return true;
     }
     G_AddHealth(target, -damage);
     G_CreepGuardDamaged(target);
@@ -585,6 +592,7 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     } else if (target->pain) {
         target->pain(target);
     }
+    return true;
 }
 
 void T_Damage(edict_t *target, edict_t *attacker, int damage) {
@@ -636,11 +644,10 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     if (damage <= 0) return;
     G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
-    S_IncinerateOnHit(attacker, target);
-    T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level);
-    /* Lava Spawn counts confirmed landed attacks, not projectile launches,
-     * misses, evades or an attack that was prevented before damage. */
+    /* No procs or Lava Spawn replication on invulnerable/fully shielded hits. */
+    if (!T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level)) return;
     if (attacker->inuse && !M_IsDead(attacker)) S_LavaSpawnAttackHit(attacker);
+    if (!attacker->inuse || !target->inuse) return;
     if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
         target->health.value < initial_health) {
         static uint32_t const ability = MAKEFOURCC('A','f','r','z');

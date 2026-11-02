@@ -748,6 +748,7 @@ struct client_s {
     player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
     bool commands_dirty; /* authoritative command availability changed; rebuild after simulation */
+    uint32_t shop_patron_refresh_ms; /* runtime-only bounded refresh while a shop is selected */
     bool selection_dirty; /* JASS selection changed; synchronize once after simulation */
     bool presentation_dirty; /* dialogue/interface/selected-portrait state changed; flush svc_layout after simulation */
     playerScript_t jass;
@@ -1136,6 +1137,8 @@ typedef struct gameevent_s {
     edict_t *source;
     uint32_t source_spawn_time;
     bool source_spawn_tracked;
+    edict_t *sold_unit; /* sale-specific GetSoldUnit; never a mutable last-sale global */
+    uint32_t sold_unit_spawn_time;
     int32_t value; /* scalar JASS callback payload (for example spell/research rawcode) */
     vec2_t point;
     bool has_point;
@@ -2362,6 +2365,7 @@ typedef enum {
     UNIT_FLAG_ANIMATION_OVERRIDE = 1u << 9, /* advance authored animation while paused */
     UNIT_FLAG_VERTEX_COLOR_SET = 1u << 10, /* runtime vertex tint has a value */
     UNIT_FLAG_VERTEX_COLOR_OVERRIDE_SET = 1u << 11, /* vertex tint was explicitly overridden */
+    UNIT_FLAG_SCRIPT_PAUSED = 1u << 12, /* PauseUnit ownership, separate from transform/cargo pauses */
 } unitFlags_t;
 
 /* Authoritative game entity; server-shared prefix stays fixed and optional roles own their lifecycle state. */
@@ -4093,7 +4097,6 @@ bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid);
 bool G_IsUnitAbilityAvailable(edict_t const *unit, uint32_t abilid);
 cstring_t G_ObjectName(uint32_t objectId);
 extern edict_t *eventsolditem;
-extern edict_t *eventsoldunit;
 bool G_HeroHasCandidateSkill(edict_t const *ent, uint32_t abilcode);
 void G_HeroInitializeProgression(edict_t *ent);
 uint32_t G_HeroSkillRequiredLevel(edict_t *ent, uint32_t abilcode);

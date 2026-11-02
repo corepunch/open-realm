@@ -763,7 +763,13 @@ uint32_t SetUnitInvulnerable(jass_t *j) {
 uint32_t PauseUnit(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     bool flag = jass_checkboolean(j, 2);
-    if (whichUnit) G_SetUnitFlag(whichUnit, UNIT_FLAG_PAUSED, flag);
+    if (whichUnit) {
+        G_SetUnitFlag(whichUnit, UNIT_FLAG_SCRIPT_PAUSED, flag);
+        /* A split Brewmaster remains paused until the split itself ends,
+         * even if the map unpauses it during the transformation. */
+        if (flag || !(whichUnit->aiflags & AI_SOUL_TRAPPED))
+            G_SetUnitFlag(whichUnit, UNIT_FLAG_PAUSED, flag);
+    }
     return 0;
 }
 uint32_t IsUnitPaused(jass_t *j) {

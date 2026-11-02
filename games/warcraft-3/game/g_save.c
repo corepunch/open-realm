@@ -167,8 +167,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
-/* Version 140 stores JASS group membership as a dynamic per-group entity list. */
-static uint32_t const save_version = 140;
+/* Version 141 adds independent PauseUnit ownership during transformations. */
+static uint32_t const save_version = 141;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -430,6 +430,8 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, source_spawn_time, F_INT),
     F(gameevent_s, source_spawn_tracked, F_INT),
+    F(gameevent_s, sold_unit, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, sold_unit_spawn_time, F_INT),
     F(gameevent_s, value, F_INT),
     F(gameevent_s, point, F_VECTOR),
     F(gameevent_s, has_point, F_INT),
@@ -1177,6 +1179,7 @@ static field_t const client_fields[] = {
     F(client_s, selection_dirty, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, cursor_signal, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, cursor_missing_reported, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, shop_patron_refresh_ms, F_IGNORE, 0, FIELD_RUNTIME),
     /* Modal ownership is live client-window/session state. Persisting it from
      * an Esc-menu save can reload a client as paused without a live window. */
     F(client_s, modal_flags, F_IGNORE, 0, FIELD_RUNTIME),

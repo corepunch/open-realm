@@ -76,10 +76,24 @@ static float volcano_wave_damage(edict_t *ent, float dist) {
     return dmg;
 }
 
+/* The doodad can be removed by JASS while the cast remains active. An
+ * edict slot may subsequently be reused, so pointer identity alone is unsafe.
+ * The channel's target incarnation survives save/load alongside goalentity. */
+static edict_t *volcano_owned_doodad(edict_t *ent) {
+    channel_t *channel = G_GetChannel(ent);
+    edict_t *doodad = ent ? ent->goalentity : NULL;
+    return channel && doodad && doodad->inuse &&
+        doodad->spawn_time == channel->target_spawn_time &&
+        (doodad->targtype == TARG_TREE || doodad->targtype == TARG_DEBRIS) &&
+        G_IsDestructable(doodad) ? doodad : NULL;
+}
+
 static void volcano_finish(edict_t *ent) {
+    edict_t *doodad = volcano_owned_doodad(ent);
     S_SpellEndAreaPresentation(ent);
-    if (ent->goalentity && ent->goalentity->inuse) G_FreeEdict(ent->goalentity);
+    if (doodad) G_FreeEdict(doodad);
     ent->goalentity = NULL;
+    G_GetChannel(ent)->target_spawn_time = 0;
     S_SpellEndChannel(ent);
 }
 
@@ -103,7 +117,7 @@ void volcano_think(edict_t *ent) {
         if (!M_IsDead(target))
             S_SpellApplyStun(target, S_SpellResistantDuration(code, level, target));
     }
-    FILTER_EDICTS(target, volcano_hits_destructable(ent->goalentity, target, ent->collision, &origin))
+    FILTER_EDICTS(target, volcano_hits_destructable(volcano_owned_doodad(ent), target, ent->collision, &origin))
         G_DestructableApplyDamage(target, caster, volcano_wave_damage(ent, Vector2_distance(&target->s.origin2, &origin)));
     if (!--ent->resources) { volcano_finish(ent); return; }
     ent->freetime = now + (uint32_t)(MAX(0.1f, ent->wait) * 1000.0f);
@@ -130,7 +144,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityVolcano) {
     thinker->health.value = S_SpellData(spell->code, level, 6); /* DataF half-damage factor */
     if (unit_id) {
         edict_t *doodad = G_CreateDestructable(unit_id, st.point.x, st.point.y, 0, 0, 1, 0);
-        if (doodad) thinker->goalentity = doodad;
+        if (doodad) {
+            thinker->goalentity = doodad;
+            G_GetChannel(thinker)->target_spawn_time = doodad->spawn_time;
+        }
         else fprintf(stderr, "WC3 Volcano: failed to spawn UnitID %.4s\n", (cstring_t)&unit_id);
     }
     thinker->variation = caster->spawn_time ^ (uint32_t)st.point.x ^

@@ -2414,6 +2414,25 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     T_EQ(G_GetStock(tavern)->units[0].current, 1);
     T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id)); /* No Altar: TALT prerequisite. */
     G_SelectEntity(client, tavern);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer udg_SaleCount = 0\n"
+        "endglobals\n"
+        "function on_unit_sale takes nothing returns nothing\n"
+        "  call BJassAssert(GetSoldUnit() != null, \"missing sold unit\")\n"
+        "  call BJassAssert(GetUnitTypeId(GetSoldUnit()) == 'Nalc', \"wrong sold type\")\n"
+        "  call BJassAssert(GetUnitTypeId(GetSellingUnit()) == 'ntav', \"wrong vendor\")\n"
+        "  call BJassAssert(GetOwningPlayer(GetBuyingUnit()) == Player(0), \"wrong buyer\")\n"
+        "  set udg_SaleCount = udg_SaleCount + 1\n"
+        "endfunction\n"
+        "function verify_sale takes nothing returns nothing\n"
+        "  call BJassAssert(udg_SaleCount == 1, \"unit sale event did not fire\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger sold = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(sold, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_SELL, null)\n"
+        "  call TriggerAddAction(sold, function on_unit_sale)\n"
+        "endfunction\n"));
     button_params = MAKE(shopItemButtonsParams_t, .client = client, .shop = tavern,
                          .buttons = buttons, .max_buttons = 4);
     button_count = G_GetShopButtons(&button_params);
@@ -2434,6 +2453,10 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
                  !strcmp(hired->unit_state->proper_name, "Thundar") ||
                  !strcmp(hired->unit_state->proper_name, "Maiev"));
     }
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_sale", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 4575);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 400);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 5);
@@ -2457,6 +2480,11 @@ TEST(wc3_items, neutral_tavern_stocks_and_hires_hero_sellunits) {
     T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id));
     tier2 = alloc_test_unit(MAKEFOURCC('h','k','e','e'), 320, 0);
     tier2->s.player = 0;
+    G_SetPlayerTechMaxAllowed(client, hero_id, 1);
+    T_ASSERT(!G_ShopPurchaseUnit(player, tavern, hero_id));
+    button_count = G_GetShopButtons(&button_params);
+    T_ASSERT(button_count && buttons[0].disabled);
+    G_SetPlayerTechMaxAllowed(client, hero_id, -1);
     T_ASSERT(G_ShopPurchaseUnit(player, tavern, hero_id));
 
     T_ASSERT(G_AddUnitStock(tavern, hero_id, 1, 1));
@@ -2703,6 +2731,8 @@ TEST(wc3_items, selected_neutral_shop_shows_and_clears_authored_patron_arrow) {
     if (arrow) {
         T_EQ(arrow->goalentity, patron);
         T_EQ(arrow->owner, player);
+        T_EQ(arrow->s.player, client->ps.number);
+        T_ASSERT(arrow->svflags & SVF_OWNER_ONLY);
         T_EQ(arrow->s.model, G_RegisterModel("TestUI\\Models\\anim_projectile.mdx"));
         T_FEQ(arrow->wait, 120.0f, 0.001f);
         T_FEQ(arrow->s.angle, southeast_yaw, 0.001f);
@@ -2710,6 +2740,22 @@ TEST(wc3_items, selected_neutral_shop_shows_and_clears_authored_patron_arrow) {
         patron->s.angle = 1.25f;
         G_RunEntity(arrow);
         T_FEQ(arrow->s.angle, southeast_yaw, 0.001f);
+        /* Moving the purchaser must retire the indicator even if no command
+         * card was invalidated; returning into range recreates it. */
+        patron->s.origin2.x = patron->s.origin.x = 5000.0f;
+        level.time += 151;
+        G_UpdateSelectedShopStock(client);
+        T_ASSERT(!arrow->inuse);
+        patron->s.origin2.x = patron->s.origin.x = 100.0f;
+        level.time += 151;
+        G_UpdateSelectedShopStock(client);
+        arrow = NULL;
+        FILTER_EDICTS(effect, effect->inuse &&
+                      effect->status_effect_code == WC3_EFFECT_SHOP_PATRON_ARROW) {
+            arrow = effect; break;
+        }
+        T_NOT_NULL(arrow);
+        if (arrow) T_EQ(arrow->goalentity, patron);
     }
 
     G_DeselectEntity(client, shop);

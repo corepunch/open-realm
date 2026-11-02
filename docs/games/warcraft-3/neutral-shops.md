@@ -133,11 +133,10 @@ is not inserted into the shop's authored merchandise or stock.
 ## Known Gaps
 
 - `Aall` shop-sharing/allied-building policy is not implemented.
-- OpenRealm reacquires the nearest eligible patron when the focused shop presentation is rebuilt; it does not yet run Aneu's periodic
-  acquisition independently of UI/order updates.
+- OpenRealm bounds patron reacquisition to the selected-shop refresh (every 150 ms), rather than running independent
+  Aneu acquisition on all neutral shops when the UI is closed.
 - Walking an out-of-range Hero to the shop before pawning is not implemented; pawn targeting succeeds only when already in range.
-- Shared hero availability across separate Taverns and retail-specific duplicate-hero restrictions still need validation.
-- Unit-sale trigger events (`EVENT_UNIT_SELL` / player-unit sale context) are not published yet.
+- Shared hero availability across separate Taverns and retail-specific duplicate-hero restrictions beyond the configured per-type limits still need validation.
 - Power-up/auto-use-on-acquire item semantics remain part of the broader item lifecycle and are not special-cased by the shop.
 - Item `Requires` / `DependencyOr` processing currently uses completed unit-type counts; other requirement categories and amount semantics need separate evidence before expanding the contract.
 
@@ -155,7 +154,7 @@ is not inserted into the shop's authored merchandise or stock.
 - map-local `war3map.w3t` ItemData stock overrides and custom-item inheritance;
 - non-inventory mercenary patron resolution;
 - immediate mercenary ownership, resource deduction, and food activation;
-- Tavern Hero stock inclusion, tier and three-Hero admission, disabled requirement presentation, instant Hero spawn/progression and proper-name selection, resource/food deduction, and exclusion from mercenary score;
+- Tavern Hero stock inclusion, tier and three-Hero admission, per-type hero maximum, unit-sale JASS context, disabled requirement presentation, instant Hero spawn/progression and proper-name selection, resource/food deduction, and exclusion from mercenary score;
 - unit `stockStart` / `stockRegen` / `stockMax` command availability;
 - runtime `AddUnitToStock` current/max overrides, replenishment, removal, and all-shop native registration;
 - map-local `war3map.w3u` UnitBalance stock overrides and custom-unit inheritance;
@@ -167,3 +166,7 @@ higher-priority item whose `Requires` gate is unsatisfied. `games/warcraft-3/gam
 unit shop stock/timer state through the save schema. The
 test fixture's `spro`, `moon`, `plcl`, `phea`, `oven`, and `nmer` rows carry explicit price/food/stock metadata; its `phea` ItemFunc row requires `TWN2`, with the retail four-race `TWN2.DependencyOr` list in ItemFunc. The focused gameplay suite is
 `+dedicated 1 +test 'wc3_items.*'`; save changes must also run the save tests and the full suite required by `CONTRIBUTING.md`.
+
+## Merge hardening (November 2026)
+
+Neutral patron arrows use the existing `SVF_OWNER_ONLY` snapshot gate, with `s.player` set to the viewer; their target refresh is bounded at 150 ms while the shop is selected. Tavern recruitment checks per-type `SetPlayerTechMaxAllowed` limits as well as hero-tier prerequisites. Successful unit sales publish both unit and player-unit sale events, with the new unit captured per queued event for `GetSoldUnit()` rather than using a mutable global.

@@ -1196,6 +1196,14 @@ static bool G_RequirementsSatisfied(gameClient_t *client, uint32_t type_id, stri
 bool G_HeroRecruitmentAllowed(gameClient_t *client, uint32_t hero_id, string_t reason, uint32_t reason_size) {
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_UnitTypeIsHero(hero_id)) return false;
+    if (!G_BuildAllEnabled()) {
+        int32_t const maximum = G_GetPlayerTechMaxAllowed(client, hero_id);
+        if (maximum >= 0 &&
+            G_GetPlayerTechCountValue(client, hero_id) + G_GetPlayerTechInProgress(client, hero_id) >= maximum) {
+            if (reason && reason_size) snprintf(reason, reason_size, "Hero type limit reached.");
+            return false;
+        }
+    }
     return G_RequirementsSatisfied(client, hero_id, reason, reason_size);
 }
 

@@ -65,3 +65,7 @@ starvation, `ANic` passive, death chain prevention; Volcano visual count,
 no duplicate damage, interrupted channel cleanup and in-flight rock save.
 These tests must use synthetic archive fixtures and be run by the user; no
 build or local test execution was performed while preparing this change.
+
+## Merge hardening (November 2026)
+
+Volcano retains its created destructable incarnation through a saved channel reference; cleanup must never free a reused edict slot. Lava Spawn replication counts only attacks with accepted post-shield damage. Incinerate marks and pays mana only after the physical hit clears invulnerability, Mana Shield, and Spirit Link gating, but before lethal attack dispatch.

@@ -89,12 +89,12 @@ static char const tinker_test_slk[] =
     "C;Y7;X2;K\"ANcs\"\n"
     "C;Y7;X3;K\"3\"\n"
     "C;Y7;X4;K\"air,ground,enemy,neutral,structure\"\n"
-    "C;Y7;X5;K\"11.25\"\n"
-    "C;Y7;X6;K\".25\"\n"
+    "C;Y7;X5;K\"3\"\n"
+    "C;Y7;X6;K\".5\"\n"
     "C;Y7;X7;K\"6\"\n"
     "C;Y7;X8;K\"105\"\n"
     "C;Y7;X9;K\"1\"\n"
-    "C;Y7;X10;K\"1.01\"\n"
+    "C;Y7;X10;K\"2\"\n"
     "C;Y7;X11;K\"230\"\n"
     "C;Y7;X12;K\"1.01\"\n"
     "C;Y7;X13;K\"1.01\"\n"
@@ -341,6 +341,38 @@ TEST(wc3_tinker, cluster_rockets_four_independent_damage_intervals) {
     /* 11.25 damage every quarter second totals 45, not four rounded 11s. */
     T_FEQ(enemy->health.value, 955.0f, .001f);
     T_FEQ(outsider->health.value, 1000.0f, .001f);
+    G_SetSLKRows("AbilityData", previous); free_slk_rows(rows);
+}
+
+TEST(wc3_tinker, cluster_rockets_uses_engineering_variant_damage_and_interval) {
+    slkTestData_t *rows = parse_slk_string(tinker_test_slk);
+    slkTestData_t *previous = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster, *enemy, *thinker = NULL;
+    abilityitem_t ability = S_AbilityItem(MAKEFOURCC('A','N','c','s'));
+    spellTarget_t point = { .type = SPELL_TARGET_POINT, .point = {100, 0} };
+    abilityCall_t call = MAKE(abilityCall_t, .item = &ability, .target = &point);
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    caster = tinker_test_unit(0, 0);
+    caster->data.UnitAbilities = &tinker_unit_abilities;
+    caster->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','N','e','g'), .level = 1);
+    enemy = tinker_test_unit(1, 100);
+    T_ASSERT(CAbilityClusterRockets(caster, A_VALIDATE, &call));
+    T_ASSERT(CAbilityClusterRockets(caster, A_EXECUTE, &call));
+    FILTER_EDICTS(candidate, candidate->owner == caster && candidate->think == tinker_rockets_think) {
+        thinker = candidate; break;
+    }
+    T_NOT_NULL(thinker);
+    if (thinker) {
+        T_EQ(thinker->class_id, MAKEFOURCC('A','N','c','1'));
+        T_FEQ(thinker->wait, 500.0f, .001f); /* variant DataB, not base .25 */
+        T_EQ(thinker->resources, 4u);        /* variant DataF=2 seconds */
+        level.time = thinker->freetime;
+        tinker_rockets_think(thinker);
+        T_FEQ(enemy->health.value, 997.0f, .001f); /* variant DataA=3, base 11.25 */
+    }
     G_SetSLKRows("AbilityData", previous); free_slk_rows(rows);
 }
 

@@ -215,14 +215,13 @@ void tinker_rockets_think(edict_t *pulse) {
     if (!caster || !pulse->resources) { G_FreeEdict(pulse); return; }
     while (pulse->resources && now >= pulse->freetime && count++ < TINKER_ROCKET_PULSES_LIMIT) {
         uint32_t const code = pulse->class_id;
-        uint32_t const numeric_code = G_AbilityCode(code);
         uint32_t const level = pulse->damage;
-        float const amount = MAX(0.0f, S_SpellData(numeric_code, level, 1));
-        float const max_damage = MAX(0.0f, S_SpellData(numeric_code, level, 4));
-        float const building_factor = MAX(0.0f, S_SpellData(numeric_code, level, 5));
+        float const amount = MAX(0.0f, S_SpellData(code, level, 1));
+        float const max_damage = MAX(0.0f, S_SpellData(code, level, 4));
+        float const building_factor = MAX(0.0f, S_SpellData(code, level, 5));
         float total = 0.0f;
-        uint32_t const visual = (uint32_t)MAX(0.0f, S_SpellData(numeric_code, level, 3));
-        uint32_t const pulses = (uint32_t)MAX(1.0f, S_SpellData(numeric_code, level, 6) /
+        uint32_t const visual = (uint32_t)MAX(0.0f, S_SpellData(code, level, 3));
+        uint32_t const pulses = (uint32_t)MAX(1.0f, S_SpellData(code, level, 6) /
                                                    MAX(0.001f, pulse->wait * 0.001f));
         /* One cast-wide missile count, spread across the independent damage pulses. */
         uint32_t const index = pulses > pulse->resources ? pulses - pulse->resources : 0;
@@ -267,16 +266,16 @@ static bool tinker_rockets_validate(edict_t *caster, spellTarget_t target, abili
     if (!caster || !item || target.type != SPELL_TARGET_POINT) return false;
     uint32_t const code = S_TinkerVariant(caster, item->code);
     uint32_t const level = S_SpellLevel(caster, item->code);
-    return S_SpellData(G_AbilityCode(code), level, 1) > 0.0f &&
-           S_SpellData(G_AbilityCode(code), level, 2) > 0.0f &&
-           S_SpellData(G_AbilityCode(code), level, 6) > 0.0f;
+    return S_SpellData(code, level, 1) > 0.0f &&
+           S_SpellData(code, level, 2) > 0.0f &&
+           S_SpellData(code, level, 6) > 0.0f;
 }
 
 static void tinker_rockets_execute(edict_t *caster, spellTarget_t target, abilityitem_t const *item) {
     uint32_t const code = S_TinkerVariant(caster, item->code);
     uint32_t const rank = S_SpellLevel(caster, item->code);
-    float const interval = S_SpellData(G_AbilityCode(code), rank, 2);
-    float const duration = S_SpellData(G_AbilityCode(code), rank, 6);
+    float const interval = S_SpellData(code, rank, 2);
+    float const duration = S_SpellData(code, rank, 6);
     uint32_t const pulses = interval > 0.0f ? (uint32_t)floorf(duration / interval) : 0;
     edict_t *thinker;
     if (!pulses || interval <= 0.0f || duration <= 0.0f) return;

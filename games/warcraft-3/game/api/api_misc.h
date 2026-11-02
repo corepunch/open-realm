@@ -765,7 +765,10 @@ uint32_t GetBuyingUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
 uint32_t GetSoldUnit(jass_t *j) {
-    return jass_pushlighthandle(j, eventsoldunit, "unit");
+    jassContext_t const *context = jass_getcontext(j);
+    edict_t *unit = context ? context->soldUnit : NULL;
+    return jass_pushlighthandle(j, unit && unit->inuse &&
+        unit->spawn_time == context->soldUnitSpawnTime ? unit : NULL, "unit");
 }
 uint32_t GetSoldItem(jass_t *j) {
     return jass_pushlighthandle(j, eventsolditem, "item");

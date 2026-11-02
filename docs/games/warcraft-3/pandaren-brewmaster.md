@@ -87,3 +87,7 @@ elemental death, expiry with one survivor, full-death outcome, save/load during
 split, hero inventory and level preservation, repeated casting, controller
 cleanup on hero removal, as well as Haze/Breath interactions with nonstock
 values, immune/air/organic targets, dispel and multiple casters.
+
+## Merge hardening (November 2026)
+
+Brewmaster split and JASS `PauseUnit` have independent pause ownership. A scripted pause applied during a split remains active on return, while clearing that script pause does not resume the hidden hero before the split finishes. This flag is serialized in save format 141.
