@@ -79,7 +79,7 @@ static creepExtendedCase_t const extendedCases[] = {
     { 146, "Poison Treant", "Entangling Roots", "Roots a victim in place and inflicts damage over time.", "https://classic.battle.net/war3/neutral/corruptedents.shtml", "AEer", NULL, CE_UNIT_ROOT },
     { 147, "Poison Treant", "Envenomed Weapon", "Poison from attacks deals approximately 2 damage per second for 20 seconds.", "https://classic.battle.net/war3/neutral/corruptedents.shtml", "Aven", NULL, CE_HIT_POISON },
     { 148, "Plague Treant", "Entangling Roots", "Roots a victim in place and inflicts damage over time.", "https://classic.battle.net/war3/neutral/corruptedents.shtml", "AEer", NULL, CE_UNIT_ROOT },
-    { 149, "Plague Treant", "Disease Cloud", "Infects nearby enemies with damage over time; the disease does not deliver a lethal final blow.", "https://classic.battle.net/war3/neutral/corruptedents.shtml", "Aap1", NULL, CE_PASSIVE_DISEASE },
+    { 149, "Plague Treant", "Disease Cloud", "Infects nearby enemies with damage over time; the disease does not deliver a lethal final blow.", "https://classic.battle.net/war3/neutral/corruptedents.shtml", "Aap3", NULL, CE_PASSIVE_DISEASE },
     { 150, "Doom Guard", "Dispel Magic", "Dispels magical effects over an area and damages summoned units.", "https://classic.battle.net/war3/neutral/demons.shtml", "Adis", NULL, CE_POINT_DISPEL },
     { 151, "Doom Guard", "War Stomp", "Damages nearby enemies for 25 and stuns them for roughly 3 seconds.", "https://classic.battle.net/war3/neutral/demons.shtml", "AOws", NULL, CE_SELF_DAMAGE_STUN },
     { 152, "Doom Guard", "Cripple", "Cuts enemy movement speed by 75%, attack speed by 50%, and attack damage by 50%.", "https://classic.battle.net/war3/neutral/demons.shtml", "Acri", NULL, CE_UNIT_CRIPPLE },
