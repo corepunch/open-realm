@@ -8,6 +8,7 @@ globals
     boolean array bj_stockAllowedPermanent
     boolean array bj_stockAllowedCharged
     boolean array bj_stockAllowedArtifact
+    boolean bj_pauseAllUnitsFlag = true
 endglobals
 
 // The campaign-progress tests do not inspect the selected race; retain the call
@@ -36,6 +37,26 @@ endfunction
 
 function IsUnitAliveBJ takes unit whichUnit returns boolean
     return GetWidgetLife(whichUnit) > 0.405
+endfunction
+
+// Stock PauseAllUnitsBJ enumerates through GetBJMaxPlayerSlots, including the
+// neutral player slots. Keep this wrapper for the intro-pause regression test.
+function PauseAllUnitsBJEnum takes nothing returns nothing
+    call PauseUnit(GetEnumUnit(), bj_pauseAllUnitsFlag)
+endfunction
+
+function PauseAllUnitsBJ takes boolean pause returns nothing
+    local integer index = 0
+    local group units = CreateGroup()
+    set bj_pauseAllUnitsFlag = pause
+    loop
+        exitwhen index >= GetBJMaxPlayerSlots()
+        call GroupEnumUnitsOfPlayer(units, Player(index), null)
+        call ForGroup(units, function PauseAllUnitsBJEnum)
+        call GroupClear(units)
+        set index = index + 1
+    endloop
+    call DestroyGroup(units)
 endfunction
 
 function SetPlayerHandicapXPBJ takes player whichPlayer, real handicapPercent returns nothing

@@ -6666,6 +6666,21 @@ TEST(wc3_api, unit_flags_native_updates_preserve_other_bits) {
     T_ASSERT(M_IsDead(unit)); /* Resuming restores expiry after the index was cleared. */
 }
 
+TEST(wc3_api, pause_all_units_bj_includes_neutral_hostile) {
+    setup_test_world();
+    currentplayer = test_player(0);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit neutralCreep = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set neutralCreep = CreateUnit(Player(12), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call PauseAllUnitsBJ(true)\n"
+        "  call BJassAssert(IsUnitPaused(neutralCreep), \"PauseAllUnitsBJ skipped Neutral Hostile\")\n"
+        "endfunction\n"));
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, unit_invulnerable_default_false) {
     edict_t *ent = make_unit_hero();
     T_ASSERT(!G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE));

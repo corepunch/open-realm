@@ -31,7 +31,9 @@ The authored function does not set `bj_wantDestroyGroup` and does not call `Dest
 
 Do not special-case these map functions, auto-destroy arbitrary `CountUnitsInGroup` arguments, or merely raise a fixed `MAX_GROUPS`. The compatible model is a growable handle registry that still recycles explicitly destroyed slots. Warsmash follows the same broad model: its `CreateGroup` native allocates new `UnitGroup` objects with increasing handle IDs rather than enforcing a 1024-group table.
 
-Each `ggroup_t` grows a member-pointer array as units are added, so a group can hold every live unit on the map. This matters for campaign scripts that build a combined group from several player groups: a fixed 256-member array silently truncated the group and caused UndeadX06's intro to leave nearby Neutral Hostile creeps active. Group objects are still allocated only as handle ordinals are exposed, and the growable handle table starts at `JASS_GROUP_INITIAL_CAPACITY` and doubles as needed.
+Each `ggroup_t` grows a member-pointer array as units are added, so a group can hold every live unit on the map. This matters for campaign scripts that build a combined group from several player groups: a fixed 256-member array silently truncated UndeadX06's intro hide group, leaving some nearby creeps visible.
+
+UndeadX06 also calls Blizzard.j's `PauseAllUnitsBJ(true)` before unpausing its three cinematic actors. That helper loops from player slot 0 to `GetBJMaxPlayerSlots()`. The native must return all 16 slots, including Neutral Hostile (slot 12); returning 12 left those creeps unpaused, so they could keep attacking while hidden. The intro regression exercises the stock wrapper against a Neutral Hostile unit. Group objects are still allocated only as handle ordinals are exposed, and the growable handle table starts at `JASS_GROUP_INITIAL_CAPACITY` and doubles as needed.
 
 ## Leak diagnostics
 
@@ -57,6 +59,7 @@ Regression coverage should include:
 - JASS `CreateGroup` -> `DestroyGroup` returning the slot to the allocator;
 - `GroupClear` keeping a live handle;
 - JASS enumeration and a `ForGroup` aggregation callback retaining more than 256 members;
+- Blizzard.j `PauseAllUnitsBJ` pausing Neutral Hostile units in slots above the 12 active player slots;
 - save/load retaining dynamic membership above 256 members;
 - save/load retaining live group identity and membership while rejecting destroyed handles.
 
