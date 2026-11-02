@@ -60,8 +60,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
         FOR_LOOP(i, target->unit_state ? MAX_UNIT_STATUSES : 0) {
             heroabilitystatus_t *status = target->unit_state->statuses + i;
             uint32_t polarity = status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_NEGATIVE);
-            bool should_dispel = polarity == WC3_STATUS_BUFF_POSITIVE ||
-                                 (friendly && polarity == WC3_STATUS_BUFF_NEGATIVE);
+            /* Abolish Magic removes hostile positive effects and allied
+             * negative effects. Preserve positive buffs on friendly units. */
+            bool should_dispel = (friendly && polarity == WC3_STATUS_BUFF_NEGATIVE) ||
+                                 (!friendly && polarity == WC3_STATUS_BUFF_POSITIVE);
             if (should_dispel && unit_status_can_magic_dispel(status)) {
                 unit_removestatus_deferred(target, status, STATUS_REMOVE_DISPEL);
                 removed++;

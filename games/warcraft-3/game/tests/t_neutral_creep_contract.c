@@ -45,10 +45,27 @@ static void contract_setup(creepContractFix_t *f, cstring_t ability, cstring_t s
     edict_t *units[] = { f->caster, f->ally, f->enemy, f->summon };
     for (size_t i = 0; i < COUNT_OF(units); i++) {
         edict_t *unit = units[i];
+        /* Stop cleanup in charm and ambush order paths transitions units back
+         * to their normal stand move just like a real spawned unit. */
+        unit->stand = unit_stand;
+        /* alloc_test_unit() deliberately does not install the live unit
+         * thinker. Contract cases that advance simulation frames need it for
+         * passive ability updates as well as animation/order lifecycle. */
+        unit->think = monster_think;
         unit->svflags |= SVF_MONSTER;
         unit->targtype = TARG_GROUND;
         unit->health.value = unit->health.max_value = 500;
         unit->mana.value = unit->mana.max_value = 500;
+        /* These are combat-contract fixtures. Real units have an authored
+         * Attack 1 profile; initialize a stock-shaped melee attack so hit
+         * hooks are reachable unless a case overrides it with a ranged mode. */
+        unit->unit_state->attack1.type = ATK_NORMAL;
+        unit->unit_state->attack1.weapon = WPN_NORMAL;
+        unit->unit_state->attack1.damageBase = 10;
+        unit->unit_state->attack1.numberOfDice = 1;
+        unit->unit_state->attack1.sidesPerDie = 1;
+        unit->unit_state->attack1.range = 128;
+        unit->unit_state->attack1.cooldown = 1.0f;
     }
     f->ally->health.value = 100;
     /* Production dispel logic detects summoned units using their owner. */
@@ -58,6 +75,19 @@ static void contract_setup(creepContractFix_t *f, cstring_t ability, cstring_t s
 static void contract_done(creepContractFix_t *f) {
     G_SetSLKRows("AbilityData", f->old);
     free_slk_rows(f->rows);
+}
+
+/* Advance the real entity scheduler in fixed simulation frames so periodic
+ * regeneration, thinker pulses and timed-status expiry observe elapsed time. */
+static void contract_run_for(uint32_t millis) {
+    while (millis) {
+        uint32_t const frame_ms = (uint32_t)MAX(1.0f, FRAMETIME);
+        uint32_t const step = MIN(millis, frame_ms);
+        level.time += step;
+        level.framenum++;
+        G_RunEntities();
+        millis -= step;
+    }
 }
 
 static void contract_ability_slk(char *out, size_t len, cstring_t code,
@@ -116,12 +146,12 @@ static void contract_rejuvenation_variants(creepCase_t const *c) {
     T_ASSERT(S_CastUnitTargetSpell(f.caster, FS_SLKKey(alias), f.ally));
     T_ASSERT(S_UnitHasStatus(f.ally, FS_SLKKey("Brej")));
     T_FEQ(S_RejuvHealRate(f.ally), c->magnitude / 12.0f, 0.01f);
-    level.time += 1000; unit_updatestatuses(f.ally);
+    contract_run_for(1000);
     T_ASSERT(f.ally->health.value > 100);
-    level.time += 12000; unit_updatestatuses(f.ally);
+    contract_run_for(12000);
     T_ASSERT(!S_UnitHasStatus(f.ally, FS_SLKKey("Brej")));
     float hp = f.ally->health.value;
-    level.time += 1000; unit_updatestatuses(f.ally);
+    contract_run_for(1000);
     T_FEQ(f.ally->health.value, hp, 0.001f);
     contract_done(&f);
 }

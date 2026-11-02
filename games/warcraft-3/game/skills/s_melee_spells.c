@@ -220,11 +220,13 @@ float S_RoarDamageBonus(edict_t const *unit) {
 
 /* DataA owns total healing over Dur seconds; tick rate derives from both. */
 float S_RejuvHealRate(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'r', 'e', 'j'));
+    heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B', 'r', 'e', 'j'));
+    uint32_t code = status && status->source_ability ? status->source_ability : MAKEFOURCC('A', 'r', 'e', 'j');
+    uint32_t level = status && status->rank ? status->rank : status ? status->level : 0;
     float duration;
     if (!level) return 0.0f;
-    duration = S_SpellDuration(MAKEFOURCC('A', 'r', 'e', 'j'), level, false);
-    return duration > 0.0f ? S_SpellData(MAKEFOURCC('A', 'r', 'e', 'j'), level, 1) / duration : 0.0f;
+    duration = S_SpellDuration(code, level, false);
+    return duration > 0.0f ? S_SpellData(code, level, 1) / duration : 0.0f;
 }
 
 /* Name=Frenzy
