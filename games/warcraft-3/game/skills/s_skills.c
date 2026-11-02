@@ -1974,6 +1974,35 @@ static void ability_disable_prepare(edict_t *ent) {
         if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
 }
 
+/*67dff0(0) refreshes c4 even when the prior AI-mode bit was already clear.
+ * Availability depth is the existing signed native ability+3c owner. */
+void S_ResetUnitAbilityAIMode(edict_t *ent) {
+    if(!ent || !ent->inuse || G_IsDeferredFree(ent))return;
+    ability_disable_prepare(ent);
+    uint32_t const birth=ent->spawn_time,owner=ent->s.player;
+    uint64_t const owner_sequence=ent->own_seq;
+    unitAbilityDisable_t *state=ent->ability_disables;
+    if(state)state->references++;
+    while(state) {
+        unitAbilityDisable_t *next=state->next;
+        if(next)next->references++;
+        if(state->linked && state->depth<=0) {
+            abilityitem_t item=ability_disable_item(state);
+            if(item.ability && item.ability->proc &&
+               known_unit_ability_receives(item,A_ABILITY_AI_MODE_RESET)) {
+                abilityCall_t call={.item=&item};
+                item.ability->proc(ent,A_ABILITY_AI_MODE_RESET,&call);
+            }
+        }
+        ability_disable_release(state);
+        if(!ent->inuse || ent->spawn_time!=birth || G_IsDeferredFree(ent) || ent->s.player!=owner || ent->own_seq!=owner_sequence) {
+            if(next)ability_disable_release(next);
+            return;
+        }
+        state=next;
+    }
+}
+
 void S_AttachStatusAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
     assert(class_code==MAKEFOURCC('B','E','m','e'));
     ability_disable_prepare(ent);

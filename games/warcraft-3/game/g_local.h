@@ -1222,6 +1222,7 @@ typedef enum {
     A_UNIT_SUSPEND_PREPARE, /* Logical owner inverse before suspension head publication. */
     A_SPELL_TARGET_COMPLETE, /* Opt-in owner consumes target approach completion before generic stand/commit. */
     A_SPELL_TARGET_ACQUIRED, /* Opt-in owner leases the constructed approach before terminal callbacks. */
+    A_ABILITY_AI_MODE_RESET, /*67dff0(0): signed execution depth<=0 invokes ability c4. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -4404,6 +4405,7 @@ void S_ResetAbilityTimers(void);
 void S_RebuildAbilityTimers(void);
 void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+void S_ResetUnitAbilityAIMode(edict_t *);
 void S_UnitCombatAlert(edict_t *, edict_t *, uint32_t);
 void S_UnitAllyCombatAlert(edict_t *, edict_t *, edict_t *);
 uint32_t S_UnitPointOrderPriority(edict_t *, uint32_t, vec2_t const *);

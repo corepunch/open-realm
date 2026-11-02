@@ -370,3 +370,48 @@ still fails at the differences above; the native suite does not establish its
 full parity. No whole leaf closes.
 The 76 refreshed corpus/item-drop Python checks pass; the corpus validates
 614 entries and 3,324 guarded files.
+
+
+## Owner-transfer modal reset: checkpoint314
+
+Owner transfer now delivers player and unit owner-change callbacks synchronously,
+in that order, with the old owner in event context and the new owner already
+assigned. After target-owner and availability notifications, it walks retained
+ability owners with signed execution depth at most zero and sends the separate
+AI-mode-reset callback. Defend responds with its existing transient `undefend`
+producer, including an inactive, unresearched Footman. Same-owner calls do not
+repeat the transfer. Nested callbacks retain their Move or final owner; stale
+outer transfers stop before further reset or enrollment.
+
+This callback is native virtual c4. Counted suspension also performs virtual e0,
+so replaying suspension here would incorrectly tear down physical or spell work.
+The exact existing C suspension receivers are `CAbilityAttack`, `CAbilityMove`,
+`CAbilityBuild`, `CAbilityCouple`, `CAbilityCoupleInstant`,
+`CAbilityPermanentInvisibility`, `CAbilityChannel`, `CAbilityItemTeleport`, and
+`CAbilityDefend`. The guarded original c4 entries are no-ops for the first eight;
+Defend calls605aa0. Eighteen tables include their racial Build, Couple and
+permanent-invisibility subclasses. Broader original c4 overrides such as
+Autocast62e650 and Blizzard/RainOfFire6059d0, plus mode1/c8, remain separate scope.
+This patch does not claim their implementation.
+
+[The original-code fixture](../../../games/warcraft-3/game/tests/fixtures/retail_attack_owner314_static.json)
+guards six function bodies,13 call sites,36 table words and the shared no-op RET.
+The public regressions verify player→unit→off order, previous/new owner context,
+inactive unresearched Defend, same-owner exclusion, positive-depth rejection,
+nested Move and nested ownership changes. A direct component check proves that
+c4 does not suspend an already running Move.
+
+All 100 focused processes pass: 4,058 test executions and 1,120,158 assertions
+across both editions. All five fresh parity gates pass. The full native suite
+last passed at checkpoint313; it is not repeated for this single patch.
+Save237 is unchanged because no saved representation changes.
+
+The unchanged C299 replay now matches the first 986 public rows, up from 398.
+The missing scene1 `undefend` row is restored. Public totals are 2,060 versus 2,066,
+with 994 mismatches; motion remains 5,356 versus 5,342, with 2,992 mismatches and the
+first difference at 2346. Scene3 first rejects its initial Attack scan solely
+because legacy `AI_SLEEPING` is set; this is generic dormancy, separate from
+natural night Sleep and scripted Sleep. Removing that obsolete gate is the next
+correction. Complete normal/saved C299 and the whole leaf remain open.
+The 76 refreshed corpus/item-drop Python checks pass. The corpus validates
+614 entries and 3,325 guarded files.

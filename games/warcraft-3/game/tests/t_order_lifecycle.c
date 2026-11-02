@@ -2747,6 +2747,104 @@ TEST(wc3_order_lifecycle, creep_guard_explicit_point_move_cancels_return) {
 
 /* Ownership transfer admits the same public Stop as an explicit command,
  * aborting the AI return and recording the current position as its anchor. */
+TEST(wc3_order_lifecycle, owner_transfer_resets_inactive_authored_modal_after_owner_event) {
+    /* Fixture common.j uses the pre-extension event numbers; JASS maps these
+     * public owner IDs to the current internal 290/273 event enums. */
+    FOR_LOOP(nested,2) {
+        reset_entities();setup_test_world();
+        static char const slk[]=
+            "ID;PWXL;N;E\nB;X4;Y2\nC;Y1;X1;K\"ID\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Requires\"\n"
+            "C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"Rhde\"\nE\n";
+        slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=review_order_unit_at(256,256,0);
+        UnitAbilities_t abilities={.abilList="Adef"};unit->data.UnitAbilities=&abilities;
+        S_UnitAbilityEvent(unit,A_UNIT_INIT);
+        T_ASSERT(!human_has_status(unit,MAKEFOURCC('A','d','e','f')));
+        char script[6144];snprintf(script,sizeof(script),
+            "globals\nunit modal314\ninteger offs=0\ninteger owners=0\ninteger playerOwners=0\ninteger eventStage=0\nendglobals\n"
+            "function off314 takes nothing returns nothing\n"
+            "if GetIssuedOrderId()==OrderId(\"undefend\") then\n"
+            "set offs=offs+1\ncall BJassAssert(owners==1 and playerOwners==1 and eventStage==2,\"player then unit owner events precede modal off\")\n"
+            "call BJassAssert(GetOwningPlayer(modal314)==Player(1),\"new owner sees off\")\n"
+            "if %d==1 then\ncall BJassAssert(IssuePointOrder(modal314,\"move\",600,256),\"nested Move\")\nendif\nendif\nendfunction\n"
+            "function playerOwner314 takes nothing returns nothing\nset playerOwners=playerOwners+1\ncall BJassAssert(eventStage==0,\"player event first\")\ncall BJassAssert(GetChangingUnit()==modal314 and GetChangingUnitPrevOwner()==Player(0) and GetOwningPlayer(modal314)==Player(1),\"player owner context\")\nset eventStage=1\nendfunction\nfunction owner314 takes nothing returns nothing\nset owners=owners+1\ncall BJassAssert(eventStage==1,\"unit event second\")\ncall BJassAssert(GetChangingUnit()==modal314 and GetChangingUnitPrevOwner()==Player(0) and GetOwningPlayer(modal314)==Player(1),\"unit owner context\")\nset eventStage=2\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger t=CreateTrigger()\nlocal trigger o=CreateTrigger()\nlocal trigger po=CreateTrigger()\n"
+            "call GroupEnumUnitsInRange(g,256,256,1,null)\nset modal314=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+            "call TriggerRegisterUnitEvent(t,modal314,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function off314)\n"
+            "call TriggerRegisterUnitEvent(o,modal314,ConvertUnitEvent(287))\ncall TriggerAddAction(o,function owner314)\n"
+            "call TriggerRegisterPlayerUnitEvent(po,Player(1),ConvertPlayerUnitEvent(270),null)\ncall TriggerAddAction(po,function playerOwner314)\ncall SetUnitOwner(modal314,Player(0),false)\ncall BJassAssert(offs==0 and owners==0 and playerOwners==0,\"same owner no refresh\")\n"
+            "call SetUnitOwner(modal314,Player(1),false)\ncall BJassAssert(offs==1 and owners==1,\"one inactive modal off\")\nendfunction\n",nested);
+        T_ASSERT(run_test_jass(script));
+        T_EQ(unit->s.player,1);
+        T_EQ(unit->current_order_id,nested ? G_OrderId("move") : 0);
+        reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+TEST(wc3_order_lifecycle, owner_event_nested_transfer_cannot_reset_stale_outer_owner) {
+    reset_entities();setup_test_world();
+    static char const text[]="ID;PWXL;N;E\nB;X3;Y2\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"1\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=review_order_unit_at(256,256,0);
+    UnitAbilities_t abilities={.abilList="Adef"};unit->data.UnitAbilities=&abilities;
+    S_UnitAbilityEvent(unit,A_UNIT_INIT);
+    T_ASSERT(run_test_jass(
+        "globals\nunit nested314\ninteger owners314=0\ninteger offs314=0\nendglobals\n"
+        "function nestedOff314 takes nothing returns nothing\n"
+        "if GetIssuedOrderId()==OrderId(\"undefend\") then\nset offs314=offs314+1\n"
+        "call BJassAssert(GetOwningPlayer(nested314)==Player(2),\"only final owner resets modal\")\nendif\nendfunction\n"
+        "function nestedOwner314 takes nothing returns nothing\nset owners314=owners314+1\n"
+        "if owners314==1 then\ncall SetUnitOwner(nested314,Player(2),false)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger o=CreateTrigger()\nlocal trigger t=CreateTrigger()\n"
+        "call GroupEnumUnitsInRange(g,256,256,1,null)\nset nested314=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "call TriggerRegisterUnitEvent(o,nested314,ConvertUnitEvent(287))\ncall TriggerAddAction(o,function nestedOwner314)\n"
+        "call TriggerRegisterUnitEvent(t,nested314,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function nestedOff314)\n"
+        "call SetUnitOwner(nested314,Player(1),false)\n"
+        "call BJassAssert(owners314==2 and offs314==1,\"nested transfer owns one final reset\")\nendfunction\n"));
+    T_EQ(unit->s.player,2);
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_order_lifecycle, owner_ai_reset_skips_positive_execution_depth_without_suspending_move) {
+    reset_entities();setup_test_world();
+    static char const text[]="ID;PWXL;N;E\nB;X3;Y2\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"1\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=review_order_unit_at(256,256,0);
+    UnitAbilities_t abilities={.abilList="Adef"};unit->data.UnitAbilities=&abilities;
+    S_UnitAbilityEvent(unit,A_UNIT_INIT);
+    T_ASSERT(run_test_jass(
+        "globals\nunit skip314\ninteger skipOffs314=0\nendglobals\n"
+        "function skipOff314 takes nothing returns nothing\n"
+        "if GetIssuedOrderId()==OrderId(\"undefend\") then\nset skipOffs314=skipOffs314+1\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger t=CreateTrigger()\n"
+        "call GroupEnumUnitsInRange(g,256,256,1,null)\nset skip314=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "call TriggerRegisterUnitEvent(t,skip314,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function skipOff314)\n"
+        "call PauseUnit(skip314,true)\nset skipOffs314=0\n"
+        "call SetUnitOwner(skip314,Player(1),false)\ncall BJassAssert(skipOffs314==0,\"positive execution depth skips c4\")\n"
+        "call PauseUnit(skip314,false)\nset skipOffs314=0\n"
+        "call BJassAssert(IssuePointOrder(skip314,\"move\",600,256),\"real Move owner\")\nendfunction\n"));
+    T_ASSERT(!S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','d','e','f')));
+    /* Unpause admits the queued Move after its real primary resume deadline.
+     * The callback above issues Move while pause_resume_pending is still true. */
+    FOR_LOOP(i,20) {
+        if(!unit->movement.pause_resume_pending)break;
+        lifecycle_primary_step();S_RunMoveTimers();
+    }
+    T_ASSERT(!unit->movement.pause_resume_pending);
+    /* Direct c4 notification is a component check: it must not replay Move e0. */
+    uint32_t const group=unit->movement.group_id;
+    T_NE(group,0);
+    S_ResetUnitAbilityAIMode(unit);
+    T_EQ(unit->movement.group_id,group);
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_order_lifecycle, creep_guard_owner_transfer_records_public_stop_anchor) {
     setup_test_world();
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);

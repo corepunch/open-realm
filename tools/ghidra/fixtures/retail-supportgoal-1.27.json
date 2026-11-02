@@ -4538,7 +4538,7 @@
   "instruction_count": 4512,
   "pins": {
     "games/warcraft-3/game/g_destructable.c": "c565801f5f3fae1babe6a5e8c3fae564546a93773651accb187d6c1502ee4db7",
-    "games/warcraft-3/game/g_local.h": "f404e6fe6f80bbb1323d6773237c5cd87d836c1ebf3ca3654c6afb8623948cd0",
+    "games/warcraft-3/game/g_local.h": "98350f4bc9592f309d31181a635b033a259ea3d11cf26ba458c8d459b18cfd46",
     "games/warcraft-3/game/g_support.c": "29fa39762f93459ff08fd4a9fc6f0b1613cecfaf0bc0861c523b243c233cb477",
     "games/warcraft-3/game/g_world.c": "8368df391f4c2848fe0947be7a1b6750c0c1e7fde8a977c943576739911bd024",
     "games/warcraft-3/game/m_unit.c": "f133c2a992dc6c00c69f358d9055169bb4cb0a15b9d3f3d88f2e4b0f34d3413c",

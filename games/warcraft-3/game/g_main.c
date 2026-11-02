@@ -2043,8 +2043,9 @@ void G_PublishChangeOwnerEvents(edict_t *unit, uint32_t old_player) {
     int32_t value;
     if (!unit || old_player > MAX_PLAYERS) return;
     value = (int32_t)old_player + 1;
-    G_PublishEventWithValue(unit, EVENT_PLAYER_UNIT_CHANGE_OWNER, NULL, value);
-    G_PublishEventWithValue(unit, EVENT_UNIT_CHANGE_OWNER, NULL, value);
+    /*67b400: player2606b0 then unit67ae10 deliver before modal AI reset. */
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,
+        .type=EVENT_PLAYER_UNIT_CHANGE_OWNER,.value=value},EVENT_UNIT_CHANGE_OWNER,false);
 }
 
 /* Gameplay messages expose state-machine transitions without turning internal

@@ -761,7 +761,7 @@ BZ_ABILITY_PROC(CAbilityDefend) {
     uint32_t const code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_RETIRE,A_UNIT_REMOVE,A_UNIT_SUSPEND);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_RETIRE,A_UNIT_REMOVE,A_UNIT_SUSPEND,A_ABILITY_AI_MODE_RESET);
     case A_COMMAND: {
         edict_t *clent=call ? call->client : NULL;
         if (!clent || !clent->client) return false;
@@ -782,6 +782,7 @@ BZ_ABILITY_PROC(CAbilityDefend) {
         abilityitem_t item=S_AbilityItem(ref.alias);
         return ref.alias && defend_set(ent,&item,!strcmp(call->order,"defend"));
     }
+    case A_ABILITY_AI_MODE_RESET:
     case A_UNIT_SUSPEND:
         S_DispatchTransientAbilityOrder(ent,call ? call->item : NULL,"undefend");
         return true;

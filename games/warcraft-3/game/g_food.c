@@ -202,10 +202,18 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         else
             G_CreepGuardSetEnabled(unit, false);
     }
+    uint32_t const transfer_birth=unit->spawn_time;
+    uint64_t const transfer_owner_sequence=unit->own_seq;
     G_PublishChangeOwnerEvents(unit, old_player);
+    if(!unit->inuse || unit->spawn_time!=transfer_birth || G_IsDeferredFree(unit) || unit->s.player!=player || unit->own_seq!=transfer_owner_sequence)return;
     S_UnitTargetOwnerChanged(unit);
+    if(!unit->inuse || unit->spawn_time!=transfer_birth || G_IsDeferredFree(unit) || unit->s.player!=player || unit->own_seq!=transfer_owner_sequence)return;
     /* Original6991a2: d01a5 follows the synchronous d01a2 subscribers. */
     S_UnitTargetAvailable(unit);
+    if(!unit->inuse || unit->spawn_time!=transfer_birth || G_IsDeferredFree(unit) || unit->s.player!=player || unit->own_seq!=transfer_owner_sequence)return;
+    /*6991ab: modal off callbacks observe the new owner after d01a2/d01a5. */
+    S_ResetUnitAbilityAIMode(unit);
+    if(!unit->inuse || unit->spawn_time!=transfer_birth || G_IsDeferredFree(unit) || unit->s.player!=player || unit->own_seq!=transfer_owner_sequence)return;
     /* Native698ce0 publishes the owner event before9b9230 ->9c3660 reinserts
      * into the new owner's head. Same-owner calls retain their pool position. */
     G_UnitOwnerInsert(unit);
