@@ -171,6 +171,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Tiny Structures, item-owned construction, shared placement cursor, racial Tiny Great Hall | [docs/games/warcraft-3/tiny-structures.md](docs/games/warcraft-3/tiny-structures.md) |
 | WC3 creep ability aliases, `code=` mapping, parent-owned registry rows | [docs/games/warcraft-3/creep-ability-aliases.md](docs/games/warcraft-3/creep-ability-aliases.md) |
 | WC3 neutral-creep ability source matrix and synthetic headless contract coverage | [docs/games/warcraft-3/neutral-creep-ability-tests.md](docs/games/warcraft-3/neutral-creep-ability-tests.md) |
+| WC3 retail shop item listing/rawcode/stock fixture and behavior regressions | [docs/games/warcraft-3/retail-shop-item-tests.md](docs/games/warcraft-3/retail-shop-item-tests.md) |
+| WC3 charged/power-up/consumed/permanent/artifact item references and retail-first regression matrix | [docs/games/warcraft-3/hero-item-reference-tests.md](docs/games/warcraft-3/hero-item-reference-tests.md) |
 <| WC3 item orb damage via `CAbilityAttackBonus` and `S_OrbOnHit` BuffID state | [docs/games/warcraft-3/item-orbs.md](docs/games/warcraft-3/item-orbs.md) |
 | WC3 poison on-hit buff state (`Aven`/`Apoi`/`Apo2`), data-driven periodic DPS | [docs/games/warcraft-3/poison-attacks.md](docs/games/warcraft-3/poison-attacks.md) |
 | WC3 Anti-Magic Shell Bams immunity vs Bam2 DataC absorption, Aam2/ACam aliases | [docs/games/warcraft-3/anti-magic-shell.md](docs/games/warcraft-3/anti-magic-shell.md) |
