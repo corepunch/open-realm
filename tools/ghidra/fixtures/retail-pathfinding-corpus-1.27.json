@@ -57887,12 +57887,12 @@
         "engine": {
           "equal": {
             "classic": {
-              "tests": 146,
-              "assertions": 11936
+              "tests": 148,
+              "assertions": 12050
             },
             "tft": {
-              "tests": 146,
-              "assertions": 11936
+              "tests": 148,
+              "assertions": 12050
             }
           }
         },
@@ -62063,7 +62063,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_items.c",
-      "sha256": "81e88be4aa03f7b9a0b9f473519539c2fc3487a732f4b62542b21c088f9f54f3"
+      "sha256": "8531025fdf3b70916527dd406f90504f2a541c2872cb46cd8235ea56b6a97e07"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_recovery_scope.py",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "f7b8dd64e2db155c06f989cb35cab382f6888feb311c90920ee707506d80abe6"
+      "sha256": "f17be6a24eeafaa5a60447f9aa47a5bc6507fa6aeb12e37895dc9c8774b0b763"
     },
     {
       "path": "tests/test_wc3_pathfinding_militia_lifecycle.py",
@@ -71248,6 +71248,38 @@
     {
       "path": "tools/ghidra/fixtures/research/invisibility323-original.json",
       "sha256": "c8039e5eb009f0186bfe0faa0bfff277350b600d51315b5662412a9350999ac2"
+    },
+    {
+      "path": "tools/frida/research/invisibility324_probe.j",
+      "sha256": "28534a29fd5d42c933baff4d6c794ed084741635d3fb7af9608c78a6e5324765"
+    },
+    {
+      "path": "tools/frida/research/invisibility324_make_map.py",
+      "sha256": "76ad8e6e3d55a65b167ece040401c1a2e220bb37986c5a6254c081d2a45dc0ee"
+    },
+    {
+      "path": "tools/frida/research/invisibility324_observer.js",
+      "sha256": "fee37f507a7a30f60d4d9289a48685bb200ee002ccd038840a70afe23908d4df"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/invisibility324-public-original.json",
+      "sha256": "f787d501ef9db32e5177beda2dc9d65eff1fa306b06888cf72d6f696b5a33c4e"
+    },
+    {
+      "path": "tools/ghidra/research/invisibility324_capture_check.py",
+      "sha256": "b5367c7ce22aaefb4aeebaa813647f485c1186b8e82ac619cb73170589dcf6ea"
+    },
+    {
+      "path": "tools/frida/research/invisibility325_observer.js",
+      "sha256": "fcdd4824a11857ccc2b6ff9a7ce9376318a3fc202e9d2a4901e1d5cdad9a8c14"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/invisibility325-item-phase-original.json",
+      "sha256": "ab67b76d6bb4d068f849229e122d30de05d3136edb78211da07e8c5590b20fe6"
+    },
+    {
+      "path": "tools/ghidra/research/invisibility325_phase_check.py",
+      "sha256": "9802eab34ba721ba8ccddc57e7a190f1e7d0fb74ae614a5753e988ed8616fbba"
     }
   ]
 }

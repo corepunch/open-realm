@@ -659,6 +659,131 @@ TEST(wc3_items, invisibility323_nonpositive_paused_refresh_rearms_frozen_remaind
     item322_invisibility_fixture(4);
 }
 
+
+/*324: public Sleep admission, then independent temporary-invisibility clocks.
+ * These are component fixtures, not literal timeline replays. */
+static void item324_frame(void) {
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time+=5;globals.RunFrame();
+}
+static void item324_sleep_composition(unsigned overlap) {
+    reset_entities();setup_test_world();
+    char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"Data14\"\nC;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y1;X18;K\"Cost1\"\nC;Y1;X19;K\"Cool1\"\nC;Y1;X20;K\"Cast1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi24\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X12;K\"4\"\nC;Y3;X13;K\"4\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"AUsl\"\nC;Y4;X2;K\"AUsl\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"2\"\nC;Y4;X5;K\"2\"\nC;Y4;X12;K\"12\"\nC;Y4;X13;K\"12\"\nC;Y4;X14;K\"BUsl,BUsp,BUst\"\nC;Y4;X15;K\"ground,enemy,organic\"\nC;Y4;X16;K\"ground,enemy,organic\"\nC;Y4;X17;K\"600\"\nC;Y4;X18;K\"0\"\nC;Y4;X19;K\"0\"\nC;Y4;X20;K\"0\"\nC;Y5;X1;K\"Apiv\"\nC;Y5;X2;K\"Apiv\"\nC;Y5;X3;K\"1\"\nC;Y5;X12;K\"3\"\nC;Y5;X13;K\"3\"\nE\n";
+    char const items[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"i324\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"Zi24\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nE\n";
+    char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nC;Y3;X1;K\"Hpal\"\nC;Y3;X2;K\"foot\"\nC;Y3;X3;K\"ground\"\nC;Y3;X4;K\"16\"\nC;Y3;X5;K\"0.6\"\nC;Y3;X6;K\"60\"\nC;Y3;X7;K\"3\"\nE\n";
+    char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"0\"\nC;Y3;X1;K\"Hpal\"\nC;Y3;X2;K\"0\"\nC;Y3;X3;K\"0\"\nC;Y3;X4;K\"0\"\nE\n";
+    char const unit_abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitAbilID\"\nC;X2;K\"abilList\"\nC;Y2;X1;K\"Hpal\"\nC;X2;K\"AInv\"\nC;Y3;X1;K\"hfoo\"\nC;X2;K\"\"\nE\n";
+    slkTestData_t *ur=parse_slk_string(unit_abilities),*ou=G_SetSLKRows("UnitAbilities",ur);
+    slkTestData_t *ar=parse_slk_string(abilities),*ir=parse_slk_string(items);
+    slkTestData_t *dr=parse_slk_string(data),*wr=parse_slk_string(weapons);
+    slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir);
+    slkTestData_t *od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr);
+    T_ASSERT(run_test_jass(
+        "globals\nunit target324\nunit caster324\nendglobals\n"
+        "function sleep324 takes nothing returns nothing\n"
+        "call BJassAssert(IssueTargetOrder(caster324,\"sleep\",target324),\"public Sleep admitted\")\nendfunction\n"
+        "function pause324 takes nothing returns nothing\ncall PauseUnit(target324,true)\nendfunction\n"
+        "function resume324 takes nothing returns nothing\ncall PauseUnit(target324,false)\nendfunction\n"
+        "function add324 takes nothing returns nothing\ncall BJassAssert(UnitAddAbility(target324,'Apiv'),\"Apiv attached\")\nendfunction\n"
+        "function remove324 takes nothing returns nothing\ncall BJassAssert(UnitRemoveAbility(target324,'Apiv'),\"Apiv removed\")\nendfunction\n"
+        "function wake324 takes nothing returns nothing\ncall UnitRemoveBuffs(target324,false,true)\nendfunction\n"
+        "function main takes nothing returns nothing\ncall FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "set target324=CreateUnit(Player(0),'Hpal',256,256,0)\n"
+        "set caster324=CreateUnit(Player(1),'hfoo',304,256,180)\n"
+        "call SetUnitUserData(target324,3241)\ncall SetUnitUserData(caster324,3242)\n"
+        "call BJassAssert(UnitAddAbility(caster324,'AUsl'),\"Sleep attached\")\nendfunction\n"));
+    edict_t *unit=NULL,*caster=NULL;
+    FOR_LOOP(n,globals.num_edicts) {
+        if(g_edicts[n].inuse && g_edicts[n].user_data==3241)unit=g_edicts+n;
+        if(g_edicts[n].inuse && g_edicts[n].user_data==3242)caster=g_edicts+n;
+    }
+    T_NOT_NULL(unit);T_NOT_NULL(caster);if(!unit || !caster)goto item324_cleanup;
+    T_EQ(G_InventoryCapacity(unit),6);T_ASSERT(G_InventoryCanUseItems(unit));
+    edict_t *item=SP_SpawnAtLocation(MAKEFOURCC('i','3','2','4'),0,&unit->s.origin2);
+    T_NOT_NULL(item);if(!item)goto item324_cleanup;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));T_EQ(G_InventoryItem(unit,0),item);
+    if(overlap==1)jass_callbyname(level.vm,"add324",false);
+    G_UseItem(unit,0);T_EQ(G_ItemCharges(item),1);
+    if(overlap==2)jass_callbyname(level.vm,"add324",false);
+    heroabilitystatus_t *status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)goto item324_cleanup;
+    T_ASSERT(status->class_timer.active);T_EQ(status->class_clock_depth,0);
+    if(!overlap)T_ASSERT(status->invisibility_pending);
+    /* Overlap notification is immediate; successful public Sleep below is
+     * the admission proof, independent of the shared presentation state. */
+    jass_callbyname(level.vm,"sleep324",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    FOR_LOOP(n,400) {if(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')))break;item324_frame();}
+    T_NOT_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')));
+    T_NOT_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','p')));
+    T_ASSERT(!unit->paused);T_ASSERT(unit->movement.internal_suspend_depth>0);
+    T_EQ(unit->ability_clock_depth,0);
+
+    uint32_t const number=unit->s.number,instance=status->instance_id;
+    if(overlap) {
+        jass_callbyname(level.vm,"pause324",false);
+        T_ASSERT(unit->paused);T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
+        cstring_t path=Test_TempPath("item324-sleep-pause.bin");
+        T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+        unit=g_edicts+number;status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+        T_NOT_NULL(status);if(!status)goto item324_cleanup;
+        T_EQ(status->instance_id,instance);
+        /* Bixx is a display alias; this case does not establish general
+         * authored buff-polarity classification parity. */
+        jass_callbyname(level.vm,"wake324",false);
+        T_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')));
+        T_ASSERT(unit->paused);T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
+        T_EQ(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')),status);
+        if(overlap==1) {
+            jass_callbyname(level.vm,"remove324",false);
+            T_ASSERT(!unit->permanent_invisibility_fade.permanent_owned);
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        FOR_LOOP(n,900)item324_frame();
+        T_EQ(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')),status);
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        uint32_t const fade_sequence=unit->permanent_invisibility_fade.request.sequence;
+        jass_callbyname(level.vm,"resume324",false);
+        T_ASSERT(!unit->paused);T_EQ(status->class_clock_depth,0);T_ASSERT(status->class_timer.active);
+        if(overlap==2) {
+            /* Resume admits the retained permanent owner as a non-first
+             * contribution; it must not restart an already published fade. */
+            FOR_LOOP(n,10)item324_frame();
+            T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+            T_ASSERT(unit->permanent_invisibility_fade.published);
+            T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade_sequence);
+        }
+    }
+    FOR_LOOP(n,1000)item324_frame();
+    T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    if(overlap==2) {
+        T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+        T_ASSERT(S_PermanentInvisibilityActive(unit));
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        jass_callbyname(level.vm,"remove324",false);
+        T_ASSERT(!unit->permanent_invisibility_fade.permanent_owned);
+        T_ASSERT(!S_PermanentInvisibilityActive(unit));
+        T_ASSERT(!S_UnitHasInvisibilityState(unit));
+    }
+    if(!overlap) {
+        T_NOT_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')));
+        T_ASSERT(unit->movement.internal_suspend_depth>0);
+        T_EQ(unit->ability_clock_depth,0);
+    }
+    T_ASSERT(!jass_rterror_pending(level.vm));
+item324_cleanup:
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);
+    G_SetSLKRows("UnitData",od);G_SetSLKRows("UnitWeapons",ow);
+    G_SetSLKRows("UnitAbilities",ou);
+    free_slk_rows(ar);free_slk_rows(ir);free_slk_rows(dr);free_slk_rows(wr);free_slk_rows(ur);
+}
+TEST(wc3_items, invisibility324_public_sleep_does_not_freeze_private_expiry) {item324_sleep_composition(0);}
+TEST(wc3_items, invisibility324_public_sleep_pause_apiv_independent_inverse) {
+    item324_sleep_composition(1);item324_sleep_composition(2);
+}
+
 TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"

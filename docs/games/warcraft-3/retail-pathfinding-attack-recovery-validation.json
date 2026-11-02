@@ -3,7 +3,7 @@
   "target": "TARGET-01.2 F19/D051",
   "status": "Aivs and AIvi share concrete Binv with authored display context, item transition2, saved primary expiry and strict refresh. B01 compositions and caller dispositions remain open.",
   "save_version": 242,
-  "full_suite_run": true,
+  "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -6681,6 +6681,63 @@
       "assertions": 60731364,
       "passed": true,
       "limit": "This frozen323 binary predates the new324 tests."
+    }
+  },
+  "phase324": {
+    "scope": "Native public AIvi/Sleep/Pause/Apiv ownership and inverse evidence plus actual public Sleep/cold-save engine tests. No production changes or complete item activation parity.",
+    "production_unchanged": true,
+    "save_version": 242,
+    "native_fixture": "tools/ghidra/fixtures/research/invisibility324-public-original.json",
+    "capture_checker": "tools/ghidra/research/invisibility324_capture_check.py",
+    "native_public_rows": 246,
+    "observer_rows": 436,
+    "sampled_private_states": 72,
+    "observer_free_control_exact": true,
+    "effective_inputs": {
+      "binv_duration": 4,
+      "item_fade": 2,
+      "apiv_fade": 3,
+      "sleep_duration": 12,
+      "sleep_initial_guard": 2
+    },
+    "engine_new_tests": {
+      "per_edition_tests": 2,
+      "per_edition_assertions": 114,
+      "passed": true
+    },
+    "itemdrop": {
+      "report": "build/tests/invisibility324/gates/itemdrop.json",
+      "passed": true,
+      "per_edition_tests": 148,
+      "per_edition_assertions": 12050
+    },
+    "python_tests": {
+      "tests": 76,
+      "passed": true
+    },
+    "corpus": {
+      "entries": 614,
+      "passed": true,
+      "guarded_files": 3342
+    },
+    "full_suite_rerun": false,
+    "broad_production_verification": "phase323/full_suite source_commit4ce3ed9ae",
+    "remaining": [
+      "Common CHANNEL/CAST virtual12c reset-fade notifications bypassed by immediate item path.",
+      "Custom display-alias polarity selection is not established by this fixture.",
+      "No literal native/engine full-timeline equality or private-repeat claim."
+    ],
+    "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+    "library_sha256": "da4d8ed6c9349c3c0ac587491fefd794cae8cb5f31d6c1d06bf23929ff4e7b35",
+    "common_phase_native_evidence": {
+      "fixture": "tools/ghidra/fixtures/research/invisibility325-item-phase-original.json",
+      "checker": "tools/ghidra/research/invisibility325_phase_check.py",
+      "original_functions": 6,
+      "public_records": 246,
+      "observer_records": 612,
+      "same_map_and_reused_control": true,
+      "passed": true,
+      "limit": "Immediate reset callers observed; upstream phase ownership established by complete original function bodies, not a captured stack."
     }
   }
 }

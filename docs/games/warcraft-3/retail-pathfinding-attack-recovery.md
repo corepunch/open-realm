@@ -734,3 +734,47 @@ pathfinding gates, the uninterrupted/nine-checkpoint saved C299 replay,
 115 Python tests, corpus integrity and the SC2API CI command pass. The frozen323 full
 suite subsequently passed both editions:9,458 executions/60,731,364 assertions
 across eight shards, with no failures or skips. This run predates324 tests.
+
+## Public Sleep and independent invisibility owners: checkpoint324
+
+A new retail probe uses a stock Paladin's inventory, the actual pinv item
+(aliasAIv1, classAIvi), public Sleep orders, scripted Pause, negative-buff
+removal and both orders of Apiv/item attachment. All246 public records match
+a fresh observer-free control. The accepted inputs are Binv duration4, item
+transition2, Apiv transition3, Sleep duration12 and measured initial guard2.
+The attempted Usl1 override used data pointer0 and was ignored; guard1 is not
+claimed. Failed inventory/alias/type setup variants remain recorded separately.
+
+The original retains Binv's contribution while script Pause removes Apiv's.
+Negative-buff removal releases Sleep without releasing script Pause or Binv.
+Removing Apiv while paused leaves Binv intact. In the other attachment order,
+unpause reacquires Apiv, Binv later expires leaving the permanent contribution,
+and explicit Apiv removal releases the last contribution. Sleep alone permits
+Binv expiry while Sleep remains. The private trace contains72 sampled unit
+states and effective duration/fade arguments; there is no private-repeat claim.
+
+Two engine tests exercise actual JASS Sleep admission and cold-save overlap,
+using a Paladin with authored inventory. They pass114 assertions per edition
+within the fresh Itemdrop gate (148 tests/12,050 assertions per edition). The
+76 corpus/Itemdrop Python tests and614-entry integrity check pass. Production
+code is unchanged; the prior full323 suite remains its broad verification.
+These are ownership tests, not a literal native timeline replay. The custom
+Bixx display alias lacks an explicit dispel polarity in this fixture, so its
+negative-only removal preservation does not establish general polarity policy.
+
+Actual item activation also exposes a remaining mismatch: Apiv receives two
+reset-fade notifications before Binv creation. The native method643f60 releases
+its contribution with transition0 and reacquires authored Dur when enabled.
+Common CHANNEL3fbb80 calls48bb00 at3fbc37; common CAST3fb5d0 calls48ba80 at3fb677.
+Both helpers broadcast ability virtual12c through691210 before their public
+phase callbacks. This is not an availability disable/inverse pair. The engine's
+immediate item path currently bypasses those common phase notifications.
+That common activation behavior is the next AIvi block; this checkpoint does
+not close the AIvi overlap, B01 or TARGET-01.2.
+
+A supplemental observation with exactly the same map/probe also matches all246
+records in that frozen control. Its612 observer records identify the two
+643f60 reset pairs. Six complete original function bodies and the vtable word
+are checked by `tools/ghidra/research/invisibility325_phase_check.py --binary
+/path/to/game.dll`. The canonical capture/invariants are retained in
+`tools/ghidra/fixtures/research/invisibility325-item-phase-original.json`.

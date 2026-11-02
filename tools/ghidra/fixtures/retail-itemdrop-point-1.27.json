@@ -17,12 +17,12 @@
   },
   "engine_expected": {
     "classic": {
-      "tests": 146,
-      "assertions": 11936
+      "tests": 148,
+      "assertions": 12050
     },
     "tft": {
-      "tests": 146,
-      "assertions": 11936
+      "tests": 148,
+      "assertions": 12050
     }
   },
   "required_engine_cases": [
@@ -50,7 +50,9 @@
     "wc3_items.invisibility323_script_pause_freezes_expiry_not_shared_fade",
     "wc3_items.invisibility323_paused_inventory_refresh_preserves_frozen_remainder",
     "wc3_items.invisibility323_fresh_attachment_inherits_script_pause",
-    "wc3_items.invisibility323_nonpositive_paused_refresh_rearms_frozen_remainder"
+    "wc3_items.invisibility323_nonpositive_paused_refresh_rearms_frozen_remainder",
+    "wc3_items.invisibility324_public_sleep_does_not_freeze_private_expiry",
+    "wc3_items.invisibility324_public_sleep_pause_apiv_independent_inverse"
   ],
   "scope": "Inventory public point-drop admission, silent specialized order class, replacement cancellation, stock/authored ranges, 14 exact-clock mover trajectories, terminal item incarnation, Stop/item loss/reuse and in-process save continuations. Immobile near/far, paused/dead rejection, runtime-added Inventory and real cursor ingress are exercised. TARGET-01.2 remains open for the complete producer and firing-poll matrix.",
   "pins": {
@@ -67,7 +69,7 @@
     "games/warcraft-3/game/skills/s_skills.c": "8bc6d6ff2e2a60eed2cb3b4ca8118623dd29394775b0f58c19f344599d9b2751",
     "games/warcraft-3/game/tests/fixtures/retail_itemdrop_motion.h": "01b421bdecb37cf118afa242b52d29ba988cafc1886a00edb950a19133f0e2f4",
     "games/warcraft-3/game/tests/t_itemdrop_point.c": "9ccb8fea98355efd49c2f27596243596d5566672a4315ea664fa3514ca132b7a",
-    "games/warcraft-3/game/tests/t_items.c": "81e88be4aa03f7b9a0b9f473519539c2fc3487a732f4b62542b21c088f9f54f3",
+    "games/warcraft-3/game/tests/t_items.c": "8531025fdf3b70916527dd406f90504f2a541c2872cb46cd8235ea56b6a97e07",
     "games/warcraft-3/tests/resources-src/PathTextures/4x4SimpleSolid.tga": "c65767fd139582a5ab53c480a91c7f94ac7c55c14b47f43cc15b01d9e4a5690a",
     "games/warcraft-3/tests/resources-src/Units/UnitBalance.slk": "db98b9d6078f1eb6960819d4f91816a40f5eaa67ae2cf00bb72ca081dc7f7964",
     "games/warcraft-3/tests/resources-src/Units/UnitData.slk": "f93f67c20dc4a73efd1b5d44b0e696252fa652c9bbcd5a4e587afa91711d1629",
@@ -88,7 +90,7 @@
     "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json.gz": "62ee17375913ada5522222614f66b46d308fe480dcdcf99483fbf519969f9d30",
     "tools/ghidra/research/itemdrop_evidence.py": "29e865cf0f3238b0d1933630d105612619ff57c5e80adbf1d8817e2fd8fd65ea",
     "tools/ghidra/research/itemdrop_motion_fixture.py": "db2bff5dc20d99c2cb8d6efae0faa3bd4370c120bbbd7533cd1bdb9e1709194f",
-    "tools/ghidra/verify_wc3_pathing_itemdrop_point.py": "4c4da6aef975d894688fa25ccb1624999475ddeedcfb34e43736ff78f5139d90",
+    "tools/ghidra/verify_wc3_pathing_itemdrop_point.py": "4a0f87b8433d2637fcb80c2e67aaa3e2841b99a5bb901d57683bfd5930b1cc86",
     "tools/ghidra/wc3_pathfinding_engine_tests.py": "b49420ae5212c137594e3d9925239dea80ce055a2af2d02e5e1d72c15ebc7193",
     "games/warcraft-3/game/tests/t_sc2api.c": "31e237e7cb14d2fb058d20e16242cdeb1ce8a65e4dd76b3b9c450813301a2f69",
     "games/warcraft-3/game/skills/s_move.c": "d8bd4340d73a01e04a847bf504bf72cece4c5847cc6fa1ab3d6620f52d234ac6",

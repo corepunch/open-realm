@@ -88,6 +88,13 @@ rules follow original427610/43b0e0,531420/532fa0 and531a80, rather than a
 blanket paused-unit timer policy. Full public Sleep/Apiv composition remains
 a separate B01 check.
 
+Checkpoint324 adds real JASS Sleep admission, Apiv/item attachment in both
+orders, independent owner removal and paused cold save/load. A fresh retail
+observation/control pair agrees on246 public records. Production is unchanged.
+The remaining item-path gap is Apiv's common CHANNEL/CAST reset-fade
+notifications before item effect; see the exact callers in
+[checkpoint324](retail-pathfinding-attack-recovery.md#public-sleep-and-independent-invisibility-owners-checkpoint324).
+
 ## Save/load
 
 Ghost uses a persisted `runtime.flags` bit, and Wind Walk uses the persisted `heroabilitystatus_t.data` applying-ability identity. Save137 stores Permanent Invisibility's scalar origin, slope and pending primary request; its heap membership is rebuilt. No edict pointer or C callback is added. Focused save/load tests cover pending fade and these other semantics.
