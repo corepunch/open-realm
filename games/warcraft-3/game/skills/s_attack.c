@@ -42,6 +42,29 @@ static umove_t attack_move_ranged_cooldown;
 #define ID_PLAGUE_TOSS MAKEFOURCC('A','p','t','s')
 #define ID_DISEASE_CLOUD_RESEARCH MAKEFOURCC('R','u','p','c')
 #define MEAT_WAGON_PLAGUE_CLOUD_MS 10000u
+#define LIGHTNING_ATTACK_ABILITY MAKEFOURCC('A','l','i','t')
+#define LIGHTNING_ATTACK_BOLT_MS 250u
+
+/* Alit is a passive attack presentation: it changes neither the attack roll
+ * nor damage, but draws the authored lightning ribbon after a valid hit. */
+static void attack_lightning_effect(edict_t *attacker, edict_t *target) {
+    uint32_t effect;
+    if (!attacker || !target || !G_UnitAbilityLevel(attacker, LIGHTNING_ATTACK_ABILITY)) return;
+    effect = G_AbilityLightningId(LIGHTNING_ATTACK_ABILITY, 0);
+#if BZ_COMPAT_WORKAROUNDS
+    /* Stock RoC/TFT neutral attack-passive rows do not author a LightningEffect
+     * list. Use the stock primary lightning ribbon for those rows. */
+    if (!effect) effect = MAKEFOURCC('C','L','P','B');
+#endif
+    if (!effect) return;
+    (void)G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = effect,
+        .source = &attacker->s.origin,
+        .target = &target->s.origin,
+        .color = COLOR32_WHITE,
+        .duration_ms = LIGHTNING_ATTACK_BOLT_MS,
+    });
+}
 
 static void artillery_spawn_meat_wagon_impact(edict_t *attacker, vec2_t const *impact) {
     UnitProfile_t const *profile;
@@ -646,6 +669,7 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     G_PlayCombatImpactSound(attacker, target);
     /* No procs or Lava Spawn replication on invulnerable/fully shielded hits. */
     if (!T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level)) return;
+    attack_lightning_effect(attacker, target);
     if (attacker->inuse && !M_IsDead(attacker)) S_LavaSpawnAttackHit(attacker);
     if (!attacker->inuse || !target->inuse) return;
     if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
