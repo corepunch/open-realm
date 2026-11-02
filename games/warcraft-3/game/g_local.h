@@ -2774,6 +2774,8 @@ struct edict_s {
     umove_t *currentmove;
     unitRace_t race;
     float wait;
+    abilityPrimaryTimer_t attack_cooldown; /* Independent Attack cooldown; sole timing authority. */
+    /* Derived compatibility caches, refreshed by cooldown helpers. */
     bool attack_cooldown_active;
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;

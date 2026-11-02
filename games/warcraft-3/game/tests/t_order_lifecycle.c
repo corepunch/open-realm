@@ -1148,7 +1148,7 @@ TEST(wc3_order_lifecycle, swing199_repeated_windups_keep_or_rearm_existing_cap) 
          * beyond that interval; retain the existing sequence branch checks. */
         if(i==2)FOR_LOOP(step,100)lifecycle_primary_step();
         /* Each admitted explicit head reaches a ready weapon windup. */
-        unit->attack_cooldown_active=false;unit->wait=0;
+        attack_cooldown_cancel(unit);unit->wait=0;
         T_ASSERT(G_IssueUnitTargetOrder(unit,"attack",target,false,0));
         lifecycle_wait_for_weapon_windup(unit);
         T_ASSERT(unit->attack_speed_cap.active);
@@ -2913,10 +2913,16 @@ TEST(wc3_order_lifecycle, creep_guard_soft_leash_times_out_through_scheduler) {
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
     T_ASSERT(level.time - combat_ms >= 5000u);
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+    /* Keep this return test separate from a new fight at home. Independent
+     * Attack timers otherwise let the enemy pursue the returning creep. */
+    T_ASSERT(unit_issueimmediateorder(enemy,"holdposition"));
+    vec2_t const enemy_hold=enemy->s.origin2;
     for (frame = 0; frame < 400 && creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING; frame++)
         creep_guard_run_frames(1);
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
     T_ASSERT(creep_guard_home_distance(creep) <= move_settle_distance(creep));
+    T_FEQ(enemy->s.origin2.x,enemy_hold.x,0.001f);
+    T_FEQ(enemy->s.origin2.y,enemy_hold.y,0.001f);
 }
 
 /* Retail Sleep367: BUsl retains admitted orders under suspension851973;

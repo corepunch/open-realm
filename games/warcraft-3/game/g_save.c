@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 236; /* Real damage event payloads, including saved callbacks. */
+static uint32_t const save_version = 237; /* Independent primary Attack cooldown. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1410,6 +1410,11 @@ field_t edict_fields[] = {
     F(edict_s, projectile_attack_type, F_INT),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
+    F(edict_s, attack_cooldown.deadline.time, F_FLOAT),
+    F(edict_s, attack_cooldown.deadline.epoch, F_INT),
+    F(edict_s, attack_cooldown.deadline.span, F_FLOAT),
+    F(edict_s, attack_cooldown.sequence, F_INT),
+    F(edict_s, attack_cooldown.active, F_INT),
     F(edict_s, attack_cooldown_active, F_INT),
     F(edict_s, attack_cooldown_remaining, F_FLOAT),
     F(edict_s, attack_cooldown_end_time, F_INT),
@@ -5369,6 +5374,11 @@ TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
     free_slk_rows(rows);
 }
 
+/* Unity tests use the same owner helpers as production. */
+static void attack_set_cooldown(edict_t *,float);
+static void attack_cooldown_cancel(edict_t *);
+static float attack_cooldown_remaining(edict_t const *);
+
 TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     cstring_t filename = Test_TempPath("save-current-combat-cargo.bin");
     setup_test_world();
@@ -5376,9 +5386,10 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     edict_t *goal = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
     int const index = unit - g_edicts, goal_index = goal - g_edicts;
-    unit->attack_cooldown_active = true;
-    unit->attack_cooldown_remaining = 17.5f;
-    unit->attack_cooldown_end_time = 12000;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    attack_set_cooldown(unit,17.5f);
+    abilityPrimaryTimer_t const cooldown=unit->attack_cooldown;
+    float const remaining=attack_cooldown_remaining(unit);
     unit->attack_backswing_end_time = 9000;
     unit->attack_target_spawn_time = goal->spawn_time;
     unit->movement.cargo_unload_pending = true;
@@ -5392,7 +5403,7 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     unit->movement.wisp_egress_target_valid = true;
     unit->unitinfo.PropWindow = 0.0f;
     T_ASSERT(WriteGame(filename));
-    unit->attack_cooldown_active = false;
+    attack_cooldown_cancel(unit);
     unit->movement.cargo_unload_pending = false;
     S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, NULL);
     unit->movement.wisp_egress_tree = NULL;
@@ -5403,8 +5414,12 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     unit = g_edicts + index;
     goal = g_edicts + goal_index;
     T_ASSERT(unit->attack_cooldown_active);
-    T_FEQ(unit->attack_cooldown_remaining, 17.5f, 0.001f);
-    T_EQ(unit->attack_cooldown_end_time, 12000);
+    T_ASSERT(unit->attack_cooldown.active);
+    T_EQ(wc3_float_bits(unit->attack_cooldown.deadline.time),wc3_float_bits(cooldown.deadline.time));
+    T_EQ(unit->attack_cooldown.deadline.epoch,cooldown.deadline.epoch);
+    T_EQ(wc3_float_bits(unit->attack_cooldown.deadline.span),wc3_float_bits(cooldown.deadline.span));
+    T_EQ(unit->attack_cooldown.sequence,cooldown.sequence);
+    T_EQ(wc3_float_bits(attack_cooldown_remaining(unit)),wc3_float_bits(remaining));
     T_EQ(unit->attack_backswing_end_time, 9000);
     T_EQ(unit->attack_target_spawn_time, goal->spawn_time);
     T_FEQ(unit->unitinfo.PropWindow, 0.0f, 0.001f);
@@ -5419,6 +5434,66 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     T_FEQ(unit->movement.wisp_egress_target.x, -32.0f, 0.001f);
     T_FEQ(unit->movement.wisp_egress_target.y, 48.0f, 0.001f);
     remove(filename);
+}
+
+/* A completed hit may leave cooldown alive after its target/task is gone. */
+static edict_t *save237_cooldown_fixture(void) {
+    reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    unit->stand=unit_stand;unit_stand(unit);
+    attack_set_cooldown(unit,0.730f);
+    T_ASSERT(unit->attack_cooldown.active);
+    T_EQ(unit->attack_target,NULL);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc!=CAbilityAttack);
+    return unit;
+}
+TEST(wc3_save, independent_attack_cooldown_without_target_round_trips) {
+    cstring_t file=Test_TempPath("save-independent-attack-cooldown.bin");
+    edict_t *unit=save237_cooldown_fixture();
+    unsigned index=unit-g_edicts;
+    abilityPrimaryTimer_t const timer=unit->attack_cooldown;
+    float const remaining=attack_cooldown_remaining(unit);
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    attack_cooldown_cancel(unit);
+    T_ASSERT(!unit->attack_cooldown.active);
+    T_ASSERT(ReadGame(file));unit=g_edicts+index;
+    T_EQ(unit->attack_target,NULL);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc!=CAbilityAttack);
+    T_ASSERT(unit->attack_cooldown.active);T_ASSERT(unit->attack_cooldown_active);
+    T_EQ(wc3_float_bits(unit->attack_cooldown.deadline.time),wc3_float_bits(timer.deadline.time));
+    T_EQ(unit->attack_cooldown.deadline.epoch,timer.deadline.epoch);
+    T_EQ(wc3_float_bits(unit->attack_cooldown.deadline.span),wc3_float_bits(timer.deadline.span));
+    T_EQ(unit->attack_cooldown.sequence,timer.sequence);
+    T_EQ(wc3_float_bits(attack_cooldown_remaining(unit)),wc3_float_bits(remaining));
+    T_ASSERT(S_ValidateAttackTargets());
+    remove(file);reset_entities();setup_test_world();
+}
+TEST(wc3_save, independent_attack_cooldown_rejects_invalid_active_timer) {
+    cstring_t file=Test_TempPath("save-invalid-attack-cooldown.bin");
+    edict_t *unit=save237_cooldown_fixture();
+    abilityPrimaryTimer_t const valid=unit->attack_cooldown;
+    uint32_t const invalid[]={0x7f800000u,0xff800000u,0x7fc00000u};
+    FOR_LOOP(i,sizeof(invalid)/sizeof(*invalid)) {
+        unit->attack_cooldown=valid;
+        unit->attack_cooldown.deadline.time=wc3_float(invalid[i]);
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+        unit->attack_cooldown=valid;
+        unit->attack_cooldown.deadline.span=wc3_float(invalid[i]);
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    }
+    FOR_LOOP(i,2) {
+        unit->attack_cooldown=valid;unit->attack_cooldown.deadline.span=i ? -1 : 0;
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+        unit->attack_cooldown=valid;
+        unit->attack_cooldown.sequence=i ? level.timer_sequence+1 : 0;
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    }
+    unit->attack_cooldown=valid;unit->attack_cooldown_active=false;
+    T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    unit->attack_cooldown_active=true;
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    remove(file);reset_entities();setup_test_world();
 }
 
 TEST(wc3_save, rejects_unexpected_trailing_payload) {

@@ -4291,6 +4291,12 @@ TEST(wc3_spell, human_support_aliases_preserve_authored_modifiers) {
         T_FEQ(G_UnitArmorValue(ally), 2.0f, 0.001f);
         S_ResolveAttackHit(ally, enemy, 100);
         T_FEQ(enemy->health.value, 265.0f, 0.001f);
+        S_AttackProfileWrite(enemy, 0)->type = ATK_NORMAL;
+        S_AttackProfileWrite(enemy, 0)->weapon = WPN_NORMAL;
+        S_AttackProfileWrite(enemy, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+        S_AttackProfileWrite(enemy, 0)->range = 128.0f;
+        enemy->stand = unit_stand;
+        ally->targtype = TARG_GROUND;
         S_AttackProfileWrite(enemy, 0)->cooldown = 1.0f;
         S_AttackProfileWrite(enemy, 0)->damagePoint = 0.3f;
         enemy->unitinfo.MoveSpeed = 270.0f;
@@ -4299,10 +4305,29 @@ TEST(wc3_spell, human_support_aliases_preserve_authored_modifiers) {
         /* Slow is owned by the native movement contribution ledger. */
         T_FEQ(S_HumanMoveFactor(enemy), 1.0f, 0.001f);
         T_FEQ(unit_movedistance(enemy), normal_move_distance * 0.4f, 0.01f);
+        /* Internal Attack admission establishes the target-owned inverse;
+         * direct swing helpers alone do not construct that task binding. */
+        order_attack(enemy,ally);
+        T_EQ(enemy->attack_target,ally);T_EQ(enemy->goalentity,ally);
         attack_melee(enemy);
         T_ASSERT(enemy->attack_damage.active);
         T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f / 0.55f, 0.001f);
+        abilityPrimaryTimer_t const slowed_cooldown=enemy->attack_cooldown;
+        abilityPrimaryTimer_t const slowed_damage=enemy->attack_damage;
         unit_removestatus(enemy, unit_findstatus(enemy, MAKEFOURCC('B','s','l','o')), STATUS_REMOVE_DISPEL);
+        attack_melee(enemy);
+        /* A shorter requested cooldown does not replace the retained native
+         * request, and its existing damage point is not independently rearmed. */
+        T_EQ(enemy->attack_cooldown.sequence,slowed_cooldown.sequence);
+        T_FEQ(enemy->attack_cooldown.deadline.time,slowed_cooldown.deadline.time,0);
+        T_ASSERT(enemy->attack_damage.active);
+        T_EQ(enemy->attack_damage.sequence,slowed_damage.sequence);
+        T_FEQ(enemy->attack_damage.deadline.time,slowed_damage.deadline.time,0);
+        T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f / 0.55f, 0.001f);
+        T_ASSERT(unit_issueimmediateorder(enemy,"stop"));
+        T_ASSERT(!enemy->attack_cooldown.active);T_ASSERT(!enemy->attack_damage.active);
+        order_attack(enemy,ally);
+        T_EQ(enemy->attack_target,ally);T_EQ(enemy->goalentity,ally);
         attack_melee(enemy);
         T_ASSERT(enemy->attack_damage.active);
         T_FEQ(wc3_sub(enemy->attack_damage.deadline.time, G_TimerQueryClock(NULL).time), 0.3f, 0.001f);
@@ -6765,10 +6790,11 @@ TEST(wc3_spell, metamorphosis_keeps_abilities_adds_ranged_attack_and_reverts_bon
         "C;Y2;X1;K\"Edem\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\n"
         "C;Y3;X1;K\"Edmm\"\nC;Y3;X2;K\"ground\"\nC;Y3;X3;K\"foot\"\nE\n";
     char const unit_weapons[] =
-        "ID;PWXL;N;EBB;Y3;X6\nC;Y1;X1;K\"unitWeaponsID\"\nC;Y1;X2;K\"weapsOn\"\n"
+        "ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"unitWeaponsID\"\nC;Y1;X2;K\"weapsOn\"\n"
         "C;Y1;X3;K\"atkType1\"\nC;Y1;X4;K\"weapTp1\"\nC;Y1;X5;K\"rangeN1\"\nC;Y1;X6;K\"dice1\"\n"
-        "C;Y2;X1;K\"Edem\"\nC;Y2;X2;K1\nC;Y2;X3;K\"hero\"\nC;Y2;X4;K\"mwc\"\nC;Y2;X5;K100\nC;Y2;X6;K1\n"
-        "C;Y3;X1;K\"Edmm\"\nC;Y3;X2;K1\nC;Y3;X3;K\"chaos\"\nC;Y3;X4;K\"msplash\"\nC;Y3;X5;K600\nC;Y3;X6;K1\nE\n";
+        "C;Y1;X7;K\"cool1\"\nC;Y1;X8;K\"dmgpt1\"\n"
+        "C;Y2;X1;K\"Edem\"\nC;Y2;X2;K1\nC;Y2;X3;K\"hero\"\nC;Y2;X4;K\"mwc\"\nC;Y2;X5;K100\nC;Y2;X6;K1\nC;Y2;X7;K1\nC;Y2;X8;K0.03\n"
+        "C;Y3;X1;K\"Edmm\"\nC;Y3;X2;K1\nC;Y3;X3;K\"chaos\"\nC;Y3;X4;K\"msplash\"\nC;Y3;X5;K600\nC;Y3;X6;K1\nC;Y3;X7;K1\nC;Y3;X8;K0.03\nE\n";
     slkTestData_t *ability_rows = parse_slk_string(ability_data), *old_ability = G_SetSLKRows("AbilityData", ability_rows);
     slkTestData_t *abilities_rows = parse_slk_string(unit_abilities), *old_abilities = G_SetSLKRows("UnitAbilities", abilities_rows);
     slkTestData_t *ui_rows = parse_slk_string(unit_ui), *old_ui = G_SetSLKRows("UnitUI", ui_rows);

@@ -1,4 +1,10 @@
-Save236 stores damage-event amounts as real values. The event queue and JASS
+Save237 adds the independent Attack cooldown primary timer. Deadline, clock
+epoch/span, sequence and active state survive without a target or an Attack
+think callback. Load rebuilds its heap entry and derives the compatibility
+caches from that timer. Invalid active clocks, invalid sequences and mismatched
+active-state caches are rejected. Save236 and older layouts are rejected.
+
+The prior Save236 stores damage-event amounts as real values. The event queue and JASS
 callback context retain a shared 32-bit payload: damage events interpret it as
 an IEEE float; spell/research/order IDs remain integers. Snapshot code copies
 those bits without numerical conversion, so fractional damage and full-width

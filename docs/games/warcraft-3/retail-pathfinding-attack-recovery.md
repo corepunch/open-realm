@@ -292,3 +292,43 @@ the requested duration is strictly longer than remaining time, and arms damage
 only inside that replacement branch. Use the existing primary float-clock
 queue, preserve independent swing, and save/validate the new timer owner.
 Neither normal/saved suffix parity nor B01 closure is established.
+
+
+## Independent Attack cooldown: checkpoint312
+
+The cooldown now owns a saved primary float-clock request, independent of
+animation, damage, swing completion and physical chase. Its expiry can replace
+an existing chase, resetting velocity and refreshing the target position.
+Reaction blocks that dispatch. An enabled artillery Ground task starts its
+own swing; a retained target uses detection-only validation, followed by a
+separate position-visibility query. A hidden position starts a mobile chase;
+failed detection ends the task.
+
+The producer grants the speed-cap exemption before comparing durations. Only a
+strictly longer request replaces the remaining cooldown and arms damage. Damage
+is capped by the actual requested duration minus .01, with the native .0001
+minimum. Releasing an uncommitted hit cancels cooldown; post-hit target release
+preserves it. Detach/removal cancels it. Save237 retains the timer even without a
+target or Attack think callback, validates active clocks/sequences, and rebuilds
+the queue. Integer millisecond fields are derived compatibility caches.
+
+The unchanged complete C299 diagnostic now matches the first 878 ordered motion
+rows, up from 148. Its first public mismatch is index114: scene0 Target facing at
+tick90. Public totals remain2059 versus2066, with1771 mismatches; motion totals
+are5496 versus5342, with4464 mismatches. Full replay parity and B01 remain open.
+The next mismatch begins after the hidden Target finishes its Move: C starts
+another Target physical request while retail continues the Source recovery.
+This is a next-step observation, not a proved cause or completed correction.
+
+[Sixteen original function bodies](../../../games/warcraft-3/game/tests/fixtures/retail_attack_cooldown312_static.json)
+are guarded against the private DLL bytes, including49a4f0,49d130,499310,495180,
+reaction ownership, scalar-clock scheduling and cancellation. Original native299
+public/motion rows and expected values remain unchanged.
+
+Verification: 4,414 focused test executions and 18,334,284 assertions
+pass across both editions in a 40-process composite. The sole change after the
+initial 38 green scopes is the corrected spell fixture; its complete family
+passes again in both editions. All five gates pass on the final build.
+The complete C299 diagnostic still fails as recorded above; no whole leaf closes.
+The 115 Python evidence checks pass. The corpus check passes all614 entries
+and3,323 guarded files.

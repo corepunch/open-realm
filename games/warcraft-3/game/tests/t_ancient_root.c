@@ -392,7 +392,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     T_ASSERT(unit->goalentity == target);
     T_EQ(unit->currentmove->proc, CAbilityAttack);
     unit->wait = 0.0f;
-    unit->attack_cooldown_end_time = G_Time();
+    attack_cooldown_cancel(unit);
     unit->currentmove->think(unit);
     T_STREQ(unit->currentmove->animation, "attack range");
 

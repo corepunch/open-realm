@@ -5357,9 +5357,6 @@ SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE
 SAVE_INT_FIELD_TEST(field_script_explosion_round_trip, aiflags, AI_SCRIPT_EXPLODED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, projectile_attack_type, ATK_PIERCE)
-SAVE_INT_FIELD_TEST(field_attack_cooldown_active_round_trip, attack_cooldown_active, 1)
-SAVE_FLOAT_FIELD_TEST(field_attack_cooldown_remaining_round_trip, attack_cooldown_remaining, 0.75f)
-SAVE_INT_FIELD_TEST(field_attack_cooldown_end_time_round_trip, attack_cooldown_end_time, 12345)
 SAVE_INT_FIELD_TEST(field_attack_backswing_end_time_round_trip, attack_backswing_end_time, 12346)
 TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     cstring_t filename = Test_TempPath("wc3-save-artillery-profile.bin");

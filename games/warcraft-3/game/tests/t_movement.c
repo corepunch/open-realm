@@ -24020,7 +24020,7 @@ TEST(wc3_movement, policy245_physical_turn_commits_match_retail_and_cold_save) {
             level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
         }
         T_EQ(policy245_cursor,facing245_counts[scene]);T_EQ(unit->movement.group_id,0);
-        T_ASSERT(unit->attack_cooldown_active);T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
+        T_ASSERT(unit->attack_cooldown.active);T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
         move_test_motion_commit=NULL;policy245_unit=NULL;
         G_FowShutdown();reset_entities();setup_test_world();
     }
@@ -24068,13 +24068,13 @@ TEST(wc3_movement, policy245_public_attack_turns_before_weapon_windup) {
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
-        T_EQ(group->flags&0xffffu,0x1200u);T_ASSERT(!unit->attack_cooldown_active);
+        T_EQ(group->flags&0xffffu,0x1200u);T_ASSERT(!unit->attack_cooldown.active);
         vec2_t point=unit->s.origin2;
         FOR_LOOP(i,20) {
             target166_tick();T_EQ(unit->s.origin2.x,point.x);T_EQ(unit->s.origin2.y,point.y);
-            if(unit->attack_cooldown_active)break;
+            if(unit->attack_cooldown.active)break;
         }
-        T_ASSERT(unit->attack_cooldown_active);T_EQ(unit->movement.group_id,0);
+        T_ASSERT(unit->attack_cooldown.active);T_EQ(unit->movement.group_id,0);
         T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
     }
     game.constants.attackHalfAngle=half_angle;
@@ -30810,7 +30810,7 @@ TEST(wc3_movement,target309_public_reissue_keeps_reaction_and_captured_range) {
     T_ASSERT(S_OrderAttack(unit,target));
     T_ASSERT(unit->attack_reaction.active);
     T_ASSERT(unit->attack_reaction.sequence>sequence);
-    T_ASSERT(unit->attack_cooldown_active);
+    T_ASSERT(unit->attack_cooldown.active);
     S_AttackProfileWrite(unit,0)->range=999;
     level.pathing_clock=unit->attack_reaction.deadline;
     target168_run_timers();
@@ -30832,7 +30832,7 @@ TEST(wc3_movement,target309_reissue_cancels_only_pending_damage_cooldown) {
         target->s.origin.x=target->s.origin2.x=320;gi.LinkEntity(target);
         S_AttackProfileWrite(unit,0)->damagePoint=.5f;
         order_attack(unit,target);attack_melee(unit);
-        T_ASSERT(unit->attack_damage.active);T_ASSERT(unit->attack_cooldown_active);
+        T_ASSERT(unit->attack_damage.active);T_ASSERT(unit->attack_cooldown.active);
         /* A short presentation clip must not retire the primary damage wait. */
         abilityPrimaryTimer_t damage=unit->attack_damage;
         T_NOT_NULL(unit->currentmove->endfunc);
@@ -30844,12 +30844,12 @@ TEST(wc3_movement,target309_reissue_cancels_only_pending_damage_cooldown) {
             level.pathing_clock=unit->attack_damage.deadline;
             target168_run_timers();
             T_ASSERT(!unit->attack_damage.active);
-            T_ASSERT(unit->attack_cooldown_active);
+            T_ASSERT(unit->attack_cooldown.active);
         }
         T_ASSERT(S_OrderAttack(unit,target));
         T_ASSERT(unit->attack_reaction.active);
         T_ASSERT(!unit->attack_damage.active);
-        T_EQ(unit->attack_cooldown_active,!pending);
+        T_EQ(unit->attack_cooldown.active,!pending);
         G_FowShutdown();reset_entities();setup_test_world();
     }
 }
@@ -30870,6 +30870,127 @@ TEST(wc3_movement,target309_damage_point_uses_buffer_and_retains_missed_swing) {
         T_ASSERT(!unit->attack_damage.active);T_ASSERT(unit->attack_swing.active);
         if(miss)T_EQ(target->health.value,health);
         else T_ASSERT(target->health.value<health);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+/* Original49d130 service boundary: compare the independent remaining request,
+ * not an integer deadline or an animation wait. */
+TEST(wc3_movement, target312_cooldown_rearm_is_strict_and_damage_is_conditional) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    S_AttackProfileWrite(unit,0)->damagePoint=.25f;
+    order_attack(unit,target);
+    attack_set_cooldown(unit,1);
+    abilityPrimaryTimer_t original=unit->attack_cooldown;
+    T_ASSERT(original.active);T_ASSERT(!unit->attack_damage.active);
+    T_ASSERT(!attack_arm_cooldown(unit,.5f,true));
+    T_ASSERT(unit->attack_speed_cap.active); /* Cap precedes strict comparison. */
+    T_EQ(unit->attack_cooldown.sequence,original.sequence);
+    T_ASSERT(!unit->attack_damage.active);
+    T_ASSERT(!attack_arm_cooldown(unit,attack_cooldown_remaining(unit),true));
+    T_EQ(unit->attack_cooldown.sequence,original.sequence);
+    T_ASSERT(!unit->attack_damage.active);
+    T_ASSERT(attack_arm_cooldown(unit,1.5f,true));
+    T_ASSERT(unit->attack_cooldown.sequence>original.sequence);
+    T_ASSERT(unit->attack_damage.active);
+    T_FEQ(attack_cooldown_remaining(unit),1.5f,.000001f);
+    abilityPrimaryTimer_t damage=unit->attack_damage;
+    T_ASSERT(attack_arm_cooldown(unit,2,false));
+    T_EQ(unit->attack_damage.sequence,damage.sequence);
+    T_FEQ(unit->attack_damage.deadline.time,damage.deadline.time,0);
+    attack_cooldown_cancel(unit);attack_damage_cancel(unit);
+    S_AttackProfileWrite(unit,0)->cooldown=1.5f;
+    T_ASSERT(attack_arm_cooldown(unit,.1f,true));
+    T_ASSERT(unit->attack_damage.active);
+    T_FEQ(wc3_sub(unit->attack_damage.deadline.time,G_TimerQueryClock(NULL).time),
+          wc3_sub(.1f,.01f),0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target312_cooldown_expiry_replaces_retained_chase) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+    order_attack(unit,target);ai_attack_walk(unit);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    target166_tick();
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    uint32_t const revision=G_UnitMoveRevision(unit);
+    T_ASSERT(unit->movement.velocity.x!=0 || unit->movement.velocity.y!=0);
+    attack_set_cooldown(unit,.075f);
+    level.pathing_clock=unit->attack_cooldown.deadline;
+    target168_run_timers();
+    T_ASSERT(!unit->attack_cooldown.active);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_ASSERT(G_UnitMoveRevision(unit)>revision);
+    T_EQ(unit->goalentity,target);T_EQ(unit->attack_target,target);
+    T_FEQ(unit->movement.velocity.x,0,0);T_FEQ(unit->movement.velocity.y,0,0);
+    group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        T_FEQ(group->point.x,unit->s.origin2.x/32,0);
+        T_FEQ(group->point.y,unit->s.origin2.y/32,0);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target312_cooldown_expiry_during_reaction_does_not_dispatch_chase) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+    T_ASSERT(S_OrderAttack(unit,target));T_ASSERT(unit->attack_reaction.active);
+    abilityPrimaryTimer_t const reaction=unit->attack_reaction;
+    float const delay=wc3_mul(wc3_sub(reaction.deadline.time,G_TimerQueryClock(NULL).time),.5f);
+    T_ASSERT(delay>0);
+    attack_set_cooldown(unit,delay);
+    level.pathing_clock=unit->attack_cooldown.deadline;
+    target168_run_timers();
+    T_ASSERT(!unit->attack_cooldown.active);
+    T_ASSERT(unit->attack_reaction.active);
+    T_EQ(unit->attack_reaction.sequence,reaction.sequence);
+    T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));T_ASSERT(!unit->attack_damage.active);
+    level.pathing_clock=reaction.deadline;target168_run_timers();
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target312_pending_cooldown_cannot_replace_new_public_owner) {
+    FOR_LOOP(mode,4) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+        order_attack(unit,target);ai_attack_walk(unit);
+        attack_set_cooldown(unit,.1f);
+        wc3Clock_t const deadline=unit->attack_cooldown.deadline;
+        if(mode==0)T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        else if(mode==1)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1280,768}));
+        else if(mode==2)G_FreeEdict(target);
+        else G_FreeEdict(unit);
+        uint32_t const head=unit->current_order_id;
+        uint32_t const revision=G_UnitMoveRevision(unit);
+        level.pathing_clock=deadline;target168_run_timers();
+        T_ASSERT(!unit->attack_damage.active);
+        T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+        T_EQ(unit->current_order_id,head);
+        /* Target removal completes its captured recovery, independently of
+         * the stale cooldown; replacement public owners must remain untouched. */
+        T_EQ(G_UnitMoveRevision(unit),revision+(mode==2 ? 1u : 0u));
+        T_NULL(unit->attack_target);
+        if(mode==3)T_ASSERT(!unit->inuse);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+/* Construct Ground normally, then isolate its d01b0 retry from delivery;
+ * changing the enabled weapon class is a service-policy fixture, not a claim
+ * that an ordinary public order mutates authored weapon metadata. */
+TEST(wc3_movement, target312_ground_cooldown_uses_enabled_delivery_class) {
+    FOR_LOOP(firing,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,300);
+        unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+        profile->weapon=WPN_ARTILLERY;profile->damagePoint=.25f;
+        T_ASSERT(S_OrderAttackGround(unit,&(vec2_t){320,256}));
+        FOR_LOOP(step,40) {if(unit->attack_damage.active)break;target166_tick();}
+        T_ASSERT(unit->attack_damage.active);T_ASSERT(unit->attack_cooldown.active);
+        attack_damage_cancel(unit);
+        if(!firing)profile->weapon=WPN_NORMAL;
+        level.pathing_clock=unit->attack_cooldown.deadline;target168_run_timers();
+        T_EQ(unit->attack_damage.active,firing!=0);
+        T_EQ(unit->attack_cooldown.active,firing!=0);
+        T_EQ(unit->currentmove->proc,CAbilityAttackGround);
         G_FowShutdown();reset_entities();setup_test_world();
     }
 }

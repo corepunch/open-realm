@@ -102,7 +102,7 @@ TEST(wc3_attack_orders, target_head_save_replacement_and_automatic_combat) {
         attack_orders_frames(1); T_EQ(actor->current_order_id,G_OrderId("attack"));
     }
     T_ASSERT(enemy->health.value<5000);
-    T_ASSERT(actor->attack_cooldown_active);
+    T_ASSERT(actor->attack_cooldown.active);
     cstring_t save = Test_TempPath("wc3-attack-orders173.bin");
     T_ASSERT(WriteGame(save)); T_ASSERT(unit_issueimmediateorder(actor,"stop"));
     T_ASSERT(ReadGame(save)); attack_orders_call("verifyAttack");
@@ -225,7 +225,7 @@ TEST(wc3_attack_orders, target_loss_waits_for_swing_before_queued_move) {
     attack_orders_frames(3);
     T_EQ(actor->current_order_id,G_OrderId("move")); T_EQ(actor->order_queue.count,0);
     /* Swing completion precedes readiness for the next weapon attack. */
-    T_ASSERT((int32_t)(actor->attack_cooldown_end_time-G_Time())>0);
+    T_ASSERT(attack_cooldown_remaining(actor)>0);
 }
 
 TEST(wc3_attack_orders, target_loss_replacement_is_not_retired_by_old_swing) {
@@ -332,7 +332,7 @@ TEST(wc3_attack_orders, once_retires_after_one_swing_then_automatic_attack_has_n
     T_FEQ(enemy->health.value,health,0);
     attack_orders_frames(3); T_EQ(actor->current_order_id,0); T_NULL(actor->goalentity);
     T_FEQ(enemy->health.value,health,0);
-    T_ASSERT(actor->attack_cooldown_active);
+    T_ASSERT(actor->attack_cooldown.active);
     order_attack(actor,enemy); T_EQ(actor->current_order_id,0);
     attack_orders_frames(20); T_ASSERT(enemy->health.value<health); T_EQ(actor->current_order_id,0);
 }
