@@ -31,7 +31,7 @@ The authored function does not set `bj_wantDestroyGroup` and does not call `Dest
 
 Do not special-case these map functions, auto-destroy arbitrary `CountUnitsInGroup` arguments, or merely raise a fixed `MAX_GROUPS`. The compatible model is a growable handle registry that still recycles explicitly destroyed slots. Warsmash follows the same broad model: its `CreateGroup` native allocates new `UnitGroup` objects with increasing handle IDs rather than enforcing a 1024-group table.
 
-Each `ggroup_t` embeds up to `MAX_GROUP_SIZE` entity pointers, so group objects are allocated only as handle ordinals are actually exposed. The growable pointer table itself starts at `JASS_GROUP_INITIAL_CAPACITY` and doubles as needed. This avoids reserving many megabytes merely to raise a static limit.
+Each `ggroup_t` grows a member-pointer array as units are added, so a group can hold every live unit on the map. This matters for campaign scripts that build a combined group from several player groups: a fixed 256-member array silently truncated the group and caused UndeadX06's intro to leave nearby Neutral Hostile creeps active. Group objects are still allocated only as handle ordinals are exposed, and the growable handle table starts at `JASS_GROUP_INITIAL_CAPACITY` and doubles as needed.
 
 ## Leak diagnostics
 
@@ -44,9 +44,9 @@ The side table records the immediate creator, active JASS call chain, and trigge
 
 JASS `group` handles serialize as stable ordinal IDs in the dynamic pointer table. The save stream writes the complete prefix through `level.num_groups`; each record persists `inuse`, `num_units`, and entity-index membership. Destroyed holes remain present so later live handle ordinals do not shift.
 
-Load first ensures that the pointer table contains the saved number of stable group objects, then restores every record before the JASS VM snapshot resolves group handle IDs. `G_SaveJassHandle()` and `G_LoadJassHandle()` use `G_JassGroupIndex()` / `G_JassGroupByIndex()` rather than pointer arithmetic because the group objects are no longer contiguous.
+Load first ensures that the pointer table contains the saved number of stable group objects, then restores each group's live flag and counted entity-index membership before the JASS VM snapshot resolves group handle IDs. Member storage is allocated to fit the saved count. `G_SaveJassHandle()` and `G_LoadJassHandle()` use `G_JassGroupIndex()` / `G_JassGroupByIndex()` rather than pointer arithmetic because the group objects are no longer contiguous.
 
-Save format version 13 introduced the group registry outside the inline `level_fields` schema and writes it explicitly. The current format is version 32; versions 14–17 added research-event callback context, natural-creep sleep, environmental distance-fog, and persistent WC3 unit vertex-colour state. Later format changes are documented in [Save/Load](save-load.md), including the mutable Blight state added by version 32. Older saves are intentionally rejected by the exact-version guard. Runtime creation has no 1024-style handle ceiling; the save reader/writer separately rejects more than 65,536 group ordinals as a corrupt/oversized-save safety bound.
+Save format version 13 introduced the group registry outside the inline `level_fields` schema and writes it explicitly. Version 140 changes each group record to store a dynamic member count followed by that many entity indexes; older saves are intentionally rejected by the exact-version guard. Later format changes are documented in [Save/Load](save-load.md). Runtime creation has no 1024-style handle ceiling; the save reader/writer separately rejects more than 65,536 group ordinals as a corrupt/oversized-save safety bound.
 
 ## Verification
 
@@ -56,6 +56,8 @@ Regression coverage should include:
 - more than 1024 simultaneously live groups, including stable handle IDs above the former limit;
 - JASS `CreateGroup` -> `DestroyGroup` returning the slot to the allocator;
 - `GroupClear` keeping a live handle;
+- JASS enumeration and a `ForGroup` aggregation callback retaining more than 256 members;
+- save/load retaining dynamic membership above 256 members;
 - save/load retaining live group identity and membership while rejecting destroyed handles.
 
 ### Prologue02 subgroup diagnostics

@@ -6900,10 +6900,8 @@ TEST(wc3_api, group_first_of_group) {
     reset_entities();
     edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     edict_t *b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1, 0);
-    ggroup_t g = {0};
-    g.units[0] = a;
-    g.units[1] = b;
-    g.num_units = 2;
+    edict_t *members[2] = { a, b };
+    ggroup_t g = { .units = members, .num_units = 2, .unit_capacity = 2 };
     T_ASSERT(g.units[0] == a);
     T_ASSERT(g.units[1] == b);
 }
@@ -6917,6 +6915,44 @@ TEST(wc3_api, group_add_is_set_semantics) {
     T_ASSERT(!group_add_entity(group, unit));
     T_EQ(group->num_units, 1);
     G_FreeJassGroup(group);
+}
+
+TEST(wc3_api, jass_group_enumeration_grows_past_256_members) {
+    enum { UNIT_COUNT = 300 };
+    edict_t *last = NULL;
+
+    reset_entities();
+    setup_test_world();
+    for (uint32_t i = 0; i < UNIT_COUNT; i++) {
+        last = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)i, 0.0f);
+        last->svflags |= SVF_MONSTER;
+        last->s.player = 0;
+    }
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "group testCombined = null\n"
+        "endglobals\n"
+        "function testAddToCombined takes nothing returns nothing\n"
+        "call GroupAddUnit(testCombined, GetEnumUnit())\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "local group source = CreateGroup()\n"
+        "local group combined = CreateGroup()\n"
+        "call GroupEnumUnitsOfPlayer(source, Player(0), null)\n"
+        "set testCombined = combined\n"
+        "call ForGroup(source, function testAddToCombined)\n"
+        "set testCombined = null\n"
+        "endfunction\n"));
+    T_EQ(level.num_groups, 2);
+    if (level.num_groups < 2) { currentplayer = NULL; return; }
+    T_EQ(level.groups[0]->num_units, UNIT_COUNT);
+    T_EQ(level.groups[1]->num_units, UNIT_COUNT);
+    T_ASSERT(level.groups[0]->unit_capacity >= UNIT_COUNT);
+    T_ASSERT(level.groups[1]->unit_capacity >= UNIT_COUNT);
+    if (level.groups[1]->num_units == UNIT_COUNT)
+        T_ASSERT(level.groups[1]->units[UNIT_COUNT - 1] == last);
+    currentplayer = NULL;
 }
 
 TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
@@ -7174,9 +7210,8 @@ TEST(wc3_api, ai_difficulty_defaults_to_normal) {
 TEST(wc3_api, group_is_unit_in_group_true) {
     reset_entities();
     edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    ggroup_t g = {0};
-    g.units[0] = a;
-    g.num_units = 1;
+    edict_t *members[1] = { a };
+    ggroup_t g = { .units = members, .num_units = 1, .unit_capacity = 1 };
     /* Replicate IsUnitInGroup logic */
     bool found = false;
     for (uint32_t i = 0; i < g.num_units; i++) {
@@ -7189,9 +7224,8 @@ TEST(wc3_api, group_is_unit_in_group_false) {
     reset_entities();
     edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     edict_t *b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1, 0);
-    ggroup_t g = {0};
-    g.units[0] = a;
-    g.num_units = 1;
+    edict_t *members[1] = { a };
+    ggroup_t g = { .units = members, .num_units = 1, .unit_capacity = 1 };
     bool found = false;
     for (uint32_t i = 0; i < g.num_units; i++) {
         if (g.units[i] == b) { found = true; break; }

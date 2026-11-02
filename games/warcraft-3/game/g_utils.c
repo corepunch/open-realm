@@ -434,6 +434,27 @@ static bool G_GrowJassGroupRegistry(uint32_t count) {
     return true;
 }
 
+bool G_EnsureJassGroupMembers(ggroup_t *group, uint32_t count) {
+    edict_t **units;
+    uint32_t capacity;
+    if (!group) return false;
+    if (count <= group->unit_capacity) return true;
+    capacity = group->unit_capacity ? group->unit_capacity : 16;
+    while (capacity < count) {
+        if (capacity > UINT32_MAX / 2) { capacity = count; break; }
+        capacity *= 2;
+    }
+    if ((size_t)capacity > (size_t)-1 / sizeof(*units)) return false;
+    units = gi.MemAlloc((size_t)capacity * sizeof(*units));
+    if (!units) return false;
+    if (group->units && group->num_units)
+        memcpy(units, group->units, (size_t)group->num_units * sizeof(*units));
+    if (group->units) gi.MemFree(group->units);
+    group->units = units;
+    group->unit_capacity = capacity;
+    return true;
+}
+
 bool G_EnsureJassGroupSlots(uint32_t count) {
     if (!G_GrowJassGroupRegistry(count)) return false;
     while (level.num_groups < count) {
@@ -487,6 +508,7 @@ void G_FreeJassGroup(ggroup_t *group) {
         memset(slot, 0, sizeof(*slot));
         slot->trigger_ordinal = -1;
     }
+    if (group->units) gi.MemFree(group->units);
     memset(group, 0, sizeof(*group));
     group->handle_id = index;
     if (index < level.first_free_group) level.first_free_group = index;
@@ -495,7 +517,10 @@ void G_FreeJassGroup(ggroup_t *group) {
 
 void G_ClearJassGroupRegistry(void) {
     if (level.groups) {
-        FOR_LOOP(i, level.num_groups) if (level.groups[i]) gi.MemFree(level.groups[i]);
+        FOR_LOOP(i, level.num_groups) if (level.groups[i]) {
+            if (level.groups[i]->units) gi.MemFree(level.groups[i]->units);
+            gi.MemFree(level.groups[i]);
+        }
         gi.MemFree(level.groups);
     }
     level.groups = NULL;

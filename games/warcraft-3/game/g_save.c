@@ -167,8 +167,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
-/* Version 139 appends Brewmaster ignition and split lifecycle save callbacks. */
-static uint32_t const save_version = 139;
+/* Version 140 stores JASS group membership as a dynamic per-group entity list. */
+static uint32_t const save_version = 140;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -437,13 +437,6 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, dialog_id, F_INT),
     F(gameevent_s, button_id, F_INT),
     F(gameevent_s, dialog_player, F_INT),
-    { NULL, 0, 0, 0, 0, 0 }
-};
-
-static field_t const group_fields[] = {
-    /* handle_id is runtime identity derived from the table ordinal and is not serialized. */
-    TF(ggroup_t, inuse, F_INT),
-    TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -2010,28 +2003,65 @@ static bool ReadMappedFields(FILE *f, field_t const *fields, uint8_t *base) {
 }
 
 static bool WriteGroups(FILE *f) {
+    field_t member_field = { .type = F_EDICT };
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = G_JassGroupByIndex(i);
-        if (!group || !WriteMappedFields(f, group_fields, (uint8_t *)group)) {
+        bool inuse;
+        uint32_t count;
+        if (!group) {
             fprintf(stderr, "WC3 SaveGame: failed at group %u\n", (unsigned)i);
             return false;
+        }
+        inuse = group->inuse;
+        count = group->num_units;
+        if (count > group->unit_capacity || (count && !group->units) ||
+            !SaveBytes(f, &inuse, sizeof(inuse)) || !SaveBytes(f, &count, sizeof(count))) {
+            fprintf(stderr, "WC3 SaveGame: failed at group %u membership header\n", (unsigned)i);
+            return false;
+        }
+        FOR_LOOP(j, count) {
+            int index;
+            if (!WriteMappedIndex(&member_field, &group->units[j], &index) ||
+                !SaveBytes(f, &index, sizeof(index))) {
+                fprintf(stderr, "WC3 SaveGame: failed at group %u member %u\n", (unsigned)i, (unsigned)j);
+                return false;
+            }
         }
     }
     return true;
 }
 
 static bool ReadGroups(FILE *f, uint32_t count) {
+    field_t member_field = { .type = F_EDICT };
     if (!G_EnsureJassGroupSlots(count)) return false;
     level.first_free_group = count;
     FOR_LOOP(i, count) {
         ggroup_t *group = G_JassGroupByIndex(i);
-        if (!group || !ReadMappedFields(f, group_fields, (uint8_t *)group)) {
+        bool inuse;
+        uint32_t member_count;
+        if (!group || !LoadBytes(f, &inuse, sizeof(inuse)) ||
+            !LoadBytes(f, &member_count, sizeof(member_count)) || member_count > globals.max_edicts) {
             fprintf(stderr, "WC3 LoadGame: failed at group %u\n", (unsigned)i);
             return false;
         }
+        if (group->units) gi.MemFree(group->units);
+        group->units = NULL;
+        group->num_units = 0;
+        group->unit_capacity = 0;
+        group->inuse = inuse;
+        if (!G_EnsureJassGroupMembers(group, member_count)) return false;
+        FOR_LOOP(j, member_count) {
+            int index;
+            if (!LoadBytes(f, &index, sizeof(index)) ||
+                !ReadMappedIndex(&member_field, &group->units[j], index)) {
+                fprintf(stderr, "WC3 LoadGame: invalid group %u member %u\n", (unsigned)i, (unsigned)j);
+                return false;
+            }
+            group->num_units++;
+        }
         group->handle_id = i;
         if (!group->inuse) {
-            group->num_units = 0;
+            if (group->num_units) return false;
             if (i < level.first_free_group) level.first_free_group = i;
         }
     }
@@ -2791,6 +2821,37 @@ TEST(wc3_save, timed_status_index_rebuilds_from_saved_unit_state) {
     unit_updatestatuses(unit);
     T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
     T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','e','n','g')), 1u);
+    remove(filename);
+}
+
+TEST(wc3_save, jass_group_members_grow_and_round_trip_past_256) {
+    enum { MEMBER_COUNT = 300 };
+    cstring_t filename = Test_TempPath("wc3-large-group-save.bin");
+    ggroup_t *group;
+    uint32_t member_index = 0;
+
+    reset_entities();
+    setup_test_world();
+    group = G_AllocJassGroup();
+    T_NOT_NULL(group);
+    if (!group) return;
+    FOR_LOOP(i, MEMBER_COUNT) {
+        edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)i, 0.0f);
+        T_ASSERT(group_add_entity(group, unit));
+        if (i == MEMBER_COUNT - 1) member_index = (uint32_t)(unit - g_edicts);
+    }
+    T_EQ(group->num_units, MEMBER_COUNT);
+    T_ASSERT(group->unit_capacity >= MEMBER_COUNT);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    group = G_JassGroupByIndex(0);
+    T_NOT_NULL(group);
+    if (group) {
+        T_ASSERT(group->inuse);
+        T_EQ(group->num_units, MEMBER_COUNT);
+        T_ASSERT(group->unit_capacity >= MEMBER_COUNT);
+        T_ASSERT(group->units[MEMBER_COUNT - 1] == g_edicts + member_index);
+    }
     remove(filename);
 }
 

@@ -1,8 +1,9 @@
 #define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
 
 bool group_add_entity(ggroup_t *group, edict_t *ent) {
-    if (!G_JassGroupValid(group) || !ent || group->num_units >= MAX_GROUP_SIZE) return false;
+    if (!G_JassGroupValid(group) || !ent) return false;
     FOR_LOOP(i, group->num_units) if (group->units[i] == ent) return false;
+    if (!G_EnsureJassGroupMembers(group, group->num_units + 1)) return false;
     group->units[group->num_units++] = ent;
     return true;
 }
@@ -305,8 +306,11 @@ uint32_t ForGroup(jass_t *j) {
     }
     edict_t *previous = currentunit;
     edict_t *previous_enum = currentenumunit;
-    struct { edict_t *unit; uint32_t spawn; } units[MAX_GROUP_SIZE];
+    struct { edict_t *unit; uint32_t spawn; } *units;
     uint32_t count = whichGroup->num_units;
+    if ((size_t)count > (size_t)-1 / sizeof(*units)) return 0;
+    units = count ? gi.MemAlloc((size_t)count * sizeof(*units)) : NULL;
+    if (count && !units) return 0;
     /* RemoveUnit compacts every group immediately; walking that array skipped Elves01's trackers. */
     FOR_LOOP(i, count) {
         units[i].unit = whichGroup->units[i];
@@ -322,6 +326,7 @@ uint32_t ForGroup(jass_t *j) {
     }
     currentunit = previous;
     currentenumunit = previous_enum;
+    if (units) gi.MemFree(units);
     return 0;
 }
 uint32_t FirstOfGroup(jass_t *j) {
