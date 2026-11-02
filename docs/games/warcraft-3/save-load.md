@@ -1,4 +1,13 @@
-Save239 retains the origin of JASS event enums when scripts upcast them to
+Save240 stores the canonical active user packet in a sparse ActiveOrder pool.
+Its original click, weak target incarnation, order ID, issuer and owner payload
+survive physical cancellation and scripted suspension. Physical point fallback
+does not rewrite that retained target packet. A saved revision protects callback
+replacements. Loading rejects malformed packet names, shapes, booleans, bounds
+and nonfinite coordinates/speeds. The pause release deadline and primary request
+sequence also persist and rebuild in the shared Move/Captain timer heap.
+Save239 and older game layouts are rejected; JASS snapshot12 is unchanged.
+
+The prior Save239 retains the origin of JASS event enums when scripts upcast them to
 plain handles. GetHandleId keeps the enum's numeric identity after restore.
 Event values have an explicit snapshot encoding; the loader rejects event
 values encoded with the obsolete generic scalar tag. Both game Save238 and

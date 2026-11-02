@@ -63,10 +63,13 @@ static void (*move_test_target_lost)(edict_t *unit);
 /* Timer ownership changes at admission/cancellation, never by scanning scenery
  * every five milliseconds. Three passes below retain the original phase order. */
 static void move_captain_track_timer(edict_t *);
+static void move_pause_track_timer(edict_t *);
+static void move_resume_order(edict_t *);
 void S_TrackMoveTimers(edict_t const *ent) {
     uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
     if(!g_edicts || index>=MAX_ENTITIES)return;
     move_captain_track_timer(g_edicts+index);
+    move_pause_track_timer(g_edicts+index);
     entity_set_put(&move_timer_members,index,ent->inuse && (ent->movement.captain_home.actor ||
         ent->movement.captain_home.roster_actor || ent->movement.pause_resume_pending || ent->movement.type_rebind_pending));
 }
@@ -1420,53 +1423,69 @@ typedef struct {
     edict_t *unit;
     wc3Clock_t due;
     uint32_t sequence,spawn;
-} moveCaptainTimer_t;
-static moveCaptainTimer_t move_captain_timers[MAX_ENTITIES];
-static uint32_t move_captain_timer_positions[MAX_ENTITIES],move_captain_timer_count;
-static bool move_captain_timer_less(moveCaptainTimer_t const *a,moveCaptainTimer_t const *b) {
+    bool pause;
+} movePrimaryTimer_t;
+static movePrimaryTimer_t move_primary_timers[2*MAX_ENTITIES];
+static uint32_t move_primary_timer_positions[2*MAX_ENTITIES],move_primary_timer_count;
+static bool move_primary_timer_less(movePrimaryTimer_t const *a,movePrimaryTimer_t const *b) {
     if(a->due.epoch!=b->due.epoch)return (int32_t)(a->due.epoch-b->due.epoch)<0;
     return a->due.time==b->due.time ? a->sequence<b->sequence : a->due.time<b->due.time;
 }
-static void move_captain_timer_put(uint32_t index,moveCaptainTimer_t entry) {
-    move_captain_timers[index]=entry;
-    move_captain_timer_positions[entry.unit-g_edicts]=index+1;
+static void move_primary_timer_put(uint32_t index,movePrimaryTimer_t entry) {
+    move_primary_timers[index]=entry;
+    move_primary_timer_positions[2*(entry.unit-g_edicts)+entry.pause]=index+1;
 }
-static void move_captain_timer_remove(edict_t *unit) {
-    uint32_t position=move_captain_timer_positions[unit-g_edicts];
+static void move_primary_timer_remove(edict_t *unit,bool pause) {
+    uint32_t slot=2*(unit-g_edicts)+pause;
+    uint32_t position=move_primary_timer_positions[slot];
     if(!position)return;
-    move_captain_timer_positions[unit-g_edicts]=0;position--;
-    moveCaptainTimer_t last=move_captain_timers[--move_captain_timer_count];
-    if(position==move_captain_timer_count)return;
-    while(position && move_captain_timer_less(&last,&move_captain_timers[(position-1)/2])) {
-        move_captain_timer_put(position,move_captain_timers[(position-1)/2]);position=(position-1)/2;
+    move_primary_timer_positions[slot]=0;position--;
+    movePrimaryTimer_t last=move_primary_timers[--move_primary_timer_count];
+    if(position==move_primary_timer_count)return;
+    while(position && move_primary_timer_less(&last,&move_primary_timers[(position-1)/2])) {
+        move_primary_timer_put(position,move_primary_timers[(position-1)/2]);position=(position-1)/2;
     }
-    while(position*2+1<move_captain_timer_count) {
+    while(position*2+1<move_primary_timer_count) {
         uint32_t child=position*2+1;
-        if(child+1<move_captain_timer_count && move_captain_timer_less(&move_captain_timers[child+1],&move_captain_timers[child]))child++;
-        if(!move_captain_timer_less(&move_captain_timers[child],&last))break;
-        move_captain_timer_put(position,move_captain_timers[child]);position=child;
+        if(child+1<move_primary_timer_count && move_primary_timer_less(&move_primary_timers[child+1],&move_primary_timers[child]))child++;
+        if(!move_primary_timer_less(&move_primary_timers[child],&last))break;
+        move_primary_timer_put(position,move_primary_timers[child]);position=child;
     }
-    move_captain_timer_put(position,last);
+    move_primary_timer_put(position,last);
 }
 static void move_captain_track_timer(edict_t *unit) {
-    move_captain_timer_remove(unit);
+    move_primary_timer_remove(unit,false);
     botCaptain_t *captain=unit->inuse ? move_actor_captain(unit) : NULL;
     wc3Clock_t const *due=captain ? &captain->update_due : NULL;
     if(!due || !due->span) {unit->movement.captain_home.sequence=0;return;}
     if(!unit->movement.captain_home.sequence)unit->movement.captain_home.sequence=++level.timer_sequence;
-    moveCaptainTimer_t entry={unit,*due,unit->movement.captain_home.sequence,unit->spawn_time};
-    uint32_t position=move_captain_timer_count++;
-    while(position && move_captain_timer_less(&entry,&move_captain_timers[(position-1)/2])) {
-        move_captain_timer_put(position,move_captain_timers[(position-1)/2]);position=(position-1)/2;
+    movePrimaryTimer_t entry={unit,*due,unit->movement.captain_home.sequence,unit->spawn_time};
+    uint32_t position=move_primary_timer_count++;
+    while(position && move_primary_timer_less(&entry,&move_primary_timers[(position-1)/2])) {
+        move_primary_timer_put(position,move_primary_timers[(position-1)/2]);position=(position-1)/2;
     }
-    move_captain_timer_put(position,entry);
+    move_primary_timer_put(position,entry);
 }
-static void move_captain_reset_timers(void) {
-    move_captain_timer_count=0;memset(move_captain_timer_positions,0,sizeof(move_captain_timer_positions));
+/* The suspension end request belongs to the same primary drain as JASS and
+ * Captain callbacks, independently of the next 30ms physical-owner visit. */
+static void move_pause_track_timer(edict_t *unit) {
+    move_primary_timer_remove(unit,true);
+    if(!unit->inuse || !unit->movement.pause_resume_pending || unit->paused ||
+       unit->movement.internal_suspend_depth)return;
+    if(!unit->movement.pause_sequence)unit->movement.pause_sequence=++level.timer_sequence;
+    movePrimaryTimer_t entry={unit,unit->movement.pause_deadline,unit->movement.pause_sequence,unit->spawn_time,true};
+    uint32_t position=move_primary_timer_count++;
+    while(position && move_primary_timer_less(&entry,&move_primary_timers[(position-1)/2])) {
+        move_primary_timer_put(position,move_primary_timers[(position-1)/2]);position=(position-1)/2;
+    }
+    move_primary_timer_put(position,entry);
 }
-static bool move_captain_next_timer(abilityTimerRequest_t *request) {
-    if(!move_captain_timer_count)return false;
-    moveCaptainTimer_t const *entry=move_captain_timers;
+static void move_primary_reset_timers(void) {
+    move_primary_timer_count=0;memset(move_primary_timer_positions,0,sizeof(move_primary_timer_positions));
+}
+static bool move_primary_next_timer(abilityTimerRequest_t *request) {
+    if(!move_primary_timer_count)return false;
+    movePrimaryTimer_t const *entry=move_primary_timers;
     wc3Clock_t now=G_TimerQueryClock(NULL);
     request->deadline=entry->due;request->sequence=entry->sequence;
     int32_t epochs=(int32_t)(entry->due.epoch-now.epoch);
@@ -1475,11 +1494,17 @@ static bool move_captain_next_timer(abilityTimerRequest_t *request) {
     request->deadline.epoch=now.epoch;
     return true;
 }
-static void move_captain_fire_timer(void) {
-    if(!move_captain_timer_count)return;
-    moveCaptainTimer_t entry=move_captain_timers[0];edict_t *unit=entry.unit;
-    move_captain_timer_remove(unit);
-    if(!unit->inuse || unit->spawn_time!=entry.spawn || unit->movement.captain_home.sequence!=entry.sequence)return;
+static void move_primary_fire_timer(void) {
+    if(!move_primary_timer_count)return;
+    movePrimaryTimer_t entry=move_primary_timers[0];edict_t *unit=entry.unit;
+    move_primary_timer_remove(unit,entry.pause);
+    if(!unit->inuse || unit->spawn_time!=entry.spawn)return;
+    if(entry.pause) {
+        if(unit->movement.pause_resume_pending && !unit->paused && !unit->movement.internal_suspend_depth &&
+           unit->movement.pause_sequence==entry.sequence)move_resume_order(unit);
+        return;
+    }
+    if(unit->movement.captain_home.sequence!=entry.sequence)return;
     /* The event clock is supplied by TimerDrain. Native periodic callbacks
      * observe the unchanged primary clock, unlike primary range callbacks. */
     botCaptain_t *captain=move_actor_captain(unit);
@@ -1901,7 +1926,9 @@ static void move_captain_home_update(edict_t *self) {
             S_TrackMoveTimers(self);
             move_leave(self);
             S_RecoverStoppedUnitPosition(self);
-            S_IssueMoveOrder(self,self->goalentity,G_OrderId("move"));
+            /* The previous point task may have retired through Stop. This
+             * new private home leg owns a fresh goal, like shared retargeting. */
+            S_IssueMoveOrder(self,Waypoint_add(&retained.home),G_OrderId("move"));
             self->movement.captain_home=retained;
             S_TrackMoveTimers(self);
             self->movement.captain_home.actor=actor;
@@ -1945,50 +1972,75 @@ void S_RunCaptainRangeTimers(void) {
     }
 }
 
+static void move_resume_order(edict_t *ent) {
+    uint32_t order=ent->movement.pause_order_id;
+    ent->movement.pause_resume_pending=false;
+    ent->movement.pause_phase=UNIT_PAUSE_NONE;
+    S_TrackMoveTimers(ent);S_RefreshUnitPauseSuppression(ent);
+    uint32_t const spawn=ent->spawn_time;
+    uint32_t const move_revision=G_UnitMoveRevision(ent);
+    uint64_t const packet_revision=ent->active_order_revision;
+    bool const retained=ent->active_order!=NULL;
+    S_ExecuteTransientAbilityOrders(ent);
+    if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))return;
+    /* A forced-off notification can install a new user task. Its head and
+     * physical owner take precedence over the suspended packet. */
+    if(ent->active_order_revision!=packet_revision ||
+       (G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=move_revision))return;
+    ent->movement.pause_order_id=0;
+    /* Retained work resumes its own phase before generic reconstruction. */
+    if(order && ent->currentmove && ent->currentmove->proc) {
+        ent->current_order_id=order;
+        if(ent->currentmove->proc(ent,A_ORDER_RESUME,NULL))return;
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))return;
+    }
+    if(S_UnitAbilityEvent(ent,A_ORDER_RESUME))return;
+    if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))return;
+    if(ent->active_order_revision!=packet_revision ||
+       (G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=move_revision))return;
+    if(retained && order && ent->active_order && ent->active_order->order_id==order) {
+        if(ent->active_order_revision!=packet_revision)return;
+        if(G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=move_revision)return;
+        if(G_ResumeActiveUnitOrder(ent))return;
+    }
+    if(!order && ent->active_order_revision==packet_revision)G_ClearActiveUnitOrder(ent);
+    if(!order && G_UnitQueuedOrderCount(ent)) {
+        unit_stand(ent);
+    } else if(order && ent->goalentity && ent->currentmove==&move_move_walk) {
+        /* Retain the packet before callbacks: Stop can free the old
+         * waypoint. User-head notification precedes task construction. */
+        vec2_t point=ent->goalentity->s.origin2;
+        uint32_t const spawn=ent->spawn_time,revision=G_UnitMoveRevision(ent);
+        ent->current_order_id=order;
+        G_PublishIssuedPointOrder(ent,order,&point,ent->s.player,NULL);
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) ||
+           S_UnitExecutionPaused(ent))return;
+        if(G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=revision)return;
+        uint32_t const head=ent->current_order_id;
+        S_IssueMoveOrder(ent,Waypoint_add(&point),order);
+        ent->current_order_id=head;
+        if(ent->currentmove==&move_move_walk && ent->goalentity)
+            move_start_point_group(ent,&point,0);
+    } else if(order) {
+        ent->current_order_id=order;
+        if(ent->currentmove && ent->currentmove->proc)
+            ent->currentmove->proc(ent,A_ORDER_RESUME,NULL);
+    } else if(ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
+}
+
 /* Pose sampling must not replace tasks ahead of a due path owner. */
 void S_RunMoveTimers(void) {
     if(!level.scheduled_frame) {
         G_RunCaptainTimers();
         S_RunCaptainRangeTimers();
     }
-    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+    /* Direct owner tests can drain without TimerDrain. Real frames consume
+     * these exact requests through A_PRIMARY_TIMER_NEXT/FIRE above. */
+    if(!level.scheduled_frame)for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
         if(!ent->inuse || !ent->movement.pause_resume_pending || ent->paused || ent->movement.internal_suspend_depth)continue;
-        wc3Clock_t const *due=&ent->movement.pause_deadline;
-        bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
-            (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
-        if(!ready)continue;
-        uint32_t order=ent->movement.pause_order_id;
-        ent->movement.pause_resume_pending=false;
-        ent->movement.pause_phase=UNIT_PAUSE_NONE;
-        S_TrackMoveTimers(ent);S_RefreshUnitPauseSuppression(ent);
-        uint32_t const spawn=ent->spawn_time;
-        S_ExecuteTransientAbilityOrders(ent);
-        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))continue;
-        ent->movement.pause_order_id=0;
-        if(S_UnitAbilityEvent(ent,A_ORDER_RESUME))continue;
-        if(!order && G_UnitQueuedOrderCount(ent)) {
-            unit_stand(ent);
-        } else if(order && ent->goalentity && ent->currentmove==&move_move_walk) {
-            /* Retain the packet before callbacks: Stop can free the old
-             * waypoint. User-head notification precedes task construction. */
-            vec2_t point=ent->goalentity->s.origin2;
-            uint32_t const spawn=ent->spawn_time,revision=G_UnitMoveRevision(ent);
-            ent->current_order_id=order;
-            G_PublishIssuedPointOrder(ent,order,&point,ent->s.player,NULL);
-            if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) ||
-               S_UnitExecutionPaused(ent))continue;
-            if(G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=revision)continue;
-            uint32_t const head=ent->current_order_id;
-            S_IssueMoveOrder(ent,Waypoint_add(&point),order);
-            ent->current_order_id=head;
-            if(ent->currentmove==&move_move_walk && ent->goalentity)
-                move_start_point_group(ent,&point,0);
-        } else if(order) {
-            ent->current_order_id=order;
-            if(ent->currentmove && ent->currentmove->proc)
-                ent->currentmove->proc(ent,A_ORDER_RESUME,NULL);
-        } else if(ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
+        wc3Clock_t now=G_TimerQueryClock(NULL),due=ent->movement.pause_deadline;
+        if(now.epoch==due.epoch ? now.time>=due.time : (int32_t)(now.epoch-due.epoch)>0)move_resume_order(ent);
     }
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
@@ -2487,7 +2539,8 @@ void S_ReleaseInternalSuspension(edict_t *self) {
     if(--self->movement.internal_suspend_depth || self->paused)return;
     if(self->movement.pause_phase!=UNIT_PAUSE_SUSPENDED && self->current_order_id!=MOVE_ORDER_SUSPENDED)return;
     self->movement.pause_resume_pending=true;
-    self->movement.pause_deadline=level.pathing_clock;
+    self->movement.pause_deadline=G_TimerQueryClock(NULL);
+    self->movement.pause_sequence=++level.timer_sequence;
     FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
     S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);
 }
@@ -2564,9 +2617,10 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         else if(!self->movement.internal_suspend_depth && (self->movement.pause_order_id ||
                 self->current_order_id==MOVE_ORDER_SUSPENDED || self->movement.pause_phase==UNIT_PAUSE_SUSPENDED)) {
             self->movement.pause_resume_pending=true;
-            S_TrackMoveTimers(self);
-            self->movement.pause_deadline=level.pathing_clock;
+            self->movement.pause_deadline=G_TimerQueryClock(NULL);
+            self->movement.pause_sequence=++level.timer_sequence;
             FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+            S_TrackMoveTimers(self);
         }
     }
     int32_t depth=self->movement.repulse.disable_depth;
@@ -2576,7 +2630,11 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
 
 static void move_detach_task(edict_t *self) {
     self->movement.point_continuation=false;self->movement.next_point=(vec2_t){0};
-    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    /* Target loss can replace a physical approach during suspension. That
+     * approach does not own the retained user head or its release request. */
+    if(self->movement.pause_phase!=UNIT_PAUSE_SUSPENDED) {
+        self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    }
     S_TrackMoveTimers(self);
     move_detach_group(self);
     self->movement.group_id=0;
@@ -7573,13 +7631,13 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_TIMERS_RESET:
         if(ent)return 0;
         move_follow_reset();
-        move_captain_reset_timers();
+        move_primary_reset_timers();
         move_repulse_clear_links();
         move_timer_members=move_visual_members=(entitySet_t){0};return true;
     case A_TIMERS_REBUILD:
         if(ent)return 0;
         move_follow_rebuild();
-        move_captain_reset_timers();
+        move_primary_reset_timers();
         move_timer_members=(entitySet_t){0};
         move_visual_members=(entitySet_t){0};
         FOR_LOOP(i,globals.num_edicts) {
@@ -7588,10 +7646,10 @@ BZ_ABILITY_PROC(CAbilityMove) {
         }
         return true;
     case A_PRIMARY_TIMER_NEXT:
-        return !ent && call && call->primary_timer && move_captain_next_timer(call->primary_timer);
+        return !ent && call && call->primary_timer && move_primary_next_timer(call->primary_timer);
     case A_PRIMARY_TIMER_FIRE:
         if(ent)return false;
-        move_captain_fire_timer();return true;
+        move_primary_fire_timer();return true;
     case A_PRIMARY_TIMER:
         S_RunMoveTimers(); return true;
     case A_UNIT_TYPE_CHANGED:

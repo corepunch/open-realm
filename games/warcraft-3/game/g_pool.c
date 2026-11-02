@@ -57,6 +57,7 @@ DEFINE_POOL_CALLBACKS(rally, Rally, rally_t, LIFECYCLE_POOL_CAP,
     S_InvalidateRallyProducers(), S_ForgetRallyProducer(ent))
 /* Every mobile unit owns food state, even when training limits are disabled. */
 DEFINE_POOL(food, Food, food_t, MAX_ENTITIES)
+DEFINE_POOL(active_order, ActiveOrder, unitOrder_t, MAX_ENTITIES)
 DEFINE_POOL_OWNER_CALLBACKS(attack_one, ent->attack_overrides[0], AttackOne, unitAttack_t, MAX_ENTITIES,
     (void)0, (void)0)
 DEFINE_POOL_OWNER_CALLBACKS(attack_two, ent->attack_overrides[1], AttackTwo, unitAttack_t, MAX_ENTITIES,
@@ -198,6 +199,7 @@ void G_PoolsReset(void) {
             memset(g_edicts[i].attack_overrides, 0, sizeof(g_edicts[i].attack_overrides));
             g_edicts[i].abilstatus = NULL;
             G_FreeUnitOrders(g_edicts+i);
+            g_edicts[i].active_order=NULL;
             g_edicts[i].buildwork = NULL;
             g_edicts[i].revival = NULL;
             g_edicts[i].sacrifice = NULL;
@@ -235,6 +237,7 @@ void G_PoolsReset(void) {
     G_ResetAttackTwoPool();
     G_ResetUnitStatusPool();
     G_ResetUnitOrdersInlinePool();
+    G_ResetActiveOrderPool();
     G_ResetBuildworkPool();
     G_ResetRevivalPool();
     G_ResetSacrificePool();
@@ -280,6 +283,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeAttackTwo(ent);
     G_FreeUnitStatus(ent);
     G_FreeUnitOrders(ent);
+    G_FreeActiveOrder(ent);
     G_FreeBuildwork(ent);
     G_FreeRevival(ent);
     G_FreeSacrifice(ent);
@@ -348,6 +352,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(research, Research, research_t);
     CHECK_POOL(rally, Rally, rally_t);
     CHECK_POOL(food, Food, food_t);
+    CHECK_POOL(active_order, ActiveOrder, unitOrder_t);
     CHECK_POOL(buildwork, Buildwork, buildwork_t);
     CHECK_POOL(revival, Revival, revival_t);
     CHECK_POOL(sacrifice, Sacrifice, sacrifice_t);

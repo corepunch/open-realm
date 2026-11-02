@@ -3626,4 +3626,216 @@ TEST(wc3_order_lifecycle, captain376_public_worker_removal_restores_oldest_town)
  * queued order instead of walking home. */
 
 
+/* Authored component world, not a replay of native299 poses or RNG. The
+ * witness establishes separate frozen public packet and live Attack target. */
+TEST(wc3_order_lifecycle, paused_attack_packet_survives_target_motion_hide_and_save) {
+    FOR_LOOP(hidden,2) {
+        reset_entities();setup_test_world();
+        static char const ability_text[]="ID;PWXL;N;E\nB;X3;Y2\n"
+            "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+            "C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"1\"\nE\n";
+        static char const unit_text[]="ID;PWXL;N;E\nB;X2;Y2\n"
+            "C;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\n"
+            "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"Adef\"\nE\n";
+        static char const data_text[]=
+            "ID;PWXL;N;E\n"
+            "C;Y1;X1;K\"unitID\"\n"
+            "C;Y1;X2;K\"movetp\"\n"
+            "C;Y1;X3;K\"targType\"\n"
+            "C;Y1;X4;K\"collision\"\n"
+            "C;Y1;X5;K\"turnRate\"\n"
+            "C;Y1;X6;K\"propWin\"\n"
+            "C;Y1;X7;K\"deathType\"\n"
+            "C;Y2;X1;K\"hfoo\"\n"
+            "C;Y2;X2;K\"foot\"\n"
+            "C;Y2;X3;K\"ground\"\n"
+            "C;Y2;X4;K\"16\"\n"
+            "C;Y2;X5;K\"0.6\"\n"
+            "C;Y2;X6;K\"60\"\n"
+            "C;Y2;X7;K\"3\"\n"
+            "E\n";
+        static char const weapons_text[]=
+            "ID;PWXL;N;E\n"
+            "C;Y1;X1;K\"unitWeapID\"\n"
+            "C;Y1;X2;K\"weapsOn\"\n"
+            "C;Y1;X3;K\"atkType1\"\n"
+            "C;Y1;X4;K\"weapTp1\"\n"
+            "C;Y1;X5;K\"targs1\"\n"
+            "C;Y1;X6;K\"rangeN1\"\n"
+            "C;Y1;X7;K\"RngBuff1\"\n"
+            "C;Y1;X8;K\"dmgplus1\"\n"
+            "C;Y1;X9;K\"dice1\"\n"
+            "C;Y1;X10;K\"sides1\"\n"
+            "C;Y1;X11;K\"dmgpt1\"\n"
+            "C;Y1;X12;K\"backSw1\"\n"
+            "C;Y1;X13;K\"cool1\"\n"
+            "C;Y1;X14;K\"acquire\"\n"
+            "C;Y2;X1;K\"hfoo\"\n"
+            "C;Y2;X2;K\"1\"\n"
+            "C;Y2;X3;K\"normal\"\n"
+            "C;Y2;X4;K\"normal\"\n"
+            "C;Y2;X5;K\"ground\"\n"
+            "C;Y2;X6;K\"128\"\n"
+            "C;Y2;X7;K\"100\"\n"
+            "C;Y2;X8;K\"10\"\n"
+            "C;Y2;X9;K\"1\"\n"
+            "C;Y2;X10;K\"1\"\n"
+            "C;Y2;X11;K\"0.3\"\n"
+            "C;Y2;X12;K\"0.5\"\n"
+            "C;Y2;X13;K\"1.5\"\n"
+            "C;Y2;X14;K\"128\"\n"
+            "E\n";
+        slkTestData_t *ability_rows=parse_slk_string(ability_text),*unit_rows=parse_slk_string(unit_text);
+        slkTestData_t *data_rows=parse_slk_string(data_text),*weapons_rows=parse_slk_string(weapons_text);
+        slkTestData_t *old_data=G_SetSLKRows("UnitData",data_rows);
+        slkTestData_t *old_weapons=G_SetSLKRows("UnitWeapons",weapons_rows);
+        slkTestData_t *old_ability=G_SetSLKRows("AbilityData",ability_rows);
+        slkTestData_t *old_unit=G_SetSLKRows("UnitAbilities",unit_rows);
+        T_ASSERT(run_test_jass(
+            "globals\nunit source320=null\nunit target320=null\nboolean resume320=false\ninteger phase320=0\nendglobals\n"
+            "function issued320 takes nothing returns nothing\n"
+            "if resume320 then\n"
+            "if GetIssuedOrderId()==OrderId(\"undefend\") then\n"
+            "call BJassAssert(phase320==0,\"undefend first\")\nset phase320=1\n"
+            "elseif GetIssuedOrderId()==OrderId(\"attack\") then\n"
+            "call BJassAssert(phase320==1,\"Attack after undefend\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(source320)==OrderId(\"attack\"),\"Attack head before constructor\")\nset phase320=2\nendif\nendif\nendfunction\n"
+            "function hide320 takes nothing returns nothing\ncall ShowUnit(target320,false)\nendfunction\n"
+            "function resumeAttack320 takes nothing returns nothing\nset resume320=true\ncall PauseUnit(source320,false)\n"
+            "call BJassAssert(phase320==0,\"resume publication remains deferred\")\nendfunction\n"
+            "function verified320 takes nothing returns nothing\ncall BJassAssert(phase320==2,\"both resumed events\")\nendfunction\n"
+            "function retired320 takes nothing returns nothing\n"
+            "call BJassAssert(IssueImmediateOrder(source320,\"defend\"),\"public Defend\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(source320)==0,\"instant Defend retired\")\nendfunction\n"
+            "function pauseIdle320 takes nothing returns nothing\n"
+            "call PauseUnit(source320,true)\ncall PauseUnit(source320,false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set source320=CreateUnit(Player(0),'hfoo',256,256,0)\nset target320=CreateUnit(Player(1),'hfoo',768,256,0)\n"
+            "call SetUnitUserData(source320,3201)\ncall SetUnitUserData(target320,3202)\n"
+            "call TriggerRegisterUnitEvent(t,source320,EVENT_UNIT_ISSUED_ORDER)\n"
+            "call TriggerRegisterUnitEvent(t,source320,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+            "call TriggerRegisterUnitEvent(t,source320,EVENT_UNIT_ISSUED_TARGET_ORDER)\ncall TriggerAddAction(t,function issued320)\n"
+            "endfunction\nfunction begin320 takes nothing returns nothing\n"
+            "call FogMaskEnable(false)\ncall FogEnable(false)\n"
+            "call BJassAssert(IssueTargetOrder(source320,\"attack\",target320),\"fresh public target Attack\")\n"
+            "call PauseUnit(source320,true)\n"
+            "call BJassAssert(IssuePointOrder(target320,\"move\",1024,512),\"target moves while source paused\")\nendfunction\n"));
+        edict_t *source=NULL,*target=NULL;
+        FOR_LOOP(i,globals.num_edicts) {
+            edict_t *unit=g_edicts+i;
+            if(!unit->inuse || unit->class_id!=MAKEFOURCC('h','f','o','o'))continue;
+            if(unit->s.player==0)source=unit;
+            if(unit->s.player==1)target=unit;
+        }
+        T_NOT_NULL(source);T_NOT_NULL(target);
+        if(source && target) {
+            /* A retired instantaneous modal packet must not replay and
+             * reactivate Defend after the forced off at pause release. */
+            jass_callbyname(level.vm,"retired320",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NULL(source->active_order);
+            jass_callbyname(level.vm,"pauseIdle320",false);
+            FOR_LOOP(i,20) {
+                if(!source->movement.pause_resume_pending)break;
+                lifecycle_primary_step();S_RunMoveTimers();
+            }
+            T_ASSERT(!human_has_status(source,MAKEFOURCC('A','d','e','f')));
+            T_NULL(source->active_order);
+            /* Public fog controls make target admission independent of the
+             * unadvanced startup sight pass; real CreateUnit owns geometry. */
+            jass_callbyname(level.vm,"begin320",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            uint32_t const source_index=source->s.number,target_index=target->s.number;
+            uint32_t const target_birth=target->spawn_time;
+            unitOrder_t before={0};
+            T_ASSERT(G_GetActiveUnitOrder(source,&before));
+            T_EQ(before.order_id,G_OrderId("attack"));
+            T_EQ(before.target_number,target_index);T_EQ(before.target_spawn_time,target_birth);
+            T_EQ(before.point.x,768.0f);T_EQ(before.point.y,256.0f);
+            FOR_LOOP(i,60) {
+                lifecycle_primary_step();S_RunMoveTimers();
+                if(i%6==5) {
+                    bool const scheduled=level.scheduled_think;
+                    level.scheduled_think=true;level.pathing_counter++;
+                    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+                    level.scheduled_think=scheduled;
+                }
+            }
+            T_ASSERT(target->s.origin2.x!=before.point.x || target->s.origin2.y!=before.point.y);
+            if(hidden)jass_callbyname(level.vm,"hide320",false);
+            T_ASSERT(source->paused);
+            T_EQ(source->movement.pause_order_id,G_OrderId("attack"));
+            unitOrder_t frozen={0};T_ASSERT(G_GetActiveUnitOrder(source,&frozen));
+            T_EQ(frozen.order_id,before.order_id);
+            T_EQ(frozen.target_number,before.target_number);T_EQ(frozen.target_spawn_time,before.target_spawn_time);
+            T_EQ(frozen.point.x,before.point.x);T_EQ(frozen.point.y,before.point.y);
+            cstring_t file=Test_TempPath("attack320-pause.bin");
+            T_ASSERT(WriteGame(file));S_ClearMoveGroups();T_ASSERT(ReadGame(file));remove(file);
+            source=g_edicts+source_index;target=g_edicts+target_index;
+            unitOrder_t restored={0};T_ASSERT(G_GetActiveUnitOrder(source,&restored));
+            T_EQ(restored.target_number,target_index);T_EQ(restored.target_spawn_time,target_birth);
+            T_EQ(restored.point.x,before.point.x);T_EQ(restored.point.y,before.point.y);
+            jass_callbyname(level.vm,"resumeAttack320",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(source->movement.pause_resume_pending);
+            wc3Clock_t const due=source->movement.pause_deadline;
+            uint32_t const sequence=source->movement.pause_sequence;
+            T_NE(sequence,0u);
+            T_ASSERT(WriteGame(file));S_ClearMoveGroups();T_ASSERT(ReadGame(file));remove(file);
+            source=g_edicts+source_index;target=g_edicts+target_index;
+            T_ASSERT(source->movement.pause_resume_pending);
+            T_EQ(source->movement.pause_sequence,sequence);
+            T_EQ(source->movement.pause_deadline.epoch,due.epoch);
+            T_EQ(wc3_float_bits(source->movement.pause_deadline.time),wc3_float_bits(due.time));
+            T_ASSERT(G_GetActiveUnitOrder(source,&restored));
+            T_EQ(restored.target_number,target_index);T_EQ(restored.target_spawn_time,target_birth);
+            T_EQ(restored.point.x,before.point.x);T_EQ(restored.point.y,before.point.y);
+            lifecycle_primary_step();S_RunMoveTimers();
+            T_ASSERT(source->movement.pause_resume_pending);
+            FOR_LOOP(i,20) {
+                if(!source->movement.pause_resume_pending)break;
+                lifecycle_primary_step();S_RunMoveTimers();
+            }
+            T_ASSERT(!source->movement.pause_resume_pending);
+            wc3Clock_t const dispatched=G_TimerQueryClock(NULL);
+            T_ASSERT(dispatched.epoch!=due.epoch || dispatched.time>=due.time);
+            jass_callbyname(level.vm,"verified320",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(source->current_order_id,G_OrderId("attack"));
+            unitOrder_t reactivated={0};T_ASSERT(G_GetActiveUnitOrder(source,&reactivated));
+            T_EQ(reactivated.target_type,UNIT_ORDER_TARGET_ENTITY);
+            T_EQ(reactivated.target_number,target_index);T_EQ(reactivated.target_spawn_time,target_birth);
+            T_EQ(reactivated.point.x,before.point.x);T_EQ(reactivated.point.y,before.point.y);
+            if(hidden) {
+                T_NULL(source->attack_target);
+                T_NOT_NULL(source->goalentity);
+                if(source->goalentity) {
+                    T_EQ(source->goalentity->s.origin2.x,before.point.x);
+                    T_EQ(source->goalentity->s.origin2.y,before.point.y);
+                }
+                T_NE(source->movement.group_id,0);
+                bool member=false;
+                FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+                    moveGroup_t const *group=level.move_groups[i];
+                    if(!group || !group->inuse || group->id!=source->movement.group_id)continue;
+                    T_NULL(group->target);
+                    FOR_LOOP(j,group->count)if(group->members[j].unit==source) {
+                        member=true;T_EQ(wc3_float_bits(group->members[j].arrival_range),0x3efae148u);
+                    }
+                }
+                T_ASSERT(member);
+            } else {
+                /* Live target replay may own its reaction before d016f is
+                 * physically admitted; it must retain the real target. */
+                T_EQ(source->attack_target,target);
+                T_EQ(source->attack_target_spawn_time,target_birth);
+            }
+        }
+        reset_entities();setup_test_world();
+        G_SetSLKRows("UnitAbilities",old_unit);G_SetSLKRows("AbilityData",old_ability);
+        G_SetSLKRows("UnitData",old_data);G_SetSLKRows("UnitWeapons",old_weapons);
+        free_slk_rows(data_rows);free_slk_rows(weapons_rows);
+        free_slk_rows(unit_rows);free_slk_rows(ability_rows);
+    }
+}
+
 #endif

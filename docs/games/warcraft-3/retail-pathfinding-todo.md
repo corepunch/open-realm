@@ -18,13 +18,14 @@ A verified partial slice is progress within that leaf and does not close it.
 Work outside the active leaf is limited to dependencies required to complete it.
 
 The bounded Couple Instant (`Acoi`) and Patrol producer matrices are delivered.
-Current block **B01 / F19 / D051** now has native299's complete repeat/control
-reference and a verified common C recovery correction with Save233. Its remaining
-work is ordinary resolved-alternative validity, the configured temporary-Invisibility
-fade/contribution/suppression owner, the 17 incoming caller dispositions, and the
-complete normal/saved C299 replay. See the [current recovery work](retail-pathfinding-attack-recovery.md).
-The bounded correction passes composite 1,272 tests/316,668 assertions, five fresh
-native/C gates and 95 focused Python checks. This does not close TARGET-01.2.
+Current block **B01 / F19 / D051** has complete native299 repeat/control evidence,
+common recovery, configured public Invisibility scheduling and saved paused user
+packets. Checkpoint320 matches all 2,066 public events and 5,342 ordered motion
+rows in uninterrupted and nine-checkpoint saved TFT C299. This does not compare
+all internal native rows. Remaining B01 work is the exact incoming caller and
+positive-alternative/adjusted-range branch dispositions, plus AIvi/AOwk/Agho/Abur/Ahid
+Pause/Sleep overlaps. See the [closure register](target-01.2-closure.md) and
+[current recovery work](retail-pathfinding-attack-recovery.md). TARGET-01.2 remains open.
 
 The following checkpoint267 record is historical:
 Checkpoint267's broader 28 processes pass 2,458 tests/2,023,322 assertions after

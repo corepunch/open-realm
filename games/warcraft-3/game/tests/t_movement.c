@@ -505,8 +505,14 @@ TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
     /* Public unpause precedes native69c580's physical separation release.
      * Drive that existing owner before checking the original policy words. */
     T_NULL(level.repulse_head);T_ASSERT(!fly[0]->movement.repulse.active);
-    FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
-    S_RunMoveTimers();
+    /* The request starts at the primary clock, which can lead the last
+     * published pathing clock after load. Drain to its actual release. */
+    FOR_LOOP(i,20) {
+        if(!fly[0]->movement.pause_resume_pending)break;
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        S_RunMoveTimers();
+    }
+    T_ASSERT(!fly[0]->movement.pause_resume_pending);
     T_ASSERT(level.repulse_head==fly[0]);T_ASSERT(fly[0]->movement.repulse.active);
     T_EQ(fly[0]->movement.repulse.state.packed,0x02000000u);T_EQ(fly[0]->movement.repulse.state.vector[0],0);
     T_EQ(fly[0]->movement.repulse.state.vector[1],0);remove(file);
@@ -27352,6 +27358,21 @@ static char const *pause287_rifleman[]={
     "ID;PWXL;N;E\nC;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"realHP\"\nC;Y2;X1;K\"hrif\"\nC;Y1;X3;K\"spd\"\nC;Y2;X2;K535\nC;Y2;X3;K270\nE\n",
     "ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y2;X1;K\"hrif\"\nC;Y2;X2;K\"foot\"\nE\n",
 };
+/* Loading drains the outgoing world before restoring the saved branch.
+ * Keep its complete marker stream separate from the restored comparator,
+ * just as the full299 replay does; never change the frozen retail rows. */
+static void pause287_outgoing(cstring_t text) {
+    fprintf(stderr,"PAUSE OUTGOING %s\n",text);
+}
+static bool pause287_restore(cstring_t file,unsigned *row) {
+    unsigned const checkpoint=*row;
+    void (*marker)(cstring_t)=test_preload_marker;
+    test_preload_marker=pause287_outgoing;
+    bool const restored=ReadGame(file);
+    test_preload_marker=marker;
+    *row=checkpoint;
+    return restored;
+}
 static void pause287_public(unsigned scene) {
     FOR_LOOP(saved,2) {
         reset_entities();reset_test_state();setup_test_world();g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
@@ -27367,7 +27388,7 @@ static void pause287_public(unsigned scene) {
         pause287=(typeof(pause287)){.scene=scene};test_preload_marker=pause287_marker;
         jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
         if(saved) {
-            cstring_t file=Test_TempPath("wc3-pause287-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+            cstring_t file=Test_TempPath("wc3-pause287-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(pause287_restore(file,&pause287.row));remove(file);unit=g_edicts+number;
         }
         if(scene==5) {
             /* Retail's reentrant Move owns an internal task, so the outer
@@ -27383,7 +27404,7 @@ static void pause287_public(unsigned scene) {
         }
         jass_callbyname(level.vm,"P287Resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
         if(saved) {
-            cstring_t file=Test_TempPath("wc3-pause287-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+            cstring_t file=Test_TempPath("wc3-pause287-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(pause287_restore(file,&pause287.row));remove(file);unit=g_edicts+number;
         }
         if(scene!=5 && scene!=7) {
             T_ASSERT(unit->movement.pause_resume_pending);
@@ -27453,7 +27474,7 @@ static void pause288_public(unsigned scene) {
         pause288=(typeof(pause288)){.scene=scene};test_preload_marker=pause288_marker;
         jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
         T_EQ(G_CountUnitOrders(unit,0),pause288_counts[scene]);
-        if(saved) {cstring_t file=Test_TempPath("wc3-pause288-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;}
+        if(saved) {cstring_t file=Test_TempPath("wc3-pause288-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(pause287_restore(file,&pause288.row));remove(file);unit=g_edicts+number;}
         for(unitAbilityDisable_t *state=unit->ability_disables;state;state=state->next)
             if(state->code==MAKEFOURCC('A','d','e','f')) {
                 T_EQ(state->depth,1);T_EQ(state->order_depth,1);T_ASSERT(state->pause_owned);
@@ -27464,7 +27485,7 @@ static void pause288_public(unsigned scene) {
         for(unitAbilityDisable_t *state=unit->ability_disables;state;state=state->next) {
             T_EQ(state->depth,0);T_EQ(state->order_depth,0);T_ASSERT(!state->pause_owned);
         }
-        if(saved) {cstring_t file=Test_TempPath("wc3-pause288-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;}
+        if(saved) {cstring_t file=Test_TempPath("wc3-pause288-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(pause287_restore(file,&pause288.row));remove(file);unit=g_edicts+number;}
         FOR_LOOP(i,2) {wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);S_RunMoveTimers();}
         jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
         T_ASSERT(pause288.row<24);if(pause288.row<24)T_NULL(pause288_rows[scene][pause288.row].label);
@@ -27532,7 +27553,7 @@ static void pause289_public(unsigned scene) {
         pause289=(typeof(pause289)){.scene=scene};test_preload_marker=pause289_marker;
         jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
         T_EQ(G_CountUnitOrders(unit,0),pause289_counts[scene]);
-        if(saved) {cstring_t file=Test_TempPath("wc3-pause289-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;}
+        if(saved) {cstring_t file=Test_TempPath("wc3-pause289-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(pause287_restore(file,&pause289.row));remove(file);unit=g_edicts+number;}
         for(unitAbilityDisable_t *state=unit->ability_disables;state;state=state->next)
             if(state->code==MAKEFOURCC('A','d','e','f')) {
                 T_EQ(state->depth,scene==14?0:1);T_EQ(state->order_depth,scene==14?0:1);T_EQ(state->pause_owned,scene!=14);
@@ -27546,7 +27567,7 @@ static void pause289_public(unsigned scene) {
         for(unitAbilityDisable_t *state=unit->ability_disables;state;state=state->next) {
             T_EQ(state->depth,0);T_EQ(state->order_depth,0);T_ASSERT(!state->pause_owned);
         }
-        if(saved) {cstring_t file=Test_TempPath("wc3-pause289-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;}
+        if(saved) {cstring_t file=Test_TempPath("wc3-pause289-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(pause287_restore(file,&pause289.row));remove(file);unit=g_edicts+number;}
         FOR_LOOP(i,2) {wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);S_RunMoveTimers();}
         jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
         T_ASSERT(pause289.row<24);if(pause289.row<24)T_NULL(pause289_rows[scene][pause289.row].label);

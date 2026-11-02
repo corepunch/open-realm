@@ -12,12 +12,14 @@ extern void (*test_unit_position_query)(edict_t *,unsigned,float);
 void reset_entities(void);
 void setup_test_world(void);
 void CM_SetupTestWorldBounds(box2_t const *);
-static struct {
+typedef struct {
     bool active,complete;
     unsigned scene,tick,public_count,public_bad,poll_count,poll_bad;
     edict_t *last_position_unit,*roles[6][3];
     attack299Poll_t polls[12000];
-} recovery299;
+} recovery299Run_t;
+static recovery299Run_t recovery299;
+static bool recovery299_outgoing;
 
 static unsigned Recovery299Role(edict_t const *u) {
     if(recovery299.scene<6)
@@ -57,6 +59,7 @@ static void Recovery299Marker(cstring_t text) {
     if(strncmp(text,"AR299 ",6)||recovery299.complete)return;
     unsigned tick,scene;
     if(sscanf(text,"AR299 tick=%u scene=%u",&tick,&scene)!=2)return;
+    if(recovery299_outgoing)fprintf(stderr,"RECOVERY299 OUTGOING %s\n",text);
     recovery299.tick=tick;recovery299.scene=scene;
     if(strstr(text," label=start"))recovery299.active=true;
     unsigned role;char const *pose=strstr(text," label=pose role=");
@@ -95,7 +98,7 @@ static void Recovery299Check(void) {
     fprintf(stderr,"RECOVERY299 COUNTS public=%u mismatches=%u motion=%u mismatches=%u\n",recovery299.public_count,recovery299.public_bad,recovery299.poll_count,recovery299.poll_bad);
     T_EQ(recovery299.poll_bad,0);
 }
-TEST(stress_wc3_attack_recovery299, full_public_and_ordered_motion) {
+static void Recovery299Run(bool saved) {
     char const *map=getenv("WC3_ATTACK299_MAP");
     T_ASSERT(map && *map);if(!map || !*map)return;
     reset_entities();setup_test_world();G_BotShutdown();
@@ -109,14 +112,45 @@ TEST(stress_wc3_attack_recovery299, full_public_and_ordered_motion) {
     if(loaded) {
         /* G_LoadMap -> G_StartScripts already configures/seeds/executes the
          * original main. Keep that lifecycle; no borrowed RNG state. */
+        static unsigned const checkpoints[]={5,60,360,660,960,1261,1265,1560,1590};
+        unsigned checkpoint=0;
+        recovery299Run_t *branch=saved ? malloc(sizeof(*branch)) : NULL;
+        if(saved)T_NOT_NULL(branch);
         while(!recovery299.complete && level.time<181000) {
             level.time+=5;globals.RunFrame();
             if(jass_rterror_pending(level.vm))break;
+            if(saved && branch && checkpoint<(sizeof(checkpoints)/sizeof(*checkpoints)) && recovery299.tick>=checkpoints[checkpoint]) {
+                /* Save only after the real frame returns. No pose, RNG, timer
+                 * deadline or expected row is installed by this observer. */
+                fprintf(stderr,"RECOVERY299 SAVE tick=%u scene=%u public=%u motion=%u\n",
+                    recovery299.tick,recovery299.scene,recovery299.public_count,recovery299.poll_count);
+                cstring_t path=Test_TempPath("attack299-cold.bin");
+                bool written=WriteGame(path);T_ASSERT(written);
+                if(!written)break;
+                *branch=recovery299;
+                /* ReadGame settles the outgoing clock owner by0.2s. That
+                 * discarded branch can emit callbacks before restoration.
+                 * Roll back this observer's recorded prefix with its checkpoint,
+                 * as in the saved Patrol replay; gameplay restores only via
+                 * ReadGame. Retain outgoing marker rows separately in the log. */
+                recovery299_outgoing=true;
+                S_ClearMoveGroups();
+                bool restored=ReadGame(path);T_ASSERT(restored);remove(path);
+                recovery299_outgoing=false;
+                fprintf(stderr,"RECOVERY299 OUTGOING COUNTS public=%u motion=%u\n",
+                    recovery299.public_count-branch->public_count,recovery299.poll_count-branch->poll_count);
+                if(!restored)break;
+                recovery299=*branch;checkpoint++;
+            }
         }
+        if(saved)T_EQ(checkpoint,(sizeof(checkpoints)/sizeof(*checkpoints)));
+        free(branch);
         T_ASSERT(recovery299.complete);T_ASSERT(!jass_rterror_pending(level.vm));Recovery299Check();
     }
     test_preload_marker=NULL;test_unit_position_query=NULL;
     move_test_group_arrival=NULL;move_test_group_committed=NULL;
     G_ReleaseLevel();CM_W3ClearMapData();setup_test_world();reset_entities();
 }
+TEST(stress_wc3_attack_recovery299, full_public_and_ordered_motion) {Recovery299Run(false);}
+TEST(stress_wc3_attack_recovery299, path_cleared_saved_public_and_ordered_motion) {Recovery299Run(true);}
 #endif

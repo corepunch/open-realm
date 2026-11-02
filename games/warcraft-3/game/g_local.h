@@ -2594,6 +2594,8 @@ struct edict_s {
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     vec2_t old_origin;
     unitOrderQueue_t order_queue;
+    unitOrder_t *active_order; /* Canonical user packet; survives physical suspension. */
+    uint64_t active_order_revision; /* Callback ownership, independent of physical Move. */
     unitAbilityDisable_t *ability_disables; /* Lazy ordered availability owners; ordinary units allocate none. */
     int32_t ability_pause_depth; /* Script-owned portion of Unit1c4. */
     int32_t ability_disable_depth; /* Unit1b8: non-order buff availability contributions. */
@@ -2687,6 +2689,7 @@ struct edict_s {
         unitPausePhase_t pause_phase;
         bool pause_resume_pending;
         wc3Clock_t pause_deadline;
+        uint32_t pause_sequence; /* Saved primary request serial for late user-head replay. */
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t route_resume_direction;
         vec2_t route_resume_goal_origin;
@@ -5015,6 +5018,7 @@ uint32_t G_AbilityOrderId(ability_t const *);
 edict_t *G_GetIssuedOrderTarget(edict_t const *);
 void G_ClearIssuedOrderState(edict_t *);
 bool G_GetActiveUnitOrder(edict_t const *, unitOrder_t *);
+bool G_ResumeActiveUnitOrder(edict_t *);
 bool G_GetQueuedUnitOrder(edict_t const *, uint32_t index, unitOrder_t *);
 void G_ClearActiveUnitOrder(edict_t *);
 void G_SetActiveUnitOrder(edict_t *, unitOrder_t const *);
@@ -5545,6 +5549,8 @@ void G_FreeFood(edict_t *ent);
 food_t *G_AllocFood(void);
 void G_FreeUnitStatus(edict_t *ent);
 unitStatusStorage_t *G_AllocUnitStatus(void);
+void G_FreeActiveOrder(edict_t *ent);
+unitOrder_t *G_AllocActiveOrder(void);
 void G_FreeUnitOrders(edict_t *ent);
 unitOrderStorage_t *G_AllocUnitOrders(void);
 bool G_ReserveUnitOrders(edict_t *ent, uint32_t capacity);

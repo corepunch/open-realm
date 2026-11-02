@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 239; /* Retained JASS event-enum origin. */
+static uint32_t const save_version = 240; /* Canonical active user packets survive scripted suspension. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1313,6 +1313,8 @@ static field_t const attack_failed_target_fields[] = {
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
     F(edict_s, order_queue.entries, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, active_order, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, active_order_revision, F_INT),
     F(edict_s, ability_orders, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ability_disables, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ability_pause_depth, F_INT),
@@ -1497,6 +1499,7 @@ field_t edict_fields[] = {
     F(edict_s, movement.pause_deadline.time, F_FLOAT),
     F(edict_s, movement.pause_deadline.epoch, F_INT),
     F(edict_s, movement.pause_deadline.span, F_FLOAT),
+    F(edict_s, movement.pause_sequence, F_INT),
     F(edict_s, movement.type_rebind_deadline.time, F_FLOAT),
     F(edict_s, movement.type_rebind_deadline.epoch, F_INT),
     F(edict_s, movement.type_rebind_deadline.span, F_FLOAT),
@@ -3083,6 +3086,28 @@ static bool ValidUnitOrderBounds(unitOrderQueue_t const *queue) {
         queue->head<queue->capacity && queue->count<=queue->capacity;
 }
 
+/* Weak target incarnations may legitimately no longer resolve. Validate the
+ * retained value packet without upgrading it to a live entity reference. */
+static bool ValidActiveUnitOrders(void) {
+    FILTER_EDICTS(ent,ent->inuse) {
+        if(*(uint8_t const *)&ent->movement.pause_resume_pending>1)return false;
+        if(ent->movement.pause_resume_pending &&
+           (!ent->movement.pause_sequence || ent->movement.pause_sequence>level.timer_sequence ||
+            !isfinite(ent->movement.pause_deadline.time) ||
+            !isfinite(ent->movement.pause_deadline.span) || ent->movement.pause_deadline.span<=0))return false;
+        if(!ent->active_order)continue;
+        unitOrder_t const *p=ent->active_order;
+        if(!ent->active_order_revision || !memchr(p->order,0,sizeof(p->order)) || !p->order[0] ||
+           !p->order_id || p->target_type<UNIT_ORDER_TARGET_NONE || p->target_type>UNIT_ORDER_TARGET_ENTITY_ITEM ||
+           p->issuer_player>=MAX_PLAYERS || *(uint8_t const *)&p->target_is_unit>1 ||
+           p->target_number>=MAX_ENTITIES || p->item_number>=MAX_ENTITIES ||
+           !isfinite(p->point.x) || !isfinite(p->point.y) ||
+           !isfinite(p->continuation.x) || !isfinite(p->continuation.y) ||
+           !isfinite(p->group_speed) || p->group_speed<0)return false;
+    }
+    return true;
+}
+
 typedef struct {
     uint32_t code,issuer_player;
     char order[UNIT_ORDER_NAME_SIZE];
@@ -3409,6 +3434,7 @@ POOL_ALLOC(Rally)
 POOL_ALLOC(Food)
 POOL_ALLOC(UnitStatus)
 POOL_ALLOC(UnitOrders)
+POOL_ALLOC(ActiveOrder)
 POOL_ALLOC(Buildwork)
 POOL_ALLOC(Revival)
 POOL_ALLOC(Sacrifice)
@@ -3447,6 +3473,7 @@ static savePool_t const save_pools[] = {
     { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood , MAX_ENTITIES },
     { "abilstatus", offsetof(edict_t, abilstatus), sizeof(unitStatusStorage_t), unit_status_fields, SaveAllocUnitStatus , MAX_ENTITIES },
     { "order_queue", offsetof(edict_t, order_queue.entries), sizeof(unitOrderStorage_t), scalar_pool_fields, SaveAllocUnitOrders , MAX_ENTITIES },
+    { "active_order", offsetof(edict_t, active_order), sizeof(unitOrder_t), scalar_pool_fields, SaveAllocActiveOrder, MAX_ENTITIES },
     { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork , LIFECYCLE_POOL_CAP },
     { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival , LIFECYCLE_POOL_CAP },
     { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice , LIFECYCLE_POOL_CAP },
@@ -3619,6 +3646,7 @@ bool WriteGame(cstring_t filename) {
         }
     }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 SaveGame: invalid Way Gate identities\n"); goto done; }
+    if (!ValidActiveUnitOrders()) { fprintf(stderr,"WC3 SaveGame: invalid active order packet\n"); goto done; }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 SaveGame: invalid unit owned-pool order\n"); goto done; }
     if (!S_ValidateBuildMines()) { fprintf(stderr,"WC3 SaveGame: invalid Build completion references\n"); goto done; }
     if (!S_ValidateMoveFollows()) { fprintf(stderr,"WC3 SaveGame: invalid Follow subscriptions\n"); goto done; }
@@ -3887,6 +3915,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!ValidActiveUnitOrders()) { fprintf(stderr,"WC3 LoadGame: invalid active order packet\n"); fclose(f);return false; }
     if (!S_ReadPreparationItems(f)) { fprintf(stderr,"WC3 LoadGame: invalid item ability identities\n"); fclose(f); return false; }
     if (!S_ValidateMetamorphosisOwners()) { fprintf(stderr,"WC3 LoadGame: invalid concrete Morph status owners\n"); fclose(f); return false; }
     if (!G_ValidateMovePlacementLevels()) { fprintf(stderr,"WC3 LoadGame: invalid placement handles\n"); fclose(f); return false; }
@@ -5278,6 +5307,37 @@ TEST(wc3_save, cargo_unload_rejects_unallocated_goal_index) {
     fclose(f);
 }
 
+TEST(wc3_save, active320_packet_preserves_original_point_and_weak_identity) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),600,288);
+    unitOrder_t packet={.order="attack",.order_id=851983,.target_type=UNIT_ORDER_TARGET_ENTITY,
+        .point={600,288},.target_number=target->s.number,.target_spawn_time=target->spawn_time,
+        .target_is_unit=true,.issuer_player=0};
+    G_SetActiveUnitOrder(unit,&packet);
+    uint32_t number=unit->s.number;uint64_t revision=unit->active_order_revision;
+    /* A removed/reused recipient is a legal weak packet, not a strong ref. */
+    G_FreeEdict(target);
+    cstring_t file=Test_TempPath("active320-packet.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));unit=g_edicts+number;
+    unitOrder_t restored;T_ASSERT(G_GetActiveUnitOrder(unit,&restored));
+    T_EQ(memcmp(&packet,&restored,sizeof(packet)),0);
+    T_EQ(unit->active_order_revision,revision);
+    FOR_LOOP(i,7) {
+        *unit->active_order=packet;
+        if(i==0)unit->active_order->point.x=NAN;
+        if(i==1)unit->active_order->target_type=(unitOrderTargetType_t)99;
+        if(i==2)unit->active_order->issuer_player=MAX_PLAYERS;
+        if(i==3)memset(unit->active_order->order,'x',sizeof(unit->active_order->order));
+        if(i==4)unit->active_order->order_id=0;
+        if(i==5)unit->active_order->group_speed=INFINITY;
+        if(i==6)*(uint8_t *)&unit->active_order->target_is_unit=2;
+        T_ASSERT(!WriteGame(Test_TempPath("active320-invalid.bin")));
+    }
+    *unit->active_order=packet;G_ClearActiveUnitOrder(unit);T_NULL(unit->active_order);
+    remove(file);remove(Test_TempPath("active320-invalid.bin"));reset_entities();setup_test_world();
+}
+
 TEST(wc3_save, queue198_rejects_invalid_capacity_count_and_head) {
     reset_entities();setup_test_world();
     edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
@@ -5659,6 +5719,11 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
         void *slot = save_pools[i].alloc();
         memcpy((uint8_t *)unit + save_pools[i].offset, &slot, sizeof(slot));
     }
+    unitOrder_t const active={.order="attack",.order_id=851983,
+        .target_type=UNIT_ORDER_TARGET_ENTITY,.point={64,0},
+        .target_number=target->s.number,.target_spawn_time=target->spawn_time,
+        .target_is_unit=true,.issuer_player=0};
+    G_SetActiveUnitOrder(unit,&active);
 
     unit->construction->progress = 13.5f;
     unit->construction->worker = target;
@@ -5712,6 +5777,8 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
         T_NULL(SavePoolSlot(target, save_pools + i));
     }
     T_ASSERT(unit->construction);
+    T_NOT_NULL(unit->active_order);
+    if(unit->active_order)T_EQ(memcmp(unit->active_order,&active,sizeof(active)),0);
     T_FEQ(unit->construction->progress, 13.5f, 0.001f);
     T_FEQ(unit->shadow_strike->factor,0.375f,0);
     T_FEQ(unit->shadow_strike->damage,17,0);

@@ -18,13 +18,14 @@ import xml.etree.ElementTree as ET
 
 MAP_SHA256 = '9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f'
 TEST = 'stress_wc3_attack_recovery299.full_public_and_ordered_motion'
+SAVED_TEST = 'stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion'
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def validate_report(path):
+def validate_report(path, expected=TEST):
     root = ET.parse(path).getroot()
     cases = list(root.iter('testcase'))
     if len(cases) != 1:
@@ -32,7 +33,7 @@ def validate_report(path):
     case = cases[0]
     name = case.get('name', '')
     full_name = case.get('classname', '') + '.' + name
-    if TEST not in (name, full_name):
+    if expected not in (name, full_name):
         raise ValueError('JUnit contains a different test: ' + full_name)
     if next(root.iter('skipped'), None) is not None:
         raise ValueError('C299 was skipped')
@@ -52,7 +53,9 @@ def main():
     ap.add_argument('--data', type=Path, required=True, help='Read-only retail installation containing MPQs')
     ap.add_argument('--log', type=Path, required=True)
     ap.add_argument('--timeout', type=int, default=600)
+    ap.add_argument('--saved', action='store_true', help='Cold-restore nine real lifecycle checkpoints during the full replay')
     args = ap.parse_args()
+    test = SAVED_TEST if args.saved else TEST
     binary, native_map, data, log = [p.resolve() for p in (args.binary, args.map, args.data, args.log)]
     if sha(native_map) != MAP_SHA256:
         ap.error('wrong native299 map SHA256')
@@ -81,7 +84,7 @@ def main():
                 (overlay / archive.name).symlink_to(archive)
             (overlay / 'Maps').mkdir()
             shutil.copyfile(native_map, overlay / 'Maps/AttackRecovery299.w3m')
-            command = [str(binary), '-data', str(overlay), '-tft', '+dedicated', '1', '+test', TEST]
+            command = [str(binary), '-data', str(overlay), '-tft', '+dedicated', '1', '+test', test]
             with log.open('x') as output:
                 output.write('COMMAND ' + repr(command) + '\n')
                 output.flush()
@@ -91,12 +94,12 @@ def main():
             raise ValueError('engine exited with code ' + str(code))
         if not report.is_file():
             raise ValueError('C299 did not produce a fresh execution report')
-        validate_report(report)
+        validate_report(report, test)
         if sha(binary) != before:
             raise ValueError('test binary changed during execution')
     except (ValueError, OSError, ET.ParseError, subprocess.TimeoutExpired) as exc:
         error = str(exc)
-    summary.write_text(json.dumps({'test': TEST, 'passed': error is None,
+    summary.write_text(json.dumps({'test': test, 'mode': 'saved' if args.saved else 'normal', 'passed': error is None,
         'error': error, 'exit_code': code, 'command': command,
         'map_sha256': MAP_SHA256, 'binary_sha256': before, 'edition': 'tft',
         'retail_data': str(data), 'archives': [p.name for p in archives],

@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Public Invisibility uses the shared cast scheduler and matches native scene4. Scene5 paused Attack packet replay and complete normal/saved C299 remain open.",
-  "save_version": 239,
-  "full_suite_run": false,
-  "native299_engine_parity": false,
+  "status": "Complete uninterrupted and nine-checkpoint saved C299 public/motion replay passes. B01 caller and overlap requirements remain open.",
+  "save_version": 240,
+  "full_suite_run": true,
+  "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
     "sha256": "9d21601f130be65f6ce88c7f7463c80067d35baf8a2f4592397e046eb6ca9ff2",
@@ -5962,6 +5962,206 @@
       "entries": 614,
       "guarded_files": 3329,
       "report": "build/tests/phase319/corpus-check.log"
+    }
+  },
+  "phase320": {
+    "scope": "Retained admitted packet, saved exact pause release, existing work resume, complete declared public/motion replay. Whole B01 and TARGET-01.2 remain open.",
+    "save_version": 240,
+    "jass_snapshot_version": 12,
+    "preflight": {
+      "processes": 8,
+      "tests": 8,
+      "assertions": 774,
+      "report": "build/tests/pause320/preflight-sixth-eleventh/summary.json"
+    },
+    "regressions": {
+      "processes": 12,
+      "tests": 12,
+      "assertions": 1250,
+      "report": "build/tests/pause320/regression-seventh-eleventh/summary.json"
+    },
+    "focused": {
+      "processes": 12,
+      "tests": 2182,
+      "assertions": 803774,
+      "report": "build/tests/pause320/focused-final-eleventh/summary.json"
+    },
+    "replays": {
+      "normal": {
+        "test": "stress_wc3_attack_recovery299.full_public_and_ordered_motion",
+        "mode": "normal",
+        "passed": true,
+        "error": null,
+        "exit_code": 0,
+        "command": [
+          "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+          "-data",
+          "/tmp/native299-data-cmnlzjku",
+          "-tft",
+          "+dedicated",
+          "1",
+          "+test",
+          "stress_wc3_attack_recovery299.full_public_and_ordered_motion"
+        ],
+        "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+        "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+        "edition": "tft",
+        "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+        "archives": [
+          "War3Patch.mpq",
+          "War3x.mpq",
+          "War3xlocal.mpq",
+          "war3.mpq"
+        ],
+        "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/normal-eleventh.xml",
+        "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/normal-eleventh.log"
+      },
+      "saved": {
+        "test": "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion",
+        "mode": "saved",
+        "passed": true,
+        "error": null,
+        "exit_code": 0,
+        "command": [
+          "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+          "-data",
+          "/tmp/native299-data-j7sh1ybw",
+          "-tft",
+          "+dedicated",
+          "1",
+          "+test",
+          "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion"
+        ],
+        "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+        "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+        "edition": "tft",
+        "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+        "archives": [
+          "War3Patch.mpq",
+          "War3x.mpq",
+          "War3xlocal.mpq",
+          "war3.mpq"
+        ],
+        "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/saved-eleventh.xml",
+        "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/saved-eleventh.log"
+      }
+    },
+    "comparison": {
+      "public_rows": 2066,
+      "ordered_motion_rows": 5342,
+      "public_mismatches": 0,
+      "motion_mismatches": 0,
+      "native_internal_rows_all_compared": false,
+      "saved_ticks": [
+        5,
+        60,
+        360,
+        660,
+        960,
+        1261,
+        1265,
+        1560,
+        1590
+      ],
+      "saved_observer": "ReadGame drains outgoing-world requests; outgoing traces remain separately labelled. Restore observer checkpoint prefix only, never game pose, clock or RNG."
+    },
+    "python_recovery": {
+      "tests": 39,
+      "passed": true,
+      "report": "build/tests/pause320/python-recovery-final-correct.log"
+    },
+    "remaining": [
+      "11 incoming recovery call instructions unobserved by299",
+      "Positive alternative-target branch dispositions",
+      "Adjusted retained-target setter reachability",
+      "AIvi/AOwk/Agho/Abur/Ahid Pause/Sleep overlap dispositions"
+    ],
+    "full_native": {
+      "tests": 9442,
+      "all_green": false,
+      "report": "build/tests/full320-native-final/run.log",
+      "failures": "13 fixture cases per edition: outgoing-world observer contamination or release checked before primary deadline. No other failures.",
+      "followup": "Test-only correction; all78 pause/repulsion executions pass. Full batch not rerun after test-only correction."
+    },
+    "fixture_rerun": {
+      "tests": 78,
+      "assertions": 15066,
+      "passed": true,
+      "report": "build/tests/pause320/fixture-twelfth/summary.json"
+    },
+    "gate_reports": {
+      "supportgoal": {
+        "passed": true,
+        "report": "build/tests/pause320/gates-final/supportgoal.json",
+        "sha256": "a7711be6a583699f38787fb66c28286d6106e41b4af412b6098794d660b6c42a"
+      },
+      "group012": {
+        "passed": true,
+        "report": "build/tests/pause320/gates-final/group012.json",
+        "sha256": "76039c58712d7b0d294f2a9b314a3631c4e51e8ee2c1d5ee0aea6a2e0ac50d33"
+      },
+      "captain473": {
+        "passed": true,
+        "report": "build/tests/pause320/gates-final/captain473.json",
+        "sha256": "f07ba32519e9251f4a722962d73b93ed5c4a59a45e9673e3d0676b4096c22eaf"
+      },
+      "waygate377": {
+        "passed": true,
+        "report": "build/tests/pause320/gates-final/waygate377.json",
+        "sha256": "b2e3fedde735a36d3864783ad9076904bd5bac57dc653dc92f40d0d0aa06b3f3"
+      },
+      "itemdrop": {
+        "passed": true,
+        "report": "build/tests/pause320/gates-final/itemdrop.json",
+        "sha256": "9a096b059bc627f580651907e81fcb01711021e8c026ca57279eb8365a73bf74"
+      }
+    },
+    "gate_test_only_amendment": {
+      "path": "games/warcraft-3/game/tests/t_movement.c",
+      "before": "71b58d7844453a1a646f66489760779ec3a303229ab5acfd54bee7f6a8bacaba",
+      "after": "f1f524d8060e659212adb1e5d92fbcc0c14286f6901cba3b8a2d71f42a23564a",
+      "scope": "Only test observers and bounded timer drain changed after all five fresh gates. Production C/H unchanged. Gate engine reports were not rerun after this test-only correction."
+    },
+    "sc2api": {
+      "native_tests": 166,
+      "native_assertions": 6016,
+      "transport_passed": 4,
+      "optional_sdk_skipped": 1,
+      "exit": 0,
+      "report": "build/tests/pause320/sc2api-final-run.log"
+    },
+    "python": {
+      "tests": 115,
+      "passed": true
+    },
+    "saved_replay_after_test_amendment": {
+      "test": "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion",
+      "mode": "saved",
+      "passed": true,
+      "error": null,
+      "exit_code": 0,
+      "command": [
+        "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+        "-data",
+        "/tmp/native299-data-ivy8z4nr",
+        "-tft",
+        "+dedicated",
+        "1",
+        "+test",
+        "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion"
+      ],
+      "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+      "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "edition": "tft",
+      "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+      "archives": [
+        "War3Patch.mpq",
+        "War3x.mpq",
+        "War3xlocal.mpq",
+        "war3.mpq"
+      ],
+      "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/saved-twelfth.xml",
+      "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/saved-twelfth.log"
     }
   }
 }

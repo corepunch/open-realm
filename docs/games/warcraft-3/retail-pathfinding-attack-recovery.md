@@ -562,3 +562,52 @@ All 14 focused processes pass 3,426 test executions and 18,166,652 assertions
 across both editions. All five fresh parity gates pass. Save239 is unchanged;
 the full native batch last passed at checkpoint316 and is not repeated here.
 The 76 corpus/item-drop Python checks pass; the corpus validates 614 entries and 3,329 guarded files.
+
+## Retained paused orders and complete replay: checkpoint320
+
+The engine now retains the admitted user packet independently of the physical
+Move task. That packet stores the original point, weak target identity, order
+and issuer in a sparse pool. Save240 restores it together with the exact
+primary-clock release deadline and timer sequence. Pause release drains forced
+modal-off orders first, then resumes retained work or activates the saved
+packet through the ordinary issued-event and task-construction path. A target
+that has become hidden resolves to the original click after notification. The
+packet keeps its original weak target identity.
+
+Both uninterrupted TFT C299 and the replay with nine cold save/load checkpoints
+match all 2,066 public events and 5,342 ordered motion rows, with zero
+mismatches. The checkpoints are ticks5,60,360,660,960,1261,1265,1560 and1590.
+This comparison does not cover every one of the native trace's 9,058 internal
+records. The saved runner retains outgoing-world trace markers separately and
+restores the observer's checkpoint prefix after ReadGame: loading intentionally
+drains the outgoing world's primary requests before restoring the saved world.
+No game clock, position or random state is copied into the replay.
+
+Regression fixes preserve Repair's existing primary work owner, a Couple wait,
+and a completed Channel; completed modal Defend packets stay retired. Physical
+target-loss cleanup during pause keeps the suspension's user head. Attack
+suspension cancels its pending reaction, and pause cleanup cannot advance the
+user FIFO. Captain natural departure constructs its own home waypoint instead
+of reusing one released by Stop. Stop releases ended private point waypoints.
+
+Reproducible reports: `build/tests/pause320/normal-eleventh.summary.json`,
+`saved-eleventh.summary.json`, `preflight-sixth-eleventh/summary.json`, and
+`regression-seventh-eleventh/summary.json`.
+
+B01 remains open for the eleven unobserved incoming recovery call instructions,
+positive alternative-target and adjusted-range branch dispositions, and the
+AIvi/AOwk/Agho/Abur/Ahid overlap requirements listed in the closure register.
+Passing this complete public/motion replay does not close those requirements
+or another backlog leaf.
+
+Verification: the full batch ran 9,442 test executions across both editions.
+Thirteen fixture cases per edition failed because their observer counted both
+outgoing and restored worlds, or checked release before the actual primary
+deadline. Only those test fixtures changed afterward; all 78 pause/repulsion
+executions then passed with unchanged retail expected rows and exact policy
+assertions. The full batch was not rerun after that test-only correction.
+All five fresh native-byte/engine gates passed before that correction; the
+validation JSON records its exact source-hash amendment rather than claiming
+the gate reports came from the later test library. The SC2API CI command also
+passes: 166 native executions and four transport tests, with the optional SDK
+test skipped. The 115 focused Python checks pass.

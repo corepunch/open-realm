@@ -3310,7 +3310,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
     case A_UNIT_OWNER_CHANGING:
         if(ent){attack_set_alternative(ent,NULL);attack_guard_cancel(ent);ent->attack_guard.initialized=false;ent->attack_guard.evaluated=false;ent->attack_guard.returning=false;}return false;
     case A_UNIT_SUSPEND:
-        if(ent){attack_set_alternative(ent,NULL);attack_acquire_disable(ent);attack_damage_cancel(ent);}
+        if(ent){attack_set_alternative(ent,NULL);attack_acquire_disable(ent);attack_damage_cancel(ent);attack_reaction_cancel(ent);}
         return false;
     case A_UNIT_RESUME:
         if(ent && ent->inuse && !G_IsDeferredFree(ent) && !M_IsDead(ent)) {

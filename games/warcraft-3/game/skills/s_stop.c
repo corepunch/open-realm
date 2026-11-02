@@ -76,6 +76,13 @@ static void stop_finish(edict_t *ent, bool preserve_queue, bool record_guard) {
     uint32_t const birth=ent->spawn_time;
     if (record_guard) G_SetUnitGuardPosition(ent);
     ent->current_order_id = 0;
+    /* Release an ended private point, including a restored Attack's packet
+     * waypoint. A Captain actor remains owned by its logical range listener
+     * after the physical task ends. */
+    if(!ent->movement.group_id && ent->goalentity &&
+       (ent->goalentity->svflags&SVF_MOVE_WAYPOINT))
+        S_SetMoveGoal(ent,&ent->goalentity,NULL);
+    if(!ent->inuse || ent->spawn_time!=birth || M_IsDead(ent))return;
     if (preserve_queue) unit_stand_no_queue(ent);
     else if (ent->stand) ent->stand(ent);
     /* Stop's new idle task executes d0148 even when the previous scan was
