@@ -71,8 +71,8 @@ static ability_t abilitylist[] = {
     { "ANcf", CAbilityBreathOfFireCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire */
     { "Acdh", CAbilityDrunkenHazeCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "Acef", CAbilityStormEarthFire, AB_SPELL },  /* "Storm, Earth, And Fire" */
-    { "ANhw", CAbilityHealingWaveCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave */
-    { "ANhx", CAbilityHexCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex */
+    { "ANhw", CAbilityHealingWave, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave */
+    { "ANhx", CAbilityHex, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex */
     { "Arsw", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Serpent Ward */
     { "AOr2", CAbilityEnduranceAuraCampaign, AB_SPELL },  /* Endurance Aura */
     { "AOs2", CAbilityShockwaveCairne, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave */

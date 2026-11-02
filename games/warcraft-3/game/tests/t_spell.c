@@ -7945,6 +7945,75 @@ TEST(wc3_spell, command_card_refresh_clears_spell_cursor_overlay) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, campaign_shadow_hunter_healing_wave_uses_bounce_heal_handler) {
+    static cstring_t const slk =
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"Cost1\"\nC;Y1;X9;K\"Cool1\"\nC;Y1;X10;K\"Rng1\"\n"
+        "C;Y2;X1;K\"ANhw\"\nC;Y2;X2;K\"AOhw\"\nC;Y2;X3;K\"air,ground,friend,self,organic\"\n"
+        "C;Y2;X4;K100\nC;Y2;X5;K80\nC;Y2;X6;K2\nC;Y2;X7;K0.5\nC;Y2;X8;K0\nC;Y2;X9;K0\nC;Y2;X10;K700\nE\n";
+    UnitAbilities_t const abilities = { .abilList = "ANhw" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *first, *second;
+    setup_test_world(); reset_entities();
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = make_hero(MAKEFOURCC('O','s','h','d'), 500, 200, 0, 0);
+    caster->data.UnitAbilities = (UnitAbilities_t *)&abilities; caster->s.player = 0;
+    first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 140, 0);
+    first->s.player = second->s.player = 0;
+    first->svflags |= SVF_MONSTER; second->svflags |= SVF_MONSTER;
+    first->targtype = second->targtype = TARG_GROUND;
+    first->health.value = 100; first->health.max_value = 500;
+    second->health.value = 100; second->health.max_value = 500;
+    T_EQ(FindAbilityForCommand("ANhw")->proc, CAbilityHealingWave);
+    T_EQ(G_UnitAbilityLevel(caster, MAKEFOURCC('A','N','h','w')), 1u);
+    T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','N','h','w'), caster, first));
+    T_ASSERT(S_SpellCanActivate(caster, MAKEFOURCC('A','N','h','w'), 1, false));
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','N','h','w'), first));
+    T_FEQ(first->health.value, 180, 0.001f);
+    T_FEQ(second->health.value, 140, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, campaign_shadow_hunter_hex_uses_polymorph_handler) {
+    static cstring_t const slk =
+        "ID;PWXL;N;EBB;Y2;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"DataC1\"\nC;Y1;X9;K\"DataD1\"\n"
+        "C;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"ANhx\"\nC;Y2;X2;K\"Aply\"\nC;Y2;X3;K\"air,ground,enemy\"\n"
+        "C;Y2;X4;K20\nC;Y2;X5;K10\nC;Y2;X6;K5\nC;Y2;X7;K\"opeo\"\n"
+        "C;Y2;X8;K\"opeo\"\nC;Y2;X9;K\"opeo\"\nC;Y2;X10;K\"opeo\"\nC;Y2;X11;K\"BOhx\"\nE\n";
+    static cstring_t const ui_slk =
+        "ID;PWXL;N;EBB;Y2;X3\nC;Y1;X1;K\"unitUI\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y2;X1;K\"opeo\"\nC;Y2;X2;K\"Units\\\\Creeps\\\\Ogre\\\\Ogre\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "ANhx" };
+    static UnitData_t const unit_data = { .moveTypeName = "foot" };
+    static UnitBalance_t const target_balance = { .level = 1 };
+    slkTestData_t *rows = parse_slk_string(slk), *old, *ui_rows = parse_slk_string(ui_slk), *old_ui;
+    edict_t *caster, *target;
+    int original_model;
+    setup_test_world(); reset_entities();
+    old = G_SetSLKRows("AbilityData", rows);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    caster = make_hero(MAKEFOURCC('O','s','h','d'), 500, 200, 0, 0);
+    caster->data.UnitAbilities = (UnitAbilities_t *)&abilities; caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    original_model = target->s.model;
+    target->data.UnitData = (UnitData_t *)&unit_data; target->data.UnitBalance = (UnitBalance_t *)&target_balance;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    T_EQ(FindAbilityForCommand("ANhx")->proc, CAbilityHex);
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','N','h','x'), target));
+    T_ASSERT(S_UnitPolymorphed(target));
+    T_ASSERT(target->s.model != original_model);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
+}
+
 
 TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_state) {
     const char slk[] =
