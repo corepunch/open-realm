@@ -424,3 +424,13 @@ required.
 The automated checks cover synthetic bootstrap, fetch scoping, packaging and
 wiring. They do not verify actual browser Service Worker activation or CI builds
 with the pinned Emscripten SDK; those require deployment verification.
+
+### Opaque WebGL canvas (#660)
+
+`emscripten_webgl_init_context_attributes` defaults to `alpha = true`, and the page composites the drawing buffer. Opaque
+MDX layers write their texture alpha, which native windows ignore. `Textures\Base.blp` (the rim of the Great Hall, Goldmine
+and Barracks) declares `alphaBits` 0 but stores alpha 0 in mips 1-8, so those rims showed the canvas's `#000` background
+at any distance that sampled a lower mip. Textures with authored alpha, such as `GreatHall.blp`, were also partly
+transparent. The renderer never reads destination alpha from the drawable (the fog pass uses its own render targets), so
+the context now sets `alpha = EM_FALSE`, and `blp1_convert` forces alpha 255 for JPEG BLPs with `alphaBits` 0.
+Tests: `port/web/tests/webgl-context.test.cjs`, `renderer_texture.blp1_jpeg_without_alpha_bits_uploads_opaque`.

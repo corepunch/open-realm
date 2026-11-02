@@ -108,6 +108,10 @@ color32_t *blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPI
     switch (blp1_format(pBLPInfos)) {
         case BLP_FORMAT_JPEG:
             pDst = blp1_convert_jpeg(pSrc, &pBLPInfos->infos, size);
+            /* alphaBits 0 declares no alpha; Textures\Base.blp still stores 0 in the band of mips 1-8. */
+            if (pDst && !pBLPInfos->header.alphaBits) {
+                FOR_LOOP(p, width * height) pDst[p].a = 255;
+            }
             break;
         case BLP_FORMAT_PALETTED_NO_ALPHA:
             pDst = blp1_convert_paletted_no_alpha(pSrc, &pBLPInfos->infos, width, height);

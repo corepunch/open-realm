@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X21;Y4;D0
+B;X25;Y4;D0
 C;Y1;X1;K"waterID"
 C;Y1;X2;K"height"
 C;Y1;X3;K"texFile"
@@ -21,6 +21,10 @@ C;Y1;X18;K"Dmax_A"
 C;Y1;X19;K"Dmax_R"
 C;Y1;X20;K"Dmax_G"
 C;Y1;X21;K"Dmax_B"
+C;Y1;X22;K"shoreDir"
+C;Y1;X23;K"shoreSFile"
+C;Y1;X24;K"shoreOCFile"
+C;Y1;X25;K"shoreICFile"
 C;Y2;X1;K"OSha"
 C;Y2;X2;K-1.5
 C;Y2;X3;K"ReplaceableTextures\TeamColor\TeamColor"
@@ -63,6 +67,10 @@ C;Y3;X18;K254
 C;Y3;X19;K251
 C;Y3;X20;K252
 C;Y3;X21;K253
+C;Y3;X22;K"TestDoodads\Water"
+C;Y3;X23;K"TestLine"
+C;Y3;X24;K"TestOuter"
+C;Y3;X25;K"TestInner"
 C;Y4;X1;K"XSha"
 C;Y4;X2;K-0.7
 C;Y4;X3;K"ReplaceableTextures\Water\Water"

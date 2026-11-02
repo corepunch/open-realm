@@ -3307,6 +3307,32 @@ TEST(renderer_texture, blp1_palette_upload_is_rgba) {
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
 }
 
+TEST(renderer_texture, blp1_jpeg_without_alpha_bits_uploads_opaque) {
+    /* A 1x1 four-band baseline JPEG whose blocks are all DC 0, so every band decodes to 128. */
+    static uint8_t const jpeg[] = {
+        0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x43, 0x00,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        0xFF, 0xC4, 0x00, 0x14, 0x00, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x00,
+        0xFF, 0xC4, 0x00, 0x14, 0x10, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x00,
+        0xFF, 0xC0, 0x00, 0x14, 8, 0, 1, 0, 1, 4, 1, 0x11, 0, 2, 0x11, 0, 3, 0x11, 0, 4, 0x11, 0,
+        0xFF, 0xDA, 0x00, 0x0E, 4, 1, 0, 2, 0, 3, 0, 4, 0, 0, 0x3F, 0,
+        0x00, 0xFF, 0xD9,
+    };
+    struct { struct tBLP1Header hdr; uint32_t header_size; uint8_t data[sizeof(jpeg)]; } file = {0};
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    r_bgra_internal = 0;
+    file.hdr.magic = ID_BLP1; file.hdr.type = 0; file.hdr.width = file.hdr.height = 1;
+    file.hdr.offsets[0] = offsetof(__typeof__(file), data); file.hdr.lengths[0] = sizeof(jpeg);
+    memcpy(file.data, jpeg, sizeof(jpeg));
+    file.hdr.alphaBits = 8; /* A declared alpha band is authored data, as in Goldmine.blp. */
+    test_free(R_LoadTextureBLP1(&file, sizeof(file)));
+    T_EQ(upload_pixel.a, 128);
+    file.hdr.alphaBits = 0; /* Base.blp declares no alpha, yet stores 0 in the band of its lower mips. */
+    test_free(R_LoadTextureBLP1(&file, sizeof(file)));
+    T_EQ(upload_pixel.r, 128); T_EQ(upload_pixel.a, 255);
+}
+
 TEST(renderer_texture, blp2_raw_palette_and_dxt_upload_are_rgba) {
     struct { struct tBLP2Header hdr; uint8_t data[16]; } file = {0};
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
@@ -4399,6 +4425,22 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 
+static wc3WaterStyle_t test_shore_style;
+static model_t test_shore_model;
+static uint32_t test_shore_loads, test_shore_draws, test_shore_last_frame;
+static wc3WaterStyle_t const *test_shore_water_style(void) { return &test_shore_style; }
+static model_t *test_shore_load_model(cstring_t path) { (void)path; test_shore_loads++; return &test_shore_model; }
+static void test_shore_render_model(renderEntity_t const *entity) {
+    test_shore_draws++; test_shore_last_frame = entity->frame;
+}
+#define R_WaterStyle test_shore_water_style
+#define R_LoadRegisteredModel test_shore_load_model
+#define R_RenderModel test_shore_render_model
+#include "games/warcraft-3/renderer/w3m/r_war3map_shore.c"
+#undef R_WaterStyle
+#undef R_LoadRegisteredModel
+#undef R_RenderModel
+
 static void test_tile_uv_cell(uint32_t width, uint32_t height, uint32_t tile, uint8_t variation,
                               float u0, float v0, float u1, float v1) {
     texture_t texture = { .width = width, .height = height };
@@ -4443,6 +4485,149 @@ TEST(renderer_terrain, water_depth_color_follows_water_slk_bands) {
     c = R_WaterDepthColor(&custom, 68.f / 128); T_EQ(c.r, 226); T_EQ(c.a, 229);
     c = R_WaterDepthColor(&custom, 2.0f); T_EQ(c.g, 252); T_EQ(c.a, 254);
 }
+TEST(renderer_terrain, water_tiles_continue_through_the_map_edge_margin) {
+    /* Human03's left and bottom seas carry the W3E edge bit on every vertex (issue #659). */
+    war3mapVertex_t tile[4] = {0};
+    T_ASSERT(!IsTileWater(tile));
+    tile[2].mapedge = 1;
+    T_ASSERT(!IsTileWater(tile)); /* The edge bit alone is not water. */
+    tile[0].water = 1;
+    T_ASSERT(IsTileWater(tile));
+    tile[2].mapedge = 0;
+    T_ASSERT(IsTileWater(tile));
+}
+
+TEST(renderer_terrain, water_fades_to_nothing_only_at_dry_corners) {
+    wc3WaterStyle_t const custom = {
+        .shallow_min = {1, 2, 3, 4}, .shallow_max = {101, 102, 103, 104},
+        .deep_min = {201, 202, 203, 204}, .deep_max = {251, 252, 253, 254},
+    };
+    war3mapVertex_t wet = { .water = 1 }, dry = {0};
+    color32_t c = R_WaterCornerColor(&custom, &wet, -1.0f);
+    T_EQ(c.a, 4); /* A wet corner above the surface keeps the authored Smin alpha. */
+    c = R_WaterCornerColor(&custom, &wet, 2.0f);
+    T_EQ(c.r, 251); T_EQ(c.a, 254);
+    c = R_WaterCornerColor(&custom, &dry, -1.0f); /* The region's outer edge: no seam. */
+    T_EQ(c.r, 1); T_EQ(c.a, 0);
+    c = R_WaterCornerColor(&custom, &dry, 2.0f); /* A submerged dry corner still cuts off softly. */
+    T_EQ(c.r, 251); T_EQ(c.a, 0);
+}
+
+static void test_shore_placement(float a, float b, float c, float d, w3ShoreKind_t kind, float angle) {
+    float const depth[4] = { a, b, c, d };
+    w3ShoreKind_t got_kind;
+    float got_angle;
+    T_ASSERT(R_W3ShoreWavePlacement(depth, &got_kind, &got_angle));
+    T_EQ(got_kind, kind);
+    T_FEQ(got_angle, angle, 0.0001f);
+}
+
+TEST(renderer_terrain, shore_wave_model_and_rotation_follow_deep_corners) {
+    float const deep = 26.f / 128, shallow = 25.f / 128; /* The threshold is exclusive. */
+    float const none[4] = { shallow, shallow, shallow, shallow }, all[4] = { deep, deep, deep, deep };
+    float const diagonal[4] = { deep, shallow, deep, shallow };
+    w3ShoreKind_t kind;
+    float angle;
+
+    T_ASSERT(!R_W3ShoreWavePlacement(none, &kind, &angle));
+    T_ASSERT(!R_W3ShoreWavePlacement(all, &kind, &angle));
+    T_ASSERT(!R_W3ShoreWavePlacement(diagonal, &kind, &angle));
+    test_shore_placement(deep, deep, shallow, shallow, W3_SHORE_LINE, -M_PI / 2);
+    test_shore_placement(shallow, deep, deep, shallow, W3_SHORE_LINE, 0);
+    test_shore_placement(shallow, shallow, deep, deep, W3_SHORE_LINE, M_PI / 2);
+    test_shore_placement(deep, shallow, shallow, deep, W3_SHORE_LINE, M_PI);
+    test_shore_placement(deep, shallow, shallow, shallow, W3_SHORE_INSIDE_CORNER, -3 * M_PI / 2);
+    test_shore_placement(shallow, shallow, shallow, deep, W3_SHORE_INSIDE_CORNER, 0);
+    test_shore_placement(shallow, deep, deep, deep, W3_SHORE_OUTSIDE_CORNER, M_PI / 2);
+    test_shore_placement(deep, deep, deep, shallow, W3_SHORE_OUTSIDE_CORNER, 2 * M_PI);
+}
+
+TEST(renderer_terrain, map_info_flags_are_read_past_the_authored_strings) {
+    uint8_t info[12 + 9 + 56 + 4] = {0};
+    uint32_t const expected = 0x1d61;
+    uint32_t flags = 0;
+    size_t const strings = 12 + 9; /* Name "abcde"; empty author, description and recommended players. */
+    memcpy(info + 12, "abcde", 5);
+    memcpy(info + strings + 56, &expected, sizeof(expected));
+    T_ASSERT(R_W3ParseMapInfoFlags(info, sizeof(info), &flags));
+    T_EQ(flags, expected);
+    flags = 7;
+    T_ASSERT(!R_W3ParseMapInfoFlags(info, sizeof(info) - 1, &flags)); /* Truncated flags. */
+    T_ASSERT(!R_W3ParseMapInfoFlags(info, 8, &flags)); /* Truncated before the strings. */
+    memset(info + 12, 'x', sizeof(info) - 12);
+    T_ASSERT(!R_W3ParseMapInfoFlags(info, sizeof(info), &flags)); /* Unterminated string. */
+    T_EQ(flags, 7);
+}
+
+TEST(renderer_terrain, shore_waves_cycle_stands_so_the_emitter_pulse_is_reached) {
+    /* Stock Shoreline0.mdx: "Stand 2" hides its emitter; only "Stand 3" pulses it visible at 15367. */
+    mdxSequence_t sequences[2] = { { .interval = { 3633, 5933 } }, { .interval = { 14600, 18367 } } };
+    mdxModel_t model = { .sequences = sequences, .num_sequences = 2 };
+    T_EQ(R_W3ShoreWaveFrame(&model, 0), 3633);
+    T_EQ(R_W3ShoreWaveFrame(&model, 2299), 5932);
+    T_EQ(R_W3ShoreWaveFrame(&model, 2300), 14600);
+    T_EQ(R_W3ShoreWaveFrame(&model, 2300 + 767), 15367);
+    T_EQ(R_W3ShoreWaveFrame(&model, 2300 + 3767), 3633); /* Wraps to the first stand. */
+    sequences[0].interval[1] = sequences[0].interval[0];
+    sequences[1].interval[1] = sequences[1].interval[0];
+    T_EQ(R_W3ShoreWaveFrame(&model, 500), 3633); /* Zero-length sequences hold a pose. */
+}
+
+TEST(renderer_terrain, shore_waves_follow_map_flags_and_draw_only_in_the_solid_pass) {
+    /* One straight shore tile: the west column is too shallow, the east one a full tile deep. */
+    war3mapVertex_t vertices[6] = {0};
+    war3map_t map = { .vertices = vertices, .width = 3, .height = 2, .center = { 1000, 2000 } };
+    mdxSequence_t sequence = { .interval = { 100, 200 } };
+    mdxModel_t mdx = { .sequences = &sequence, .num_sequences = 1 };
+    refImport_t const saved = ri;
+    war3map_t const *saved_world = tr.world;
+    FOR_LOOP(i, 6) {
+        uint32_t const x = i % 3;
+        vertices[i].water = 1;
+        vertices[i].level = 2;
+        vertices[i].waterlevel = 0x2000;
+        vertices[i].accurate_height = x == 0 ? 0x2000 : 0x2000 - TILE_SIZE * 4;
+    }
+    vertices[4].mapedge = 1; /* The margin still shows waves. */
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map;
+    test_shore_model = (model_t){ .modeltype = ID_MDLX, .mdx = &mdx };
+    snprintf(test_shore_style.shore_models[W3_SHORE_LINE], sizeof(PATHSTR), "line.mdx");
+
+    R_W3BuildShoreWaves(&map, 0);
+    T_EQ(R_W3ShoreWaveCount(), 0);
+    R_W3BuildShoreWaves(&map, W3I_WAVES_ON_CLIFF_SHORES);
+    T_EQ(R_W3ShoreWaveCount(), 0); /* A rolling shore needs its own flag. */
+    test_shore_loads = 0;
+    R_W3BuildShoreWaves(&map, W3I_WAVES_ON_ROLLING_SHORES);
+    T_EQ(R_W3ShoreWaveCount(), 1);
+    T_EQ(test_shore_loads, 1);
+    T_FEQ(shore_waves[0].origin.x, 1064.0f, 0.001f);
+    T_FEQ(shore_waves[0].origin.y, 2064.0f, 0.001f);
+    T_FEQ(shore_waves[0].origin.z, 1.0f, 0.001f);
+    T_FEQ(shore_waves[0].angle, 0.0f, 0.001f);
+
+    tr.viewDef.time = 50;
+    memset(&tr.viewDef.frustum, 0, sizeof(tr.viewDef.frustum));
+    test_shore_draws = 0;
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_W3DrawShoreWaves();
+    T_EQ(test_shore_draws, 0); /* Emitters do not enqueue in the alpha pass. */
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_W3DrawShoreWaves();
+    T_EQ(test_shore_draws, 1);
+    T_ASSERT(test_shore_last_frame >= 100 && test_shore_last_frame < 200);
+
+    test_shore_model.mdx = NULL; /* A missing asset loads as an empty model: nothing to place. */
+    R_W3BuildShoreWaves(&map, W3I_WAVES_ON_ROLLING_SHORES);
+    T_EQ(R_W3ShoreWaveCount(), 0);
+    R_W3ClearShoreWaves();
+    T_EQ(R_W3ShoreWaveCount(), 0);
+    memset(&test_shore_style, 0, sizeof(test_shore_style));
+    tr.world = saved_world;
+    ri = saved;
+}
+
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
 static uint32_t cliff_buffer_upload_count;
 static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) {
