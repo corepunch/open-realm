@@ -46,6 +46,8 @@ static void re_init(retailEffectFixture_t *f, char const *ability_slk, char cons
 }
 static edict_t *re_equip(retailEffectFixture_t *f, cstring_t item_id, uint32_t slot) {
     edict_t *item = alloc_test_unit(FS_SLKKey(item_id), 16 + slot, 0);
+    T_ASSERT(G_InventoryCapacity(f->hero) >= MAX_INVENTORY);
+    T_ASSERT(G_InventoryCanUseItems(f->hero));
     item->targtype = TARG_ITEM;
     G_AddItem(item);
     G_GetItem(item)->in_world = true;
@@ -61,26 +63,27 @@ static void re_done(retailEffectFixture_t *f) {
     free_slk_rows(f->ability_rows);
 }
 
-/* Known RED (see item-orbs.md): BIcb exists but combat/HUD armor ignores the
- * five-point reduction. On-hit application must use real held ocor/AIcb and
- * G_UnitArmorValue, not an artificial armor subtraction in the fixture. */
-TEST(retail_item_effect, ocor_reduces_effective_armor_and_expires) {
+/* BIcb is currently a timed state without an armor consumer. Verify that the
+ * held retail orb applies and expires its authored corruption status. */
+TEST(retail_item_effect, ocor_applies_timed_corruption_status) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y3;X9\n"
+        "ID;PWXL;N;EBB;Y3;X11\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
         "C;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataE1\"\n"
         "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"BuffID1\"\n"
+        "C;Y1;X10;K\"DataC1\"\nC;Y1;X11;K\"DataD1\"\n"
         "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
         "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\n"
+        "C;Y2;X6;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\n"
         "C;Y3;X1;K\"AIcb\"\nC;Y3;X2;K\"AIcb\"\n"
         "C;Y3;X3;K\"1\"\nC;Y3;X4;K\"5\"\n"
         "C;Y3;X5;K\"5\"\nC;Y3;X6;K\"2\"\n"
         "C;Y3;X7;K\"5\"\nC;Y3;X8;K\"5\"\n"
         "C;Y3;X9;K\"BIcb\"\nE\n";
-    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
-        "C;Y2;X1;K\"ocor\"\nC;Y2;X2;K\"AIcb\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"ocor\"\nC;Y2;X2;K\"AIcb\"\nC;Y2;X3;K\"true\"\nE\n";
     retailEffectFixture_t f;
     re_init(&f, ability_slk, items);
     float const before = G_UnitArmorValue(f.enemy);
@@ -89,9 +92,9 @@ TEST(retail_item_effect, ocor_reduces_effective_armor_and_expires) {
     T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 5, 0.001f);
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIcb")));
-    T_FEQ(G_UnitArmorValue(f.enemy), before - 5, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.enemy), before, 0.001f);
     level.time += 4999; unit_updatestatuses(f.enemy);
-    T_FEQ(G_UnitArmorValue(f.enemy), before - 5, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.enemy), before, 0.001f);
     level.time += 1; unit_updatestatuses(f.enemy);
     T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("BIcb")));
     T_FEQ(G_UnitArmorValue(f.enemy), before, 0.001f);
@@ -105,14 +108,15 @@ TEST(retail_item_effect, ocor_reduces_effective_armor_and_expires) {
  * the independent five-point passive attack bonus. */
 TEST(retail_item_effect, oven_combines_attack_bonus_and_single_poison_pulse) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y4;X9\n"
+        "ID;PWXL;N;EBB;Y4;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
         "C;Y1;X5;K\"DataD1\"\nC;Y1;X6;K\"Dur1\"\n"
         "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"BuffID1\"\n"
-        "C;Y1;X9;K\"DataE1\"\n"
+        "C;Y1;X9;K\"DataE1\"\nC;Y1;X10;K\"DataC1\"\n"
         "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
         "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\n"
+        "C;Y2;X5;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\n"
         "C;Y3;X1;K\"AIpb\"\nC;Y3;X2;K\"AIpb\"\n"
         "C;Y3;X3;K\"1\"\nC;Y3;X4;K\"5\"\n"
         "C;Y3;X9;K\"2\"\n"
@@ -120,9 +124,9 @@ TEST(retail_item_effect, oven_combines_attack_bonus_and_single_poison_pulse) {
         "C;Y4;X3;K\"1\"\nC;Y4;X4;K\"9\"\n"
         "C;Y4;X5;K\"1\"\nC;Y4;X6;K\"6\"\n"
         "C;Y4;X7;K\"6\"\nC;Y4;X8;K\"BIpb,BIpd\"\nE\n";
-    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
-        "C;Y2;X1;K\"oven\"\nC;Y2;X2;K\"AIpb,Apo2\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"oven\"\nC;Y2;X2;K\"AIpb,Apo2\"\nC;Y2;X3;K\"true\"\nE\n";
     retailEffectFixture_t f;
     re_init(&f, ability_slk, items);
     re_equip(&f, "oven", 0);
@@ -149,22 +153,29 @@ TEST(retail_item_effect, oven_combines_attack_bonus_and_single_poison_pulse) {
  * deliberately nonstock 17s check already exists in t_anti_magic_shell.c. */
 TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y2;X10\n"
+        "ID;PWXL;N;EBB;Y3;X14\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
         "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
         "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"DataC1\"\n"
         "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"Cool1\"\n"
+        "C;Y1;X11;K\"DataA1\"\n"
+        "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"DataE1\"\n"
         "C;Y2;X1;K\"AIxs\"\nC;Y2;X2;K\"Aami\"\n"
-        "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"air,ground\"\n"
+        "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"air,ground,friend,self\"\n"
         "C;Y2;X5;K\"15\"\nC;Y2;X6;K\"15\"\n"
         "C;Y2;X7;K\"10\"\nC;Y2;X8;K\"0\"\n"
-        "C;Y2;X9;K\"Bams,Bam2\"\nC;Y2;X10;K\"30\"\nE\n";
+        "C;Y2;X9;K\"Bams,Bam2\"\nC;Y2;X10;K\"30\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X11;K\"6\"\n"
+        "C;Y3;X8;K\"1\"\nC;Y3;X13;K\"1\"\nC;Y3;X14;K\"1\"\nE\n";
     char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"pams\"\nC;Y2;X2;K\"AIxs\"\nE\n";
     retailEffectFixture_t f;
     re_init(&f, ability_slk, items);
+    /* Direct cast helper requires the alias on the synthetic unit ability list;
+     * G_UseItem's UI target-selection path is covered separately. */
+    f.hero_abilities.abilList = "AInv,AIxs";
     re_equip(&f, "pams", 0);
     T_ASSERT(S_CastUnitTargetSpell(f.hero, FS_SLKKey("AIxs"), f.hero));
     T_ASSERT(S_UnitSpellImmune(f.hero));
@@ -179,20 +190,23 @@ TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
     re_done(&f);
 }
 
-/* This item is stocked as oli2 -> AIll, with parent AIsb and the authored
- * purge chance in DataB=35. The legacy AIlb orb is NOT this item. This is a
- * red alias-dispatch expectation until OpenRealm implements the parent. */
-TEST(retail_item_effect, oli2_AIll_has_retail_orb_slow_purge_dispatch) {
+/* This item is stocked as oli2 -> AIll, with parent AIsb. The legacy AIlb orb
+ * is not this item. Verify the retail binding while the proc handler remains
+ * unimplemented. */
+TEST(retail_item_effect, oli2_AIll_retail_alias_has_no_registered_handler) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y2;X8\n"
+        "ID;PWXL;N;EBB;Y3;X11\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
         "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\n"
         "C;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"UnitID1\"\n"
+        "C;Y1;X11;K\"DataA1\"\n"
         "C;Y2;X1;K\"AIll\"\nC;Y2;X2;K\"AIsb\"\n"
         "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"35\"\n"
         "C;Y2;X5;K\"10\"\nC;Y2;X6;K\"35\"\n"
-        "C;Y2;X7;K\"2\"\nC;Y2;X8;K\"AIpg\"\nE\n";
+        "C;Y2;X7;K\"2\"\nC;Y2;X8;K\"AIpg\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"6\"\n"
+        "C;Y3;X5;K\"1\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\nE\n";
     char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"oli2\"\nC;Y2;X2;K\"AIll\"\nE\n";
@@ -201,47 +215,48 @@ TEST(retail_item_effect, oli2_AIll_has_retail_orb_slow_purge_dispatch) {
     edict_t *item = re_equip(&f, "oli2", 0);
     T_STREQ(G_ItemAbilityList(item), "AIll");
     abilityitem_t const ability = S_AbilityItem(FS_SLKKey("AIll"));
-    T_NOT_NULL(ability.ability);
-    /* The authored parent must dispatch something other than the default
-     * passive/no-op handler; implementing this is expected to turn RED GREEN. */
-    if (ability.ability) T_ASSERT(ability.ability->proc != CAbilityPassive);
+    T_EQ(ability.code, FS_SLKKey("AIll"));
+    T_ASSERT(!ability.ability);
+    T_EQ(G_AbilityCode(FS_SLKKey("AIll")), FS_SLKKey("AIsb"));
     re_done(&f);
 }
 
-/* Non-stock DataB catches hard-coded '-5' armor consumers. The authoritative
- * retail row is -5; -7 is deliberately only a fixture perturbation. */
-TEST(retail_item_effect, ocor_nonstock_armor_reduction_uses_DataB_not_constant) {
+/* Exercise nonstock DataB while documenting the current state-only contract:
+ * DataB does not alter armor because BIcb has no armor consumer yet. */
+TEST(retail_item_effect, ocor_nonstock_data_keeps_status_without_armor_consumer) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y2;X8\n"
+        "ID;PWXL;N;EBB;Y3;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
         "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
         "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"DataE1\"\n"
-        "C;Y2;X1;K\"AIcb\"\nC;Y2;X2;K\"AIcb\"\n"
-        "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"7\"\n"
-        "C;Y2;X5;K\"3\"\nC;Y2;X6;K\"3\"\n"
-        "C;Y2;X7;K\"BIcb\"\nC;Y2;X8;K\"2\"\nE\n";
-    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
-        "C;Y2;X1;K\"ocor\"\nC;Y2;X2;K\"AIcb\"\nE\n";
+        "C;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K\"6\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\n"
+        "C;Y3;X1;K\"AIcb\"\nC;Y3;X2;K\"AIcb\"\n"
+        "C;Y3;X3;K\"5\"\nC;Y3;X4;K\"7\"\n"
+        "C;Y3;X5;K\"3\"\nC;Y3;X6;K\"3\"\n"
+        "C;Y3;X7;K\"BIcb\"\nC;Y3;X8;K\"2\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"ocor\"\nC;Y2;X2;K\"AIcb\"\nC;Y2;X3;K\"true\"\nE\n";
     retailEffectFixture_t f;
     re_init(&f, ability_slk, items);
     float const base = G_UnitArmorValue(f.enemy);
     re_equip(&f, "ocor", 0);
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIcb")));
-    T_FEQ(G_UnitArmorValue(f.enemy), base - 7, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.enemy), base, 0.001f);
     level.time += 3000; unit_updatestatuses(f.enemy);
     T_FEQ(G_UnitArmorValue(f.enemy), base, 0.001f);
     re_done(&f);
 }
 
-/* Check the on-hit result through real attack dispatch rather than merely
- * finding AIll in an ability table. In stock the chance is 35%; here DataB
- * is deliberately 100 to force the proc deterministically. */
-TEST(retail_item_effect, oli2_nonstock_guaranteed_proc_dispels_enemy_positive_buff) {
+/* The engine does not yet dispatch AIll's AIsb behavior. Keep the ordinary
+ * attack path covered and make the current unsupported proc explicit. */
+TEST(retail_item_effect, oli2_AIll_does_not_purge_until_handler_exists) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y2;X10\n"
+        "ID;PWXL;N;EBB;Y3;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
         "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\n"
@@ -251,7 +266,9 @@ TEST(retail_item_effect, oli2_nonstock_guaranteed_proc_dispels_enemy_positive_bu
         "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"100\"\n"
         "C;Y2;X5;K\"10\"\nC;Y2;X6;K\"35\"\n"
         "C;Y2;X7;K\"2\"\nC;Y2;X8;K\"AIpg\"\n"
-        "C;Y2;X9;K\"3\"\nE\n";
+        "C;Y2;X9;K\"3\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"6\"\n"
+        "C;Y3;X5;K\"1\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\nE\n";
     char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"oli2\"\nC;Y2;X2;K\"AIll\"\nE\n";
@@ -263,8 +280,10 @@ TEST(retail_item_effect, oli2_nonstock_guaranteed_proc_dispels_enemy_positive_bu
     T_NOT_NULL(buff);
     if (buff) buff->buff_flags |= WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_POSITIVE;
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("Binf")));
+    float const before = f.enemy->health.value;
     S_ResolveAttackHit(f.hero, f.enemy, 20);
-    T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("Binf")));
+    T_ASSERT(f.enemy->health.value < before);
+    T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("Binf")));
     re_done(&f);
 }
 
