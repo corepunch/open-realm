@@ -12055,6 +12055,175 @@ TEST(wc3_api, legacy_and_modern_spell_shop_event_registration) {
 }
 
 
+/* Event publications exercise the real registration/dispatcher; owner and Stop
+ * callbacks use public JASS mutations. This is not a spell-admission fixture. */
+TEST(wc3_api, trigger_event_id_handles_preserve_era_nested_context_and_save) {
+    FOR_LOOP(modern,2) {
+        reset_entities();setup_test_world();
+        char script[6500];
+        snprintf(script,sizeof(script),
+            "type eventid extends handle\n"
+            "globals\nconstant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT=ConvertPlayerUnitEvent(%u)\n"
+            "unit event318=null\neventid kept318=null\nhandle erased318=null\nboolean nested318=false\ninteger unit318=0\ninteger player318=0\ninteger owner318=0\ninteger order318=0\ninteger zero318=0\nendglobals\n"
+            "function erase318 takes handle h returns handle\nreturn h\nendfunction\n"
+            "function order318cb takes nothing returns nothing\n"
+            "call BJassAssert(GetTriggerEventId()==ConvertUnitEvent(75),\"immediate event type\")\n"
+            "call BJassAssert(GetHandleId(erase318(GetTriggerEventId()))==75,\"immediate erased identity\")\nif nested318 then\nset order318=order318+1\nendif\nendfunction\n"
+            "function owner318cb takes nothing returns nothing\n"
+            "local eventid outer=GetTriggerEventId()\n"
+            "call BJassAssert(GetHandleId(outer)==%u,\"owner era\")\n"
+            "set nested318=true\ncall IssueImmediateOrder(event318,\"stop\")\nset nested318=false\n"
+            "call BJassAssert(GetTriggerEventId()==outer,\"owner restored after nested Stop\")\nset owner318=owner318+1\nendfunction\n"
+            "function unit318cb takes nothing returns nothing\n"
+            "set kept318=GetTriggerEventId()\nset erased318=erase318(kept318)\n"
+            "call BJassAssert(GetHandleId(kept318)==%u,\"unit channel era\")\n"
+            "call BJassAssert(kept318==ConvertUnitEvent(%u),\"eventid/subtype equality\")\n"
+            "call BJassAssert(GetTriggerEventId()==kept318,\"repeated enum equality\")\n"
+            "call SetUnitOwner(event318,Player(1),false)\n"
+            "call BJassAssert(GetTriggerEventId()==kept318,\"channel restored after nested owner\")\nset unit318=unit318+1\nendfunction\n"
+            "function player318cb takes nothing returns nothing\n"
+            "call BJassAssert(GetTriggerEventId()==ConvertPlayerUnitEvent(%u),\"player subtype equality\")\n"
+            "call BJassAssert(GetHandleId(GetTriggerEventId())==%u,\"player channel era\")\nset player318=player318+1\nendfunction\n"
+            "function zero318cb takes nothing returns nothing\n"
+            "call BJassAssert(GetTriggerEventId()!=null and GetTriggerEventId()==ConvertGameEvent(0),\"event zero is nonnull\")\n"
+            "call BJassAssert(GetHandleId(erase318(GetTriggerEventId()))==0,\"event zero identity\")\nset zero318=zero318+1\nendfunction\n"
+            "function verify318 takes nothing returns nothing\n"
+            "call BJassAssert(unit318==1 and player318==1 and owner318==1 and order318==1 and zero318==1,\"all callbacks\")\n"
+            "call BJassAssert(GetHandleId(erased318)==%u and erased318==kept318,\"erased enum survives save\")\n"
+            "call BJassAssert(GetTriggerEventId()==null,\"outside callback has no event\")\n"
+            "call BJassAssert(ConvertGameEvent(0)!=null and GetHandleId(erase318(ConvertGameEvent(0)))==0,\"zero enum is nonnull\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set event318=CreateUnit(Player(0),'hfoo',0,0,0)\n"
+            "call TriggerRegisterUnitEvent(t,event318,ConvertUnitEvent(%u))\ncall TriggerAddAction(t,function unit318cb)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterPlayerUnitEvent(t,Player(0),ConvertPlayerUnitEvent(%u),null)\ncall TriggerAddAction(t,function player318cb)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,event318,ConvertUnitEvent(%u))\ncall TriggerAddAction(t,function owner318cb)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,event318,ConvertUnitEvent(75))\ncall TriggerAddAction(t,function order318cb)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterGameEvent(t,ConvertGameEvent(259))\ncall TriggerAddAction(t,function zero318cb)\nendfunction\n",
+            modern?277u:274u,modern?290u:287u,modern?292u:289u,modern?292u:289u,
+            modern?275u:272u,modern?275u:272u,modern?292u:289u,
+            modern?292u:289u,modern?275u:272u,modern?290u:287u);
+        T_ASSERT(run_test_jass(script));
+        /* Game victory registration/engine dispatch are not implemented.
+         * Exercise event zero directly through the VM callback dispatcher;
+         * the trigger itself comes from a real public SAVE registration. */
+        T_EQ(level.events.handlers[4].type,EVENT_GAME_SAVE);
+        T_NOT_NULL(level.events.handlers[4].trigger);
+        gameEvent_t const zero_event={.type=EVENT_GAME_VICTORY};
+        jass_calltriggerevent(level.vm,level.events.handlers[4].trigger,&zero_event);
+        jass_runevents(level.vm);
+        edict_t *unit=level.events.handlers[0].subject;T_NOT_NULL(unit);
+        if(unit) {
+            G_PublishEvent(unit,EVENT_PLAYER_UNIT_SPELL_CHANNEL);
+            G_RunEvents();jass_runevents(level.vm);
+            G_PublishEvent(unit,EVENT_UNIT_SPELL_CHANNEL);
+            G_RunEvents();jass_runevents(level.vm);
+            jass_callbyname(level.vm,"verify318",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            cstring_t path=Test_TempPath("event318.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            jass_callbyname(level.vm,"verify318",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        reset_entities();setup_test_world();
+    }
+}
+
+/* The existing coroutine snapshot harness resumes zero-duration sleeps on the
+ * next jass_runevents pass. Preserve local erased enum and callback context. */
+TEST(wc3_api, trigger_event_id_survives_sleeping_coroutine_save) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "type eventid extends handle\n"
+        "globals\nconstant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT=ConvertPlayerUnitEvent(274)\n"
+        "integer stage318=0\nendglobals\n"
+        "function sleepy318 takes nothing returns nothing\n"
+        "local handle erased=GetTriggerEventId()\n"
+        "local trigger origin=GetTriggeringTrigger()\n"
+        "call BJassAssert(GetHandleId(erased)==289,\"sleep entry event\")\n"
+        "set stage318=1\ncall TriggerSleepAction(0.0)\n"
+        "call BJassAssert(GetTriggeringTrigger()==origin,\"sleep trigger restored\")\n"
+        "call BJassAssert(GetTriggerEventId()==erased and GetTriggerEventId()==ConvertUnitEvent(289),\"sleep event restored\")\n"
+        "call BJassAssert(GetHandleId(erased)==289 and GetHandleId(GetTriggerEventId())==289,\"sleep enum origin restored\")\n"
+        "set stage318=2\nendfunction\n"
+        "function waiting318 takes nothing returns nothing\ncall BJassAssert(stage318==1,\"must save sleeping action\")\nendfunction\n"
+        "function resumed318 takes nothing returns nothing\ncall BJassAssert(stage318==2,\"action resumed\")\n"
+        "call BJassAssert(GetTriggerEventId()==null,\"resumed callback did not leak context\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "local unit u=CreateUnit(Player(0),'hfoo',0,0,0)\n"
+        "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(289))\ncall TriggerAddAction(t,function sleepy318)\nendfunction\n"));
+    edict_t *unit=level.events.handlers[0].subject;
+    T_NOT_NULL(unit);
+    if(unit) {
+        G_PublishEvent(unit,EVENT_UNIT_SPELL_CHANNEL);
+        G_RunEvents();jass_runevents(level.vm);
+        jass_callbyname(level.vm,"waiting318",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        cstring_t path=Test_TempPath("event318-sleep.bin");
+        T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+        jass_runevents(level.vm);
+        jass_callbyname(level.vm,"resumed318",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Standalone snapshot corruption: locate the handle tag through the writer's
+ * declared type/present/count transfer sequence, not a file-byte offset. */
+typedef struct {
+    FILE *file;
+    unsigned after_type;
+    long enum_tag;
+    bool reading;
+} event318SnapshotIo_t;
+
+static bool event318_snapshot_io(void *opaque,void *data,uint32_t size) {
+    event318SnapshotIo_t *io=opaque;
+    if(io->reading)return fread(data,1,size,io->file)==size;
+    if(io->after_type) {
+        if(size!=sizeof(uint32_t))return false;
+        if(!--io->after_type)io->enum_tag=ftell(io->file);
+    } else if(size==8 && !memcmp(data,"eventid",8))io->after_type=3;
+    return fwrite(data,1,size,io->file)==size;
+}
+
+TEST(wc3_api, rejects_legacy_scalar_tag_for_event_enum_without_mutation) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "type eventid extends handle\nglobals\neventid enum318=ConvertUnitEvent(289)\nendglobals\n"
+        "function main takes nothing returns nothing\nendfunction\n"
+        "function mutate318 takes nothing returns nothing\nset enum318=ConvertUnitEvent(75)\nendfunction\n"
+        "function unchanged318 takes nothing returns nothing\ncall BJassAssert(GetHandleId(enum318)==75,\"rejected snapshot changed live enum\")\nendfunction\n"
+        "function restored318 takes nothing returns nothing\ncall BJassAssert(GetHandleId(enum318)==289,\"canonical enum restored\")\nendfunction\n"));
+    FILE *file=tmpfile();T_NOT_NULL(file);
+    if(file) {
+        event318SnapshotIo_t io={.file=file,.enum_tag=-1};
+        jassSnapshot_t snapshot={.context=&io,.transfer=event318_snapshot_io};
+        T_ASSERT(jass_writesnapshot(level.vm,&snapshot));
+        T_ASSERT(io.enum_tag>=0);
+        if(io.enum_tag>=0) {
+            uint32_t original=0;
+            /* Stable existing HANDLE_VALUE tag, distinct from new EVENT_ENUM. */
+            uint32_t scalar_tag=1;
+            T_EQ(fseek(file,io.enum_tag,SEEK_SET),0);
+            T_EQ(fread(&original,sizeof(original),1,file),1u);
+            T_ASSERT(original!=scalar_tag);
+            T_EQ(fseek(file,io.enum_tag,SEEK_SET),0);
+            T_EQ(fwrite(&scalar_tag,sizeof(scalar_tag),1,file),1u);
+            jass_callbyname(level.vm,"mutate318",false);
+            rewind(file);io.reading=true;
+            T_ASSERT(!jass_readsnapshot(level.vm,&snapshot));
+            jass_callbyname(level.vm,"unchanged318",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(fseek(file,io.enum_tag,SEEK_SET),0);
+            T_EQ(fwrite(&original,sizeof(original),1,file),1u);
+            rewind(file);
+            T_ASSERT(jass_readsnapshot(level.vm,&snapshot));
+            jass_callbyname(level.vm,"restored318",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        fclose(file);
+    }
+    reset_entities();setup_test_world();
+}
+
 /* This worker deliberately enters a nonreturning native. It is excluded from
  * '*' and may only be launched by the bounded, owning process controller. */
 extern void (*test_preload_marker)(cstring_t);

@@ -595,7 +595,7 @@
     "games/warcraft-3/game/skills/s_move.c": "5150da2ef592941b41b611c74e48f91afdbabace10890d13b8df5d4170893c3f",
     "games/warcraft-3/game/tests/t_movement.c": "dde6fbf67171c8d899c0d6c7d169b4bcb695bbee31022f92bea36baaa0981d12",
     "games/warcraft-3/game/tests/t_captain_policy.c": "96d0bd84d53cc3709e9cf1ea1c444547d573c68178bbf40669daa2f550357c13",
-    "games/warcraft-3/game/tests/t_api.c": "a4c8a2a5119371e663964ad0f8c08c97bbb5775a6e64f376ab79d2b9ff4ad60c",
+    "games/warcraft-3/game/tests/t_api.c": "7a583336a1dc791a0d95ff1f8113525af8be02f6592b0c1747e2294e6e3fa314",
     "tools/ghidra/fixtures/retail-selected-independent-1.27.json": "d751fbb3f08a19c79fe7898b4559b36c3dfe38bdcda0e1164eca2b4ad7717aba",
     "tools/ghidra/fixtures/retail-captain-roster161-1.27.json": "5b2587b1176a214bee57d7e7d3341a488b80ada7b090b8ef621fd44eb3fe8857",
     "tools/ghidra/fixtures/retail-work238-1.27.json": "bfe84d00ccb839e913e214666df4cefcef0e058a0f4fb0366a35d851731b30ac",

@@ -176,7 +176,13 @@ uint32_t GetTriggeringTrigger(jass_t *j) {
     return jass_pushlighthandle(j, ctx ? ctx->trigger : NULL, "trigger");
 }
 uint32_t GetTriggerEventId(jass_t *j) {
-    return jass_pushnullhandle(j, "eventid");
+    jassContext_t const *ctx=jass_getcontext(j);
+    if(!ctx || !ctx->trigger)return jass_pushnullhandle(j,"eventid");
+    uint32_t type=ctx->eventType,effect;
+    /* Inverse of registration's common.j-era normalization. */
+    if(jass_globalenum(j,"EVENT_PLAYER_UNIT_SPELL_EFFECT","playerunitevent",&effect) && effect==274 &&
+       ((type>=272 && type<=280) || (type>=289 && type<=297)))type-=3;
+    return JassPushEnumHandle(j,"eventid",(int32_t)type);
 }
 uint32_t GetTriggerEvalCount(jass_t *j) {
     trigger_t *trigger=jass_checkhandle(j, 1, "trigger");

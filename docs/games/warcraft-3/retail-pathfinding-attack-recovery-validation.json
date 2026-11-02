@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Independent guard Move/numeric851987 FIFO and d014e cancellation implemented. Asla and complete normal/saved C299 remain open.",
-  "save_version": 238,
+  "status": "Callback event identity saved; native299 channel matches. Invisibility cast admission and complete normal/saved replay remain open.",
+  "save_version": 239,
   "full_suite_run": false,
   "native299_engine_parity": false,
   "native_reference": {
@@ -4059,7 +4059,7 @@
       "report": "build/tests/cooldown312/corpus-check.log"
     }
   },
-  "full_native_suite_run": true,
+  "full_native_suite_run": false,
   "hidden_source313": {
     "whole_leaves_closed": 0,
     "save_version": 237,
@@ -5628,6 +5628,135 @@
       "entries": 614,
       "guarded_files": 3326,
       "report": "build/tests/guard316/corpus-check-final.log"
+    }
+  },
+  "trigger318": {
+    "whole_leaves_closed": 0,
+    "save_version": 239,
+    "jass_snapshot_version": 12,
+    "preflight": {
+      "tests": 6,
+      "assertions": 74,
+      "report": "build/tests/trigger318/preflight-third/summary.json"
+    },
+    "focused": {
+      "processes": 14,
+      "tests": 3206,
+      "assertions": 17800992,
+      "report": "build/tests/trigger318/focused/summary.json"
+    },
+    "full_native_rerun": false,
+    "last_full_native_checkpoint": 316,
+    "normal_replay": {
+      "passed": false,
+      "edition": "tft",
+      "first_public_mismatch": 1393,
+      "first_motion_mismatch": 4030,
+      "public_actual": 2062,
+      "public_expected": 2066,
+      "public_mismatches": 669,
+      "motion_actual": 5326,
+      "motion_expected": 5342,
+      "motion_mismatches": 1296,
+      "report": "build/tests/trigger318/normal-first.summary.json"
+    },
+    "gates": {
+      "captain473": {
+        "report": "build/tests/trigger318/gates/captain473.json",
+        "report_sha256": "9b61e951213755b757a0317f6b241ddc196bb832d5a1c624b36c1e000a3a0720",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      },
+      "group012": {
+        "report": "build/tests/trigger318/gates/group012.json",
+        "report_sha256": "3958d15eb88b322347bb01cb91d2ce87b74ae7946e6e0fc289f2d08ff5ea3e56",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "waygate377": {
+        "report": "build/tests/trigger318/gates/waygate377.json",
+        "report_sha256": "11b049e87e4219029716dd745038dfe0fc76f370da93ec1b23d1bb4806c36c44",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "itemdrop": {
+        "report": "build/tests/trigger318/gates/itemdrop.json",
+        "report_sha256": "9d7fe3aface55065ed7d3169bc1fa33a88e85f0dc425e4f74c22af84584e9f2c",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 138,
+            "assertions": 11568
+          },
+          "tft": {
+            "tests": 138,
+            "assertions": 11568
+          }
+        }
+      },
+      "supportgoal": {
+        "report": "build/tests/trigger318/gates/supportgoal.json",
+        "report_sha256": "5c82ec14fc89e3fe91fc65844d64e3edc4d27415cf83e3001305b45aeecd0a10",
+        "passed": true,
+        "engine": {
+          "classic": {
+            "tests": 513,
+            "assertions": 2001976
+          },
+          "tft": {
+            "tests": 513,
+            "assertions": 2001976
+          }
+        }
+      }
+    },
+    "source_files_frozen": 1158,
+    "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+    "library_sha256": "c3caeb55ba101842335e16ae54c62a108844dcd4be0c7067e522ccb2971e35ac",
+    "unverified": [
+      "Native direct TriggerExecute event-context semantics",
+      "Game Victory registration and engine dispatch",
+      "Complete uninterrupted/saved C299 and TARGET-01.2"
+    ],
+    "next": "Invisibility lacks A_CAST_PROFILE and bypasses the shared cast scheduler; native channel289 then cast290 versus C channel289 then effect291.",
+    "python_evidence_tests": {
+      "passed": true,
+      "total": 76,
+      "corpus": 38,
+      "itemdrop": 38
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3329,
+      "report": "build/tests/trigger318/corpus-check.log"
     }
   }
 }

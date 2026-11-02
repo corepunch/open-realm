@@ -51,7 +51,7 @@
     "games/warcraft-3/game/g_commands.c": "d55b719a26e8df365afa4a3a2bc004e9a7734b12f43d514a56ea88d5cba1a71b",
     "games/warcraft-3/game/g_items.c": "051e5942a347477a959dc03d21ba6a6f5fbe685f802fb9047c7d49a2b646d5be",
     "games/warcraft-3/game/g_local.h": "c87c5e5a2df12e5fdb85bc2711f0cefa18265c06ae9d1d1526975e8dcd9e0b49",
-    "games/warcraft-3/game/g_save.c": "d411968c0e9a5c2f9bb654d90f56766772637cd828fc54c07cae4b8eb3a33055",
+    "games/warcraft-3/game/g_save.c": "04086a4508fb7a7ff9b6b7a38401c49cc2160ea795ae52c2ea287a5be875b784",
     "games/warcraft-3/game/m_unit.c": "1b6878c740e900f5c2dda33bf25d77a8eaee460530bbb016ac16a572aa963950",
     "games/warcraft-3/game/sc2api/sc2api_raw.c": "bb4817b0af8d8c39818e31e1ba62bec43e19da1408cc243c3eb7cbcaabe3644f",
     "games/warcraft-3/game/skills/s_inventory.c": "7d22eac31481a4573bb1c4e919b6be50005c57037a08a9a9f1f455fe93c5bf71",

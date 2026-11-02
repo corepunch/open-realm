@@ -23,7 +23,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 11 // damage event values retain IEEE float bits
+#define BZ_JASS_SNAPSHOT_VERSION 12 // retained event-enum origin survives handle upcasts
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -271,10 +271,24 @@ JASS_CMPOP(__ge, >=);
 JASS_CMPOP(__gt, >);
 JASS_CMPOP(__lt, <);
 
+static bool jass_eventenum(cstring_t type) {
+    static cstring_t const types[]={"eventid","gameevent","playerevent","playerunitevent","widgetevent","dialogevent","unitevent"};
+    FOR_LOOP(i,sizeof(types)/sizeof(*types))if(!strcmp(type,types[i]))return true;
+    return false;
+}
+
+bool jass_eventenumvalue(jass_t *j,int index,uint32_t *value) {
+    jassVar_t const *var=jass_stackvalue(j,index);
+    if(!var || !var->value || !var->ref || !var->ref->event_enum ||
+       var->ref->invalid || var->ref->size!=sizeof(uint32_t))return false;
+    if(value)memcpy(value,var->value,sizeof(*value));
+    return true;
+}
+
 static bool jass_valuehandle(cstring_t type) {
     static cstring_t const value_handles[] = {
         "race", "alliancetype", "racepreference", "igamestate", "fgamestate", "playerstate",
-        "playergameresult", "unitstate", "gameevent", "playerevent", "playerunitevent", "widgetevent",
+        "playergameresult", "unitstate", "eventid", "gameevent", "playerevent", "playerunitevent", "widgetevent",
         "dialogevent", "unitevent", "limitop", "unittype", "gamespeed", "placement", "startlocprio",
         "gamedifficulty", "aidifficulty", "gametype", "mapflag", "mapvisibility", "mapsetting", "mapdensity", "mapcontrol",
         "playercolor", "playerslotstate", "volumegroup", "camerafield", "blendmode", "raritycontrol",
@@ -299,6 +313,8 @@ static bool var_eq(jassVar_t const *a, jassVar_t const *b) {
         case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(handle_t));
         case jasstype_handle:
             if (a->value == b->value) return true;
+            if(a->ref && b->ref && a->ref->event_enum && b->ref->event_enum)
+                return !memcmp(a->value,b->value,sizeof(uint32_t));
             if (a->type != b->type) return false;
             /* Galaxy opaque types have no JASS declaration; unequal identities must not dereference a null type. */
             return a->type && jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(uint32_t));
@@ -1718,6 +1734,7 @@ handle_t jass_newhandle(jass_t *j, uint32_t size, cstring_t type) {
     if (data) {
         jassVar_t *var = jass_topvalue(j);
         var->ref->size = size;
+        var->ref->event_enum = size==sizeof(uint32_t) && jass_eventenum(type);
         var->ref->id = ++jass_root(j)->next_handle_id;
     }
     return data;
@@ -2551,6 +2568,7 @@ typedef enum {
     JASS_SNAPSHOT_HANDLE_HOST,
     JASS_SNAPSHOT_HANDLE_OWNED,
     JASS_SNAPSHOT_HANDLE_FUNCTION,
+    JASS_SNAPSHOT_HANDLE_EVENT_ENUM,
 } jassSnapshotHandleType_t;
 
 typedef struct jass_snapshot_handle_s {
@@ -2607,6 +2625,12 @@ static bool jass_snapshot_writehandle(jass_t *j, jassSnapshot_t *snapshot, jassV
         encoding = JASS_SNAPSHOT_HANDLE_NULL;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
     }
+    if(var->ref && var->ref->event_enum) {
+        if(var->ref->size!=sizeof(uint32_t))return false;
+        encoding=JASS_SNAPSHOT_HANDLE_EVENT_ENUM;
+        return jass_snapshot_io(snapshot,&encoding,sizeof(encoding)) &&
+            jass_snapshot_io(snapshot,var->value,sizeof(uint32_t));
+    }
     if (jass_valuehandle(var->type->name)) {
         encoding = JASS_SNAPSHOT_HANDLE_VALUE;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
@@ -2647,8 +2671,18 @@ static bool jass_snapshot_readhandle(jass_t *j, jassSnapshot_t *snapshot, jassVa
         var->value = NULL;
         return true;
     }
+    if(encoding==JASS_SNAPSHOT_HANDLE_EVENT_ENUM) {
+        if((strcmp(var->type->name,"handle") && !jass_eventenum(var->type->name)) ||
+           !(var->value=jass_alloc(sizeof(uint32_t))) ||
+           !jass_snapshot_io(snapshot,var->value,sizeof(uint32_t)))return false;
+        var->ref=jass_alloc(sizeof(*var->ref));
+        if(!var->ref)return false;
+        *var->ref=(jassref_t){.size=sizeof(uint32_t),.event_enum=true};
+        return true;
+    }
     if (encoding == JASS_SNAPSHOT_HANDLE_VALUE) {
-        if (!jass_valuehandle(var->type->name) || !(var->value = jass_alloc(sizeof(uint32_t))) ||
+        if (!jass_valuehandle(var->type->name) || jass_eventenum(var->type->name) ||
+            !(var->value = jass_alloc(sizeof(uint32_t))) ||
             !jass_snapshot_io(snapshot, var->value, sizeof(uint32_t))) return false;
         var->ref = jass_alloc(sizeof(*var->ref));
         if (!var->ref) return false;

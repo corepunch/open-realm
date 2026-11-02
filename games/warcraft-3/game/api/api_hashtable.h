@@ -117,6 +117,8 @@ uint32_t InitHashtable(jass_t *j) {
 }
 
 uint32_t GetHandleId(jass_t *j) {
+    uint32_t event;
+    if(jass_eventenumvalue(j,1,&event))return jass_pushinteger(j,(int32_t)event);
     return jass_pushinteger(j, (int32_t)hashtable_handle_id(jass_checkhandle(j, 1, "handle")));
 }
 

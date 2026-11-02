@@ -1,4 +1,11 @@
-Save238 adds the Attack guard's evaluated-policy flag, separately from its
+Save239 retains the origin of JASS event enums when scripts upcast them to
+plain handles. GetHandleId keeps the enum's numeric identity after restore.
+Event values have an explicit snapshot encoding; the loader rejects event
+values encoded with the obsolete generic scalar tag. Both game Save238 and
+older layouts and standalone JASS snapshots before version12 are rejected.
+Nested callback and sleeping-coroutine tests cover saved event identity.
+
+The prior Save238 adds the Attack guard's evaluated-policy flag, separately from its
 initialized anchor. The independent guard timer and queued numeric851987
 continuation survive save/load. Loading rejects invalid guard booleans,
 uninitialized active/evaluated owners, nonfinite anchors/ranges, negative ranges,

@@ -497,3 +497,35 @@ All five fresh parity gates pass against the unchanged original inputs. The
 accumulated full native batch passes 9,430 test executions and 60,729,888
 assertions across both editions, with zero failures, errors or skips.
 The 115 focused Python checks pass; the corpus validates 614 entries and 3,326 guarded files.
+
+
+## Callback event identity: checkpoint318
+
+GetTriggerEventId now returns the event from the existing callback context.
+The result uses the loaded common.j event numbering. Event enums keep their
+numeric GetHandleId identity through a user function returning plain handle,
+cross-type event comparisons, nested callbacks and save/load. The existing
+shared reference retains an event-enum origin flag; the integer remains in its
+owned scalar payload. Non-event handle identity is unchanged.
+
+Game Save239 and standalone JASS snapshot12 store an explicit event-enum
+encoding. The loader rejects the old scalar encoding for an event type without
+changing live state. Tests cover both numbering eras, owner-change callbacks
+that issue nested Stop, sleeping callbacks restored from save, plain-handle
+variables, event zero and no-event context. The event-zero check directly calls
+the VM dispatcher because game Victory registration/engine dispatch are still
+unimplemented. Native direct TriggerExecute event-context semantics remain
+unverified; this change reuses the existing context behavior.
+
+The full C299 replay still fails. Its first public difference advances from
+row 1,392 to 1,393: the channel callback now reports native 289, then C publishes
+Effect 291 where native publishes Cast 290 at the same scene4 tick1261. This is a
+spell-admission producer issue, not another event-ID conversion. Motion remains
+unchanged at first difference 4,030. Totals remain 2,062 public rows/2,066 expected
+(669 mismatches) and 5,326 motion rows/5,342 expected (1,296 mismatches).
+Complete uninterrupted/saved replay and TARGET-01.2 remain open.
+
+All 14 focused processes pass 3,206 test executions and 17,800,992 assertions
+across both editions. All five fresh parity gates pass. The full native batch
+last passed at checkpoint316; it is not repeated for this single commit.
+The 76 corpus/item-drop Python checks pass; the corpus validates 614 entries and 3,329 guarded files.

@@ -42,6 +42,7 @@ struct jass_var {
 struct jass_ref {
     uint32_t refs, size, id;
     bool invalid; /* explicit removed-VM-handle state; size/id still track lifetime */
+    bool event_enum; /* Retained enum origin survives upcasts to handle. */
 };
 
 struct jass_type {
