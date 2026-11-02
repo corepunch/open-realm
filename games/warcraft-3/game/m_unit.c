@@ -235,18 +235,19 @@ static void unit_stand_animation_end(edict_t *self) {
 }
 
 /* Let a persistent ability claim the stand transition before the generic idle move is installed. */
-static void unit_install_stand_move(edict_t *self) {
-    if (S_UnitAbilityEvent(self, A_UNIT_STAND)) return;
+static void unit_install_stand_move(edict_t *self,bool preserve_attack_guard) {
+    abilityCall_t const call={.stand.preserve_attack_guard=preserve_attack_guard};
+    if (S_UnitAbilityEventWithCall(self, A_UNIT_STAND,&call)) return;
     unit_setmove(self, unit_affectingcombat(self) ? &unit_move_stand_ready : &unit_move_stand);
 }
 
 void unit_stand_no_queue(edict_t *self) {
     if (!self) return;
     unit_prepare_stand(self);
-    unit_install_stand_move(self);
+    unit_install_stand_move(self,false);
 }
 
-void unit_stand(edict_t *self) {
+static void unit_stand_policy(edict_t *self,bool preserve_attack_guard) {
     /* Reaching stand is the common completion edge for Move, direct Attack,
      * Repair, Harvest, and several cast behaviors. Retire transient state first,
      * then let a pending Shift order become authoritative before installing the
@@ -256,8 +257,11 @@ void unit_stand(edict_t *self) {
     if (G_UnitStartNextQueuedOrder(self)) {
         return;
     }
-    unit_install_stand_move(self);
+    unit_install_stand_move(self,preserve_attack_guard);
 }
+
+void unit_stand(edict_t *self) {unit_stand_policy(self,false);}
+void unit_stand_preserve_attack_guard(edict_t *self) {unit_stand_policy(self,true);}
 
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
 void G_SetHealth(edict_t *ent, float value) {
@@ -1373,8 +1377,10 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         }
         /* Target-owned Smart interactions run before relation-based attack/follow
          * fallback. The target ability owns validation and any persistent move. */
-        if (S_WaygateIsGate(target))
+        if (S_WaygateIsGate(target)) {
+            S_AttackMoveTaskStarted(self);
             return S_IssueWaygateMoveOrder(self,target,fallback_point ? fallback_point : &target->s.origin2,G_OrderId(order));
+        }
         if (S_UnitTargetAbilityOrder(target, self, order)) return true;
         if (unit_smart_target_is_enemy(self, target)) {
             if (S_UnitPolymorphed(self)) return false;
@@ -1395,6 +1401,7 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
              * Do not skip a queued Smart or substitute the target's new pose. */
             if (fallback_point && (target == self || S_MoveTargetStatus(self, target) != MOVE_TARGET_VALID))
                 return unit_issueorder_now(self, order, fallback_point, 0.0f, NULL);
+            S_AttackMoveTaskStarted(self);
             return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f, NULL);
@@ -1407,6 +1414,7 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     if (!strcmp(order,"board")) return S_CargoOrderBoard(self,target);
     if (!strcmp(order,"load")) return S_CargoOrderLoad(self,target);
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
+        S_AttackMoveTaskStarted(self);
         if (S_WaygateIsGate(target))
             return S_IssueWaygateMoveOrder(self,target,fallback_point ? fallback_point : &target->s.origin2,G_OrderId(order));
         return S_IssueFollowOrder(self, target, G_OrderId(order));
@@ -1414,8 +1422,10 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     /*5fd270 admits any widget target. A destructable has no Move ability, so
      * it selects the one-shot d0174 approach whose final endpoint completes
      * on the destructable's own footprint perimeter (167290 result3). */
-    if (!strcmp(order, "move") && G_IsDestructable(target))
+    if (!strcmp(order, "move") && G_IsDestructable(target)) {
+        S_AttackMoveTaskStarted(self);
         return S_IssueFollowOrder(self, target, G_OrderId(order));
+    }
     if (!strcmp(order, "attack")) {
         if (S_UnitPolymorphed(self)) return false;
         if (G_IsDestructable(target) && !G_DestructableCanBeAttackedBy(self, target)) {
@@ -1474,6 +1484,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
         waypoint = Waypoint_add(point);
         if (!waypoint) return false;
         self->movement.holding_position = false;
+        S_AttackMoveTaskStarted(self);
         S_IssueMoveOrder(self, waypoint, G_OrderId(order));
         self->movement.group_speed = group_speed;
         return true;

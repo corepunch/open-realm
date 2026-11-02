@@ -148,6 +148,16 @@ bool S_ValidateAttackTargets(void) {
         edict_t const *unit=g_edicts+i,*target=unit->attack_target;
         if(!unit->inuse)continue;
         if(unit->attack_recovery_pending>1)return false;
+        if(*(uint8_t const *)&unit->attack_guard.initialized>1 ||
+           *(uint8_t const *)&unit->attack_guard.evaluated>1 ||
+           *(uint8_t const *)&unit->attack_guard.returning>1 ||
+           *(uint8_t const *)&unit->attack_guard.timer.active>1)return false;
+        if((unit->attack_guard.evaluated || unit->attack_guard.returning || unit->attack_guard.timer.active) &&
+           !unit->attack_guard.initialized)return false;
+        if(unit->attack_guard.initialized &&
+           (!isfinite(unit->attack_guard.point.x) || !isfinite(unit->attack_guard.point.y) ||
+            !isfinite(unit->attack_guard.range) || unit->attack_guard.range<0))return false;
+        if(unit->attack_guard.timer.active && !attack_saved_timer_valid(&unit->attack_guard.timer))return false;
         FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
             attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
             if(slot->target) {
@@ -459,6 +469,18 @@ static void attack_guard_cancel(edict_t *unit) {
     unit->attack_guard.timer.active=false;
 }
 
+/*5fd270 executes d014e before its physical task. The attached Attack owner
+ * receives49e940 even when its weapons are temporarily unavailable. */
+void S_AttackMoveTaskStarted(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))return;
+    if(unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE && !G_UnitIsStructure(unit)) {
+        attack_guard_cancel(unit);
+        unit->attack_guard.evaluated=false;
+        unit->attack_guard.returning=false;
+    }
+}
+
 static void attack_guard_arm(edict_t *unit,bool returning) {
     wc3Clock_t now=G_TimerQueryClock(NULL);
     attack_guard_cancel(unit);
@@ -474,11 +496,19 @@ static bool attack_guard_outside(edict_t const *unit) {
     return !S_UnitPointInMoveRange(unit,&unit->attack_guard.point,unit->attack_guard.range);
 }
 
-/* d014a runs after point completion. A subsequent Move starts a new physical
- * task without cancelling the Attack-owned guard request. */
+/* d014a runs after point completion. Ordinary player units capture a new
+ * anchor; neutral units retain theirs and evaluate its guard request. */
 static void attack_guard_stand(edict_t *unit) {
-    if(!unit || !unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit) ||
-       unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE || !attack_cap_present(unit))return;
+    if(!unit || !unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit) || !attack_cap_present(unit))return;
+    unit->attack_guard.evaluated=true;
+    unit->attack_guard.returning=false;
+    if(unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE && !G_UnitIsStructure(unit)) {
+        unit->attack_guard.point=unit->s.origin2;
+        unit->attack_guard.range=game.constants.guardDistance;
+        unit->attack_guard.initialized=true;
+        attack_guard_cancel(unit);
+        return;
+    }
     if(!unit->attack_guard.initialized) {
         unit->attack_guard.point=unit->s.origin2;
         unit->attack_guard.range=game.constants.guardDistance;
@@ -491,7 +521,7 @@ static void attack_guard_fire(edict_t *unit) {
     bool returning=unit->attack_guard.returning;
     attack_guard_cancel(unit);
     if(!unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit) ||
-       unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE || !attack_cap_present(unit))return;
+       !attack_cap_present(unit))return;
     if(!returning) {
         if(attack_guard_outside(unit))attack_guard_arm(unit,true);
         else {
@@ -506,7 +536,24 @@ static void attack_guard_fire(edict_t *unit) {
     }
     /* Timer rearm uses its request deadline; physical queries use the current
      * source-clock quantum. They differ when a request falls between quanta. */
+    uint32_t const birth=unit->spawn_time;
+    uint32_t const attack_generation=unit->attack_invisibility_generation;
+    /*497fc0 ignores Move admission's return before appending d0013. */
     G_CreepGuardIssueReturn(unit,&unit->attack_guard.point);
+    if(unit->inuse && unit->spawn_time==birth && !G_IsDeferredFree(unit)) {
+        /* Internal label only; numeric d0013 is not a registered JASS string. */
+        unitOrder_t next={.order="attack-guard-sleep",.target_type=UNIT_ORDER_TARGET_NONE,
+            .issuer_player=unit->s.player,.order_id=851987};
+        if(G_AppendUnitOrder(unit,&next) && !unit->current_order_id)
+            G_UnitStartNextQueuedOrder(unit);
+        if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return;
+        /*49e940 after admitting Move/appending d0013: ordinary player cancel. */
+        if(unit->attack_invisibility_generation==attack_generation &&
+           unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE && !G_UnitIsStructure(unit)) {
+            attack_guard_cancel(unit);unit->attack_guard.evaluated=false;
+            unit->attack_guard.returning=false;
+        }
+    }
 }
 
 static void attack_acquire_fire(edict_t *);
@@ -1221,8 +1268,10 @@ static void attack_resume_after_combat(edict_t *attacker) {
         order_follow_resume(attacker);
     } else {
         G_CreepGuardCombatEnd(attacker);
+        bool const private_home=attacker->movement.guard_state==GUARD_COMBAT;
         if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) return;
-        if (attacker->stand) attacker->stand(attacker);
+        if(private_home && attacker->stand==unit_stand)unit_stand_preserve_attack_guard(attacker);
+        else if (attacker->stand) attacker->stand(attacker);
     }
 }
 
@@ -3065,6 +3114,9 @@ static void attack_acquire_fire(edict_t *unit) {
     if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
        G_UnitMoveRevision(unit)!=revision ||
        !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    /*494513..494525: fresh automatic admission, not a blanket player policy. */
+    if(fresh && unit->attack_guard.evaluated && !unit->attack_guard.returning)
+        attack_guard_arm(unit,attack_guard_outside(unit));
     if(fresh)attack_begin_reaction(unit,target);else order_attack(unit,target);
     if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
        !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
@@ -3206,7 +3258,18 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
         return false;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_TARGET_OWNER_CHANGED,A_UNIT_TYPE_CHANGED,A_UNIT_INIT);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_QUEUE_ORDER_START,A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_TARGET_OWNER_CHANGED,A_UNIT_TYPE_CHANGED,A_UNIT_INIT);
+    case A_QUEUE_ORDER_START:
+        if(call && call->queued_order && call->queued_order->order_id==851987 &&
+           !strcmp(call->queued_order->order,"attack-guard-sleep")) {
+            /*498ff0 without Asla has no work after active-head publication.
+             * Optional Asla activation remains an explicit review dependency. */
+            if(G_ActorHasAbilityCode(ent,MAKEFOURCC('A','s','l','a')))
+                return QUEUED_ORDER_UNHANDLED; /* Required317: actual524e00(1) owner. */
+            unit_stand_preserve_attack_guard(ent);
+            return QUEUED_ORDER_REPLACED;
+        }
+        return QUEUED_ORDER_UNHANDLED;
     case A_TARGET_AVAILABLE:
         if(!ent && call)attack_target_available(call->lost_target);
         return false;
@@ -3242,9 +3305,10 @@ BZ_ABILITY_PROC(CAbilityAttack) {
             S_AttackEnableAcquisition(ent);
         else attack_acquire_ensure(ent,false);
         if(ent)ent->attack_acquisition_suppressed=false;
-        attack_guard_stand(ent);return false;
+        if(!call || !call->stand.preserve_attack_guard) {attack_guard_stand(ent);}
+        return false;
     case A_UNIT_OWNER_CHANGING:
-        if(ent){attack_set_alternative(ent,NULL);attack_guard_cancel(ent);ent->attack_guard.initialized=false;}return false;
+        if(ent){attack_set_alternative(ent,NULL);attack_guard_cancel(ent);ent->attack_guard.initialized=false;ent->attack_guard.evaluated=false;ent->attack_guard.returning=false;}return false;
     case A_UNIT_SUSPEND:
         if(ent){attack_set_alternative(ent,NULL);attack_acquire_disable(ent);attack_damage_cancel(ent);}
         return false;

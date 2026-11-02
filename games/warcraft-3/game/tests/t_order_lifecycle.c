@@ -2747,6 +2747,178 @@ TEST(wc3_order_lifecycle, creep_guard_explicit_point_move_cancels_return) {
 
 /* Ownership transfer admits the same public Stop as an explicit command,
  * aborting the AI return and recording the current position as its anchor. */
+/* Configured public acquisition exercises the two independent home owners;
+ * it does not stand in for the complete native299 numeric replay. */
+TEST(wc3_order_lifecycle, player_auto_guard_timer_outlives_private_home_and_save) {
+    FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        typeof(((mapInfo_t *)level.mapinfo)->players[0].playerType) const old_player_type=((mapInfo_t *)level.mapinfo)->players[0].playerType;
+        float const old_distance=game.constants.guardDistance,old_return=game.constants.guardReturnTime;
+        game.constants.guardDistance=64;game.constants.guardReturnTime=5;
+        edict_t *unit=review_order_unit_at(256,256,0),*enemy=review_order_unit_at(368,256,1);
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType=kPlayerTypeNeutral;
+        unit->unitinfo.MoveSpeed=150;enemy->unitinfo.MoveSpeed=270;
+        S_AttackProfileWrite(unit,0)->range=90;
+        lifecycle_publish_acquisition_world(unit,enemy);
+        unit_stand(unit);
+        T_ASSERT(unit->attack_guard.evaluated);
+        T_ASSERT(!unit->attack_guard.timer.active);
+        T_ASSERT(run_test_jass(
+            "globals\nunit guard316\nunit target316\ninteger moves316=0\ninteger sleeps316=0\nendglobals\n"
+            "function orders316 takes nothing returns nothing\n"
+            "if GetIssuedOrderId()==851986 then\nset moves316=moves316+1\n"
+            "call BJassAssert(GetUnitCurrentOrder(guard316)==851986,\"public return Move head\")\nendif\n"
+            "if GetIssuedOrderId()==851987 then\nset sleeps316=sleeps316+1\n"
+            "call BJassAssert(moves316==1 and GetUnitCurrentOrder(guard316)==851987,\"d0013 after Move with own head\")\nendif\nendfunction\n"
+            "function hide316 takes nothing returns nothing\ncall ShowUnit(target316,false)\nendfunction\nfunction check316 takes nothing returns nothing\ncall BJassAssert(moves316==1 and sleeps316==1,\"one independent Move and continuation\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger t=CreateTrigger()\n"
+            "call GroupEnumUnitsInRange(g,256,256,1,null)\nset guard316=FirstOfGroup(g)\ncall GroupClear(g)\ncall GroupEnumUnitsInRange(g,368,256,1,null)\nset target316=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+            "call TriggerRegisterUnitEvent(t,guard316,EVENT_UNIT_ISSUED_ORDER)\n"
+            "call TriggerRegisterUnitEvent(t,guard316,EVENT_UNIT_ISSUED_POINT_ORDER)\ncall TriggerAddAction(t,function orders316)\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        /* No explicit Source Attack: the real attachment/idle scan acquires. */
+        lifecycle_wait_for_auto_target(unit,enemy);
+        T_EQ(unit->attack_target,enemy);
+        T_ASSERT(unit->attack_guard.timer.active);
+        T_ASSERT(!unit->attack_guard.returning);
+        T_ASSERT(G_IssueUnitPointOrder(enemy,"move",&(vec2_t){1800,256},false,1,0));
+        FOR_LOOP(i,600){level.time+=5;globals.RunFrame();}
+        /* Public target hide causes ordinary recovery of the active chase. */
+        jass_callbyname(level.vm,"hide316",true);jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        bool private_finished=false;
+        FOR_LOOP(i,1600) {
+            level.time+=5;globals.RunFrame();
+            if(unit->movement.guard_state==GUARD_IDLE && unit->attack_guard.returning &&
+               unit->attack_guard.timer.active && !unit->movement.group_id) {
+                private_finished=true;break;
+            }
+        }
+        T_ASSERT(private_finished);
+        T_EQ(unit->current_order_id,0);
+        T_ASSERT(S_UnitPointInMoveRange(unit,&(vec2_t){256,256},50));
+        uint64_t const sequence=unit->attack_guard.timer.sequence;
+        wc3Clock_t const deadline=unit->attack_guard.timer.deadline;
+        if(saved) {
+            uint32_t const number=unit->s.number;
+            cstring_t path=Test_TempPath("wc3-guard316.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+number;
+            T_ASSERT(unit->attack_guard.evaluated && unit->attack_guard.returning);
+            T_EQ(unit->attack_guard.timer.sequence,sequence);
+            T_ASSERT(!memcmp(&unit->attack_guard.timer.deadline,&deadline,sizeof(deadline)));
+        }
+        bool saved_fifo=false;
+        FOR_LOOP(i,2000) {
+            level.time+=5;globals.RunFrame();
+            if(saved && !saved_fifo && unit->current_order_id==851986) {
+                T_EQ(unit->order_queue.count,1);
+                if(unit->order_queue.count)T_EQ(unit->order_queue.entries[unit->order_queue.head].order_id,851987);
+                uint32_t const number=unit->s.number;
+                cstring_t path=Test_TempPath("wc3-guard316-fifo.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+                unit=g_edicts+number;saved_fifo=true;
+                T_EQ(unit->order_queue.count,1);
+                if(unit->order_queue.count)T_EQ(unit->order_queue.entries[unit->order_queue.head].order_id,851987);
+            }
+            if(!unit->attack_guard.timer.active && !unit->movement.group_id && !unit->current_order_id)break;
+        }
+        if(saved)T_ASSERT(saved_fifo);
+        jass_callbyname(level.vm,"check316",true);jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->current_order_id,0);
+        /* Retire actors/timers under the configuration that admitted them. */
+        reset_entities();setup_test_world();
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType=old_player_type;
+        game.constants.guardDistance=old_distance;game.constants.guardReturnTime=old_return;
+    }
+}
+
+/* Component timer admission isolates497fc0's ignored Move return. The
+ * preceding integration test obtains that timer from real auto acquisition.
+ * Rejection uses canonical availability counters as a component input, not a
+ * claim that public player ability availability disables intrinsic Move. */
+TEST(wc3_order_lifecycle, guard_return_appends_sleep_after_rejection_or_callback_stop) {
+    FOR_LOOP(replaced,2) {
+        reset_entities();setup_test_world();
+        float const old_return=game.constants.guardReturnTime;
+        game.constants.guardReturnTime=.02f;
+        edict_t *unit=review_order_unit_at(256,256,0);
+        unit_stand(unit);
+        char script[4096];snprintf(script,sizeof(script),
+            "globals\nunit continuation316\ninteger moves316=0\ninteger sleeps316=0\nendglobals\n"
+            "function observe316 takes nothing returns nothing\n"
+            "if GetIssuedOrderId()==851986 then\nset moves316=moves316+1\n"
+            "if %d==1 then\ncall BJassAssert(IssueImmediateOrder(continuation316,\"stop\"),\"nested replacement Stop\")\nendif\nendif\n"
+            "if GetIssuedOrderId()==851987 then\nset sleeps316=sleeps316+1\n"
+            "call BJassAssert(GetUnitCurrentOrder(continuation316)==851987,\"continuation owns published head\")\nendif\nendfunction\n"
+            "function verify316 takes nothing returns nothing\n"
+            "call BJassAssert(moves316==%d and sleeps316==1,\"continuation survives rejected or replaced Move\")\n"
+            "endfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger t=CreateTrigger()\n"
+            "call GroupEnumUnitsInRange(g,256,256,1,null)\nset continuation316=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+            "call TriggerRegisterUnitEvent(t,continuation316,EVENT_UNIT_ISSUED_ORDER)\n"
+            "call TriggerRegisterUnitEvent(t,continuation316,EVENT_UNIT_ISSUED_POINT_ORDER)\ncall TriggerAddAction(t,function observe316)\n"
+            "set moves316=0\nset sleeps316=0\nendfunction\n",replaced,replaced);
+        T_ASSERT(run_test_jass(script));
+        unit->attack_guard.point=(vec2_t){600,256};
+        unit->attack_guard.range=64;unit->attack_guard.initialized=true;
+        unit->attack_guard.evaluated=true;attack_guard_arm(unit,true);
+        if(!replaced) {
+            S_AcquireBuffAbilityDisables(unit,true);
+            T_ASSERT(S_UnitOrderDisabled(unit,"move"));
+            T_ASSERT(unit->attack_guard.timer.active);
+        }
+        FOR_LOOP(i,20)lifecycle_primary_step();
+        jass_callbyname(level.vm,"verify316",true);jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(G_UnitQueuedOrderCount(unit),0);
+        T_EQ(unit->current_order_id,0);
+        if(!replaced)S_ReleaseBuffAbilityDisables(unit,true);
+        reset_entities();setup_test_world();game.constants.guardReturnTime=old_return;
+    }
+}
+
+/* d014e belongs to logical Move activation, not queued admission or an
+ * arbitrary internal point-request rebuild. Numeric neutral owners retain the
+ * existing Payoff254 guard timer policy. */
+TEST(wc3_order_lifecycle, player_move_activation_cancels_guard_timer_but_neutral_retains_it) {
+    FOR_LOOP(neutral,2) FOR_LOOP(mode,4) {
+        reset_entities();setup_test_world();
+        uint32_t owner=neutral ? PLAYER_NEUTRAL_AGGRESSIVE : 0;
+        uint32_t old_type=level.mapinfo->players[owner].playerType;
+        edict_t *unit=review_order_unit_at(256,256,owner);
+        edict_t *peer=review_order_unit_at(768,256,unit->s.player);
+        lifecycle_publish_acquisition_world(unit,peer);
+        vec2_t far={600,256},close={256,256};
+        if(mode==2)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&far,false,unit->s.player,0));
+        unit->attack_guard.point=(vec2_t){128,256};
+        unit->attack_guard.range=64;unit->attack_guard.initialized=true;
+        unit->attack_guard.evaluated=true;attack_guard_arm(unit,true);
+        uint64_t const sequence=unit->attack_guard.timer.sequence;
+        if(mode==2) {
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&far,true,unit->s.player,0));
+            T_ASSERT(unit->attack_guard.timer.active);
+            T_EQ(unit->attack_guard.timer.sequence,sequence);
+            T_EQ(G_UnitQueuedOrderCount(unit),1);
+            /* Complete the preceding private task through the real FIFO seam,
+             * without synthesizing a new d014a Stand for the old owner. */
+            unit_stand_preserve_attack_guard(unit);
+            T_EQ(G_UnitQueuedOrderCount(unit),0);
+        } else if(mode==3) {
+            T_ASSERT(G_IssueUnitTargetOrder(unit,"move",peer,false,unit->s.player));
+        } else {
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",mode==1 ? &close : &far,false,unit->s.player,0));
+        }
+        T_EQ(unit->attack_guard.timer.active,neutral!=0);
+        if(neutral && mode!=1)T_EQ(unit->attack_guard.timer.sequence,sequence);
+        reset_entities();setup_test_world();
+        ((mapInfo_t *)level.mapinfo)->players[owner].playerType=old_type;
+    }
+}
+
 TEST(wc3_order_lifecycle, owner_transfer_resets_inactive_authored_modal_after_owner_event) {
     /* Fixture common.j uses the pre-extension event numbers; JASS maps these
      * public owner IDs to the current internal 290/273 event enums. */
@@ -3070,17 +3242,26 @@ TEST(wc3_order_lifecycle, creep_guard_soft_leash_times_out_through_scheduler) {
     edict_t *creep = scheduled_creep(-800, -100, 0);
     edict_t *enemy = review_order_unit(-70, 0);
     lifecycle_publish_acquisition_world(creep,enemy);
-    uint32_t combat_ms;
     int frame;
     for (frame = 0; frame < 30 && creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT; frame++)
         creep_guard_run_frames(1);
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
     T_ASSERT(creep_guard_attacking(creep) && creep->goalentity == enemy);
-    combat_ms = level.time;
-    for (frame = 0; frame < 80 && creep->movement.creep_guard_phase == CREEP_GUARD_COMBAT; frame++)
+    /* The independent request starts at automatic admission, before the
+     * reaction completes and the physical combat phase becomes visible. */
+    T_ASSERT(creep->attack_guard.timer.active && creep->attack_guard.returning);
+    wc3Clock_t const deadline=creep->attack_guard.timer.deadline;
+    uint64_t const sequence=creep->attack_guard.timer.sequence;
+    T_ASSERT(G_TimerQueryClock(NULL).time<deadline.time);
+    for (frame = 0; frame < 80 && creep->movement.creep_guard_phase == CREEP_GUARD_COMBAT; frame++) {
         creep_guard_run_frames(1);
+        if(creep->movement.creep_guard_phase==CREEP_GUARD_COMBAT) {
+            T_EQ(creep->attack_guard.timer.sequence,sequence);
+            T_ASSERT(G_TimerQueryClock(NULL).time<deadline.time);
+        }
+    }
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
-    T_ASSERT(level.time - combat_ms >= 5000u);
+    T_ASSERT(G_TimerQueryClock(NULL).time>=deadline.time);
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
     /* Keep this return test separate from a new fight at home. Independent
      * Attack timers otherwise let the enemy pursue the returning creep. */

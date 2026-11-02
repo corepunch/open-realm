@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run exactly one full native299 C replay with private retail MPQs.
 
+The accepted reference uses TFT data, including its researched Sorceress profile.
 The original install is read only: only its MPQ files are linked into a temporary
 writable overlay. The accepted map is copied there. No original game is launched.
 A fresh log and JUnit report are required; zero/skipped tests cannot pass.
@@ -80,7 +81,7 @@ def main():
                 (overlay / archive.name).symlink_to(archive)
             (overlay / 'Maps').mkdir()
             shutil.copyfile(native_map, overlay / 'Maps/AttackRecovery299.w3m')
-            command = [str(binary), '-data', str(overlay), '+dedicated', '1', '+test', TEST]
+            command = [str(binary), '-data', str(overlay), '-tft', '+dedicated', '1', '+test', TEST]
             with log.open('x') as output:
                 output.write('COMMAND ' + repr(command) + '\n')
                 output.flush()
@@ -97,7 +98,7 @@ def main():
         error = str(exc)
     summary.write_text(json.dumps({'test': TEST, 'passed': error is None,
         'error': error, 'exit_code': code, 'command': command,
-        'map_sha256': MAP_SHA256, 'binary_sha256': before,
+        'map_sha256': MAP_SHA256, 'binary_sha256': before, 'edition': 'tft',
         'retail_data': str(data), 'archives': [p.name for p in archives],
         'junit': str(report), 'log': str(log)}, indent=2) + '\n')
     if error:

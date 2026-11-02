@@ -1,4 +1,11 @@
-Save237 adds the independent Attack cooldown primary timer. Deadline, clock
+Save238 adds the Attack guard's evaluated-policy flag, separately from its
+initialized anchor. The independent guard timer and queued numeric851987
+continuation survive save/load. Loading rejects invalid guard booleans,
+uninitialized active/evaluated owners, nonfinite anchors/ranges, negative ranges,
+and malformed active timer clocks or sequences. Save237 and older layouts are
+rejected.
+
+The prior Save237 adds the independent Attack cooldown primary timer. Deadline, clock
 epoch/span, sequence and active state survive without a target or an Attack
 think callback. Load rebuilds its heap entry and derives the compatibility
 caches from that timer. Invalid active clocks, invalid sequences and mismatched

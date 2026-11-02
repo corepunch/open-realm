@@ -592,7 +592,7 @@
     "tools/ghidra/verify_wc3_pathing_group012.py": "545cd5f7e18e4755d1342d72e91655de08120da26a1eaa053266210a272bc5a9",
     "tools/ghidra/research/Group012OwnerLedgerEvidence.java": "13c715e4334238b36206cc10438dd3afc2fcadbfc120bbac70e90198ead2cf24",
     "tools/ghidra/verify_wc3_pathing_target_normalize218.py": "6c38cf361ed83493771dcc38801b63ca2636f5f288f1ff980e8414b95f0c509c",
-    "games/warcraft-3/game/skills/s_move.c": "cb28d9a5a1d07ea02fa8ae1cba4f70a70c61244a1e6a6923c2340d892942489d",
+    "games/warcraft-3/game/skills/s_move.c": "5150da2ef592941b41b611c74e48f91afdbabace10890d13b8df5d4170893c3f",
     "games/warcraft-3/game/tests/t_movement.c": "dde6fbf67171c8d899c0d6c7d169b4bcb695bbee31022f92bea36baaa0981d12",
     "games/warcraft-3/game/tests/t_captain_policy.c": "96d0bd84d53cc3709e9cf1ea1c444547d573c68178bbf40669daa2f550357c13",
     "games/warcraft-3/game/tests/t_api.c": "a4c8a2a5119371e663964ad0f8c08c97bbb5775a6e64f376ab79d2b9ff4ad60c",

@@ -450,3 +450,50 @@ range would address the wrong task. The complete normal/saved replay and whole
 leaf remain open.
 The 76 refreshed corpus/item-drop Python checks pass; the corpus validates
 614 entries and 3,325 guarded files.
+
+
+## Independent guard return: checkpoint316
+
+The Attack guard now separates an initialized home anchor from its evaluated
+policy. Ordinary player Stand captures an anchor and cancels the request;
+neutral Stand retains the anchor and evaluates it. Fresh automatic acquisition
+can arm that request for an ordinary player, as original494513–494525 requires.
+The private return's 50-unit completion preserves the independent request.
+Its expiry issues public Move851986 to the retained point and appends numeric
+851987 even if that Move is rejected or synchronously replaced by Stop. The
+continuation enters the real order FIFO and publishes the active head. Without
+Asla it completes immediately. Save238 preserves this ownership and rejects
+malformed guard state.
+
+Logical Move activation cancels the ordinary-player guard through d014e before
+constructing physical movement. This applies to direct/queued point Move,
+widget/follow/Waygate Move and admitted Patrol first legs. Internal physical
+resumes do not cancel it; Patrol rotating behind a non-Patrol queued command
+does not execute the cancellation yet. The full native Patrol trajectories and
+acquisition timer sequence remain unchanged after this correction.
+
+[The original-code proof](../../../games/warcraft-3/game/tests/fixtures/retail_attack_guard316_static.json)
+retains eight independently verified original function byte ranges, guard
+branches, Move/Patrol construction and selected accepted299 observations.
+This does not prove every guard branch. Asla activation524e00 and its complete
+lifecycle, the structure/disabled-Move alternative in497fc0, predicted moving
+anchor capture, and Move-tail d014a versus user-FIFO ordering remain open.
+The no-Asla continuation is not a substitute for Asla.
+
+The C299 launcher now explicitly selects TFT. With the same executable, map,
+and original MPQs, Classic yields Sorceress 330 HP while TFT yields the native
+reference's 405 HP. This is evidence for selecting TFT profiles; the accepted
+capture did not directly hook its edition setting. Earlier checkpoint replay
+reports used Classic and remain historical results. No expected rows or actor
+state were changed. The new comparison matches 1,392 public rows and 4,030
+ordered motion rows. It still fails: public 2,062/2,066 (670 mismatches),
+motion 5,326/5,342 (1,296 mismatches). The first public difference is the existing
+GetTriggerEventId stub returning 0 rather than event 289 during a spell callback.
+The first motion difference is a separate scene4 Invisibility recovery issue.
+Complete uninterrupted/saved C299 and TARGET-01.2 remain open.
+
+All 40 focused processes pass 4,312 test executions and 18,298,672 assertions.
+All five fresh parity gates pass against the unchanged original inputs. The
+accumulated full native batch passes 9,430 test executions and 60,729,888
+assertions across both editions, with zero failures, errors or skips.
+The 115 focused Python checks pass; the corpus validates 614 entries and 3,326 guarded files.

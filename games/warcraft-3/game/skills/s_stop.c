@@ -20,7 +20,7 @@ void S_GuardReturnComplete(edict_t *receiver, edict_t *unit, bool arrived) {
     if (receiver != unit || unit->movement.guard_state != GUARD_RETURNING) return;
     unit->movement.guard_state = GUARD_IDLE;
     S_SetMoveGoal(unit, &unit->goalentity, NULL);
-    unit_stand(unit);
+    unit_stand_preserve_attack_guard(unit);
 }
 
 /* The idle acquisition chain retains a private d016c behind combat. Its

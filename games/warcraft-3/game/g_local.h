@@ -1338,6 +1338,7 @@ struct ability_call_s {
             UnitAbilities_t const *unit_type;
             UnitData_t const *unit_data;
         };
+        struct { bool preserve_attack_guard; } stand; /* Private task completion omits d014a only. */
         struct { bool destroying; } retirement; /* A_UNIT_RETIRE: storage teardown after semantic cleanup. */
         abilityMessageSet_t *unit_messages; /* A_UNIT_EVENT_MASK: procedure-owned broadcast subscriptions. */
         abilityTimerRequest_t *primary_timer; /* Exact primary request query/delivery. */
@@ -2798,7 +2799,7 @@ struct edict_s {
         abilityPrimaryTimer_t timer; /* Attack280: periodic poll or one-shot return. */
         vec2_t point;
         float range;
-        bool initialized, returning;
+        bool initialized, returning, evaluated; /* evaluated: native Attack02000000. */
     } attack_guard;
     unitInfo_t unitinfo;
     unitAttack_t const *attack_profiles[2];
@@ -3960,6 +3961,7 @@ void unit_runwait(edict_t *, void (*callback)(edict_t * ));
 void G_UnitSuspendDecay(edict_t *self, bool suspend);
 void unit_stand(edict_t *);
 void unit_stand_no_queue(edict_t *);
+void unit_stand_preserve_attack_guard(edict_t *);
 void unit_entercombat(edict_t *, edict_t *);
 void unit_leavecombat(edict_t *);
 bool unit_affectingcombat(edict_t *);

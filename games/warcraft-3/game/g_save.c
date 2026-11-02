@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 237; /* Independent primary Attack cooldown. */
+static uint32_t const save_version = 238; /* Attack guard evaluated ownership. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1464,6 +1464,7 @@ field_t edict_fields[] = {
     F(edict_s, attack_guard.range, F_FLOAT),
     F(edict_s, attack_guard.initialized, F_INT),
     F(edict_s, attack_guard.returning, F_INT),
+    F(edict_s, attack_guard.evaluated, F_INT),
     F(edict_s, attack_swing.deadline.time, F_FLOAT),
     F(edict_s, attack_swing.deadline.epoch, F_INT),
     F(edict_s, attack_swing.deadline.span, F_FLOAT),
@@ -5375,6 +5376,7 @@ TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
 }
 
 /* Unity tests use the same owner helpers as production. */
+static void attack_guard_arm(edict_t *,bool);
 static void attack_set_cooldown(edict_t *,float);
 static void attack_cooldown_cancel(edict_t *);
 static float attack_cooldown_remaining(edict_t const *);
@@ -5492,6 +5494,53 @@ TEST(wc3_save, independent_attack_cooldown_rejects_invalid_active_timer) {
     unit->attack_cooldown=valid;unit->attack_cooldown_active=false;
     T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
     unit->attack_cooldown_active=true;
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    remove(file);reset_entities();setup_test_world();
+}
+
+/* Serializer validation deliberately corrupts one guard field at a time;
+ * public acquisition/return and both valid roundtrips live in order_lifecycle. */
+TEST(wc3_save, attack_guard_rejects_invalid_saved_owner) {
+    reset_entities();setup_test_world();
+    cstring_t file=Test_TempPath("save-invalid-attack-guard316.bin");
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    unit->stand=unit_stand;unit_stand(unit);
+    unit->attack_guard.point=(vec2_t){256,256};
+    unit->attack_guard.range=600;unit->attack_guard.initialized=true;
+    unit->attack_guard.evaluated=true;
+    attack_guard_arm(unit,true);
+    typeof(unit->attack_guard) const valid=unit->attack_guard;
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    FOR_LOOP(field,4) {
+        unit->attack_guard=valid;
+        uint8_t *value=field==0 ? (uint8_t *)&unit->attack_guard.initialized :
+            field==1 ? (uint8_t *)&unit->attack_guard.evaluated :
+            field==2 ? (uint8_t *)&unit->attack_guard.returning :
+            (uint8_t *)&unit->attack_guard.timer.active;
+        *value=2;
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    }
+    uint32_t const bad[]={0x7f800000u,0xff800000u,0x7fc00000u};
+    FOR_LOOP(i,3)FOR_LOOP(field,5) {
+        unit->attack_guard=valid;
+        float *value=field==0 ? &unit->attack_guard.point.x :
+            field==1 ? &unit->attack_guard.point.y :
+            field==2 ? &unit->attack_guard.range :
+            field==3 ? &unit->attack_guard.timer.deadline.time : &unit->attack_guard.timer.deadline.span;
+        *value=wc3_float(bad[i]);
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    }
+    FOR_LOOP(i,2) {
+        unit->attack_guard=valid;unit->attack_guard.timer.deadline.span=i ? -1 : 0;
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+        unit->attack_guard=valid;unit->attack_guard.timer.sequence=i ? level.timer_sequence+1 : 0;
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    }
+    unit->attack_guard=valid;unit->attack_guard.range=-1;
+    T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    unit->attack_guard=valid;unit->attack_guard.initialized=false;
+    T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    unit->attack_guard=valid;
     T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
     remove(file);reset_entities();setup_test_world();
 }

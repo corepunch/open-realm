@@ -51,6 +51,8 @@ static bool patrol_begin_leg(edict_t *ent, vec2_t const *point, vec2_t const *co
         patrol_clear(ent);
         return false;
     }
+    /*5fdff0 d014e belongs to this admitted task, not combat resume.*/
+    S_AttackMoveTaskStarted(ent);
     S_SetMoveGoal(ent,&ent->movement.attackmove_waypoint,NULL);
     S_SetMoveGoal(ent,&ent->movement.patrol_a,Waypoint_add(continuation));
     S_SetMoveGoal(ent,&ent->movement.patrol_b,Waypoint_add(point));

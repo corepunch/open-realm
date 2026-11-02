@@ -505,6 +505,8 @@ void S_DetachConfiguredMorphAvailability(edict_t *unit,abilityCall_t const *call
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void S_TemporaryInvisibilityAcquire(edict_t *, heroabilitystatus_t *, float);
 void S_TemporaryInvisibilityRelease(edict_t *, heroabilitystatus_t *);
+/*5fd270 d014e activation; not an arbitrary physical Move/resume.*/
+void S_AttackMoveTaskStarted(edict_t *);
 uint32_t S_AttackInvisibilityAcquire(edict_t *);
 void S_AttackInvisibilityRelease(edict_t *, uint32_t);
 bool S_ValidateInvisibilityOwners(void);

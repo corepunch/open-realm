@@ -1723,7 +1723,7 @@
     "6f9d8a80": "5d"
   },
   "pins": {
-    "games/warcraft-3/game/skills/s_move.c": "cb28d9a5a1d07ea02fa8ae1cba4f70a70c61244a1e6a6923c2340d892942489d",
+    "games/warcraft-3/game/skills/s_move.c": "5150da2ef592941b41b611c74e48f91afdbabace10890d13b8df5d4170893c3f",
     "games/warcraft-3/game/tests/fixtures/retail_retreat473.h": "26fb3d6a9c378190646db22f48a29a27dc7059e0421996bf06d3efd6e467aa2c",
     "games/warcraft-3/game/tests/fixtures/retail_retreat473b.h": "e8e394f8c58e303fa10b589cb8480ccf065d8c53791e9af31d5087e1399309f0",
     "games/warcraft-3/game/tests/t_captain_retreat473.c": "8ac4264d43d4ab1b89b77dfb17a63aaa6678666ee33f897a548e47c9e064d3c6",

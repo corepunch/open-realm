@@ -5923,6 +5923,7 @@ bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
     uint32_t const head=self->current_order_id;
     edict_t *goal=Waypoint_add(&requested);
     if(!goal)return false;
+    S_AttackMoveTaskStarted(self); /*5fd971 d014e, before d016b.*/
     S_IssueMoveOrder(self,goal,order_id);
     self->current_order_id=head;
     self->movement.group_speed=speed;
@@ -5969,6 +5970,7 @@ static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t co
     /* An instantaneous Stop leaves no internal task. Retail resumes the outer
      * Move task even though Stop has already retired its public user head. */
     uint32_t head=unit->current_order_id;
+    S_AttackMoveTaskStarted(unit); /*Queued/group5fd270 activation, not enqueue.*/
     S_IssueMoveOrder(unit,Waypoint_add(&queued->point),queued->order_id);
     unit->current_order_id=head;
     if (unit->currentmove!=&move_move_walk || !unit->goalentity) return false;
@@ -7526,6 +7528,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
                 globals.edicts+queued->target_number : NULL;
             if(target && target!=ent && target->spawn_time==queued->target_spawn_time &&
                S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID) {
+                S_AttackMoveTaskStarted(ent);
                 if(S_WaygateIsGate(target))return S_IssueWaygateMoveOrder(ent,target,&queued->point,G_OrderId(queued->order));
                 return S_IssueFollowOrder(ent,target,G_OrderId(queued->order));
             }
@@ -7533,6 +7536,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
              * optional-target validation, including a failed identity lookup. */
             edict_t *waypoint=Waypoint_add(&queued->point);
             if(!waypoint)return false;
+            S_AttackMoveTaskStarted(ent);
             S_IssueMoveOrder(ent,waypoint,G_OrderId(queued->order));
             return ent->currentmove==&move_move_walk && ent->goalentity;
         }
