@@ -71416,6 +71416,38 @@
     {
       "path": "tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json.gz",
       "sha256": "f6d9e3c61476c1e8ec8522955f48466ee7e58e7a34363b2a5d2a1fad364c61b9"
+    },
+    {
+      "path": "tools/frida/research/invisibility333_probe.j",
+      "sha256": "bd91687ed963963b484c8380d1069cf59e4052e718df43f9c161d59fde43354e"
+    },
+    {
+      "path": "tools/frida/research/invisibility333_make_map.py",
+      "sha256": "07b516557fa595c3867b07a0290977d5f0a93f1742f6387aef290ed9055048e5"
+    },
+    {
+      "path": "tools/frida/research/invisibility333_observer.js",
+      "sha256": "793c1af90b1f6ad73256a6dbfcfe33798a94c74594933ad6d055f7dcff98efea"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/windwalk333-public-original.json",
+      "sha256": "b541339972bec2c78e6db27e8f7184ca471cc2a604c8826c74392bf5ef41ba9b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/windwalk333-public-original.json.gz",
+      "sha256": "256efc3593d2a2363c41fbf1ccfa56b0411587b524f6466000105e1ab782b080"
+    },
+    {
+      "path": "tools/ghidra/research/windwalk333_capture_check.py",
+      "sha256": "bdd67e0a7555908bacb828e43ff31b61c0de0d84e5bbdaf4f690512de5139bc8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/windwalk333-instant-original.json",
+      "sha256": "acbf0073d8e07a9679676585e01fce6e06b0bd3d80258e585fe6c336214b59ee"
+    },
+    {
+      "path": "tools/ghidra/research/windwalk333_instant_check.py",
+      "sha256": "f44108d7e0b8694ef430190ec07da1fa4dd5f70fcb0634ad091be3196dd5190c"
     }
   ]
 }

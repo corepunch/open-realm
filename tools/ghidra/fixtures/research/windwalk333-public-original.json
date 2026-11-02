@@ -1,0 +1,1295 @@
+{
+  "schema": 1,
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "4140670f3935726bb1aacec785b8b5ae5c8601b99417e0ddf80c9db973b3544e",
+  "capture_source_sha256": {
+    "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "invisibility333_observer.js": "793c1af90b1f6ad73256a6dbfcfe33798a94c74594933ad6d055f7dcff98efea",
+    "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+    "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+    "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+    "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+    "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+    "map": "4140670f3935726bb1aacec785b8b5ae5c8601b99417e0ddf80c9db973b3544e"
+  },
+  "readable_sources": {
+    "sources/invisibility333_probe.j": "bd91687ed963963b484c8380d1069cf59e4052e718df43f9c161d59fde43354e",
+    "sources/invisibility333_make_map.py": "07b516557fa595c3867b07a0290977d5f0a93f1742f6387aef290ed9055048e5",
+    "sources/invisibility333_observer.js": "793c1af90b1f6ad73256a6dbfcfe33798a94c74594933ad6d055f7dcff98efea"
+  },
+  "public_records": 591,
+  "public_sha256": "d016cb7b108fa4a8c0dbc538727a5a03e483e246bcb3d09416d7a5d130b697d1",
+  "native_counts": {
+    "module": 1,
+    "marker": 591,
+    "recovery-enter": 18,
+    "unit-state": 271,
+    "windwalk-phase": 20,
+    "windwalk-setup": 4,
+    "buff-enter": 8,
+    "buff-leave": 8,
+    "unit-enter": 16,
+    "unit-leave": 16,
+    "point-task": 2,
+    "target-task": 2
+  },
+  "files": {
+    "observe.jsonl": "012101f4b8ff1558f25e4999a83144c318f73ac173587b3abbc5bec49efcb98b",
+    "observe-preload.txt": "4da3c31b3f1fc6e5b86a3f000505486f687910c11360ed0eaf284c24395dc13e",
+    "observe-start-preload.txt": "ea7af88e1fb735d982a5eeda1c2998b6dd1e1c710ff10f4c850e62442d3bbbf8",
+    "repeat.jsonl": "41d8dc1f0976c031ccb80617f3ce4f7b1a922281b2767e1cdca8a9ec1da826f8",
+    "repeat-preload.txt": "dbd3072842e3930f10295ee41063eb75ba6346032c00bb2cd091e853e38552aa",
+    "repeat-start-preload.txt": "cf135f1735770b859cbd0e0d423815a8f63c4b71cfee0d4df48cd2bb143a5201",
+    "control.jsonl": "fc767c55750d60f1a7d606ceec1104dd5b6503912a2aab75377146cc3bcbc932",
+    "control-preload.txt": "37b8540abbd545947bfdac3bba9baebdc581704895deb09ccdaede7971dfa5cc",
+    "control-start-preload.txt": "94a3cccaf7d4d74aec64558cb22c16408d71e3d8ea1db9632e5c7f0cdc1ecb42",
+    "source-freeze.json": "47a090d7c519524577f6bf8b053b330b39430ace022f4d7313093bac687b4012",
+    "Invisibility333.json": "61d82a270b59183ae393c1ed18e509b6d5ba0b3196872a18e3029c81a26fdc73",
+    "Invisibility333.j": "57d96dbe2a1a7b0928bff4c5ce121cd7dd4779fbb755395872362844d3cae086",
+    "Invisibility333.w3a": "4119474ced660bf2e415cf0526daa7720bf4c29496397a43a57d9678b0e8ceda",
+    "sources/invisibility333_probe.j": "bd91687ed963963b484c8380d1069cf59e4052e718df43f9c161d59fde43354e",
+    "sources/invisibility333_make_map.py": "07b516557fa595c3867b07a0290977d5f0a93f1742f6387aef290ed9055048e5",
+    "sources/invisibility333_observer.js": "793c1af90b1f6ad73256a6dbfcfe33798a94c74594933ad6d055f7dcff98efea"
+  },
+  "bundle_sha256": "256efc3593d2a2363c41fbf1ccfa56b0411587b524f6466000105e1ab782b080",
+  "phase_records": [
+    {
+      "event": "windwalk-phase",
+      "seq": 30,
+      "tick": 5,
+      "scene": 0,
+      "rva": 4236544,
+      "caller": 4338008,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          903,
+          905
+        ],
+        "alias": 1095726955,
+        "flags": 16,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            849,
+            856
+          ],
+          "rawcode": 1215324524,
+          "flags": 4609,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 570966032
+        },
+        "unit60": 0,
+        "head": [
+          896,
+          925
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 31,
+      "tick": 5,
+      "scene": 0,
+      "rva": 4176768,
+      "caller": 4236870,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          903,
+          905
+        ],
+        "alias": 1095726955,
+        "flags": 273,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            849,
+            856
+          ],
+          "rawcode": 1215324524,
+          "flags": 4609,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 570966032
+        },
+        "unit60": 0,
+        "head": [
+          896,
+          925
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 36,
+      "tick": 5,
+      "scene": 0,
+      "rva": 4175312,
+      "caller": 4177132,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          903,
+          905
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            849,
+            856
+          ],
+          "rawcode": 1215324524,
+          "flags": 4609,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 570966032
+        },
+        "unit60": 0,
+        "head": [
+          896,
+          925
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 41,
+      "tick": 5,
+      "scene": 0,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          903,
+          905
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            849,
+            856
+          ],
+          "rawcode": 1215324524,
+          "flags": 4609,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 570966032
+        },
+        "unit60": 0,
+        "head": [
+          896,
+          925
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 53,
+      "tick": 5,
+      "scene": 0,
+      "rva": 4252576,
+      "caller": 4240581,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          903,
+          905
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            849,
+            856
+          ],
+          "rawcode": 1215324524,
+          "flags": 4609,
+          "suspension": 0,
+          "invisibility": 1,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 570966032
+        },
+        "unit60": 0,
+        "head": [
+          896,
+          925
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 270,
+      "tick": 65,
+      "scene": 1,
+      "rva": 4236544,
+      "caller": 4338008,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          974,
+          1007
+        ],
+        "alias": 1095726955,
+        "flags": 16,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            897,
+            958
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          890,
+          1047
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 271,
+      "tick": 65,
+      "scene": 1,
+      "rva": 4176768,
+      "caller": 4236870,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          974,
+          1007
+        ],
+        "alias": 1095726955,
+        "flags": 273,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            897,
+            958
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          890,
+          1047
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 276,
+      "tick": 65,
+      "scene": 1,
+      "rva": 4175312,
+      "caller": 4177132,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          974,
+          1007
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            897,
+            958
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          890,
+          1047
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 281,
+      "tick": 65,
+      "scene": 1,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          974,
+          1007
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            897,
+            958
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          890,
+          1047
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 293,
+      "tick": 65,
+      "scene": 1,
+      "rva": 4252576,
+      "caller": 4240581,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          974,
+          1007
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            897,
+            958
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 1,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          890,
+          1047
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 511,
+      "tick": 125,
+      "scene": 2,
+      "rva": 4236544,
+      "caller": 4338008,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          928,
+          1129
+        ],
+        "alias": 1095726955,
+        "flags": 16,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            878,
+            1080
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          961,
+          1170
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 512,
+      "tick": 125,
+      "scene": 2,
+      "rva": 4176768,
+      "caller": 4236870,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          928,
+          1129
+        ],
+        "alias": 1095726955,
+        "flags": 273,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            878,
+            1080
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          961,
+          1170
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 517,
+      "tick": 125,
+      "scene": 2,
+      "rva": 4175312,
+      "caller": 4177132,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          928,
+          1129
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            878,
+            1080
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          961,
+          1170
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 522,
+      "tick": 125,
+      "scene": 2,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          928,
+          1129
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            878,
+            1080
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          961,
+          1170
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 534,
+      "tick": 125,
+      "scene": 2,
+      "rva": 4252576,
+      "caller": 4240581,
+      "ability": {
+        "pointer": "0x89b0f6c",
+        "identity": [
+          928,
+          1129
+        ],
+        "alias": 1095726955,
+        "flags": 4369,
+        "timing": [
+          0,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            878,
+            1080
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 1,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          961,
+          1170
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 751,
+      "tick": 185,
+      "scene": 3,
+      "rva": 4236544,
+      "caller": 4338008,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          890,
+          1252
+        ],
+        "alias": 1462973235,
+        "flags": 16,
+        "timing": [
+          1056964608,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            959,
+            1203
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          968,
+          1292
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 752,
+      "tick": 185,
+      "scene": 3,
+      "rva": 4176768,
+      "caller": 4236870,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          890,
+          1252
+        ],
+        "alias": 1462973235,
+        "flags": 273,
+        "timing": [
+          1056964608,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            959,
+            1203
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          968,
+          1292
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 777,
+      "tick": 190,
+      "scene": 3,
+      "rva": 4175312,
+      "caller": 4348717,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          890,
+          1252
+        ],
+        "alias": 1462973235,
+        "flags": 4369,
+        "timing": [
+          1056964608,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            959,
+            1203
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          4294967295,
+          4294967295
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 782,
+      "tick": 191,
+      "scene": 3,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          890,
+          1252
+        ],
+        "alias": 1462973235,
+        "flags": 4369,
+        "timing": [
+          1056964608,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            959,
+            1203
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 0,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          4294967295,
+          4294967295
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    },
+    {
+      "event": "windwalk-phase",
+      "seq": 794,
+      "tick": 191,
+      "scene": 3,
+      "rva": 4252576,
+      "caller": 4240581,
+      "ability": {
+        "pointer": "0x8baa81c",
+        "identity": [
+          890,
+          1252
+        ],
+        "alias": 1462973235,
+        "flags": 4369,
+        "timing": [
+          1056964608,
+          1056964608,
+          1070973584
+        ],
+        "unit": {
+          "pointer": "0x8da0634",
+          "identity": [
+            959,
+            1203
+          ],
+          "rawcode": 1215324524,
+          "flags": 4608,
+          "suspension": 0,
+          "invisibility": 1,
+          "availability": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "clock_depth": 0,
+          "attack_flags": 524432
+        },
+        "unit60": 0,
+        "head": [
+          4294967295,
+          4294967295
+        ],
+        "task": [
+          4294967295,
+          4294967295
+        ]
+      }
+    }
+  ],
+  "task_records": [
+    {
+      "event": "point-task",
+      "seq": 248,
+      "tick": 61,
+      "scene": 1,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          897,
+          958
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0,
+        "attack_flags": 34103312
+      },
+      "caller": 6281565,
+      "code": 852331,
+      "point": [
+        1156415488,
+        1140850688
+      ],
+      "range": 0,
+      "association": "0x0"
+    },
+    {
+      "event": "target-task",
+      "seq": 488,
+      "tick": 121,
+      "scene": 2,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          878,
+          1080
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0,
+        "attack_flags": 34103313
+      },
+      "caller": 4828353,
+      "code": 852335,
+      "target": "0x8da0324",
+      "range": 1120403456
+    },
+    {
+      "event": "target-task",
+      "seq": 489,
+      "tick": 121,
+      "scene": 2,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          878,
+          1080
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0,
+        "attack_flags": 34103313
+      },
+      "caller": 4828391,
+      "code": 852328,
+      "target": "0x8da0324",
+      "range": 0
+    },
+    {
+      "event": "point-task",
+      "seq": 729,
+      "tick": 181,
+      "scene": 3,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          959,
+          1203
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0,
+        "attack_flags": 34103312
+      },
+      "caller": 6281565,
+      "code": 852331,
+      "point": [
+        1156415488,
+        1140850688
+      ],
+      "range": 0,
+      "association": "0x0"
+    }
+  ],
+  "scope": {
+    "public": "Two observations and fresh observer-free control: all 591 literal records identical, including all 5 spell phases per scene. Stock AOwk phases precede order return; W333 CHANNEL precedes return, public CAST/EFFECT/FINISH/ENDCAST occur tick191 with head0.",
+    "private": "957 sequenced records per observation retained literally, no pointer or numeric normalization. Private CAST entry tick190 precedes public CAST marker tick191: marker tick is last observed public tick, not an independent function-entry clock.",
+    "timing": "All 20 phase snapshots retain 8c=1056964608 and 94=1070973584; 84=0 for AOwk and1056964608 for W333. Flag100 absent at40a500 entry and set at subsequent phase entries.",
+    "tasks": "Two Move point constructor and two Attack target constructor observations. No claim of full motion integration or task lifetime from constructor records.",
+    "limits": [
+      "No C parity claim.",
+      "No general other-ability timing claim.",
+      "Native opaque identities and addresses remain raw and differ between processes; public streams alone are compared cross-process.",
+      "acas to Cast metadata was inspected from retail AbilityMetaData.slk during source preparation; extracted original row was not retained in this capture bundle. The W3A bytes and effective native84=.5 are retained."
+    ]
+  }
+}

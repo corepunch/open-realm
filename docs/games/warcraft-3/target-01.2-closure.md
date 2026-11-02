@@ -138,6 +138,25 @@ using actual owned state. Their complete families pass 106 tests/32,586
 assertions; the 148-row birth replay and fresh item gate pass. The complete
 full batch has not been repeated after those fixture-only corrections.
 
+**Checkpoint333 reference, port pending:**
+The [333 original reference](../../../tools/ghidra/fixtures/research/windwalk333-public-original.json) pins 591 identical public rows across two observations and an
+unhooked control: idle, Move, explicit Attack chase, and a configured W333 alias
+with Cast0.5. Wind Walk cancels the prior movement/combat owner. Stock phases
+all precede return; W333 returns after CHANNEL with head0, then completes later
+under head0. Private timing fields retain Cast0/0.5, cast point0.5 and backswing
+approximately1.67; the instant flag bypasses the latter two.
+
+The [333 static proof](../../../tools/ghidra/fixtures/research/windwalk333-instant-original.json) guards seven complete functions, four slots, 50 direct calls and
+21 branch guards, with eight negative controls. Native02000000 sets ability100,
+enters CHANNEL without an ordinary cast task, skips point/backswing, and retains
+channel84 unless Unit60.8 overrides it. No Move-preservation claim is made.
+The current C333 replay has 591 rows but 244 positional mismatches, first at
+row25 (return before native EFFECT); it remains red. The required port is a
+retained taskless cast owner with packet-lifetime guards, not timing overrides
+alone. Later Move/Stop during delayed admission remains an evidence boundary.
+
+B01 and all 25 whole leaves remain open.
+
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 
 1. Preserve the completed public265 stream and cache correction. For D036–D041, attach the exact acquisition/home/replacement scene rather than describing that completed stream as unfinished.

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Checkpoint332 matches all148 original same-cell birth records in C. Full332 batch found two legacy fixture types failing in both editions; their complete families pass after test-only corrections, but the full batch was not repeated. Full331 remains red at AOwk instant/taskless admission; B01 remains open.",
+  "status": "Native333 reference and instant-admission original code are pinned; the taskless AOwk cast owner remains unported. C333 is red at25; mixed331 remains red at67. Production332 birth matches148. Full332 legacy fixture failures are corrected by focused families, not a repeated full batch. B01 remains open.",
   "save_version": 247,
   "full_suite_run": true,
   "native299_engine_parity": true,
@@ -7962,9 +7962,67 @@
       "full_batch_repeated": false
     }
   },
-  "current_phase": 332,
+  "current_phase": 333,
   "full_suite_passed": false,
   "latest_full_source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
   "latest_full_known_failures_corrected": true,
-  "latest_full_repeated_after_fixture_corrections": false
+  "latest_full_repeated_after_fixture_corrections": false,
+  "phase333": {
+    "scope": "Original Wind Walk instant/taskless admission reference, not a completed C port.",
+    "save_version": 247,
+    "production_port_complete": false,
+    "full_suite_run": false,
+    "native": {
+      "passed": true,
+      "observations": 2,
+      "fresh_unhooked_controls": 1,
+      "public_records": 591,
+      "native_records_per_observation": 957,
+      "negative_controls": 8,
+      "fixture": "tools/ghidra/fixtures/research/windwalk333-public-original.json",
+      "checker": "tools/ghidra/research/windwalk333_capture_check.py",
+      "scenes": [
+        "idle",
+        "Move",
+        "explicit Attack chase",
+        "Move with configured W333 Cast0.5"
+      ],
+      "metadata_row_limit": "acas-to-Cast retail metadata inspection was not retained as a standalone row artifact; authored W3A and effective timing84 values are retained.",
+      "clock_label_limit": "Private CAST entry carries last marker tick190; the public CAST callback carries tick191. Both are retained literally."
+    },
+    "static": {
+      "passed": true,
+      "fixture": "tools/ghidra/fixtures/research/windwalk333-instant-original.json",
+      "checker": "tools/ghidra/research/windwalk333_instant_check.py",
+      "whole_functions": 7,
+      "vtable_words": 4,
+      "direct_calls": 50,
+      "branch_guards": 21,
+      "negative_controls": 8
+    },
+    "contract": [
+      "Native02000000 selects ability100 taskless activation; previous Move/Attack is canceled.",
+      "No ordinary spell task is constructed. Channel delay84 remains authored unless Unit60.8 overrides it; instant100 skips point8c and backswing94.",
+      "Accepted Wind Walk head is visible during synchronous callbacks; delayed phases run after the head has retired to zero.",
+      "No Move-preservation, full private-row equality, or C parity claim."
+    ],
+    "c_before_port": {
+      "passed": false,
+      "source_commit": "1fb95c186",
+      "report": "build/tests/invisibility333/c-before-port.summary.json",
+      "actual_public_records": 591,
+      "expected_public_records": 591,
+      "positional_mismatches": 244,
+      "matching_prefix": 25,
+      "first_difference": "C returns windwalk result before native EFFECT291 in stock idle scene.",
+      "library_sha256": "a3a0ad6edfb348e2a2851fe237e821677671462b39c2ae079de7c6276385d4cd",
+      "source_file_count": 607
+    },
+    "remaining": [
+      "Implement persisted taskless cast policy with correct previous-owner cancellation, no ordinary cast task, and callback-safe packet retirement.",
+      "Establish later Move/Stop semantics during the delayed channel before claiming those branches."
+    ],
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25
+  }
 }
