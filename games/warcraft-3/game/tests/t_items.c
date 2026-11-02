@@ -1116,7 +1116,70 @@ static void item326_marker(cstring_t text) {
     if(item326_trace.index<item326_trace.count)T_STREQ(text,item326_trace.rows[item326_trace.index]);
     item326_trace.index++;
 }
-static void item326_inventory_protocol(bool engine_lifetimes) {
+/* Component327 checks original407600/48c8c0 ordering, not a captured
+ * public Pause-during-cast timeline. No synthetic busy(+44) contribution. */
+static uint32_t item327_endcasts, item327_orders, item327_uses;
+static bool item327_acquiring, item327_finish_disable, item327_service_disable;
+static bool item327_recursive_enabled, item327_recursive_started;
+static edict_t *item327_subject(void) {
+    FOR_LOOP(n,globals.num_edicts)
+        if(g_edicts[n].inuse && g_edicts[n].user_data==3261)return g_edicts+n;
+    return NULL;
+}
+static void item327_marker(cstring_t text) {
+    if(strncmp(text,"I326 event id=87 ",17)==0) {
+        item327_uses++;
+        if(item327_finish_disable) {
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            if(unit) {
+                T_ASSERT(item327_acquiring);T_ASSERT(S_UnitHasSpellTask(unit));
+                edict_t *item=G_InventoryItem(unit,0);T_NOT_NULL(item);
+                if(item)T_EQ(G_ItemCharges(item),0);
+                T_EQ(item327_endcasts,1);
+            }
+        }
+    }
+    if(strncmp(text,"I326 order ",11)==0)item327_orders++;
+    if(strncmp(text,"I326 event id=293 ",18)==0) {
+        item327_endcasts++;
+        if(item327_recursive_enabled && !item327_recursive_started) {
+            /* Component input to the original shared-this factory contract:
+             * new CHANNEL3fbb80 clears4000 before the outer v388 resumes.
+             * This does not claim public reentrant item admission. */
+            item327_recursive_started=true;
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            edict_t *item=unit ? G_InventoryItem(unit,0) : NULL;T_NOT_NULL(item);
+            if(item)T_ASSERT(S_BeginItemCast(unit,item,item->spawn_time,MAKEFOURCC('A','I','v','1')));
+        }
+        if(item327_acquiring) {
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            if(!unit)return;
+            unitAbilityDisable_t *item=NULL,*pack=NULL;
+            for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next) {
+                if(n->attachment_slot)item=n;
+                else if(n->code==MAKEFOURCC('A','I','n','v'))pack=n;
+            }
+            T_NOT_NULL(item);T_NOT_NULL(pack);
+            if(item){T_EQ(item->depth,1);T_EQ(item->order_depth,0);T_EQ(item->busy_depth,0);}
+            if(pack){T_EQ(pack->depth,0);T_EQ(pack->order_depth,0);}
+            T_EQ(unit->current_order_id,852008);
+            T_ASSERT(S_UnitHasSpellTask(unit));
+        }
+    }
+    if(item327_service_disable && ((!item327_finish_disable && strncmp(text,"I326 event id=289 ",18)==0) ||
+       (item327_finish_disable && strncmp(text,"I326 event id=292 ",18)==0))) {
+        edict_t *unit=item327_subject();T_NOT_NULL(unit);
+        if(!unit)return;
+        item327_acquiring=true;
+        S_AcquireBuffAbilityDisables(unit,true);
+        item327_acquiring=false;
+        T_EQ(item327_endcasts,1);
+        for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next)
+            if(n->attachment_slot){T_EQ(n->depth,1);T_EQ(n->order_depth,1);T_EQ(n->busy_depth,0);}
+    }
+}
+static void item326_inventory_protocol(int mode) {
+    bool const engine_lifetimes=mode!=0;
     char const *const *rows[]={item326_scene0,item326_scene1,item326_scene2,item326_scene3,item326_scene4};
     size_t counts[]={sizeof(item326_scene0)/sizeof(item326_scene0[0]),sizeof(item326_scene1)/sizeof(item326_scene1[0]),sizeof(item326_scene2)/sizeof(item326_scene2[0]),sizeof(item326_scene3)/sizeof(item326_scene3[0]),sizeof(item326_scene4)/sizeof(item326_scene4[0])};
     char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"Data14\"\nC;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y1;X15;K\"Cost1\"\nC;Y1;X16;K\"Cool1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"AIv1\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X12;K\"4\"\nC;Y3;X13;K\"4\"\nC;Y3;X14;K\"Binv\"\nC;Y3;X15;K\"0\"\nC;Y3;X16;K\"0\"\nE\n";
@@ -1124,15 +1187,17 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
     char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nE\n";
     char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"0\"\nE\n";
     char const unit_abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"AInv\"\nE\n";
-    FOR_LOOP(scene,9) {
-        if((scene>=5)!=engine_lifetimes)continue;
+    FOR_LOOP(scene,15) {
+        if(mode==0 ? scene>=5 : mode==1 ? (scene<5 || scene>=9) : scene<9)continue;
         reset_entities();setup_test_world();
         slkTestData_t *ar=parse_slk_string(abilities),*ir=parse_slk_string(items),*dr=parse_slk_string(data),*wr=parse_slk_string(weapons),*ur=parse_slk_string(unit_abilities);
         slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir),*od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr),*ou=G_SetSLKRows("UnitAbilities",ur);
         void (*saved_marker)(cstring_t)=test_preload_marker;
         item326_trace=(typeof(item326_trace)){0};
         if(!engine_lifetimes)item326_trace=(typeof(item326_trace)){.rows=rows[scene],.count=counts[scene]};
-        test_preload_marker=engine_lifetimes ? NULL : item326_marker;
+        test_preload_marker=mode==2 && scene!=12 ? item327_marker : engine_lifetimes ? NULL : item326_marker;
+        item327_endcasts=item327_orders=item327_uses=0;item327_acquiring=false;item327_finish_disable=scene==11;item327_service_disable=scene==10 || scene==11;
+        item327_recursive_enabled=scene==14;item327_recursive_started=false;
         char script[10000];
         snprintf(script,sizeof(script),
             "type eventid extends handle\n"
@@ -1147,6 +1212,7 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
             " unit I326U=null\n"
             " item I326Item=null\n"
             " item I326Sibling=null\n"
+            " unit I327Recipient=null\n"
             " timer I326Timer=null\n"
             " integer I326Tick=0\n"
             " integer I326Scene=%u\n"
@@ -1168,7 +1234,16 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
             " local eventid e=GetTriggerEventId()\n"
             " call I326Emit(\"event id=\"+I2S(GetHandleId(e))+\" code=\"+I2S(GetSpellAbilityId())+\" used=\"+I2S(GetItemTypeId(GetManipulatedItem())))\n"
             " call I326State()\n"
-            " if not I326Acted and ((I326Scene==1 and e==EVENT_UNIT_SPELL_CHANNEL) or (I326Scene==2 and e==EVENT_UNIT_SPELL_CAST) or (I326Scene==3 and e==EVENT_UNIT_SPELL_EFFECT)) then\n"
+            " if I326Scene==13 and e==EVENT_UNIT_USE_ITEM then\n"
+            "  call BJassAssert(GetTriggerUnit()==I327Recipient and GetManipulatedItem()==I326Item,\"completion uses current carrier and retained item\")\n"
+            " elseif not I326Acted and I326Scene==13 and e==EVENT_UNIT_SPELL_ENDCAST then\n"
+            "  set I326Acted=true\n"
+            "  call UnitRemoveItem(I326U,I326Item)\n"
+            "  call BJassAssert(UnitAddItem(I327Recipient,I326Item),\"ENDCAST transfers original to actual recipient\")\n"
+            " elseif not I326Acted and I326Scene==10 and e==EVENT_UNIT_SPELL_ENDCAST then\n"
+            "  set I326Acted=true\n"
+            "  call BJassAssert(not UnitUseItem(I326U,I326Item),\"first disable rejects nested same item\")\n"
+            " elseif not I326Acted and ((I326Scene==1 and e==EVENT_UNIT_SPELL_CHANNEL) or (I326Scene==2 and e==EVENT_UNIT_SPELL_CAST) or (I326Scene==3 and e==EVENT_UNIT_SPELL_EFFECT)) then\n"
             "  set I326Acted=true\n"
             "  call I326Emit(\"callback-stop result=\"+I2S(I326Bool(IssueImmediateOrder(I326U,\"stop\"))))\n"
             " elseif not I326Acted and (I326Scene==4 or I326Scene==7) and e==EVENT_UNIT_SPELL_CHANNEL then\n"
@@ -1187,19 +1262,40 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
             "function repick326 takes nothing returns nothing\n"
             "call UnitRemoveItem(I326U,I326Item)\n"
             "call BJassAssert(UnitAddItem(I326U,I326Item),\"same item reattached\")\nendfunction\n"
+            "function replace327 takes nothing returns nothing\n"
+            "call UnitRemoveItem(I326U,I326Item)\n"
+            "set I326Sibling=CreateItem('pinv',1024,512)\n"
+            "call BJassAssert(UnitAddItem(I326U,I326Sibling),\"different replacement item attached\")\n"
+            "call BJassAssert(UnitItemInSlot(I326U,0)==I326Sibling,\"replacement occupies original slot\")\nendfunction\n"
             "function check326 takes nothing returns nothing\n"
             "if I326Scene==5 then\n"
             "call BJassAssert(GetItemTypeId(I326Item)==0 and GetUnitAbilityLevel(I326U,'Binv')==1,\"saved queued use completed\")\n"
             "elseif I326Scene==6 then\n"
-            "call BJassAssert(GetItemTypeId(I326Item)=='pinv' and GetItemCharges(I326Item)==1 and UnitItemInSlot(I326U,0)==I326Item,\"new attachment not consumed\")\n"
-            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==0,\"old queued attachment rejected\")\n"
+            "call BJassAssert(GetItemTypeId(I326Item)==0 and GetUnitAbilityLevel(I326U,'Binv')==1,\"same weak item repick activates new owner\")\n"
+            "elseif I326Scene==12 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)=='pinv' and GetItemCharges(I326Item)==1,\"old weak item not consumed\")\n"
+            "call BJassAssert(GetItemTypeId(I326Sibling)=='pinv' and GetItemCharges(I326Sibling)==1 and UnitItemInSlot(I326U,0)==I326Sibling,\"replacement same alias not borrowed\")\n"
+            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==0,\"different item rejects old queued packet\")\n"
             "elseif I326Scene==7 then\n"
             "call BJassAssert(GetItemTypeId(I326Item)==0,\"old source removed\")\n"
             "call BJassAssert(GetItemTypeId(I326Sibling)=='pinv' and GetItemCharges(I326Sibling)==1 and UnitItemInSlot(I326U,1)==I326Sibling,\"sibling retained exactly\")\n"
             "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==1,\"retained source ability executed\")\n"
+            "elseif I326Scene==13 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)==0 and UnitItemInSlot(I327Recipient,0)==null,\"transferred original consumed\")\n"
+            "call BJassAssert(UnitItemInSlot(I326U,1)==I326Sibling and GetItemCharges(I326Sibling)==1,\"completion never borrows sibling\")\n"
+            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==1,\"effect remains on original caster\")\n"
             "elseif I326Scene==8 then\n"
             "call BJassAssert(GetUnitCurrentOrder(I326U)==OrderId(\"move\"),\"callback successor survives unwind\")\n"
             "endif\nendfunction\n"
+            "function pause327 takes nothing returns nothing\ncall PauseUnit(I326U,true)\nendfunction\n"
+            "function reject327 takes nothing returns nothing\n"
+            "call BJassAssert(not UnitUseItem(I326U,I326Item),\"settled Pause rejects first item\")\n"
+            "call BJassAssert(not UnitUseItem(I326U,I326Sibling),\"settled Pause rejects sibling item\")\nendfunction\n"
+            "function detach327 takes nothing returns nothing\ncall RemoveItem(I326Item)\nendfunction\n"
+            "function use327 takes nothing returns nothing\n"
+            "call PauseUnit(I326U,false)\n"
+            "call BJassAssert(UnitUseItem(I326U,I326Sibling),\"inverse restores sibling admission\")\n"
+            "endfunction\n"
             "function run326 takes nothing returns nothing\nlocal boolean accepted\n"
             " call I326Emit(\"before-use\")\n"
             " call I326State()\n"
@@ -1217,8 +1313,16 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
             " call BJassAssert(GetUnitAbilityLevel(I326U,'AInv')==1,\"natural inventory\")\n"
             " call BJassAssert(UnitAddItem(I326U,I326Item),\"actual pickup\")\n"
             " call BJassAssert(UnitItemInSlot(I326U,0)==I326Item,\"held item identity\")\n"
-            " if I326Scene==7 then\nset I326Sibling=CreateItem('pinv',1024,512)\n"
+            " if I326Scene==14 then\ncall SetItemCharges(I326Item,2)\nendif\n"
+            " if I326Scene==7 or I326Scene==9 or I326Scene==13 then\nset I326Sibling=CreateItem('pinv',1024,512)\n"
             "call BJassAssert(UnitAddItem(I326U,I326Sibling),\"same alias sibling held\")\nendif\n"
+            " if I326Scene==13 then\n"
+            "  set I327Recipient=CreateUnit(Player(0),'Hpal',1100,512,0)\n"
+            "  call BJassAssert(GetUnitAbilityLevel(I327Recipient,'AInv')==1,\"recipient natural inventory\")\n"
+            "  set tr=CreateTrigger()\n"
+            "  call TriggerRegisterUnitEvent(tr,I327Recipient,EVENT_UNIT_USE_ITEM)\n"
+            "  call TriggerAddAction(tr,function I326Event)\n"
+            " endif\n"
             " set tr=CreateTrigger()\n"
             " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_CHANNEL)\n"
             " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_CAST)\n"
@@ -1237,16 +1341,124 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
             "endfunction\n"
             ,scene);
         T_ASSERT(run_test_jass(script));
+        if(scene==9) {
+            /* Settled public Pause and actual twin attachments, followed by
+             * a cold restore. No manufacture of private counter values. */
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            if(unit) {
+                uint32_t slots[32]={0},generations[32]={0},codes[32]={0},count=0,item_count=0;
+                jass_callbyname(level.vm,"pause327",false);
+                uint32_t const head=unit->current_order_id,orders=item327_orders,number=unit->s.number;
+                for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next) {
+                    T_ASSERT(count<32);if(count>=32)break;
+                    slots[count]=n->attachment_slot;generations[count]=n->attachment_generation;codes[count++]=n->code;
+                    if(n->attachment_slot){item_count++;T_EQ(n->depth,1);T_EQ(n->order_depth,1);T_EQ(n->busy_depth,0);}
+                }
+                T_EQ(item_count,2);T_ASSERT(slots[0]!=slots[1] || generations[0]!=generations[1]);
+                jass_callbyname(level.vm,"reject327",false);T_EQ(item327_orders,orders);T_EQ(unit->current_order_id,head);
+                /* Both save directions use this token reconciliation. Reject
+                 * missing, duplicated, foreign-generation and wrong-code owners,
+                 * then restore the exact valid list before the real cold save. */
+                unitAbilityDisable_t *first=unit->ability_disables,*second=first ? first->next : NULL;
+                T_NOT_NULL(first);T_NOT_NULL(second);T_ASSERT(S_ValidateItemAbilityAvailability());
+                if(first && second) {
+                    uint32_t const saved_slot=first->attachment_slot,saved_generation=first->attachment_generation,saved_code=first->code;
+                    first->attachment_generation=saved_generation+1;
+                    T_ASSERT(!S_ValidateItemAbilityAvailability());first->attachment_generation=saved_generation;
+                    first->code=saved_code^1;
+                    T_ASSERT(!S_ValidateItemAbilityAvailability());first->code=saved_code;
+                    first->attachment_slot=second->attachment_slot;first->attachment_generation=second->attachment_generation;
+                    T_ASSERT(!S_ValidateItemAbilityAvailability());
+                    first->attachment_slot=saved_slot;first->attachment_generation=saved_generation;
+                    unit->ability_disables=first->next;
+                    T_ASSERT(!S_ValidateItemAbilityAvailability());unit->ability_disables=first;
+                    T_ASSERT(S_ValidateItemAbilityAvailability());
+                }
+                cstring_t path=Test_TempPath("item327-paused-owners.bin");
+                T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+                unit=g_edicts+number;uint32_t index=0;
+                for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next) {
+                    T_ASSERT(index<count);if(index>=count)break;
+                    T_EQ(n->attachment_slot,slots[index]);T_EQ(n->attachment_generation,generations[index]);T_EQ(n->code,codes[index]);index++;
+                    if(n->attachment_slot){T_EQ(n->depth,1);T_EQ(n->order_depth,1);T_EQ(n->busy_depth,0);}
+                }
+                T_EQ(index,count);jass_callbyname(level.vm,"reject327",false);T_EQ(item327_orders,orders);
+                jass_callbyname(level.vm,"detach327",false);item_count=0;
+                for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next)if(n->attachment_slot) {
+                    item_count++;T_EQ(n->depth,1);T_EQ(n->order_depth,1);T_EQ(n->busy_depth,0);
+                }
+                T_EQ(item_count,1);
+                /* This scene checks settled Pause, not the component callback. */
+                test_preload_marker=NULL;jass_callbyname(level.vm,"use327",false);
+                T_ASSERT(!jass_rterror_pending(level.vm));
+                for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next)
+                    if(n->attachment_slot){T_EQ(n->depth,0);T_EQ(n->order_depth,0);T_EQ(n->busy_depth,0);}
+                /* Public resume schedules physical release. The accepted item
+                 * packet executes through that real primary/frame owner. */
+                FOR_LOOP(frame,200) {
+                    if(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')))break;
+                    item324_frame();
+                }
+                T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+            }
+        }
         edict_t *held=NULL;
-        if(scene==5 || scene==6) {
+        if(scene==5 || scene==6 || scene==12) {
             FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3261)held=g_edicts+n;
             T_NOT_NULL(held);
             /* Component hold exercises680320 queue/save ownership. This is
              * not a claim about public item admission during scripted Pause. */
             if(held)held->construction_held=true;
         }
-        jass_callbyname(level.vm,"run326",false);
+        edict_t *item327_original=(scene==10 || scene==14) && item327_subject() ? G_InventoryItem(item327_subject(),0) : NULL;
+        uint32_t const item327_birth=item327_original ? item327_original->spawn_time : 0;
+        if(scene!=9)jass_callbyname(level.vm,"run326",false);
         T_ASSERT(!jass_rterror_pending(level.vm));
+        if(scene==10) {
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            T_EQ(item327_endcasts,1);T_EQ(item327_orders,1);
+            if(unit) {
+                T_ASSERT(!S_UnitHasSpellTask(unit));
+                /* Component service hold: retained effect sees a live user
+                 * head; inactive completion cannot consume its source item.
+                 * This is not an additional native public Pause timeline. */
+                T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                edict_t *source=G_InventoryItem(unit,0);T_NOT_NULL(source);
+                if(source) {
+                    T_ASSERT(source==item327_original);T_EQ(source->spawn_time,item327_birth);
+                    T_EQ(source->class_id,MAKEFOURCC('p','i','n','v'));
+                    T_ASSERT(G_ItemState(source) && G_ItemState(source)->carrier==unit);
+                    T_EQ(G_ItemCharges(source),1);
+                }
+                T_EQ(item327_uses,0);T_EQ(item327_endcasts,1);
+                T_EQ(unit->current_order_id,0);
+                S_ReleaseBuffAbilityDisables(unit,true);
+                for(unitAbilityDisable_t *n=unit->ability_disables;n;n=n->next)
+                    if(n->attachment_slot){T_EQ(n->depth,0);T_EQ(n->order_depth,0);T_EQ(n->busy_depth,0);}
+            }
+        }
+        if(scene==14) {
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            T_ASSERT(item327_recursive_started);T_EQ(item327_endcasts,2);T_EQ(item327_uses,1);
+            if(unit) {
+                edict_t *item=G_InventoryItem(unit,0);T_NOT_NULL(item);
+                if(item){T_ASSERT(item==item327_original);T_EQ(item->spawn_time,item327_birth);T_EQ(G_ItemCharges(item),1);}
+                T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+            }
+        }
+        if(scene==13){T_EQ(item327_endcasts,1);T_EQ(item327_uses,1);}
+        if(scene==11) {
+            /* Component407600 FINISH disable with4000 pending completion;
+             * this is not another literal native public capture. */
+            edict_t *unit=item327_subject();T_NOT_NULL(unit);
+            T_EQ(item327_endcasts,1);T_EQ(item327_uses,1);T_EQ(item327_orders,1);
+            if(unit) {
+                T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_NULL(G_InventoryItem(unit,0));T_EQ(unit->current_order_id,0);
+                T_ASSERT(!S_UnitHasSpellTask(unit));
+                S_ReleaseBuffAbilityDisables(unit,true);
+            }
+        }
         if(!engine_lifetimes)T_EQ(item326_trace.index,item326_trace.count);
         else {
             /* Engine ownership/inverse regressions, NOT additional native
@@ -1255,7 +1467,7 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
             edict_t *unit=NULL;
             FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3261)unit=g_edicts+n;
             T_NOT_NULL(unit);
-            if(unit && (scene==5 || scene==6)) {
+            if(unit && (scene==5 || scene==6 || scene==12)) {
                 T_ASSERT(unit->construction_held);T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
                 T_NOT_NULL(G_InventoryItem(unit,0));
                 uint32_t const number=unit->s.number;
@@ -1264,6 +1476,7 @@ static void item326_inventory_protocol(bool engine_lifetimes) {
                 unit=g_edicts+number;T_ASSERT(unit->construction_held);
                 T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
                 if(scene==6)jass_callbyname(level.vm,"repick326",false);
+                if(scene==12)jass_callbyname(level.vm,"replace327",false);
                 unit->construction_held=false;
                 G_UnitStartNextQueuedOrder(unit);
             }
@@ -1283,6 +1496,10 @@ TEST(wc3_items, invisibility326_public_inventory_phase_callback_protocol) {
 }
 TEST(wc3_items, invisibility326_public_inventory_attachment_and_callback_inverses) {
     item326_inventory_protocol(true);
+}
+
+TEST(wc3_items, invisibility327_item_availability_order_and_saved_twins) {
+    item326_inventory_protocol(2);
 }
 
 TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {

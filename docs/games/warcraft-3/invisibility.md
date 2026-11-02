@@ -210,3 +210,37 @@ native public rows; the two new tests pass209 assertions per edition. Additional
 cases are engine regressions, not new retail oracles or public paused-admission
 proof. The initial red/green fixture attempts omitted unit-spell constants from
 the minimal common.j; they are excluded as failing-first product evidence.
+
+## Per-item availability: checkpoint327
+
+Each profiled AIvi attachment has its own ordered availability node, even when
+two items share an alias. Settled scripted Pause rejects public `UnitUseItem`
+without issuing an order or changing the head; the inverse restores admission.
+Save245 preserves tokens, signed counters and list order. Detaching one item
+cannot release its sibling's owner.
+
+The [guarded original327 evidence](../../../tools/ghidra/fixtures/research/invisibility327-availability-original.json)
+traces admission through2190c0→206b20→69dc80/3fc460 and first disable407600.
+The latter clears pending publication before ENDCAST, while the old cast is
+still active; active completion clears afterward. The component test observes
+item depth 1/order 0 before AInv is visited, rejects nested same-item use, and
+releases after factory unwind. Fresh zero-time AIvi has neither 4 nor 800 task
+ownership; ordinary phases do not write 44. This is static-chain plus engine
+proof, not a new live Pause-during-cast timeline or a claim about every item.
+
+Canonical item ownership also shares 0x1000/0x4000 across recursive executions.
+New CHANNEL3fbb80 clears 0x4000; the completion inverse emits ENDCAST, clears 0x4000,
+decrements charge, publishes USE_ITEM on the retained item's current carrier,
+then rereads perishability. A nested same-instance cast cannot leave an outer
+per-cast flag that consumes again. The component regression first failed two
+assertions out of 159 and now passes; it does not claim public reentrant admission.
+FINISH-disable and ENDCAST-transfer component cases check one USE, current-carrier
+identity and sibling preservation. Queued690930 admission retains weak Item
+identity/incarnation plus numeric slot command: same-item/same-slot repick
+executes, but a different same-alias replacement does not.
+
+Both-edition focused checks pass 2,326 tests/286,242 assertions; all five fresh
+gates and normal/nine-checkpoint saved C299 pass. No full327 suite is claimed. The early
+sibling-effect assertion incorrectly expected synchronous execution immediately
+after PauseUnit(false); the corrected fixture drains the real resume scheduler.
+It is not failing-first product evidence. Mixed-contributor B01 work remains open.

@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Profiled no-target AIvi ordinary inventory/cast ownership matches the declared five-case81-row protocol in both editions. B01 overlap compositions and caller dispositions remain open.",
-  "save_version": 244,
-  "full_suite_run": true,
+  "status": "Save245 per-item AIvi availability and canonical shared pending ENDCAST/item-completion ownership pass final focused, five coordinated gates and normal/saved C299 checks. Queued ITEM context supersedes the stricter326 attachment-token policy. No327 full suite was run; B01 and all25 backlog leaves remain open.",
+  "save_version": 245,
+  "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -4059,7 +4059,7 @@
       "report": "build/tests/cooldown312/corpus-check.log"
     }
   },
-  "full_native_suite_run": true,
+  "full_native_suite_run": false,
   "hidden_source313": {
     "whole_leaves_closed": 0,
     "save_version": 237,
@@ -7003,6 +7003,175 @@
       "skipped": 0,
       "report": "build/tests/invisibility326/full-give-fix/summary.json",
       "source_freeze": "build/tests/invisibility326/full-give-fix-source.json"
+    }
+  },
+  "phase327": {
+    "scope": "Exact item attachment availability owners and canonical shared1000/4000 obligations for fresh profiled AIvi. Does not close B01 or the whole TARGET-01.2 leaf.",
+    "save_version": 245,
+    "ownership": [
+      "Each item ability attachment has its own ordered availability node keyed by slot/generation, including duplicate aliases. Signed execution/order counters are distinct from unrelated AInv or global Pause state.",
+      "Canonical item owner holds pending ENDCAST1000 and item-completion4000 across recursive same-instance execution; retained casts hold a strong owner reference. No synthetic44 phase acquisition.",
+      "ENDCAST precedes clearing4000, current-item resolution, charge decrement, USE_ITEM to current carrier, and post-callback perishable reread. Active ownership clears afterward.",
+      "Queued user packet retains ITEM incarnation plus numeric slot command, not an admitted ability attachment token; same-original-item/same-slot repick reselects the current owner. Already executing casts retain their exact old owner."
+    ],
+    "supersedes_phase326": [
+      "The326 claim that same-item repick invalidates the old queued attachment token was an engine-only overconstraint, not native proof.327 removes that queued-token model.",
+      "The326 held-packet assertion about preserving ability attachment identity is superseded by ITEM birth plus slot command. Retained running-execution identity remains separate."
+    ],
+    "original_proof": {
+      "fixture": "tools/ghidra/fixtures/research/invisibility327-availability-original.json",
+      "sha256": "5a105ad3004baa95fba9fff8b121de3e1125d32f06d7c806c9b111323bdee486",
+      "checker": "tools/ghidra/research/invisibility327_availability_check.py",
+      "passed": true,
+      "whole_functions": 48,
+      "vtable_words": 20,
+      "direct_calls": 135,
+      "unchanged326_flag_snapshots": 5,
+      "live_paused_use_witness": false,
+      "live_queued_repick_witness": false,
+      "live_pause_during_cast_witness": false
+    },
+    "failing_first": {
+      "report": "build/tests/invisibility327/shared-pending-red.xml",
+      "test": "wc3_items.invisibility327_item_availability_order_and_saved_twins",
+      "passed_assertions": 157,
+      "assertions": 159,
+      "failed_assertions": 2,
+      "cause": "Recursive same-instance phase execution required shared canonical completion obligations, not cast-local copies.",
+      "green_report": "build/tests/invisibility327/shared-pending-green.xml",
+      "green_tests": 13,
+      "green_assertions": 952
+    },
+    "focused": {
+      "report": "build/tests/invisibility327/focused-owned-final/summary.json",
+      "processes": 12,
+      "tests": 2326,
+      "assertions": 286242,
+      "passed": true
+    },
+    "c299": {
+      "normal_passed": true,
+      "nine_checkpoint_saved_passed": true,
+      "edition": "tft",
+      "public_rows": 2066,
+      "motion_rows": 5342,
+      "mismatches": 0,
+      "reports": [
+        "build/tests/invisibility327/owned-final-c299.summary.json",
+        "build/tests/invisibility327/owned-final-c299-saved.summary.json"
+      ]
+    },
+    "fresh_gates": {
+      "itemdrop": {
+        "report": "build/tests/invisibility327/gates-owned-final/itemdrop.json",
+        "passed": true,
+        "sha256": "ffa6938baf742fd67ea82bd80fd029becd84464c8eb18fea6f9e91d3a6903995",
+        "engine": {
+          "classic": {
+            "tests": 154,
+            "assertions": 12568
+          },
+          "tft": {
+            "tests": 154,
+            "assertions": 12568
+          }
+        }
+      },
+      "captain473": {
+        "report": "build/tests/invisibility327/gates-owned-final/captain473.json",
+        "passed": true,
+        "sha256": "9f66d32fbfaaed2b44aa2e6f885055523b4a7767e419fa62caf5567af9aba075",
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      },
+      "waygate377": {
+        "report": "build/tests/invisibility327/gates-owned-final/waygate377.json",
+        "passed": true,
+        "sha256": "ce739810d0901322458dbd773e48e1ecab8ded5ad671dd76a4e1c9f47d7796ce",
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "group012": {
+        "report": "build/tests/invisibility327/gates-owned-final/group012.json",
+        "passed": true,
+        "sha256": "45390b33f5b976c14ac8e4961546ae9ee5b62acd6f57fd6f4423e57262718f7f",
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "supportgoal": {
+        "report": "build/tests/invisibility327/gates-owned-final/supportgoal.json",
+        "passed": true,
+        "sha256": "4bb6aa7aded73a9656e450e35f5a26275b75262913efe254f0124394b620ab0c",
+        "engine": {
+          "classic": {
+            "tests": 514,
+            "assertions": 2002192
+          },
+          "tft": {
+            "tests": 514,
+            "assertions": 2002192
+          }
+        }
+      }
+    },
+    "full_suite_run": false,
+    "prior_full_suite": {
+      "phase": 326,
+      "source_commit": "0ec437abb",
+      "tests": 9472,
+      "assertions": 60732376,
+      "report": "build/tests/invisibility326/full-give-fix/summary.json",
+      "applies_to_current327_sources": false
+    },
+    "remaining": [
+      "B01 overlap compositions and remaining incoming caller dispositions.",
+      "No live queued-repick or Pause-during-cast witness; static and component scopes remain explicit."
+    ],
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "fresh_gates_summary": {
+      "passed": true,
+      "gates": 5,
+      "tests": 1474,
+      "assertions": 7096342,
+      "report": "build/tests/invisibility327/gates-owned-final/gates-exit.json",
+      "scope": "Sum of five separate gate reports across both editions; not a full-suite run."
+    },
+    "python": {
+      "passed": true,
+      "tests": 86,
+      "itemdrop": 38,
+      "attack_recovery299": 10,
+      "corpus": 38
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3355
     }
   }
 }

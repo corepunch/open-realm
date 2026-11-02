@@ -1888,6 +1888,16 @@ unitAbilityDisable_t *S_RetainAbilityAvailability(edict_t *ent,uint32_t code,uin
     return owner;
 }
 
+unitAbilityDisable_t *S_RetainItemAbilityAvailability(edict_t *ent,uint32_t slot,uint32_t generation) {
+    if(!ent || !ent->inuse || !slot || !generation)return NULL;
+    for(unitAbilityDisable_t *owner=ent->ability_disables;owner;owner=owner->next)
+        if(owner->linked && owner->attachment_slot==slot && owner->attachment_generation==generation) {
+            owner->references++;
+            return owner;
+        }
+    return NULL;
+}
+
 void S_ReleaseAbilityAvailability(unitAbilityDisable_t *owner) {
     ability_disable_release(owner);
 }
@@ -1928,7 +1938,12 @@ static intptr_t ability_disable_add(edict_t *ent,unitAbilityDisable_t *state,
     int32_t before=state->depth;
     state->depth=(int32_t)((uint32_t)before+1);
     intptr_t result=false;
-    if(before<=0 && state->depth>0 && item->ability && item->ability->proc &&
+    if(before<=0 && state->depth>0 && state->attachment_slot) {
+        edict_t *source=NULL;uint32_t birth=0,code=0;
+        if(S_ResolveItemAbilityAttachment(ent,state->attachment_slot,state->attachment_generation,&source,&birth,&code))
+            S_SuspendItemAbilityAttachment(ent,source,birth,state->attachment_slot,state->attachment_generation);
+    }
+    if(before<=0 && state->depth>0 && !state->attachment_slot && item->ability && item->ability->proc &&
        known_unit_ability_receives(*item,A_UNIT_SUSPEND)) {
         abilityCall_t call={.item=item,.retirement.destroying=destroying};
         result=item->ability->proc(ent,A_UNIT_SUSPEND,&call);
@@ -1945,7 +1960,7 @@ static void ability_disable_subtract(edict_t *ent,unitAbilityDisable_t *state,bo
     int32_t before=state->depth;
     state->depth=(int32_t)((uint32_t)before-1);
     abilityitem_t item=ability_disable_item(state);
-    if(before>0 && state->depth<=0 && item.ability && item.ability->proc &&
+    if(before>0 && state->depth<=0 && !state->attachment_slot && item.ability && item.ability->proc &&
        known_unit_ability_receives(item,A_UNIT_RESUME)) {
         abilityCall_t call={.item=&item};item.ability->proc(ent,A_UNIT_RESUME,&call);
     }
@@ -1975,6 +1990,45 @@ static void ability_disable_prepare(edict_t *ent) {
         if(ent->heroabilities[i].level && ent->heroabilities[i].code)ability_disable_attach(ent,ent->heroabilities[i].code);
     FOR_LOOP(i,ARRAY_COUNT(ent->abilities.added))
         if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
+}
+
+/* Item aliases share a procedure but never an availability instance. Keep
+ * the token in this retained list node, not in a recycled registry slot. */
+void S_AttachItemAbilityAvailability(edict_t *ent,uint32_t code,uint32_t slot,uint32_t generation) {
+    if(!ent || !slot || !generation || G_AbilityCode(code)!=MAKEFOURCC('A','I','v','i'))return;
+    ability_disable_prepare(ent);
+    for(unitAbilityDisable_t *node=ent->ability_disables;node;node=node->next)
+        if(node->attachment_slot==slot && node->attachment_generation==generation)return;
+    unitAbilityDisable_t *node=calloc(1,sizeof(*node));
+    if(!node){gi.error("Cannot allocate item availability owner");abort();}
+    node->code=code;node->class_code=MAKEFOURCC('A','I','v','i');
+    node->attachment_slot=slot;node->attachment_generation=generation;
+    node->references=2;node->linked=true;node->next=ent->ability_disables;ent->ability_disables=node;
+    abilityitem_t item=ability_disable_item(node);
+    int32_t pause=ent->ability_pause_depth;
+    node->pause_owned=pause>0;
+    for(int32_t i=0;i<pause && node->linked;i++)ability_disable_add(ent,node,&item,true,false);
+    if(node->linked) {
+        int32_t disable=ent->ability_disable_depth;
+        for(int32_t i=0;i<disable && node->linked;i++)ability_disable_add(ent,node,&item,false,false);
+    }
+    if(node->linked) {
+        int32_t exclusive=ent->ability_exclusive_depth;
+        for(int32_t i=0;i<exclusive && node->linked;i++)ability_disable_add(ent,node,&item,true,false);
+    }
+    ability_disable_release(node);
+}
+void S_DetachItemAbilityAvailability(edict_t *ent,uint32_t slot,uint32_t generation) {
+    for(unitAbilityDisable_t *node=ent ? ent->ability_disables : NULL;node;node=node->next)
+        if(node->attachment_slot==slot && node->attachment_generation==generation) {
+            ability_disable_unlink(ent,node);return;
+        }
+}
+bool S_ItemAbilityAttachmentDisabled(edict_t const *ent,uint32_t slot,uint32_t generation) {
+    for(unitAbilityDisable_t const *node=ent ? ent->ability_disables : NULL;node;node=node->next)
+        if(node->attachment_slot==slot && node->attachment_generation==generation)
+            return node->depth>0 || node->order_depth>0 || node->busy_depth>0;
+    return true;
 }
 
 /*691210 resolves NEXT after the callback. Unlike48c8c0's counted walk,

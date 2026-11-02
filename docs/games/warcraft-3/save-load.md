@@ -1,9 +1,21 @@
-Save244 is the checkpoint326 item-cast contract. A queued inventory
-packet retains the source item incarnation and ability attachment slot/generation;
-that attachment is distinct from retained execution code and active completion.
-Removing and repicking the same item cannot validate the old attachment token.
-The new cold-save fixtures exercise construction-held queued admission; they do
-not establish public item admission during scripted Pause. Both cold-save cases pass.
+Save245 retains each profiled AIvi item's ordered availability node, keyed by
+attachment slot/generation and exact alias. Signed counters, list order and
+canonical pending flags survive restore and validate against the item registry.
+The shared item owner, not each recursive cast record, owns 0x1000/0x4000. First
+disable emits ENDCAST before active clearing. Completion clears 0x4000 before
+charge decrement, synchronous USE_ITEM on the item's current carrier, and a
+fresh perishability check. Ordinary AIvi phases add no busy-count contribution.
+
+Queued inventory commands instead retain weak Item identity/incarnation and
+the numeric slot command, not an ability attachment token. The same original
+item dropped and repicked into the same slot activates its new owner; a different
+same-alias item cannot satisfy the old packet. Cold-save tests cover both cases,
+ordered duplicate-item availability and independent detach. Prior formats are
+rejected. Final focused/gate totals are pending; no full327 suite is claimed.
+
+The prior Save244 introduced the item-cast contract. Its queued attachment-token
+restriction was superseded by the original690930 weak-Item/slot semantics above.
+Construction-held queue tests are distinct from public Pause admission tests.
 
 The prior Save243 retains Binv's concrete-class node in the ordered ability-owner list.
 Its identity is the Binv class, independent of the displayed BuffID. Saved

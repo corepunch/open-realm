@@ -850,8 +850,8 @@ Both editions match81 selected order/phase/state rows from the complete
 cases cover cold-saved construction-held admission, same-item repick, sibling
 aliases and replacement Move. The two new tests pass209 assertions per edition. Earlier
 fixture attempts lacked unit-spell constants and are not failing-first evidence.
-AIvi public paused admission and remaining contributor compositions/caller
-dispositions still keep B01 and TARGET-01.2 open.
+At326, public paused admission and remaining contributor compositions/caller
+dispositions kept B01 and TARGET-01.2 open;327 resolves settled Pause admission below.
 
 The broader focused checks pass2,252 executions/275,666 assertions across both
 editions. Full normal and nine-save C299 replays still match2,066 public and
@@ -879,3 +879,49 @@ The corrected frozen326 build (`0ec437abb`) passes the complete native suite in
 both editions:9,472 tests and60,732,376 assertions across eight shards, with no
 failures, errors or skips. Binary and every game C/header hash match the frozen
 source snapshot. The optional SC2API configuration was not rerun. B01 and TARGET-01.2 remain open.
+
+## Per-item availability and first disable: checkpoint327
+
+Public `UnitUseItem` now tests the exact AIvi attachment's signed availability,
+independently of same-alias siblings. The original chain2190c0→206b20→69dc80
+and3fc460 establishes settled Pause rejection; the actual public engine test
+confirms no issued event/head mutation and admission after the inverse. The
+[canonical327 fixture](../../../tools/ghidra/fixtures/research/invisibility327-availability-original.json)
+and [byte checker](../../../tools/ghidra/research/invisibility327_availability_check.py)
+retain this static proof separately from the326 live phase snapshots.
+
+First disable407600 clears pending publication before ENDCAST and clears active
+completion afterward. The ordered48c8c0 walk exposes item depth 1/order 0 before
+AInv is visited. Its component regression observes the old active cast and one
+ENDCAST, rejects nested use, then verifies retained Binv effect, source charge 1,
+no USE_ITEM and retired head after unwind. The service inverse follows unwind.
+Fresh zero-time AIvi owns neither 4 nor 800, and ordinary phases do not acquire 44;
+this does not assert global closure of every writer or imported timing state.
+
+Save245 retains exact-alias availability tokens, ordered nodes/counters and
+canonical pending flags, validated against the attachment registry. This is
+separate from queued weak Item identity/incarnation plus numeric slot command.
+Canonical item ownership also shares 0x1000/0x4000 across recursive executions.
+New CHANNEL3fbb80 clears 0x4000; the completion inverse emits ENDCAST, clears 0x4000,
+decrements charge, publishes USE_ITEM on the retained item's current carrier,
+then rereads perishability. A nested same-instance cast cannot leave an outer
+per-cast flag that consumes again. The component regression first failed two
+assertions out of 159 and now passes; it does not claim public reentrant admission.
+FINISH-disable and ENDCAST-transfer component cases check one USE, current-carrier
+identity and sibling preservation. Queued690930 admission retains weak Item
+identity/incarnation plus numeric slot command: same-item/same-slot repick
+executes, but a different same-alias replacement does not.
+
+The canonical327 checker now guards 48 original bodies, 20 vtable words and 135
+call instructions. Both-edition focused checks pass 2,326 tests/286,242 assertions.
+All five fresh gates pass (1,474 test executions/7,096,342 assertions); normal
+and nine-checkpoint saved C299 retain zero public/motion mismatches.
+No full327 suite was run;
+the last full proof remains 9,472 tests/60,732,376 assertions on326 source `0ec437abb`.
+The earlier fixture expected Binv immediately after public resume; driving the
+actual scheduled release corrected the test without changing production timing.
+
+Settled Pause admission is now established by static original guards and engine
+execution, without a new live witness. The complete public Pause-during-cast
+timeline, remaining mixed overlaps and caller dispositions are still unproved.
+B01 and TARGET-01.2 remain open.

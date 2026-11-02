@@ -328,25 +328,41 @@ static queuedOrderResult_t inventory_pickup_activate(edict_t *unit,unitOrder_t c
         QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }
 
-/*2190c0/206b20 retain the selected inventory ability, then680320 admits
- * its ordinary no-target user packet. Admission is independent of execution. */
+/* 690930 retains the item weak identity and numeric slot command, not the
+ * ability selected during admission. Execution resolves the current binding. */
 bool S_OrderUseItem(edict_t *unit,edict_t *item,uint32_t code) {
     if(!unit || !item || !inventory_carries(unit,item) || !G_InventoryCanUseItems(unit) ||
-       S_UnitOrderDisabled(unit,"itemuse") || G_IsDeferredFree(item) ||
+       G_IsDeferredFree(item) ||
        (item->data.ItemData && item->data.ItemData->uses && !item->item->charges))return false;
+    uint32_t attachment_slot=0,attachment_generation=0;
+    if(!S_CaptureItemAbilityAttachment(unit,item,item->spawn_time,code,
+            &attachment_slot,&attachment_generation) ||
+       S_ItemAbilityAttachmentDisabled(unit,attachment_slot,attachment_generation))return false;
     unitOrder_t packet={.target_type=UNIT_ORDER_TARGET_NONE,.item_number=item->s.number,
         .item_spawn_time=item->spawn_time,.issuer_player=unit->s.player,
-        .order_id=852008+item->item->inventory_slot,.owner_context=code};
-    if(!S_CaptureItemAbilityAttachment(unit,item,item->spawn_time,code,
-            &packet.item_ability_slot,&packet.item_ability_generation))return false;
+        .order_id=852008+item->item->inventory_slot,.owner_context=0};
     strlcpy(packet.order,"itemuse",sizeof(packet.order));
     return G_AdmitUnitOrder(unit,&packet,true);
 }
 static queuedOrderResult_t inventory_use_activate(edict_t *unit,unitOrder_t const *packet) {
     edict_t *item=packet->item_number<globals.num_edicts ? g_edicts+packet->item_number : NULL;
-    if(!item || !inventory_carries(unit,item) ||
-       !S_ItemAbilityAttachmentLive(unit,item,packet->item_spawn_time,packet->owner_context,
-           packet->item_ability_slot,packet->item_ability_generation))return QUEUED_ORDER_UNHANDLED;
-    if(!S_BeginItemCast(unit,item,packet->item_spawn_time,packet->owner_context))return QUEUED_ORDER_UNHANDLED;
-    return QUEUED_ORDER_REPLACED; /* A zero-time chain may already have retired or replaced its head. */
+    if(!item || item->spawn_time!=packet->item_spawn_time || !inventory_carries(unit,item) ||
+       G_IsDeferredFree(item) || !G_InventoryCanUseItems(unit) ||
+       packet->order_id!=852008+(uint32_t)item->item->inventory_slot ||
+       (item->data.ItemData && item->data.ItemData->uses && !item->item->charges))
+        return QUEUED_ORDER_UNHANDLED;
+    cstring_t abilities=G_ItemAbilityList(item);
+    if(!abilities)return QUEUED_ORDER_UNHANDLED;
+    PARSE_LIST(abilities,name,parse_segment) {
+        uint32_t code=FS_SLKKey(name),slot=0,generation=0;
+        abilityitem_t ability=S_AbilityItem(code);
+        if(!ability.ability || !(ability.ability->flags&AB_ITEM) || G_AbilityCode(code)!=MAKEFOURCC('A','I','v','i') ||
+           !S_CaptureItemAbilityAttachment(unit,item,packet->item_spawn_time,code,&slot,&generation) ||
+           S_ItemAbilityAttachmentDisabled(unit,slot,generation))continue;
+        /* S_BeginItemCast queries the current profile and captures this live
+         * attachment for execution; the queued packet never owns its token. */
+        if(S_BeginItemCast(unit,item,packet->item_spawn_time,code))
+            return QUEUED_ORDER_REPLACED; /* The synchronous chain may already have replaced its head. */
+    }
+    return QUEUED_ORDER_UNHANDLED;
 }

@@ -536,6 +536,30 @@ void G_CompletePreparatoryItemUse(edict_t *unit, edict_t *item) {
     }
 }
 
+/*65b6c0 completes the retained ITEM, not an inventory attachment. ENDCAST
+ * may have moved it; the current carrier owns USE and the charge is visible
+ * before that callback. A reused edict cannot inherit this transaction. */
+void G_CompleteRetainedItemUse(edict_t *item,uint32_t birth) {
+    item_t *rec=G_ItemState(item);
+    if(!G_IsItem(item) || item->spawn_time!=birth || G_IsDeferredFree(item) ||
+       !rec || rec->pending_use_removal || !item->data.ItemData)return;
+    uint64_t const epoch=S_SpellPreparationEpoch();
+    if(item->data.ItemData->uses) {
+        if(!rec->charges)return;
+        --rec->charges;
+    }
+    edict_t *carrier=rec->carrier;
+    if(carrier && carrier->inuse)
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=carrier,.source=item,
+            .type=EVENT_PLAYER_UNIT_USE_ITEM},EVENT_UNIT_USE_ITEM,false);
+    if(epoch!=S_SpellPreparationEpoch())return;
+    if(!G_IsItem(item) || item->spawn_time!=birth || G_IsDeferredFree(item) ||
+       item->item!=rec || rec->pending_use_removal || !item->data.ItemData)return;
+    if(item->data.ItemData->uses && !rec->charges && item->data.ItemData->perishable)
+        G_RemoveItem(item);
+    else if(rec->carrier && rec->carrier->inuse)G_RefreshInventoryUI(rec->carrier);
+}
+
 static bool G_ConsumedItemHasQueuedEvent(edict_t const *item) {
     if (!item) return false;
     for (uint32_t i = level.events.read; i < level.events.write; i++) {
@@ -1057,7 +1081,7 @@ bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller
        !ability || !ability->ability || !(ability->ability->flags&AB_ITEM))return false;
     spellCastProfile_t profile;
     abilityCall_t query={.item=ability,.cast_profile=&profile};
-    if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return S_OrderUseItem(unit,item,ability->code);
+    if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return G_UseItemNoTarget(unit,item);
     uint64_t const epoch=S_SpellPreparationEpoch();
     uint32_t const unit_birth=unit->spawn_time,item_birth=item->spawn_time;
     abilityCall_t call={.item=ability,.client=controller,.source_item=item,
@@ -1088,7 +1112,7 @@ bool G_UseItemNoTarget(edict_t *unit,edict_t *item) {
         if(!ability.ability || !(ability.ability->flags&AB_ITEM))continue;
         spellCastProfile_t profile;
         abilityCall_t query={.item=&ability,.cast_profile=&profile};
-        if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return S_OrderUseItem(unit,item,ability.code);
+        if(S_AbilityMessage(unit,A_CAST_PROFILE,&query) && S_OrderUseItem(unit,item,ability.code))return true;
     }
     return false;
 }

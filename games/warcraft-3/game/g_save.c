@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 244; /* Retain inventory ability attachment tokens in user packets and casts. */
+static uint32_t const save_version = 245; /* Retain per-attachment item availability owner counters and order. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -3115,20 +3115,23 @@ typedef struct {
 } savedAbilityOrder_t;
 
 typedef struct {
-    uint32_t code,class_code,exclusive_inventory;
+    uint32_t code,class_code,exclusive_inventory,attachment_slot,attachment_generation;
     int32_t depth,order_depth,busy_depth;
+    bool cast_end_pending,item_use_pending;
     bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned,morph_owned,burrow_initialized,burrow_owned;
 } savedAbilityDisable_t;
 
 static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     uint32_t count=0;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        if(count==UINT32_MAX || !s->references)return false;
+        if(count==UINT32_MAX || !s->references ||
+           *(uint8_t const *)&s->cast_end_pending>1 || *(uint8_t const *)&s->item_use_pending>1 ||
+           (!s->attachment_slot && (s->cast_end_pending || s->item_use_pending)))return false;
         count++;
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.busy_depth=s->busy_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
+        savedAbilityDisable_t saved={.cast_end_pending=s->cast_end_pending,.item_use_pending=s->item_use_pending,.attachment_slot=s->attachment_slot,.attachment_generation=s->attachment_generation,.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.busy_depth=s->busy_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -3141,13 +3144,24 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
     FOR_LOOP(i,count) {
         savedAbilityDisable_t saved;
         if(!LoadBytes(f,&saved,sizeof(saved)) || !saved.code)goto failed;
-        if(saved.class_code) {
+        if(!!saved.attachment_slot!=!!saved.attachment_generation ||
+           *(uint8_t const *)&saved.cast_end_pending>1 || *(uint8_t const *)&saved.item_use_pending>1 ||
+           (!saved.attachment_slot && (saved.cast_end_pending || saved.item_use_pending)))goto failed;
+        if(saved.attachment_slot) {
+            if(saved.class_code!=MAKEFOURCC('A','I','v','i') || G_AbilityCode(saved.code)!=saved.class_code ||
+               saved.exclusive_owned || saved.exclusive_inventory || saved.ethereal_initialized || saved.ethereal_owned ||
+               saved.morph_owned || saved.burrow_initialized || saved.burrow_owned ||
+               *(uint8_t const *)&saved.pause_owned>1 || *(uint8_t const *)&saved.retire_owned>1)goto failed;
+        } else if(saved.class_code) {
             if(saved.class_code!=MAKEFOURCC('B','E','m','e') &&
                !(saved.class_code==MAKEFOURCC('B','i','n','v') && saved.code==saved.class_code))goto failed;
         } else if(!S_AbilityItem(saved.code).ability)goto failed;
         for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
-            if(s->code==saved.code && s->class_code==saved.class_code)goto failed;
+            if(saved.attachment_slot ? (s->attachment_slot==saved.attachment_slot && s->attachment_generation==saved.attachment_generation) :
+               (!s->attachment_slot && s->code==saved.code && s->class_code==saved.class_code))goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
+        state->attachment_slot=saved.attachment_slot;state->attachment_generation=saved.attachment_generation;
+        state->cast_end_pending=saved.cast_end_pending;state->item_use_pending=saved.item_use_pending;
         state->code=saved.code;state->class_code=saved.class_code;state->depth=saved.depth;state->order_depth=saved.order_depth;state->busy_depth=saved.busy_depth;
         state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;state->morph_owned=saved.morph_owned;state->burrow_initialized=saved.burrow_initialized;state->burrow_owned=saved.burrow_owned;
         state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->exclusive_owned=saved.exclusive_owned;state->exclusive_inventory=saved.exclusive_inventory;state->linked=true;state->references=1;*tail=state;tail=&state->next;

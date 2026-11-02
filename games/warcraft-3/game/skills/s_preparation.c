@@ -111,6 +111,7 @@ bool S_DetachPreparatoryItems(edict_t *item) {
         uint32_t *link=&preparation_heads[number];
         while (*link && *link!=slot) link=&preparation_items[*link].next_item;
         if (*link!=slot) continue;
+        S_DetachItemAbilityAvailability(row->carrier,slot,generation);
         *link=row->next_item;
         row->item=row->carrier=NULL; row->next_item=0; row->detaching=false;
         row->next_free=preparation_free; preparation_free=slot;
@@ -180,6 +181,11 @@ bool S_AttachPreparatoryItems(edict_t *unit, edict_t *item) {
         if (tail) preparation_items[tail].next_item = slot;
         else preparation_heads[number] = slot;
         tail = slot;
+        uint32_t generation=row->generation;
+        S_AttachItemAbilityAvailability(unit,code,slot,generation);
+        if(epoch!=preparation_epoch || !unit->inuse || !item->inuse ||
+           unit->spawn_time!=unit_birth || item->spawn_time!=item_birth ||
+           preparation_items[slot].generation!=generation || preparation_items[slot].item!=item)return false;
     }
     return true;
 }
@@ -213,6 +219,17 @@ bool S_ItemAbilityAttachmentLive(edict_t const *carrier, edict_t const *item,
     preparationItem_t const *row = &preparation_items[slot];
     return row->generation == generation && row->carrier == carrier && row->item == item &&
         row->item_spawn == item_spawn && row->code == code && preparation_identity_live(row);
+}
+
+bool S_ResolveItemAbilityAttachment(edict_t const *carrier,uint32_t slot,uint32_t generation,
+                                    edict_t **item,uint32_t *birth,uint32_t *code) {
+    if(!carrier || !slot || slot>preparation_item_count)return false;
+    preparationItem_t const *row=preparation_items+slot;
+    if(row->carrier!=carrier || row->generation!=generation || !preparation_identity_live(row))return false;
+    if(item)*item=row->item;
+    if(birth)*birth=row->item_spawn;
+    if(code)*code=row->code;
+    return true;
 }
 
 bool S_CaptureItemAbilityAttachment(edict_t const *carrier, edict_t const *item,
@@ -263,8 +280,40 @@ static bool preparation_registry_complete(preparationItem_t const *rows, uint32_
     return true;
 }
 
+static bool preparation_availability_complete(preparationItem_t const *rows,uint32_t count) {
+    FOR_LOOP(n,globals.num_edicts)for(unitAbilityDisable_t const *node=g_edicts[n].ability_disables;node;node=node->next) {
+        if(!node->attachment_slot && !node->attachment_generation) {
+            if(node->class_code==MAKEFOURCC('A','I','v','i') || node->cast_end_pending || node->item_use_pending)return false;
+            continue;
+        }
+        if(!node->linked || !node->attachment_slot || node->attachment_slot>count || !node->attachment_generation ||
+           node->class_code!=MAKEFOURCC('A','I','v','i') || node->exclusive_owned ||
+           node->exclusive_inventory || node->ethereal_initialized || node->ethereal_owned ||
+           node->morph_owned || node->burrow_initialized || node->burrow_owned ||
+           *(uint8_t const *)&node->pause_owned>1 || *(uint8_t const *)&node->retire_owned>1 ||
+           *(uint8_t const *)&node->cast_end_pending>1 || *(uint8_t const *)&node->item_use_pending>1)return false;
+        preparationItem_t const *row=rows+node->attachment_slot;
+        if(row->generation!=node->attachment_generation || row->carrier!=g_edicts+n ||
+           row->code!=node->code || G_AbilityCode(row->code)!=node->class_code ||
+           !preparation_identity_live(row))return false;
+    }
+    for(uint32_t slot=1;slot<=count;slot++) {
+        preparationItem_t const *row=rows+slot;
+        if(!row->item || G_AbilityCode(row->code)!=MAKEFOURCC('A','I','v','i'))continue;
+        unsigned matches=0;
+        for(unitAbilityDisable_t const *node=row->carrier->ability_disables;node;node=node->next)
+            if(node->attachment_slot==slot && node->attachment_generation==row->generation)matches++;
+        if(matches!=1)return false;
+    }
+    return true;
+}
+bool S_ValidateItemAbilityAvailability(void) {
+    return preparation_availability_complete(preparation_items,preparation_item_count);
+}
+
 bool S_WritePreparationItems(FILE *file) {
-    if (S_SpellPreparationPending() || !preparation_registry_complete(preparation_items,preparation_heads)) return false;
+    if (S_SpellPreparationPending() || !preparation_registry_complete(preparation_items,preparation_heads) ||
+        !S_ValidateItemAbilityAvailability()) return false;
     uint32_t header[3] = {preparation_item_count, preparation_free, preparation_generation};
     if (fwrite(header, sizeof(header), 1, file) != 1) return false;
     for (uint32_t slot = 1; slot <= preparation_item_count; ++slot) {
@@ -314,7 +363,7 @@ bool S_ReadPreparationItems(FILE *file) {
     }
     for(uint32_t slot=1;valid && slot<=header[0];++slot)
         if(!rows[slot].item && !free_seen[slot]) valid=false;
-    if(valid && !preparation_registry_complete(rows,heads))valid=false;
+    if(valid && (!preparation_registry_complete(rows,heads) || !preparation_availability_complete(rows,header[0])))valid=false;
     if(valid) {
         free(preparation_items);preparation_items=rows;rows=NULL;
         preparation_item_count=header[0];preparation_item_capacity=header[0]+1;

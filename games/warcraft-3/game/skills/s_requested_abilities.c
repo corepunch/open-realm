@@ -1117,6 +1117,12 @@ bool S_ValidateMetamorphosisOwners(void) {
         }
         for(unitAbilityDisable_t const *owner=unit->ability_disables;owner;owner=owner->next) {
             if(!owner->class_code)continue;
+            /* Item tokens are cross-validated against their attachment registry. */
+            if(owner->attachment_slot || owner->attachment_generation) {
+                if(owner->class_code!=MAKEFOURCC('A','I','v','i') ||
+                   !owner->attachment_slot || !owner->attachment_generation)return false;
+                continue;
+            }
             /* Binv's status/node relation belongs to its own validator. */
             if(owner->class_code==MAKEFOURCC('B','i','n','v'))continue;
             if(owner->class_code!=metamorphosis_buff || owner->morph_owned || owner->exclusive_owned ||

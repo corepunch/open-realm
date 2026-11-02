@@ -923,7 +923,6 @@ typedef struct {
     uint32_t target_number;
     uint32_t target_spawn_time;
     uint32_t item_number, item_spawn_time; /* Independent Inventory packet payload. */
-    uint32_t item_ability_slot,item_ability_generation; /* Weak attachment, independent of item lifetime. */
     bool target_is_unit; /* Captured class survives removal and slot reuse. */
     uint32_t issuer_player;
     uint32_t order_id; /* Retained identity/explicit payload (Build rawcode); zero resolves order name. */
@@ -951,6 +950,8 @@ void order_stop_internal(edict_t *);
 typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
     uint32_t code, class_code, references, exclusive_inventory; /* class0: ordinary authored ability. */
+    uint32_t attachment_slot, attachment_generation; /* Nonzero only for an item instance owner. */
+    bool cast_end_pending, item_use_pending; /* Item ability instance flags1000/4000, shared by nested executions. */
     int32_t depth, order_depth, busy_depth; /* Native ability +3c/+40/+44; independently signed. */
     bool pause_owned, retire_owned, exclusive_owned, linked;
     bool burrow_initialized, burrow_owned; /* Attachment source; aggregate survives a base-form detach. */
@@ -4195,6 +4196,13 @@ void S_ReleaseBuffAbilityDisables(edict_t *,bool orders);
 bool S_AbilityExecutionDisabled(edict_t const *,uint32_t);
 /* Retain the concrete attachment across callbacks; adjustments may target an
  * unlinked old owner and must never migrate to a replacement attachment. */
+void S_AttachItemAbilityAvailability(edict_t *,uint32_t,uint32_t,uint32_t);
+void S_DetachItemAbilityAvailability(edict_t *,uint32_t,uint32_t);
+unitAbilityDisable_t *S_RetainItemAbilityAvailability(edict_t *,uint32_t,uint32_t);
+bool S_ItemAbilityAttachmentDisabled(edict_t const *,uint32_t,uint32_t);
+bool S_ResolveItemAbilityAttachment(edict_t const *,uint32_t,uint32_t,edict_t **,uint32_t *,uint32_t *);
+bool S_ValidateItemAbilityAvailability(void);
+void S_SuspendItemAbilityAttachment(edict_t *,edict_t *,uint32_t,uint32_t,uint32_t);
 unitAbilityDisable_t *S_RetainAbilityAvailability(edict_t *,uint32_t,uint32_t);
 void S_ReleaseAbilityAvailability(unitAbilityDisable_t *);
 void S_AdjustAbilityBusy(unitAbilityDisable_t *,int32_t);
@@ -5442,6 +5450,7 @@ void G_ConsumeItemCharge(edict_t *item);
 void G_CompleteItemUse(edict_t *unit, edict_t *item);
 bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller, abilityitem_t const *ability);
 void G_CompletePreparatoryItemUse(edict_t *unit, edict_t *item);
+void G_CompleteRetainedItemUse(edict_t *item,uint32_t item_birth);
 void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);
