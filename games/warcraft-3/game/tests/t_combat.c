@@ -524,6 +524,30 @@ TEST(wc3_combat, hidden_owner_transferred_unit_cannot_be_acquired_or_attacked) {
     T_ASSERT(tauren->goalentity == cairne);
 }
 
+TEST(wc3_combat, polymorphed_unit_cannot_start_or_continue_attacks) {
+    edict_t *attacker, *target;
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 48.0f, 0.0f);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->targtype = target->targtype = TARG_GROUND;
+    attacker->unit_state->attack1.type = ATK_NORMAL;
+    attacker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+
+    T_ASSERT(S_AttackCanTarget(attacker, target));
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_ASSERT(attacker->goalentity == target);
+
+    G_AddPolymorph(attacker);
+    T_ASSERT(S_UnitPolymorphed(attacker));
+    T_ASSERT(!S_AttackCanTarget(attacker, target));
+    if (attacker->currentmove && attacker->currentmove->think)
+        attacker->currentmove->think(attacker);
+    T_NULL(attacker->goalentity);
+    T_ASSERT(!S_OrderAttack(attacker, target));
+}
+
 TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
     edict_t *attacker, *target;
 
