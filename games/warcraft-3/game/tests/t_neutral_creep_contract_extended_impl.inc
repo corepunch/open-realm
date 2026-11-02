@@ -52,11 +52,13 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
         }
         break;
     case CE_UNIT_CHAIN: a = 37.0f; b = 3.0f; c = 0.25f; break; /* hits, loss per bounce */
+    case CE_UNIT_HEAL_CHAIN: a = 37.0f; b = 2.0f; c = 0.25f; break; /* count, bounce loss */
     case CE_POINT_DAMAGE:
         a = 37.0f; b = 0.0f; c = 280.0f; d = 150.0f;
         break; /* Cone/wave DataC=travel, DataD=terminal width; no damage cap */
     case CE_HIT_REFLECT: a = 0.30f; b = 3.0f; break;
     case CE_HIT_POISON: a = 2.0f; break;
+    case CE_UNIT_DOT: a = 2.0f; b = 0.25f; e = 37.0f; break; /* Shadow Strike: tick, slow, initial */
     case CE_HIT_SLOW_POISON: a = 5.0f; b = 0.25f; c = 0.15f; break;
     case CE_SHADOW_MELD: case CE_HIDE: a = 1.5f; break;
     case CE_PASSIVE_REINCARNATION: a = 1.0f; break;
@@ -65,6 +67,7 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
     case CE_SUMMON_NO_TARGET: a = 2.0f; break;
     case CE_SUMMON_POINT: a = 3.0f; break;
     case CE_SUMMON_CORPSE: a = 2.0f; b = 0.0f; break;
+    case CE_SUMMON_CORPSE_HEAL: a = 10.0f; b = 600.0f; break; /* Cannibalize DPS, corpse radius */
     default: break;
     }
     snprintf(data_a, sizeof(data_a), "%g", a);
@@ -72,6 +75,8 @@ static void contract_extended_slk(char *out, size_t len, cstring_t alias,
     snprintf(data_b, sizeof(data_b), "%g", b);
     if (kind == CE_UNIT_POLYMORPH) strlcpy(data_b, "hfoo", sizeof(data_b));
     snprintf(data_c, sizeof(data_c), "%g", c);
+    if (kind == CE_POINT_DAMAGE && !strcmp(alias, "ANmo"))
+        strcpy(data_b, "0.25"); /* Monsoon requires a nonzero pulse interval */
     if (kind == CE_SUMMON_CORPSE && strcmp(alias, "Arai") == 0)
         strcpy(data_c, "hfoo"); /* fixture skeleton, not retail uske */
     if (kind == CE_POINT_DAMAGE &&
@@ -126,7 +131,7 @@ static cstring_t contract_ext_buff(creepExpectation_t expectation) {
     case CE_UNIT_FRIEND_ARMOR: return "BUfa";
     case CE_UNIT_FRIEND_FRENZY: return "BUhf";
     case CE_UNIT_POLYMORPH: return "Bply";
-    case CE_UNIT_DOT: return "Bpoi";
+    case CE_UNIT_DOT: return "BEsh";
     case CE_UNIT_DOT_AOE: return "Blsh";
     case CE_UNIT_FROST_NOVA: return "Bfro";
     case CE_UNIT_STUN_DAMAGE: case CE_SELF_DAMAGE_STUN: return "Bstu";
@@ -184,7 +189,7 @@ static void contract_extended(creepExtendedCase_t const *c) {
                            k == CE_AURA_BRILLIANCE || k == CE_AURA_VAMPIRIC ||
                            k == CE_UNIT_FRIEND_BUFF || k == CE_UNIT_FRIEND_ARMOR ||
                            k == CE_UNIT_FRIEND_FRENZY || k == CE_UNIT_DOT_AOE ||
-                           k == CE_UNIT_HEAL_CHAIN) ? "air,ground,friend,organic" :
+                           k == CE_UNIT_HEAL_CHAIN) ? "air,ground,friend,self,organic" :
                           "air,ground,enemy,neutral,organic", k);
     if (k == CE_UNIT_POLYMORPH) {
         static char const unit_ui[] =
@@ -332,7 +337,12 @@ static void contract_extended(creepExtendedCase_t const *c) {
         break;
     case CE_UNIT_DOT:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
+        /* Shadow Strike's target impact is a missile, then its status ticks. */
+        contract_ext_tick(1500, f.caster);
+        T_ASSERT(f.enemy->health.value < 500); /* Initial impact */
         T_ASSERT(S_UnitHasStatus(f.enemy, buff));
+        if (!strcmp(c->ability, "Shadow Strike"))
+            T_ASSERT(unit_status_modifier_total(f.enemy, WC3_STATUS_MOD_MOVE_SPEED_PERCENT) < 0.0f);
         before = f.enemy->health.value;
         contract_ext_tick(1000, f.enemy);
         T_ASSERT(f.enemy->health.value < before);
@@ -391,10 +401,16 @@ static void contract_extended(creepExtendedCase_t const *c) {
         T_ASSERT(f.enemy->health.value < 500);
         T_ASSERT(f.caster->health.value > 200);
         break;
-    case CE_UNIT_DEATH_COIL:
+    case CE_UNIT_DEATH_COIL: {
+        /* Death Coil differentiates living enemies from allied Undead using
+         * UnitData.race. Synthetic ogres don't necessarily carry that field. */
+        UnitData_t living = { .race = STR_ORC };
+        f.enemy->data.UnitData = &living;
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
+        contract_ext_tick(1500, f.caster);
         T_ASSERT(f.enemy->health.value < 500);
         break;
+    }
     case CE_UNIT_POSSESSION: case CE_UNIT_CHARM:
         T_ASSERT(S_CastUnitTargetSpell(f.caster, id, f.enemy));
         if (k == CE_UNIT_POSSESSION)
@@ -430,6 +446,7 @@ static void contract_extended(creepExtendedCase_t const *c) {
             f.caster->mana.value = 200;
         }
         T_ASSERT(S_CastPointTargetSpell(f.caster, id, &point));
+        contract_ext_tick(1500, f.caster); /* Devour Magic's authored missile may delay impact. */
         T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("Binf")));
         if (k == CE_POINT_DISPEL_DRAIN)
             T_ASSERT(f.caster->health.value > 200 || f.caster->mana.value > 200);
@@ -505,17 +522,37 @@ static void contract_extended(creepExtendedCase_t const *c) {
             else
                 T_ASSERT(!M_IsDead(f.enemy) && f.enemy->owner == f.caster);
         } else {
-            f.caster->health.value = 200;
+            f.caster->health.value = 200; /* Cannibalize requires a wounded eater. */
             T_ASSERT(S_CastNoTargetSpell(f.caster, id));
-            contract_ext_tick(1000, f.caster);
+            contract_ext_tick(3000, f.caster);
             T_ASSERT(f.caster->health.value > 200);
         }
         break;
     }
-    case CE_SUMMON_POINT:
+    case CE_SUMMON_POINT: {
+        if (strcmp(c->ability, "Force of Nature") == 0) {
+            /* This spell consumes three trees and summons one Treant per tree. */
+            FOR_LOOP(i, 3) {
+                edict_t *tree = G_Spawn();
+                tree->class_id = FS_SLKKey("B00X");
+                tree->s.class_id = tree->class_id;
+                G_BindEntityData(tree);
+                tree->s.origin2 = MAKE(vec2_t, 80.0f + 20.0f * i, 0.0f);
+                tree->s.origin = MAKE(vec3_t, 80.0f + 20.0f * i, 0.0f, 0.0f);
+                tree->s.scale = 1.0f;
+                tree->targtype = TARG_TREE;
+                tree->health.value = tree->health.max_value = 200;
+                G_AddDestructable(tree);
+                G_GetDestructable(tree)->item_table = (uint32_t)-1;
+                G_GetDestructable(tree)->placement_solid = false;
+                G_GetDestructable(tree)->pathing_active = false;
+            }
+        }
         T_ASSERT(S_CastPointTargetSpell(f.caster, id, &point));
-        T_ASSERT(contract_ext_count_summons(f.caster) >= 1);
+        T_ASSERT(contract_ext_count_summons(f.caster) >=
+                 (strcmp(c->ability, "Force of Nature") == 0 ? 3u : 1u));
         break;
+    }
 
     case CE_HIT_POISON: case CE_HIT_SLOW_POISON:
         if (k == CE_HIT_POISON) S_PoisonOnHit(f.caster, f.enemy);
@@ -528,17 +565,34 @@ static void contract_extended(creepExtendedCase_t const *c) {
         break;
     case CE_HIT_LIGHTNING: case CE_HIT_SEARING: case CE_HIT_BLACK_ARROW:
     case CE_HIT_COLD_ARROW:
-        if (k == CE_HIT_SEARING || k == CE_HIT_COLD_ARROW || k == CE_HIT_BLACK_ARROW) {
+        if (k == CE_HIT_SEARING || k == CE_HIT_COLD_ARROW || k == CE_HIT_BLACK_ARROW)
             f.caster->unit_state->attack1.weapon = WPN_MISSILE;
+        if (k == CE_HIT_BLACK_ARROW)
+            f.caster->unit_state->attack1.targetsAllowed = G_TargetFlagForType(TARG_GROUND);
+        if (k == CE_HIT_SEARING || k == CE_HIT_COLD_ARROW)
             T_ASSERT(G_SetUnitAutocast(f.caster, id, true));
-        }
         /* Compare the exact same primary hit against an unskilled baseline:
          * extra damage, resource expenditure or a cold status must differ. */
         before = f.enemy->health.value;
-        S_ResolveAttackHit(f.caster, f.enemy, 20);
-        T_ASSERT(f.enemy->health.value < before - 20 ||
-                 f.caster->mana.value < 500 ||
-                 (k == CE_HIT_COLD_ARROW && S_UnitHasStatus(f.enemy, buff)));
+        if (k == CE_HIT_BLACK_ARROW) {
+            uint32_t arrow = 0, rank = 0;
+            T_ASSERT(S_BlackArrowIssueOrder(f.caster, f.enemy, id));
+            T_ASSERT(S_BlackArrowPrepareAttack(f.caster, f.enemy, &arrow, &rank));
+            T_EQ(arrow, id);
+            S_ResolveAttackHitWithArrow(f.caster, f.enemy, 20, arrow, rank);
+            T_ASSERT(f.enemy->health.value < before - 20); /* DataA bonus damage */
+        } else {
+            S_ResolveAttackHit(f.caster, f.enemy, 20);
+            if (k == CE_HIT_LIGHTNING) {
+                /* Lightning orb is presentation only: base attack lands without mana. */
+                T_ASSERT(f.enemy->health.value < before);
+                T_FEQ(f.caster->mana.value, 500, 0.001f);
+            } else {
+                T_ASSERT(f.enemy->health.value < before - 20 ||
+                         f.caster->mana.value < 500 ||
+                         (k == CE_HIT_COLD_ARROW && S_UnitHasStatus(f.enemy, buff)));
+            }
+        }
         break;
     case CE_HIT_SPLASH:
         if (strcmp(c->ability, "Pulverize") == 0) {

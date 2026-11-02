@@ -169,7 +169,45 @@ BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
 #undef FOK_HITS
 }
 
-/* ---- Shadow Strike (AEsh): homing missile and initial damage -------------- */
+/* ---- Shadow Strike (AEsh/ACss): impact, timed poison and slow ------------ */
+
+#define SHADOW_STRIKE_TICK_MS 1000u
+
+static void shadow_strike_tick(edict_t *victim, heroabilitystatus_t *slot) {
+    edict_t *caster = S_SpellStatusSource(slot);
+    uint32_t const code = slot->source_ability, rank = slot->rank;
+    if (!caster || !code || !rank) { unit_expirestatus(victim, slot); return; }
+    while (unit_status_take_due_tick(slot, SHADOW_STRIKE_TICK_MS, G_Time())) {
+        float const damage = MAX(0.0f, S_SpellData(code, rank, 1));
+        /* The shared scheduler advances the deadline before recursive damage
+         * or death notifications can redispatch this status. */
+        if (damage > 0.0f) S_SpellDamage(victim, caster, (int)damage);
+        if (M_IsDead(victim)) break;
+    }
+}
+
+static void shadow_strike_apply(edict_t *caster, edict_t *victim, uint32_t code) {
+    uint32_t const rank = S_SpellLevel(caster, code);
+    cstring_t buff = S_SpellBuffId(code, rank);
+    heroabilitystatus_t *slot;
+    wc3_status_modifier_t slow;
+    if (!buff) buff = "BEsh"; /* stock Shadow Strike poison marker */
+    slot = S_SpellApplyTimedTargetStatus(victim, code, rank, buff,
+                                        S_SpellResistantDuration(code, rank, victim));
+    if (!slot) return;
+    slot->source_ability = code;
+    slot->data = code;
+    slot->rank = rank;
+    slot->source = caster;
+    slot->source_spawn_time = caster->spawn_time;
+    slot->next_tick = G_Time() + SHADOW_STRIKE_TICK_MS;
+    slot->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+    slow = MAKE(wc3_status_modifier_t,
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT,
+        .policy = WC3_STATUS_MOD_ADD,
+        .value = -MAX(0.0f, S_SpellData(code, rank, 2)));
+    unit_status_setmodifier(slot, 0, &slow);
+}
 
 static void shadow_strike_projectile_hit(edict_t *missile) {
     edict_t *target = S_SpellProjectileTarget(missile);
@@ -179,9 +217,7 @@ static void shadow_strike_projectile_hit(edict_t *missile) {
         S_SpellAllowsTarget(missile->class_id, caster, target) &&
         !S_TryBlockSpellShield(caster, missile->class_id, target)) {
         S_SpellDamage(target, caster, missile->damage);
-        /* TODO(1:1): Shadow Strike also applies a movement slow and a decaying
-         * poison DoT via the BEsh buff. The status system needs periodic damage
-         * and movement-speed modifiers first. */
+        if (!M_IsDead(target)) shadow_strike_apply(caster, target, missile->class_id);
     }
     G_FreeEdict(missile);
 }
@@ -191,6 +227,14 @@ static umove_t shadow_strike_projectile_move = {
 };
 
 BZ_ABILITY_PROC(CAbilityShadowStrike) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        shadow_strike_tick(ent, call->status.slot);
+        return true;
+    }
+    if (msg == A_STATUS_DEATH && call && call->status.slot) {
+        unit_expirestatus(ent, call->status.slot);
+        return true;
+    }
     if (msg == A_EXECUTE && call && call->item && call->target && call->target->entity) {
         cstring_t speed_text = S_SpellString(call->item->code, "Missilespeed", 0);
         float speed = speed_text ? (float)atof(speed_text) : 1200.0f;
@@ -200,9 +244,12 @@ BZ_ABILITY_PROC(CAbilityShadowStrike) {
 
         if (missile)
             missile->damage = (uint32_t)MAX(1.0f, S_SpellData(call->item->code, level, 5)); /* DataE */
-        else
-            S_SpellDamage(call->target->entity, ent,
+        else {
+            edict_t *target = call->target->entity;
+            S_SpellDamage(target, ent,
                 (int)MAX(1.0f, S_SpellData(call->item->code, level, 5)));
+            if (!M_IsDead(target)) shadow_strike_apply(ent, target, call->item->code);
+        }
         return true;
     }
     return CAbilitySimpleSpell(ent, msg, call);
