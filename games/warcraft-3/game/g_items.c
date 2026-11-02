@@ -994,6 +994,31 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
     }
 }
 
+/* The inventory instance owns immediate effects. The controller supplies UI
+ * context only; its current selection can be another unit or a shop. */
+bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller,
+                              abilityitem_t const *ability) {
+    item_t *rec=G_ItemState(item);
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || !rec ||
+       G_IsDeferredFree(item) || rec->pending_use_removal || rec->carrier!=unit ||
+       rec->inventory_slot<0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item ||
+       !ability || !ability->ability || !(ability->ability->flags&AB_ITEM))return false;
+    uint64_t const epoch=S_SpellPreparationEpoch();
+    uint32_t const unit_birth=unit->spawn_time,item_birth=item->spawn_time;
+    abilityCall_t call={.item=ability,.client=controller,.source_item=item,
+        .source_item_spawn_time=item_birth};
+    bool const used=S_AbilityMessage(unit,A_ITEM_USE,&call);
+    if(!used || epoch!=S_SpellPreparationEpoch())return used;
+    /* Effects may synchronously remove or transfer their source. Completion
+     * must still refer to the same carried instance after those callbacks. */
+    if(!unit->inuse || unit->spawn_time!=unit_birth || G_IsDeferredFree(unit) ||
+       !item->inuse || item->spawn_time!=item_birth || G_IsDeferredFree(item) ||
+       item->item!=rec || rec->pending_use_removal || rec->carrier!=unit ||
+       rec->inventory_slot<0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item)return used;
+    G_CompleteItemUse(unit,item);
+    return used;
+}
+
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */
 void G_UseItem(edict_t *unit, uint32_t slot) {
     edict_t *item;
@@ -1017,13 +1042,11 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
         abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-        abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
-        bool succeeded = false;
 
         if (!ability) continue;
         clent->client->menu.ability_code = FS_SLKKey(ability_name);
         if (ability->flags & AB_ITEM) {
-            succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
+            G_UseImmediateItemAbility(unit,item,clent,&ability_item);
         } else if (S_AbilityHasCommand(ability)) {
             clent->client->menu.ability_item = item;
             clent->client->menu.ability_item_spawn_time = item->spawn_time;
@@ -1037,7 +1060,6 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
             continue;
         }
 
-        if (succeeded) G_CompleteItemUse(unit, item);
         return;
     }
 }

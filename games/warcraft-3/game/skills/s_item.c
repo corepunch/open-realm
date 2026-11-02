@@ -311,9 +311,16 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     }
 }
 
-BZ_ITEM_PROC(AbilityItemHeal) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
+static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call);
+static uint32_t item_use_code(edict_t *ent, abilityCall_t const *call,uint32_t fallback) {
+    if(call && call->item && call->item->code)return call->item->code;
+    return ent && ent->client ? S_SpellCurrentCode(ent,fallback) : fallback;
+}
+
+BZ_ABILITY_PROC(CAbilityItemHeal) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *target = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_HEAL);
     float amount = S_SpellData(code, 1, 1);
 
     if (!S_SpellIsAliveTarget(target) || amount <= 0 || target->health.value >= target->health.max_value) {
@@ -325,7 +332,7 @@ BZ_ITEM_PROC(AbilityItemHeal) {
 }
 
 
-static bool AbilityItemInvis_ItemUse(edict_t *clent) {
+static bool AbilityItemInvis_ItemUse(edict_t *ent,abilityCall_t const *call) {
     edict_t *target;
     uint32_t code;
     abilityLevel_t const *row;
@@ -333,11 +340,11 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     float duration;
     bool has_status_slot;
 
-    if (!clent || !clent->client) return false;
-    code = S_SpellCurrentCode(clent, MAKEFOURCC('A','I','v','i'));
+    target=item_use_caster(ent,call);
+    if(!S_SpellIsAliveTarget(target))return false;
+    code = item_use_code(ent,call,MAKEFOURCC('A','I','v','i'));
     row = G_AbilityLevel(code, 1);
     buff = row ? row->buffID : NULL;
-    target = G_GetMainSelectedUnit(clent->client);
     duration = S_SpellHeroDuration(code, 1, target);
     has_status_slot = buff && strlen(buff) == 4 && unit_findstatusclass(target, *((uint32_t const *)buff));
 
@@ -373,7 +380,7 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
 BZ_ABILITY_PROC(CAbilityItemInvis) {
     switch (msg) {
     case A_ITEM_USE:
-        return AbilityItemInvis_ItemUse(call && call->client ? call->client : ent);
+        return AbilityItemInvis_ItemUse(ent,call);
     case A_STATUS_REMOVE:
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
@@ -400,9 +407,7 @@ BZ_ABILITY_PROC(CAbilityItemManaRestore) {
     return true;
 }
 
-/* World powerups target the collecting unit; ordinary carried item use keeps
- * the existing selected-unit client contract. Never read a client from a
- * server-side collector. */
+/* Inventory use and powerup pickup supply the actual carrier/collector. */
 static edict_t *item_stat_recipient(edict_t *ent) {
     if (!ent) return NULL;
     return ent->client ? G_GetMainSelectedUnit(ent->client) : ent;
@@ -480,9 +485,10 @@ BZ_ABILITY_PROC(CAbilityLevelMod) {
 }
 
 /* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
-BZ_ITEM_PROC(AbilityFigurineSkeleton) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
+BZ_ABILITY_PROC(CAbilityFigurineSkeleton) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *target = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_FIGURINE);
     uint32_t unit_id = S_SpellUnitId(code, 1);
 
     if (!target || !unit_id) {
@@ -497,7 +503,8 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     return true;
 }
 
-/* Item-use recipient: a client's selection, the acquiring unit, or the item carrier. */
+/* Real item entry points pass a unit. Direct client ability calls retain their
+ * existing selected-unit behavior. */
 static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
@@ -990,9 +997,10 @@ abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item) {
  * defense amount in DataA, radius in Area, duration in Dur/HeroDur and the
  * visible status rawcode in BuffID. Keep the item itself as a thin ability
  * carrier: the ability data decides the actual numbers. */
-BZ_ITEM_PROC(AbilityItemDefenseAoe) {
-    edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
+BZ_ABILITY_PROC(CAbilityItemDefenseAoe) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *caster = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_DEFENSE_AOE);
     uint32_t level = 1;
     float bonus = S_SpellData(code, level, 1);
     float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
@@ -1022,9 +1030,10 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
  * hour/minute and Dur as the false-time lifetime.  The false clock is a
  * simulation override, not a renderer-only tint, so all day/night consumers
  * see the same temporary time. */
-BZ_ITEM_PROC(AbilityItemChangeTOD) {
-    edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
+BZ_ABILITY_PROC(CAbilityItemChangeTOD) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *caster = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_CHANGE_TIME);
     int32_t hour = (int32_t)S_SpellData(code, 1, 1);
     int32_t minute = (int32_t)S_SpellData(code, 1, 2);
     float duration = S_SpellDuration(code, 1, false);

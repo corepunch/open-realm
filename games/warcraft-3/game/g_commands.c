@@ -1997,13 +1997,11 @@ CLIENTCOMMAND(Inventory) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
             ability_t const *ability = FindAbilityForCommand(ability_name);
             abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-            abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
-            bool succeeded = false;
 
             if (!ability) continue;
             client->menu.ability_code = FS_SLKKey(ability_name);
             if (ability->flags & AB_ITEM) {
-                succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
+                G_UseImmediateItemAbility(ent,item,clent,&ability_item);
                 handled = true;
             } else if (S_AbilityHasCommand(ability)) {
                 client->menu.ability_item = item;
@@ -2016,7 +2014,6 @@ CLIENTCOMMAND(Inventory) {
                 }
             }
 
-            if (succeeded) G_CompleteItemUse(ent, item);
             if (handled) break;
         }
     }

@@ -211,6 +211,27 @@ duration, target mask and BuffID. Eligible friendly units receive the timed
 include the status bonus while it is live, so normal status expiration removes
 the bonus automatically.
 
+`G_UseItem` and `CLIENTCOMMAND(Inventory)` send immediate abilities through
+`G_UseImmediateItemAbility`. The receiver is the inventory carrier; `call.client`
+is the UI controller, and `call.source_item` plus its birth identify the held
+instance. Selecting another unit, or selecting a shop whose patron owns the
+inventory, does not redirect the effect. The helper completes only the same
+live inventory binding after the effect returns. Successful completion keeps
+its existing queued USE_ITEM event and charge behavior.
+
+Five handlers now consume that receiver and the alias in `call.item->code`:
+`CAbilityItemHeal`, `CAbilityItemInvis`, `CAbilityFigurineSkeleton`,
+`CAbilityItemDefenseAoe`, and `CAbilityItemChangeTOD`. The other 22 registered
+immediate handlers already accept a unit receiver. World powerup pickup uses
+its collector, while preparatory spells retain their own completion policy.
+Targeted command abilities still obtain their casting unit from selection;
+this immediate-use correction does not certify that separate cursor path.
+
+The three `wc3_items.carrier321*` regressions use real held items and parsed
+aliases, differing carrier/selection, the real shop inventory command, exact
+healing and charge changes, and the queued callback's carrier/item context.
+They failed in both editions before the correction and pass afterward.
+
 Successful item uses complete through `G_CompleteItemUse`, which publishes
 `EVENT_PLAYER_UNIT_USE_ITEM` and `EVENT_UNIT_USE_ITEM` with the used item as the
 event source and then applies charge/perishable semantics. Failed uses (for

@@ -5434,6 +5434,7 @@ uint32_t G_ItemCharges(edict_t const *item);
 void G_SetItemCharges(edict_t *item, uint32_t charges);
 void G_ConsumeItemCharge(edict_t *item);
 void G_CompleteItemUse(edict_t *unit, edict_t *item);
+bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller, abilityitem_t const *ability);
 void G_CompletePreparatoryItemUse(edict_t *unit, edict_t *item);
 void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);

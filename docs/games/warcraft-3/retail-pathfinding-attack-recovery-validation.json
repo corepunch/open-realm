@@ -6163,5 +6163,156 @@
       "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/saved-twelfth.xml",
       "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/pause320/saved-twelfth.log"
     }
+  },
+  "phase321": {
+    "scope": "Immediate inventory actual-carrier dispatch, both G_UseItem and UI Inventory. Does not close AIvi native fade/duration/overlap requirements.",
+    "save_version": 240,
+    "schema_changed": false,
+    "new_regressions": {
+      "before": "3 failing tests per edition, wrong selected recipient",
+      "after": {
+        "tests": 6,
+        "assertions": 70,
+        "passed": true
+      },
+      "red_report": "build/tests/carrier321/red/summary.json",
+      "green_report": "build/tests/carrier321/green/summary.json"
+    },
+    "focused": {
+      "processes": 8,
+      "tests": 2214,
+      "assertions": 234836,
+      "passed": true,
+      "report": "build/tests/carrier321/focused/summary.json"
+    },
+    "itemdrop": {
+      "passed": true,
+      "status": "verified",
+      "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "observations": 8,
+      "controls": 4,
+      "captures": 12,
+      "public_markers": 5340,
+      "motion_cases": 14,
+      "mover_writes": 441,
+      "instruction_ranges": 8,
+      "retail": {
+        "point": {
+          "captures": 4,
+          "controls": 2,
+          "scenes": 72,
+          "public_markers": 3702,
+          "engine_parity": false,
+          "remaining_owner": "TARGET-01.2"
+        },
+        "admission": {
+          "observations": 2,
+          "controls": 1,
+          "public_markers": 819,
+          "positive_event_kinds": 3,
+          "drop_issued_events": 0,
+          "paused_drop_accepted": false,
+          "engine_parity": false
+        },
+        "immobile": {
+          "observations": 2,
+          "controls": 1,
+          "public_markers": 819,
+          "positive_event_kinds": 3,
+          "drop_issued_events": 0,
+          "paused_drop_accepted": false,
+          "engine_parity": false
+        }
+      },
+      "engine": {
+        "classic": {
+          "tests": 141,
+          "assertions": 11603
+        },
+        "tft": {
+          "tests": 141,
+          "assertions": 11603
+        }
+      },
+      "engine_checked": true,
+      "test_binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "game_library_sha256": "b50d68dc1b98b20c1d339297a33cfc5848ecbc72d20e4b15c8aa17b4ecefeb41",
+      "remaining_owner": "TARGET-01.2",
+      "scope": "Inventory public point-drop admission, silent specialized order class, replacement cancellation, stock/authored ranges, 14 exact-clock mover trajectories, terminal item incarnation, Stop/item loss/reuse and in-process save continuations. Immobile near/far, paused/dead rejection, runtime-added Inventory and real cursor ingress are exercised. TARGET-01.2 remains open for the complete producer and firing-poll matrix."
+    },
+    "replays": {
+      "normal": {
+        "test": "stress_wc3_attack_recovery299.full_public_and_ordered_motion",
+        "mode": "normal",
+        "passed": true,
+        "error": null,
+        "exit_code": 0,
+        "command": [
+          "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+          "-data",
+          "/tmp/native299-data-aeraw7zd",
+          "-tft",
+          "+dedicated",
+          "1",
+          "+test",
+          "stress_wc3_attack_recovery299.full_public_and_ordered_motion"
+        ],
+        "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+        "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+        "edition": "tft",
+        "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+        "archives": [
+          "War3Patch.mpq",
+          "War3x.mpq",
+          "War3xlocal.mpq",
+          "war3.mpq"
+        ],
+        "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/carrier321/normal-replay.xml",
+        "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/carrier321/normal-replay.log"
+      },
+      "saved": {
+        "test": "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion",
+        "mode": "saved",
+        "passed": true,
+        "error": null,
+        "exit_code": 0,
+        "command": [
+          "/run/media/lofcz/ssd_external/GitHub/open-realm/build/bin/openwarcraft3-tests",
+          "-data",
+          "/tmp/native299-data-sff07eq9",
+          "-tft",
+          "+dedicated",
+          "1",
+          "+test",
+          "stress_wc3_attack_recovery299.path_cleared_saved_public_and_ordered_motion"
+        ],
+        "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+        "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+        "edition": "tft",
+        "retail_data": "/run/media/lofcz/ssd_external/Games/w3",
+        "archives": [
+          "War3Patch.mpq",
+          "War3x.mpq",
+          "War3xlocal.mpq",
+          "war3.mpq"
+        ],
+        "junit": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/carrier321/saved-replay.xml",
+        "log": "/run/media/lofcz/ssd_external/GitHub/open-realm/build/tests/carrier321/saved-replay.log"
+      }
+    },
+    "original_carrier": {
+      "fixture": "tools/ghidra/fixtures/research/item-invis321-carrier.json",
+      "sha256": "69e4f28f00518e468a1bf48ed4cc33240dc25e5c3f6a8eabede7a52af8a16bb8",
+      "passed_ranges": 2
+    },
+    "support_waygate_guard_change": "Only new helper declaration in g_local.h; no numerical implementation or expected evidence changed. These engine gates not rerun for321.",
+    "full_suite_run": false,
+    "remaining": [
+      "AIvi fixed Binv producer",
+      "AIvi native two-second fade",
+      "AIvi duration and refresh semantics",
+      "AIvi/AOwk/Agho/Abur/Ahid Pause/Sleep overlaps",
+      "B01 incoming-call and alternative/adjusted-range dispositions"
+    ]
   }
 }

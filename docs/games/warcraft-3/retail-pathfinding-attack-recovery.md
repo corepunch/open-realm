@@ -611,3 +611,29 @@ validation JSON records its exact source-hash amendment rather than claiming
 the gate reports came from the later test library. The SC2API CI command also
 passes: 166 native executions and four transport tests, with the optional SDK
 test skipped. The 115 focused Python checks pass.
+
+## Item Invisibility carrier: checkpoint321
+
+Both real immediate inventory entry points now dispatch to the unit carrying
+an item, independently of client selection. The inventory UI also handles the
+case where a selected shop uses another unit as its inventory patron. The
+same dispatch serves other immediate item abilities; this is not an AIvi
+special case in inventory code. Aliases, source-item identity, queued use-event
+context and charge ownership remain attached to the actual carrier.
+
+Original ItemInvis effect RVA62f280 reads its bound unit at ability+0x30;
+`MOV EDI,[ESI+0x30]` is at62f28a. Its effect-slot word at RVAb681d8 points to
+6f62f280. The original function and vtable bytes are recorded in
+`tools/ghidra/fixtures/research/item-invis321-carrier.json` and verified against
+the original DLL. This establishes the carrier source only. The current item
+status implementation still needs its separate native fixed-Binv, two-second
+fade, duration/refresh and Pause/Sleep overlap work; carrier tests do not close
+that requirement or B01. See [inventory dispatch](inventory-and-items.md).
+
+The new carrier regressions pass six executions/70 assertions. Eight focused
+processes pass 2,214 executions/234,836 assertions across both editions.
+The fresh Itemdrop gate retains its original numerical evidence and now
+requires all three new tests: 141 executions/11,603 assertions per edition.
+No full-suite run is added for this commit. Support/Waygate source guards
+change only for the new helper declaration in g_local.h; their numerical
+implementations and expected evidence are unchanged.

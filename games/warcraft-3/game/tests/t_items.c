@@ -349,6 +349,69 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
          (int32_t)(30.0f / ((float)FRAMETIME / 1000.0f)));
 }
 
+/* Carrier-only regression: current AIvi status behavior is intentionally kept;
+ * this does not assert its still-separate native fade/duration contract. */
+static void item321_bound_carrier(bool invisible, bool shop_ui) {
+    reset_entities();setup_test_world();
+    char const ability_slk[]=
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"DataA1\"\nC;X5;K\"DataC1\"\nC;X6;K\"DataD1\"\nC;X7;K\"DataE1\"\n"
+        "C;X8;K\"Data11\"\nC;X9;K\"Data13\"\nC;X10;K\"Data14\"\nC;X11;K\"Data15\"\n"
+        "C;X12;K\"Dur1\"\nC;X13;K\"HeroDur1\"\nC;X14;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X4;K6\nC;X5;K1\nC;X6;K1\nC;X7;K1\n"
+        "C;X8;K6\nC;X9;K1\nC;X10;K1\nC;X11;K1\n"
+        "C;Y3;X1;K\"Zi31\"\nC;X2;K\"AIvi\"\nC;X3;K1\nC;X12;K12\nC;X13;K12\nC;X14;K\"Bixx\"\n"
+        "C;Y4;X1;K\"Zh31\"\nC;X2;K\"AIhe\"\nC;X3;K1\nC;X4;K37\nC;X8;K37\nE\n";
+    slkTestData_t *rows=parse_slk_string(ability_slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(run_test_jass(
+        "globals\ninteger uses321=0\nendglobals\n"
+        "function used321 takes nothing returns nothing\n"
+        "call BJassAssert(GetUnitUserData(GetManipulatingUnit())==3211,\"actual carrier event\")\n"
+        "call BJassAssert(GetItemTypeId(GetManipulatedItem())=='spro',\"actual held item event\")\n"
+        "set uses321=uses321+1\nendfunction\n"
+        "function check321 takes nothing returns nothing\ncall BJassAssert(uses321==1,\"one use event\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_USE_ITEM,null)\n"
+        "call TriggerAddAction(t,function used321)\nendfunction\n"));
+    edict_t *player=G_GetPlayerEntityByNumber(0);
+    edict_t *carrier=make_item_test_inventory_unit(100,0);
+    carrier->s.player=0;carrier->svflags|=SVF_MONSTER;carrier->targtype=TARG_GROUND;carrier->user_data=3211;
+    carrier->health.value=20;
+    edict_t *selected=shop_ui ? make_item_test_shop(0,0) : make_item_test_inventory_unit(300,0);
+    if(!shop_ui)selected->s.player=0;
+    selected->svflags|=SVF_MONSTER;selected->targtype=TARG_GROUND;
+    selected->health.value=30;selected->health.max_value=100;
+    ItemData_t data={.abilList=invisible ? "Zi31" : "Zh31",.uses=2,.usable=true,.perishable=true};
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','p','r','o'),100,0);
+    item->data.ItemData=&data;item->item->charges=2;
+    T_ASSERT(G_InventoryCanUseItems(carrier));
+    T_ASSERT(G_AddItemToSlot(carrier,item,0));
+    G_SelectEntity(player->client,selected);
+    T_EQ(G_GetMainSelectedUnit(player->client),selected);
+    if(shop_ui) {
+        T_EQ(G_FindShopPatron(player->client,selected),carrier);
+        cstring_t command[]={"inventory","0"};G_ClientCommand(player,2,command);
+    } else G_UseItem(carrier,0);
+    if(invisible) {
+        heroabilitystatus_t *status=unit_findstatus(carrier,MAKEFOURCC('B','i','x','x'));
+        T_NOT_NULL(status);if(status)T_EQ(status->data,MAKEFOURCC('Z','i','3','1'));
+        T_ASSERT(carrier->s.renderfx&RF_HIDDEN);
+        T_NULL(unit_findstatus(selected,MAKEFOURCC('B','i','x','x')));
+        T_ASSERT(!(selected->s.renderfx&RF_HIDDEN));
+    } else T_EQ(carrier->health.value,57.0f);
+    T_EQ(selected->health.value,30.0f);
+    T_EQ(G_InventoryItem(carrier,0),item);T_EQ(G_ItemCharges(item),1);
+    T_EQ(G_GetMainSelectedUnit(player->client),selected);
+    G_RunEvents();jass_runevents(level.vm);
+    jass_callbyname(level.vm,"check321",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+TEST(wc3_items, carrier321_invisibility_alias_uses_carrier_not_selection) {item321_bound_carrier(true,false);}
+TEST(wc3_items, carrier321_heal_alias_uses_carrier_not_selection) {item321_bound_carrier(false,false);}
+TEST(wc3_items, carrier321_inventory_shop_command_uses_patron_not_selection) {item321_bound_carrier(false,true);}
+
 TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"
