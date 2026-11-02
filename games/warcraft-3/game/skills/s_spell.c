@@ -1821,9 +1821,10 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -0.25f);
         break;
     case MAKEFOURCC('B','U','f','a'):
+        /* Frost Armor stores its armor bonus in DataB; DataA is not armor. */
         if (!ability) ability = MAKEFOURCC('A','U','f','a');
         status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT,
-                                 S_SpellData(ability, rank, 1));
+                                 S_SpellData(ability, rank, 2));
         break;
     case MAKEFOURCC('B','i','n','f'):
         if (!ability) ability = MAKEFOURCC('A','i','n','f');
