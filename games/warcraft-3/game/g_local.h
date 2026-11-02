@@ -3373,6 +3373,8 @@ void         G_FreeModels(void);
 // g_ai.c
 void ai_birth(edict_t *);
 void ai_stand(edict_t *);
+/* Autonomous ability-family decisions shared by neutral creeps and computer slots. */
+bool G_TryUnitTacticalCast(edict_t *);
 void ai_pain(edict_t *);
 void ai_idle(edict_t *);
 void unit_runwait(edict_t *, void (*callback)(edict_t * ));
